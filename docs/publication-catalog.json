@@ -3,6 +3,7 @@
   "documents": [
     {"id":"overview","source":"README.md","optional":false,"home":true},
     {"id":"documentation-index","source":"docs/index.md","optional":false,"home":false},
+    {"id":"evaluation-guide","source":"docs/evaluation-guide.md","optional":false,"home":false},
     {"id":"consumer-guide","source":"docs/consumer-guide.md","optional":false,"home":false},
     {"id":"webapp-product-walkthrough","source":"docs/guides/webapp-product-walkthrough.md","optional":false,"home":false},
     {"id":"skill-first-use-walkthrough","source":"docs/guides/skill-first-use-walkthrough.md","optional":false,"home":false},
@@ -99,7 +100,10 @@
     {"source":"components/lifecycle.release-evidence/files/schemas","destination":"lifecycle/release-evidence/schemas","optional":false},
     {"source":"components/lifecycle.release-bundle/files/contracts","destination":"lifecycle/release-bundle/contracts","optional":false},
     {"source":"components/lifecycle.release-bundle/files/schemas","destination":"lifecycle/release-bundle/schemas","optional":false},
-    {"source":"components/lifecycle.composition-state/files/.template-composition/composition-lock.schema.json","destination":"lifecycle/composition-state/composition-lock.schema.json","optional":false}
+    {"source":"components/lifecycle.composition-state/files/.template-composition/composition-lock.schema.json","destination":"lifecycle/composition-state/composition-lock.schema.json","optional":false},
+    {"source":"examples/evaluations/small-model-clean-room-protocol.txt","destination":"evaluation/small-model-clean-room-protocol.txt","optional":false},
+    {"source":"examples/evaluations/evaluation-scorecard.txt","destination":"evaluation/evaluation-scorecard.txt","optional":false},
+    {"source":"examples/evaluations/evaluation-scorecard.schema.json","destination":"evaluation/evaluation-scorecard.schema.json","optional":false}
   ],
   "glossary": {"source":"docs/glossary.yml"}
 }

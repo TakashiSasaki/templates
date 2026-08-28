@@ -6,7 +6,7 @@
       "canonical": "README.md",
       "language": "ja",
       "translation": "translations/ja/README.md",
-      "canonical_blob_sha": "dcd5faeb9f526c3b607fc64e4aa86bcf785b28c9",
+      "canonical_blob_sha": "24e3f773bcb5757bdd287177ebbb8ad30e09715c",
       "surfaces": ["reader"]
     },
     {
@@ -66,6 +66,13 @@
       "surfaces": ["reader"]
     },
     {
+      "canonical": "docs/evaluation-guide.md",
+      "language": "ja",
+      "translation": "translations/ja/docs/evaluation-guide.md",
+      "canonical_blob_sha": "9d914a63a72ebb3ecca86bbab15891606e2be408",
+      "surfaces": ["reader"]
+    },
+    {
       "canonical": "docs/guides/skill-first-use-walkthrough.md",
       "language": "ja",
       "translation": "translations/ja/docs/guides/skill-first-use-walkthrough.md",
@@ -83,14 +90,14 @@
       "canonical": "docs/index.md",
       "language": "ja",
       "translation": "translations/ja/docs/index.md",
-      "canonical_blob_sha": "0a78525a3b4a9198187eb5e5f8e05825921e8be0",
+      "canonical_blob_sha": "bcb579c3e05a1c9e105665858e68a6e9def1cfc1",
       "surfaces": ["reader", "guided"]
     },
     {
       "canonical": "docs/publication-catalog.md",
       "language": "ja",
       "translation": "translations/ja/docs/publication-catalog.md",
-      "canonical_blob_sha": "80207656fc6c1ee711d7ac5860c64357517a34b5",
+      "canonical_blob_sha": "842a5f698a922b08ad323a1c866871ff956ed2b4",
       "surfaces": ["reader"]
     },
     {

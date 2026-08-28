@@ -19,6 +19,7 @@ catalog は次の explanatory Markdown を公開します。
 - Web application artifact model。
 - 再利用可能な runtime、CLI、MCP、MCP Apps、browser、service capability。
 - 再利用可能な composition-state、contract-evolution、implementation-evidence、release-execution、release-evidence、release-bundle lifecycle contract。
+- evaluator を formal protocol、scorecard guide、scorecard schema、output sequence へ案内する、canonical な independent clean-room evaluation entry point。
 - 旧 monolithic Skill / Webapp responsibility が現在の authority へ移動した理由を説明し、stage-level detail の immutable PR provenance を示す、統合された1つの authority-migration history。
 
 publication home は branch の `README.md` です。`docs/index.md` は guided navigation が使う provider-owned progressive-disclosure root です。
@@ -62,6 +63,9 @@ Machine-readable source authority は rendered documentation ではなく suppor
 - Webapp domain contract / schema seed。
 - 再利用可能な lifecycle contract / schema seed。
 - consumer composition-lock schema。
+- formal clean-room evaluation protocol、scorecard guide、scorecard schema。
+
+Evaluation material は通常の materialized consumer contract ではなく、maintainer/evaluator authority です。reader entry document と正確な supporting asset として公開されますが、consumer `agent.json` bootstrap に evaluator mode を追加しません。
 
 stable installer descriptor は、remote installer script revision、installed skill-source revision、その skill が選択する Composition toolchain revision という3つの full-SHA role を分離します。repository CI は、それらの identity を Git history、pinned installer source、skill runtime manifest、runtime-lock digest、strict な `toolchain -> skill source -> installer -> publication` ancestry と照合して検証します。そのため descriptor 自体は、`release/README.md` が reader-facing publication ではなくても machine-readable authority として公開されます。
 

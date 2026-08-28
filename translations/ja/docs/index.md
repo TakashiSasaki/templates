@@ -5,6 +5,7 @@
 ## ここから始める
 
 - [Webapp product walkthrough](guides/webapp-product-walkthrough.md) — 初めて Web application を作る場合はここから始めます。別 product repository から Task Ledger を zero-to-one で進め、installation、`composition.json`、`inspect -> plan -> apply -> validate`、ownership、implementation、product tests、evidence、optional Policy、後続 update/upgrade までを一つの経路で追体験します。
+- [Composition の評価](evaluation-guide.md) — canonical な independent clean-room evaluator entry point です。formal protocol に従い、scorecard guide を使用し、machine-readable scorecard を schema で validation して、transcript chronology を保持します。
 - [Composition の利用方法](consumer-guide.md) — consumer repository の作成、inspect、update、upgrade、recovery、ownership、conflict を扱うタスク指向の workflow です。人間が terminal で直接進める場合は `inspect`、`plan`、`apply`、`validate` に `--format human` を付けて簡潔な next-action guidance を表示できます。automation は引き続き default JSON を使用してください。
 - [Recipe と component の選び方](../catalog/README.md) — `skill` と `webapp` のどちらを使うかを決め、product が実際に必要とする application capability または lifecycle behavior だけを選択します。
 - [プロダクトリリースの生成](release-guide.md) — product evidence、fixed executable argv、exact candidate revision、transactional release production、rollback、recovery を説明します。
