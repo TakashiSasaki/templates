@@ -163,7 +163,6 @@ class DeferredImplementationEvidenceTests(unittest.TestCase):
             result = subprocess.run(
                 [
                     sys.executable,
-                    "-I",
                     ".template-composition/validators/validate_implementation_evidence.py",
                     ".",
                     "--release-readiness",

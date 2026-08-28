@@ -220,7 +220,6 @@ class LifecycleNextActionsTests(unittest.TestCase):
                 "action": "check-release-readiness",
                 "argv": [
                     "{python}",
-                    "-I",
                     ".template-composition/validators/validate_implementation_evidence.py",
                     ".",
                     "--release-readiness",
