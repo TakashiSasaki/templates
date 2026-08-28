@@ -73,7 +73,8 @@ class AgentBootstrapManifestTests(unittest.TestCase):
             {
                 "role": "artifact-capability-lifecycle-semantics",
                 "publication_revision": "a" * 40,
-                "source_path": "README.md",
+                "overview_document_id": bootstrap.COMPOSITION_OVERVIEW_DOCUMENT_ID,
+                "publication_catalog_path": bootstrap.PUBLICATION_CATALOG_PATH,
             },
         )
         self.assertEqual(
@@ -81,7 +82,8 @@ class AgentBootstrapManifestTests(unittest.TestCase):
             {
                 "role": "coding-agent-operating-policy",
                 "publication_revision": "b" * 40,
-                "source_path": "README.md",
+                "overview_document_id": bootstrap.POLICY_OVERVIEW_DOCUMENT_ID,
+                "publication_catalog_path": bootstrap.PUBLICATION_CATALOG_PATH,
                 "relationship_to_composition": "independent-optional",
             },
         )
@@ -89,6 +91,7 @@ class AgentBootstrapManifestTests(unittest.TestCase):
             manifest["authorities"]["site"],
             {
                 "role": "publication-integration",
+                "overview_document_id": bootstrap.SITE_OVERVIEW_DOCUMENT_ID,
                 "consumer_repository_mutation": False,
             },
         )
@@ -269,11 +272,47 @@ class AgentBootstrapManifestTests(unittest.TestCase):
             bootstrap.COEXISTENCE_URL,
         )
         self.assertFalse(manifest["authorities"]["site"]["consumer_repository_mutation"])
+
+        site_manifest = json.loads((ROOT / "site-manifest.json").read_text(encoding="utf-8"))
+        document_ids: set[str] = set()
+
+        def collect_document_ids(nodes: list[dict[str, object]]) -> None:
+            for node in nodes:
+                publication = node.get("publication")
+                document = node.get("document")
+                if isinstance(publication, str) and isinstance(document, str):
+                    document_ids.add(f"{publication}:{document}")
+                children = node.get("children")
+                if isinstance(children, list):
+                    collect_document_ids(children)
+
+        collect_document_ids(site_manifest["navigation"])
+        for semantic_id in (
+            manifest["authorities"]["composition"]["overview_document_id"],
+            manifest["authorities"]["policy"]["overview_document_id"],
+            manifest["authorities"]["site"]["overview_document_id"],
+            manifest["integration_contracts"]["policy_composition_coexistence"]["document_id"],
+        ):
+            with self.subTest(semantic_id=semantic_id):
+                self.assertIn(semantic_id, document_ids)
+
         self.assertEqual(manifest["$schema"], schema_value["$id"])
         self.assertEqual(manifest["canonical_url"], bootstrap.CANONICAL_URL)
         self.assertEqual(manifest["schema_version"], 3)
         self.assertIn("authorities", schema_value["required"])
         self.assertIn("integration_contracts", schema_value["required"])
+        self.assertIn(
+            "overview_document_id",
+            schema_value["properties"]["authorities"]["properties"]["composition"]["required"],
+        )
+        self.assertIn(
+            "overview_document_id",
+            schema_value["properties"]["authorities"]["properties"]["policy"]["required"],
+        )
+        self.assertIn(
+            "overview_document_id",
+            schema_value["properties"]["authorities"]["properties"]["site"]["required"],
+        )
         self.assertIn(
             "instructions_url",
             schema_value["properties"]["composition"]["properties"]["skill"]["required"],
