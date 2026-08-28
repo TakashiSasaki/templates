@@ -365,6 +365,7 @@ def requirement_traceability_errors(
         requirement.get("id")
         for requirement in requirements
         if isinstance(requirement, dict)
+        and isinstance(requirement.get("id"), str)
     ]
     for duplicate in sorted(_duplicates(requirement_ids)):
         errors.append(f"duplicate implementation-evidence requirement id: {duplicate}")
@@ -422,7 +423,13 @@ def requirement_traceability_errors(
         if not record_refs:
             errors.append(f"{owner}: recordIds must contain at least one record")
             continue
-        for duplicate in sorted(_duplicates(record_refs)):
+        for duplicate in sorted(
+            _duplicates([
+                record_id
+                for record_id in record_refs
+                if isinstance(record_id, str)
+            ])
+        ):
             errors.append(f"{owner}: duplicate record reference: {duplicate}")
 
         linked_target_signatures: list[tuple[Any, ...]] = []
@@ -625,7 +632,9 @@ def implementation_evidence_errors(
             record.get("negativeEvidence", [])
         )
         proof_ids.extend(
-            proof.get("id") for proof in proofs if isinstance(proof, dict)
+            proof.get("id")
+            for proof in proofs
+            if isinstance(proof, dict) and isinstance(proof.get("id"), str)
         )
         for proof in proofs:
             if not isinstance(proof, dict):
