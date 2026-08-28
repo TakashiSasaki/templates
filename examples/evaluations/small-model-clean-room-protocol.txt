@@ -27,7 +27,7 @@ Do not put any of the following into the agent-visible task unless they are them
 - exact instructions for moving repository-owned state between internal lifecycle modes;
 - evaluator scoring questions, chronology assertions, or expected internal file mutations.
 
-The evaluated agent must discover repository-specific mechanics from the repository's own public consumer path. Evaluator-side chronology and scoring rules are not part of the agent-visible task. Keep evaluator orchestration in the evaluator's own context; do not copy it into the consumer workspace, quote it in the initial agent message, or point the agent at evaluation fixtures as an alternate bootstrap path.
+The evaluated agent must discover repository-specific mechanics from the repository's own public consumer path. Evaluator-side chronology and scoring rules are not part of the agent-visible task. Keep evaluator orchestration in the evaluator's own context; do not copy it into the consumer workspace or quote it in the initial agent message; do not point the agent at evaluation fixtures as an alternate bootstrap path.
 
 If the repository itself contains generic evaluation documentation and the agent independently discovers it during ordinary exploration, record that discovery rather than silently suppressing it. The evaluator must not make those files a privileged hidden entry point.
 
