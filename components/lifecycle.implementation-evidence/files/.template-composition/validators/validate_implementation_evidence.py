@@ -474,9 +474,12 @@ def requirement_traceability_errors(
 
 
 def release_readiness_errors(
-    evidence: dict[str, Any], root: Path | None = None
+    evidence: Any, root: Path | None = None
 ) -> list[str]:
     """Return blockers that prevent approved release evidence."""
+
+    if not isinstance(evidence, dict):
+        return ["release readiness blocked: implementation evidence must be an object"]
 
     mode = evidence.get("mode")
     if mode != "product":
@@ -485,8 +488,16 @@ def release_readiness_errors(
             f"{mode!r} is not 'product'"
         ]
 
-    errors = requirement_traceability_errors(evidence)
-    errors.extend(proof_execution_errors(evidence, root))
+    if root is None:
+        errors = requirement_traceability_errors(evidence)
+        errors.extend(proof_execution_errors(evidence, root))
+    else:
+        try:
+            manifest = load_manifest(root)
+        except Exception as exc:
+            errors = [f"cannot load implementation-evidence contract manifest: {exc}"]
+        else:
+            errors = implementation_evidence_errors(root, manifest, evidence)
     records = evidence.get("records", [])
     if not isinstance(records, list):
         return errors + ["implementation-evidence records must be an array"]
@@ -526,13 +537,13 @@ def release_readiness_errors(
     return errors
 
 
-def validate(root: Path) -> list[str]:
-    errors: list[str] = []
-    try:
-        manifest = load_manifest(root)
-        evidence = load_json(root / "contracts/implementation-evidence.json")
-    except Exception as exc:
-        return [f"cannot load implementation evidence: {exc}"]
+def implementation_evidence_errors(
+    root: Path,
+    manifest: dict[str, Any],
+    evidence: Any,
+) -> list[str]:
+    """Validate one already-loaded implementation-evidence document."""
+
     if not isinstance(evidence, dict):
         return ["implementation evidence must be an object"]
 
@@ -541,9 +552,21 @@ def validate(root: Path) -> list[str]:
     records = evidence.get("records", [])
     requirements = evidence.get("requirements", [])
     mode = evidence.get("mode")
-    command_ids = [entry.get("id") for entry in commands if isinstance(entry, dict)]
-    gate_ids = [entry.get("id") for entry in gates if isinstance(entry, dict)]
-    record_ids = [entry.get("id") for entry in records if isinstance(entry, dict)]
+    command_ids = [
+        entry.get("id")
+        for entry in commands
+        if isinstance(entry, dict) and isinstance(entry.get("id"), str)
+    ]
+    gate_ids = [
+        entry.get("id")
+        for entry in gates
+        if isinstance(entry, dict) and isinstance(entry.get("id"), str)
+    ]
+    record_ids = [
+        entry.get("id")
+        for entry in records
+        if isinstance(entry, dict) and isinstance(entry.get("id"), str)
+    ]
     for label, values in (
         ("command", command_ids),
         ("release gate", gate_ids),
@@ -633,6 +656,13 @@ def validate(root: Path) -> list[str]:
         errors.append(f"unused implementation-evidence command: {unused}")
     return errors
 
+def validate(root: Path) -> list[str]:
+    try:
+        manifest = load_manifest(root)
+        evidence = load_json(root / "contracts/implementation-evidence.json")
+    except Exception as exc:
+        return [f"cannot load implementation evidence: {exc}"]
+    return implementation_evidence_errors(root, manifest, evidence)
 
 def main() -> int:
     parser = argparse.ArgumentParser()

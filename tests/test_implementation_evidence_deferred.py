@@ -241,6 +241,66 @@ class DeferredImplementationEvidenceTests(unittest.TestCase):
                 )
             )
 
+    def test_machine_action_reports_non_object_evidence_without_traceback(self) -> None:
+        result_schema = json.loads(
+            READINESS_RESULT_SCHEMA_PATH.read_text(encoding="utf-8")
+        )
+        for value in ([], "hello"):
+            with self.subTest(value=value), tempfile.TemporaryDirectory() as temp_dir:
+                root = Path(temp_dir)
+                contracts = root / "contracts"
+                contracts.mkdir(parents=True)
+                (contracts / "manifest.json").write_text(
+                    json.dumps({"contracts": []}),
+                    encoding="utf-8",
+                )
+                (contracts / "implementation-evidence.json").write_text(
+                    json.dumps(value),
+                    encoding="utf-8",
+                )
+                result = self.run_validator(
+                    root,
+                    "--release-readiness",
+                    "--format",
+                    "json",
+                )
+                self.assertNotEqual(result.returncode, 0)
+                self.assertEqual(result.stderr, "")
+                payload = json.loads(result.stdout)
+                Draft202012Validator(result_schema).validate(payload)
+                self.assertEqual(payload["release_readiness"], "not-ready")
+                self.assertTrue(
+                    any(
+                        "must be an object" in blocker
+                        for blocker in payload["blocking_conditions"]
+                    )
+                )
+
+    def test_machine_action_rejects_ungated_proof_command(self) -> None:
+        value = product_evidence("verified")
+        value["releaseGates"][0]["commandIds"] = []
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self.write_fixture(root, value)
+            result = self.run_validator(
+                root,
+                "--release-readiness",
+                "--format",
+                "json",
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(result.stderr, "")
+            payload = json.loads(result.stdout)
+            self.assertEqual(payload["release_readiness"], "not-ready")
+            self.assertTrue(
+                any(
+                    "proof command browser-proof is not executed by a selected release gate"
+                    in blocker
+                    for blocker in payload["blocking_conditions"]
+                ),
+                payload["blocking_conditions"],
+            )
+
     def test_json_format_requires_release_readiness_mode(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             result = self.run_validator(Path(temp_dir), "--format", "json")
