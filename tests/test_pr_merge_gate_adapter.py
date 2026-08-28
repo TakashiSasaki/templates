@@ -3,9 +3,12 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+import pytest
 import yaml
 
+from agent_policy.config import package_root
 from agent_policy.policy_loader import parse_policy
+from agent_policy.renderer import NON_GENERATED_SKILLS, render_skill
 
 ROOT = Path(__file__).resolve().parents[1]
 SKILL = ROOT / "skills" / "pr-merge-gate" / "SKILL.md"
@@ -49,6 +52,15 @@ def test_adapter_declares_policy_authority_boundary() -> None:
         "if the `pull-request` profile changes, this adapter must be reviewed",
     ):
         assert invariant in text
+
+
+def test_adapter_is_excluded_from_generated_skill_catalog() -> None:
+    skill_name = "pr-merge-gate"
+    assert (package_root() / "skills" / skill_name).is_dir()
+    assert skill_name in NON_GENERATED_SKILLS
+
+    with pytest.raises(ValueError, match=f"Unknown generated skill: {skill_name}"):
+        render_skill(skill_name)
 
 
 def test_adapter_keeps_provider_mechanics_outside_atomic_policy() -> None:
