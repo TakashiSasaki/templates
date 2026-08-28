@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -13,6 +14,16 @@ COMPOSER = ROOT / "scripts" / "compose.py"
 
 
 class PlanningTargetProofStrengthTests(unittest.TestCase):
+    _baseline_temp = None
+    _baseline_target: Path | None = None
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        if cls._baseline_temp is not None:
+            cls._baseline_temp.cleanup()
+            cls._baseline_temp = None
+            cls._baseline_target = None
+
     def write_json(self, path: Path, value: object) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
@@ -96,30 +107,42 @@ class PlanningTargetProofStrengthTests(unittest.TestCase):
         }
 
     def materialize(self, root: Path) -> Path:
-        target = root / "consumer"
-        config = root / "composition.json"
-        self.write_json(
-            config,
-            {
-                "schema_version": 1,
-                "recipe": "webapp",
-                "components": {
-                    "include": ["capability.cli", "capability.service", "capability.web-interface", "capability.mcp-apps"],
-                    "exclude": [],
+        cls = type(self)
+        if cls._baseline_target is None:
+            baseline_temp = tempfile.TemporaryDirectory()
+            baseline_root = Path(baseline_temp.name)
+            baseline_target = baseline_root / "consumer"
+            config = baseline_root / "composition.json"
+            self.write_json(
+                config,
+                {
+                    "schema_version": 1,
+                    "recipe": "webapp",
+                    "components": {
+                        "include": ["capability.cli", "capability.service", "capability.web-interface", "capability.mcp-apps"],
+                        "exclude": [],
+                    },
+                    "parameters": {},
                 },
-                "parameters": {},
-            },
-        )
-        result = subprocess.run(
-            [sys.executable, str(COMPOSER), "apply", "--config", str(config), "--target", str(target)],
-            cwd=ROOT,
-            text=True,
-            capture_output=True,
-            check=False,
-        )
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        for name, contract in self.planning_contracts().items():
-            self.write_json(target / "contracts" / name, contract)
+            )
+            result = subprocess.run(
+                [sys.executable, str(COMPOSER), "apply", "--config", str(config), "--target", str(baseline_target)],
+                cwd=ROOT,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            for name, contract in self.planning_contracts().items():
+                self.write_json(baseline_target / "contracts" / name, contract)
+            cls._baseline_temp = baseline_temp
+            cls._baseline_target = baseline_target
+
+        target = root / "consumer"
+        # This module validates planning semantics of the materialized consumer,
+        # not Composer apply itself. Clone one immutable baseline so every test
+        # still receives an isolated filesystem without re-running apply.
+        shutil.copytree(cls._baseline_target, target)
         return target
 
     def validate(self, target: Path, evidence: dict) -> tuple[subprocess.CompletedProcess[str], dict]:
