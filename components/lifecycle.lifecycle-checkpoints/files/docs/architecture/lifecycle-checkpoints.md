@@ -26,6 +26,8 @@ The checkpoint component owns `.template-composition/lifecycle-checkpoint-action
 
 The registry separates caller-owned placeholders such as `{python}` and `{checkpoint_id}` from provider-owned bindings. For the product transition, `{latest_checkpoint_id}` is bound to `latest-checkpoint-id`, allowing the lifecycle projection to resolve the exact current planning checkpoint while leaving the caller to choose the interpreter and new checkpoint ID. Commands remain argument vectors rather than shell strings, so no shell quoting contract is introduced.
 
+The registry is a closed managed contract for runtime metadata: unknown action names, a non-canonical schema reference, undeclared placeholders, or provider bindings that are not consumed by the selected argv are rejected rather than ignored. This prevents a syntactically plausible but semantically ambiguous registry from becoming executable lifecycle guidance.
+
 `lifecycle.composition-state` may project one of these command templates after ordinary selected-component validation succeeds. It does not own the templates and must fail closed if the managed registry cannot be interpreted. Checkpoint ordering, parentage, validation, transactionality, and ID acceptance continue to be enforced by `checkpoint.py` and the checkpoint validator.
 
 ## Snapshot authority
