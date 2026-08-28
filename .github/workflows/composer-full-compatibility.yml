@@ -1,0 +1,243 @@
+name: Composition full compatibility qualification
+
+on:
+  push:
+    tags:
+      - 'composition-compatibility-*'
+  pull_request:
+    branches:
+      - composition
+    types:
+      - labeled
+
+permissions:
+  contents: read
+
+concurrency:
+  group: composition-full-compatibility-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qualify:
+    name: recognize explicit compatibility checkpoint
+    if: ${{ github.event_name == 'push' || github.event.label.name == 'ci/full-compatibility' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Record qualification request
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          CANDIDATE_SHA: ${{ github.sha }}
+          PR_LABEL: ${{ github.event.label.name || '' }}
+        run: |
+          {
+            echo '### Composition full compatibility qualification'
+            echo
+            echo "- trigger: \`$EVENT_NAME\`"
+            echo "- candidate: \`$CANDIDATE_SHA\`"
+            if [ -n "$PR_LABEL" ]; then
+              echo "- explicit label: \`$PR_LABEL\`"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  compatibility-clean-runtime:
+    name: compatibility clean / ${{ matrix.os }} / Python ${{ matrix.python-version }}
+    needs:
+      - qualify
+    if: ${{ needs.qualify.result == 'success' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            pip-config-file: /dev/null
+            python-version: "3.11"
+          - os: ubuntu-24.04
+            pip-config-file: /dev/null
+            python-version: "3.12"
+          - os: ubuntu-24.04
+            pip-config-file: /dev/null
+            python-version: "3.13"
+          - os: ubuntu-24.04
+            pip-config-file: /dev/null
+            python-version: "3.14"
+          - os: windows-2022
+            pip-config-file: NUL
+            python-version: "3.11"
+          - os: windows-2022
+            pip-config-file: NUL
+            python-version: "3.12"
+          - os: windows-2022
+            pip-config-file: NUL
+            python-version: "3.13"
+          - os: windows-2022
+            pip-config-file: NUL
+            python-version: "3.14"
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    env:
+      PYTHONHOME: ""
+      PYTHONPATH: ""
+      PYTHONUSERBASE: ""
+      PYTHONNOUSERSITE: "1"
+      PIP_PYTHON: ""
+      PIP_CACHE_DIR: ""
+      PIP_NO_CACHE_DIR: ""
+      PIP_QUIET: ""
+      PIP_LOG: ""
+      PIP_CONFIG_FILE: ${{ matrix.pip-config-file }}
+    steps:
+      - name: Check out repository with Composition history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Build and exercise clean consumer runtime
+        run: python -I scripts/smoke_test_runtime_distribution.py
+
+  compatibility-materialized-validation:
+    name: compatibility materialized / ${{ matrix.os }} / Python ${{ matrix.python-version }}
+    needs:
+      - qualify
+    if: ${{ needs.qualify.result == 'success' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            pip-config-file: /dev/null
+            python-version: "3.11"
+          - os: ubuntu-24.04
+            pip-config-file: /dev/null
+            python-version: "3.12"
+          - os: ubuntu-24.04
+            pip-config-file: /dev/null
+            python-version: "3.13"
+          - os: ubuntu-24.04
+            pip-config-file: /dev/null
+            python-version: "3.14"
+          - os: windows-2022
+            pip-config-file: NUL
+            python-version: "3.11"
+          - os: windows-2022
+            pip-config-file: NUL
+            python-version: "3.12"
+          - os: windows-2022
+            pip-config-file: NUL
+            python-version: "3.13"
+          - os: windows-2022
+            pip-config-file: NUL
+            python-version: "3.14"
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    env:
+      PYTHONHOME: ""
+      PYTHONPATH: ""
+      PYTHONUSERBASE: ""
+      PYTHONNOUSERSITE: "1"
+      PIP_PYTHON: ""
+      PIP_CACHE_DIR: ""
+      PIP_NO_CACHE_DIR: ""
+      PIP_QUIET: ""
+      PIP_LOG: ""
+      PIP_CONFIG_FILE: ${{ matrix.pip-config-file }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Exercise materialized validation without host site packages
+        run: python -I scripts/smoke_test_materialized_validation.py
+
+  compatibility-skill-runner:
+    name: compatibility installed skill / ${{ matrix.os }} / Python ${{ matrix.python-version }}
+    needs:
+      - qualify
+    if: ${{ needs.qualify.result == 'success' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            pip-config-file: /dev/null
+            python-version: "3.11"
+          - os: ubuntu-24.04
+            pip-config-file: /dev/null
+            python-version: "3.12"
+          - os: ubuntu-24.04
+            pip-config-file: /dev/null
+            python-version: "3.13"
+          - os: ubuntu-24.04
+            pip-config-file: /dev/null
+            python-version: "3.14"
+          - os: windows-2022
+            pip-config-file: NUL
+            python-version: "3.11"
+          - os: windows-2022
+            pip-config-file: NUL
+            python-version: "3.12"
+          - os: windows-2022
+            pip-config-file: NUL
+            python-version: "3.13"
+          - os: windows-2022
+            pip-config-file: NUL
+            python-version: "3.14"
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    env:
+      PYTHONHOME: ""
+      PYTHONPATH: ""
+      PYTHONUSERBASE: ""
+      PYTHONNOUSERSITE: "1"
+      PIP_PYTHON: ""
+      PIP_CACHE_DIR: ""
+      PIP_NO_CACHE_DIR: ""
+      PIP_QUIET: ""
+      PIP_LOG: ""
+      PIP_CONFIG_FILE: ${{ matrix.pip-config-file }}
+    steps:
+      - name: Check out runner source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install skill and exercise immutable runner
+        run: python -I scripts/smoke_test_skill_runner.py
+
+      - name: Download and exercise immutable remote installer candidate
+        run: python -I scripts/smoke_test_remote_skill_installer.py
+
+  validate:
+    name: full compatibility validate
+    if: ${{ always() && (github.event_name == 'push' || github.event.label.name == 'ci/full-compatibility') }}
+    needs:
+      - qualify
+      - compatibility-clean-runtime
+      - compatibility-materialized-validation
+      - compatibility-skill-runner
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Require complete qualification outcome
+        env:
+          QUALIFY_RESULT: ${{ needs.qualify.result }}
+          COMPATIBILITY_CLEAN_RESULT: ${{ needs.compatibility-clean-runtime.result }}
+          COMPATIBILITY_MATERIALIZED_RESULT: ${{ needs.compatibility-materialized-validation.result }}
+          COMPATIBILITY_SKILL_RESULT: ${{ needs.compatibility-skill-runner.result }}
+        run: |
+          test "$QUALIFY_RESULT" = success
+          test "$COMPATIBILITY_CLEAN_RESULT" = success
+          test "$COMPATIBILITY_MATERIALIZED_RESULT" = success
+          test "$COMPATIBILITY_SKILL_RESULT" = success
