@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 import unittest
 from pathlib import Path
@@ -9,6 +10,8 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 AGENTS = ROOT / "AGENTS.md"
 SKILLS_ROOT = ROOT / ".agents" / "skills"
+MERGE_GATE = SKILLS_ROOT / "pr-merge-gate" / "SKILL.md"
+MERGE_GATE_SOURCE = SKILLS_ROOT / "pr-merge-gate" / "source.json"
 EXPECTED_SKILLS = {
     "pr-merge-gate",
     "site-browser-regression-triage",
@@ -36,6 +39,7 @@ BROWSER_CHECK_SCRIPTS = (
     "scripts/check_search_history_review_regressions.py",
 )
 NAME_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+SHA_PATTERN = re.compile(r"^[0-9a-f]{40}$")
 
 
 def load_skill(path: Path) -> tuple[dict[str, object], str, str]:
@@ -113,7 +117,10 @@ class AgentSkillContractTests(unittest.TestCase):
                 self.assertIn(reference, exact_head)
 
         self.assertIn("exactly `composition` and `policy`", publication)
-        self.assertIn("exactly `composition` and `policy`", AGENTS.read_text(encoding="utf-8"))
+        self.assertIn(
+            "exactly `composition` and `policy`",
+            AGENTS.read_text(encoding="utf-8"),
+        )
 
     def test_site_acceptance_hands_final_merge_authorization_to_merge_gate(self) -> None:
         index = AGENTS.read_text(encoding="utf-8")
@@ -136,67 +143,69 @@ class AgentSkillContractTests(unittest.TestCase):
         self.assertIn("Final merge authorization for every Site pull request", index)
         self.assertIn("reviews = 0", index)
 
-    def test_merge_gate_fails_closed_for_missing_pending_stale_or_self_review(self) -> None:
-        skill = (SKILLS_ROOT / "pr-merge-gate" / "SKILL.md").read_text(
-            encoding="utf-8"
-        )
+    def test_merge_gate_source_pins_immutable_policy_adapter_identity(self) -> None:
+        source = json.loads(MERGE_GATE_SOURCE.read_text(encoding="utf-8"))
+        self.assertEqual(source["schema_version"], 1)
+        self.assertEqual(source["kind"], "policy-adapter-reference")
+        self.assertEqual(source["repository"], "TakashiSasaki/templates")
+        self.assertEqual(source["path"], "skills/pr-merge-gate/SKILL.md")
+        self.assertRegex(source["revision"], SHA_PATTERN)
+        self.assertRegex(source["blob_sha"], SHA_PATTERN)
+        self.assertNotEqual(source["revision"], source["blob_sha"])
+
+    def test_merge_gate_shim_declares_reference_not_policy_authority(self) -> None:
+        skill = MERGE_GATE.read_text(encoding="utf-8").lower()
         for invariant in (
-            "`reviews = 0 -> MERGE_ALLOWED` is forbidden",
-            "completed independent review evidence count is zero",
-            "self-review does not satisfy this requirement",
-            "reviewer unavailable != review waived",
-            "Never omit `expected_head_sha`",
-            "Final live-state refresh",
+            "repository-local reference shim",
+            "does not define shared pull-request policy",
+            "does not duplicate the adapter's github orchestration semantics",
+            "immutable source identity is recorded in the adjacent `source.json`",
+            "current site code, tests, workflows, `maintenance.md`, `publishing.md`",
         ):
             with self.subTest(invariant=invariant):
-                self.assertIn(invariant.lower(), skill.lower())
+                self.assertIn(invariant, skill)
 
-    def test_merge_gate_defines_all_canonical_blocked_states(self) -> None:
-        skill = (SKILLS_ROOT / "pr-merge-gate" / "SKILL.md").read_text(
-            encoding="utf-8"
-        )
-        for state in (
-            "BLOCKED_CI",
-            "BLOCKED_REVIEW_MISSING",
-            "BLOCKED_REVIEW_PENDING",
-            "BLOCKED_REVIEW_STALE",
-            "BLOCKED_REVIEW_FINDINGS",
-            "BLOCKED_BASE_DRIFT",
-            "BLOCKED_HEAD_CHANGED",
-            "BLOCKED_MERGEABILITY",
-        ):
-            with self.subTest(state=state):
-                self.assertIn(state.lower(), skill.lower())
-
-    def test_merge_gate_success_path_requires_ci_discovery_and_review_completion(self) -> None:
-        skill = (SKILLS_ROOT / "pr-merge-gate" / "SKILL.md").read_text(
-            encoding="utf-8"
-        )
-        self.assertIn(
-            "PR_OPEN -> SCOPE_AUDITED -> CI_DISCOVERED -> CI_GREEN -> "
-            "REVIEW_REQUESTED -> REVIEW_COMPLETED -> FINDINGS_CLEARED -> "
-            "FINAL_STATE_REFRESHED -> MERGE_ALLOWED",
-            skill,
-        )
-        self.assertIn("`SCOPE_AUDITED -> CI_GREEN` is forbidden", skill)
-        self.assertIn("`CI_GREEN -> MERGE_ALLOWED` is forbidden", skill)
-        self.assertIn("`REVIEW_REQUESTED -> MERGE_ALLOWED` is forbidden", skill)
-
-    def test_merge_gate_fails_closed_while_expected_ci_is_not_yet_observable(self) -> None:
-        skill = (SKILLS_ROOT / "pr-merge-gate" / "SKILL.md").read_text(
-            encoding="utf-8"
-        )
+    def test_merge_gate_shim_loads_only_exact_verified_source(self) -> None:
+        skill = MERGE_GATE.read_text(encoding="utf-8").lower()
         for invariant in (
+            "use the github connector to fetch `path` from exactly `revision`",
+            "returned file blob sha equals `blob_sha`",
+            "do not resolve the source through a branch name",
+            "full 40-character lowercase hexadecimal sha",
+            "if any source field is missing, malformed, unavailable, or mismatched",
+            "stop in a blocked state",
+            "source unavailability is a blocked condition",
+        ):
+            with self.subTest(invariant=invariant):
+                self.assertIn(invariant, skill)
+
+    def test_merge_gate_shim_does_not_duplicate_adapter_mechanics(self) -> None:
+        skill = MERGE_GATE.read_text(encoding="utf-8")
+        forbidden = (
+            "CI_DISCOVERY_MIN_OBSERVATION_MINUTES",
             "CI_DISCOVERY_PENDING",
             "CI_CONFIRMED_ABSENT",
-            "CI_DISCOVERY_MIN_OBSERVATION_MINUTES = 10",
-            "zero workflow runs returned` != `workflow did not fire",
-            "at least two independently indexed live views",
-            "Do not close and reopen the pull request",
-            "retrigger mutation != discovery evidence",
+            "BLOCKED_REVIEW_MISSING",
+            "BLOCKED_REVIEW_STALE",
+            "PR_OPEN -> SCOPE_AUDITED",
+            "expected_head_sha",
+            "@hermes review",
+            "check-run",
+            "check-suite",
+        )
+        for term in forbidden:
+            with self.subTest(term=term):
+                self.assertNotIn(term, skill)
+
+    def test_merge_gate_shim_keeps_site_acceptance_separate(self) -> None:
+        skill = MERGE_GATE.read_text(encoding="utf-8").lower()
+        for invariant in (
+            "site-specific scope, browser/pwa, publication, provider-lock, deployment",
+            "site-specific semantic acceptance",
+            "keep site-specific acceptance evidence separate",
         ):
             with self.subTest(invariant=invariant):
-                self.assertIn(invariant.lower(), skill.lower())
+                self.assertIn(invariant, skill)
 
     def test_publication_skill_requires_exact_reviewed_provider_identity(self) -> None:
         skill = (
