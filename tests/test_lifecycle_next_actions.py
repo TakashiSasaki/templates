@@ -227,6 +227,40 @@ class LifecycleNextActionsTests(unittest.TestCase):
             ["inspect", "plan", "apply", "validate"],
         )
 
+    def test_registry_with_unknown_action_fails_closed(self) -> None:
+        original = self.action_registry
+        try:
+            mutated = json.loads(json.dumps(original))
+            mutated["actions"]["unknown-action"] = mutated["actions"][
+                "create-planning-checkpoint"
+            ]
+            self.action_registry = mutated
+            value = self.project("planning", checkpoints_selected=True)
+        finally:
+            self.action_registry = original
+        self.assertEqual(value["lifecycle_stage"], "composition-invalid")
+        self.assertEqual(
+            value["blocking_conditions"],
+            ["checkpoint-command-registry-invalid"],
+        )
+
+    def test_registry_with_unused_provider_binding_fails_closed(self) -> None:
+        original = self.action_registry
+        try:
+            mutated = json.loads(json.dumps(original))
+            mutated["actions"]["create-planning-checkpoint"]["bindings"] = {
+                "{latest_checkpoint_id}": "latest-checkpoint-id"
+            }
+            self.action_registry = mutated
+            value = self.project("planning", checkpoints_selected=True)
+        finally:
+            self.action_registry = original
+        self.assertEqual(value["lifecycle_stage"], "composition-invalid")
+        self.assertEqual(
+            value["blocking_conditions"],
+            ["checkpoint-command-registry-invalid"],
+        )
+
     def test_malformed_selected_checkpoint_ledger_fails_closed(self) -> None:
         value = self.project(
             "planning",
