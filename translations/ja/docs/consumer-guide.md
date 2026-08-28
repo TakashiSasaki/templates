@@ -45,8 +45,8 @@ import sys
 import tempfile
 import urllib.request
 
-url = "https://raw.githubusercontent.com/TakashiSasaki/templates/b862171ed7d8fb7f53cb5a28a0d89eab07ab534e/scripts/install_composition_skill.py"
-expected = "161b9fb7f432eec8cb104f4f49d945c7f8ef5654382fb4607a13ae0de5015cc4"
+url = "https://raw.githubusercontent.com/TakashiSasaki/templates/5a3cfb200ed68d87da1a8e128b61b40401820347/scripts/install_composition_skill.py"
+expected = "114c3375f4edef8aa64f42ab3beeaae246fdf8b960f6eb09868648e6a62cd1ab"
 data = urllib.request.urlopen(url, timeout=30).read()
 actual = hashlib.sha256(data).hexdigest()
 if actual != expected:
@@ -64,7 +64,7 @@ finally:
 
 digest mismatch では installer bytes を書き出す前かつ installer process を起動する前に終了します。出力される verified digest は audit evidence として保存できます。既存 destination にこの Composition skill がある場合は `--replace` を追加できます。`SKILL.md` によって `composition` skill と識別できない directory の replacement は拒否されます。
 
-公開済み immutable identity は役割ごとに分かれています。installer `b862171ed7d8fb7f53cb5a28a0d89eab07ab534e` は skill source `dee6278c275d4c480373acd5b66cfc2c2db4c663` をインストールし、その runtime manifest は stable toolchain `1e8fd592d82670c3d524d5038b8045715bb01038` を選択します。installer bytes はさらに SHA-256 `161b9fb7f432eec8cb104f4f49d945c7f8ef5654382fb4607a13ae0de5015cc4` に固定されています。これらは `release/composition-installer.json` に記録され、Composition CI が repository history から検証します。mutable branch/tag を installer URL に置き換えず、verified bootstrap を downloaded bytes の direct execution に置き換えないでください。
+公開済み immutable identity は役割ごとに分かれています。installer `5a3cfb200ed68d87da1a8e128b61b40401820347` は skill source `8defa866d088de7f8c29bc3a5443dc2df69983dc` をインストールし、その runtime manifest は stable toolchain `199f25731170a6e25d25aa759fa6edc038623f58` を選択します。installer bytes はさらに SHA-256 `114c3375f4edef8aa64f42ab3beeaae246fdf8b960f6eb09868648e6a62cd1ab` に固定されています。これらは `release/composition-installer.json` に記録され、Composition CI が repository history から検証します。mutable branch/tag を installer URL に置き換えず、verified bootstrap を downloaded bytes の direct execution に置き換えないでください。
 
 通常の command shape は次のとおりです。
 
