@@ -47,11 +47,17 @@ class SmallModelCleanRoomProtocolTests(unittest.TestCase):
             "product evidence population",
             "product-state validation",
             "product checkpoint creation",
+            "evaluator change event",
+            "post-change planning checkpoint creation",
+            "first post-change product-code mutation",
+            "post-change evidence population",
+            "post-change product checkpoint creation",
             "first release-readiness evaluation",
             "release-readiness status",
             "repository defect",
             "documentation or discoverability defect",
             "machine-contract defect",
+            "evaluation-methodology defect",
             "evaluator mistake",
             "environment limitation",
             "evidence-capture limitation",
@@ -69,6 +75,35 @@ class SmallModelCleanRoomProtocolTests(unittest.TestCase):
             "product checkpoint must exist before the first release-readiness evaluation",
             "does not retroactively repair lifecycle correctness",
             "Do not infer chronology from the final filesystem",
+        ):
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, self.text)
+
+    def test_protocol_requires_true_staged_disclosure(self) -> None:
+        for phrase in (
+            "Phase A — initial product only",
+            "future requirement must not be visible before the evaluator change event",
+            "prewritten list",
+            "create the added requirement only after Phase A reaches its prerequisite product checkpoint",
+            "Before that checkpoint, the requirement payload does not yet exist",
+            "Evaluator Change Event",
+            "Only after the Phase A product checkpoint exists may the evaluator create and disclose the additional requirement",
+            "new requirement → re-plan/update planning authority → new planning checkpoint → product modification",
+            "change event sent before the required Phase A product checkpoint is a chronology failure",
+        ):
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, self.text)
+
+    def test_protocol_forbids_retrospective_staged_chronology(self) -> None:
+        for phrase in (
+            "added requirement was visible before the event",
+            "evaluation-methodology defect",
+            "evaluator mistake",
+            "first post-change product mutation",
+            "post-change planning checkpoint",
+            "final repository containing the new requirement",
+            "Never infer staged chronology from the final filesystem",
+            "NOT TESTED or BLOCKED",
         ):
             with self.subTest(phrase=phrase):
                 self.assertIn(phrase, self.text)

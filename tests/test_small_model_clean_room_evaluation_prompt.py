@@ -33,8 +33,23 @@ class SmallModelCleanRoomEvaluationPromptTests(unittest.TestCase):
         self.assertIn("implementation-evidence planning state", self.text)
         self.assertIn("empty recordIds", self.text)
         self.assertIn("requiredPositiveProofKinds", self.text)
-        self.assertIn("before the implemented-product milestone can be claimed", self.text)
+        self.assertIn("before the initial implemented-product milestone can be claimed", self.text)
         self.assertIn("Do not collapse unrelated requirements into one catch-all requirement", self.text)
+
+    def test_prompt_is_phase_a_only_and_contains_no_precreated_change_requirement(self) -> None:
+        for phrase in (
+            "This file is Phase A only",
+            "Every explicit REQ-* below belongs to the initial product milestone",
+            "intentionally contains no Phase B requirement",
+            "no prewritten list of candidate change requirements",
+            "do not disclose or create the added requirement until the initial product checkpoint",
+            "creates a new caller-visible requirement with a new REQ-* ID",
+            "separate evaluator/user message identified as the Evaluator Change Event",
+            "must not have existed earlier in this prompt",
+            "Final filesystem state must not be used to reconstruct these facts",
+        ):
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, self.text)
 
     def test_prompt_requires_capability_item_authority_before_coding(self) -> None:
         for phrase in (
@@ -77,11 +92,13 @@ class SmallModelCleanRoomEvaluationPromptTests(unittest.TestCase):
     def test_prompt_requires_machine_auditable_results_and_next_work(self) -> None:
         for phrase in (
             "evaluation-result.json",
-            "requirementResults: one object per explicit REQ-* ID",
+            "requirementResults: one object per disclosed REQ-* ID",
             "nextWork: deterministic ordered remaining actions",
             "implementationMilestone: READY or NOT_READY",
             "releaseReadiness: READY or NOT_READY",
             "without manually interpreting the command transcript",
+            "Evaluator Change Event ID",
+            "first post-change product mutation",
         ):
             with self.subTest(phrase=phrase):
                 self.assertIn(phrase, self.text)
