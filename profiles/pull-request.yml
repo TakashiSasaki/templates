@@ -2,3 +2,9 @@ policy_files:
   - policy/pull-request/target-branch-head-freshness.md
   - policy/pull-request/independent-exact-head-review.md
   - policy/pull-request/review-thread-closure.md
+  - policy/pull-request/exact-head-ci-evidence.md
+  - policy/pull-request/ci-discovery-fail-closed.md
+  - policy/pull-request/current-mergeability.md
+  - policy/pull-request/final-live-state-refresh.md
+  - policy/pull-request/immutable-head-guard.md
+  - policy/pull-request/post-merge-verification.md
