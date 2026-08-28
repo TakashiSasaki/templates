@@ -466,6 +466,40 @@
             "required": [
               "applicable"
             ]
+          }
+        },
+        "required": [
+          "staged_change_chronology"
+        ]
+      },
+      "then": {
+        "properties": {
+          "staged_change_chronology": {
+            "properties": {
+              "change_event_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "added_requirement_ids": {
+                "minItems": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "staged_change_chronology": {
+            "properties": {
+              "applicable": {
+                "const": true
+              }
+            },
+            "required": [
+              "applicable"
+            ]
           },
           "dimensions": {
             "properties": {
