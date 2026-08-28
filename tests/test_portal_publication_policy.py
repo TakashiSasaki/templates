@@ -157,9 +157,10 @@ class PortalPublicationPolicyTests(unittest.TestCase):
             node for node in manifest["navigation"] if node["title"] == "Composition"
         )
         self.assertEqual(
-            [child["title"] for child in composition_group["children"][:6]],
+            [child["title"] for child in composition_group["children"][:7]],
             [
                 "Overview",
+                "Evaluate Composition",
                 "Use Composition",
                 "Webapp product walkthrough",
                 "Produce a product release",
