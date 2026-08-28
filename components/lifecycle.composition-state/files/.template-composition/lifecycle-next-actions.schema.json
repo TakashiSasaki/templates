@@ -3,7 +3,7 @@
   "title": "Composition validation lifecycle projection",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "lifecycle_stage", "implementation_evidence_mode", "release_readiness", "blocking_conditions", "deferred_checks", "deferred_proofs", "next_actions"],
+  "required": ["schema_version", "lifecycle_stage", "implementation_evidence_mode", "release_readiness", "blocking_conditions", "deferred_checks", "deferred_proofs", "next_actions", "conditional_prerequisite_commands"],
   "properties": {
     "schema_version": {"const": 3},
     "lifecycle_stage": {"enum": ["composition-invalid", "scaffold-valid", "implemented-product", "release-ready"]},
@@ -11,7 +11,7 @@
     "release_readiness": {"enum": ["not-evaluated", "not-ready", "ready"]},
     "blocking_conditions": {
       "type": "array", "uniqueItems": true,
-      "items": {"enum": ["composition-validation-failed", "implementation-evidence-missing", "implementation-evidence-invalid", "implementation-evidence-template", "implementation-evidence-planning", "checkpoint-state-invalid", "checkpoint-command-registry-invalid", "release-readiness-command-registry-invalid", "browser-diagnostic-command-registry-invalid", "planning-checkpoint-required", "product-checkpoint-required", "deferred-proof", "release-readiness-not-evaluated"]}
+      "items": {"enum": ["composition-validation-failed", "implementation-evidence-missing", "implementation-evidence-invalid", "implementation-evidence-template", "implementation-evidence-planning", "checkpoint-state-invalid", "checkpoint-command-registry-invalid", "release-readiness-command-registry-invalid", "browser-diagnostic-command-registry-invalid", "release-candidate-command-registry-invalid", "planning-checkpoint-required", "product-checkpoint-required", "deferred-proof", "release-readiness-not-evaluated"]}
     },
     "deferred_checks": {"type": "array", "uniqueItems": true, "items": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"}},
     "deferred_proofs": {"type": "array", "uniqueItems": true, "items": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"}},
@@ -38,6 +38,33 @@
         "output_schema": {
           "type": "string",
           "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[A-Za-z0-9._/-]+$"
+        }
+      }
+    },
+    "conditional_prerequisite_commands": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["condition", "action", "argv", "caller_inputs", "output_schema"],
+        "properties": {
+          "condition": {"const": "before-release-production"},
+          "action": {"const": "verify-release-candidate"},
+          "argv": {
+            "type": "array",
+            "minItems": 1,
+            "items": {"type": "string", "minLength": 1}
+          },
+          "caller_inputs": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {"type": "string", "pattern": "^\\{[a-z_]+\\}$"}
+          },
+          "output_schema": {
+            "type": "string",
+            "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[A-Za-z0-9._/-]+$"
+          }
         }
       }
     }
