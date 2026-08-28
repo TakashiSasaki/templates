@@ -10,6 +10,8 @@
     "repository",
     "canonical_url",
     "purpose",
+    "authorities",
+    "integration_contracts",
     "composition",
     "requirements",
     "bootstrap",
@@ -17,10 +19,64 @@
   ],
   "properties": {
     "$schema": {"const": "https://templates.moukaeritai.work/schemas/agent-bootstrap.schema.json"},
-    "schema_version": {"const": 2},
+    "schema_version": {"const": 3},
     "repository": {"const": "TakashiSasaki/templates"},
     "canonical_url": {"const": "https://templates.moukaeritai.work/agent.json"},
-    "purpose": {"const": "Compose new or existing software repositories"},
+    "purpose": {"const": "Discover authorities and compose new or existing software repositories"},
+    "authorities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["composition", "policy", "site"],
+      "properties": {
+        "composition": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["role", "publication_revision", "source_path"],
+          "properties": {
+            "role": {"const": "artifact-capability-lifecycle-semantics"},
+            "publication_revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+            "source_path": {"const": "README.md"}
+          }
+        },
+        "policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["role", "publication_revision", "source_path", "relationship_to_composition"],
+          "properties": {
+            "role": {"const": "coding-agent-operating-policy"},
+            "publication_revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+            "source_path": {"const": "README.md"},
+            "relationship_to_composition": {"const": "independent-optional"}
+          }
+        },
+        "site": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["role", "consumer_repository_mutation"],
+          "properties": {
+            "role": {"const": "publication-integration"},
+            "consumer_repository_mutation": {"const": false}
+          }
+        }
+      }
+    },
+    "integration_contracts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_composition_coexistence"],
+      "properties": {
+        "policy_composition_coexistence": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["owner", "document_id", "canonical_url"],
+          "properties": {
+            "owner": {"const": "site"},
+            "document_id": {"const": "site:policy-composition-coexistence"},
+            "canonical_url": {"const": "https://templates.moukaeritai.work/coexistence/"}
+          }
+        }
+      }
+    },
     "composition": {
       "type": "object",
       "additionalProperties": false,
