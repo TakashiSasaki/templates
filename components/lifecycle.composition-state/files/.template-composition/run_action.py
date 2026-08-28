@@ -12,6 +12,12 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 CHECKPOINT_RESULT_SCHEMA = ".template-composition/lifecycle-checkpoint-action-result.schema.json"
 READINESS_RESULT_SCHEMA = ".template-composition/implementation-evidence-release-readiness.schema.json"
+_BROWSER_ARGUMENTS = (
+    ("--browser-binary", frozenset({"available", "unavailable", "not-checked"})),
+    ("--webdriver", frozenset({"available", "unavailable", "not-checked"})),
+    ("--compatibility", frozenset({"compatible", "incompatible", "not-checked"})),
+    ("--localhost", frozenset({"allowed", "restricted", "not-checked"})),
+)
 
 
 def _emit_json(value: dict[str, Any]) -> None:
@@ -81,6 +87,43 @@ def _release_readiness() -> int:
     return result.returncode
 
 
+def _browser_prerequisites(arguments: list[str]) -> int:
+    if len(arguments) != 2 * len(_BROWSER_ARGUMENTS):
+        print(
+            "ERROR: diagnose-browser-prerequisites requires four flag/value caller observations",
+            file=sys.stderr,
+        )
+        return 2
+    for index, (expected_flag, allowed) in enumerate(_BROWSER_ARGUMENTS):
+        flag = arguments[index * 2]
+        value = arguments[index * 2 + 1]
+        if flag != expected_flag:
+            print(
+                f"ERROR: browser prerequisite argument {index + 1} must use {expected_flag}",
+                file=sys.stderr,
+            )
+            return 2
+        if value not in allowed:
+            print(
+                f"ERROR: unsupported value for {expected_flag}: {value!r}",
+                file=sys.stderr,
+            )
+            return 2
+    result = _run_provider(
+        "scripts/browser_prerequisite_diagnostics.py",
+        [*arguments, "--format", "json"],
+    )
+    value = _load_object(result.stdout)
+    if result.returncode != 0 or value is None:
+        detail = result.stderr.strip() or result.stdout.strip() or "provider returned no structured result"
+        print(f"ERROR: {detail}", file=sys.stderr)
+        return result.returncode if result.returncode != 0 else 2
+    _emit_json(value)
+    if result.stderr:
+        sys.stderr.write(result.stderr)
+    return 0
+
+
 def _checkpoint(action: str, arguments: list[str]) -> int:
     if action == "create-planning-checkpoint":
         if len(arguments) != 1:
@@ -143,6 +186,8 @@ def main() -> int:
             print("ERROR: check-release-readiness accepts no action arguments", file=sys.stderr)
             return 2
         return _release_readiness()
+    if action == "diagnose-browser-prerequisites":
+        return _browser_prerequisites(arguments)
     if action in {"create-planning-checkpoint", "create-product-checkpoint"}:
         return _checkpoint(action, arguments)
     print(f"ERROR: unknown executable action: {action}", file=sys.stderr)
