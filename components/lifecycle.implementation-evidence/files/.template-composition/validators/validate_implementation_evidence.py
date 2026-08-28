@@ -653,13 +653,21 @@ def main() -> int:
     if args.output_format == "json" and not args.release_readiness:
         parser.error("--format json requires --release-readiness")
     root = Path(args.root).resolve()
-    evidence = load_json(root / "contracts/implementation-evidence.json")
-    errors = (
-        release_readiness_errors(evidence, root)
-        if args.release_readiness
-        else validate(root)
-    )
-    evidence = load_json(root / "contracts/implementation-evidence.json")
+    evidence_path = root / "contracts/implementation-evidence.json"
+    if args.release_readiness:
+        try:
+            evidence = load_json(evidence_path)
+        except (OSError, UnicodeError, ValueError) as exc:
+            evidence = None
+            errors = [f"cannot load implementation evidence: {exc}"]
+        else:
+            errors = release_readiness_errors(evidence, root)
+    else:
+        errors = validate(root)
+        try:
+            evidence = load_json(evidence_path)
+        except (OSError, UnicodeError, ValueError):
+            evidence = None
     records = evidence.get("records", []) if isinstance(evidence, dict) else []
     if not isinstance(records, list):
         records = []

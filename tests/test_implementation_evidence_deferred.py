@@ -122,6 +122,26 @@ class DeferredImplementationEvidenceTests(unittest.TestCase):
         )
         materialize_declared_harnesses(root, value)
 
+    def run_validator(
+        self, root: Path, *arguments: str
+    ) -> subprocess.CompletedProcess[str]:
+        managed = root / ".template-composition" / "validators"
+        managed.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(VALIDATOR_PATH, managed / VALIDATOR_PATH.name)
+        shutil.copy2(COMMON_DIR / "contract_common.py", managed / "contract_common.py")
+        return subprocess.run(
+            [
+                sys.executable,
+                ".template-composition/validators/validate_implementation_evidence.py",
+                ".",
+                *arguments,
+            ],
+            cwd=root,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
     def test_deferred_product_proof_is_structurally_valid(self) -> None:
         value = product_evidence("deferred")
         Draft202012Validator(
@@ -156,23 +176,11 @@ class DeferredImplementationEvidenceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             self.write_fixture(root, value)
-            managed = root / ".template-composition" / "validators"
-            managed.mkdir(parents=True)
-            shutil.copy2(VALIDATOR_PATH, managed / VALIDATOR_PATH.name)
-            shutil.copy2(COMMON_DIR / "contract_common.py", managed / "contract_common.py")
-            result = subprocess.run(
-                [
-                    sys.executable,
-                    ".template-composition/validators/validate_implementation_evidence.py",
-                    ".",
-                    "--release-readiness",
-                    "--format",
-                    "json",
-                ],
-                cwd=root,
-                text=True,
-                capture_output=True,
-                check=False,
+            result = self.run_validator(
+                root,
+                "--release-readiness",
+                "--format",
+                "json",
             )
             self.assertNotEqual(result.returncode, 0)
             self.assertEqual(result.stderr, "")
@@ -189,6 +197,57 @@ class DeferredImplementationEvidenceTests(unittest.TestCase):
                     and "deferred" in blocker
                     for blocker in payload["blocking_conditions"]
                 )
+            )
+
+    def test_machine_action_executes_and_reports_ready(self) -> None:
+        value = product_evidence("verified")
+        result_schema = json.loads(
+            READINESS_RESULT_SCHEMA_PATH.read_text(encoding="utf-8")
+        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self.write_fixture(root, value)
+            result = self.run_validator(
+                root,
+                "--release-readiness",
+                "--format",
+                "json",
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertEqual(result.stderr, "")
+            payload = json.loads(result.stdout)
+            Draft202012Validator(result_schema).validate(payload)
+            self.assertEqual(payload["release_readiness"], "ready")
+            self.assertEqual(payload["blocking_conditions"], [])
+            self.assertEqual(payload["deferred_proofs"], [])
+
+    def test_machine_action_reports_missing_evidence_without_traceback(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            result = self.run_validator(
+                root,
+                "--release-readiness",
+                "--format",
+                "json",
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(result.stderr, "")
+            payload = json.loads(result.stdout)
+            self.assertEqual(payload["release_readiness"], "not-ready")
+            self.assertTrue(
+                any(
+                    "cannot load implementation evidence" in blocker
+                    for blocker in payload["blocking_conditions"]
+                )
+            )
+
+    def test_json_format_requires_release_readiness_mode(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            result = self.run_validator(Path(temp_dir), "--format", "json")
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn(
+                "--format json requires --release-readiness",
+                result.stderr,
             )
 
 
