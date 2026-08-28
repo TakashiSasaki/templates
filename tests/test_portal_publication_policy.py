@@ -160,6 +160,7 @@ class PortalPublicationPolicyTests(unittest.TestCase):
             [child["title"] for child in composition_group["children"][:6]],
             [
                 "Overview",
+                "Evaluate Composition",
                 "Use Composition",
                 "Webapp product walkthrough",
                 "Produce a product release",
