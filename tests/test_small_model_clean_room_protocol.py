@@ -25,6 +25,21 @@ class SmallModelCleanRoomProtocolTests(unittest.TestCase):
                 self.assertIn(phrase, self.text)
         self.assertIn("current maintenance conversation must never be described as a clean-room run", self.text)
 
+    def test_protocol_separates_agent_visible_task_from_evaluator_orchestration(self) -> None:
+        for phrase in (
+            "Agent-visible task boundary",
+            "product requirements, repository URL, proof expectations, and required outputs",
+            "must not prescribe repository-specific solution mechanics",
+            "internal contract or schema field names",
+            "component IDs, lifecycle-stage names, validator names, action names, or checkpoint commands",
+            "must not announce that a later requirement will arrive",
+            "The first signal of the added requirement must be the actual evaluator/user message",
+            "Evaluator-side chronology and scoring rules are not part of the agent-visible task",
+            "do not point the agent at evaluation fixtures as an alternate bootstrap path",
+        ):
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, self.text)
+
     def test_protocol_records_environment_and_harness_boundaries(self) -> None:
         for phrase in (
             "available tools and capabilities",
