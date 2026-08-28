@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Implementation-evidence release-readiness result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "release_readiness",
+    "blocking_conditions",
+    "deferred_proofs",
+    "warnings"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "release_readiness": {"enum": ["not-ready", "ready"]},
+    "blocking_conditions": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "deferred_proofs": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "warnings": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"release_readiness": {"const": "ready"}}},
+      "then": {"properties": {"blocking_conditions": {"maxItems": 0}}}
+    },
+    {
+      "if": {"properties": {"release_readiness": {"const": "not-ready"}}},
+      "then": {"properties": {"blocking_conditions": {"minItems": 1}}}
+    }
+  ]
+}

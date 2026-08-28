@@ -74,6 +74,8 @@ The boolean is a declared machine contract, not a substitute for running the tes
 
 A product proof may be `deferred` when the required environment is unavailable. Deferred evidence is retained as an explicit incomplete state and may allow structural validation to describe the composition as valid, but release readiness rejects every non-`verified` proof. The intended command execution profile must still be truthful: an unavailable browser environment is represented by a deferred browser-capable proof, not by relabeling static inspection as browser evidence.
 
+The component also owns the executable `check-release-readiness` machine operation in `.template-composition/implementation-evidence-actions.json`; lifecycle presentation consumes that registry rather than copying the validator CLI syntax. Its canonical fixed argv invokes the existing semantic validator with `--release-readiness --format json`. The result is validated by `.template-composition/implementation-evidence-release-readiness.schema.json`, reports `ready` or `not-ready`, preserves blocking diagnostics and deferred proof IDs as machine data, and does not mutate product evidence. Human-oriented validator output remains the default when `--format json` is not selected.
+
 Every planning/product requirement declares `requiredPositiveProofKinds`. When several proof kinds are acceptable, list each acceptable kind; when a required environment is unavailable, keep the corresponding proof `deferred` rather than weakening the declared requirement.
 
 ## Planning requirement ledger
