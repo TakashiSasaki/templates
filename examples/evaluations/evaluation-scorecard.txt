@@ -31,7 +31,7 @@ Use exactly one attribution for each dimension:
 | `canonical_bootstrap_execution` | Canonical bootstrap execution | Exact verified installer argv used without reimplementation |
 | `integrity_verification` | Integrity verification | Immutable identity and exact received-byte verification |
 | `role_separation` | Installer / Skill / toolchain role separation | Each identity used for its declared role |
-| `lifecycle_correctness` | Lifecycle correctness | VALID scaffold → product implementation → evidence → release readiness |
+| `lifecycle_correctness` | Lifecycle correctness | VALID scaffold → planning checkpoint → product implementation → product evidence/validation → product checkpoint → release readiness |
 | `managed_generated_boundary` | Managed/generated boundary | Seed, managed, and generated files handled through the contract |
 | `product_evidence_completion` | Product evidence completion | Planning/template evidence replaced by product evidence |
 | `browser_proof_handling` | Browser proof handling | Generic prerequisite diagnosis and fail-closed deferred proof |
@@ -41,6 +41,21 @@ Use exactly one attribution for each dimension:
 | `dead_ends` | Dead ends | Avoidable loops, bypasses, or premature completion |
 
 For each dimension, cite the first decisive observation and whether the outcome is reproducible. Include the number of interventions and any dead end in the notes, even when the status is PASS.
+
+## Lifecycle chronology
+
+The scorecard also records `lifecycle_chronology`. This is not a summary of the final repository state; it records whether the required checkpoint boundaries were respected at the time work crossed them.
+
+Set `checkpoint_lifecycle_applicable` to `true` when the selected Composition lifecycle requires planning/product checkpoints. In that case, record both of these facts from transcript or command evidence:
+
+- `planning_checkpoint_preceded_product_coding` — the planning checkpoint existed before the first product-code mutation;
+- `product_checkpoint_preceded_release_readiness` — the product checkpoint existed before the first release-readiness evaluation.
+
+The corresponding evidence strings must identify the decisive transcript/tool observations for each boundary. A checkpoint created after product coding started does not retroactively make the planning boundary pass. A product checkpoint created after release-readiness evaluation likewise does not repair that earlier ordering violation.
+
+When checkpoint lifecycle is applicable, `lifecycle_correctness: PASS` is schema-valid only when both chronology booleans are `true`. If the transcript proves either ordering violation, record `FAIL` even if the final repository later contains both checkpoints. If the relevant interval is missing from the transcript, use `NOT TESTED` or `BLOCKED` as appropriate instead of inferring PASS from final files.
+
+When checkpoint lifecycle is not applicable, set `checkpoint_lifecycle_applicable` to `false`, set both chronology booleans to `null`, and explain non-applicability in both boundary evidence strings.
 
 ## Rerun conditions
 
