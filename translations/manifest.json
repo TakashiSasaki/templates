@@ -3,6 +3,15 @@
   "canonical_language": "en",
   "translations": [
     {
+      "canonical": "README.md",
+      "language": "ja",
+      "translation": "translations/ja/README.md",
+      "canonical_blob_sha": "24e3f773bcb5757bdd287177ebbb8ad30e09715c",
+      "surfaces": [
+        "reader"
+      ]
+    },
+    {
       "canonical": "catalog/README.md",
       "language": "ja",
       "translation": "translations/ja/catalog/README.md",
@@ -39,19 +48,19 @@
       ]
     },
     {
-      "canonical": "docs/architecture/composer-mvp.md",
+      "canonical": "docs/architecture/composition-model.md",
       "language": "ja",
-      "translation": "translations/ja/docs/architecture/composer-mvp.md",
-      "canonical_blob_sha": "3b703044d79dce22db2a8e40e9428b0078de1a43",
+      "translation": "translations/ja/docs/architecture/composition-model.md",
+      "canonical_blob_sha": "ffd3bdb2b97fe471de19b5de5eb1fd919f0e56be",
       "surfaces": [
         "reader"
       ]
     },
     {
-      "canonical": "docs/architecture/composition-model.md",
+      "canonical": "docs/architecture/composer-mvp.md",
       "language": "ja",
-      "translation": "translations/ja/docs/architecture/composition-model.md",
-      "canonical_blob_sha": "ffd3bdb2b97fe471de19b5de5eb1fd919f0e56be",
+      "translation": "translations/ja/docs/architecture/composer-mvp.md",
+      "canonical_blob_sha": "3b703044d79dce22db2a8e40e9428b0078de1a43",
       "surfaces": [
         "reader"
       ]
@@ -134,15 +143,6 @@
       "language": "ja",
       "translation": "translations/ja/docs/release-guide.md",
       "canonical_blob_sha": "038b9ab421c1de1bde945c55e75a47ef8adc0abb",
-      "surfaces": [
-        "reader"
-      ]
-    },
-    {
-      "canonical": "README.md",
-      "language": "ja",
-      "translation": "translations/ja/README.md",
-      "canonical_blob_sha": "24e3f773bcb5757bdd287177ebbb8ad30e09715c",
       "surfaces": [
         "reader"
       ]
