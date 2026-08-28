@@ -9,7 +9,7 @@ This is the canonical entry point for an independent clean-room evaluation of Co
 3. Complete the [evaluation scorecard guide](../examples/evaluations/evaluation-scorecard.txt), using its fixed dimensions, attribution vocabulary, chronology rules, and fail-closed treatment of missing evidence.
 4. Produce `evaluation-scorecard.json` and validate it against the [evaluation scorecard schema](../examples/evaluations/evaluation-scorecard.schema.json). Do not convert `BLOCKED` or `NOT TESTED` into `PASS`, and do not repair an observed ordering violation from later final state.
 
-The output is the validated scorecard JSON plus the transcript/tool evidence needed to support its claims. Repository defects, documentation/discoverability defects, machine-contract defects, evaluator mistakes, environment limitations, and evidence-capture limitations remain distinct attributions.
+The output is the validated scorecard JSON plus the transcript/tool evidence needed to support its claims. Repository defects, documentation/discoverability defects, machine-contract defects, evaluation-methodology defects, evaluator mistakes, environment limitations, and evidence-capture limitations remain distinct attributions.
 
 ## Authority boundary
 
