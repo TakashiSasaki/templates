@@ -809,7 +809,14 @@ def _checkpoint_action_command(root: Path, action: str) -> dict[str, Any] | None
     ):
         return None
     actions = registry.get("actions")
-    if not isinstance(actions, dict):
+    if (
+        registry.get("$schema") != "./lifecycle-checkpoint-actions.schema.json"
+        or not isinstance(actions, dict)
+        or set(actions) != {
+            "create-planning-checkpoint",
+            "create-product-checkpoint",
+        }
+    ):
         return None
     entry = actions.get(action)
     if not isinstance(entry, dict) or set(entry) != {"argv", "caller_inputs", "bindings"}:
@@ -853,7 +860,10 @@ def _checkpoint_action_command(root: Path, action: str) -> dict[str, Any] | None
             resolved.append(token)
         else:
             resolved.append(token)
-    if any(token not in argv for token in caller_inputs):
+    if (
+        any(token not in argv for token in caller_inputs)
+        or any(token not in argv for token in bindings)
+    ):
         return None
     return {
         "action": action,
