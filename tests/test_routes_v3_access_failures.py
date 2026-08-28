@@ -4,6 +4,7 @@ import copy
 import http.client
 import importlib.util
 import json
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -31,6 +32,37 @@ MIGRATION = (
 
 
 class RoutesV3AccessFailureTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+        cls._temp_dir = tempfile.TemporaryDirectory()
+        helper = cls(
+            methodName="test_explicit_access_fixture_binds_render_state_targets"
+        )
+        try:
+            cls.target = helper.materialize_target(Path(cls._temp_dir.name))
+        except BaseException:
+            cls._temp_dir.cleanup()
+            raise
+        cls._baseline_contracts = {
+            name: helper.load_json(cls.target / "contracts" / name)
+            for name in ("routes.json", "surfaces.json", "ui-states.json")
+        }
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        try:
+            cls._temp_dir.cleanup()
+        finally:
+            super().tearDownClass()
+
+    def setUp(self) -> None:
+        self.reset_shared_target()
+
+    def reset_shared_target(self) -> None:
+        for name, document in self._baseline_contracts.items():
+            self.write_json(self.target / "contracts" / name, document)
+
     def helper(self) -> product_helpers.WebappProductizationAcceptanceTests:
         return product_helpers.WebappProductizationAcceptanceTests(
             methodName="test_composer_generated_webapp_reaches_revision_bound_product_release"
@@ -231,27 +263,27 @@ class RoutesV3AccessFailureTests(unittest.TestCase):
         *,
         expected: str | None = None,
     ) -> None:
-        with tempfile.TemporaryDirectory() as temp_dir:
-            target = self.materialize_target(Path(temp_dir))
-            routes_path = target / "contracts/routes.json"
-            surfaces_path = target / "contracts/surfaces.json"
-            states_path = target / "contracts/ui-states.json"
-            routes = self.load_json(routes_path)
-            surfaces = self.load_json(surfaces_path)
-            states = self.load_json(states_path)
-            mutate(routes, surfaces, states)
-            self.write_json(routes_path, routes)
-            self.write_json(surfaces_path, surfaces)
-            self.write_json(states_path, states)
-            result = self.validate_contracts(target)
-            output = result.stdout + result.stderr
-            self.assertNotEqual(result.returncode, 0, output)
-            if expected is not None:
-                self.assertIn(expected, output)
+        self.reset_shared_target()
+        routes_path = self.target / "contracts/routes.json"
+        surfaces_path = self.target / "contracts/surfaces.json"
+        states_path = self.target / "contracts/ui-states.json"
+        routes = self.load_json(routes_path)
+        surfaces = self.load_json(surfaces_path)
+        states = self.load_json(states_path)
+        mutate(routes, surfaces, states)
+        self.write_json(routes_path, routes)
+        self.write_json(surfaces_path, surfaces)
+        self.write_json(states_path, states)
+        result = self.validate_contracts(self.target)
+        output = result.stdout + result.stderr
+        self.assertNotEqual(result.returncode, 0, output)
+        if expected is not None:
+            self.assertIn(expected, output)
 
     def load_redirect_app(self, target: Path):
         product = target / "product"
         product.mkdir(exist_ok=True)
+        self.addCleanup(shutil.rmtree, product, ignore_errors=True)
         path = product / "redirect_app.py"
         path.write_text(REDIRECT_FIXTURE.read_text(encoding="utf-8"), encoding="utf-8")
         spec = importlib.util.spec_from_file_location("routes_v3_redirect_fixture", path)
@@ -280,112 +312,108 @@ class RoutesV3AccessFailureTests(unittest.TestCase):
             connection.close()
 
     def test_explicit_access_fixture_binds_render_state_targets(self) -> None:
-        with tempfile.TemporaryDirectory() as temp_dir:
-            target = self.materialize_target(Path(temp_dir))
-            routes = self.load_json(target / "contracts/routes.json")
-            self.assertEqual(routes["schemaVersion"], 3)
-            application = self.route(routes, "application-home")
-            self.assertEqual(
-                application["accessFailures"],
-                {
-                    "unauthenticated": {
-                        "behavior": "render-state",
-                        "stateId": "unauthorized",
-                    },
-                    "forbidden": {
-                        "behavior": "render-state",
-                        "stateId": "forbidden",
-                    },
+        routes = self.load_json(self.target / "contracts/routes.json")
+        self.assertEqual(routes["schemaVersion"], 3)
+        application = self.route(routes, "application-home")
+        self.assertEqual(
+            application["accessFailures"],
+            {
+                "unauthenticated": {
+                    "behavior": "render-state",
+                    "stateId": "unauthorized",
                 },
-            )
-            valid = self.validate_contracts(target)
-            self.assertEqual(valid.returncode, 0, valid.stdout + valid.stderr)
+                "forbidden": {
+                    "behavior": "render-state",
+                    "stateId": "forbidden",
+                },
+            },
+        )
+        valid = self.validate_contracts(self.target)
+        self.assertEqual(valid.returncode, 0, valid.stdout + valid.stderr)
 
     def test_redirect_binds_semantic_route_without_prescribing_return_transport(self) -> None:
-        with tempfile.TemporaryDirectory() as temp_dir:
-            target = self.materialize_target(Path(temp_dir))
-            surfaces_path = target / "contracts/surfaces.json"
-            routes_path = target / "contracts/routes.json"
-            surfaces = self.load_json(surfaces_path)
-            routes = self.load_json(routes_path)
+        surfaces_path = self.target / "contracts/surfaces.json"
+        routes_path = self.target / "contracts/routes.json"
+        surfaces = self.load_json(surfaces_path)
+        routes = self.load_json(routes_path)
 
-            surfaces["surfaces"].append(
-                {
-                    "id": "sign-in",
-                    "title": "Sign-in surface",
-                    "purpose": "Accept authentication before returning to a protected route.",
-                    "audiences": ["anonymous", "authenticated-user"],
-                    "authentication": "none",
-                    "authorization": {"mode": "public", "roles": []},
-                    "dataClassifications": ["public"],
-                    "stability": "stable",
-                    "surfaceDependencies": [],
-                    "diagnostic": False,
-                }
-            )
-            application = self.route(routes, "application-home")
-            application["accessFailures"]["unauthenticated"] = {
-                "behavior": "redirect",
-                "routeId": "sign-in",
+        surfaces["surfaces"].append(
+            {
+                "id": "sign-in",
+                "title": "Sign-in surface",
+                "purpose": "Accept authentication before returning to a protected route.",
+                "audiences": ["anonymous", "authenticated-user"],
+                "authentication": "none",
+                "authorization": {"mode": "public", "roles": []},
+                "dataClassifications": ["public"],
+                "stability": "stable",
+                "surfaceDependencies": [],
+                "diagnostic": False,
             }
-            routes["routes"].append(
-                {
-                    "id": "sign-in",
-                    "path": "/sign-in",
-                    "surface": "sign-in",
-                    "canonical": True,
-                    "aliases": [],
-                    "authentication": "none",
-                    "deepLink": True,
-                    "historyBehavior": "replace",
-                    "authenticationReturn": "not-applicable",
-                    "accessFailures": {
-                        "unauthenticated": {"behavior": "not-applicable"},
-                        "forbidden": {"behavior": "not-applicable"},
-                    },
-                    "states": ["ready"],
-                    "accessibility": {
-                        "documentTitleRequired": True,
-                        "focusTarget": "main-heading",
-                    },
-                }
-            )
-            self.write_json(surfaces_path, surfaces)
-            self.write_json(routes_path, routes)
+        )
+        application = self.route(routes, "application-home")
+        application["accessFailures"]["unauthenticated"] = {
+            "behavior": "redirect",
+            "routeId": "sign-in",
+        }
+        routes["routes"].append(
+            {
+                "id": "sign-in",
+                "path": "/sign-in",
+                "surface": "sign-in",
+                "canonical": True,
+                "aliases": [],
+                "authentication": "none",
+                "deepLink": True,
+                "historyBehavior": "replace",
+                "authenticationReturn": "not-applicable",
+                "accessFailures": {
+                    "unauthenticated": {"behavior": "not-applicable"},
+                    "forbidden": {"behavior": "not-applicable"},
+                },
+                "states": ["ready"],
+                "accessibility": {
+                    "documentTitleRequired": True,
+                    "focusTarget": "main-heading",
+                },
+            }
+        )
+        self.write_json(surfaces_path, surfaces)
+        self.write_json(routes_path, routes)
 
-            valid = self.validate_contracts(target)
-            self.assertEqual(valid.returncode, 0, valid.stdout + valid.stderr)
-            target_route = self.route(
-                routes, application["accessFailures"]["unauthenticated"]["routeId"]
-            )
-            self.assertEqual(target_route["path"], "/sign-in")
-            self.assertNotIn("returnTo", json.dumps(application, sort_keys=True))
+        valid = self.validate_contracts(self.target)
+        self.assertEqual(valid.returncode, 0, valid.stdout + valid.stderr)
+        target_route = self.route(
+            routes, application["accessFailures"]["unauthenticated"]["routeId"]
+        )
+        self.assertEqual(target_route["path"], "/sign-in")
+        self.assertNotIn("returnTo", json.dumps(application, sort_keys=True))
 
-            redirect_app = self.load_redirect_app(target)
-            server = redirect_app.make_server()
-            thread = threading.Thread(target=server.serve_forever, daemon=True)
-            thread.start()
-            port = server.server_address[1]
-            try:
-                status, headers, _ = self.request(port, "/app")
-                self.assertEqual(status, 302)
-                location = headers["Location"]
-                self.assertEqual(urlsplit(location).path, target_route["path"])
-                self.assertEqual(location, "/sign-in?returnTo=%2Fapp")
+        redirect_app = self.load_redirect_app(self.target)
+        server = redirect_app.make_server()
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        port = server.server_address[1]
+        try:
+            status, headers, _ = self.request(port, "/app")
+            self.assertEqual(status, 302)
+            location = headers["Location"]
+            self.assertEqual(urlsplit(location).path, target_route["path"])
+            self.assertEqual(location, "/sign-in?returnTo=%2Fapp")
 
-                status, _, body = self.request(port, location)
-                self.assertEqual(status, 200)
-                self.assertEqual(body.strip(), "sign-in:return-to=/app")
-            finally:
-                server.shutdown()
-                server.server_close()
-                thread.join(timeout=5)
-                self.assertFalse(thread.is_alive())
+            status, _, body = self.request(port, location)
+            self.assertEqual(status, 200)
+            self.assertEqual(body.strip(), "sign-in:return-to=/app")
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+            self.assertFalse(thread.is_alive())
 
-            application["accessFailures"]["unauthenticated"]["returnTo"] = "same-route"
-            self.write_json(routes_path, routes)
-            invalid = self.validate_contracts(target)
-            self.assertNotEqual(invalid.returncode, 0, invalid.stdout + invalid.stderr)
+        application["accessFailures"]["unauthenticated"]["returnTo"] = "same-route"
+        self.write_json(routes_path, routes)
+        invalid = self.validate_contracts(self.target)
+        self.assertNotEqual(invalid.returncode, 0, invalid.stdout + invalid.stderr)
 
     def test_rejects_unknown_render_state_target(self) -> None:
         def mutate(routes: dict, _surfaces: dict, _states: dict) -> None:
@@ -547,17 +575,15 @@ class RoutesV3AccessFailureTests(unittest.TestCase):
         self.assertIn("does not prescribe a query parameter name", migration)
 
     def test_composer_materializes_routes_v3_and_v3_validator(self) -> None:
-        with tempfile.TemporaryDirectory() as temp_dir:
-            target = self.materialize_target(Path(temp_dir))
-            routes = self.load_json(target / "contracts/routes.json")
-            self.assertEqual(routes["schemaVersion"], 3)
-            validator_source = (
-                target / "scripts/validate_contracts_impl.py"
-            ).read_text(encoding="utf-8")
-            self.assertIn("unknown redirect route", validator_source)
-            self.assertTrue((target / "docs/migrations/routes-v2-to-v3.md").is_file())
-            valid = self.validate_contracts(target)
-            self.assertEqual(valid.returncode, 0, valid.stdout + valid.stderr)
+        routes = self.load_json(self.target / "contracts/routes.json")
+        self.assertEqual(routes["schemaVersion"], 3)
+        validator_source = (
+            self.target / "scripts/validate_contracts_impl.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn("unknown redirect route", validator_source)
+        self.assertTrue((self.target / "docs/migrations/routes-v2-to-v3.md").is_file())
+        valid = self.validate_contracts(self.target)
+        self.assertEqual(valid.returncode, 0, valid.stdout + valid.stderr)
 
 
 if __name__ == "__main__":
