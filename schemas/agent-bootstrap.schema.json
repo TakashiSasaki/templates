@@ -31,30 +31,33 @@
         "composition": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["role", "publication_revision", "source_path"],
+          "required": ["role", "publication_revision", "overview_document_id", "publication_catalog_path"],
           "properties": {
             "role": {"const": "artifact-capability-lifecycle-semantics"},
             "publication_revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
-            "source_path": {"const": "README.md"}
+            "overview_document_id": {"const": "composition:overview"},
+            "publication_catalog_path": {"const": "docs/publication-catalog.json"}
           }
         },
         "policy": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["role", "publication_revision", "source_path", "relationship_to_composition"],
+          "required": ["role", "publication_revision", "overview_document_id", "publication_catalog_path", "relationship_to_composition"],
           "properties": {
             "role": {"const": "coding-agent-operating-policy"},
             "publication_revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
-            "source_path": {"const": "README.md"},
+            "overview_document_id": {"const": "policy:overview"},
+            "publication_catalog_path": {"const": "docs/publication-catalog.json"},
             "relationship_to_composition": {"const": "independent-optional"}
           }
         },
         "site": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["role", "consumer_repository_mutation"],
+          "required": ["role", "overview_document_id", "consumer_repository_mutation"],
           "properties": {
             "role": {"const": "publication-integration"},
+            "overview_document_id": {"const": "site:portal-home"},
             "consumer_repository_mutation": {"const": false}
           }
         }
