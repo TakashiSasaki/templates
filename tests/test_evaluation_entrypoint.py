@@ -14,6 +14,9 @@ CATALOG = ROOT / "docs" / "publication-catalog.json"
 PROTOCOL = ROOT / "examples" / "evaluations" / "small-model-clean-room-protocol.txt"
 SCORECARD = ROOT / "examples" / "evaluations" / "evaluation-scorecard.txt"
 SCHEMA = ROOT / "examples" / "evaluations" / "evaluation-scorecard.schema.json"
+JA_README = ROOT / "translations" / "ja" / "README.md"
+JA_INDEX = ROOT / "translations" / "ja" / "docs" / "index.md"
+JA_ENTRY = ROOT / "translations" / "ja" / "docs" / "evaluation-guide.md"
 LINK_TARGET = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
 
 
@@ -32,6 +35,24 @@ class EvaluationEntrypointTests(unittest.TestCase):
             "[Evaluating Composition](evaluation-guide.md)",
             INDEX.read_text(encoding="utf-8"),
         )
+
+    def test_japanese_authority_entries_discover_evaluation_guide(self) -> None:
+        self.assertIn(
+            "[Evaluating Composition](docs/evaluation-guide.md)",
+            JA_README.read_text(encoding="utf-8"),
+        )
+        self.assertIn(
+            "[Composition の評価](evaluation-guide.md)",
+            JA_INDEX.read_text(encoding="utf-8"),
+        )
+        translated_guide = JA_ENTRY.read_text(encoding="utf-8")
+        for target in (
+            "../../../examples/evaluations/small-model-clean-room-protocol.txt",
+            "../../../examples/evaluations/evaluation-scorecard.txt",
+            "../../../examples/evaluations/evaluation-scorecard.schema.json",
+        ):
+            with self.subTest(target=target):
+                self.assertIn(target, translated_guide)
 
     def test_guide_orders_protocol_scorecard_schema_and_output(self) -> None:
         protocol = "../examples/evaluations/small-model-clean-room-protocol.txt"
