@@ -18,7 +18,12 @@ def _emit_json(value: dict[str, Any]) -> None:
     print(json.dumps(value, sort_keys=True))
 
 
-def _failure(action: str, message: str, *, provider_returncode: int | None = None) -> int:
+def _checkpoint_failure(
+    action: str,
+    message: str,
+    *,
+    provider_returncode: int | None = None,
+) -> int:
     _emit_json(
         {
             "$schema": CHECKPOINT_RESULT_SCHEMA,
@@ -79,11 +84,14 @@ def _release_readiness() -> int:
 def _checkpoint(action: str, arguments: list[str]) -> int:
     if action == "create-planning-checkpoint":
         if len(arguments) != 1:
-            return _failure(action, "expected exactly one caller value: checkpoint_id")
+            return _checkpoint_failure(
+                action,
+                "expected exactly one caller value: checkpoint_id",
+            )
         provider_arguments = ["planning", "--id", arguments[0]]
     elif action == "create-product-checkpoint":
         if len(arguments) != 2:
-            return _failure(
+            return _checkpoint_failure(
                 action,
                 "expected exactly two caller/provider values: checkpoint_id and latest_checkpoint_id",
             )
@@ -95,7 +103,7 @@ def _checkpoint(action: str, arguments: list[str]) -> int:
             arguments[1],
         ]
     else:
-        return _failure("unknown", f"unsupported checkpoint action: {action}")
+        raise AssertionError(f"unexpected checkpoint action: {action}")
 
     result = _run_provider(
         ".template-composition/checkpoint.py",
@@ -104,7 +112,11 @@ def _checkpoint(action: str, arguments: list[str]) -> int:
     value = _load_object(result.stdout)
     if result.returncode != 0 or value is None:
         detail = result.stderr.strip() or result.stdout.strip() or "checkpoint provider returned no structured result"
-        return _failure(action, detail, provider_returncode=result.returncode)
+        return _checkpoint_failure(
+            action,
+            detail,
+            provider_returncode=result.returncode,
+        )
     _emit_json(
         {
             "$schema": CHECKPOINT_RESULT_SCHEMA,
@@ -122,7 +134,8 @@ def _checkpoint(action: str, arguments: list[str]) -> int:
 
 def main() -> int:
     if len(sys.argv) < 2:
-        return _failure("unknown", "missing action identifier")
+        print("ERROR: missing action identifier", file=sys.stderr)
+        return 2
     action = sys.argv[1]
     arguments = sys.argv[2:]
     if action == "check-release-readiness":
@@ -132,7 +145,8 @@ def main() -> int:
         return _release_readiness()
     if action in {"create-planning-checkpoint", "create-product-checkpoint"}:
         return _checkpoint(action, arguments)
-    return _failure("unknown", f"unknown executable action: {action}")
+    print(f"ERROR: unknown executable action: {action}", file=sys.stderr)
+    return 2
 
 
 if __name__ == "__main__":
