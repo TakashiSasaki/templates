@@ -1,9 +1,33 @@
 {
   "$schema": "https://templates.moukaeritai.work/schemas/agent-bootstrap.schema.json",
-  "schema_version": 2,
+  "schema_version": 3,
   "repository": "TakashiSasaki/templates",
   "canonical_url": "https://templates.moukaeritai.work/agent.json",
-  "purpose": "Compose new or existing software repositories",
+  "purpose": "Discover authorities and compose new or existing software repositories",
+  "authorities": {
+    "composition": {
+      "role": "artifact-capability-lifecycle-semantics",
+      "publication_revision": "64be6e06f9fd5fa979bfffb625f8484404de3caf",
+      "source_path": "README.md"
+    },
+    "policy": {
+      "role": "coding-agent-operating-policy",
+      "publication_revision": "56448995f848ae2de0f38c49ceb1d35f55461ed1",
+      "source_path": "README.md",
+      "relationship_to_composition": "independent-optional"
+    },
+    "site": {
+      "role": "publication-integration",
+      "consumer_repository_mutation": false
+    }
+  },
+  "integration_contracts": {
+    "policy_composition_coexistence": {
+      "owner": "site",
+      "document_id": "site:policy-composition-coexistence",
+      "canonical_url": "https://templates.moukaeritai.work/coexistence/"
+    }
+  },
   "composition": {
     "publication_revision": "64be6e06f9fd5fa979bfffb625f8484404de3caf",
     "installer": {
