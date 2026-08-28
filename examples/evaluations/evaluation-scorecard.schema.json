@@ -225,7 +225,7 @@
           "uniqueItems": true,
           "items": {
             "type": "string",
-            "pattern": "^REQ-[A-Z0-9-]+$"
+            "pattern": "^REQ-[A-Z0-9]+(?:-[A-Z0-9]+)*$"
           }
         },
         "product_checkpoint_preceded_change_event": {
