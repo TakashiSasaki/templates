@@ -1,0 +1,29 @@
+{
+  "$schema": "./webapp-actions.schema.json",
+  "schemaVersion": 1,
+  "actions": {
+    "diagnose-browser-prerequisites": {
+      "argv": [
+        "{python}",
+        ".template-composition/run_action.py",
+        "diagnose-browser-prerequisites",
+        "--browser-binary",
+        "{browser_binary}",
+        "--webdriver",
+        "{webdriver}",
+        "--compatibility",
+        "{compatibility}",
+        "--localhost",
+        "{localhost}"
+      ],
+      "caller_inputs": [
+        "{python}",
+        "{browser_binary}",
+        "{webdriver}",
+        "{compatibility}",
+        "{localhost}"
+      ],
+      "output_schema": ".template-composition/browser-proof-diagnostics.schema.json"
+    }
+  }
+}
