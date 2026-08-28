@@ -87,7 +87,7 @@ class BytesResponse:
 
 class CompositionRemoteSkillInstallerTests(unittest.TestCase):
     def test_remote_installer_pins_review_candidate_revision(self) -> None:
-        expected = "dee6278c275d4c480373acd5b66cfc2c2db4c663"
+        expected = "8defa866d088de7f8c29bc3a5443dc2df69983dc"
         self.assertEqual(installer.TOOLCHAIN_REPOSITORY, "TakashiSasaki/templates")
         self.assertEqual(installer.SKILL_SOURCE_REVISION, expected)
         self.assertIsNotNone(installer.FULL_SHA.fullmatch(installer.SKILL_SOURCE_REVISION))
