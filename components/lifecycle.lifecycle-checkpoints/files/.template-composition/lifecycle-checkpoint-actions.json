@@ -5,9 +5,8 @@
     "create-planning-checkpoint": {
       "argv": [
         "{python}",
-        ".template-composition/checkpoint.py",
-        "planning",
-        "--id",
+        ".template-composition/run_action.py",
+        "create-planning-checkpoint",
         "{checkpoint_id}"
       ],
       "caller_inputs": [
@@ -19,11 +18,9 @@
     "create-product-checkpoint": {
       "argv": [
         "{python}",
-        ".template-composition/checkpoint.py",
-        "product",
-        "--id",
+        ".template-composition/run_action.py",
+        "create-product-checkpoint",
         "{checkpoint_id}",
-        "--from",
         "{latest_checkpoint_id}"
       ],
       "caller_inputs": [

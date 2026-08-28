@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from jsonschema import Draft202012Validator
+from jsonschema import Draft202012Validator, ValidationError
 
 ROOT = Path(__file__).resolve().parents[1]
 RUNNER_PATH = ROOT / "components/lifecycle.composition-state/files/.template-composition/validate.py"
@@ -136,9 +136,8 @@ class LifecycleNextActionsTests(unittest.TestCase):
                 "action": "create-planning-checkpoint",
                 "argv": [
                     "{python}",
-                    ".template-composition/checkpoint.py",
-                    "planning",
-                    "--id",
+                    ".template-composition/run_action.py",
+                    "create-planning-checkpoint",
                     "{checkpoint_id}",
                 ],
                 "caller_inputs": ["{python}", "{checkpoint_id}"],
@@ -185,11 +184,9 @@ class LifecycleNextActionsTests(unittest.TestCase):
                 "action": "create-product-checkpoint",
                 "argv": [
                     "{python}",
-                    ".template-composition/checkpoint.py",
-                    "product",
-                    "--id",
+                    ".template-composition/run_action.py",
+                    "create-product-checkpoint",
                     "{checkpoint_id}",
-                    "--from",
                     "planning-1",
                 ],
                 "caller_inputs": ["{python}", "{checkpoint_id}"],
@@ -220,16 +217,24 @@ class LifecycleNextActionsTests(unittest.TestCase):
                 "action": "check-release-readiness",
                 "argv": [
                     "{python}",
-                    ".template-composition/validators/validate_implementation_evidence.py",
-                    ".",
-                    "--release-readiness",
-                    "--format",
-                    "json",
+                    ".template-composition/run_action.py",
+                    "check-release-readiness",
                 ],
                 "caller_inputs": ["{python}"],
                 "output_schema": ".template-composition/implementation-evidence-release-readiness.schema.json",
             },
         )
+
+    def test_action_schemas_reject_interpreter_flag_augmentation(self) -> None:
+        checkpoint = json.loads(json.dumps(self.action_registry))
+        checkpoint["actions"]["create-planning-checkpoint"]["argv"].insert(1, "-I")
+        with self.assertRaises(ValidationError):
+            self.action_schema_validator.validate(checkpoint)
+
+        readiness = json.loads(json.dumps(self.readiness_action_registry))
+        readiness["actions"]["check-release-readiness"]["argv"].insert(1, "-I")
+        with self.assertRaises(ValidationError):
+            self.readiness_action_schema_validator.validate(readiness)
 
     def test_malformed_release_readiness_registry_fails_closed(self) -> None:
         value = self.project(

@@ -2,8 +2,8 @@
   "schema_version": 1,
   "id": "lifecycle.lifecycle-checkpoints",
   "kind": "lifecycle",
-  "version": 2,
-  "summary": "Content-addressed validated planning/product checkpoints, historical transition authority, and canonical checkpoint action commands.",
+  "version": 3,
+  "summary": "Content-addressed validated planning/product checkpoints, historical transition authority, canonical checkpoint action commands, and structured machine-action results.",
   "requires": [
     "lifecycle.composition-state",
     "lifecycle.contract-evolution"
@@ -49,6 +49,11 @@
     {
       "source": "files/.template-composition/lifecycle-checkpoint-actions.schema.json",
       "destination": ".template-composition/lifecycle-checkpoint-actions.schema.json",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/.template-composition/lifecycle-checkpoint-action-result.schema.json",
+      "destination": ".template-composition/lifecycle-checkpoint-action-result.schema.json",
       "ownership": "managed"
     },
     {
