@@ -1,5 +1,5 @@
 {
-  "$schema": "../schemas/lifecycle-checkpoint-actions.schema.json",
+  "$schema": "./lifecycle-checkpoint-actions.schema.json",
   "schemaVersion": 1,
   "actions": {
     "create-planning-checkpoint": {
