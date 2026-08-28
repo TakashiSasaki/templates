@@ -95,7 +95,7 @@ def _checkpoint(action: str, arguments: list[str]) -> int:
             arguments[1],
         ]
     else:
-        return _failure(action, "unsupported checkpoint action")
+        return _failure("unknown", f"unsupported checkpoint action: {action}")
 
     result = _run_provider(
         ".template-composition/checkpoint.py",
@@ -132,7 +132,7 @@ def main() -> int:
         return _release_readiness()
     if action in {"create-planning-checkpoint", "create-product-checkpoint"}:
         return _checkpoint(action, arguments)
-    return _failure(action, "unknown executable action")
+    return _failure("unknown", f"unknown executable action: {action}")
 
 
 if __name__ == "__main__":
