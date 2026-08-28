@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Release exact-candidate verification result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schema_version", "status", "revision"],
+  "properties": {
+    "$schema": {"const": ".template-composition/release-candidate-verification.schema.json"},
+    "schema_version": {"const": 1},
+    "status": {"enum": ["verified", "failed"]},
+    "revision": {"type": "string"},
+    "error": {"type": "string", "minLength": 1}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"status": {"const": "verified"}}, "required": ["status"]},
+      "then": {"not": {"required": ["error"]}}
+    },
+    {
+      "if": {"properties": {"status": {"const": "failed"}}, "required": ["status"]},
+      "then": {"required": ["error"]}
+    }
+  ]
+}
