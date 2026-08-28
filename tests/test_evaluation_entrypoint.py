@@ -54,6 +54,15 @@ class EvaluationEntrypointTests(unittest.TestCase):
             with self.subTest(target=target):
                 self.assertIn(target, translated_guide)
 
+    def test_japanese_guide_links_exact_existing_authorities(self) -> None:
+        expected = {PROTOCOL.resolve(), SCORECARD.resolve(), SCHEMA.resolve()}
+        actual = {
+            (JA_ENTRY.parent / target).resolve()
+            for target in LINK_TARGET.findall(JA_ENTRY.read_text(encoding="utf-8"))
+        }
+        self.assertEqual(actual, expected)
+        self.assertTrue(all(path.is_file() for path in actual))
+
     def test_guide_orders_protocol_scorecard_schema_and_output(self) -> None:
         protocol = "../examples/evaluations/small-model-clean-room-protocol.txt"
         scorecard = "../examples/evaluations/evaluation-scorecard.txt"
