@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Webapp executable action registry",
+  "description": "Machine argv is complete and exact. Consumers replace whole-token caller_inputs only and must not add, remove, reorder, or inject interpreter options. Execute from the materialized repository root. The dispatcher owns provider-internal script paths, flags, argv ordering, and working directory.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schemaVersion", "actions"],
+  "properties": {
+    "$schema": {"const": "./webapp-actions.schema.json"},
+    "schemaVersion": {"const": 1},
+    "actions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["diagnose-browser-prerequisites"],
+      "properties": {
+        "diagnose-browser-prerequisites": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["argv", "caller_inputs", "output_schema"],
+          "properties": {
+            "argv": {
+              "const": [
+                "{python}",
+                ".template-composition/run_action.py",
+                "diagnose-browser-prerequisites",
+                "--browser-binary",
+                "{browser_binary}",
+                "--webdriver",
+                "{webdriver}",
+                "--compatibility",
+                "{compatibility}",
+                "--localhost",
+                "{localhost}"
+              ]
+            },
+            "caller_inputs": {
+              "const": [
+                "{python}",
+                "{browser_binary}",
+                "{webdriver}",
+                "{compatibility}",
+                "{localhost}"
+              ]
+            },
+            "output_schema": {
+              "const": ".template-composition/browser-proof-diagnostics.schema.json"
+            }
+          }
+        }
+      }
+    }
+  }
+}
