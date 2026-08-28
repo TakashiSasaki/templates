@@ -38,9 +38,12 @@ The final report must distinguish:
 - repository defect;
 - documentation or discoverability defect;
 - machine-contract defect;
+- evaluation-methodology defect;
 - evaluator mistake;
 - environment limitation;
 - evidence-capture limitation.
+
+An evaluation-methodology defect means the supplied evaluation design cannot test the claimed property even when the agent follows it—for example, a future requirement is already present in the initial prompt or an evaluator-visible fixture. An evaluator mistake means the documented method was adequate but the evaluator departed from it, such as disclosing a staged requirement too early.
 
 For every failed or blocked item, record the first observed symptom, the exact action that exposed it, whether the same result is reproducible in an isolated control environment, and the release-readiness impact. A harness or environment limitation must not be rewritten as a repository defect merely because the product could not be exercised.
 
@@ -56,6 +59,11 @@ Record separately:
 - product evidence population;
 - product-state validation;
 - product checkpoint creation when lifecycle checkpoints are selected;
+- evaluator change event when staged disclosure is selected;
+- post-change planning checkpoint creation;
+- first post-change product-code mutation;
+- post-change evidence population;
+- post-change product checkpoint creation;
 - first release-readiness evaluation;
 - browser-proof prerequisite status;
 - release-readiness status;
@@ -69,7 +77,56 @@ When lifecycle checkpoints are selected, chronology is part of lifecycle correct
 
 The planning checkpoint must exist before the first product-code mutation. The product checkpoint must exist before the first release-readiness evaluation. If either checkpoint is created later, keep the earlier ordering violation in the scorecard; a later checkpoint does not retroactively repair lifecycle correctness for that run.
 
-Do not infer chronology from the final filesystem, the final checkpoint ledger, or the final presence of evidence files. If the transcript interval needed to establish ordering is unavailable, mark lifecycle correctness NOT TESTED or BLOCKED as appropriate rather than inferring PASS.
+Do not infer chronology from the final filesystem, the final checkpoint ledger, or the final presence of evidence files. If the transcript interval needed to establish ordering is unavailable, leave the corresponding chronology fact unknown and mark lifecycle correctness NOT TESTED or BLOCKED as appropriate rather than inferring PASS.
+
+## Staged requirement disclosure
+
+Use this section only when the evaluation intends to test how the consumer handles a requirement that arrives after an initial product milestone.
+
+### Phase A — initial product only
+
+The Phase A prompt contains only the initial product requirements. The future requirement must not be visible before the evaluator change event through any of the following:
+
+- the initial prompt or earlier evaluator messages;
+- the repository under evaluation or the consumer workspace;
+- evaluation fixtures, test data, helper scripts, comments, or filenames;
+- a reference implementation, expected-output file, hidden supporting file made accessible to the agent, or generated workspace content;
+- a prewritten list from which the evaluator will later select the supposed “new” requirement.
+
+Do not encode the actual Phase B requirement elsewhere in this repository as a hidden answer. The preferred method is stronger: create the added requirement only after Phase A reaches its prerequisite product checkpoint. Before that checkpoint, the requirement payload does not yet exist.
+
+Phase A must proceed through the normal lifecycle: initial requirements → planning state → planning checkpoint → product implementation → product evidence/validation → product checkpoint. The evaluator records the exact product checkpoint ID and transcript/tool-event order.
+
+### Evaluator Change Event
+
+Only after the Phase A product checkpoint exists may the evaluator create and disclose the additional requirement. Deliver it in a new evaluator/user message, not by editing the old prompt or silently modifying a workspace file.
+
+Assign a stable `change_event_id`, one or more new `REQ-*` IDs, and a monotonically increasing disclosure order from the captured transcript/tool-event sequence. The requirement should be caller-visible, materially require product work, and not merely restate a Phase A requirement.
+
+At disclosure time, record whether any part of the added requirement was visible before the event. If it was visible because the evaluation package or protocol exposed it, the staged-change property is invalid for that run and the attribution is `evaluation-methodology defect`. If the documented protocol kept it hidden but the evaluator accidentally leaked it, use `evaluator mistake`.
+
+A change event sent before the required Phase A product checkpoint is a chronology failure. Do not repair it by creating a checkpoint later.
+
+### Phase B — re-plan and change
+
+After disclosure, the consumer must follow the existing Composition lifecycle rather than directly editing the product as though the requirement had always existed:
+
+new requirement → re-plan/update planning authority → new planning checkpoint → product modification → post-change evidence/validation → new product checkpoint.
+
+Record:
+
+- the first product-code mutation attributable to the change;
+- the post-change planning checkpoint ID and whether it preceded that mutation;
+- the new product checkpoint ID;
+- evidence that post-change implementation evidence/validation preceded that product checkpoint.
+
+The evaluator change event must precede the first post-change product mutation. The post-change planning checkpoint must also precede that mutation. A final repository containing the new requirement, planning checkpoint, and product checkpoint is not sufficient to prove these facts.
+
+### Missing staged-change evidence
+
+If the transcript interval covering disclosure, re-planning, first post-change mutation, or checkpoint creation is partial or unavailable, record the affected staged chronology facts as unknown and mark lifecycle correctness NOT TESTED or BLOCKED as appropriate. Never infer staged chronology from the final filesystem, final requirement ledger, final checkpoint ledger, commit history alone, or the agent's retrospective prose.
+
+A run with no intentionally staged requirement change sets staged-change applicability to false. It does not receive a PASS for staged-change chronology; that property was simply not exercised.
 
 ## Transcript completeness
 
@@ -86,7 +143,9 @@ If the transcript is partial or unavailable, mark claims relying on the missing 
 After the run, replay only the minimum failing step in a separate maintainer-controlled diagnostic environment. Do not feed the clean-room model's report or artifacts into that replay. Compare the two records to separate:
 
 - a repository behavior reproducible under controlled conditions;
-- a discoverability or prompt-sequencing issue;
+- a documentation/discoverability problem in the public path;
+- a machine-contract problem in schema, projection, validation, or executable semantics;
+- an evaluation-methodology defect in the prompt, staged-disclosure design, fixture visibility, scoring rule, or harness method;
 - a clean-room evaluator mistake;
 - a missing capability or sandbox restriction in the harness;
 - a byte-capture or serialization error.

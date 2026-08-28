@@ -9,11 +9,17 @@
     "environment_fingerprint",
     "dimensions",
     "lifecycle_chronology",
+    "staged_change_chronology",
     "next_clean_room_rerun_conditions"
   ],
   "properties": {
-    "schema_version": {"const": 2},
-    "evaluation_id": {"type": "string", "minLength": 1},
+    "schema_version": {
+      "const": 3
+    },
+    "evaluation_id": {
+      "type": "string",
+      "minLength": 1
+    },
     "environment_fingerprint": {
       "type": "object",
       "additionalProperties": false,
@@ -30,16 +36,45 @@
         "transcript_completeness"
       ],
       "properties": {
-        "model": {"type": "string", "minLength": 1},
-        "fresh_conversation": {"type": "boolean"},
-        "outside_maintainer_workspace": {"type": "boolean"},
-        "inherited_instructions_recorded": {"type": "boolean"},
-        "available_tools": {"type": "array", "items": {"type": "string"}},
-        "git_availability": {"type": "string"},
-        "browser_availability": {"type": "string"},
-        "network_restrictions": {"type": "string"},
-        "user_intervention_count": {"type": "integer", "minimum": 0},
-        "transcript_completeness": {"enum": ["complete", "partial", "unavailable"]}
+        "model": {
+          "type": "string",
+          "minLength": 1
+        },
+        "fresh_conversation": {
+          "type": "boolean"
+        },
+        "outside_maintainer_workspace": {
+          "type": "boolean"
+        },
+        "inherited_instructions_recorded": {
+          "type": "boolean"
+        },
+        "available_tools": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "git_availability": {
+          "type": "string"
+        },
+        "browser_availability": {
+          "type": "string"
+        },
+        "network_restrictions": {
+          "type": "string"
+        },
+        "user_intervention_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "transcript_completeness": {
+          "enum": [
+            "complete",
+            "partial",
+            "unavailable"
+          ]
+        }
       }
     },
     "dimensions": {
@@ -61,19 +96,45 @@
         "dead_ends"
       ],
       "properties": {
-        "entry_point_discovery": {"$ref": "#/$defs/score"},
-        "machine_bootstrap_discovery": {"$ref": "#/$defs/score"},
-        "canonical_bootstrap_execution": {"$ref": "#/$defs/score"},
-        "integrity_verification": {"$ref": "#/$defs/score"},
-        "role_separation": {"$ref": "#/$defs/score"},
-        "lifecycle_correctness": {"$ref": "#/$defs/score"},
-        "managed_generated_boundary": {"$ref": "#/$defs/score"},
-        "product_evidence_completion": {"$ref": "#/$defs/score"},
-        "browser_proof_handling": {"$ref": "#/$defs/score"},
-        "release_readiness_honesty": {"$ref": "#/$defs/score"},
-        "recovery_quality": {"$ref": "#/$defs/score"},
-        "user_intervention": {"$ref": "#/$defs/score"},
-        "dead_ends": {"$ref": "#/$defs/score"}
+        "entry_point_discovery": {
+          "$ref": "#/$defs/score"
+        },
+        "machine_bootstrap_discovery": {
+          "$ref": "#/$defs/score"
+        },
+        "canonical_bootstrap_execution": {
+          "$ref": "#/$defs/score"
+        },
+        "integrity_verification": {
+          "$ref": "#/$defs/score"
+        },
+        "role_separation": {
+          "$ref": "#/$defs/score"
+        },
+        "lifecycle_correctness": {
+          "$ref": "#/$defs/score"
+        },
+        "managed_generated_boundary": {
+          "$ref": "#/$defs/score"
+        },
+        "product_evidence_completion": {
+          "$ref": "#/$defs/score"
+        },
+        "browser_proof_handling": {
+          "$ref": "#/$defs/score"
+        },
+        "release_readiness_honesty": {
+          "$ref": "#/$defs/score"
+        },
+        "recovery_quality": {
+          "$ref": "#/$defs/score"
+        },
+        "user_intervention": {
+          "$ref": "#/$defs/score"
+        },
+        "dead_ends": {
+          "$ref": "#/$defs/score"
+        }
       }
     },
     "lifecycle_chronology": {
@@ -87,17 +148,162 @@
         "product_boundary_evidence"
       ],
       "properties": {
-        "checkpoint_lifecycle_applicable": {"type": "boolean"},
-        "planning_checkpoint_preceded_product_coding": {"type": ["boolean", "null"]},
-        "product_checkpoint_preceded_release_readiness": {"type": ["boolean", "null"]},
-        "planning_boundary_evidence": {"type": "string", "minLength": 1},
-        "product_boundary_evidence": {"type": "string", "minLength": 1}
+        "checkpoint_lifecycle_applicable": {
+          "type": "boolean"
+        },
+        "planning_checkpoint_preceded_product_coding": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "product_checkpoint_preceded_release_readiness": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "planning_boundary_evidence": {
+          "type": "string",
+          "minLength": 1
+        },
+        "product_boundary_evidence": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "staged_change_chronology": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "applicable",
+        "change_event_id",
+        "disclosure_order",
+        "prerequisite_product_checkpoint_id",
+        "added_requirement_ids",
+        "product_checkpoint_preceded_change_event",
+        "future_requirement_visible_before_event",
+        "first_post_change_mutation_order",
+        "change_event_preceded_first_post_change_mutation",
+        "post_change_planning_checkpoint_id",
+        "post_change_planning_checkpoint_preceded_first_mutation",
+        "post_change_product_checkpoint_id",
+        "post_change_evidence_preceded_product_checkpoint",
+        "disclosure_evidence",
+        "first_post_change_mutation_evidence",
+        "visibility_evidence",
+        "post_change_checkpoint_evidence"
+      ],
+      "properties": {
+        "applicable": {
+          "type": "boolean"
+        },
+        "change_event_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "disclosure_order": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "prerequisite_product_checkpoint_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "added_requirement_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^REQ-[A-Z0-9]+(?:-[A-Z0-9]+)*$"
+          }
+        },
+        "product_checkpoint_preceded_change_event": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "future_requirement_visible_before_event": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "first_post_change_mutation_order": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "change_event_preceded_first_post_change_mutation": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "post_change_planning_checkpoint_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "post_change_planning_checkpoint_preceded_first_mutation": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "post_change_product_checkpoint_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "post_change_evidence_preceded_product_checkpoint": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "disclosure_evidence": {
+          "type": "string",
+          "minLength": 1
+        },
+        "first_post_change_mutation_evidence": {
+          "type": "string",
+          "minLength": 1
+        },
+        "visibility_evidence": {
+          "type": "string",
+          "minLength": 1
+        },
+        "post_change_checkpoint_evidence": {
+          "type": "string",
+          "minLength": 1
+        }
       }
     },
     "next_clean_room_rerun_conditions": {
       "type": "array",
       "minItems": 1,
-      "items": {"type": "string", "minLength": 1}
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
     }
   },
   "allOf": [
@@ -105,28 +311,30 @@
       "if": {
         "properties": {
           "lifecycle_chronology": {
-            "properties": {"checkpoint_lifecycle_applicable": {"const": true}},
-            "required": ["checkpoint_lifecycle_applicable"]
+            "properties": {
+              "checkpoint_lifecycle_applicable": {
+                "const": false
+              }
+            },
+            "required": [
+              "checkpoint_lifecycle_applicable"
+            ]
           }
         },
-        "required": ["lifecycle_chronology"]
+        "required": [
+          "lifecycle_chronology"
+        ]
       },
       "then": {
         "properties": {
           "lifecycle_chronology": {
             "properties": {
-              "planning_checkpoint_preceded_product_coding": {"type": "boolean"},
-              "product_checkpoint_preceded_release_readiness": {"type": "boolean"}
-            }
-          }
-        }
-      },
-      "else": {
-        "properties": {
-          "lifecycle_chronology": {
-            "properties": {
-              "planning_checkpoint_preceded_product_coding": {"type": "null"},
-              "product_checkpoint_preceded_release_readiness": {"type": "null"}
+              "planning_checkpoint_preceded_product_coding": {
+                "type": "null"
+              },
+              "product_checkpoint_preceded_release_readiness": {
+                "type": "null"
+              }
             }
           }
         }
@@ -136,27 +344,232 @@
       "if": {
         "properties": {
           "lifecycle_chronology": {
-            "properties": {"checkpoint_lifecycle_applicable": {"const": true}},
-            "required": ["checkpoint_lifecycle_applicable"]
+            "properties": {
+              "checkpoint_lifecycle_applicable": {
+                "const": true
+              }
+            },
+            "required": [
+              "checkpoint_lifecycle_applicable"
+            ]
           },
           "dimensions": {
             "properties": {
               "lifecycle_correctness": {
-                "properties": {"status": {"const": "PASS"}},
-                "required": ["status"]
+                "properties": {
+                  "status": {
+                    "const": "PASS"
+                  }
+                },
+                "required": [
+                  "status"
+                ]
               }
             },
-            "required": ["lifecycle_correctness"]
+            "required": [
+              "lifecycle_correctness"
+            ]
           }
         },
-        "required": ["lifecycle_chronology", "dimensions"]
+        "required": [
+          "lifecycle_chronology",
+          "dimensions"
+        ]
       },
       "then": {
         "properties": {
           "lifecycle_chronology": {
             "properties": {
-              "planning_checkpoint_preceded_product_coding": {"const": true},
-              "product_checkpoint_preceded_release_readiness": {"const": true}
+              "planning_checkpoint_preceded_product_coding": {
+                "const": true
+              },
+              "product_checkpoint_preceded_release_readiness": {
+                "const": true
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "staged_change_chronology": {
+            "properties": {
+              "applicable": {
+                "const": false
+              }
+            },
+            "required": [
+              "applicable"
+            ]
+          }
+        },
+        "required": [
+          "staged_change_chronology"
+        ]
+      },
+      "then": {
+        "properties": {
+          "staged_change_chronology": {
+            "properties": {
+              "change_event_id": {
+                "type": "null"
+              },
+              "disclosure_order": {
+                "type": "null"
+              },
+              "prerequisite_product_checkpoint_id": {
+                "type": "null"
+              },
+              "added_requirement_ids": {
+                "maxItems": 0
+              },
+              "product_checkpoint_preceded_change_event": {
+                "type": "null"
+              },
+              "future_requirement_visible_before_event": {
+                "type": "null"
+              },
+              "first_post_change_mutation_order": {
+                "type": "null"
+              },
+              "change_event_preceded_first_post_change_mutation": {
+                "type": "null"
+              },
+              "post_change_planning_checkpoint_id": {
+                "type": "null"
+              },
+              "post_change_planning_checkpoint_preceded_first_mutation": {
+                "type": "null"
+              },
+              "post_change_product_checkpoint_id": {
+                "type": "null"
+              },
+              "post_change_evidence_preceded_product_checkpoint": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "staged_change_chronology": {
+            "properties": {
+              "applicable": {
+                "const": true
+              }
+            },
+            "required": [
+              "applicable"
+            ]
+          }
+        },
+        "required": [
+          "staged_change_chronology"
+        ]
+      },
+      "then": {
+        "properties": {
+          "staged_change_chronology": {
+            "properties": {
+              "change_event_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "added_requirement_ids": {
+                "minItems": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "staged_change_chronology": {
+            "properties": {
+              "applicable": {
+                "const": true
+              }
+            },
+            "required": [
+              "applicable"
+            ]
+          },
+          "dimensions": {
+            "properties": {
+              "lifecycle_correctness": {
+                "properties": {
+                  "status": {
+                    "const": "PASS"
+                  }
+                },
+                "required": [
+                  "status"
+                ]
+              }
+            },
+            "required": [
+              "lifecycle_correctness"
+            ]
+          }
+        },
+        "required": [
+          "staged_change_chronology",
+          "dimensions"
+        ]
+      },
+      "then": {
+        "properties": {
+          "staged_change_chronology": {
+            "properties": {
+              "change_event_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "disclosure_order": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "prerequisite_product_checkpoint_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "added_requirement_ids": {
+                "minItems": 1
+              },
+              "product_checkpoint_preceded_change_event": {
+                "const": true
+              },
+              "future_requirement_visible_before_event": {
+                "const": false
+              },
+              "first_post_change_mutation_order": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "change_event_preceded_first_post_change_mutation": {
+                "const": true
+              },
+              "post_change_planning_checkpoint_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "post_change_planning_checkpoint_preceded_first_mutation": {
+                "const": true
+              },
+              "post_change_product_checkpoint_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "post_change_evidence_preceded_product_checkpoint": {
+                "const": true
+              }
             }
           }
         }
@@ -167,20 +580,34 @@
     "score": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["status", "attribution", "notes"],
+      "required": [
+        "status",
+        "attribution",
+        "notes"
+      ],
       "properties": {
-        "status": {"enum": ["PASS", "FAIL", "BLOCKED", "NOT TESTED"]},
+        "status": {
+          "enum": [
+            "PASS",
+            "FAIL",
+            "BLOCKED",
+            "NOT TESTED"
+          ]
+        },
         "attribution": {
           "enum": [
             "repository defect",
             "documentation/discoverability defect",
             "machine-contract defect",
+            "evaluation-methodology defect",
             "evaluator mistake",
             "environment limitation",
             "evidence-capture limitation"
           ]
         },
-        "notes": {"type": "string"}
+        "notes": {
+          "type": "string"
+        }
       }
     }
   }

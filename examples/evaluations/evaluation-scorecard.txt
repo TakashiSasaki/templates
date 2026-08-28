@@ -18,9 +18,12 @@ Use exactly one attribution for each dimension:
 - **repository defect** — behavior is reproducibly wrong under a controlled consumer run;
 - **documentation/discoverability defect** — the contract exists, but the public reader-facing path does not make it findable or understandable;
 - **machine-contract defect** — schema, validator, projection, or executable contract is missing or inconsistent;
-- **evaluator mistake** — the evaluator violated the documented workflow or altered the bytes/inputs incorrectly;
+- **evaluation-methodology defect** — the evaluation prompt, staged-disclosure design, fixture visibility, scoring rule, or harness methodology prevents the run from testing the claimed property even when the agent follows the supplied evaluation procedure;
+- **evaluator mistake** — the evaluator departed from the documented evaluation procedure, disclosed information at the wrong time, or altered the bytes/inputs incorrectly;
 - **environment limitation** — the harness lacks a required browser, WebDriver, Git, network, or other capability;
 - **evidence-capture limitation** — the run changed or lost evidence bytes/metadata after acquisition, so the claim cannot be trusted.
+
+A future requirement disclosed by the evaluation package before its change event is an evaluation-methodology defect. A requirement leaked early because the human evaluator sent the wrong message is an evaluator mistake. Do not classify either as a Composition lifecycle defect without an independent reproduction under a valid staged-disclosure protocol.
 
 ## Fixed dimensions
 
@@ -31,7 +34,7 @@ Use exactly one attribution for each dimension:
 | `canonical_bootstrap_execution` | Canonical bootstrap execution | Exact verified installer argv used without reimplementation |
 | `integrity_verification` | Integrity verification | Immutable identity and exact received-byte verification |
 | `role_separation` | Installer / Skill / toolchain role separation | Each identity used for its declared role |
-| `lifecycle_correctness` | Lifecycle correctness | VALID scaffold → planning checkpoint → product implementation → product evidence/validation → product checkpoint → release readiness |
+| `lifecycle_correctness` | Lifecycle correctness | VALID scaffold → planning checkpoint → product implementation → product evidence/validation → product checkpoint → later change event when applicable → re-planning checkpoint → changed implementation/evidence → new product checkpoint → release readiness |
 | `managed_generated_boundary` | Managed/generated boundary | Seed, managed, and generated files handled through the contract |
 | `product_evidence_completion` | Product evidence completion | Planning/template evidence replaced by product evidence |
 | `browser_proof_handling` | Browser proof handling | Generic prerequisite diagnosis and fail-closed deferred proof |
@@ -44,18 +47,44 @@ For each dimension, cite the first decisive observation and whether the outcome 
 
 ## Lifecycle chronology
 
-The scorecard also records `lifecycle_chronology`. This is not a summary of the final repository state; it records whether the required checkpoint boundaries were respected at the time work crossed them.
+The scorecard records `lifecycle_chronology`. This is not a summary of the final repository state; it records whether the required checkpoint boundaries were respected at the time work crossed them.
 
-Set `checkpoint_lifecycle_applicable` to `true` when the selected Composition lifecycle requires planning/product checkpoints. In that case, record both of these facts from transcript or command evidence:
+Set `checkpoint_lifecycle_applicable` to `true` when the selected Composition lifecycle requires planning/product checkpoints. In that case, record these facts from transcript or command evidence when the relevant interval is observable:
 
 - `planning_checkpoint_preceded_product_coding` — the planning checkpoint existed before the first product-code mutation;
 - `product_checkpoint_preceded_release_readiness` — the product checkpoint existed before the first release-readiness evaluation.
 
 The corresponding evidence strings must identify the decisive transcript/tool observations for each boundary. A checkpoint created after product coding started does not retroactively make the planning boundary pass. A product checkpoint created after release-readiness evaluation likewise does not repair that earlier ordering violation.
 
-When checkpoint lifecycle is applicable, `lifecycle_correctness: PASS` is schema-valid only when both chronology booleans are `true`. If the transcript proves either ordering violation, record `FAIL` even if the final repository later contains both checkpoints. If the relevant interval is missing from the transcript, use `NOT TESTED` or `BLOCKED` as appropriate instead of inferring PASS from final files.
+When checkpoint lifecycle is applicable, `lifecycle_correctness: PASS` is schema-valid only when both chronology booleans are `true`. If the transcript proves either ordering violation, record `FAIL`. If the relevant interval is missing from a partial or unavailable transcript, set the affected chronology fact to `null` and use `NOT TESTED` or `BLOCKED` as appropriate. Applicability does not authorize the evaluator to replace unknown chronology with `true`.
 
 When checkpoint lifecycle is not applicable, set `checkpoint_lifecycle_applicable` to `false`, set both chronology booleans to `null`, and explain non-applicability in both boundary evidence strings.
+
+## Staged requirement-change chronology
+
+Set `staged_change_chronology.applicable` to `true` only for a run that intentionally tests a requirement disclosed after the initial product checkpoint. The future requirement payload must not be committed in the evaluation repository, embedded in the Phase A prompt, copied into the workspace, stored in a fixture/reference implementation, or otherwise exposed to the clean-room agent before the change event. The preferred protocol creates the requirement only after the prerequisite product checkpoint exists.
+
+Record:
+
+- `change_event_id` — stable evaluator-assigned identifier for the disclosure event;
+- `disclosure_order` — monotonically increasing transcript/tool-event order at which the new requirement was first disclosed;
+- `prerequisite_product_checkpoint_id` — the Phase A product checkpoint that had to exist before disclosure;
+- `added_requirement_ids` — the newly disclosed `REQ-*` identifiers;
+- `product_checkpoint_preceded_change_event` — whether the prerequisite product checkpoint existed before disclosure;
+- `future_requirement_visible_before_event` — whether any added requirement was visible through the prompt, repository/workspace, fixture, reference implementation, or earlier evaluator message before the event;
+- `first_post_change_mutation_order` and `change_event_preceded_first_post_change_mutation` — the first product mutation attributable to the change and its ordering relative to disclosure;
+- `post_change_planning_checkpoint_id` and `post_change_planning_checkpoint_preceded_first_mutation` — the re-planning checkpoint and whether it preceded changed product code;
+- `post_change_product_checkpoint_id` and `post_change_evidence_preceded_product_checkpoint` — the new product checkpoint and whether post-change evidence preceded that checkpoint.
+
+Evidence strings must cite the decisive transcript/tool observations, not later filesystem state. Sequence numbers provide stable anchors, but the boolean chronology facts are the scorecard assertions enforced for PASS.
+
+For a staged-change run, `lifecycle_correctness: PASS` is schema-valid only when the change event is after the prerequisite product checkpoint, the future requirement was not visible before the event, the event precedes the first changed product mutation, the post-change planning checkpoint precedes that mutation, and post-change evidence precedes the new product checkpoint. The event/checkpoint IDs and sequence positions must also be present.
+
+If a future requirement was visible before the event, record `future_requirement_visible_before_event: true` and do not mark lifecycle correctness PASS for the staged-change property. If the evaluation package itself caused the visibility, attribute that finding to `evaluation-methodology defect`; if the evaluator accidentally leaked it contrary to the protocol, use `evaluator mistake`.
+
+If transcript coverage is insufficient, facts whose ordering cannot be established may be `null`; record `NOT TESTED` or `BLOCKED` instead of reconstructing them from the final filesystem. `null` is an evidence state, not a successful ordering result.
+
+For runs that do not test staged disclosure, set `applicable` to `false`, use an empty `added_requirement_ids`, set all staged IDs/orders/boolean facts to `null`, and explain non-applicability in the evidence strings.
 
 ## Rerun conditions
 
