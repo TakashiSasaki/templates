@@ -124,6 +124,28 @@ def _browser_prerequisites(arguments: list[str]) -> int:
     return 0
 
 
+def _release_candidate(arguments: list[str]) -> int:
+    if len(arguments) != 1:
+        print(
+            "ERROR: verify-release-candidate requires exactly one caller value: revision",
+            file=sys.stderr,
+        )
+        return 2
+    result = _run_provider(
+        ".template-composition/release/verify_candidate.py",
+        arguments,
+    )
+    value = _load_object(result.stdout)
+    if result.returncode not in {0, 1} or value is None:
+        detail = result.stderr.strip() or result.stdout.strip() or "provider returned no structured result"
+        print(f"ERROR: {detail}", file=sys.stderr)
+        return result.returncode if result.returncode not in {0, 1} else 2
+    _emit_json(value)
+    if result.stderr:
+        sys.stderr.write(result.stderr)
+    return result.returncode
+
+
 def _checkpoint(action: str, arguments: list[str]) -> int:
     if action == "create-planning-checkpoint":
         if len(arguments) != 1:
@@ -188,6 +210,8 @@ def main() -> int:
         return _release_readiness()
     if action == "diagnose-browser-prerequisites":
         return _browser_prerequisites(arguments)
+    if action == "verify-release-candidate":
+        return _release_candidate(arguments)
     if action in {"create-planning-checkpoint", "create-product-checkpoint"}:
         return _checkpoint(action, arguments)
     print(f"ERROR: unknown executable action: {action}", file=sys.stderr)
