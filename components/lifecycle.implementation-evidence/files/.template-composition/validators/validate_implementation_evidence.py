@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import sys
 from collections import defaultdict
@@ -641,7 +642,16 @@ def main() -> int:
         action="store_true",
         help="apply the stricter gate that rejects required or deferred proofs",
     )
+    parser.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+        dest="output_format",
+        help="render the release-readiness result for humans or machines",
+    )
     args = parser.parse_args()
+    if args.output_format == "json" and not args.release_readiness:
+        parser.error("--format json requires --release-readiness")
     root = Path(args.root).resolve()
     evidence = load_json(root / "contracts/implementation-evidence.json")
     errors = (
@@ -649,17 +659,47 @@ def main() -> int:
         if args.release_readiness
         else validate(root)
     )
+    evidence = load_json(root / "contracts/implementation-evidence.json")
+    warnings: list[str] = []
+    if isinstance(evidence, dict) and evidence.get("mode") == "product":
+        records = evidence.get("records", [])
+        if isinstance(records, list):
+            warnings = proof_reuse_warnings(records)
+
+    if args.release_readiness and args.output_format == "json":
+        deferred_proofs = sorted(
+            proof.get("id")
+            for record in evidence.get("records", [])
+            if isinstance(evidence, dict)
+            and isinstance(record, dict)
+            for field in ("positiveEvidence", "negativeEvidence")
+            for proof in record.get(field, [])
+            if isinstance(proof, dict)
+            and proof.get("status") == "deferred"
+            and isinstance(proof.get("id"), str)
+        )
+        print(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "release_readiness": "not-ready" if errors else "ready",
+                    "blocking_conditions": errors,
+                    "deferred_proofs": deferred_proofs,
+                    "warnings": warnings,
+                },
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+        )
+        return 1 if errors else 0
+
     if errors:
         for error in errors:
             print(f"ERROR: {error}", file=sys.stderr)
         return 1
 
-    evidence = load_json(root / "contracts/implementation-evidence.json")
-    if isinstance(evidence, dict) and evidence.get("mode") == "product":
-        records = evidence.get("records", [])
-        if isinstance(records, list):
-            for warning in proof_reuse_warnings(records):
-                print(f"WARNING: {warning}")
+    for warning in warnings:
+        print(f"WARNING: {warning}")
     if not args.release_readiness and isinstance(evidence, dict):
         if evidence.get("mode") == "planning":
             print(

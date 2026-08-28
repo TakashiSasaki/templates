@@ -1,0 +1,19 @@
+{
+  "$schema": "./implementation-evidence-actions.schema.json",
+  "schemaVersion": 1,
+  "actions": {
+    "check-release-readiness": {
+      "argv": [
+        "{python}",
+        "-I",
+        ".template-composition/validators/validate_implementation_evidence.py",
+        ".",
+        "--release-readiness",
+        "--format",
+        "json"
+      ],
+      "caller_inputs": ["{python}"],
+      "output_schema": ".template-composition/implementation-evidence-release-readiness.schema.json"
+    }
+  }
+}

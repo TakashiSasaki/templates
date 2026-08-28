@@ -20,6 +20,7 @@ LOCK_RELATIVE = ".template-composition/lock.json"
 STATE_VALIDATOR_RELATIVE = ".template-composition/validate_composition.py"
 REGISTRY_RELATIVE = ".template-composition/validation-registry.json"
 CHECKPOINT_ACTION_REGISTRY_RELATIVE = ".template-composition/lifecycle-checkpoint-actions.json"
+IMPLEMENTATION_EVIDENCE_ACTION_REGISTRY_RELATIVE = ".template-composition/implementation-evidence-actions.json"
 RUNNER_RELATIVE = ".template-composition/validate.py"
 COMPONENT_RE = re.compile(
     r"^(artifact|capability|lifecycle)\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
@@ -883,6 +884,98 @@ def _checkpoint_command_failure(mode: str) -> dict[str, Any]:
         "next_actions": ["inspect", "plan", "apply", "validate"],
     }
 
+def _implementation_evidence_selected(checks: list[dict[str, Any]]) -> bool:
+    return any(
+        check.get("component") == "lifecycle.implementation-evidence"
+        for check in checks
+    )
+
+
+def _release_readiness_action_command(
+    root: Path, checks: list[dict[str, Any]]
+) -> dict[str, Any] | None:
+    """Project the provider-owned release-readiness operation without copying argv."""
+    if not _implementation_evidence_selected(checks):
+        return None
+    try:
+        registry = _load_json(root / IMPLEMENTATION_EVIDENCE_ACTION_REGISTRY_RELATIVE)
+    except (OSError, UnicodeError, json.JSONDecodeError, StrictJsonError):
+        return None
+    if (
+        not isinstance(registry, dict)
+        or set(registry) != {"$schema", "schemaVersion", "actions"}
+        or registry.get("$schema") != "./implementation-evidence-actions.schema.json"
+        or registry.get("schemaVersion") != 1
+    ):
+        return None
+    actions = registry.get("actions")
+    if not isinstance(actions, dict) or set(actions) != {"check-release-readiness"}:
+        return None
+    entry = actions.get("check-release-readiness")
+    if (
+        not isinstance(entry, dict)
+        or set(entry) != {"argv", "caller_inputs", "output_schema"}
+    ):
+        return None
+    argv = entry.get("argv")
+    caller_inputs = entry.get("caller_inputs")
+    output_schema = entry.get("output_schema")
+    if (
+        not isinstance(argv, list)
+        or not argv
+        or any(not isinstance(token, str) or not token for token in argv)
+        or not isinstance(caller_inputs, list)
+        or len(caller_inputs) != len(set(caller_inputs))
+        or any(
+            not isinstance(token, str)
+            or re.fullmatch(r"\{[a-z_]+\}", token) is None
+            for token in caller_inputs
+        )
+    ):
+        return None
+    try:
+        output_schema = _portable_path(output_schema)
+    except ValidationRegistryError:
+        return None
+    placeholder = re.compile(r"^\{[a-z_]+\}$")
+    if (
+        any(
+            placeholder.fullmatch(token) is not None and token not in caller_inputs
+            for token in argv
+        )
+        or any(token not in argv for token in caller_inputs)
+    ):
+        return None
+    return {
+        "action": "check-release-readiness",
+        "argv": list(argv),
+        "caller_inputs": list(caller_inputs),
+        "output_schema": output_schema,
+    }
+
+
+def _with_release_readiness_command(
+    root: Path,
+    checks: list[dict[str, Any]],
+    value: dict[str, Any],
+) -> dict[str, Any]:
+    if not _implementation_evidence_selected(checks):
+        return value
+    command = _release_readiness_action_command(root, checks)
+    if command is None:
+        return {
+            "schema_version": 2,
+            "lifecycle_stage": "composition-invalid",
+            "implementation_evidence_mode": value["implementation_evidence_mode"],
+            "release_readiness": "not-evaluated",
+            "blocking_conditions": ["release-readiness-command-registry-invalid"],
+            "deferred_checks": value["deferred_checks"],
+            "next_actions": ["inspect", "plan", "apply", "validate"],
+        }
+    value["next_action_command"] = command
+    return value
+
+
 def _lifecycle_projection(
     root: Path, status: str, checks: list[dict[str, Any]]
 ) -> dict[str, Any]:
@@ -1026,20 +1119,24 @@ def _lifecycle_projection(
             }
 
         if deferred:
-            return {
-                "schema_version": 2,
-                "lifecycle_stage": "implemented-product",
-                "implementation_evidence_mode": mode,
-                "release_readiness": "not-ready",
-                "blocking_conditions": ["deferred-proof"],
-                "deferred_checks": deferred,
-                "next_actions": [
-                    "resolve-deferred-proof",
-                    "run-product-verifier",
-                    "validate-product-state",
-                    "check-release-readiness",
-                ],
-            }
+            return _with_release_readiness_command(
+                root,
+                checks,
+                {
+                    "schema_version": 2,
+                    "lifecycle_stage": "implemented-product",
+                    "implementation_evidence_mode": mode,
+                    "release_readiness": "not-ready",
+                    "blocking_conditions": ["deferred-proof"],
+                    "deferred_checks": deferred,
+                    "next_actions": [
+                        "resolve-deferred-proof",
+                        "run-product-verifier",
+                        "validate-product-state",
+                        "check-release-readiness",
+                    ],
+                },
+            )
 
         explicitly_ready = any(
             check.get("id") == "release-readiness"
@@ -1057,15 +1154,19 @@ def _lifecycle_projection(
                 "next_actions": [],
             }
 
-        return {
-            "schema_version": 2,
-            "lifecycle_stage": "implemented-product",
-            "implementation_evidence_mode": mode,
-            "release_readiness": "not-evaluated",
-            "blocking_conditions": ["release-readiness-not-evaluated"],
-            "deferred_checks": [],
-            "next_actions": ["check-release-readiness"],
-        }
+        return _with_release_readiness_command(
+            root,
+            checks,
+            {
+                "schema_version": 2,
+                "lifecycle_stage": "implemented-product",
+                "implementation_evidence_mode": mode,
+                "release_readiness": "not-evaluated",
+                "blocking_conditions": ["release-readiness-not-evaluated"],
+                "deferred_checks": [],
+                "next_actions": ["check-release-readiness"],
+            },
+        )
 
     return {
         "schema_version": 2,

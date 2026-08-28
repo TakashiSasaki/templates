@@ -13,6 +13,8 @@ RUNNER_PATH = ROOT / "components/lifecycle.composition-state/files/.template-com
 SCHEMA_PATH = ROOT / "components/lifecycle.composition-state/files/.template-composition/lifecycle-next-actions.schema.json"
 ACTION_REGISTRY_PATH = ROOT / "components/lifecycle.lifecycle-checkpoints/files/.template-composition/lifecycle-checkpoint-actions.json"
 ACTION_SCHEMA_PATH = ROOT / "components/lifecycle.lifecycle-checkpoints/files/.template-composition/lifecycle-checkpoint-actions.schema.json"
+READINESS_ACTION_REGISTRY_PATH = ROOT / "components/lifecycle.implementation-evidence/files/.template-composition/implementation-evidence-actions.json"
+READINESS_ACTION_SCHEMA_PATH = ROOT / "components/lifecycle.implementation-evidence/files/.template-composition/implementation-evidence-actions.schema.json"
 
 SPEC = importlib.util.spec_from_file_location("composition_validation_runner", RUNNER_PATH)
 if SPEC is None or SPEC.loader is None:
@@ -34,6 +36,12 @@ class LifecycleNextActionsTests(unittest.TestCase):
         cls.action_registry = json.loads(ACTION_REGISTRY_PATH.read_text(encoding="utf-8"))
         cls.action_schema_validator.validate(cls.action_registry)
 
+        readiness_schema = json.loads(READINESS_ACTION_SCHEMA_PATH.read_text(encoding="utf-8"))
+        Draft202012Validator.check_schema(readiness_schema)
+        cls.readiness_action_schema_validator = Draft202012Validator(readiness_schema)
+        cls.readiness_action_registry = json.loads(READINESS_ACTION_REGISTRY_PATH.read_text(encoding="utf-8"))
+        cls.readiness_action_schema_validator.validate(cls.readiness_action_registry)
+
     def project(
         self,
         mode: str,
@@ -44,6 +52,8 @@ class LifecycleNextActionsTests(unittest.TestCase):
         checkpoint_phase: str | None = None,
         malformed_checkpoint_ledger: bool = False,
         malformed_action_registry: bool = False,
+        release_readiness_applicable: bool = False,
+        malformed_readiness_registry: bool = False,
     ) -> dict:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
@@ -85,6 +95,21 @@ class LifecycleNextActionsTests(unittest.TestCase):
                         json.dumps({"checkpoints": checkpoints}),
                         encoding="utf-8",
                     )
+
+            if release_readiness_applicable:
+                readiness_registry = root / ".template-composition" / "implementation-evidence-actions.json"
+                readiness_registry.parent.mkdir(exist_ok=True)
+                readiness_registry.write_text(
+                    "{}" if malformed_readiness_registry else json.dumps(self.readiness_action_registry),
+                    encoding="utf-8",
+                )
+                active_checks.append(
+                    {
+                        "id": "implementation-evidence",
+                        "component": "lifecycle.implementation-evidence",
+                        "status": "passed",
+                    }
+                )
 
             value = runner._lifecycle_projection(root, status, active_checks)
             self.schema_validator.validate(value)
@@ -180,6 +205,66 @@ class LifecycleNextActionsTests(unittest.TestCase):
         )
         self.assertEqual(value["next_actions"], ["check-release-readiness"])
         self.assertNotIn("next_action_command", value)
+
+    def test_product_checkpoint_projects_provider_owned_release_readiness_command(self) -> None:
+        value = self.project(
+            "product",
+            checkpoints_selected=True,
+            checkpoint_phase="product",
+            release_readiness_applicable=True,
+        )
+        self.assertEqual(value["next_actions"], ["check-release-readiness"])
+        self.assertEqual(
+            value["next_action_command"],
+            {
+                "action": "check-release-readiness",
+                "argv": [
+                    "{python}",
+                    "-I",
+                    ".template-composition/validators/validate_implementation_evidence.py",
+                    ".",
+                    "--release-readiness",
+                    "--format",
+                    "json",
+                ],
+                "caller_inputs": ["{python}"],
+                "output_schema": ".template-composition/implementation-evidence-release-readiness.schema.json",
+            },
+        )
+
+    def test_malformed_release_readiness_registry_fails_closed(self) -> None:
+        value = self.project(
+            "product",
+            checkpoints_selected=True,
+            checkpoint_phase="product",
+            release_readiness_applicable=True,
+            malformed_readiness_registry=True,
+        )
+        self.assertEqual(value["lifecycle_stage"], "composition-invalid")
+        self.assertEqual(
+            value["blocking_conditions"],
+            ["release-readiness-command-registry-invalid"],
+        )
+        self.assertEqual(value["next_actions"], ["inspect", "plan", "apply", "validate"])
+        self.assertNotIn("next_action_command", value)
+
+    def test_non_applicable_consumer_does_not_project_readiness_command(self) -> None:
+        value = self.project("product")
+        self.assertEqual(value["next_actions"], ["check-release-readiness"])
+        self.assertNotIn("next_action_command", value)
+
+    def test_deferred_proof_still_projects_executable_readiness_check(self) -> None:
+        value = self.project(
+            "product",
+            checks=[{"id": "browser-proof", "status": "deferred"}],
+            release_readiness_applicable=True,
+        )
+        self.assertEqual(value["release_readiness"], "not-ready")
+        self.assertEqual(value["deferred_checks"], ["browser-proof"])
+        self.assertEqual(
+            value["next_action_command"]["action"],
+            "check-release-readiness",
+        )
 
     def test_release_ready_check_cannot_skip_product_checkpoint(self) -> None:
         value = self.project(
