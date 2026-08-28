@@ -16,7 +16,8 @@ The catalog publishes explanatory Markdown for:
 - the Agent Skill artifact model;
 - the Web application artifact model;
 - reusable runtime, CLI, MCP, MCP Apps, browser, and service capabilities;
-- reusable composition-state, contract-evolution, implementation-evidence, release-execution, release-evidence, and release-bundle lifecycle contracts; and
+- reusable composition-state, contract-evolution, implementation-evidence, release-execution, release-evidence, and release-bundle lifecycle contracts;
+- the canonical independent clean-room evaluation entry point that routes evaluators to the formal protocol, scorecard guide, scorecard schema, and output sequence; and
 - one consolidated authority-migration history that explains why former monolithic Skill/Webapp responsibilities moved to their present authorities and points to immutable PR provenance for stage-level detail.
 
 The publication home is the branch `README.md`. `docs/index.md` is the provider-owned progressive-disclosure root used by guided navigation.
@@ -59,7 +60,10 @@ Machine-readable source authorities are published as supporting assets rather th
 - every production component descriptor;
 - Webapp domain contract/schema seeds;
 - reusable lifecycle contract/schema seeds; and
-- the consumer composition-lock schema.
+- the consumer composition-lock schema; and
+- the formal clean-room evaluation protocol, scorecard guide, and scorecard schema.
+
+Evaluation materials are maintainer/evaluator authorities rather than ordinary materialized consumer contracts. They are published as a reader entry document plus exact supporting assets; they do not extend the consumer `agent.json` bootstrap with an evaluator mode.
 
 The stable installer descriptor separates three full-SHA roles: the remote installer script revision, the installed skill-source revision, and the Composition toolchain revision selected by that skill. Repository CI verifies those identities against Git history, the pinned installer source, the skill runtime manifest, the runtime-lock digest, and strict `toolchain -> skill source -> installer -> publication` ancestry. The descriptor itself is therefore published as machine-readable authority even though `release/README.md` is not reader-facing publication.
 
