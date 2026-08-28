@@ -25,7 +25,15 @@ class EvaluationScorecardRequirementIdTests(unittest.TestCase):
             with self.subTest(valid_id=valid_id):
                 self.validator.validate(valid_id)
 
-        for invalid_id in ("req-lowercase", "CHANGE-1", "REQ_INVALID_CHAR", "REQ-"):
+        for invalid_id in (
+            "req-lowercase",
+            "CHANGE-1",
+            "REQ_INVALID_CHAR",
+            "REQ-",
+            "REQ-A-",
+            "REQ--A",
+            "REQ-A--B",
+        ):
             with self.subTest(invalid_id=invalid_id):
                 with self.assertRaises(ValidationError):
                     self.validator.validate(invalid_id)
