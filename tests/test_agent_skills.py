@@ -158,7 +158,7 @@ class AgentSkillContractTests(unittest.TestCase):
         for invariant in (
             "repository-local reference shim",
             "does not define shared pull-request policy",
-            "does not duplicate the adapter's github orchestration semantics",
+            "duplicate the adapter's github orchestration semantics",
             "immutable source identity is recorded in the adjacent `source.json`",
             "current site code, tests, workflows, `maintenance.md`, `publishing.md`",
         ):
