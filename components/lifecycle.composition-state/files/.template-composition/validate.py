@@ -19,6 +19,7 @@ from typing import Any
 LOCK_RELATIVE = ".template-composition/lock.json"
 STATE_VALIDATOR_RELATIVE = ".template-composition/validate_composition.py"
 REGISTRY_RELATIVE = ".template-composition/validation-registry.json"
+CHECKPOINT_ACTION_REGISTRY_RELATIVE = ".template-composition/lifecycle-checkpoint-actions.json"
 RUNNER_RELATIVE = ".template-composition/validate.py"
 COMPONENT_RE = re.compile(
     r"^(artifact|capability|lifecycle)\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
@@ -776,6 +777,102 @@ def _checkpoint_phase(root: Path, checks: list[dict[str, Any]]) -> str:
     return phase if phase in {"planning", "product"} else "invalid"
 
 
+
+def _checkpoint_latest_id(root: Path) -> str | None:
+    try:
+        ledger = _load_json(root / "contracts/lifecycle-checkpoints.json")
+    except (OSError, UnicodeError, json.JSONDecodeError, StrictJsonError):
+        return None
+    if not isinstance(ledger, dict):
+        return None
+    checkpoints = ledger.get("checkpoints")
+    if not isinstance(checkpoints, list) or not checkpoints:
+        return None
+    latest = checkpoints[-1]
+    if not isinstance(latest, dict):
+        return None
+    checkpoint_id = latest.get("id")
+    if not isinstance(checkpoint_id, str) or re.fullmatch(r"[a-z][a-z0-9-]*", checkpoint_id) is None:
+        return None
+    return checkpoint_id
+
+
+def _checkpoint_action_command(root: Path, action: str) -> dict[str, Any] | None:
+    try:
+        registry = _load_json(root / CHECKPOINT_ACTION_REGISTRY_RELATIVE)
+    except (OSError, UnicodeError, json.JSONDecodeError, StrictJsonError):
+        return None
+    if (
+        not isinstance(registry, dict)
+        or set(registry) != {"$schema", "schemaVersion", "actions"}
+        or registry.get("schemaVersion") != 1
+    ):
+        return None
+    actions = registry.get("actions")
+    if not isinstance(actions, dict):
+        return None
+    entry = actions.get(action)
+    if not isinstance(entry, dict) or set(entry) != {"argv", "caller_inputs", "bindings"}:
+        return None
+    argv = entry.get("argv")
+    caller_inputs = entry.get("caller_inputs")
+    bindings = entry.get("bindings")
+    if (
+        not isinstance(argv, list)
+        or not argv
+        or any(not isinstance(token, str) or not token for token in argv)
+        or not isinstance(caller_inputs, list)
+        or len(caller_inputs) != len(set(caller_inputs))
+        or any(
+            not isinstance(token, str)
+            or re.fullmatch(r"\{[a-z_]+\}", token) is None
+            for token in caller_inputs
+        )
+        or not isinstance(bindings, dict)
+        or any(
+            not isinstance(token, str)
+            or re.fullmatch(r"\{[a-z_]+\}", token) is None
+            or binding != "latest-checkpoint-id"
+            for token, binding in bindings.items()
+        )
+        or set(caller_inputs) & set(bindings)
+    ):
+        return None
+
+    resolved: list[str] = []
+    placeholder = re.compile(r"^\{[a-z_]+\}$")
+    for token in argv:
+        if token in bindings:
+            latest_id = _checkpoint_latest_id(root)
+            if latest_id is None:
+                return None
+            resolved.append(latest_id)
+        elif placeholder.fullmatch(token) is not None:
+            if token not in caller_inputs:
+                return None
+            resolved.append(token)
+        else:
+            resolved.append(token)
+    if any(token not in argv for token in caller_inputs):
+        return None
+    return {
+        "action": action,
+        "argv": resolved,
+        "caller_inputs": list(caller_inputs),
+    }
+
+
+def _checkpoint_command_failure(mode: str) -> dict[str, Any]:
+    return {
+        "schema_version": 2,
+        "lifecycle_stage": "composition-invalid",
+        "implementation_evidence_mode": mode,
+        "release_readiness": "not-evaluated",
+        "blocking_conditions": ["checkpoint-command-registry-invalid"],
+        "deferred_checks": [],
+        "next_actions": ["inspect", "plan", "apply", "validate"],
+    }
+
 def _lifecycle_projection(
     root: Path, status: str, checks: list[dict[str, Any]]
 ) -> dict[str, Any]:
@@ -793,7 +890,7 @@ def _lifecycle_projection(
     )
     if failed:
         return {
-            "schema_version": 1,
+            "schema_version": 2,
             "lifecycle_stage": "composition-invalid",
             "implementation_evidence_mode": mode,
             "release_readiness": "not-evaluated",
@@ -804,7 +901,7 @@ def _lifecycle_projection(
 
     if mode == "invalid":
         return {
-            "schema_version": 1,
+            "schema_version": 2,
             "lifecycle_stage": "composition-invalid",
             "implementation_evidence_mode": mode,
             "release_readiness": "not-evaluated",
@@ -816,7 +913,7 @@ def _lifecycle_projection(
     checkpoint_phase = _checkpoint_phase(root, checks)
     if checkpoint_phase == "invalid":
         return {
-            "schema_version": 1,
+            "schema_version": 2,
             "lifecycle_stage": "composition-invalid",
             "implementation_evidence_mode": mode,
             "release_readiness": "not-evaluated",
@@ -829,7 +926,7 @@ def _lifecycle_projection(
 
     if mode == "template":
         return {
-            "schema_version": 1,
+            "schema_version": 2,
             "lifecycle_stage": "scaffold-valid",
             "implementation_evidence_mode": mode,
             "release_readiness": "not-evaluated",
@@ -851,8 +948,11 @@ def _lifecycle_projection(
 
     if mode == "planning":
         if checkpoints_selected and checkpoint_phase != "planning":
+            command = _checkpoint_action_command(root, "create-planning-checkpoint")
+            if command is None:
+                return _checkpoint_command_failure(mode)
             return {
-                "schema_version": 1,
+                "schema_version": 2,
                 "lifecycle_stage": "scaffold-valid",
                 "implementation_evidence_mode": mode,
                 "release_readiness": "not-evaluated",
@@ -862,9 +962,10 @@ def _lifecycle_projection(
                 ],
                 "deferred_checks": [],
                 "next_actions": ["create-planning-checkpoint"],
+                "next_action_command": command,
             }
         return {
-            "schema_version": 1,
+            "schema_version": 2,
             "lifecycle_stage": "scaffold-valid",
             "implementation_evidence_mode": mode,
             "release_readiness": "not-evaluated",
@@ -895,24 +996,28 @@ def _lifecycle_projection(
             if check.get("status") == "deferred"
         )
         if checkpoints_selected and checkpoint_phase != "product":
+            command = _checkpoint_action_command(root, "create-product-checkpoint")
+            if command is None:
+                return _checkpoint_command_failure(mode)
             blockers = ["product-checkpoint-required"]
             readiness = "not-evaluated"
             if deferred:
                 blockers.append("deferred-proof")
                 readiness = "not-ready"
             return {
-                "schema_version": 1,
+                "schema_version": 2,
                 "lifecycle_stage": "implemented-product",
                 "implementation_evidence_mode": mode,
                 "release_readiness": readiness,
                 "blocking_conditions": blockers,
                 "deferred_checks": deferred,
                 "next_actions": ["create-product-checkpoint"],
+                "next_action_command": command,
             }
 
         if deferred:
             return {
-                "schema_version": 1,
+                "schema_version": 2,
                 "lifecycle_stage": "implemented-product",
                 "implementation_evidence_mode": mode,
                 "release_readiness": "not-ready",
@@ -933,7 +1038,7 @@ def _lifecycle_projection(
         )
         if explicitly_ready:
             return {
-                "schema_version": 1,
+                "schema_version": 2,
                 "lifecycle_stage": "release-ready",
                 "implementation_evidence_mode": mode,
                 "release_readiness": "ready",
@@ -943,7 +1048,7 @@ def _lifecycle_projection(
             }
 
         return {
-            "schema_version": 1,
+            "schema_version": 2,
             "lifecycle_stage": "implemented-product",
             "implementation_evidence_mode": mode,
             "release_readiness": "not-evaluated",
@@ -953,7 +1058,7 @@ def _lifecycle_projection(
         }
 
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "lifecycle_stage": "scaffold-valid",
         "implementation_evidence_mode": mode,
         "release_readiness": "not-evaluated",
