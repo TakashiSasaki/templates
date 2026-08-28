@@ -19,6 +19,7 @@ _impl = importlib.util.module_from_spec(_SPEC)
 _SPEC.loader.exec_module(_impl)
 
 WEBAPP_ACTION_REGISTRY_RELATIVE = ".template-composition/webapp-actions.json"
+RELEASE_EXECUTION_ACTION_REGISTRY_RELATIVE = ".template-composition/release-execution-actions.json"
 _PLACEHOLDER = re.compile(r"^\{[a-z_]+\}$")
 
 
@@ -88,27 +89,28 @@ def _deferred_proof_state(root: Path) -> tuple[list[str], list[str]]:
     return sorted(deferred), sorted(browser)
 
 
-def _webapp_action_command(
+def _load_action_command(
     root: Path,
-    checks: list[dict[str, Any]],
+    *,
+    registry_relative: str,
+    registry_schema: str,
+    action: str,
 ) -> dict[str, Any] | None:
-    if not _component_selected(checks, "artifact.webapp-core"):
-        return None
     try:
-        registry = _impl._load_json(root / WEBAPP_ACTION_REGISTRY_RELATIVE)
+        registry = _impl._load_json(root / registry_relative)
     except (OSError, UnicodeError, json.JSONDecodeError, _impl.StrictJsonError):
         return None
     if (
         not isinstance(registry, dict)
         or set(registry) != {"$schema", "schemaVersion", "actions"}
-        or registry.get("$schema") != "./webapp-actions.schema.json"
+        or registry.get("$schema") != registry_schema
         or registry.get("schemaVersion") != 1
     ):
         return None
     actions = registry.get("actions")
-    if not isinstance(actions, dict) or set(actions) != {"diagnose-browser-prerequisites"}:
+    if not isinstance(actions, dict) or set(actions) != {action}:
         return None
-    entry = actions.get("diagnose-browser-prerequisites")
+    entry = actions.get(action)
     if (
         not isinstance(entry, dict)
         or set(entry) != {"argv", "caller_inputs", "output_schema"}
@@ -139,23 +141,54 @@ def _webapp_action_command(
     except _impl.ValidationRegistryError:
         return None
     return {
-        "action": "diagnose-browser-prerequisites",
+        "action": action,
         "argv": list(argv),
         "caller_inputs": list(caller_inputs),
         "output_schema": output_schema,
     }
 
 
-def _projection_failure(mode: str, deferred_checks: list[str], deferred_proofs: list[str]) -> dict[str, Any]:
+def _webapp_action_command(root: Path, checks: list[dict[str, Any]]) -> dict[str, Any] | None:
+    if not _component_selected(checks, "artifact.webapp-core"):
+        return None
+    return _load_action_command(
+        root,
+        registry_relative=WEBAPP_ACTION_REGISTRY_RELATIVE,
+        registry_schema="./webapp-actions.schema.json",
+        action="diagnose-browser-prerequisites",
+    )
+
+
+def _release_candidate_action_command(
+    root: Path,
+    checks: list[dict[str, Any]],
+) -> dict[str, Any] | None:
+    if not _component_selected(checks, "lifecycle.release-execution"):
+        return None
+    return _load_action_command(
+        root,
+        registry_relative=RELEASE_EXECUTION_ACTION_REGISTRY_RELATIVE,
+        registry_schema="./release-execution-actions.schema.json",
+        action="verify-release-candidate",
+    )
+
+
+def _projection_failure(
+    mode: str,
+    deferred_checks: list[str],
+    deferred_proofs: list[str],
+    blocker: str,
+) -> dict[str, Any]:
     return {
         "schema_version": 3,
         "lifecycle_stage": "composition-invalid",
         "implementation_evidence_mode": mode,
         "release_readiness": "not-evaluated",
-        "blocking_conditions": ["browser-diagnostic-command-registry-invalid"],
+        "blocking_conditions": [blocker],
         "deferred_checks": deferred_checks,
         "deferred_proofs": deferred_proofs,
         "next_actions": ["inspect", "plan", "apply", "validate"],
+        "conditional_prerequisite_commands": [],
     }
 
 
@@ -168,10 +201,31 @@ def _augment_lifecycle(
     projected["schema_version"] = 3
     deferred_proofs, browser_proofs = _deferred_proof_state(root)
     projected["deferred_proofs"] = deferred_proofs
+    projected["conditional_prerequisite_commands"] = []
+
+    if projected.get("lifecycle_stage") == "composition-invalid":
+        return projected
+
+    if (
+        projected.get("implementation_evidence_mode") == "product"
+        and _component_selected(checks, "lifecycle.release-execution")
+    ):
+        release_command = _release_candidate_action_command(root, checks)
+        if release_command is None:
+            return _projection_failure(
+                str(projected.get("implementation_evidence_mode")),
+                list(projected.get("deferred_checks", [])),
+                deferred_proofs,
+                "release-candidate-command-registry-invalid",
+            )
+        projected["conditional_prerequisite_commands"] = [
+            {
+                "condition": "before-release-production",
+                **release_command,
+            }
+        ]
 
     if not deferred_proofs or projected.get("implementation_evidence_mode") != "product":
-        return projected
-    if projected.get("lifecycle_stage") == "composition-invalid":
         return projected
 
     projected["lifecycle_stage"] = "implemented-product"
@@ -202,6 +256,7 @@ def _augment_lifecycle(
                 str(projected.get("implementation_evidence_mode")),
                 list(projected.get("deferred_checks", [])),
                 deferred_proofs,
+                "browser-diagnostic-command-registry-invalid",
             )
         projected["next_action_command"] = command
     return projected
