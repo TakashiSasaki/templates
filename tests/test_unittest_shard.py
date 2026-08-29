@@ -1,14 +1,21 @@
 from __future__ import annotations
 
 import hashlib
+import io
+import json
 import unittest
 from collections import Counter
 from pathlib import Path
+from unittest import mock
 
 from scripts.run_unittest_shard import (
     REAL_BROWSER_TEST_IDS,
+    TIMING_LOG_PREFIX,
+    TIMING_SCHEMA_VERSION,
     TWO_SHARD_TIMING_OVERRIDES,
+    TimingTextTestResult,
     discover_tests,
+    format_timing_records,
     select_tests_for_suite,
     shard_index_for_test_id,
 )
@@ -16,6 +23,11 @@ from scripts.run_unittest_shard import (
 
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github/workflows/schema-validation.yml"
+
+
+class TimingFixture(unittest.TestCase):
+    def test_example(self) -> None:
+        pass
 
 
 class UnittestShardTests(unittest.TestCase):
@@ -54,6 +66,47 @@ class UnittestShardTests(unittest.TestCase):
                 shard_index_for_test_id(test_id, 3),
                 pure_hash_three_shard,
             )
+
+    def test_timing_result_records_parent_test_duration(self) -> None:
+        test = TimingFixture("test_example")
+        result = TimingTextTestResult(io.StringIO(), True, 2)
+        with mock.patch(
+            "scripts.run_unittest_shard.time.perf_counter_ns",
+            side_effect=[1_000_000_000, 1_250_000_000],
+        ):
+            result.startTest(test)
+            result.stopTest(test)
+
+        self.assertEqual(
+            result.test_durations,
+            [(test.id(), 0.25)],
+        )
+
+    def test_timing_records_are_stable_machine_readable_json_lines(self) -> None:
+        lines = format_timing_records(
+            [
+                ("test_z.ExampleTests.test_z", 0.2),
+                ("test_a.ExampleTests.test_a", 0.1234567894),
+            ],
+            suite="core",
+            shard_count=2,
+            shard_index=1,
+        )
+        self.assertEqual(len(lines), 2)
+        payloads = []
+        for line in lines:
+            self.assertTrue(line.startswith(TIMING_LOG_PREFIX))
+            payloads.append(json.loads(line.removeprefix(TIMING_LOG_PREFIX)))
+
+        self.assertEqual(
+            [payload["test_id"] for payload in payloads],
+            ["test_a.ExampleTests.test_a", "test_z.ExampleTests.test_z"],
+        )
+        self.assertEqual(payloads[0]["schema_version"], TIMING_SCHEMA_VERSION)
+        self.assertEqual(payloads[0]["suite"], "core")
+        self.assertEqual(payloads[0]["shard_count"], 2)
+        self.assertEqual(payloads[0]["shard_index"], 1)
+        self.assertEqual(payloads[0]["duration_seconds"], 0.123456789)
 
     def test_duplicate_test_ids_keep_their_execution_multiplicity(self) -> None:
         duplicate_id = "test_duplicate.ExampleTests.test_case"
