@@ -148,7 +148,7 @@ class RepositoryBrowserMobileTests(unittest.TestCase):
                 ):
                     write_browser_controller(root)
 
-    def test_controller_uses_explicit_navigation_without_swipe_or_history(self) -> None:
+    def test_controller_uses_explicit_navigation_with_file_history(self) -> None:
         controller = CONTROLLER.read_text(encoding="utf-8")
         self.assertIn('matchMedia("(max-width: 800px)")', controller)
         self.assertIn('setMobileMode("content")', controller)
@@ -162,10 +162,12 @@ class RepositoryBrowserMobileTests(unittest.TestCase):
         self.assertIn("event.shiftKey", controller)
         self.assertIn("event.altKey", controller)
         self.assertIn("preventScroll: true", controller)
+        self.assertIn("new URLSearchParams", controller)
+        self.assertIn("history.pushState", controller)
+        self.assertIn('addEventListener("popstate"', controller)
+        self.assertIn('addEventListener("hashchange"', controller)
         self.assertNotIn("touchstart", controller)
         self.assertNotIn("touchmove", controller)
-        self.assertNotIn("pushState", controller)
-        self.assertNotIn("popstate", controller)
 
     def test_legacy_listener_keyboard_activation_and_viewport_context(self) -> None:
         node = shutil.which("node")
@@ -176,7 +178,15 @@ class RepositoryBrowserMobileTests(unittest.TestCase):
 const fs = require("fs");
 const vm = require("vm");
 
-class Element {}
+class Element {
+  constructor() {
+    this.parentElement = null;
+    this.attributes = new Map();
+  }
+  setAttribute(name, value) { this.attributes.set(name, String(value)); }
+  getAttribute(name) { return this.attributes.has(name) ? this.attributes.get(name) : null; }
+  removeAttribute(name) { this.attributes.delete(name); }
+}
 class HTMLElement extends Element {
   constructor() {
     super();
@@ -186,32 +196,46 @@ class HTMLElement extends Element {
     this.focusCount = 0;
   }
   focus() { this.focusCount += 1; }
+  querySelector() { return null; }
+  querySelectorAll() { return []; }
 }
 class HTMLButtonElement extends HTMLElement {}
 class HTMLAnchorElement extends HTMLElement {
   constructor() {
     super();
-    this.attributes = new Map();
+    this.href = "https://example.test/files/site/content/file.html";
   }
   closest(selector) {
     return selector === "a[data-repository-file]" ? this : null;
   }
-  setAttribute(name, value) { this.attributes.set(name, value); }
-  removeAttribute(name) { this.attributes.delete(name); }
+}
+class HTMLIFrameElement extends HTMLElement {}
+class HTMLDetailsElement extends HTMLElement {
+  constructor() {
+    super();
+    this.open = false;
+  }
 }
 
 global.Element = Element;
 global.HTMLElement = HTMLElement;
 global.HTMLButtonElement = HTMLButtonElement;
 global.HTMLAnchorElement = HTMLAnchorElement;
+global.HTMLIFrameElement = HTMLIFrameElement;
+global.HTMLDetailsElement = HTMLDetailsElement;
 
 const tree = new HTMLElement();
+const frame = new HTMLIFrameElement();
+frame.setAttribute("srcdoc", "placeholder");
 const content = new HTMLElement();
+content.querySelector = (selector) =>
+  selector === "iframe[name='repository-file-viewer']" ? frame : null;
 const filesButton = new HTMLButtonElement();
 const selectedFileLabel = new HTMLElement();
 const fallbackTreeLink = new HTMLAnchorElement();
 fallbackTreeLink.dataset.filePath = "fallback.md";
 tree.querySelector = () => fallbackTreeLink;
+tree.querySelectorAll = () => [];
 const browserHandlers = {};
 const buttonHandlers = {};
 const browser = new HTMLElement();
@@ -236,9 +260,17 @@ const mobileViewport = {
   matches: false,
   addListener(callback) { legacyListener = callback; },
 };
+const location = { hash: "" };
+const history = {
+  pushState(_state, _title, hash) { location.hash = hash; },
+};
+const windowHandlers = {};
 global.window = {
+  location,
+  history,
   matchMedia: () => mobileViewport,
   requestAnimationFrame: (callback) => callback(),
+  addEventListener(type, callback) { windowHandlers[type] = callback; },
 };
 
 function clickEvent(target, overrides = {}) {
@@ -251,6 +283,7 @@ function clickEvent(target, overrides = {}) {
     ctrlKey: false,
     shiftKey: false,
     altKey: false,
+    preventDefault() { this.defaultPrevented = true; },
     ...overrides,
   };
 }
@@ -285,18 +318,19 @@ browserHandlers.click(clickEvent(link, { ctrlKey: true }));
 browserHandlers.click(clickEvent(link, { button: 1 }));
 const modifiedClicks = {
   mode: browser.dataset.mobileView,
-  current: link.attributes.get("aria-current") || null,
+  current: link.getAttribute("aria-current"),
   filesButtonFocusCount: filesButton.focusCount,
 };
 
 browserHandlers.click(clickEvent(link));
 const keyboardActivation = {
   mode: browser.dataset.mobileView,
-  current: link.attributes.get("aria-current") || null,
+  current: link.getAttribute("aria-current"),
   label: selectedFileLabel.textContent,
   treeInert: tree.inert,
   contentInert: content.inert,
   filesButtonFocusCount: filesButton.focusCount,
+  hash: location.hash,
 };
 
 mobileViewport.matches = false;
@@ -367,6 +401,7 @@ process.stdout.write(JSON.stringify({
                 "treeInert": True,
                 "contentInert": False,
                 "filesButtonFocusCount": 1,
+                "hash": "#file=README.md",
             },
         )
         self.assertEqual(
