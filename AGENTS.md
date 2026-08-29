@@ -22,7 +22,9 @@ If more than one skill applies, use only the minimal set needed and follow them 
 3. Prefer current code, tests, workflow definitions, `MAINTENANCE.md`, and `PUBLISHING.md` over historical PR descriptions.
 4. Use repository history only when current sources leave a material ambiguity unresolved.
 5. If a skill conflicts with current canonical documentation or executable contracts, follow the canonical source and update the stale skill.
-6. If the PR head changes, discard final acceptance for the previous head. Re-run Site acceptance as needed, then run the merge gate for the new exact head.
+6. If the PR head changes, invalidate evidence bound to the previous head and reacquire only the affected Site-acceptance and merge-gate evidence. Do not discard unaffected evidence or restart unrelated gates solely because the head changed.
+
+This routing discipline is not an additional acceptance checklist. Optional diagnostic reads or a locally stricter procedure do not become mandatory gates unless current repository authority requires them or a concrete unresolved uncertainty invalidates relied-upon evidence.
 
 ## Authority boundary
 
