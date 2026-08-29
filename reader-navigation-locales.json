@@ -45,6 +45,7 @@
         {"id": "mcp-apps-guidance", "canonical": "MCP Apps guidance", "localized": "MCP Apps ガイダンス"},
         {"id": "mcp-apps-v1-v2", "canonical": "MCP Apps v1 to v2", "localized": "MCP Apps v1 → v2"},
         {"id": "standalone-browser-interface", "canonical": "Standalone browser interface", "localized": "Standalone browser interface"},
+        {"id": "progressive-web-app", "canonical": "Progressive Web App", "localized": "Progressive Web App"},
         {"id": "web-interface-v1-v2", "canonical": "Web interface v1 to v2", "localized": "Web interface v1 → v2"},
         {"id": "headless-service-interface", "canonical": "Headless service interface", "localized": "Headless service interface"},
         {"id": "service-interface-v1-v2", "canonical": "Service interface v1 to v2", "localized": "Service interface v1 → v2"},
