@@ -73,6 +73,13 @@
       "surfaces": ["reader"]
     },
     {
+      "canonical": "docs/guides/composition-concepts.md",
+      "language": "ja",
+      "translation": "translations/ja/docs/guides/composition-concepts.md",
+      "canonical_blob_sha": "3fa260368011b54d0a855f0a81bedcdf1a240350",
+      "surfaces": ["reader"]
+    },
+    {
       "canonical": "docs/guides/skill-first-use-walkthrough.md",
       "language": "ja",
       "translation": "translations/ja/docs/guides/skill-first-use-walkthrough.md",
@@ -90,7 +97,7 @@
       "canonical": "docs/index.md",
       "language": "ja",
       "translation": "translations/ja/docs/index.md",
-      "canonical_blob_sha": "bcb579c3e05a1c9e105665858e68a6e9def1cfc1",
+      "canonical_blob_sha": "e96b661a0ce66c9fea63b393c93c650ee17fd653",
       "surfaces": ["reader", "guided"]
     },
     {

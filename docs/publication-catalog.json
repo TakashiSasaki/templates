@@ -3,6 +3,7 @@
   "documents": [
     {"id":"overview","source":"README.md","optional":false,"home":true},
     {"id":"documentation-index","source":"docs/index.md","optional":false,"home":false},
+    {"id":"composition-concepts","source":"docs/guides/composition-concepts.md","optional":false,"home":false},
     {"id":"evaluation-guide","source":"docs/evaluation-guide.md","optional":false,"home":false},
     {"id":"consumer-guide","source":"docs/consumer-guide.md","optional":false,"home":false},
     {"id":"webapp-product-walkthrough","source":"docs/guides/webapp-product-walkthrough.md","optional":false,"home":false},

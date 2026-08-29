@@ -3,6 +3,7 @@
 ## Start here
 
 - [Webapp product walkthrough](guides/webapp-product-walkthrough.md) — Creating your first Web application? Start here. Follow one zero-to-one Task Ledger path from a separate product repository through installation, `composition.json`, `inspect -> plan -> apply -> validate`, ownership, implementation, product tests, evidence, optional Policy, and later update/upgrade.
+- [Composition concepts for first-time readers](guides/composition-concepts.md) — Optional mental-model guide for repository-specific uses of recipe, artifact, component, contract, material, and lock. You do not need to read it before following a first-use walkthrough.
 - [Evaluating Composition](evaluation-guide.md) — canonical independent clean-room evaluator entry point: follow the formal protocol, use the scorecard guide, validate the machine-readable scorecard against its schema, and preserve transcript chronology.
 - [Using Composition](consumer-guide.md) — task-oriented create, inspect, update, upgrade, recovery, ownership, and conflict workflows for consumer repositories. Human terminal users may add `--format human` to `inspect`, `plan`, `apply`, or `validate` for concise next-action guidance; automation should continue to use the default JSON output.
 - [Choosing a recipe and components](../catalog/README.md) — decide between `skill` and `webapp`, then select only the application capabilities or lifecycle behavior the product actually needs.
