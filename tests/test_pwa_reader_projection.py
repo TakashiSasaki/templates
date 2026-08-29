@@ -48,6 +48,8 @@ class PwaReaderProjectionTests(unittest.TestCase):
         self.assertIn("[Progressive Web App capability](pwa/)", text)
         self.assertIn("Site does not redefine either contract family", text)
         self.assertIn("Composition-owned sources", text)
+        self.assertIn("[Policy PWA usage guide](../policy/pwa/)", text)
+        self.assertIn("not the reusable application PWA capability authority", text)
         self.assertNotIn("network-first", text)
         self.assertNotIn("cache-first", text)
         self.assertNotIn("Service Worker is required", text)
@@ -59,6 +61,8 @@ class PwaReaderProjectionTests(unittest.TestCase):
         self.assertIn("[Progressive Web App capability](/capabilities/pwa/)", text)
         self.assertIn("Site はどちらの contract family も再定義せず", text)
         self.assertIn("Composition が所有する正本", text)
+        self.assertIn("[Policy PWA usage guide](/policy/pwa/)", text)
+        self.assertIn("application PWA capability の authority ではありません", text)
 
 
 if __name__ == "__main__":
