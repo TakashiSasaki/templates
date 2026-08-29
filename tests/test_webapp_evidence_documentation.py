@@ -14,12 +14,14 @@ ARCHITECTURE = (
 )
 WEBAPP_CONTRACTS = ARCHITECTURE / "webapp-contracts.md"
 VALIDATION_TOOLCHAIN = ARCHITECTURE / "validation-toolchain.md"
+RESPONSIBILITY_BOUNDARIES = ARCHITECTURE / "responsibility-boundaries.md"
 
 
 class WebappEvidenceDocumentationTests(unittest.TestCase):
     def test_browser_identity_evidence_is_documented_as_current_not_deferred(self) -> None:
         contracts = WEBAPP_CONTRACTS.read_text(encoding="utf-8")
         toolchain = VALIDATION_TOOLCHAIN.read_text(encoding="utf-8")
+        boundaries = RESPONSIBILITY_BOUNDARIES.read_text(encoding="utf-8")
 
         self.assertNotIn(
             "Browser-identity executable proof is intentionally deferred",
@@ -29,10 +31,15 @@ class WebappEvidenceDocumentationTests(unittest.TestCase):
             "executable proof that the declared favicon is actually emitted and served is intentionally introduced with the subsequent browser/PWA evidence layer",
             toolchain,
         )
-        self.assertIn(
-            "browser_identity/proof-family/browser-identity",
-            contracts,
+        self.assertNotIn(
+            "executable favicon evidence is introduced separately with the browser/PWA proof layer",
+            boundaries,
         )
+        for text in (contracts, boundaries):
+            self.assertIn(
+                "browser_identity/proof-family/browser-identity",
+                text,
+            )
         self.assertIn(
             "browser-level positive and negative proof backed by a command that declares browser execution capability",
             contracts,
@@ -46,12 +53,20 @@ class WebappEvidenceDocumentationTests(unittest.TestCase):
             toolchain,
         )
         self.assertIn(
+            "browser-identity declaration itself is not executable favicon proof",
+            boundaries,
+        )
+        self.assertIn(
             "PWA installability, application-icon, offline/freshness, and update evidence are owned separately by `capability.pwa`",
             contracts,
         )
         self.assertIn(
             "PWA installability, application-icon, offline/freshness, and update proof families remain separately owned by `capability.pwa`",
             toolchain,
+        )
+        self.assertIn(
+            "`capability.pwa` owns its installability, application-icon, offline/freshness, and update proof families",
+            boundaries,
         )
 
 
