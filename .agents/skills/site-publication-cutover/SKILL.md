@@ -29,6 +29,7 @@ Do not use this skill to:
 - author or repair canonical Policy/toolchain semantics;
 - publish a mutable branch tip instead of an exact reviewed full commit SHA;
 - treat legacy Skill or Webapp branches as current external providers;
+- hand-edit `publication-sources.json`, `agent.json`, and `assets/agent.json` as separate synchronization steps when the deterministic advance tool applies;
 - perform only generic Site PR acceptance/merge work with no provider publication change; use `site-pr-exact-head-acceptance` and `pr-merge-gate` for that.
 
 If the provider revision itself is invalid, incomplete, or not reviewed to the required standard, stop the Site cutover and return the correction to the owning provider.
@@ -40,6 +41,7 @@ Read only the parts needed for the current change:
 - `MAINTENANCE.md` — Site change process and current responsibility boundaries;
 - `PUBLISHING.md` — publication allowlist, source-lock, provenance, reader-entry, and deployment contracts;
 - `publication-sources.json` — sole committed authority for the current exact external provider publication revisions;
+- `scripts/advance_publication_source.py` — Site-owned fail-closed mutation path for the source lock and agent revision projections;
 - `site-manifest.json` — Site-owned reader IA and generated destinations;
 - provider `docs/publication-catalog.json` — exact public document/asset/glossary boundary;
 - provider translation manifest and glossary sources when declared by the provider catalog;
@@ -55,8 +57,10 @@ Establish before editing:
 2. provider being advanced: exactly `composition` or `policy`;
 3. current locked provider SHA from `publication-sources.json`;
 4. target reviewed full 40-character lowercase provider SHA;
-5. provider diff from the current lock to the target;
-6. current Site PR/base state if a cutover PR already exists.
+5. an exact provider checkout whose `HEAD` is that target SHA;
+6. an exact Composition checkout whose `HEAD` is the prospective Composition publication revision;
+7. provider diff from the current lock to the target;
+8. current Site PR/base state if a cutover PR already exists.
 
 Do not infer the target SHA from a branch name when a merged/reviewed commit identity is available.
 
@@ -73,12 +77,14 @@ Do not infer the target SHA from a branch name when a merged/reviewed commit ide
    - provider `docs/index.md` when guided navigation semantics changed;
    - canonical walkthrough/entry documents whose reader routing may matter.
 4. Classify the cutover using the decision points below.
-5. Update `publication-sources.json` to the exact reviewed target SHA.
-6. Make only the Site-owned synchronization changes justified by the classification.
+5. Prepare the exact provider checkout and exact prospective Composition checkout. Run `scripts/advance_publication_source.py` with the provider, target SHA, expected current lock SHA, Site root, provider checkout, and Composition checkout. The tool must verify both checkout identities, preflight the prospective source lock and Composition release descriptor, render both agent projections deterministically, update the projections first, and replace the authoritative `publication-sources.json` last.
+6. Make only the additional Site-owned semantic changes justified by the classification. The deterministic advance tool does not decide or rewrite `site-manifest.json`, reader navigation locales, translation content or freshness metadata, glossary content, or reader prose.
 7. Update focused regression expectations only when they intentionally bind the changed publication identity or reader route. Do not mechanically replace old SHAs in unrelated historical evidence.
 8. Run the current Site validation path against the exact locks.
 9. Inspect generated provenance and representative assembled outputs to prove the target revision, not a mutable or fallback revision, was consumed.
 10. Hand Site-specific PR acceptance to `.agents/skills/site-pr-exact-head-acceptance/SKILL.md`, then final review/merge authorization to `.agents/skills/pr-merge-gate/SKILL.md`.
+
+The advance tool uses `--expected-current` as a compare-and-swap guard. If the source lock moved, an exact checkout does not match its required revision, a projection target is unsafe, or the prospective Composition release descriptor is invalid, the operation must fail before the authoritative source lock is advanced. Do not bypass that failure by manually editing the lock.
 
 ## Decision points
 
@@ -117,6 +123,7 @@ If a provider catalog adds, removes, or changes its glossary source, validate th
 Use the current executable contracts rather than a historical fixed command list. At minimum, verify the scopes applicable to the exact head include:
 
 - Site unit/integration and assembly tests;
+- deterministic source-lock/agent-projection synchronization after the advance operation;
 - strict documentation artifact build;
 - generated public-URL, link, fragment, canonical, and entry-point validation;
 - provider coexistence against the exact locked revisions;
@@ -132,6 +139,7 @@ Never weaken a failing publication or link contract merely to make the target re
 Classify failures before editing again:
 
 - **Provider contract failure** — target provider catalog/content is invalid. Fix on the provider authority, not Site.
+- **Cutover preflight failure** — expected-current, exact checkout identity, prospective source lock, Composition release descriptor, or projection-target safety is invalid. Correct the input or checkout; do not bypass the deterministic mutation path.
 - **Site mapping failure** — Site manifest/routing no longer maps a valid provider public interface. Fix Site-owned mapping.
 - **Translation/glossary integration failure** — determine whether the changed input is provider-owned or Site-owned before changing files.
 - **Provenance/source-lock failure** — fail closed; do not accept branch fallback or ambiguous revision resolution.
@@ -144,6 +152,7 @@ Do not declare the cutover complete while any of these remain true:
 
 - target provider identity is mutable, abbreviated, or not the reviewed revision intended for publication;
 - provider diff has not been classified for public-interface effects;
+- deterministic source-lock/agent-projection synchronization is incomplete or was bypassed;
 - Site publishes a catalog document without a deliberate mapping or misses a required new reader document;
 - generated provenance does not resolve to the exact intended provider revisions;
 - required exact-head CI or review is unresolved;
