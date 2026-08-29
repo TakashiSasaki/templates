@@ -395,93 +395,200 @@ jobs:
         with:
           path: build/site
 
-  check:
+  classify_browser:
+    name: Classify browser acceptance scope
     if: >-
       github.repository == 'TakashiSasaki/templates' &&
       github.event_name == 'pull_request' &&
       inputs.site_ref == '' &&
       github.event.pull_request.head.repo.full_name == github.repository
-    needs: build
+    runs-on: ubuntu-latest
+    outputs:
+      required: ${{ steps.classify.outputs.required }}
+      reason: ${{ steps.classify.outputs.reason }}
+      changed_count: ${{ steps.classify.outputs.changed_count }}
+      requiring_count: ${{ steps.classify.outputs.requiring_count }}
+      requiring_paths: ${{ steps.classify.outputs.requiring_paths }}
+
+    steps:
+      - name: Check out exact Site candidate for browser classification
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up classifier Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12.13'
+
+      - name: Collect exact pull-request changed paths
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          git diff --name-only --no-renames "$BASE_SHA" "$HEAD_SHA" > "$RUNNER_TEMP/site-browser-paths.txt"
+          test -s "$RUNNER_TEMP/site-browser-paths.txt"
+
+      - name: Classify browser acceptance scope
+        id: classify
+        run: |
+          python -I scripts/classify_site_browser_acceptance.py \
+            --changed-paths "$RUNNER_TEMP/site-browser-paths.txt" \
+            --output "$GITHUB_OUTPUT"
+
+      - name: Record browser acceptance selection
+        env:
+          REQUIRED: ${{ steps.classify.outputs.required }}
+          REASON: ${{ steps.classify.outputs.reason }}
+          CHANGED_COUNT: ${{ steps.classify.outputs.changed_count }}
+          REQUIRING_COUNT: ${{ steps.classify.outputs.requiring_count }}
+          REQUIRING_PATHS: ${{ steps.classify.outputs.requiring_paths }}
+        run: |
+          {
+            echo '### Site browser acceptance selection'
+            echo
+            echo "- required: \`$REQUIRED\`"
+            echo "- reason: \`$REASON\`"
+            echo "- changed paths: \`$CHANGED_COUNT\`"
+            echo "- browser-requiring paths: \`$REQUIRING_COUNT\`"
+            echo "- inputs: \`$REQUIRING_PATHS\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  check:
+    if: >-
+      always() &&
+      github.repository == 'TakashiSasaki/templates' &&
+      github.event_name == 'pull_request' &&
+      inputs.site_ref == '' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    needs:
+      - build
+      - classify_browser
     runs-on: ubuntu-latest
 
     steps:
+      - name: Require coherent build and browser classification
+        env:
+          BUILD_RESULT: ${{ needs.build.result }}
+          CLASSIFIER_RESULT: ${{ needs.classify_browser.result }}
+          BROWSER_REQUIRED: ${{ needs.classify_browser.outputs.required }}
+        run: |
+          test "$BUILD_RESULT" = success
+          test "$CLASSIFIER_RESULT" = success
+          case "$BROWSER_REQUIRED" in
+            true|false)
+              ;;
+            *)
+              echo "::error::Unexpected browser acceptance classification: $BROWSER_REQUIRED"
+              exit 1
+              ;;
+          esac
+
+      - name: Record browser acceptance outcome
+        env:
+          BROWSER_REQUIRED: ${{ needs.classify_browser.outputs.required }}
+          BROWSER_REASON: ${{ needs.classify_browser.outputs.reason }}
+        run: |
+          {
+            echo '### Site browser acceptance'
+            echo
+            echo "- required: \`$BROWSER_REQUIRED\`"
+            echo "- reason: \`$BROWSER_REASON\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Check out proposed Site revision
+        if: ${{ needs.classify_browser.outputs.required == 'true' }}
         uses: actions/checkout@v7
         with:
           ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Download built Pages artifact
+        if: ${{ needs.classify_browser.outputs.required == 'true' }}
         uses: actions/download-artifact@v5
         with:
           name: github-pages
           path: pages-artifact
 
       - name: Extract built site
+        if: ${{ needs.classify_browser.outputs.required == 'true' }}
         run: |
           mkdir -p build/site
           tar --extract --file pages-artifact/artifact.tar --directory build/site
           test -f build/site/index.html
 
       - name: Set up Python
+        if: ${{ needs.classify_browser.outputs.required == 'true' }}
         uses: actions/setup-python@v6
         with:
           python-version: '3.12'
 
       - name: Install Playwright controller
+        if: ${{ needs.classify_browser.outputs.required == 'true' }}
         run: python -m pip install --disable-pip-version-check -r requirements-visual.txt
 
       - name: Install Japanese browser font
+        if: ${{ needs.classify_browser.outputs.required == 'true' }}
         run: |
           sudo apt-get update
           sudo apt-get install --yes --no-install-recommends fonts-ipafont-gothic
 
       - name: Install Playwright Chromium
+        if: ${{ needs.classify_browser.outputs.required == 'true' }}
         run: python -m playwright install --only-shell chromium
 
       - name: Check mobile layout geometry
+        if: ${{ needs.classify_browser.outputs.required == 'true' }}
         run: |
           python scripts/check_mobile_layout.py \
             --site-root build/site \
             --output-root build/mobile-visual
 
       - name: Check localized inline Glossary chrome
+        if: ${{ needs.classify_browser.outputs.required == 'true' }}
         run: |
           python scripts/check_glossary_locale_chrome.py \
             --site-root build/site \
             --output build/mobile-visual/glossary-locale-chrome.json
 
       - name: Check PWA freshness lifecycle
+        if: ${{ needs.classify_browser.outputs.required == 'true' }}
         run: |
           python scripts/check_pwa_freshness.py \
             --site-root build/site \
             --output build/mobile-visual/pwa-freshness.json
 
       - name: Check localized PWA freshness chrome
+        if: ${{ needs.classify_browser.outputs.required == 'true' }}
         run: |
           python scripts/check_pwa_locale_chrome.py \
             --site-root build/site \
             --output build/mobile-visual/pwa-locale-chrome.json
 
       - name: Check PWA document commit correlation
+        if: ${{ needs.classify_browser.outputs.required == 'true' }}
         run: |
           python scripts/check_pwa_commit_regressions.py \
             --site-root build/site \
             --output build/mobile-visual/pwa-document-commit.json
 
       - name: Check PWA slow-network convergence
+        if: ${{ needs.classify_browser.outputs.required == 'true' }}
         run: |
           python scripts/check_pwa_slow_convergence.py \
             --site-root build/site \
             --output build/mobile-visual/pwa-slow-convergence.json
 
       - name: Check PWA freshness capability messaging
+        if: ${{ needs.classify_browser.outputs.required == 'true' }}
         run: |
           python scripts/check_pwa_capabilities.py \
             --site-root build/site \
             --output build/mobile-visual/pwa-capabilities.json
 
       - name: Upload mobile visual evidence
-        if: ${{ always() }}
+        if: ${{ always() && needs.classify_browser.outputs.required == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: mobile-visual-${{ github.event.pull_request.number }}
@@ -490,19 +597,21 @@ jobs:
           retention-days: 7
 
       - name: Check Site search history
+        if: ${{ needs.classify_browser.outputs.required == 'true' }}
         run: |
           python scripts/check_search_history.py \
             --site-root build/site \
             --output build/search-history/search-history.json
 
       - name: Check review regressions for Site search history
+        if: ${{ needs.classify_browser.outputs.required == 'true' }}
         run: |
           python scripts/check_search_history_review_regressions.py \
             --site-root build/site \
             --output build/search-history/review-regressions.json
 
       - name: Upload search-history evidence
-        if: ${{ always() }}
+        if: ${{ always() && needs.classify_browser.outputs.required == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: search-history-${{ github.event.pull_request.number }}
