@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.util
 import json
 import subprocess
 import sys
@@ -177,37 +178,21 @@ class TaskLedgerWalkthroughBrowserAcceptanceTests(unittest.TestCase):
             },
         )
 
-    def expected_targets(self, target: Path) -> list[dict[str, str]]:
-        surfaces = json.loads((target / "contracts" / "surfaces.json").read_text(encoding="utf-8"))
-        routes = json.loads((target / "contracts" / "routes.json").read_text(encoding="utf-8"))
-        states = json.loads((target / "contracts" / "ui-states.json").read_text(encoding="utf-8"))
-        viewports = json.loads((target / "contracts" / "viewports.json").read_text(encoding="utf-8"))
-        targets: list[dict[str, str]] = []
-        for contract_id, item_kind, items, key in (
-            ("surfaces", "surface", surfaces["surfaces"], "id"),
-            ("routes", "route", routes["routes"], "id"),
-            ("ui_states", "ui-state", states["states"], "id"),
-            ("viewports", "viewport", viewports["viewports"], "id"),
-        ):
-            targets.extend(
-                {
-                    "kind": "contract-item",
-                    "contractId": contract_id,
-                    "itemKind": item_kind,
-                    "itemId": item[key],
-                }
-                for item in items
-            )
-        targets.extend(
-            {
-                "kind": "contract-item",
-                "contractId": "viewports",
-                "itemKind": "input-capability",
-                "itemId": item,
-            }
-            for item in viewports["inputCapabilities"]
+    def webapp_evidence_helper(self, target: Path):
+        helper_path = target / "scripts" / "webapp_evidence_targets.py"
+        spec = importlib.util.spec_from_file_location(
+            "_task_ledger_webapp_evidence_targets", helper_path
         )
-        return targets
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader if spec is not None else None)
+        assert spec is not None and spec.loader is not None
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+
+    def expected_targets(self, target: Path) -> list[dict[str, str]]:
+        helper = self.webapp_evidence_helper(target)
+        return [dict(item) for item in helper.expected_targets(target)]
 
     def browser_requirement(self, index: int, target: dict[str, str], *, record_ids: list[str]) -> dict:
         return {
