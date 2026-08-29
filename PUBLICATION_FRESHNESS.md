@@ -32,16 +32,18 @@ This is deliberately a Composition-only candidate check. It closes the Compositi
 
 ## Pull-request applicability
 
-A pull request may skip the second full candidate build only when every changed path is classified by the same conservative Site CI-observability predicate used by the browser-acceptance selector. At the current contract that set is limited to:
+For a pull request on which the freshness workflow is already triggered, the second full candidate build may be skipped only when every changed path is classified by the same conservative Site CI-observability predicate used by the browser-acceptance selector. At the current contract that predicate recognizes only:
 
 - `.github/workflows/ci-performance-report.yml`;
 - `.github/workflows/composition-unittest-timing-report.yml`;
 - `scripts/report_composition_unittest_timing.py`;
 - `tests/test_composition_unittest_timing_*`.
 
-These files can change CI measurement or reporting behavior but do not change the Site publication integration graph, the reviewed provider inputs, generated reader/runtime assets, or provider compatibility semantics. Keeping them inside the workflow trigger preserves a stable freshness check surface and records the selection decision, while skipping the non-applicable second full build avoids duplicate runner compute.
+These files can change CI measurement or reporting behavior but do not change the Site publication integration graph, the reviewed provider inputs, generated reader/runtime assets, or provider compatibility semantics. The freshness workflow's existing broad `scripts/**` and `tests/**` trigger patterns can therefore admit timing-report implementation/tests even though a second provider-compatibility build is non-applicable. The selector keeps the workflow/check result visible for those triggered cases while avoiding duplicate runner compute.
 
-The selection boundary is fail-closed. An empty or malformed changed-path set, an unknown path, a mixed change set, a classifier failure, or any change outside that explicit set requires the normal current-Composition candidate build. Changes to the freshness workflow, this contract, publication locks, Site assembly/build inputs, or the classifier itself therefore continue to execute the full candidate build.
+The two observability workflow files listed by the shared predicate do not independently trigger publication freshness under the current path filter. They remain part of the predicate so a freshness-triggering pull request that also changes those files is not forced into a candidate build merely because of an otherwise safe observability change.
+
+The selection boundary is fail-closed. An empty or malformed changed-path set, an unknown path, a mixed change set containing any path outside the explicit predicate, a classifier failure, or any other qualifying freshness change requires the normal current-Composition candidate build. Changes to the freshness workflow, this contract, publication locks, Site assembly/build inputs, or the classifier itself therefore continue to execute the full candidate build.
 
 Scheduled and `workflow_dispatch` diagnostics never use pull-request scope skipping. They always execute the full candidate build because their purpose is to detect Composition movement independently of Site pull-request changes.
 
@@ -55,7 +57,7 @@ The lock/head relation is informational. When the candidate build is applicable,
 | candidate required | `different` | success | The reviewed Site remains valid; emit a warning that a different compatible Composition snapshot is available for explicit review. |
 | candidate required | `current` or `different` | failure | Current Composition does not pass the normal Site publication pipeline; integration triage is required. |
 | candidate required | any | skipped / unavailable | No compatibility conclusion is valid; the diagnostic is incomplete and must fail. |
-| CI-observability-only PR | `current` or `different` | skipped | The second compatibility build is non-applicable to this PR scope; the workflow records that no new compatibility conclusion was produced. |
+| CI-observability-only triggered PR | `current` or `different` | skipped | The second compatibility build is non-applicable to this PR scope; the workflow records that no new compatibility conclusion was produced. |
 
 A `different` relation is therefore not a failure condition. It must not cause an automatic lock update. On an observability-only pull request, a `different` relation also must not be described as compatible because no candidate build was run; the scheduled diagnostic remains responsible for independent Composition-head compatibility coverage. An unexpected relation value is itself a diagnostic error rather than an implicit freshness conclusion.
 
@@ -71,13 +73,13 @@ Skipping a candidate build for an explicitly CI-observability-only pull request 
 
 The diagnostic runs:
 
-- for pull requests targeting `site` when publication-integration inputs, tests, the diagnostic itself, or the explicitly recognized CI-observability surfaces change;
+- for pull requests targeting `site` when the path filter identifies publication-integration inputs, tests, the diagnostic itself, or broad `scripts/**` / `tests/**` changes;
 - once daily at `17:23 UTC` (`02:23 JST`);
 - on explicit `workflow_dispatch`.
 
 The scheduled run is intended to detect Composition movement after the last reviewed Site pin even when Site itself has not changed. Scheduled and manual diagnostics are not cancelled merely because another diagnostic starts; superseded pull-request diagnostics may be cancelled and replaced by the newer PR revision.
 
-A qualifying Site pull request whose scope can affect publication integration normally causes two full publication builds: the ordinary locked-input PR build and this diagnostic's current-Composition candidate build. That duplication is intentional so integration changes validate both the reviewed release graph and the prospective Composition graph. Presentation-only changes remain excluded by the workflow path filter, and the explicit CI-observability-only subset remains visible to the workflow while making the second full build non-applicable.
+A qualifying Site pull request whose scope can affect publication integration normally causes two full publication builds: the ordinary locked-input PR build and this diagnostic's current-Composition candidate build. That duplication is intentional so integration changes validate both the reviewed release graph and the prospective Composition graph. Presentation-only changes remain excluded by the workflow path filter. Triggered pull requests proved to contain only the explicit CI-observability predicate retain the freshness workflow result but make the second full build non-applicable.
 
 ## Triage responsibility
 
