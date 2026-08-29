@@ -13,8 +13,10 @@ Task-specific implementation, validation, release, or publication work may estab
 1. Read the smallest task-specific current repository sources needed for the implementation.
 2. When the task reaches PR completion or merge readiness, hand control to `pr-merge-gate`.
 3. Treat current branch state, PR metadata, current workflows, current checks, reviews, and review threads as live authority for acceptance; historical PR summaries are evidence only.
-4. If the PR head changes, discard final acceptance for the previous head and run the merge gate again.
-5. If the target branch advances, evaluate base drift before relying on earlier CI or review evidence.
+4. If the PR head changes, invalidate evidence bound to the previous head and run the merge gate for the new exact head, reacquiring only the evidence whose bindings changed. Do not discard unaffected evidence or restart unrelated diagnostics solely because the head changed.
+5. If the target branch advances, evaluate the intervening change before relying on the previous target-freshness decision. Do not automatically discard unrelated exact-head CI or review evidence, or synchronize the proposed head, unless the impact evaluation or current repository authority requires it.
+
+This routing discipline is not an additional acceptance checklist. Optional diagnostic reads, extra waiting, repeated reviews, or a locally stricter procedure do not become mandatory gates unless current repository authority requires them or a concrete unresolved uncertainty invalidates relied-upon evidence.
 
 ## Authority boundary
 
