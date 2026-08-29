@@ -159,19 +159,10 @@ class WebappEvidenceScaffoldTests(unittest.TestCase):
         self.assertEqual(len(targets), len(set(targets)))
 
         browser_sensitive_ids = {
-            record["id"]
-            for record in worklist["records"]
-            if (
-                record["target"].get("contractId"),
-                record["target"].get("itemKind"),
-            )
-            in {
-                ("routes", "route"),
-                ("viewports", "input-capability"),
-                ("viewports", "viewport"),
-            }
+            item["recordId"] for item in worklist["artifactProofRequirements"]
         }
         proof_requirements = worklist["artifactProofRequirements"]
+        self.assertIn("browser-identity-proof-family-browser-identity", browser_sensitive_ids)
         self.assertEqual(
             {item["recordId"] for item in proof_requirements},
             browser_sensitive_ids,
@@ -209,18 +200,7 @@ class WebappEvidenceScaffoldTests(unittest.TestCase):
             evidence_target = record["target"]
             proof_kind = (
                 "end-to-end-test"
-                if evidence_target.get("kind") == "contract-item"
-                and (
-                    (
-                        evidence_target.get("contractId") == "viewports"
-                        and evidence_target.get("itemKind")
-                        in {"viewport", "input-capability"}
-                    )
-                    or (
-                        evidence_target.get("contractId") == "routes"
-                        and evidence_target.get("itemKind") == "route"
-                    )
-                )
+                if record["id"] in browser_sensitive_ids
                 else "integration-test"
             )
             for proof in record["positiveEvidence"] + record["negativeEvidence"]:

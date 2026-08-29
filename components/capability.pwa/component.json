@@ -2,7 +2,7 @@
   "schema_version": 1,
   "id": "capability.pwa",
   "kind": "capability",
-  "version": 1,
+  "version": 2,
   "summary": "Progressive Web App semantics for installability, cross-platform application identity, offline freshness, and update lifecycle without prescribing cache or service-worker implementation strategy.",
   "requires": ["lifecycle.implementation-evidence"],
   "conflicts": [],
@@ -43,6 +43,8 @@
     {"source": "files/schemas/pwa-manifest.schema.json", "destination": "schemas/pwa-manifest.schema.json", "ownership": "managed"},
     {"source": "files/schemas/pwa-offline.schema.json", "destination": "schemas/pwa-offline.schema.json", "ownership": "managed"},
     {"source": "files/schemas/pwa-update.schema.json", "destination": "schemas/pwa-update.schema.json", "ownership": "managed"},
-    {"source": "files/.template-composition/validators/validate_pwa.py", "destination": ".template-composition/validators/validate_pwa.py", "ownership": "managed"}
+    {"source": "files/scripts/pwa_evidence_targets.py", "destination": "scripts/pwa_evidence_targets.py", "ownership": "managed"},
+    {"source": "files/.template-composition/validators/validate_pwa.py", "destination": ".template-composition/validators/validate_pwa.py", "ownership": "managed"},
+    {"source": "files/.template-composition/validators/validate_pwa_evidence.py", "destination": ".template-composition/validators/validate_pwa_evidence.py", "ownership": "managed"}
   ]
 }

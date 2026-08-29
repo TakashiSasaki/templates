@@ -8,10 +8,12 @@ from pathlib import Path
 from typing import Any
 
 DOMAIN_IDS = {"surfaces", "routes", "ui_states", "viewports"}
+OWNED_CONTRACT_IDS = DOMAIN_IDS | {"browser_identity"}
 RECORD_ID = re.compile(r"^[a-z][a-z0-9-]*$")
 BROWSER_LEVEL_PROOF_KINDS = ("accessibility-test", "end-to-end-test")
 BROWSER_SENSITIVE_CONTRACT_ITEMS = frozenset(
     {
+        ("browser_identity", "proof-family"),
         ("routes", "route"),
         ("viewports", "input-capability"),
         ("viewports", "viewport"),
@@ -74,7 +76,14 @@ def expected_targets(root: Path) -> tuple[dict[str, Any], ...]:
     states = load_json(root, "contracts/ui-states.json")
     viewports = load_json(root, "contracts/viewports.json")
 
-    expected: list[dict[str, Any]] = []
+    expected: list[dict[str, Any]] = [
+        {
+            "kind": "contract-item",
+            "contractId": "browser_identity",
+            "itemKind": "proof-family",
+            "itemId": "browser-identity",
+        }
+    ]
     expected.extend(
         {
             "kind": "contract-item",
@@ -129,7 +138,7 @@ def allowed_targets(root: Path) -> tuple[dict[str, Any], ...]:
     manifest = load_json(root, "contracts/manifest.json")
     allowed = list(expected_targets(root))
     for entry in manifest["contracts"]:
-        if entry["id"] not in DOMAIN_IDS:
+        if entry["id"] not in OWNED_CONTRACT_IDS:
             continue
         for transition in entry["versionHistory"][1:]:
             allowed.append(

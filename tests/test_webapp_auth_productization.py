@@ -96,7 +96,7 @@ class WebappAuthenticationProductizationTests(unittest.TestCase):
         self.write_json(routes_path, routes)
 
     def target_locator(self, evidence_target: dict) -> str:
-        if evidence_target.get("contractId") == "viewports":
+        if evidence_target.get("contractId") in {"browser_identity", "viewports"}:
             return "product/client.html"
         if evidence_target.get("kind") == "contract-transition":
             return "product/prove_auth_fixture.py"
@@ -121,6 +121,12 @@ class WebappAuthenticationProductizationTests(unittest.TestCase):
         for expected in (
             {
                 "kind": "contract-item",
+                "contractId": "browser_identity",
+                "itemKind": "proof-family",
+                "itemId": "browser-identity",
+            },
+            {
+                "kind": "contract-item",
                 "contractId": "surfaces",
                 "itemKind": "surface",
                 "itemId": "admin",
@@ -134,34 +140,22 @@ class WebappAuthenticationProductizationTests(unittest.TestCase):
         ):
             self.assertIn(expected, targets)
 
+        authority = self.helper().webapp_evidence_helper(target)
         records: list[dict] = []
         for skeleton in worklist["records"]:
             identifier = skeleton["id"]
             evidence_target = skeleton["target"]
             implementation_locator = self.target_locator(evidence_target)
-            browser_sensitive = (
-                evidence_target.get("kind") == "contract-item"
-                and (
-                    (
-                        evidence_target.get("contractId") == "viewports"
-                        and evidence_target.get("itemKind")
-                        in {"viewport", "input-capability"}
-                    )
-                    or (
-                        evidence_target.get("contractId") == "routes"
-                        and evidence_target.get("itemKind") == "route"
-                    )
-                )
-            )
+            browser_sensitive = authority.requires_browser_level_proof(evidence_target)
             proof_kind = "end-to-end-test" if browser_sensitive else "integration-test"
             proof_locator = "product/prove_auth_fixture.py"
             positive_description = (
-                "The ChromeDriver proof exercises route-entry focus, responsive layout, and declared browser input behavior."
+                "The ChromeDriver proof exercises browser identity, route-entry focus, responsive layout, and declared browser input behavior."
                 if browser_sensitive
                 else "The auth proof exercises the target through contract and HTTP behavior checks."
             )
             negative_description = (
-                "The ChromeDriver proof rejects missing route focus, page-wide overflow, zoom locking, and failed browser input activation."
+                "The ChromeDriver proof rejects missing browser identity, route focus, page-wide overflow, zoom locking, and failed browser input activation."
                 if browser_sensitive
                 else "The auth proof rejects contract drift or incorrect role behavior."
             )

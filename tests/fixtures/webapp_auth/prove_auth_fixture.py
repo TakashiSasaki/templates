@@ -109,6 +109,9 @@ for route in routes.values():
 viewports = json.loads(
     (ROOT / "contracts/viewports.json").read_text(encoding="utf-8")
 )
+browser_identity = json.loads(
+    (ROOT / "contracts/browser-identity.json").read_text(encoding="utf-8")
+)
 assert [
     (viewport["id"], viewport["minWidthPx"])
     for viewport in viewports["viewports"]
@@ -119,9 +122,17 @@ assert viewports["constraints"] == {
     "horizontalScrolling": "content-specific",
     "orientationIndependent": True,
 }
+assert browser_identity["favicon"] == {
+    "relation": "icon",
+    "href": "favicon.svg",
+    "mediaType": "image/svg+xml",
+    "sizes": ["any"],
+    "fallbacks": [],
+}
 
 client_source = (ROOT / "product/client.html").read_text(encoding="utf-8")
 assert '<title>Composition Webapp auth fixture</title>' in client_source
+assert '<link rel="icon" href="favicon.svg" type="image/svg+xml" sizes="any">' in client_source
 assert 'id="main-heading"' in client_source
 assert 'id="error-summary"' in client_source
 assert 'id="error-heading"' in client_source
@@ -174,6 +185,7 @@ def assert_view(
     assert f'data-surface="{expected_surface}"' in body, body
     assert f'data-state="{expected_state}"' in body, body
     assert '<meta name="viewport"' in body, body
+    assert '<link rel="icon" href="favicon.svg" type="image/svg+xml" sizes="any">' in body, body
     assert '<button type="button"' in body, body
 
     state = states_by_id[expected_state]
@@ -191,6 +203,53 @@ observed_states: set[str] = set()
 try:
     run_browser_contract_probe(base + "/", viewports)
     with _open_webdriver_session() as browser:
+        browser.navigate(base + "/")
+        identity = browser.execute(
+            """
+            const links = Array.from(document.querySelectorAll('link[rel]')).map((link) => ({
+              relTokens: link.getAttribute('rel').trim().toLowerCase().split(/\s+/),
+              rawHref: link.getAttribute('href'),
+              resolvedHref: link.href,
+              mediaType: link.getAttribute('type') || '',
+              sizes: link.sizes ? Array.from(link.sizes) : [],
+            }));
+            return {
+              shortcutCount: links.filter((item) => item.relTokens.includes('shortcut')).length,
+              iconLinks: links.filter((item) => item.relTokens.includes('icon')),
+            };
+            """
+        )
+        assert isinstance(identity, dict), identity
+        assert identity["shortcutCount"] == 0, identity
+        primary = next(
+            (
+                item
+                for item in identity["iconLinks"]
+                if item["rawHref"] == browser_identity["favicon"]["href"]
+            ),
+            None,
+        )
+        assert primary is not None, (
+            f"browser favicon link {browser_identity['favicon']['href']!r} is missing",
+            identity,
+        )
+        assert primary["relTokens"] == ["icon"], primary
+        assert primary["mediaType"] == browser_identity["favicon"]["mediaType"], primary
+        assert primary["sizes"] == browser_identity["favicon"]["sizes"], primary
+        browser.navigate(primary["resolvedHref"])
+        favicon_asset = browser.execute(
+            """
+            return {
+              contentType: document.contentType,
+              rootName: document.documentElement ? document.documentElement.localName : null,
+            };
+            """
+        )
+        assert favicon_asset == {
+            "contentType": "image/svg+xml",
+            "rootName": "svg",
+        }, favicon_asset
+
         for route in routes.values():
             focus_target = route["accessibility"]["focusTarget"]
             browser.navigate(base + route["path"])
@@ -293,6 +352,7 @@ finally:
     assert not thread.is_alive()
 
 assert observed_states == set(states_by_id)
+print("Browser identity proof: standard favicon linkage and primary asset retrieval passed")
 print(
     "Webapp auth product proof: route access, complete UI-state, real-browser viewport/input, and accessibility behavior passed"
 )

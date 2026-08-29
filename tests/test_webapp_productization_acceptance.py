@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import importlib.util
 import json
 import os
 import subprocess
@@ -18,7 +19,6 @@ from lifecycle_checkpoint_test_support import (
 ROOT = Path(__file__).resolve().parents[1]
 COMPOSER = ROOT / "scripts" / "compose.py"
 BROWSER_FIXTURE_DIR = ROOT / "tests" / "fixtures" / "webapp_browser"
-DOMAIN_IDS = {"surfaces", "routes", "ui_states", "viewports"}
 PROOF_COMMAND = "python product/prove_webapp.py"
 PROOF_SCRIPT = """from __future__ import annotations
 
@@ -27,6 +27,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+from browser_identity_probe import run_browser_identity_probe
 from browser_probe import _open_webdriver_session, run_browser_contract_probe
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -79,7 +80,11 @@ for label, command in CHECKS:
 viewports = json.loads(
     (ROOT / "contracts/viewports.json").read_text(encoding="utf-8")
 )
+browser_identity = json.loads(
+    (ROOT / "contracts/browser-identity.json").read_text(encoding="utf-8")
+)
 client_url = (ROOT / "product/client.html").resolve().as_uri()
+run_browser_identity_probe(client_url, browser_identity)
 run_browser_contract_probe(client_url, viewports)
 routes = json.loads((ROOT / "contracts/routes.json").read_text(encoding="utf-8"))["routes"]
 assert len(routes) == 1
@@ -215,97 +220,31 @@ class WebappProductizationAcceptanceTests(unittest.TestCase):
         )
         return result
 
-    def expected_targets(self, target: Path) -> list[dict]:
-        manifest = self.load_json(target / "contracts/manifest.json")
-        surfaces = self.load_json(target / "contracts/surfaces.json")
-        routes = self.load_json(target / "contracts/routes.json")
-        states = self.load_json(target / "contracts/ui-states.json")
-        viewports = self.load_json(target / "contracts/viewports.json")
+    def webapp_evidence_helper(self, target: Path):
+        helper_path = target / "scripts" / "webapp_evidence_targets.py"
+        spec = importlib.util.spec_from_file_location(
+            "_webapp_productization_evidence_targets", helper_path
+        )
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader if spec is not None else None)
+        assert spec is not None and spec.loader is not None
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
 
-        expected: list[dict] = []
-        expected.extend(
-            {
-                "kind": "contract-item",
-                "contractId": "surfaces",
-                "itemKind": "surface",
-                "itemId": item["id"],
-            }
-            for item in surfaces["surfaces"]
-        )
-        expected.extend(
-            {
-                "kind": "contract-item",
-                "contractId": "routes",
-                "itemKind": "route",
-                "itemId": item["id"],
-            }
-            for item in routes["routes"]
-        )
-        expected.extend(
-            {
-                "kind": "contract-item",
-                "contractId": "ui_states",
-                "itemKind": "ui-state",
-                "itemId": item["id"],
-            }
-            for item in states["states"]
-        )
-        expected.extend(
-            {
-                "kind": "contract-item",
-                "contractId": "viewports",
-                "itemKind": "viewport",
-                "itemId": item["id"],
-            }
-            for item in viewports["viewports"]
-        )
-        expected.extend(
-            {
-                "kind": "contract-item",
-                "contractId": "viewports",
-                "itemKind": "input-capability",
-                "itemId": item,
-            }
-            for item in viewports["inputCapabilities"]
-        )
-        for entry in manifest["contracts"]:
-            if entry["id"] not in DOMAIN_IDS:
-                continue
-            for transition in entry["versionHistory"][1:]:
-                expected.append(
-                    {
-                        "kind": "contract-transition",
-                        "contractId": entry["id"],
-                        "fromVersion": transition["version"] - 1,
-                        "toVersion": transition["version"],
-                    }
-                )
-        return sorted(
-            expected,
-            key=lambda item: json.dumps(item, sort_keys=True, separators=(",", ":")),
-        )
+    def expected_targets(self, target: Path) -> list[dict]:
+        helper = self.webapp_evidence_helper(target)
+        return [dict(item) for item in helper.allowed_targets(target)]
 
     def productize_implementation_evidence(self, target: Path) -> None:
-        targets = self.expected_targets(target)
+        helper = self.webapp_evidence_helper(target)
+        targets = [dict(item) for item in helper.allowed_targets(target)]
         self.assertTrue(targets)
         records = []
         requirements = []
         for index, evidence_target in enumerate(targets, 1):
             record_id = f"record-{index:03d}"
-            browser_sensitive = (
-                evidence_target.get("kind") == "contract-item"
-                and (
-                    (
-                        evidence_target.get("contractId") == "viewports"
-                        and evidence_target.get("itemKind")
-                        in {"viewport", "input-capability"}
-                    )
-                    or (
-                        evidence_target.get("contractId") == "routes"
-                        and evidence_target.get("itemKind") == "route"
-                    )
-                )
-            )
+            browser_sensitive = helper.requires_browser_level_proof(evidence_target)
             proof_kind = "end-to-end-test" if browser_sensitive else "integration-test"
             implementation_locator = (
                 "product/client.html"
@@ -314,12 +253,12 @@ class WebappProductizationAcceptanceTests(unittest.TestCase):
             )
             proof_locator = "product/prove_webapp.py"
             positive_description = (
-                "The ChromeDriver proof executes route focus, responsive layout, or input behavior through the real browser interface."
+                "The ChromeDriver proof executes browser identity, route focus, responsive layout, or input behavior through the real browser interface."
                 if browser_sensitive
                 else "The product proof validates the positive contract path."
             )
             negative_description = (
-                "The ChromeDriver proof rejects missing route focus, browser overflow, zoom locking, or failed input activation."
+                "The ChromeDriver proof rejects missing browser identity, route focus, browser overflow, zoom locking, or failed input activation."
                 if browser_sensitive
                 else "The product proof keeps the declared target under validation."
             )
@@ -443,7 +382,12 @@ class WebappProductizationAcceptanceTests(unittest.TestCase):
         product = target / "product"
         product.mkdir()
         (product / "prove_webapp.py").write_text(PROOF_SCRIPT, encoding="utf-8")
-        for name in ("browser_probe.py", "client.html"):
+        for name in (
+            "browser_probe.py",
+            "browser_identity_probe.py",
+            "client.html",
+            "favicon.svg",
+        ):
             (product / name).write_text(
                 (BROWSER_FIXTURE_DIR / name).read_text(encoding="utf-8"),
                 encoding="utf-8",
@@ -587,6 +531,10 @@ class WebappProductizationAcceptanceTests(unittest.TestCase):
             proof.returncode,
             0,
             f"stdout:\n{proof.stdout}\nstderr:\n{proof.stderr}",
+        )
+        self.assertIn(
+            "Browser identity proof: standard favicon linkage and primary asset retrieval passed",
+            proof.stdout,
         )
         self.assertIn(
             "Browser Webapp proof: responsive layout, scrolling, zoom, orientation, and declared input capabilities passed",

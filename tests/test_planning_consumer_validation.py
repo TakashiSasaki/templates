@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.util
 import json
 import subprocess
 import sys
@@ -14,6 +15,38 @@ COMPOSER = ROOT / "scripts" / "compose.py"
 class PlanningConsumerValidationTests(unittest.TestCase):
     def write_json(self, path: Path, value: object) -> None:
         path.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
+
+    def planning_requirements(self, target: Path) -> list[dict]:
+        helper_path = target / "scripts" / "webapp_evidence_targets.py"
+        spec = importlib.util.spec_from_file_location(
+            "_planning_consumer_webapp_evidence_targets", helper_path
+        )
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader if spec is not None else None)
+        assert spec is not None and spec.loader is not None
+        helper = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(helper)
+
+        requirements = []
+        for index, evidence_target in enumerate(helper.expected_targets(target), 1):
+            proof_kind = (
+                "end-to-end-test"
+                if helper.requires_browser_level_proof(evidence_target)
+                else "integration-test"
+            )
+            requirements.append(
+                {
+                    "id": f"REQ-PLAN-WEBAPP-{index:03d}",
+                    "description": (
+                        "Planning obligation for Webapp target "
+                        + json.dumps(evidence_target, sort_keys=True, separators=(",", ":"))
+                    ),
+                    "targets": [evidence_target],
+                    "recordIds": [],
+                    "requiredPositiveProofKinds": [proof_kind],
+                }
+            )
+        return requirements
 
     def test_planning_requirement_ledger_is_valid_but_not_deferred(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -55,22 +88,7 @@ class PlanningConsumerValidationTests(unittest.TestCase):
                     "commands": [],
                     "releaseGates": [],
                     "records": [],
-                    "requirements": [
-                        {
-                            "id": "REQ-PLAN-ROUTE-FOCUS",
-                            "description": "Route entry places focus on the declared focus target.",
-                            "targets": [
-                                {
-                                    "kind": "contract-item",
-                                    "contractId": "routes",
-                                    "itemKind": "route",
-                                    "itemId": "home",
-                                }
-                            ],
-                            "recordIds": [],
-                            "requiredPositiveProofKinds": ["end-to-end-test"],
-                        }
-                    ],
+                    "requirements": self.planning_requirements(target),
                 },
             )
 

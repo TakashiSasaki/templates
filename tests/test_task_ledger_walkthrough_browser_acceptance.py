@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.util
 import json
 import subprocess
 import sys
@@ -15,6 +16,7 @@ WALKTHROUGH = ROOT / "docs" / "guides" / "webapp-product-walkthrough.md"
 BROWSER_PROOF = (
     ROOT / "examples" / "onboarding" / "task-ledger" / "browser_proof.py"
 )
+BROWSER_FIXTURE_DIR = ROOT / "tests" / "fixtures" / "webapp_browser"
 EXAMPLE_CONFIG = ROOT / "examples" / "onboarding" / "task-ledger" / "composition.json"
 
 
@@ -91,6 +93,109 @@ class TaskLedgerWalkthroughBrowserAcceptanceTests(unittest.TestCase):
         ]
         self.write_json(states_path, states)
 
+    def specialize_walkthrough_browser_identity(self, target: Path) -> None:
+        """Add the current Webapp browser-identity requirement to the acceptance product."""
+        cli_path = target / "task_ledger" / "cli.py"
+        cli_source = cli_path.read_text(encoding="utf-8")
+        route_anchor = '''            if parsed.path == "/":
+                body = (static_root / "index.html").read_bytes()
+'''
+        favicon_route = '''            if parsed.path == "/favicon.svg":
+                body = (static_root / "favicon.svg").read_bytes()
+                self.send_response(HTTPStatus.OK)
+                self.send_header("Content-Type", "image/svg+xml")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+                return
+            if parsed.path == "/":
+                body = (static_root / "index.html").read_bytes()
+'''
+        self.assertEqual(cli_source.count(route_anchor), 1)
+        cli_path.write_text(
+            cli_source.replace(route_anchor, favicon_route),
+            encoding="utf-8",
+        )
+
+        html_path = target / "task_ledger" / "static" / "index.html"
+        html_source = html_path.read_text(encoding="utf-8")
+        html_anchor = '<meta name="viewport" content="width=device-width,initial-scale=1">\n'
+        self.assertEqual(html_source.count(html_anchor), 1)
+        html_path.write_text(
+            html_source.replace(
+                html_anchor,
+                html_anchor
+                + '<link rel="icon" href="favicon.svg" type="image/svg+xml" sizes="any">\n',
+            ),
+            encoding="utf-8",
+        )
+        (target / "task_ledger" / "static" / "favicon.svg").write_text(
+            (BROWSER_FIXTURE_DIR / "favicon.svg").read_text(encoding="utf-8"),
+            encoding="utf-8",
+        )
+
+        proof_path = target / "tests" / "test_task_ledger_browser.py"
+        proof_source = proof_path.read_text(encoding="utf-8")
+        proof_anchor = '''        browser.navigate(base_url)
+        layout = browser.execute(
+'''
+        identity_probe = '''        browser.navigate(base_url)
+        favicon = json.loads(
+            (PRODUCT_ROOT / "contracts" / "browser-identity.json").read_text(
+                encoding="utf-8"
+            )
+        )["favicon"]
+        identity = browser.execute(
+            """
+            const links = Array.from(document.querySelectorAll('link[rel]')).map((link) => ({
+              relTokens: link.getAttribute('rel').trim().toLowerCase().split(/\\s+/),
+              rawHref: link.getAttribute('href'),
+              resolvedHref: link.href,
+              mediaType: link.getAttribute('type') || '',
+              sizes: link.sizes ? Array.from(link.sizes) : [],
+            }));
+            return {
+              shortcutCount: links.filter((item) => item.relTokens.includes('shortcut')).length,
+              iconLinks: links.filter((item) => item.relTokens.includes('icon')),
+            };
+            """
+        )
+        require(identity["shortcutCount"] == 0, "obsolete shortcut icon relation is present")
+        primary = next(
+            (
+                item
+                for item in identity["iconLinks"]
+                if item["rawHref"] == favicon["href"]
+            ),
+            None,
+        )
+        require(primary is not None, "declared favicon link is missing")
+        require(primary["relTokens"] == ["icon"], "favicon does not use standard rel=icon")
+        require(primary["mediaType"] == favicon["mediaType"], "favicon media type drift")
+        require(primary["sizes"] == favicon["sizes"], "favicon sizes drift")
+        browser.navigate(primary["resolvedHref"])
+        asset = browser.execute(
+            """
+            return {
+              contentType: document.contentType,
+              rootName: document.documentElement ? document.documentElement.localName : null,
+            };
+            """
+        )
+        require(
+            asset == {"contentType": "image/svg+xml", "rootName": "svg"},
+            "declared SVG favicon is not browser-retrievable as SVG",
+        )
+        print("Task Ledger browser identity proof: standard favicon linkage and asset retrieval passed")
+        browser.navigate(base_url)
+        layout = browser.execute(
+'''
+        self.assertEqual(proof_source.count(proof_anchor), 1)
+        proof_path.write_text(
+            proof_source.replace(proof_anchor, identity_probe),
+            encoding="utf-8",
+        )
+
     def install_walkthrough_product(self, target: Path) -> None:
         (target / "task_ledger" / "static").mkdir(parents=True)
         (target / "tests").mkdir(exist_ok=True)
@@ -112,6 +217,7 @@ class TaskLedgerWalkthroughBrowserAcceptanceTests(unittest.TestCase):
             BROWSER_PROOF.read_text(encoding="utf-8"),
             encoding="utf-8",
         )
+        self.specialize_walkthrough_browser_identity(target)
         verifier = target / "scripts" / "verify.sh"
         verifier.write_text(
             "#!/bin/sh\n"
@@ -177,39 +283,25 @@ class TaskLedgerWalkthroughBrowserAcceptanceTests(unittest.TestCase):
             },
         )
 
-    def expected_targets(self, target: Path) -> list[dict[str, str]]:
-        surfaces = json.loads((target / "contracts" / "surfaces.json").read_text(encoding="utf-8"))
-        routes = json.loads((target / "contracts" / "routes.json").read_text(encoding="utf-8"))
-        states = json.loads((target / "contracts" / "ui-states.json").read_text(encoding="utf-8"))
-        viewports = json.loads((target / "contracts" / "viewports.json").read_text(encoding="utf-8"))
-        targets: list[dict[str, str]] = []
-        for contract_id, item_kind, items, key in (
-            ("surfaces", "surface", surfaces["surfaces"], "id"),
-            ("routes", "route", routes["routes"], "id"),
-            ("ui_states", "ui-state", states["states"], "id"),
-            ("viewports", "viewport", viewports["viewports"], "id"),
-        ):
-            targets.extend(
-                {
-                    "kind": "contract-item",
-                    "contractId": contract_id,
-                    "itemKind": item_kind,
-                    "itemId": item[key],
-                }
-                for item in items
-            )
-        targets.extend(
-            {
-                "kind": "contract-item",
-                "contractId": "viewports",
-                "itemKind": "input-capability",
-                "itemId": item,
-            }
-            for item in viewports["inputCapabilities"]
+    def webapp_evidence_helper(self, target: Path):
+        helper_path = target / "scripts" / "webapp_evidence_targets.py"
+        spec = importlib.util.spec_from_file_location(
+            "_task_ledger_webapp_evidence_targets", helper_path
         )
-        return targets
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader if spec is not None else None)
+        assert spec is not None and spec.loader is not None
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
 
-    def browser_requirement(self, index: int, target: dict[str, str], *, record_ids: list[str]) -> dict:
+    def expected_targets(self, target: Path) -> list[dict[str, str]]:
+        helper = self.webapp_evidence_helper(target)
+        return [dict(item) for item in helper.expected_targets(target)]
+
+    def browser_requirement(
+        self, index: int, target: dict[str, str], *, record_ids: list[str]
+    ) -> dict:
         return {
             "id": f"REQ-TASK-LEDGER-{index}",
             "description": (
@@ -262,7 +354,10 @@ class TaskLedgerWalkthroughBrowserAcceptanceTests(unittest.TestCase):
                 "mode": "planning",
                 "protocol": "http-json",
                 "operations": [
-                    {"id": operation["id"], "purpose": f"Plan Task Ledger service operation {operation['id']}."}
+                    {
+                        "id": operation["id"],
+                        "purpose": f"Plan Task Ledger service operation {operation['id']}.",
+                    }
                     for operation in self.service_operations()
                 ],
             },
@@ -274,7 +369,10 @@ class TaskLedgerWalkthroughBrowserAcceptanceTests(unittest.TestCase):
                 "schemaVersion": 2,
                 "mode": "planning",
                 "entrypoints": [
-                    {"id": "task-ledger", "purpose": "Expose the Task Ledger command-line interface."}
+                    {
+                        "id": "task-ledger",
+                        "purpose": "Expose the Task Ledger command-line interface.",
+                    }
                 ],
             },
         )
@@ -306,6 +404,7 @@ class TaskLedgerWalkthroughBrowserAcceptanceTests(unittest.TestCase):
         requirements = []
         for index, evidence_target in enumerate(self.expected_targets(target), 1):
             record_id = f"task-ledger-{index}"
+            browser_identity = evidence_target.get("contractId") == "browser_identity"
             records.append(
                 {
                     "id": record_id,
@@ -320,10 +419,18 @@ class TaskLedgerWalkthroughBrowserAcceptanceTests(unittest.TestCase):
                             "id": f"{record_id}-positive",
                             "status": "verified",
                             "kind": "end-to-end-test",
-                            "description": "Real Chrome executes the supported target path.",
+                            "description": (
+                                "Real Chrome observes the standard favicon link and retrieves its declared SVG asset."
+                                if browser_identity
+                                else "Real Chrome executes the supported target path."
+                            ),
                             "locator": "tests/test_task_ledger_browser.py",
                             "commandId": "verify-product",
-                            "expectedResult": "The supported browser interaction passes.",
+                            "expectedResult": (
+                                "The standard rel=icon linkage and SVG asset retrieval match browser-identity.json."
+                                if browser_identity
+                                else "The supported browser interaction passes."
+                            ),
                         }
                     ],
                     "negativeEvidence": [
@@ -331,10 +438,18 @@ class TaskLedgerWalkthroughBrowserAcceptanceTests(unittest.TestCase):
                             "id": f"{record_id}-negative",
                             "status": "verified",
                             "kind": "end-to-end-test",
-                            "description": "Real Chrome rejects or excludes invalid behavior.",
+                            "description": (
+                                "Real Chrome rejects obsolete shortcut-icon linkage, missing declared favicon linkage, or non-SVG primary asset behavior."
+                                if browser_identity
+                                else "Real Chrome rejects or excludes invalid behavior."
+                            ),
                             "locator": "tests/test_task_ledger_browser.py",
                             "commandId": "verify-product",
-                            "expectedResult": "The invalid browser behavior is absent or rejected.",
+                            "expectedResult": (
+                                "Browser identity drift causes the product proof to fail."
+                                if browser_identity
+                                else "The invalid browser behavior is absent or rejected."
+                            ),
                         }
                     ],
                     "releaseGateIds": ["product-verification"],
@@ -486,7 +601,14 @@ class TaskLedgerWalkthroughBrowserAcceptanceTests(unittest.TestCase):
 
             browser = self.run_python(target, "tests/test_task_ledger_browser.py")
             self.assertEqual(browser.returncode, 0, browser.stdout + browser.stderr)
-            self.assertIn("viewport and keyboard positive/negative paths passed", browser.stdout)
+            self.assertIn(
+                "Task Ledger browser identity proof: standard favicon linkage and asset retrieval passed",
+                browser.stdout,
+            )
+            self.assertIn(
+                "viewport and keyboard positive/negative paths passed",
+                browser.stdout,
+            )
 
             self.productize_service_contract(target)
             self.productize_cli_contract(target)

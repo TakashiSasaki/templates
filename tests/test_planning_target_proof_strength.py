@@ -27,8 +27,33 @@ class PlanningTargetProofStrengthTests(unittest.TestCase):
     def planning_evidence(self) -> dict:
         entries = [
             (
+                "REQ-PLAN-WEBAPP-BROWSER-IDENTITY",
+                self.target("browser_identity", "proof-family", "browser-identity"),
+                "end-to-end-test",
+            ),
+            (
+                "REQ-PLAN-WEBAPP-SURFACE",
+                self.target("surfaces", "surface", "primary"),
+                "integration-test",
+            ),
+            (
                 "REQ-PLAN-WEBAPP-ROUTE",
                 self.target("routes", "route", "home"),
+                "end-to-end-test",
+            ),
+            (
+                "REQ-PLAN-WEBAPP-STATE",
+                self.target("ui_states", "ui-state", "ready"),
+                "integration-test",
+            ),
+            (
+                "REQ-PLAN-WEBAPP-VIEWPORT",
+                self.target("viewports", "viewport", "base"),
+                "end-to-end-test",
+            ),
+            (
+                "REQ-PLAN-WEBAPP-INPUT",
+                self.target("viewports", "input-capability", "keyboard"),
                 "end-to-end-test",
             ),
             (

@@ -11,8 +11,8 @@ from typing import Any
 if __package__:
     from .webapp_evidence_targets import (
         BROWSER_LEVEL_PROOF_KINDS,
-        DOMAIN_IDS,
         BROWSER_SENSITIVE_CONTRACT_ITEMS,
+        OWNED_CONTRACT_IDS,
         allowed_targets,
         expected_targets,
         requires_browser_level_proof,
@@ -21,8 +21,8 @@ if __package__:
 else:
     from webapp_evidence_targets import (
         BROWSER_LEVEL_PROOF_KINDS,
-        DOMAIN_IDS,
         BROWSER_SENSITIVE_CONTRACT_ITEMS,
+        OWNED_CONTRACT_IDS,
         allowed_targets,
         expected_targets,
         requires_browser_level_proof,
@@ -90,9 +90,9 @@ def browser_level_proof_errors(evidence: dict[str, Any]) -> list[str]:
                 f"implementation evidence record {index} target must be a JSON object"
             )
         key = target_key(target)
-        is_webapp_domain = (
+        is_webapp_owned = (
             target.get("kind") == "contract-item"
-            and target.get("contractId") in DOMAIN_IDS
+            and target.get("contractId") in OWNED_CONTRACT_IDS
         )
         browser_sensitive = requires_browser_level_proof(target)
         for field, label in (
@@ -115,7 +115,7 @@ def browser_level_proof_errors(evidence: dict[str, Any]) -> list[str]:
                 for proof in browser_level
                 if "browser" in command_capabilities.get(proof.get("commandId"), set())
             ]
-            if is_webapp_domain and len(browser_backed) != len(browser_level):
+            if is_webapp_owned and len(browser_backed) != len(browser_level):
                 for proof in browser_level:
                     if "browser" in command_capabilities.get(
                         proof.get("commandId"), set()
@@ -187,8 +187,10 @@ def planning_requirement_errors(root: Path, evidence: dict[str, Any]) -> list[st
     requirements = evidence.get("requirements")
     if not isinstance(requirements, list):
         raise TypeError("implementation evidence requirements must be a JSON array")
+    expected = {target_key(target) for target in expected_targets(root)}
     allowed = {target_key(target) for target in allowed_targets(root)}
     allowed_kinds = ", ".join(sorted(BROWSER_LEVEL_PROOF_KINDS))
+    seen: set[tuple[Any, ...]] = set()
     errors: list[str] = []
     for index, requirement in enumerate(requirements):
         if not isinstance(requirement, dict):
@@ -209,13 +211,15 @@ def planning_requirement_errors(root: Path, evidence: dict[str, Any]) -> list[st
                     f"implementation evidence requirement {index} target must be a JSON object"
                 )
             key = target_key(target)
-            if len(key) < 2 or key[1] not in DOMAIN_IDS:
+            if len(key) < 2 or key[1] not in OWNED_CONTRACT_IDS:
                 continue
+            seen.add(key)
             requirement_id = requirement.get("id", f"index-{index}")
             if key not in allowed:
                 errors.append(
                     f"unknown planning Webapp requirement target for {requirement_id!r}: {key}"
                 )
+                continue
             if requires_browser_level_proof(target) and declared.isdisjoint(
                 BROWSER_LEVEL_PROOF_KINDS
             ):
@@ -224,6 +228,8 @@ def planning_requirement_errors(root: Path, evidence: dict[str, Any]) -> list[st
                     f"Webapp item {key} and must declare at least one browser-level "
                     f"requiredPositiveProofKinds value ({allowed_kinds})"
                 )
+    for missing in sorted(expected - seen, key=str):
+        errors.append(f"planned Webapp target is missing a planning requirement: {missing}")
     return errors
 
 
@@ -284,7 +290,7 @@ def main() -> int:
     for missing in sorted(expected - actual_set, key=str):
         errors.append(f"missing Webapp implementation-evidence target: {missing}")
     for extra in sorted(actual_set - allowed, key=str):
-        if len(extra) >= 2 and extra[1] in DOMAIN_IDS:
+        if len(extra) >= 2 and extra[1] in OWNED_CONTRACT_IDS:
             errors.append(f"unknown Webapp implementation-evidence target: {extra}")
     errors.extend(strength_errors)
 
