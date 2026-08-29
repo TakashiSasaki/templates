@@ -25,6 +25,7 @@
       ? frame
       : null;
   const browserHeader = tree.querySelector(".browser-header");
+  const treeScroller = tree.querySelector(".tree");
   const mobileToolbar = content.querySelector(".viewer-mobile-toolbar");
   const initialSrcdoc = managedFrame?.getAttribute("srcdoc") || "";
   const mobileViewport = window.matchMedia("(max-width: 800px)");
@@ -39,11 +40,28 @@
     }
   }
 
+  const filterListItems = Array.from(tree.querySelectorAll(".tree li"));
+  const filterListItemSet = new Set(filterListItems);
+  const filterDetails = Array.from(tree.querySelectorAll(".tree details"));
+  const filterDetailsSet = new Set(filterDetails);
+  const filterEntries = fileLinks
+    .map((link) => {
+      const path = link.dataset.filePath;
+      return path ? { link, path, key: path.toLocaleLowerCase() } : null;
+    })
+    .filter(Boolean);
+
   let selectedLink = null;
   let appliedHash = null;
   let shareControls = null;
   let shareStatus = null;
   let shareButtons = [];
+  let filterControls = null;
+  let filterInput = null;
+  let filterStatus = null;
+  let filterRestoreDetails = null;
+  let treeReturnFocus = null;
+  let treeReturnScrollTop = 0;
 
   function mobileMode() {
     return browser.dataset.mobileView === "content" ? "content" : "files";
@@ -337,8 +355,194 @@
     syncShareLayout();
   }
 
+  function restoreFilterDetails() {
+    if (!(filterRestoreDetails instanceof Map)) {
+      return;
+    }
+    for (const [details, wasOpen] of filterRestoreDetails) {
+      details.open = wasOpen;
+    }
+    filterRestoreDetails = null;
+  }
+
+  function applyFileFilter() {
+    if (!(filterInput instanceof HTMLElement)) {
+      return [];
+    }
+    const query = String(filterInput.value || "").trim().toLocaleLowerCase();
+    if (!query) {
+      for (const item of filterListItems) {
+        item.hidden = false;
+      }
+      restoreFilterDetails();
+      if (filterStatus instanceof HTMLElement) {
+        filterStatus.textContent = `${filterEntries.length} files`;
+      }
+      return filterEntries.map((entry) => entry.link);
+    }
+
+    if (!(filterRestoreDetails instanceof Map)) {
+      filterRestoreDetails = new Map(
+        filterDetails.map((details) => [details, Boolean(details.open)])
+      );
+    }
+    for (const item of filterListItems) {
+      item.hidden = true;
+    }
+
+    const matches = [];
+    for (const entry of filterEntries) {
+      if (!entry.key.includes(query)) {
+        continue;
+      }
+      matches.push(entry.link);
+      let current = entry.link.parentElement;
+      while (current && current !== tree) {
+        if (filterListItemSet.has(current)) {
+          current.hidden = false;
+        }
+        if (filterDetailsSet.has(current)) {
+          current.open = true;
+        }
+        current = current.parentElement;
+      }
+    }
+
+    if (filterStatus instanceof HTMLElement) {
+      filterStatus.textContent =
+        matches.length === 0
+          ? "No matching files"
+          : `${matches.length} of ${filterEntries.length} files`;
+    }
+    return matches;
+  }
+
+  function rememberTreeContext(fallback) {
+    if (treeScroller instanceof HTMLElement) {
+      treeReturnScrollTop = treeScroller.scrollTop;
+    }
+    const active = document.activeElement;
+    const activeBelongsToTree =
+      active instanceof HTMLElement &&
+      (typeof tree.contains !== "function" || tree.contains(active));
+    treeReturnFocus = activeBelongsToTree ? active : fallback;
+  }
+
+  function elementIsFilterVisible(element) {
+    if (!(element instanceof HTMLElement)) {
+      return false;
+    }
+    let current = element;
+    while (current && current !== tree) {
+      if (current.hidden) {
+        return false;
+      }
+      current = current.parentElement;
+    }
+    return true;
+  }
+
+  function restoreTreeContext() {
+    if (treeScroller instanceof HTMLElement) {
+      treeScroller.scrollTop = treeReturnScrollTop;
+    }
+    const candidates = [treeReturnFocus, selectedLink, filterInput];
+    const focusTarget = candidates.find((candidate) => elementIsFilterVisible(candidate));
+    if (focusTarget instanceof HTMLElement) {
+      focusTarget.focus({ preventScroll: true });
+    }
+  }
+
+  function quickOpenFirstMatch() {
+    const matches = applyFileFilter();
+    const link = matches[0];
+    if (!(link instanceof HTMLAnchorElement) || !managedFrame) {
+      return false;
+    }
+    const path = link.dataset.filePath;
+    if (!path) {
+      return false;
+    }
+    rememberTreeContext(filterInput);
+    selectLink(link, { navigateFrame: true, focusBackButton: true });
+    pushFileLocation(path);
+    return true;
+  }
+
+  function initializeFiltering() {
+    if (
+      !(managedFrame instanceof HTMLIFrameElement) ||
+      !(browserHeader instanceof HTMLElement) ||
+      typeof document.createElement !== "function"
+    ) {
+      return;
+    }
+
+    filterControls = document.createElement("div");
+    filterControls.setAttribute("data-repository-filter", "");
+    filterControls.style.display = "flex";
+    filterControls.style.flexWrap = "wrap";
+    filterControls.style.alignItems = "center";
+    filterControls.style.gap = ".35rem";
+    filterControls.style.marginTop = ".6rem";
+
+    filterInput = document.createElement("input");
+    filterInput.type = "search";
+    filterInput.value = "";
+    filterInput.placeholder = "Filter files…";
+    filterInput.setAttribute("aria-label", "Filter files");
+    filterInput.setAttribute("autocomplete", "off");
+    filterInput.setAttribute("spellcheck", "false");
+    filterInput.style.flex = "1 1 11rem";
+    filterInput.style.minWidth = "0";
+    filterInput.style.minHeight = "2.3rem";
+    filterInput.style.border = "1px solid color-mix(in srgb, CanvasText 24%, transparent)";
+    filterInput.style.borderRadius = ".45rem";
+    filterInput.style.padding = ".35rem .55rem";
+    filterInput.style.color = "inherit";
+    filterInput.style.background = "Canvas";
+    filterInput.style.font = "inherit";
+    filterInput.addEventListener("input", applyFileFilter);
+    filterInput.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        if (filterInput.value) {
+          event.preventDefault();
+          filterInput.value = "";
+          applyFileFilter();
+        }
+        return;
+      }
+      if (event.key === "Enter" && String(filterInput.value || "").trim()) {
+        if (quickOpenFirstMatch()) {
+          event.preventDefault();
+        }
+      }
+    });
+
+    filterStatus = document.createElement("span");
+    filterStatus.setAttribute("data-repository-filter-status", "");
+    filterStatus.setAttribute("aria-live", "polite");
+    filterStatus.style.flex = "0 0 100%";
+    filterStatus.style.fontSize = ".74rem";
+    filterStatus.style.opacity = ".72";
+
+    filterControls.appendChild(filterInput);
+    filterControls.appendChild(filterStatus);
+    browserHeader.appendChild(filterControls);
+    applyFileFilter();
+  }
+
+  function targetIsEditable(target) {
+    return (
+      target instanceof Element &&
+      typeof target.closest === "function" &&
+      target.closest("input, textarea, select, [contenteditable='true']") !== null
+    );
+  }
+
   document.documentElement.classList.add("repository-browser-enhanced");
   setMobileMode("files");
+  initializeFiltering();
   initializeSharing();
   syncFromLocation();
 
@@ -370,22 +574,41 @@
     }
 
     event.preventDefault();
+    rememberTreeContext(link);
     selectLink(link, { navigateFrame: true, focusBackButton: true });
     pushFileLocation(path);
   });
 
   filesButton.addEventListener("click", () => {
-    const focusTarget =
-      selectedLink instanceof HTMLAnchorElement
-        ? selectedLink
-        : tree.querySelector("a[data-repository-file], summary, a, button");
     setMobileMode("files");
-    if (mobileViewport.matches && focusTarget instanceof HTMLElement) {
-      window.requestAnimationFrame(() => {
-        focusTarget.focus({ preventScroll: true });
-      });
+    if (mobileViewport.matches) {
+      window.requestAnimationFrame(restoreTreeContext);
     }
   });
+
+  if (typeof document.addEventListener === "function") {
+    document.addEventListener("keydown", (event) => {
+      if (
+        event.defaultPrevented ||
+        event.key !== "/" ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.altKey ||
+        targetIsEditable(event.target) ||
+        !(filterInput instanceof HTMLElement)
+      ) {
+        return;
+      }
+      event.preventDefault();
+      setMobileMode("files");
+      window.requestAnimationFrame(() => {
+        if (treeScroller instanceof HTMLElement) {
+          treeScroller.scrollTop = treeReturnScrollTop;
+        }
+        filterInput.focus({ preventScroll: true });
+      });
+    });
+  }
 
   window.addEventListener("popstate", syncFromLocation);
   window.addEventListener("hashchange", syncFromLocation);
