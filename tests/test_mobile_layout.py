@@ -159,33 +159,40 @@ class MobileLayoutRegressionTests(unittest.TestCase):
 
     def test_pr_build_runs_browser_regression_after_its_own_artifact(self) -> None:
         workflow = BUILD_WORKFLOW.read_text(encoding="utf-8")
-        self.assertIn("needs: build", workflow)
-        self.assertIn("inputs.site_ref == ''", workflow)
-        self.assertIn("actions/download-artifact@v5", workflow)
+        check_block = workflow.split("\n  check:\n", 1)[1]
+        self.assertIn("needs:\n      - build\n      - classify_browser", check_block)
+        self.assertIn("test \"$BUILD_RESULT\" = success", check_block)
+        self.assertIn("test \"$CLASSIFIER_RESULT\" = success", check_block)
+        self.assertIn("inputs.site_ref == ''", check_block)
+        self.assertIn("actions/download-artifact@v5", check_block)
+        self.assertIn(
+            "if: ${{ needs.classify_browser.outputs.required == 'true' }}",
+            check_block,
+        )
         self.assertNotIn("Wait for documentation artifact build", workflow)
         self.assertNotIn("workflow_id: 'build-pages.yml'", workflow)
-        self.assertIn("actions/setup-python@v6", workflow)
-        self.assertIn("requirements-visual.txt", workflow)
-        self.assertIn("Install Japanese browser font", workflow)
-        self.assertIn("sudo apt-get update", workflow)
+        self.assertIn("actions/setup-python@v6", check_block)
+        self.assertIn("requirements-visual.txt", check_block)
+        self.assertIn("Install Japanese browser font", check_block)
+        self.assertIn("sudo apt-get update", check_block)
         self.assertIn(
             "sudo apt-get install --yes --no-install-recommends fonts-ipafont-gothic",
-            workflow,
+            check_block,
         )
         self.assertIn(
             "python -m playwright install --only-shell chromium",
-            workflow,
+            check_block,
         )
         self.assertNotIn(
             "python -m playwright install --with-deps --only-shell chromium",
-            workflow,
+            check_block,
         )
-        self.assertIn("scripts/check_mobile_layout.py", workflow)
-        self.assertIn("build/mobile-visual", workflow)
-        self.assertIn("actions/upload-artifact@v4", workflow)
+        self.assertIn("scripts/check_mobile_layout.py", check_block)
+        self.assertIn("build/mobile-visual", check_block)
+        self.assertIn("actions/upload-artifact@v4", check_block)
         self.assertIn(
             "github.event.pull_request.head.repo.full_name == github.repository",
-            workflow,
+            check_block,
         )
         self.assertNotIn("browser-actions/setup-chrome", workflow)
         self.assertNotIn("--no-sandbox", workflow)
