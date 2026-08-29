@@ -193,20 +193,20 @@ class DeploymentWorkflowWiringTests(unittest.TestCase):
         self.assertIn("scripts/finalize_glossary_annotations.py", build_workflow)
         self.assertIn("'data-glossary-id=' build/site", build_workflow)
         # The prepare step, two generic metadata passes, reader finalizer,
-        # localized guided finalizer, and final translation-pair validator all
-        # receive the same public canonical URL.
+        # translation-pair validator, and localized guided finalizer all receive
+        # the same public canonical URL.
         self.assertEqual(
             6,
             build_workflow.count('--canonical-url "${PUBLIC_SITE_URL}"'),
         )
-        guided_finalize = build_workflow.index("- name: Finalize localized guided metadata")
         translation_validate = build_workflow.index(
             "- name: Validate generated translation reader pairs"
         )
+        guided_finalize = build_workflow.index("- name: Finalize localized guided metadata")
         glossary_finalize = build_workflow.index("- name: Annotate Glossary terms")
         verify_boundary = build_workflow.index("- name: Verify generated public URL boundary")
-        self.assertLess(guided_finalize, translation_validate)
-        self.assertLess(translation_validate, glossary_finalize)
+        self.assertLess(translation_validate, guided_finalize)
+        self.assertLess(guided_finalize, glossary_finalize)
         self.assertLess(glossary_finalize, verify_boundary)
         self.assertIn("Verify generated public URL boundary", build_workflow)
         self.assertIn("scripts/check_public_url_boundary.py", build_workflow)
