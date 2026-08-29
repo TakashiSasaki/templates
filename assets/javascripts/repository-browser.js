@@ -19,8 +19,26 @@
     return;
   }
 
+  const frame = content.querySelector("iframe[name='repository-file-viewer']");
+  const managedFrame =
+    typeof HTMLIFrameElement !== "undefined" && frame instanceof HTMLIFrameElement
+      ? frame
+      : null;
+  const initialSrcdoc = managedFrame?.getAttribute("srcdoc") || "";
   const mobileViewport = window.matchMedia("(max-width: 800px)");
+  const fileLinks = Array.from(
+    tree.querySelectorAll("a[data-repository-file]")
+  ).filter((link) => link instanceof HTMLAnchorElement);
+  const linksByPath = new Map();
+  for (const link of fileLinks) {
+    const path = link.dataset.filePath;
+    if (path && !linksByPath.has(path)) {
+      linksByPath.set(path, link);
+    }
+  }
+
   let selectedLink = null;
+  let appliedHash = null;
 
   function mobileMode() {
     return browser.dataset.mobileView === "content" ? "content" : "files";
@@ -46,8 +64,102 @@
     syncInteractivity();
   }
 
+  function selectedPathFromLocation() {
+    if (!window.location.hash || window.location.hash === "#") {
+      return null;
+    }
+    const params = new URLSearchParams(window.location.hash.slice(1));
+    const path = params.get("file");
+    return path || null;
+  }
+
+  function hashForPath(path) {
+    const params = new URLSearchParams();
+    params.set("file", path);
+    return `#${params.toString()}`;
+  }
+
+  function openAncestorDirectories(link) {
+    let current = link.parentElement;
+    while (current && current !== tree) {
+      if (
+        typeof HTMLDetailsElement !== "undefined" &&
+        current instanceof HTMLDetailsElement
+      ) {
+        current.open = true;
+      }
+      current = current.parentElement;
+    }
+  }
+
+  function clearSelection({ resetFrame = true } = {}) {
+    if (selectedLink instanceof HTMLAnchorElement) {
+      selectedLink.removeAttribute("aria-current");
+    }
+    selectedLink = null;
+    selectedFileLabel.textContent = "Selected file";
+    setMobileMode("files");
+
+    if (resetFrame && managedFrame) {
+      managedFrame.removeAttribute("src");
+      managedFrame.setAttribute("srcdoc", initialSrcdoc);
+    }
+  }
+
+  function selectLink(link, { navigateFrame = true, focusBackButton = false } = {}) {
+    if (selectedLink instanceof HTMLAnchorElement && selectedLink !== link) {
+      selectedLink.removeAttribute("aria-current");
+    }
+    selectedLink = link;
+    selectedLink.setAttribute("aria-current", "true");
+    selectedFileLabel.textContent =
+      link.dataset.filePath || link.textContent?.trim() || "Selected file";
+    openAncestorDirectories(link);
+
+    if (navigateFrame && managedFrame) {
+      managedFrame.removeAttribute("srcdoc");
+      managedFrame.setAttribute("src", link.href);
+    }
+
+    setMobileMode("content");
+    if (focusBackButton && mobileViewport.matches) {
+      window.requestAnimationFrame(() => {
+        filesButton.focus({ preventScroll: true });
+      });
+    }
+  }
+
+  function syncFromLocation() {
+    if (!managedFrame || window.location.hash === appliedHash) {
+      return;
+    }
+    appliedHash = window.location.hash;
+    const path = selectedPathFromLocation();
+    if (path === null) {
+      clearSelection();
+      return;
+    }
+    const link = linksByPath.get(path);
+    if (!(link instanceof HTMLAnchorElement)) {
+      clearSelection();
+      return;
+    }
+    selectLink(link, { navigateFrame: true, focusBackButton: false });
+  }
+
+  function pushFileLocation(path) {
+    const nextHash = hashForPath(path);
+    if (window.location.hash === nextHash) {
+      appliedHash = nextHash;
+      return;
+    }
+    window.history.pushState(null, "", nextHash);
+    appliedHash = window.location.hash;
+  }
+
   document.documentElement.classList.add("repository-browser-enhanced");
   setMobileMode("files");
+  syncFromLocation();
 
   browser.addEventListener("click", (event) => {
     if (
@@ -71,20 +183,14 @@
       return;
     }
 
-    if (selectedLink instanceof HTMLAnchorElement && selectedLink !== link) {
-      selectedLink.removeAttribute("aria-current");
+    const path = link.dataset.filePath;
+    if (!path || !managedFrame) {
+      return;
     }
-    selectedLink = link;
-    selectedLink.setAttribute("aria-current", "true");
-    selectedFileLabel.textContent =
-      link.dataset.filePath || link.textContent?.trim() || "Selected file";
 
-    setMobileMode("content");
-    if (mobileViewport.matches) {
-      window.requestAnimationFrame(() => {
-        filesButton.focus({ preventScroll: true });
-      });
-    }
+    event.preventDefault();
+    selectLink(link, { navigateFrame: true, focusBackButton: true });
+    pushFileLocation(path);
   });
 
   filesButton.addEventListener("click", () => {
@@ -99,6 +205,9 @@
       });
     }
   });
+
+  window.addEventListener("popstate", syncFromLocation);
+  window.addEventListener("hashchange", syncFromLocation);
 
   const handleViewportChange = () => syncInteractivity();
   if (typeof mobileViewport.addEventListener === "function") {
