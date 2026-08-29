@@ -225,18 +225,18 @@ jobs:
             --translation-map build/translation-publication.json \
             --canonical-url "${PUBLIC_SITE_URL}"
 
-      - name: Finalize localized guided metadata
-        run: |
-          python site-source/scripts/finalize_guided_locales.py \
-            --site-root build/site \
-            --pair-map build/guided-locale-publication.json \
-            --canonical-url "${PUBLIC_SITE_URL}"
-
       - name: Validate generated translation reader pairs
         run: |
           python site-source/scripts/validate_translation_pairs.py \
             --site-root build/site \
             --translation-map build/translation-publication.json \
+            --canonical-url "${PUBLIC_SITE_URL}"
+
+      - name: Finalize localized guided metadata
+        run: |
+          python site-source/scripts/finalize_guided_locales.py \
+            --site-root build/site \
+            --pair-map build/guided-locale-publication.json \
             --canonical-url "${PUBLIC_SITE_URL}"
 
       - name: Annotate Glossary terms
@@ -424,6 +424,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
           persist-credentials: false
+
       - name: Set up classifier Python
         uses: actions/setup-python@v6
         with:
