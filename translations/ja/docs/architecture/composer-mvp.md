@@ -1,4 +1,4 @@
-# Composer MVP と managed-state contract
+# Composer architecture と managed-state contract
 
 > **参考訳（非正本）:** この文書は英語版 `docs/architecture/composer-mvp.md` の日本語参考訳です。正本は英語版であり、内容または解釈に相違がある場合は英語版が優先されます。
 

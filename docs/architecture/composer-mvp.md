@@ -1,4 +1,4 @@
-# Composer MVP and managed-state contract
+# Composer architecture and managed-state contract
 
 ## Scope
 
