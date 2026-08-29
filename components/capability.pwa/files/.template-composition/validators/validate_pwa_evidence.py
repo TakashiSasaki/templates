@@ -101,7 +101,7 @@ def planning_errors(
         errors.append(
             f"planned PWA proof family is missing an implementation-evidence requirement target: {helper.family_label(key)}"
         )
-    for key in sorted(expected - strong, key=str):
+    for key in sorted((expected & seen) - strong, key=str):
         errors.append(
             f"planned PWA proof family {helper.family_label(key)} must be covered by a requirement whose requiredPositiveProofKinds includes a browser-level kind ({', '.join(sorted(browser_kinds))})"
         )
