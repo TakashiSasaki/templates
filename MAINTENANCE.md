@@ -98,7 +98,7 @@ The bounded `/files/` source browser covers:
 2. `composition`;
 3. `policy`.
 
-Production builds invoke `generate_repository_browser_composition.py`, which reuses the existing bounded blob-rendering implementation while fixing the Composition-era branch order.
+`scripts/generate_repository_browser.py` is the canonical Site-owned generator and defines that authority set directly. The current production workflow still reaches it through `generate_repository_browser_composition.py`, which is compatibility-only and must not redefine branch order, root-index semantics, or rendering behavior.
 
 The browser never follows symlinks or gitlinks. Eligible strict UTF-8 text is rendered from exact Git blob IDs under size/content limits; other entries receive safe fallback views plus immutable source links.
 

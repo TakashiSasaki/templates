@@ -144,10 +144,11 @@ python site/scripts/generate_repository_trees_composition.py \
   --publication policy=sources/policy
 ```
 
-The standalone source browser uses Site, Composition, and Policy:
+The standalone source browser uses the canonical Site-owned entrypoint and the
+three active authorities directly:
 
 ```sh
-python site/scripts/generate_repository_browser_composition.py \
+python site/scripts/generate_repository_browser.py \
   --repository TakashiSasaki/templates \
   --output-root build/site \
   --branch site=site \
@@ -243,7 +244,7 @@ python site/scripts/generate_glossary.py \
   --publication policy=sources/policy \
   --revision "policy=$(git -C sources/policy rev-parse HEAD)"
 
-python site/scripts/generate_repository_browser_composition.py \
+python site/scripts/generate_repository_browser.py \
   --repository TakashiSasaki/templates \
   --output-root build/site \
   --branch site=site \

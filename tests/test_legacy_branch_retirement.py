@@ -22,6 +22,7 @@ ACTIVE_OPERATIONAL_FILES = (
     "scripts/validate_provider_coexistence.py",
     "scripts/generate_repository_trees_composition.py",
     "scripts/generate_repository_file_previews_composition.py",
+    "scripts/generate_repository_browser.py",
     "scripts/generate_repository_browser_composition.py",
     "scripts/run_composition_navigation.py",
     "scripts/check_mobile_layout.py",

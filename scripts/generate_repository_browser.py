@@ -53,7 +53,7 @@ except ModuleNotFoundError:
     )
 
 
-BRANCH_ORDER = ("site", "skill", "policy", "webapp")
+BRANCH_ORDER = ("site", "composition", "policy")
 MAX_TEXT_BYTES = 1024 * 1024
 MAX_TOTAL_TEXT_BYTES = 64 * 1024 * 1024
 BROWSER_ROOT = Path("files")
@@ -496,7 +496,7 @@ def write_root_index(browser_root: Path) -> None:
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
 <title>Repository file browser</title><style>:root{{color-scheme:light dark;font-family:system-ui,sans-serif}}body{{max-width:48rem;margin:4rem auto;padding:0 1rem}}a{{color:LinkText}}code{{font-family:ui-monospace,monospace}}</style></head>
-<body><h1>Repository file browser</h1><p>Browse immutable build-time snapshots of the four major branches.</p><ul>{links}</ul></body></html>\n""",
+<body><h1>Repository file browser</h1><p>Browse immutable build-time snapshots of the Site, Composition, and Policy authorities.</p><ul>{links}</ul></body></html>\n""",
         encoding="utf-8",
     )
 
@@ -521,7 +521,7 @@ def generate_browser(
         raise RepositoryBrowserError("repository must use owner/name form")
     if tuple(branches) != BRANCH_ORDER:
         raise RepositoryBrowserError(
-            "branches must be supplied exactly in site, skill, policy, webapp order"
+            "branches must be supplied exactly in site, composition, policy order"
         )
     browser_root = prepare_browser_root(output_root)
     write_root_index(browser_root)
@@ -566,7 +566,7 @@ def parse_branch(value: str) -> tuple[str, Path]:
     name, raw_path = value.split("=", 1)
     if name not in BRANCH_ORDER or not raw_path:
         raise argparse.ArgumentTypeError(
-            "branch name must be site, skill, policy, or webapp"
+            "branch name must be site, composition, or policy"
         )
     return name, Path(raw_path)
 
