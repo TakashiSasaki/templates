@@ -64,6 +64,7 @@ jobs:
 
             const workflowName = 'Composition schema validation';
             const branch = 'composition';
+            const maxRunPages = 5;
             const coreJobNames = new Set([
               'core tests (1/2)',
               'preflight + core tests (2/2)',
@@ -103,21 +104,34 @@ jobs:
               return await response.text();
             };
 
-            const response = await github.rest.actions.listWorkflowRunsForRepo({
-              owner,
-              repo,
-              branch,
-              status: 'completed',
-              per_page: 100,
-            });
-            const selectedRuns = response.data.workflow_runs
-              .filter(
-                (run) =>
+            const selectedRuns = [];
+            for (
+              let page = 1;
+              page <= maxRunPages && selectedRuns.length < runsToSample;
+              page += 1
+            ) {
+              const response = await github.rest.actions.listWorkflowRunsForRepo({
+                owner,
+                repo,
+                branch,
+                status: 'completed',
+                per_page: 100,
+                page,
+              });
+              for (const run of response.data.workflow_runs) {
+                if (
                   run.name === workflowName &&
                   run.head_branch === branch &&
-                  run.conclusion === 'success'
-              )
-              .slice(0, runsToSample);
+                  run.conclusion === 'success' &&
+                  selectedRuns.length < runsToSample
+                ) {
+                  selectedRuns.push(run);
+                }
+              }
+              if (response.data.workflow_runs.length < 100) {
+                break;
+              }
+            }
             if (selectedRuns.length === 0) {
               throw new Error(
                 `No successful ${workflowName} runs were found on canonical ${branch}.`
@@ -178,6 +192,7 @@ jobs:
               workflow: workflowName,
               branch,
               requested_runs: runsToSample,
+              max_repository_run_pages: maxRunPages,
               runs: manifestRuns,
             };
             fs.writeFileSync(
