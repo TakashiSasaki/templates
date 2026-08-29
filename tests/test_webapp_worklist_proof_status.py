@@ -22,10 +22,28 @@ if str(TARGET_SCRIPTS) not in sys.path:
 import scaffold_webapp_evidence as scaffold
 
 
+IDENTITY_RECORD_ID = "browser-identity-proof-family-browser-identity"
+ROUTE_RECORD_ID = "routes-route-home"
+
+
 class WebappWorklistProofStatusTests(unittest.TestCase):
     def write_json(self, path: Path, value: object) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
+
+    def status_for(self, worklist: dict, record_id: str) -> str:
+        return next(
+            item["status"]
+            for item in worklist["recordStatuses"]
+            if item["id"] == record_id
+        )
+
+    def requirement_status(self, worklist: dict, requirement_id: str) -> str:
+        return next(
+            item["status"]
+            for item in worklist["requirements"]
+            if item["id"] == requirement_id
+        )
 
     def render(
         self,
@@ -48,15 +66,38 @@ class WebappWorklistProofStatusTests(unittest.TestCase):
                 "mode": "product",
                 "requirements": [
                     {
+                        "id": "REQ-BROWSER-IDENTITY",
+                        "description": "Browser identity is observable through the browser boundary.",
+                        "recordIds": [IDENTITY_RECORD_ID],
+                        "requiredPositiveProofKinds": ["end-to-end-test"],
+                    },
+                    {
                         "id": "REQ-ROUTE-FOCUS",
                         "description": "Route entry honors the declared focus target.",
-                        "recordIds": ["routes-route-home"],
+                        "recordIds": [ROUTE_RECORD_ID],
                         "requiredPositiveProofKinds": [requirement_kind],
-                    }
+                    },
                 ],
                 "records": [
                     {
-                        "id": "routes-route-home",
+                        "id": IDENTITY_RECORD_ID,
+                        "target": {
+                            "kind": "contract-item",
+                            "contractId": "browser_identity",
+                            "itemKind": "proof-family",
+                            "itemId": "browser-identity",
+                        },
+                        "implementationBoundary": {"status": "verified"},
+                        "positiveEvidence": [
+                            {"status": "verified", "kind": "end-to-end-test"}
+                        ],
+                        "negativeEvidence": [
+                            {"status": "verified", "kind": "end-to-end-test"}
+                        ],
+                        "releaseGateIds": ["product-release"],
+                    },
+                    {
+                        "id": ROUTE_RECORD_ID,
                         "target": {
                             "kind": "contract-item",
                             "contractId": "routes",
@@ -71,7 +112,7 @@ class WebappWorklistProofStatusTests(unittest.TestCase):
                             {"status": proof_status, "kind": proof_kind}
                         ],
                         "releaseGateIds": ["product-release"],
-                    }
+                    },
                 ],
             },
         )
@@ -86,39 +127,31 @@ class WebappWorklistProofStatusTests(unittest.TestCase):
             )
 
             self.assertEqual(worklist["status"], "missing")
-            self.assertEqual(
-                worklist["recordStatuses"],
-                [{"id": "routes-route-home", "status": "missing"}],
-            )
+            self.assertEqual(self.status_for(worklist, IDENTITY_RECORD_ID), "verified")
+            self.assertEqual(self.status_for(worklist, ROUTE_RECORD_ID), "missing")
             self.assertEqual(worklist["statusCounts"]["missing"], 1)
-            self.assertEqual(worklist["requirements"][0]["status"], "missing")
-            self.assertEqual(worklist["requirementStatusCounts"]["missing"], 1)
+            self.assertEqual(worklist["statusCounts"]["verified"], 1)
             self.assertEqual(
-                worklist["artifactProofRequirements"],
-                [
-                    {
-                        "recordId": "routes-route-home",
-                        "target": {
-                            "kind": "contract-item",
-                            "contractId": "routes",
-                            "itemKind": "route",
-                            "itemId": "home",
-                        },
-                        "positiveEvidenceKindAtLeastOneOf": [
-                            "accessibility-test",
-                            "end-to-end-test",
-                        ],
-                        "negativeEvidenceKindAtLeastOneOf": [
-                            "accessibility-test",
-                            "end-to-end-test",
-                        ],
-                        "linkedRequirementRequiredPositiveProofKindAtLeastOneOf": [
-                            "accessibility-test",
-                            "end-to-end-test",
-                        ],
-                    }
-                ],
+                self.requirement_status(worklist, "REQ-ROUTE-FOCUS"), "missing"
             )
+            self.assertEqual(worklist["requirementStatusCounts"]["missing"], 1)
+            self.assertEqual(worklist["requirementStatusCounts"]["verified"], 1)
+            proof_requirements = {
+                item["recordId"]: item for item in worklist["artifactProofRequirements"]
+            }
+            self.assertEqual(set(proof_requirements), {IDENTITY_RECORD_ID, ROUTE_RECORD_ID})
+            expected_browser_kinds = ["accessibility-test", "end-to-end-test"]
+            for item in proof_requirements.values():
+                self.assertEqual(
+                    item["positiveEvidenceKindAtLeastOneOf"], expected_browser_kinds
+                )
+                self.assertEqual(
+                    item["negativeEvidenceKindAtLeastOneOf"], expected_browser_kinds
+                )
+                self.assertEqual(
+                    item["linkedRequirementRequiredPositiveProofKindAtLeastOneOf"],
+                    expected_browser_kinds,
+                )
 
     def test_strong_record_does_not_hide_weak_requirement(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -128,10 +161,13 @@ class WebappWorklistProofStatusTests(unittest.TestCase):
                 requirement_kind="integration-test",
             )
 
-            self.assertEqual(worklist["recordStatuses"][0]["status"], "verified")
-            self.assertEqual(worklist["statusCounts"]["verified"], 1)
-            self.assertEqual(worklist["requirements"][0]["status"], "missing")
+            self.assertEqual(self.status_for(worklist, ROUTE_RECORD_ID), "verified")
+            self.assertEqual(worklist["statusCounts"]["verified"], 2)
+            self.assertEqual(
+                self.requirement_status(worklist, "REQ-ROUTE-FOCUS"), "missing"
+            )
             self.assertEqual(worklist["requirementStatusCounts"]["missing"], 1)
+            self.assertEqual(worklist["requirementStatusCounts"]["verified"], 1)
             self.assertEqual(worklist["status"], "missing")
 
     def test_browser_strength_projects_verified_only_when_both_layers_close(self) -> None:
@@ -142,10 +178,12 @@ class WebappWorklistProofStatusTests(unittest.TestCase):
                 requirement_kind="end-to-end-test",
             )
 
-            self.assertEqual(worklist["recordStatuses"][0]["status"], "verified")
-            self.assertEqual(worklist["requirements"][0]["status"], "verified")
-            self.assertEqual(worklist["statusCounts"]["verified"], 1)
-            self.assertEqual(worklist["requirementStatusCounts"]["verified"], 1)
+            self.assertEqual(self.status_for(worklist, ROUTE_RECORD_ID), "verified")
+            self.assertEqual(
+                self.requirement_status(worklist, "REQ-ROUTE-FOCUS"), "verified"
+            )
+            self.assertEqual(worklist["statusCounts"]["verified"], 2)
+            self.assertEqual(worklist["requirementStatusCounts"]["verified"], 2)
             self.assertEqual(worklist["status"], "verified")
 
     def test_deferred_browser_proof_remains_release_blocking_in_projection(self) -> None:
@@ -157,8 +195,10 @@ class WebappWorklistProofStatusTests(unittest.TestCase):
                 proof_status="deferred",
             )
 
-            self.assertEqual(worklist["recordStatuses"][0]["status"], "deferred")
-            self.assertEqual(worklist["requirements"][0]["status"], "deferred")
+            self.assertEqual(self.status_for(worklist, ROUTE_RECORD_ID), "deferred")
+            self.assertEqual(
+                self.requirement_status(worklist, "REQ-ROUTE-FOCUS"), "deferred"
+            )
             self.assertEqual(worklist["status"], "deferred")
 
 
