@@ -39,13 +39,14 @@ REAL_BROWSER_TEST_IDS = frozenset(
 SUITES = ("all", "core", "real-browser")
 
 # PR #471 balanced unittest *counts*, but the post-merge run still measured
-# shard runtimes at 154.364 s versus 104.260 s. These two tests accounted for
-# roughly 26 s on the slower shard. Keep the general SHA-256 partition stable,
-# but move only these measured outliers when the production workflow uses two
-# shards. Other shard counts deliberately retain the pure hash assignment.
+# shard runtimes at 154.364 s versus 104.260 s. Two measured outliers were
+# therefore moved off the slower shard. Subsequent fixture-reuse work changed
+# the core timing distribution: the generated-material test now makes shard 2
+# slower and its stable SHA-256 assignment is again the better placement, so
+# that obsolete override is retired. Keep only the still-explicit browser
+# outlier override for two-shard partitions that include browser tests. Other
+# shard counts deliberately retain the pure hash assignment.
 TWO_SHARD_TIMING_OVERRIDES = {
-    "test_composer_generated_material.ComposerGeneratedMaterialTests."
-    "test_webapp_apply_generates_and_locks_contract_manifest": 1,
     "test_webapp_auth_productization.WebappAuthenticationProductizationTests."
     "test_realistic_auth_fixture_reaches_transactional_release": 1,
 }
