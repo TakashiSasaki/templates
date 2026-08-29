@@ -40,6 +40,11 @@ STATE_PRESENTATION = {
 }
 ALLOW_ADMIN_WITHOUT_ROLE = __ALLOW_ADMIN_WITHOUT_ROLE__
 CLIENT_TEMPLATE = Path(__file__).with_name("client.html").read_text(encoding="utf-8")
+FAVICON = b'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="12" fill="#1f2937"/>
+  <path d="M18 18h28v8H26v20h-8V18zm14 12h14v16H30v-8h8v-8h-6z" fill="#ffffff"/>
+</svg>
+'''
 
 
 def render_view(surface: str, state: str, message: str) -> bytes:
@@ -60,17 +65,26 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, format: str, *args: object) -> None:
         return
 
-    def respond(self, status: int, surface: str, state: str, message: str) -> None:
-        payload = render_view(surface, state, message)
+    def respond_bytes(self, status: int, content_type: str, payload: bytes) -> None:
         self.send_response(status)
-        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(payload)))
         self.end_headers()
         self.wfile.write(payload)
 
+    def respond(self, status: int, surface: str, state: str, message: str) -> None:
+        self.respond_bytes(
+            status,
+            "text/html; charset=utf-8",
+            render_view(surface, state, message),
+        )
+
     def do_GET(self) -> None:
         parsed = urlsplit(self.path)
         path = parsed.path
+        if path == "/favicon.svg":
+            self.respond_bytes(200, "image/svg+xml", FAVICON)
+            return
         if path == "/":
             self.respond(200, "public", "populated", "Public home")
             return
