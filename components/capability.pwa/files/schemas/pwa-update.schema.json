@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schemaVersion", "mode"],
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[a-z][a-z0-9-]*(?![\\s\\S])"}
+  },
+  "properties": {
+    "$schema": {"const": "../schemas/pwa-update.schema.json"},
+    "schemaVersion": {"const": 1},
+    "mode": {"enum": ["template", "planning", "product"]},
+    "activation": {"enum": ["next-launch", "user-confirmed", "immediate"]},
+    "unsavedChangesPolicy": {"enum": ["preserve", "block-activation", "not-applicable"]},
+    "updateAvailableStateId": {"$ref": "#/$defs/identifier"},
+    "applyingStateId": {"$ref": "#/$defs/identifier"},
+    "failureStateId": {"$ref": "#/$defs/identifier"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"mode": {"const": "template"}}, "required": ["mode"]},
+      "then": {"not": {"anyOf": [{"required": ["activation"]}, {"required": ["unsavedChangesPolicy"]}, {"required": ["updateAvailableStateId"]}, {"required": ["applyingStateId"]}, {"required": ["failureStateId"]}]}}
+    },
+    {
+      "if": {"properties": {"mode": {"enum": ["planning", "product"]}}, "required": ["mode"]},
+      "then": {"required": ["activation", "unsavedChangesPolicy"]}
+    },
+    {
+      "if": {"properties": {"activation": {"const": "user-confirmed"}}, "required": ["activation"]},
+      "then": {"required": ["updateAvailableStateId"]}
+    }
+  ]
+}

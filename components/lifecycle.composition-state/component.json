@@ -2,7 +2,7 @@
   "schema_version": 1,
   "id": "lifecycle.composition-state",
   "kind": "lifecycle",
-  "version": 16,
+  "version": 17,
   "summary": "Self-contained consumer validation for resolved composition state, material ownership, selected-component validator dispatch, deterministic lifecycle next-step projection, and provider-owned executable action dispatch.",
   "requires": [],
   "conflicts": [],
