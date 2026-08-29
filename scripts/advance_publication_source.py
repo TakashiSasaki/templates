@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import argparse
-import json
 import os
 import stat
 import subprocess
@@ -23,10 +22,10 @@ from scripts.generate_agent_bootstrap import (
     verify_projection,
 )
 from scripts.resolve_publication_sources import (
-    EXPECTED_REPOSITORY,
     FULL_COMMIT_PATTERN,
     PUBLICATION_NAMES,
     SourceLockError,
+    render_source_lock,
     resolve_sources,
 )
 
@@ -98,17 +97,6 @@ def git_file(root: Path, revision: str, path: str, label: str) -> bytes:
         ) from exc
 
 
-def render_source_lock(revisions: dict[str, str]) -> bytes:
-    payload = {
-        "schema_version": 1,
-        "repository": EXPECTED_REPOSITORY,
-        "publications": {
-            name: {"revision": revisions[name]} for name in PUBLICATION_NAMES
-        },
-    }
-    return (json.dumps(payload, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
-
-
 def plan_advance(
     *,
     site_root: Path,
@@ -166,7 +154,10 @@ def plan_advance(
             f"publication revision {composition_revision}"
         )
 
-    lock_bytes = render_source_lock(revisions)
+    try:
+        lock_bytes = render_source_lock(revisions)
+    except SourceLockError as exc:
+        raise PublicationAdvanceError(str(exc)) from exc
     release_bytes = git_file(
         composition_root,
         composition_revision,
@@ -189,8 +180,6 @@ def plan_advance(
                 build_manifest(prospective_lock, prospective_release)
             )
     except (OSError, SourceLockError, AgentBootstrapError) as exc:
-        if isinstance(exc, PublicationAdvanceError):
-            raise
         raise PublicationAdvanceError(f"unable to preflight publication advance: {exc}") from exc
 
     return AdvancePlan(
@@ -297,7 +286,7 @@ def advance_publication(
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--site-root", type=Path, default=Path("."))
-    parser.add_argument("--provider", required=True)
+    parser.add_argument("--provider", choices=PUBLICATION_NAMES, required=True)
     parser.add_argument("--provider-root", type=Path, required=True)
     parser.add_argument("--composition-root", type=Path, required=True)
     parser.add_argument("--target", required=True)
