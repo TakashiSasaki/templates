@@ -243,6 +243,7 @@ def _measure_repository_browser_filter(
         filter_input.fill(query)
         page.wait_for_timeout(50)
         filtered_paths = _filter_exposed_repository_paths(page)
+        filtered_status = filter_status.text_content() or ""
         query_key = query.lower()
         ancestors_open = file_links.evaluate_all(
             """
@@ -282,7 +283,7 @@ def _measure_repository_browser_filter(
             "exposed": len(filtered_paths),
             "allMatch": all(query_key in path.lower() for path in filtered_paths),
             "ancestorsOpen": bool(ancestors_open),
-            "status": f"{len(filtered_paths)} of {total} files",
+            "status": filtered_status,
             "broadQuery": broad_query,
             "broadExposed": len(broad_paths),
             "scrollTop": saved_scroll,
