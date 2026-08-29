@@ -62,6 +62,7 @@ class ComposerGeneratedMaterialTests(unittest.TestCase):
             self.assertEqual(
                 [entry["id"] for entry in manifest["contracts"]],
                 [
+                    "browser_identity",
                     "implementation_evidence",
                     "lifecycle_checkpoints",
                     "routes",

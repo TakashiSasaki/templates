@@ -2,14 +2,25 @@
   "schema_version": 1,
   "id": "artifact.webapp-core",
   "kind": "artifact",
-  "version": 14,
-  "summary": "Framework-neutral browser application surfaces, routes, visible states, viewports, and Web-specific validation.",
+  "version": 15,
+  "summary": "Framework-neutral browser application identity, surfaces, routes, visible states, viewports, and Web-specific validation.",
   "requires": [
     "lifecycle.composition-state",
     "lifecycle.implementation-evidence"
   ],
   "conflicts": [],
   "contract_registrations": [
+    {
+      "id": "browser_identity",
+      "document": "contracts/browser-identity.json",
+      "schema": "schemas/browser-identity.schema.json",
+      "migration_slug": "browser-identity",
+      "document_schema_version": 1,
+      "version_history": [
+        {"version": 1, "change_type": "initial"}
+      ],
+      "purpose": "Declare the product favicon relationship, primary asset, and compatibility fallback assets without selecting a rendering framework or PWA packaging model."
+    },
     {
       "id":"routes","document":"contracts/routes.json","schema":"schemas/routes.schema.json","migration_slug":"routes","document_schema_version":3,
       "version_history":[{"version":1,"change_type":"initial"},{"version":2,"change_type":"breaking","migration":"docs/migrations/routes-v1-to-v2.md"},{"version":3,"change_type":"breaking","migration":"docs/migrations/routes-v2-to-v3.md"}],
@@ -36,10 +47,12 @@
     {"source":"files/.gitignore","destination":".gitignore","ownership":"seed"},
     {"source":"files/README.md","destination":"README.md","ownership":"seed"},
     {"source":"files/TEMPLATE.md","destination":"TEMPLATE.md","ownership":"seed"},
+    {"source":"files/contracts/browser-identity.json","destination":"contracts/browser-identity.json","ownership":"seed"},
     {"source":"files/contracts/routes.json","destination":"contracts/routes.json","ownership":"seed"},
     {"source":"files/contracts/surfaces.json","destination":"contracts/surfaces.json","ownership":"seed"},
     {"source":"files/contracts/ui-states.json","destination":"contracts/ui-states.json","ownership":"seed"},
     {"source":"files/contracts/viewports.json","destination":"contracts/viewports.json","ownership":"seed"},
+    {"source":"files/schemas/browser-identity.schema.json","destination":"schemas/browser-identity.schema.json","ownership":"managed"},
     {"source":"files/schemas/routes.schema.json","destination":"schemas/routes.schema.json","ownership":"managed"},
     {"source":"files/schemas/surfaces.schema.json","destination":"schemas/surfaces.schema.json","ownership":"managed"},
     {"source":"files/schemas/ui-states.schema.json","destination":"schemas/ui-states.schema.json","ownership":"managed"},

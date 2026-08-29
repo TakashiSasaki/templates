@@ -2,7 +2,13 @@
 
 Use this worksheet when adapting the scaffold to a concrete product. The machine-readable contracts remain authoritative.
 
-The initial Webapp contracts are deliberately minimal seeds: one public browser surface, one root route, one ready state, and one baseline responsive viewport with keyboard support. They do not imply that the product needs authentication, role-based authorization, administration, a status/diagnostic surface, multiple breakpoints, pointer input, or touch input. Add only the surfaces, routes, states, viewports, and input capabilities that the product actually implements, and replace the seed's public-access assumptions when the product handles non-public data or requires authentication.
+The initial Webapp contracts are deliberately minimal seeds: one SVG-preferred favicon declaration, one public browser surface, one root route, one ready state, and one baseline responsive viewport with keyboard support. They do not imply that the product needs authentication, role-based authorization, administration, a status/diagnostic surface, multiple breakpoints, pointer input, or touch input. Add only the surfaces, routes, states, viewports, and input capabilities that the product actually implements, replace the seed's public-access assumptions when the product handles non-public data or requires authentication, and replace the favicon asset declaration when the product uses a different browser icon.
+
+## Browser identity
+
+Keep the ordinary browser favicon distinct from PWA application icons. `contracts/browser-identity.json` declares the product's primary favicon using the standards-based `icon` relationship plus any compatibility fallbacks. The seed points to `favicon.svg` with `image/svg+xml` and `sizes: ["any"]` because SVG is normally the lightest scalable source when the artwork permits it; this is a recommendation, not a requirement to use SVG. A raster or ICO asset remains valid when product or browser compatibility requires it.
+
+The contract is an implementation obligation, not an asset generator. Ensure the declared icon is actually emitted by the product's document metadata with `rel="icon"`, the referenced asset is reachable with the declared media type, and evidence covers the configured favicon. Do not use the favicon contract as a substitute for PWA installability or Home Screen/application icon requirements.
 
 ## Surface inventory
 

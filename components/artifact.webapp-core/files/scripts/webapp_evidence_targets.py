@@ -7,7 +7,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-DOMAIN_IDS = {"surfaces", "routes", "ui_states", "viewports"}
+DOMAIN_IDS = {"browser_identity", "surfaces", "routes", "ui_states", "viewports"}
 RECORD_ID = re.compile(r"^[a-z][a-z0-9-]*$")
 BROWSER_LEVEL_PROOF_KINDS = ("accessibility-test", "end-to-end-test")
 BROWSER_SENSITIVE_CONTRACT_ITEMS = frozenset(
@@ -69,12 +69,20 @@ def _sorted_unique(targets: list[dict[str, Any]]) -> tuple[dict[str, Any], ...]:
 def expected_targets(root: Path) -> tuple[dict[str, Any], ...]:
     """Return current product targets that every Webapp product must evidence."""
     root = root.resolve()
+    load_json(root, "contracts/browser-identity.json")
     surfaces = load_json(root, "contracts/surfaces.json")
     routes = load_json(root, "contracts/routes.json")
     states = load_json(root, "contracts/ui-states.json")
     viewports = load_json(root, "contracts/viewports.json")
 
-    expected: list[dict[str, Any]] = []
+    expected: list[dict[str, Any]] = [
+        {
+            "kind": "contract-item",
+            "contractId": "browser_identity",
+            "itemKind": "favicon",
+            "itemId": "favicon",
+        }
+    ]
     expected.extend(
         {
             "kind": "contract-item",
