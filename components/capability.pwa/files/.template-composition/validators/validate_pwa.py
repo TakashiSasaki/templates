@@ -45,7 +45,10 @@ def indexed(items: object, *, collection: str) -> tuple[dict[str, dict[str, Any]
 
 
 def path_in_scope(path: str, scope: str) -> bool:
-    return scope == "/" or path.startswith(scope)
+    if scope == "/":
+        return path.startswith("/")
+    scope_root = scope.rstrip("/")
+    return path == scope_root or path.startswith(scope)
 
 
 def state_reference(
@@ -112,9 +115,7 @@ def validate_manifest(
                 "PWA vector icon policy prefers SVG when compatible; declare an SVG manifest icon or a non-blank vectorIconException"
             )
         if svg_icons and isinstance(vector_exception, str):
-            errors.append(
-                "PWA vectorIconException must be null when an SVG manifest icon is declared"
-            )
+            errors.append("PWA vectorIconException must be null when an SVG manifest icon is declared")
 
     compatibility = manifest.get("platformCompatibility")
     android = compatibility.get("android") if isinstance(compatibility, dict) else None
@@ -141,9 +142,7 @@ def validate_manifest(
 
     home_icon = ios.get("homeScreenIcon") if isinstance(ios, dict) else None
     if isinstance(home_icon, dict) and home_icon.get("mediaType") == "image/svg+xml":
-        errors.append(
-            "iOS home-screen compatibility icon must provide raster artwork rather than SVG-only artwork"
-        )
+        errors.append("iOS home-screen compatibility icon must provide raster artwork rather than SVG-only artwork")
     return errors
 
 
@@ -199,9 +198,7 @@ def validate_offline(
         offline.get("revalidatingStateId"),
     ]
     if len(set(semantic_state_ids)) != len(semantic_state_ids):
-        errors.append(
-            "PWA network-unavailable, freshness-unknown, and revalidating states must use distinct UI state ids"
-        )
+        errors.append("PWA network-unavailable, freshness-unknown, and revalidating states must use distinct UI state ids")
     state_reference(
         errors,
         states,
@@ -281,12 +278,7 @@ def validate_update(update: dict[str, Any], states: dict[str, dict[str, Any]]) -
     errors: list[str] = []
     activation = update.get("activation")
     if activation == "user-confirmed":
-        state_reference(
-            errors,
-            states,
-            update.get("updateAvailableStateId"),
-            field="updateAvailableStateId",
-        )
+        state_reference(errors, states, update.get("updateAvailableStateId"), field="updateAvailableStateId")
     elif "updateAvailableStateId" in update:
         errors.append("updateAvailableStateId is only valid when activation is user-confirmed")
 
@@ -315,12 +307,8 @@ def validate(root: Path) -> list[str]:
     manifest = load_json(root, PWA_MANIFEST)
     offline = load_json(root, PWA_OFFLINE)
     update = load_json(root, PWA_UPDATE)
-    routes_document = load_json(root, ROUTES)
-    surfaces_document = load_json(root, SURFACES)
-    states_document = load_json(root, UI_STATES)
     evidence = load_json(root, IMPLEMENTATION_EVIDENCE)
 
-    errors: list[str] = []
     modes = {
         "pwa-manifest": manifest.get("mode"),
         "pwa-offline": offline.get("mode"),
@@ -339,9 +327,13 @@ def validate(root: Path) -> list[str]:
     if pwa_mode == "template":
         return []
 
+    routes_document = load_json(root, ROUTES)
+    surfaces_document = load_json(root, SURFACES)
+    states_document = load_json(root, UI_STATES)
     routes, route_errors = indexed(routes_document.get("routes"), collection="routes")
     surfaces, surface_errors = indexed(surfaces_document.get("surfaces"), collection="surfaces")
     states, state_errors = indexed(states_document.get("states"), collection="UI states")
+    errors: list[str] = []
     errors.extend(route_errors)
     errors.extend(surface_errors)
     errors.extend(state_errors)

@@ -215,12 +215,37 @@ class PwaContractTests(unittest.TestCase):
             errors = list(Draft202012Validator(self.load(f"schemas/{name}.schema.json")).iter_errors(document))
             self.assertEqual(errors, [], [error.message for error in errors])
 
+    def test_template_mode_does_not_require_webapp_cross_contract_documents(self) -> None:
+        temp = tempfile.TemporaryDirectory()
+        self.addCleanup(temp.cleanup)
+        root = Path(temp.name)
+        for name in ("pwa-manifest", "pwa-offline", "pwa-update"):
+            self.write_json(root / "contracts" / f"{name}.json", self.load(f"contracts/{name}.json"))
+        self.write_json(root / "contracts/implementation-evidence.json", {"mode": "template"})
+        result = subprocess.run(
+            [sys.executable, str(VALIDATOR), str(root)],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("template mode OK", result.stdout)
+
     def test_product_cross_contract_semantics_validate(self) -> None:
         manifest, offline, update = self.product_contracts()
         result = self.run_validator(manifest, offline, update)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("offline freshness", result.stdout)
         self.assertIn("platform compatibility", result.stdout)
+
+    def test_planning_mode_uses_the_same_semantic_contract_with_planning_evidence(self) -> None:
+        manifest, offline, update = self.product_contracts()
+        for document in (manifest, offline, update):
+            document["mode"] = "planning"
+        result = self.run_validator(manifest, offline, update, evidence_mode="planning")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("PWA planning installability", result.stdout)
 
     def test_cache_algorithm_is_not_a_contract_choice(self) -> None:
         _manifest, offline, _update = self.product_contracts()
@@ -268,6 +293,68 @@ class PwaContractTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("must be canonical", result.stderr)
         self.assertIn("must be deep-linkable", result.stderr)
+
+    def test_sub_scoped_pwa_accepts_scope_root_and_nested_routes(self) -> None:
+        manifest, offline, update = self.product_contracts()
+        manifest["scope"] = "/app/"
+        offline["serviceWorkerScope"] = "/app/"
+        routes, surfaces, states = self.webapp_contracts()
+        routes["routes"] = [
+            {"id": "home", "path": "/app", "surface": "primary", "canonical": True, "deepLink": True},
+            {"id": "dashboard", "path": "/app/dashboard", "surface": "primary", "canonical": True, "deepLink": True},
+        ]
+        offline["controlledRouteIds"] = ["home", "dashboard"]
+        offline["navigationFallbackRouteId"] = "home"
+        result = self.run_validator(
+            manifest,
+            offline,
+            update,
+            routes=routes,
+            surfaces=surfaces,
+            states=states,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_duplicate_manifest_icon_ids_and_hrefs_are_rejected(self) -> None:
+        manifest, offline, update = self.product_contracts()
+        duplicate_id = copy.deepcopy(manifest["icons"][0])
+        duplicate_id["href"] = "/icons/other.svg"
+        manifest["icons"].append(duplicate_id)
+        result = self.run_validator(manifest, offline, update)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("duplicate PWA manifest icon id", result.stderr)
+
+        manifest, offline, update = self.product_contracts()
+        duplicate_href = copy.deepcopy(manifest["icons"][0])
+        duplicate_href["id"] = "other-vector"
+        manifest["icons"].append(duplicate_href)
+        result = self.run_validator(manifest, offline, update)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("duplicate PWA manifest icon href", result.stderr)
+
+    def test_offline_navigation_fallback_must_exist_and_be_controlled(self) -> None:
+        manifest, offline, update = self.product_contracts()
+        offline["navigationFallbackRouteId"] = "unknown"
+        result = self.run_validator(manifest, offline, update)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("references unknown route 'unknown'", result.stderr)
+
+        manifest, offline, update = self.product_contracts()
+        routes, surfaces, states = self.webapp_contracts()
+        routes["routes"].append(
+            {"id": "uncontrolled", "path": "/other", "surface": "primary", "canonical": True, "deepLink": True}
+        )
+        offline["navigationFallbackRouteId"] = "uncontrolled"
+        result = self.run_validator(
+            manifest,
+            offline,
+            update,
+            routes=routes,
+            surfaces=surfaces,
+            states=states,
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("navigation fallback route must be included in controlledRouteIds", result.stderr)
 
     def test_offline_cache_policy_must_follow_surface_data_classification_authority(self) -> None:
         manifest, offline, update = self.product_contracts()
@@ -323,6 +410,21 @@ class PwaContractTests(unittest.TestCase):
         result = self.run_validator(manifest, offline, update)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("iOS home-screen compatibility icon", result.stderr)
+
+    def test_update_schema_matches_activation_state_semantics(self) -> None:
+        schema = self.load("schemas/pwa-update.schema.json")
+        validator = Draft202012Validator(schema)
+        _manifest, _offline, update = self.product_contracts()
+        next_launch = copy.deepcopy(update)
+        next_launch["activation"] = "next-launch"
+        self.assertTrue(list(validator.iter_errors(next_launch)))
+        next_launch.pop("updateAvailableStateId")
+        self.assertEqual(list(validator.iter_errors(next_launch)), [])
+
+        immediate = copy.deepcopy(next_launch)
+        immediate["activation"] = "immediate"
+        immediate["unsavedChangesPolicy"] = "block-activation"
+        self.assertTrue(list(validator.iter_errors(immediate)))
 
     def test_update_states_have_global_semantic_category_floors(self) -> None:
         manifest, offline, update = self.product_contracts()

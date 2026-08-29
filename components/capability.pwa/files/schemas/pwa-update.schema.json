@@ -28,6 +28,14 @@
     {
       "if": {"properties": {"activation": {"const": "user-confirmed"}}, "required": ["activation"]},
       "then": {"required": ["updateAvailableStateId"]}
+    },
+    {
+      "if": {"properties": {"activation": {"enum": ["next-launch", "immediate"]}}, "required": ["activation"]},
+      "then": {"not": {"required": ["updateAvailableStateId"]}}
+    },
+    {
+      "if": {"properties": {"activation": {"const": "immediate"}}, "required": ["activation"]},
+      "then": {"properties": {"unsavedChangesPolicy": {"not": {"const": "block-activation"}}}}
     }
   ]
 }
