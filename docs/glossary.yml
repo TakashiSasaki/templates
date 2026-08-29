@@ -232,6 +232,7 @@ terms:
       - templates-policy-stable-release-descriptor
       - templates-policy-promoted-toolchain-revision
       - templates-policy-managed-repository
+      - templates-policy-adoption
 
   - id: templates-policy-managed-repository
     term: Managed repository
@@ -253,3 +254,112 @@ terms:
       - templates-policy-context
       - templates-repository-local-policy
       - templates-policy-bootstrap-trust-seed
+      - templates-policy-adoption
+      - templates-policy-render-operation
+      - templates-policy-validate-operation
+      - templates-policy-check-operation
+
+  - id: templates-policy-adoption
+    term: Policy adoption
+    localized_labels:
+      ja:
+        term: Policy 導入
+    origin: repository
+    definition: >-
+      The user-facing first-time onboarding operation that inspects an unmanaged
+      repository and derives either fresh adoption or migration adoption from
+      repository state before any supported mutation. Installing the
+      agent-policy skill provides the entry point but does not itself adopt the
+      target repository.
+    related_terms:
+      - templates-policy-bootstrap-trust-seed
+      - templates-policy-fresh-adoption
+      - templates-policy-migration-adoption
+      - templates-policy-managed-repository
+
+  - id: templates-policy-fresh-adoption
+    term: Fresh adoption
+    localized_labels:
+      ja:
+        term: 新規導入
+        aliases:
+          - フレッシュ導入
+    origin: repository
+    definition: >-
+      The Policy adoption strategy selected for an unmanaged-empty repository,
+      where no handwritten primary agent instructions require migration. When
+      explicitly applied it may use the hidden init primitive internally and
+      can create normal managed state directly without a staged adoption-state
+      transaction.
+    related_terms:
+      - templates-policy-adoption
+      - templates-policy-migration-adoption
+      - templates-policy-managed-repository
+
+  - id: templates-policy-migration-adoption
+    term: Migration adoption
+    localized_labels:
+      ja:
+        term: 移行導入
+        aliases:
+          - マイグレーション導入
+    origin: repository
+    definition: >-
+      The Policy adoption strategy selected for an unmanaged-existing
+      repository. Existing instructions remain authoritative while preparation
+      records protected sources and generates a non-conflicting preview; a later
+      explicit finalize --apply transaction performs cutover only after semantic
+      review.
+    related_terms:
+      - templates-policy-adoption
+      - templates-policy-fresh-adoption
+      - templates-policy-managed-repository
+
+  - id: templates-policy-render-operation
+    term: Policy render
+    localized_labels:
+      ja:
+        term: Policy レンダー
+    origin: repository
+    definition: >-
+      The mutating managed-repository operation that composes the current
+      accepted shared and repository-local Policy inputs and regenerates the
+      configured outputs together with .agent-policy.lock. Generated outputs
+      are changed through render rather than edited directly.
+    related_terms:
+      - templates-policy-managed-repository
+      - templates-policy-validate-operation
+      - templates-policy-check-operation
+
+  - id: templates-policy-validate-operation
+    term: Policy validate
+    localized_labels:
+      ja:
+        term: Policy 検証
+    origin: repository
+    definition: >-
+      The read-only Policy operation that validates .agent-policy.yml and its
+      referenced semantic inputs, including schema shape, known profiles,
+      policy files, rule identities, overrides, and repository path safety. A
+      successful validation does not assert that generated outputs match the
+      current lock and inputs.
+    related_terms:
+      - templates-policy-managed-repository
+      - templates-policy-render-operation
+      - templates-policy-check-operation
+
+  - id: templates-policy-check-operation
+    term: Policy check
+    localized_labels:
+      ja:
+        term: Policy 整合性チェック
+    origin: repository
+    definition: >-
+      The read-only managed-repository operation that verifies the current
+      configuration, semantic inputs, .agent-policy.lock, and generated outputs
+      agree. It detects missed regeneration and manual changes to generated
+      outputs but does not regenerate them.
+    related_terms:
+      - templates-policy-managed-repository
+      - templates-policy-render-operation
+      - templates-policy-validate-operation

@@ -22,6 +22,7 @@ nav:
       - Consumer effective policy: consumer/index.md
   - 導入:
       - はじめに: getting-started.md
+      - Policy concepts: policy-concepts.md
       - Managed repository operation: managed-operation.md
       - CLI: cli.md
       - ブートストラップスキル: bootstrap.md
