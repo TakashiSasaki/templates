@@ -96,6 +96,7 @@ class WebappFocusTargetEvidenceTests(unittest.TestCase):
         self.assertEqual(
             validator.BROWSER_SENSITIVE_CONTRACT_ITEMS,
             {
+                ("browser_identity", "proof-family"),
                 ("routes", "route"),
                 ("viewports", "input-capability"),
                 ("viewports", "viewport"),
