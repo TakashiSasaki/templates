@@ -222,9 +222,16 @@ try:
         assert isinstance(identity, dict), identity
         assert identity["shortcutCount"] == 0, identity
         primary = next(
-            item
-            for item in identity["iconLinks"]
-            if item["rawHref"] == browser_identity["favicon"]["href"]
+            (
+                item
+                for item in identity["iconLinks"]
+                if item["rawHref"] == browser_identity["favicon"]["href"]
+            ),
+            None,
+        )
+        assert primary is not None, (
+            f"browser favicon link {browser_identity['favicon']['href']!r} is missing",
+            identity,
         )
         assert primary["relTokens"] == ["icon"], primary
         assert primary["mediaType"] == browser_identity["favicon"]["mediaType"], primary
