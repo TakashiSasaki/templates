@@ -1,0 +1,194 @@
+name: Composition unittest timing report
+
+on:
+  workflow_dispatch:
+    inputs:
+      runs_to_sample:
+        description: Recent successful canonical Composition schema runs to download
+        required: true
+        default: '5'
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      INPUT_ROOT: .ci-timing-input
+
+    steps:
+      - name: Check out Site report implementation
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Download recent canonical Composition core logs
+        uses: actions/github-script@v8
+        env:
+          RUNS_TO_SAMPLE: ${{ inputs.runs_to_sample }}
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const inputRoot = process.env.INPUT_ROOT;
+            const rawRunsToSample = process.env.RUNS_TO_SAMPLE;
+            const runsToSample = Number(rawRunsToSample);
+            if (
+              !Number.isInteger(runsToSample) ||
+              runsToSample < 1 ||
+              runsToSample > 10
+            ) {
+              throw new Error(
+                `runs_to_sample must be an integer from 1 through 10; received ${rawRunsToSample}`
+              );
+            }
+
+            const workflowName = 'Composition schema validation';
+            const branch = 'composition';
+            const coreJobNames = new Set([
+              'core tests (1/2)',
+              'preflight + core tests (2/2)',
+            ]);
+
+            const decodeDownloadedLog = async (download, jobId) => {
+              const data = download.data;
+              const dataIsUrl =
+                typeof data === 'string' && /^https?:\/\//.test(data.trim());
+              if (typeof data === 'string' && !dataIsUrl) {
+                return data;
+              }
+              if (Buffer.isBuffer(data)) {
+                return data.toString('utf8');
+              }
+              if (data instanceof ArrayBuffer) {
+                return Buffer.from(data).toString('utf8');
+              }
+              if (ArrayBuffer.isView(data)) {
+                return Buffer.from(
+                  data.buffer,
+                  data.byteOffset,
+                  data.byteLength
+                ).toString('utf8');
+              }
+
+              const location = dataIsUrl ? data.trim() : download.headers?.location;
+              if (!location) {
+                throw new Error(`Job ${jobId} log response had no text or redirect URL.`);
+              }
+              const response = await fetch(location);
+              if (!response.ok) {
+                throw new Error(
+                  `Could not download job ${jobId} log from redirect: HTTP ${response.status}`
+                );
+              }
+              return await response.text();
+            };
+
+            const response = await github.rest.actions.listWorkflowRunsForRepo({
+              owner,
+              repo,
+              branch,
+              status: 'completed',
+              per_page: 100,
+            });
+            const selectedRuns = response.data.workflow_runs
+              .filter(
+                (run) =>
+                  run.name === workflowName &&
+                  run.head_branch === branch &&
+                  run.conclusion === 'success'
+              )
+              .slice(0, runsToSample);
+            if (selectedRuns.length === 0) {
+              throw new Error(
+                `No successful ${workflowName} runs were found on canonical ${branch}.`
+              );
+            }
+
+            fs.mkdirSync(inputRoot, { recursive: true });
+            const manifestRuns = [];
+            for (const run of selectedRuns) {
+              const jobs = await github.paginate(
+                github.rest.actions.listJobsForWorkflowRun,
+                {
+                  owner,
+                  repo,
+                  run_id: run.id,
+                  per_page: 100,
+                }
+              );
+              const selectedJobs = jobs.filter((job) => coreJobNames.has(job.name));
+              const runDir = path.join(inputRoot, String(run.id));
+              fs.mkdirSync(runDir, { recursive: true });
+              const manifestJobs = [];
+
+              for (const job of selectedJobs) {
+                const download = await github.rest.actions.downloadJobLogsForWorkflowRun({
+                  owner,
+                  repo,
+                  job_id: job.id,
+                });
+                const logText = await decodeDownloadedLog(download, job.id);
+                const relativeLogPath = `${run.id}/${job.id}.log`;
+                fs.writeFileSync(
+                  path.join(inputRoot, relativeLogPath),
+                  logText,
+                  'utf8'
+                );
+                manifestJobs.push({
+                  id: job.id,
+                  name: job.name,
+                  conclusion: job.conclusion,
+                  log_path: relativeLogPath,
+                });
+              }
+
+              manifestRuns.push({
+                id: run.id,
+                run_attempt: run.run_attempt,
+                head_sha: run.head_sha,
+                run_started_at: run.run_started_at,
+                html_url: run.html_url,
+                jobs: manifestJobs,
+              });
+            }
+
+            const manifest = {
+              schema_version: 1,
+              repository: `${owner}/${repo}`,
+              workflow: workflowName,
+              branch,
+              requested_runs: runsToSample,
+              runs: manifestRuns,
+            };
+            fs.writeFileSync(
+              path.join(inputRoot, 'manifest.json'),
+              `${JSON.stringify(manifest, null, 2)}\n`,
+              'utf8'
+            );
+
+      - name: Validate and aggregate unittest timing telemetry
+        run: >-
+          python -I scripts/report_composition_unittest_timing.py
+          --manifest "$INPUT_ROOT/manifest.json"
+          --input-dir "$INPUT_ROOT"
+          --output composition-unittest-timing-report.json
+          --summary "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload machine-readable unittest timing report
+        uses: actions/upload-artifact@v4
+        with:
+          name: composition-unittest-timing-report-${{ github.run_id }}
+          path: composition-unittest-timing-report.json
+          if-no-files-found: error
+          retention-days: 30
