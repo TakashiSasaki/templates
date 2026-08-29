@@ -36,8 +36,6 @@ class UnittestShardTests(unittest.TestCase):
 
     def test_two_shard_timing_overrides_are_narrow_and_do_not_change_other_counts(self) -> None:
         expected = {
-            "test_composer_generated_material.ComposerGeneratedMaterialTests."
-            "test_webapp_apply_generates_and_locks_contract_manifest",
             "test_webapp_auth_productization.WebappAuthenticationProductizationTests."
             "test_realistic_auth_fixture_reaches_transactional_release",
         }
@@ -54,6 +52,21 @@ class UnittestShardTests(unittest.TestCase):
                 shard_index_for_test_id(test_id, 3),
                 pure_hash_three_shard,
             )
+
+        retired_core_override = (
+            "test_composer_generated_material.ComposerGeneratedMaterialTests."
+            "test_webapp_apply_generates_and_locks_contract_manifest"
+        )
+        digest = hashlib.sha256(retired_core_override.encode("utf-8")).digest()
+        pure_hash_two_shard = int.from_bytes(digest[:8], "big") % 2
+        pure_hash_three_shard = int.from_bytes(digest[:8], "big") % 3
+        self.assertNotIn(retired_core_override, TWO_SHARD_TIMING_OVERRIDES)
+        self.assertEqual(pure_hash_two_shard, 0)
+        self.assertEqual(shard_index_for_test_id(retired_core_override, 2), 0)
+        self.assertEqual(
+            shard_index_for_test_id(retired_core_override, 3),
+            pure_hash_three_shard,
+        )
 
     def test_duplicate_test_ids_keep_their_execution_multiplicity(self) -> None:
         duplicate_id = "test_duplicate.ExampleTests.test_case"
