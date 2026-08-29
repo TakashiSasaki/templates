@@ -118,6 +118,65 @@ class SiteBrowserAcceptanceClassifierTests(unittest.TestCase):
             output.getvalue().splitlines(),
         )
 
+    def test_outputs_when_not_required(self) -> None:
+        output = io.StringIO()
+        write_outputs(
+            output,
+            required=False,
+            reason="all changed paths are CI-observability-only",
+            changed_count=2,
+            requiring_paths=(),
+        )
+
+        self.assertEqual(
+            [
+                "required=false",
+                "reason=all changed paths are CI-observability-only",
+                "changed_count=2",
+                "requiring_count=0",
+                "requiring_paths=none",
+            ],
+            output.getvalue().splitlines(),
+        )
+
+    def test_cli_successful_classification_outputs(self) -> None:
+        with tempfile.TemporaryDirectory() as tempdir:
+            root = Path(tempdir)
+            changed = root / "changed.txt"
+            output = root / "output.txt"
+            changed.write_text(
+                "scripts/report_composition_unittest_timing.py\n",
+                encoding="utf-8",
+            )
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-I",
+                    str(CLASSIFIER),
+                    "--changed-paths",
+                    str(changed),
+                    "--output",
+                    str(output),
+                ],
+                cwd=ROOT,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertEqual(
+                [
+                    "required=false",
+                    "reason=all changed paths are CI-observability-only",
+                    "changed_count=1",
+                    "requiring_count=0",
+                    "requiring_paths=none",
+                ],
+                output.read_text(encoding="utf-8").splitlines(),
+            )
+
     def test_cli_rejects_empty_changed_path_file(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
             root = Path(tempdir)
