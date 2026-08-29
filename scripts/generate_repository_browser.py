@@ -437,10 +437,11 @@ body {{ margin: 0; min-height: 100vh; background: Canvas; color: CanvasText; }}
 #show-lines:checked ~ .viewer-header label[for="show-lines"], #wrap-lines:checked ~ .viewer-header label[for="wrap-lines"] {{ background: color-mix(in srgb, CanvasText 10%, Canvas); font-weight: 700; }}
 .source {{ min-width: 100%; width: max-content; padding: .6rem 0 2rem; font: 13px/1.55 ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace; }}
 .source-line {{ display: grid; grid-template-columns: max-content minmax(0, 1fr); min-height: 1.55em; }}
-.line-number {{ position: sticky; left: 0; z-index: 2; min-width: 4.2rem; padding: 0 .75rem 0 .6rem; text-align: right; user-select: none; text-decoration: none; color: color-mix(in srgb, CanvasText 45%, transparent); background: Canvas; border-right: 1px solid color-mix(in srgb, CanvasText 12%, transparent); }}
-.line-code {{ display: block; min-width: 0; padding: 0 .9rem; white-space: pre; tab-size: 4; unicode-bidi: plaintext; }}
-#show-lines:not(:checked) ~ main .source-line {{ grid-template-columns: 0 minmax(0, 1fr); }}
+.line-number {{ grid-column: 1; position: sticky; left: 0; z-index: 2; min-width: 4.2rem; padding: 0 .75rem 0 .6rem; text-align: right; user-select: none; text-decoration: none; color: color-mix(in srgb, CanvasText 45%, transparent); background: Canvas; border-right: 1px solid color-mix(in srgb, CanvasText 12%, transparent); }}
+.line-code {{ display: block; grid-column: 2; min-width: 0; padding: 0 .9rem; white-space: pre; tab-size: 4; unicode-bidi: plaintext; }}
+#show-lines:not(:checked) ~ main .source-line {{ grid-template-columns: minmax(0, 1fr); }}
 #show-lines:not(:checked) ~ main .line-number {{ display: none; }}
+#show-lines:not(:checked) ~ main .line-code {{ grid-column: 1; }}
 #wrap-lines:checked ~ main .source {{ width: 100%; }}
 #wrap-lines:checked ~ main .line-code {{ white-space: pre-wrap; overflow-wrap: anywhere; }}
 .unavailable {{ max-width: 48rem; margin: 3rem auto; padding: 0 1.25rem; }}
