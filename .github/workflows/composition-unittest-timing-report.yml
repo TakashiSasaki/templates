@@ -7,7 +7,7 @@ on:
     paths:
       - .github/workflows/composition-unittest-timing-report.yml
       - scripts/report_composition_unittest_timing.py
-      - tests/test_composition_unittest_timing_report.py
+      - tests/test_composition_unittest_timing*.py
   workflow_dispatch:
     inputs:
       runs_to_sample:
