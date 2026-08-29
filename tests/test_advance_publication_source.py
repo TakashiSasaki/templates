@@ -188,6 +188,33 @@ class AdvancePublicationSourceTests(unittest.TestCase):
                 current_composition,
             )
 
+    def test_policy_advance_rejects_mismatched_composition_checkout_before_mutation(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            composition_root = root / "composition"
+            policy_root = root / "policy"
+            site_root = root / "site"
+            current_composition, target_composition = init_composition(composition_root)
+            current_policy, target_policy = init_policy(policy_root)
+            write_site(site_root, current_composition, current_policy)
+            self.assertEqual(run_git(composition_root, "rev-parse", "HEAD"), target_composition)
+            before = snapshot_site(site_root)
+
+            with self.assertRaisesRegex(
+                PublicationAdvanceError,
+                "Composition checkout HEAD .* does not match prospective",
+            ):
+                advance_publication(
+                    site_root=site_root,
+                    provider="policy",
+                    provider_root=policy_root,
+                    composition_root=composition_root,
+                    target_revision=target_policy,
+                    expected_current=current_policy,
+                )
+
+            self.assertEqual(snapshot_site(site_root), before)
+
     def test_expected_current_mismatch_fails_before_any_mutation(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
