@@ -42,16 +42,15 @@ REAL_BROWSER_TEST_IDS = frozenset(
 )
 SUITES = ("all", "core", "real-browser")
 
-# PR #471 balanced unittest *counts*, but the post-merge run still measured
-# shard runtimes at 154.364 s versus 104.260 s. These two tests accounted for
-# roughly 26 s on the slower shard. Keep the general SHA-256 partition stable,
-# but move only these measured outliers when the production workflow uses two
-# shards. Other shard counts deliberately retain the pure hash assignment.
+# PR #478 added two measured two-shard overrides when Chrome-backed tests still
+# shared the production shards with the core suite. PR #513 later separated the
+# seven real-browser tests into their own one-shard job, so that historical
+# browser override no longer belongs to the production two-shard core suite.
+# Keep only the remaining measured core outlier until multi-run per-test timing
+# telemetry is available to support a less noisy balancing decision.
 TWO_SHARD_TIMING_OVERRIDES = {
     "test_composer_generated_material.ComposerGeneratedMaterialTests."
     "test_webapp_apply_generates_and_locks_contract_manifest": 1,
-    "test_webapp_auth_productization.WebappAuthenticationProductizationTests."
-    "test_realistic_auth_fixture_reaches_transactional_release": 1,
 }
 
 
@@ -126,6 +125,50 @@ def shard_index_for_test_id(test_id: str, shard_count: int) -> int:
     if shard_count == 2 and test_id in TWO_SHARD_TIMING_OVERRIDES:
         return TWO_SHARD_TIMING_OVERRIDES[test_id]
     return stable_hash_shard_index(test_id, shard_count)
+
+
+def validate_two_shard_timing_overrides(
+    tests: Sequence[unittest.case.TestCase],
+) -> None:
+    """Fail closed when a production core timing override becomes stale or inert."""
+    discovered_ids = {test.id() for test in tests}
+    override_ids = set(TWO_SHARD_TIMING_OVERRIDES)
+
+    missing = sorted(override_ids - discovered_ids)
+    if missing:
+        raise ValueError(
+            "two-shard timing overrides reference undiscovered unittest ids: "
+            + ", ".join(missing)
+        )
+
+    browser_overlap = sorted(override_ids & REAL_BROWSER_TEST_IDS)
+    if browser_overlap:
+        raise ValueError(
+            "two-shard core timing overrides reference real-browser unittest ids: "
+            + ", ".join(browser_overlap)
+        )
+
+    invalid_targets = sorted(
+        test_id
+        for test_id, shard_index in TWO_SHARD_TIMING_OVERRIDES.items()
+        if shard_index not in {0, 1}
+    )
+    if invalid_targets:
+        raise ValueError(
+            "two-shard timing overrides reference invalid shard indexes: "
+            + ", ".join(invalid_targets)
+        )
+
+    redundant = sorted(
+        test_id
+        for test_id, shard_index in TWO_SHARD_TIMING_OVERRIDES.items()
+        if stable_hash_shard_index(test_id, 2) == shard_index
+    )
+    if redundant:
+        raise ValueError(
+            "two-shard timing overrides no longer change stable hash assignment: "
+            + ", ".join(redundant)
+        )
 
 
 def discover_tests(start_directory: Path, pattern: str) -> list[unittest.case.TestCase]:
@@ -206,6 +249,11 @@ def main() -> int:
     discovered = discover_tests(start_directory, args.pattern)
     if not discovered:
         raise SystemExit("unittest discovery produced no tests")
+    if args.shard_count == 2:
+        try:
+            validate_two_shard_timing_overrides(discovered)
+        except ValueError as exc:
+            raise SystemExit(str(exc)) from exc
     try:
         tests = select_tests_for_suite(discovered, args.suite)
     except ValueError as exc:
