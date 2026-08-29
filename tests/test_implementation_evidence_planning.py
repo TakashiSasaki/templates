@@ -30,6 +30,78 @@ class ImplementationEvidencePlanningTests(unittest.TestCase):
         )
 
     def planning_document(self) -> dict:
+        entries = [
+            (
+                "REQ-PLAN-BROWSER-IDENTITY",
+                {
+                    "kind": "contract-item",
+                    "contractId": "browser_identity",
+                    "itemKind": "proof-family",
+                    "itemId": "browser-identity",
+                },
+                "end-to-end-test",
+            ),
+            (
+                "REQ-PLAN-BROWSER-SURFACE",
+                {
+                    "kind": "contract-item",
+                    "contractId": "surfaces",
+                    "itemKind": "surface",
+                    "itemId": "primary",
+                },
+                "integration-test",
+            ),
+            (
+                "REQ-PLAN-BROWSER-FILTER",
+                {
+                    "kind": "contract-item",
+                    "contractId": "routes",
+                    "itemKind": "route",
+                    "itemId": "home",
+                },
+                "end-to-end-test",
+            ),
+            (
+                "REQ-PLAN-BROWSER-STATE",
+                {
+                    "kind": "contract-item",
+                    "contractId": "ui_states",
+                    "itemKind": "ui-state",
+                    "itemId": "ready",
+                },
+                "integration-test",
+            ),
+            (
+                "REQ-PLAN-BROWSER-VIEWPORT",
+                {
+                    "kind": "contract-item",
+                    "contractId": "viewports",
+                    "itemKind": "viewport",
+                    "itemId": "base",
+                },
+                "end-to-end-test",
+            ),
+            (
+                "REQ-PLAN-BROWSER-INPUT",
+                {
+                    "kind": "contract-item",
+                    "contractId": "viewports",
+                    "itemKind": "input-capability",
+                    "itemId": "keyboard",
+                },
+                "end-to-end-test",
+            ),
+            (
+                "REQ-PLAN-CLI-FILTER",
+                {
+                    "kind": "contract-item",
+                    "contractId": "cli_interface",
+                    "itemKind": "entrypoint",
+                    "itemId": "records",
+                },
+                "integration-test",
+            ),
+        ]
         return {
             "$schema": "../schemas/implementation-evidence.schema.json",
             "schemaVersion": 6,
@@ -39,33 +111,13 @@ class ImplementationEvidencePlanningTests(unittest.TestCase):
             "records": [],
             "requirements": [
                 {
-                    "id": "REQ-PLAN-BROWSER-FILTER",
-                    "description": "The browser filters caller-visible records by severity.",
-                    "targets": [
-                        {
-                            "kind": "contract-item",
-                            "contractId": "routes",
-                            "itemKind": "route",
-                            "itemId": "home",
-                        }
-                    ],
+                    "id": requirement_id,
+                    "description": f"Planning obligation for {requirement_id}.",
+                    "targets": [target],
                     "recordIds": [],
-                    "requiredPositiveProofKinds": ["end-to-end-test"],
-                },
-                {
-                    "id": "REQ-PLAN-CLI-FILTER",
-                    "description": "The packaged CLI filters caller-visible records by severity.",
-                    "targets": [
-                        {
-                            "kind": "contract-item",
-                            "contractId": "cli_interface",
-                            "itemKind": "entrypoint",
-                            "itemId": "records",
-                        }
-                    ],
-                    "recordIds": [],
-                    "requiredPositiveProofKinds": ["integration-test"],
-                },
+                    "requiredPositiveProofKinds": [proof_kind],
+                }
+                for requirement_id, target, proof_kind in entries
             ],
         }
 
@@ -139,7 +191,15 @@ class ImplementationEvidencePlanningTests(unittest.TestCase):
             self.assertEqual(worklist["status"], "missing")
             self.assertEqual(
                 [item["id"] for item in worklist["requirements"]],
-                ["REQ-PLAN-BROWSER-FILTER", "REQ-PLAN-CLI-FILTER"],
+                [
+                    "REQ-PLAN-BROWSER-FILTER",
+                    "REQ-PLAN-BROWSER-IDENTITY",
+                    "REQ-PLAN-BROWSER-INPUT",
+                    "REQ-PLAN-BROWSER-STATE",
+                    "REQ-PLAN-BROWSER-SURFACE",
+                    "REQ-PLAN-BROWSER-VIEWPORT",
+                    "REQ-PLAN-CLI-FILTER",
+                ],
             )
             self.assertTrue(
                 all(item["status"] == "missing" for item in worklist["requirements"])
