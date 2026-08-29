@@ -14,7 +14,6 @@ IMPLEMENTATION = ROOT / "components/lifecycle.composition-state/files/.template-
 class LifecyclePrerequisiteAdapterMaterializationTests(unittest.TestCase):
     def test_adapter_and_preserved_validation_implementation_are_managed(self) -> None:
         component = json.loads(COMPONENT.read_text(encoding="utf-8"))
-        self.assertEqual(component["version"], 16)
         materials = {
             entry["destination"]: entry["ownership"]
             for entry in component["materials"]

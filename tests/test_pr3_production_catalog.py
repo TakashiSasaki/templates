@@ -262,6 +262,7 @@ class PR3ProductionCatalogTests(unittest.TestCase):
                 "capability.cli",
                 "capability.mcp",
                 "capability.mcp-apps",
+                "capability.pwa",
                 "capability.runtime",
                 "capability.service",
                 "capability.web-interface",

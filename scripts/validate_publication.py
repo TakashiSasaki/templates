@@ -30,6 +30,7 @@ READER_BASENAMES = {
     "CLI_INTERFACE.md",
     "MCP_INTERFACE.md",
     "MCP_APPS.md",
+    "PWA.md",
     "WEB_INTERFACE.md",
     "SERVICE_INTERFACE.md",
 }

@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schemaVersion", "mode"],
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[a-z][a-z0-9-]*(?![\\s\\S])"},
+    "scopePath": {"type": "string", "pattern": "^/(?:[A-Za-z0-9._~-]+/)*(?![\\s\\S])"},
+    "surfacePolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["surfaceId", "cacheableDataClassifications"],
+      "properties": {
+        "surfaceId": {"$ref": "#/$defs/identifier"},
+        "cacheableDataClassifications": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/identifier"}}
+      }
+    }
+  },
+  "properties": {
+    "$schema": {"const": "../schemas/pwa-offline.schema.json"},
+    "schemaVersion": {"const": 1},
+    "mode": {"enum": ["template", "planning", "product"]},
+    "availability": {"const": "offline-capable"},
+    "serviceWorkerScope": {"$ref": "#/$defs/scopePath"},
+    "controlledRouteIds": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/identifier"}},
+    "navigationFallbackRouteId": {"$ref": "#/$defs/identifier"},
+    "networkUnavailableStateId": {"$ref": "#/$defs/identifier"},
+    "freshnessUnknownStateId": {"$ref": "#/$defs/identifier"},
+    "revalidatingStateId": {"$ref": "#/$defs/identifier"},
+    "surfacePolicies": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/surfacePolicy"}},
+    "cacheStrategy": {"const": "implementation-defined"},
+    "onlineFreshnessPolicy": {"const": "revalidate-before-display"},
+    "offlineFreshnessPolicy": {"const": "indicate-unverified"},
+    "mutationBehavior": {"enum": ["not-applicable", "reject-when-offline", "queue-until-online"]},
+    "pendingStateId": {"$ref": "#/$defs/identifier"},
+    "failureStateId": {"$ref": "#/$defs/identifier"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"mode": {"const": "template"}}, "required": ["mode"]},
+      "then": {"not": {"anyOf": [{"required": ["availability"]}, {"required": ["serviceWorkerScope"]}, {"required": ["controlledRouteIds"]}, {"required": ["navigationFallbackRouteId"]}, {"required": ["networkUnavailableStateId"]}, {"required": ["freshnessUnknownStateId"]}, {"required": ["revalidatingStateId"]}, {"required": ["surfacePolicies"]}, {"required": ["cacheStrategy"]}, {"required": ["onlineFreshnessPolicy"]}, {"required": ["offlineFreshnessPolicy"]}, {"required": ["mutationBehavior"]}, {"required": ["pendingStateId"]}, {"required": ["failureStateId"]}]}}
+    },
+    {
+      "if": {"properties": {"mode": {"enum": ["planning", "product"]}}, "required": ["mode"]},
+      "then": {"required": ["availability", "serviceWorkerScope", "controlledRouteIds", "navigationFallbackRouteId", "networkUnavailableStateId", "freshnessUnknownStateId", "revalidatingStateId", "surfacePolicies", "cacheStrategy", "onlineFreshnessPolicy", "offlineFreshnessPolicy", "mutationBehavior"]}
+    },
+    {
+      "if": {"properties": {"mutationBehavior": {"const": "queue-until-online"}}, "required": ["mutationBehavior"]},
+      "then": {"required": ["pendingStateId", "failureStateId"]}
+    },
+    {
+      "if": {"properties": {"mutationBehavior": {"enum": ["not-applicable", "reject-when-offline"]}}, "required": ["mutationBehavior"]},
+      "then": {"not": {"anyOf": [{"required": ["pendingStateId"]}, {"required": ["failureStateId"]}]}}
+    }
+  ]
+}
