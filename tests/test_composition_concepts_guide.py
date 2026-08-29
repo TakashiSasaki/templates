@@ -6,8 +6,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CONCEPTS = ROOT / "docs" / "guides" / "composition-concepts.md"
+JA_CONCEPTS = ROOT / "translations" / "ja" / "docs" / "guides" / "composition-concepts.md"
 DOC_INDEX = ROOT / "docs" / "index.md"
+JA_DOC_INDEX = ROOT / "translations" / "ja" / "docs" / "index.md"
 PUBLICATION_CATALOG = ROOT / "docs" / "publication-catalog.json"
+TRANSLATION_MANIFEST = ROOT / "translations" / "manifest.json"
 
 
 class CompositionConceptsGuideTests(unittest.TestCase):
@@ -50,6 +53,27 @@ class CompositionConceptsGuideTests(unittest.TestCase):
                 "optional": False,
                 "home": False,
             },
+        )
+
+    def test_japanese_reference_translation_is_registered_and_optional_to_first_use(self) -> None:
+        translation = JA_CONCEPTS.read_text(encoding="utf-8")
+        self.assertIn("参考訳（非正本）", translation)
+        self.assertIn("読む必要は **ありません**", translation)
+
+        ja_index = JA_DOC_INDEX.read_text(encoding="utf-8")
+        self.assertLess(
+            ja_index.index("[Webapp product walkthrough]"),
+            ja_index.index("[初見者向け Composition concepts]"),
+        )
+
+        manifest = json.loads(TRANSLATION_MANIFEST.read_text(encoding="utf-8"))
+        entries = {
+            (entry["canonical"], entry["language"]): entry
+            for entry in manifest["translations"]
+        }
+        self.assertEqual(
+            entries[("docs/guides/composition-concepts.md", "ja")]["translation"],
+            "translations/ja/docs/guides/composition-concepts.md",
         )
 
 
