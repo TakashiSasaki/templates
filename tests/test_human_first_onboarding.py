@@ -8,10 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 LANDING = ROOT / "docs" / "landing.md"
 LANDING_JA = ROOT / "translations" / "ja" / "docs" / "landing.md"
 MANIFEST = ROOT / "site-manifest.json"
-SOURCE_LOCK = ROOT / "publication-sources.json"
-DEPLOYMENT_STATE = ROOT / "deployment-state.json"
 NAV_LOCALES = ROOT / "reader-navigation-locales.json"
-COMPOSITION_REVISION = "870237a771561b78a46ebba8e81b9f134d587f58"
 
 
 class HumanFirstOnboardingTests(unittest.TestCase):
@@ -76,19 +73,6 @@ class HumanFirstOnboardingTests(unittest.TestCase):
         )
         self.assertEqual(concepts_entry["title"], "Concepts and terminology")
         self.assertEqual(concepts_entry["destination"], "composition/concepts/index.md")
-
-    def test_site_locks_the_reviewed_human_onboarding_provider_revisions(self) -> None:
-        lock = json.loads(SOURCE_LOCK.read_text(encoding="utf-8"))
-        self.assertEqual(
-            lock["publications"]["composition"]["revision"],
-            COMPOSITION_REVISION,
-        )
-        self.assertEqual(
-            lock["publications"]["policy"]["revision"],
-            "56448995f848ae2de0f38c49ceb1d35f55461ed1",
-        )
-        deployment = json.loads(DEPLOYMENT_STATE.read_text(encoding="utf-8"))
-        self.assertEqual(deployment["locked_composition_revision"], COMPOSITION_REVISION)
 
     def test_separate_product_repository_mental_model_is_explicit(self) -> None:
         landing = LANDING.read_text(encoding="utf-8")

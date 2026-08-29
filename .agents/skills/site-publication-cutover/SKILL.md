@@ -1,6 +1,6 @@
 ---
 name: site-publication-cutover
-description: Publish a reviewed Composition or Policy provider revision through the site branch. Use when advancing publication-sources.json after a provider merge, deciding whether Site IA, translation, glossary, or deployment-state changes are required, and validating exact provider provenance before Site PR acceptance.
+description: Publish a reviewed Composition or Policy provider revision through the site branch. Use when advancing publication-sources.json after a provider merge, deciding whether Site IA, translation, or glossary changes are required, and validating exact provider provenance before Site PR acceptance.
 ---
 
 # Site Publication Cutover
@@ -39,9 +39,8 @@ Read only the parts needed for the current change:
 
 - `MAINTENANCE.md` — Site change process and current responsibility boundaries;
 - `PUBLISHING.md` — publication allowlist, source-lock, provenance, reader-entry, and deployment contracts;
-- `publication-sources.json` — exact external provider locks;
+- `publication-sources.json` — sole committed authority for the current exact external provider publication revisions;
 - `site-manifest.json` — Site-owned reader IA and generated destinations;
-- `deployment-state.json` — Site migration/deployment state, including the current Composition lock when present;
 - provider `docs/publication-catalog.json` — exact public document/asset/glossary boundary;
 - provider translation manifest and glossary sources when declared by the provider catalog;
 - current tests and `.github/workflows/` — executable acceptance contracts.
@@ -112,12 +111,6 @@ Do not treat Site chrome localization and provider-owned canonical translation a
 ### Glossary change
 
 If a provider catalog adds, removes, or changes its glossary source, validate through the actual Site integration loader and integrated glossary contracts. Cross-provider related-term references must still resolve at the exact locked revisions.
-
-### Deployment-state synchronization
-
-`deployment-state.json` currently records a locked Composition revision as Site migration/deployment state. When advancing Composition, keep that record synchronized if the current schema/contract still requires it.
-
-A Policy-only cutover does not gain a new deployment-state field merely for symmetry. Follow the current schema rather than inventing one.
 
 ## Validation
 

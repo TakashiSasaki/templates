@@ -106,11 +106,12 @@ class AgentSkillContractTests(unittest.TestCase):
             "PUBLISHING.md",
             "publication-sources.json",
             "site-manifest.json",
-            "deployment-state.json",
         ):
             with self.subTest(reference=reference):
                 self.assertIn(reference, publication)
                 self.assertTrue((ROOT / reference).is_file())
+
+        self.assertNotIn("deployment-state.json", publication)
 
         for reference in ("MAINTENANCE.md", "PUBLISHING.md", ".github/workflows/"):
             with self.subTest(reference=reference):
@@ -237,6 +238,7 @@ class AgentSkillContractTests(unittest.TestCase):
             "Do not infer the target SHA from a branch name",
             "Do not expose uncataloged provider files",
             "site-pr-exact-head-acceptance` and `pr-merge-gate",
+            "sole committed authority",
         ):
             with self.subTest(invariant=invariant):
                 self.assertIn(invariant.lower(), skill.lower())
