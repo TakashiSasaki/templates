@@ -24,6 +24,7 @@
     typeof HTMLIFrameElement !== "undefined" && frame instanceof HTMLIFrameElement
       ? frame
       : null;
+  const mobileToolbar = content.querySelector(".viewer-mobile-toolbar");
   const initialSrcdoc = managedFrame?.getAttribute("srcdoc") || "";
   const mobileViewport = window.matchMedia("(max-width: 800px)");
   const fileLinks = Array.from(
@@ -39,6 +40,9 @@
 
   let selectedLink = null;
   let appliedHash = null;
+  let shareControls = null;
+  let shareStatus = null;
+  let shareButtons = [];
 
   function mobileMode() {
     return browser.dataset.mobileView === "content" ? "content" : "files";
@@ -79,6 +83,21 @@
     return `#${params.toString()}`;
   }
 
+  function viewerLinkForPath(path) {
+    const url = new URL(window.location.href);
+    url.hash = hashForPath(path);
+    return url.href;
+  }
+
+  function sourceLinkForFile(link) {
+    const row = link.parentElement;
+    if (!(row instanceof HTMLElement)) {
+      return null;
+    }
+    const source = row.querySelector("a.tree-source");
+    return source instanceof HTMLAnchorElement ? source.href : null;
+  }
+
   function openAncestorDirectories(link) {
     let current = link.parentElement;
     while (current && current !== tree) {
@@ -92,12 +111,23 @@
     }
   }
 
+  function syncShareAvailability() {
+    const available = selectedLink instanceof HTMLAnchorElement;
+    for (const button of shareButtons) {
+      button.disabled = !available;
+    }
+    if (!available && shareStatus instanceof HTMLElement) {
+      shareStatus.textContent = "";
+    }
+  }
+
   function clearSelection({ resetFrame = true } = {}) {
     if (selectedLink instanceof HTMLAnchorElement) {
       selectedLink.removeAttribute("aria-current");
     }
     selectedLink = null;
     selectedFileLabel.textContent = "Selected file";
+    syncShareAvailability();
     setMobileMode("files");
 
     if (resetFrame && managedFrame) {
@@ -115,6 +145,7 @@
     selectedFileLabel.textContent =
       link.dataset.filePath || link.textContent?.trim() || "Selected file";
     openAncestorDirectories(link);
+    syncShareAvailability();
 
     if (navigateFrame && managedFrame) {
       managedFrame.removeAttribute("srcdoc");
@@ -157,8 +188,163 @@
     appliedHash = window.location.hash;
   }
 
+  function copyWithFallback(value) {
+    if (!document.body || typeof document.createElement !== "function") {
+      throw new Error("clipboard fallback is unavailable");
+    }
+    const field = document.createElement("textarea");
+    field.value = value;
+    field.setAttribute("readonly", "");
+    field.style.position = "fixed";
+    field.style.opacity = "0";
+    field.style.pointerEvents = "none";
+    document.body.appendChild(field);
+    field.focus();
+    field.select();
+    const copied = document.execCommand("copy");
+    field.remove();
+    if (!copied) {
+      throw new Error("legacy clipboard copy failed");
+    }
+  }
+
+  async function copyText(value) {
+    if (
+      window.isSecureContext &&
+      typeof navigator !== "undefined" &&
+      navigator.clipboard &&
+      typeof navigator.clipboard.writeText === "function"
+    ) {
+      await navigator.clipboard.writeText(value);
+      return;
+    }
+    copyWithFallback(value);
+  }
+
+  function copyValueFor(kind) {
+    if (!(selectedLink instanceof HTMLAnchorElement)) {
+      return null;
+    }
+    const path = selectedLink.dataset.filePath;
+    if (!path) {
+      return null;
+    }
+    if (kind === "path") {
+      return path;
+    }
+    if (kind === "viewer") {
+      return viewerLinkForPath(path);
+    }
+    if (kind === "source") {
+      return sourceLinkForFile(selectedLink);
+    }
+    return null;
+  }
+
+  function syncShareLayout() {
+    if (!(shareControls instanceof HTMLElement)) {
+      return;
+    }
+    if (mobileViewport.matches && mobileToolbar instanceof HTMLElement) {
+      if (shareControls.parentElement !== mobileToolbar) {
+        mobileToolbar.appendChild(shareControls);
+      }
+      mobileToolbar.style.flexWrap = "wrap";
+      selectedFileLabel.style.flex = "1 1 10rem";
+      shareControls.style.position = "static";
+      shareControls.style.marginLeft = "auto";
+      shareControls.style.maxWidth = "100%";
+      return;
+    }
+
+    if (shareControls.parentElement !== content) {
+      content.appendChild(shareControls);
+    }
+    content.style.position = "relative";
+    shareControls.style.position = "absolute";
+    shareControls.style.top = ".65rem";
+    shareControls.style.right = ".65rem";
+    shareControls.style.marginLeft = "0";
+    shareControls.style.maxWidth = "calc(100% - 1.3rem)";
+  }
+
+  function initializeSharing() {
+    if (
+      !(managedFrame instanceof HTMLIFrameElement) ||
+      !(mobileToolbar instanceof HTMLElement) ||
+      typeof document.createElement !== "function"
+    ) {
+      return;
+    }
+
+    shareControls = document.createElement("div");
+    shareControls.setAttribute("data-repository-share", "");
+    shareControls.setAttribute("aria-label", "Share selected file");
+    shareControls.style.display = "flex";
+    shareControls.style.flexWrap = "wrap";
+    shareControls.style.alignItems = "center";
+    shareControls.style.gap = ".35rem";
+    shareControls.style.padding = ".25rem";
+    shareControls.style.borderRadius = ".45rem";
+    shareControls.style.background = "Canvas";
+    shareControls.style.zIndex = "2";
+
+    const definitions = [
+      ["path", "Copy path", "path"],
+      ["viewer", "Copy viewer link", "viewer link"],
+      ["source", "Copy source link", "source link"],
+    ];
+    shareButtons = definitions.map(([kind, label, statusName]) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.dataset.copyRepository = kind;
+      button.textContent = label;
+      button.disabled = true;
+      button.style.minHeight = "2.3rem";
+      button.style.border = "1px solid color-mix(in srgb, CanvasText 24%, transparent)";
+      button.style.borderRadius = ".45rem";
+      button.style.padding = ".35rem .55rem";
+      button.style.color = "inherit";
+      button.style.background = "color-mix(in srgb, CanvasText 6%, Canvas)";
+      button.style.font = "inherit";
+      button.style.cursor = "pointer";
+      button.addEventListener("click", async () => {
+        const value = copyValueFor(kind);
+        if (!value) {
+          return;
+        }
+        button.disabled = true;
+        try {
+          await copyText(value);
+          if (shareStatus instanceof HTMLElement) {
+            shareStatus.textContent = `Copied ${statusName}`;
+          }
+        } catch (error) {
+          console.warn(`Unable to copy repository ${statusName}`, error);
+          if (shareStatus instanceof HTMLElement) {
+            shareStatus.textContent = `Copy failed: ${statusName}`;
+          }
+        } finally {
+          button.disabled = !(selectedLink instanceof HTMLAnchorElement);
+        }
+      });
+      shareControls.appendChild(button);
+      return button;
+    });
+
+    shareStatus = document.createElement("span");
+    shareStatus.setAttribute("data-repository-share-status", "");
+    shareStatus.setAttribute("aria-live", "polite");
+    shareStatus.style.fontSize = ".74rem";
+    shareStatus.style.minWidth = "8rem";
+    shareControls.appendChild(shareStatus);
+    syncShareAvailability();
+    syncShareLayout();
+  }
+
   document.documentElement.classList.add("repository-browser-enhanced");
   setMobileMode("files");
+  initializeSharing();
   syncFromLocation();
 
   browser.addEventListener("click", (event) => {
@@ -209,7 +395,10 @@
   window.addEventListener("popstate", syncFromLocation);
   window.addEventListener("hashchange", syncFromLocation);
 
-  const handleViewportChange = () => syncInteractivity();
+  const handleViewportChange = () => {
+    syncInteractivity();
+    syncShareLayout();
+  };
   if (typeof mobileViewport.addEventListener === "function") {
     mobileViewport.addEventListener("change", handleViewportChange);
   } else if (typeof mobileViewport.addListener === "function") {
