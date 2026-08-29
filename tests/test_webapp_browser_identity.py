@@ -52,6 +52,35 @@ class WebappBrowserIdentityTests(unittest.TestCase):
         }
         self.assertEqual(list(validator.iter_errors(raster)), [])
 
+    def test_schema_accepts_compatible_fallback_assets(self) -> None:
+        schema = self.load_json("schemas/browser-identity.schema.json")
+        document = self.load_json("contracts/browser-identity.json")
+        document["favicon"]["fallbacks"] = [
+            {
+                "href": "favicon.ico",
+                "mediaType": "image/x-icon",
+                "sizes": ["16x16", "32x32"],
+            }
+        ]
+        self.assertEqual(list(Draft202012Validator(schema).iter_errors(document)), [])
+
+    def test_schema_rejects_invalid_sizes_media_types_and_visually_blank_hrefs(self) -> None:
+        schema = self.load_json("schemas/browser-identity.schema.json")
+        seed = self.load_json("contracts/browser-identity.json")
+        validator = Draft202012Validator(schema)
+
+        invalid_size = copy.deepcopy(seed)
+        invalid_size["favicon"]["sizes"] = ["0x0"]
+        self.assertTrue(list(validator.iter_errors(invalid_size)))
+
+        invalid_media = copy.deepcopy(seed)
+        invalid_media["favicon"]["mediaType"] = "application/json"
+        self.assertTrue(list(validator.iter_errors(invalid_media)))
+
+        visually_blank = copy.deepcopy(seed)
+        visually_blank["favicon"]["href"] = "\u2800"
+        self.assertTrue(list(validator.iter_errors(visually_blank)))
+
 
 if __name__ == "__main__":
     unittest.main()
