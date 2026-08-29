@@ -104,7 +104,10 @@ def parse_job_log(text: str, *, job_id: int, job_name: str) -> dict[str, Any] | 
             raise ReportError(f"job {job_id} contains malformed timing JSON: {exc}") from exc
         if not isinstance(payload, dict) or set(payload) != TIMING_FIELDS:
             raise ReportError(f"job {job_id} contains an unexpected timing record shape")
-        if payload["schema_version"] != TIMING_SCHEMA_VERSION:
+        if (
+            type(payload["schema_version"]) is not int
+            or payload["schema_version"] != TIMING_SCHEMA_VERSION
+        ):
             raise ReportError(
                 f"job {job_id} uses unsupported timing schema version "
                 f"{payload['schema_version']!r}"
@@ -216,7 +219,10 @@ def parse_run(run: dict[str, Any], input_dir: Path) -> dict[str, Any] | None:
 
 
 def build_report(manifest: dict[str, Any], input_dir: Path) -> dict[str, Any]:
-    if manifest.get("schema_version") != MANIFEST_SCHEMA_VERSION:
+    if (
+        type(manifest.get("schema_version")) is not int
+        or manifest.get("schema_version") != MANIFEST_SCHEMA_VERSION
+    ):
         raise ReportError("unsupported input manifest schema version")
     if manifest.get("workflow") != "Composition schema validation":
         raise ReportError("input manifest is not for Composition schema validation")
