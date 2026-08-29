@@ -17,6 +17,7 @@ EXPECTED = [
     "pull-request.close-review-threads-before-merge",
     "pull-request.require-exact-head-ci-evidence",
     "pull-request.fail-closed-on-unresolved-ci-discovery",
+    "pull-request.reuse-valid-exact-head-evidence",
     "pull-request.require-current-mergeability",
     "pull-request.refresh-live-state-before-merge",
     "pull-request.guard-merge-against-head-movement",
@@ -122,8 +123,44 @@ def test_ci_discovery_rule_requires_correlated_read_only_evidence() -> None:
         "only one live index",
         "elapsed time alone",
         "corroborating current evidence",
+        "positively identified",
+        "do not re-enter discovery merely for conservatism",
+        "concrete invalidation signal",
         "do not mutate the pull request or proposed head solely to manufacture new ci evidence",
         "keep merge authorization blocked",
+    )
+    for semantic in required_semantics:
+        assert semantic.lower() in rule.lower()
+
+
+def test_valid_evidence_reuse_is_mandatory_and_selective() -> None:
+    rule = (POLICY_DIR / "reuse-valid-evidence.md").read_text(encoding="utf-8")
+    required_semantics = (
+        "reuse that evidence while the facts that bind it remain unchanged",
+        "repeated observations",
+        "extra review cycles",
+        "waiting periods",
+        "redundant evidence collection",
+        "must not silently enlarge the acceptance baseline",
+        "reacquire only the evidence affected by a concrete invalidation signal",
+        "target-branch movement requires impact evaluation",
+        "does not by itself invalidate unrelated exact-head evidence",
+        "elapsed time alone does not invalidate exact-head evidence",
+        "fail closed",
+    )
+    for semantic in required_semantics:
+        assert semantic.lower() in rule.lower()
+
+
+def test_target_branch_movement_invalidates_only_affected_evidence() -> None:
+    rule = (POLICY_DIR / "target-branch-head-freshness.md").read_text(
+        encoding="utf-8"
+    )
+    required_semantics = (
+        "current target branch full commit sha",
+        "inspect the intervening change",
+        "re-evaluate the evidence whose applicability or semantic basis could be affected",
+        "not an automatic reason to discard unrelated exact-head ci or review evidence",
     )
     for semantic in required_semantics:
         assert semantic.lower() in rule.lower()
@@ -145,11 +182,12 @@ def test_final_merge_rules_require_live_state_and_immutable_head_guard() -> None
         "immediately before authorizing or executing",
         "current proposed head",
         "current target-branch head",
-        "applicable exact-head validation state",
-        "completed review evidence",
+        "current review state",
         "unresolved review-thread state",
         "current mergeability",
-        "re-evaluate the affected acceptance evidence",
+        "do not unconditionally reacquire exact-head validation",
+        "re-evaluate only the acceptance evidence affected",
+        "concrete invalidation signal",
     ):
         assert semantic.lower() in refresh.lower()
 

@@ -1,13 +1,13 @@
 ---
 name: pr-merge-gate
-description: Apply the canonical pull-request Policy profile through fail-closed GitHub exact-head CI, review, live-state, and guarded-merge orchestration.
+description: Apply the canonical pull-request Policy profile through fail-closed GitHub exact-head evidence reuse, invalidation-driven live-state refresh, review, and guarded-merge orchestration.
 ---
 
 # Pull Request Merge Gate
 
 ## Purpose
 
-Provide the GitHub-facing orchestration adapter for the canonical `pull-request` Policy profile. This Skill is not a second authority for shared pull-request semantics: the rules under `policy/pull-request/` are canonical, while this adapter defines how to collect and reconcile GitHub live state, represent transient gate states, request repository review, and execute a head-guarded merge.
+Provide the GitHub-facing orchestration adapter for the canonical `pull-request` Policy profile. This Skill is not a second authority for shared pull-request semantics: the rules under `policy/pull-request/` are canonical, while this adapter defines how to collect and reconcile GitHub live state, preserve valid acceptance evidence, represent transient gate states, request repository review, and execute a head-guarded merge.
 
 Repository code, schemas, contracts, validators, tests, workflows, release rules, and repository-local policy remain authoritative for task-specific semantic acceptance.
 
@@ -20,6 +20,7 @@ Apply every rule selected by `profiles/pull-request.yml`. At the current Policy 
 - `pull-request.close-review-threads-before-merge` — `policy/pull-request/review-thread-closure.md`
 - `pull-request.require-exact-head-ci-evidence` — `policy/pull-request/exact-head-ci-evidence.md`
 - `pull-request.fail-closed-on-unresolved-ci-discovery` — `policy/pull-request/ci-discovery-fail-closed.md`
+- `pull-request.reuse-valid-exact-head-evidence` — `policy/pull-request/reuse-valid-evidence.md`
 - `pull-request.require-current-mergeability` — `policy/pull-request/current-mergeability.md`
 - `pull-request.refresh-live-state-before-merge` — `policy/pull-request/final-live-state-refresh.md`
 - `pull-request.guard-merge-against-head-movement` — `policy/pull-request/immutable-head-guard.md`
@@ -32,6 +33,7 @@ If this Skill conflicts with those canonical rules, follow the canonical rules a
 This Skill owns GitHub-specific execution details, not shared policy meaning. In particular it defines:
 
 - the gate state labels below;
+- how a GitHub acceptance snapshot records evidence bindings and invalidation signals;
 - how GitHub workflow-run and exact-commit check views are correlated when indexing lags;
 - this repository's minimum observation floor before an expected check may be classified as confirmed absent;
 - the GitHub connector `expected_head_sha` merge guard;
@@ -41,26 +43,27 @@ These mechanics may change without changing the underlying shared Policy rule ID
 
 ## Use when
 
-Use this Skill whenever a repository pull request is about to be declared merge-ready or merged, or when a previous acceptance snapshot became stale because the proposed head or target branch changed.
+Use this Skill whenever a repository pull request is about to be declared merge-ready or merged, or when a concrete invalidation signal requires previously accepted evidence to be re-evaluated.
 
 Do not use it to replace task-specific implementation, validation, release, publication, or repository-local acceptance work.
 
 ## Inputs
 
-Record at the beginning of each gate pass:
+Establish one acceptance snapshot containing:
 
 1. PR number and title;
 2. base branch and PR base SHA;
-3. current target-branch head SHA;
-4. current exact PR head SHA;
+3. observed current target-branch head SHA;
+4. exact PR head SHA;
 5. intended semantic scope and effective changed-file set;
-6. exact-head required-check state;
-7. CI discovery conclusion and the live views consulted;
-8. review-request state and completed independent review evidence, including reviewed SHA;
-9. unresolved review-thread count and dispositions;
-10. current mergeability.
+6. applicable exact-head checks and their accepted evidence;
+7. CI discovery conclusion and the live views consulted when discovery was needed;
+8. completed independent review evidence, including reviewed SHA;
+9. current material review state and unresolved review-thread dispositions;
+10. current mergeability;
+11. the binding facts for each relied-upon evidence item.
 
-If the PR head changes, discard the snapshot and begin a new gate pass.
+Do not discard the whole snapshot merely because one binding changes. Mark only affected evidence stale and reacquire it. A proposed-head change invalidates exact-head CI, exact-head review, and head-bound scope evidence. Target-branch movement requires impact evaluation and invalidates additional evidence only when that movement changes its applicability or semantic basis.
 
 ## Gate state model
 
@@ -83,17 +86,21 @@ Use explicit blocked or transient states rather than collapsing uncertainty into
 
 Never transition directly from a missing review, unresolved CI discovery, stale exact-head evidence, unknown base drift, or unknown mergeability to `MERGE_ALLOWED`.
 
+The state model is an authorization model, not a polling schedule. Do not repeat a successful observation merely for conservatism. Do not add an extra review cycle, waiting period, repeated live-state read, or redundant evidence collection as a new mandatory gate unless current repository authority requires it or a concrete invalidation signal makes existing evidence unusable.
+
 ## Workflow
 
 ### 1. Audit the effective scope
 
 Compare the PR against its base and confirm that the changed-file set and PR description match the intended change. Treat historical PR prose as evidence only; current repository sources and current diff determine acceptance scope.
 
+Record the accepted head, target-head context, and effective scope so unchanged scope evidence can be reused. Recompute the effective diff only when a proposed-head or target-branch change, or another concrete scope signal, can alter that result.
+
 ### 2. Establish exact-head CI
 
 Apply `pull-request.require-exact-head-ci-evidence` and `pull-request.fail-closed-on-unresolved-ci-discovery`.
 
-Discover applicable checks from current workflow definitions and changed scope. Bind every relied-upon result to the exact current PR head.
+Discover applicable checks from current workflow definitions and changed scope. Bind every relied-upon result to the exact current PR head and the applicability conditions used to select it.
 
 GitHub ref visibility and Actions/check indexing are not atomic. If an expected run is not visible, enter `CI_DISCOVERY_PENDING` and use read-only discovery:
 
@@ -122,6 +129,8 @@ A single zero-result view, repeated polling of only one index, or elapsed time a
 
 Enter `CI_DISCOVERED` only when applicable exact-head checks are positively identified or current policy establishes non-applicability. Enter `CI_GREEN` only when every applicable discovered exact-head check has an acceptable result.
 
+Once exact-head CI evidence is accepted, reuse it while the exact head and the conditions that determine check applicability remain unchanged. Do not rerun CI discovery or re-fetch workflow definitions solely to make an already valid result feel newer.
+
 ### 3. Require independent exact-head review
 
 Apply `pull-request.require-independent-exact-head-review`.
@@ -130,34 +139,37 @@ Request review for the exact current head if no completed independent review for
 
 A request, pending review, empty review list, or absence of findings is not completed review evidence. If the head changes after review, mark the prior review stale and request a fresh review for the new exact head.
 
+If the exact head remains unchanged and the relied-upon completed review has not been invalidated by current review state, do not request another independent review merely for conservatism.
+
 ### 4. Clear findings and review threads
 
 Apply `pull-request.close-review-threads-before-merge`.
 
-Inspect submitted reviews and inline review threads. Address each material finding or record an explicit justified disposition. If a repair changes the PR head, restart the gate so exact-head CI and review are reacquired.
+Inspect submitted reviews and inline review threads. Address each material finding or record an explicit justified disposition. If a repair changes the PR head, invalidate the evidence bound to the former head and reacquire the affected exact-head CI, review, and scope evidence. Do not automatically discard evidence that is not affected by the change.
 
 ### 5. Evaluate target-branch freshness
 
 Apply `pull-request.verify-target-branch-head-freshness`.
 
-Fetch the current target-branch head. If it differs from the evaluated base/current-target snapshot, inspect the intervening change and decide whether synchronization or other re-evaluation is required. Conflict-free mergeability alone is not evidence that target-branch movement is semantically irrelevant.
+Establish the current target-branch head. If it differs from the accepted target-head snapshot, inspect the intervening change and decide whether synchronization or other re-evaluation is required. Conflict-free mergeability alone is not evidence that target-branch movement is semantically irrelevant.
 
-### 6. Refresh the final live state
+Do not treat target-branch movement as an automatic instruction to rerun every gate. Record which accepted evidence is actually affected by the intervening change and reacquire only that evidence.
 
-Apply `pull-request.require-current-mergeability` and `pull-request.refresh-live-state-before-merge`.
+### 6. Refresh invalidating live state
 
-Immediately before merge, obtain one current snapshot and verify together:
+Apply `pull-request.require-current-mergeability`, `pull-request.reuse-valid-exact-head-evidence`, and `pull-request.refresh-live-state-before-merge`.
+
+Immediately before merge, obtain one current live-state snapshot sufficient to verify:
 
 - current PR head equals the exact accepted head;
-- target-branch movement has been evaluated;
-- effective diff still matches intended scope;
-- CI discovery is resolved and every applicable exact-head check is acceptable;
-- completed independent review exists for the exact current head;
-- no material unresolved review finding or thread remains;
+- current target-branch head is unchanged or its movement has been evaluated;
+- current material review state and unresolved review threads do not invalidate the accepted review evidence;
 - current mergeability is true;
-- the PR body does not claim stale head, CI, review, or validation state.
+- the PR body does not materially misstate the accepted head or acceptance state.
 
-If any item changed or is unknown, leave `MERGE_ALLOWED` and return to the corresponding blocked/transient state.
+Validate the binding facts of previously accepted scope, CI, and completed-review evidence against that snapshot. Do not unconditionally re-fetch exact-head checks, completed reviews, workflow definitions, or the effective diff when their binding facts remain unchanged and current policy establishes continued validity.
+
+If any binding changed or is unknown, leave `MERGE_ALLOWED` and reacquire only the affected evidence. Additional diagnostic reads are permitted when concrete uncertainty exists, but they are diagnostic work rather than new mandatory acceptance requirements.
 
 ### 7. Merge with the GitHub immutable-head guard
 
@@ -165,7 +177,7 @@ Apply `pull-request.guard-merge-against-head-movement`.
 
 Only after the final snapshot reaches `MERGE_ALLOWED`, call the GitHub connector merge operation with `expected_head_sha` equal to the exact accepted PR head SHA. The corresponding GitHub REST merge field is `sha`.
 
-Never omit `expected_head_sha` for an agent-performed merge in this repository. If the merge is rejected because the head or repository state moved, do not retry blindly; refresh live state and run the affected gates again.
+Never omit `expected_head_sha` for an agent-performed merge in this repository. Use the immutable-head guard to close the proposed-head race rather than inserting an extra unrequired HEAD poll between the accepted final snapshot and the merge call. If the merge is rejected because the head or repository state moved, do not retry blindly; refresh live state and run the affected gates again.
 
 ### 8. Verify after merge
 
@@ -184,8 +196,10 @@ Do not declare merge readiness or invoke merge while any of the following is tru
 - target-branch movement is unknown or unresolved;
 - current head differs from the accepted head;
 - current mergeability is unknown or false;
-- the final live-state snapshot is incomplete or stale;
+- an acceptance-evidence binding is unknown or invalid and affected evidence has not been reacquired;
 - the GitHub merge cannot be guarded with `expected_head_sha`.
+
+Do not create additional stop conditions solely because a stricter local procedure feels safer. New mandatory gates require current repository authority or a concrete unresolved uncertainty already covered by that authority.
 
 ## Evidence to report
 
@@ -194,11 +208,11 @@ At completion report:
 - PR number/title and target branch;
 - current target-branch head and exact accepted PR head;
 - effective changed-file scope;
-- CI discovery conclusion and live views used;
-- exact-head CI summary;
+- exact-head CI summary and the binding facts that kept it valid;
 - completed independent review evidence and reviewed SHA;
 - unresolved thread/finding status;
 - target-branch freshness decision;
+- any invalidation signals observed and the evidence selectively reacquired;
 - final gate state;
 - `expected_head_sha` used for merge;
 - merge result and merge commit SHA;
