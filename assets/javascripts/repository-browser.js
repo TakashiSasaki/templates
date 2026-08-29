@@ -24,6 +24,7 @@
     typeof HTMLIFrameElement !== "undefined" && frame instanceof HTMLIFrameElement
       ? frame
       : null;
+  const browserHeader = tree.querySelector(".browser-header");
   const mobileToolbar = content.querySelector(".viewer-mobile-toolbar");
   const initialSrcdoc = managedFrame?.getAttribute("srcdoc") || "";
   const mobileViewport = window.matchMedia("(max-width: 800px)");
@@ -251,26 +252,24 @@
       }
       mobileToolbar.style.flexWrap = "wrap";
       selectedFileLabel.style.flex = "1 1 10rem";
-      shareControls.style.position = "static";
+      shareControls.style.marginTop = "0";
       shareControls.style.marginLeft = "auto";
       shareControls.style.maxWidth = "100%";
       return;
     }
 
-    if (shareControls.parentElement !== content) {
-      content.appendChild(shareControls);
+    if (browserHeader instanceof HTMLElement && shareControls.parentElement !== browserHeader) {
+      browserHeader.appendChild(shareControls);
     }
-    content.style.position = "relative";
-    shareControls.style.position = "absolute";
-    shareControls.style.top = ".65rem";
-    shareControls.style.right = ".65rem";
+    shareControls.style.marginTop = ".6rem";
     shareControls.style.marginLeft = "0";
-    shareControls.style.maxWidth = "calc(100% - 1.3rem)";
+    shareControls.style.maxWidth = "100%";
   }
 
   function initializeSharing() {
     if (
       !(managedFrame instanceof HTMLIFrameElement) ||
+      !(browserHeader instanceof HTMLElement) ||
       !(mobileToolbar instanceof HTMLElement) ||
       typeof document.createElement !== "function"
     ) {
@@ -284,15 +283,11 @@
     shareControls.style.flexWrap = "wrap";
     shareControls.style.alignItems = "center";
     shareControls.style.gap = ".35rem";
-    shareControls.style.padding = ".25rem";
-    shareControls.style.borderRadius = ".45rem";
-    shareControls.style.background = "Canvas";
-    shareControls.style.zIndex = "2";
 
     const definitions = [
       ["path", "Copy path", "path"],
       ["viewer", "Copy viewer link", "viewer link"],
-      ["source", "Copy source link", "source link"],
+      ["source", "Copy immutable source link", "immutable source link"],
     ];
     shareButtons = definitions.map(([kind, label, statusName]) => {
       const button = document.createElement("button");
