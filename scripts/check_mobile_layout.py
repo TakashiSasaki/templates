@@ -1,721 +1,428 @@
 #!/usr/bin/env python3
-"""Run deterministic Site layout checks against a built documentation site."""
+"""Run deterministic Site layout checks, including repository-browser interaction."""
 
 from __future__ import annotations
 
 import argparse
 import json
-import math
-import threading
-from dataclasses import dataclass
-from html.parser import HTMLParser
-from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
-from pathlib import Path, PurePosixPath
-from typing import Any, Callable
+from pathlib import Path
+from typing import Any
+
+try:
+    from scripts import check_mobile_layout_core as core
+except ModuleNotFoundError:
+    import check_mobile_layout_core as core
 
 
-VIEWPORTS = ((360, 800), (390, 844), (412, 915))
-SCREENSHOT_VIEWPORT = (390, 844)
-REPOSITORY_VIEWER_VIEWPORTS = ((390, 844), (1280, 800))
-REPOSITORY_VIEWER_STATES = (
-    (True, False),
-    (True, True),
-    (False, False),
-    (False, True),
-)
-REPOSITORY_VIEWER_TARGET = "AGENTS.md"
+CASES = core.CASES
+CheckCase = core.CheckCase
+MobileLayoutError = core.MobileLayoutError
+_number = core._number
+_validate_cases = core._validate_cases
+validate_metrics = core.validate_metrics
+validate_repository_viewer_metrics = core.validate_repository_viewer_metrics
+
+REPOSITORY_BROWSER_FILTER_VIEWPORT = (390, 844)
+REPOSITORY_BROWSER_FILTER_PATH = "/files/site/"
+REPOSITORY_BROWSER_FILTER_ZERO_QUERY = "__templates_no_such_file_8675309__"
 
 
-@dataclass(frozen=True)
-class CheckCase:
-    name: str
-    path: str
-    kind: str
-
-
-CASES = (
-    CheckCase("landing", "/", "landing"),
-    CheckCase("policy", "/policy/", "document"),
-    CheckCase("repository-trees", "/repository-trees/", "repository-table"),
-    CheckCase(
-        "webapp-template",
-        "/webapp/TEMPLATE/",
-        "document",
-    ),
-)
-
-
-MEASURE_SCRIPT = r"""
-() => {
-  const number = (value) => {
-    const parsed = Number.parseFloat(value);
-    return Number.isFinite(parsed) ? parsed : null;
-  };
-
-  const box = (element) => {
-    if (!element) {
-      return null;
-    }
-    const rect = element.getBoundingClientRect();
-    const style = getComputedStyle(element);
-    return {
-      top: rect.top,
-      left: rect.left,
-      width: rect.width,
-      height: rect.height,
-      paddingTop: number(style.paddingTop),
-      paddingRight: number(style.paddingRight),
-      paddingBottom: number(style.paddingBottom),
-      paddingLeft: number(style.paddingLeft),
-      marginTop: number(style.marginTop),
-      marginBottom: number(style.marginBottom),
-      fontSize: number(style.fontSize),
-      lineHeight: number(style.lineHeight),
-      whiteSpace: style.whiteSpace,
-      overflowWrap: style.overflowWrap,
-      wordBreak: style.wordBreak,
-    };
-  };
-
-  const root = document.documentElement;
-  const content = document.querySelector(".md-content__inner");
-  const breadcrumb = document.querySelector(".md-path");
-  const heading = document.querySelector(".portal-cover h1, .md-content__inner > h1");
-  const cover = document.querySelector(".portal-cover");
-  const lead = document.querySelector(".portal-cover__lead");
-  const buttons = Array.from(document.querySelectorAll(".portal-cover__button"));
-  const revision = Array.from(document.querySelectorAll("table code")).find(
-    (element) => /^[0-9a-f]{40}$/.test(element.textContent.trim())
-  );
-  const revisionTable = revision ? revision.closest("table") : null;
-  const revisionStyle = revision ? getComputedStyle(revision) : null;
-  const revisionRect = revision ? revision.getBoundingClientRect() : null;
-
-  return {
-    ready: true,
-    viewport: {
-      width: window.innerWidth,
-      height: window.innerHeight,
-    },
-    page: {
-      clientWidth: root.clientWidth,
-      scrollWidth: root.scrollWidth,
-    },
-    content: box(content),
-    breadcrumb: box(breadcrumb),
-    heading: box(heading),
-    cover: box(cover),
-    lead: box(lead),
-    buttons: buttons.map(box),
-    revision: revision ? {
-      text: revision.textContent.trim(),
-      height: revisionRect.height,
-      lineHeight: number(revisionStyle.lineHeight),
-      whiteSpace: revisionStyle.whiteSpace,
-      overflowWrap: revisionStyle.overflowWrap,
-      wordBreak: revisionStyle.wordBreak,
-      rectCount: revision.getClientRects().length,
-    } : null,
-    revisionTable: revisionTable ? {
-      clientWidth: revisionTable.clientWidth,
-      scrollWidth: revisionTable.scrollWidth,
-    } : null,
-  };
-}
-"""
-
-
-REPOSITORY_VIEWER_MEASURE_SCRIPT = r"""
-({showLines, wrapLines}) => {
-  const showLinesInput = document.querySelector("#show-lines");
-  const wrapLinesInput = document.querySelector("#wrap-lines");
-  const line = document.querySelector(".source-line");
-  const code = document.querySelector(".line-code");
-  const lineNumber = document.querySelector(".line-number");
-  if (!showLinesInput || !wrapLinesInput || !line || !code || !lineNumber) {
-    return {ready: false, error: "repository file viewer controls or source line are missing"};
-  }
-
-  showLinesInput.checked = showLines;
-  wrapLinesInput.checked = wrapLines;
-
-  const root = document.documentElement;
-  const lineRect = line.getBoundingClientRect();
-  const codeRect = code.getBoundingClientRect();
-  const codeStyle = getComputedStyle(code);
-  const lineNumberStyle = getComputedStyle(lineNumber);
-
-  return {
-    ready: true,
-    viewport: {
-      width: window.innerWidth,
-      height: window.innerHeight,
-    },
-    page: {
-      clientWidth: root.clientWidth,
-      scrollWidth: root.scrollWidth,
-    },
-    state: {
-      showLines: showLinesInput.checked,
-      wrapLines: wrapLinesInput.checked,
-    },
-    line: {
-      left: lineRect.left,
-      width: lineRect.width,
-    },
-    code: {
-      left: codeRect.left,
-      width: codeRect.width,
-      whiteSpace: codeStyle.whiteSpace,
-      overflowWrap: codeStyle.overflowWrap,
-      gridColumnStart: codeStyle.gridColumnStart,
-    },
-    lineNumber: {
-      display: lineNumberStyle.display,
-    },
-  };
-}
-"""
-
-
-class MobileLayoutError(RuntimeError):
-    """Raised when the browser cannot produce trustworthy layout evidence."""
-
-
-class _RepositoryFileLinkParser(HTMLParser):
-    def __init__(self, target: str) -> None:
-        super().__init__(convert_charrefs=True)
-        self.target = target
-        self.href: str | None = None
-
-    def handle_starttag(
-        self,
-        tag: str,
-        attrs: list[tuple[str, str | None]],
-    ) -> None:
-        if tag != "a" or self.href is not None:
-            return
-        values = dict(attrs)
-        if values.get("data-file-path") == self.target:
-            href = values.get("href")
-            if href:
-                self.href = href
-
-
-def _number(value: Any, label: str) -> float:
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
-        raise MobileLayoutError(f"{label} must be numeric")
-    result = float(value)
-    if not math.isfinite(result):
-        raise MobileLayoutError(f"{label} must be finite")
-    return result
-
-
-def validate_metrics(
-    case: CheckCase,
-    width: int,
-    height: int,
-    metrics: dict[str, Any],
-) -> list[str]:
-    """Return human-readable failures for one measured viewport."""
-
-    failures: list[str] = []
-    if metrics.get("ready") is not True:
-        return [f"browser measurement did not become ready: {metrics.get('error', 'unknown error')}"]
-
-    viewport = metrics.get("viewport")
-    page = metrics.get("page")
-    if not isinstance(viewport, dict) or not isinstance(page, dict):
-        return ["browser measurement did not return viewport/page metrics"]
-
-    try:
-        measured_width = _number(viewport.get("width"), "viewport.width")
-        measured_height = _number(viewport.get("height"), "viewport.height")
-        client_width = _number(page.get("clientWidth"), "page.clientWidth")
-        scroll_width = _number(page.get("scrollWidth"), "page.scrollWidth")
-    except MobileLayoutError as exc:
-        return [str(exc)]
-
-    if abs(measured_width - width) > 1:
-        failures.append(
-            f"viewport width is {measured_width:g}px, expected {width}px"
-        )
-    if abs(measured_height - height) > 1:
-        failures.append(
-            f"viewport height is {measured_height:g}px, expected {height}px"
-        )
-    if scroll_width > client_width + 1:
-        failures.append(
-            f"page-wide horizontal overflow: {scroll_width:g}px > {client_width:g}px"
-        )
-
-    content = metrics.get("content")
-    if not isinstance(content, dict):
-        failures.append("missing .md-content__inner")
-    else:
-        try:
-            if _number(content.get("paddingTop"), "content.paddingTop") > 8:
-                failures.append("mobile content top padding exceeds 8px")
-        except MobileLayoutError as exc:
-            failures.append(str(exc))
-
-    breadcrumb = metrics.get("breadcrumb")
-    if isinstance(breadcrumb, dict):
-        try:
-            if _number(breadcrumb.get("paddingTop"), "breadcrumb.paddingTop") > 8:
-                failures.append("mobile breadcrumb top padding exceeds 8px")
-        except MobileLayoutError as exc:
-            failures.append(str(exc))
-
-    heading = metrics.get("heading")
-    if not isinstance(heading, dict):
-        failures.append("missing visible page heading")
-    else:
-        try:
-            if _number(heading.get("marginBottom"), "heading.marginBottom") > 22:
-                failures.append("mobile heading bottom margin exceeds 22px")
-        except MobileLayoutError as exc:
-            failures.append(str(exc))
-
-    if case.kind == "landing":
-        cover = metrics.get("cover")
-        lead = metrics.get("lead")
-        buttons = metrics.get("buttons")
-        if not isinstance(cover, dict):
-            failures.append("missing portal cover")
-        else:
-            try:
-                if _number(cover.get("paddingTop"), "cover.paddingTop") > 20:
-                    failures.append("portal cover top padding exceeds 20px")
-                cover_height = _number(cover.get("height"), "cover.height")
-                if cover_height > height * 0.9:
-                    failures.append(
-                        "portal cover consumes more than 90% of the mobile viewport height"
-                    )
-            except MobileLayoutError as exc:
-                failures.append(str(exc))
-        if not isinstance(lead, dict):
-            failures.append("missing portal lead")
-        else:
-            try:
-                if _number(lead.get("lineHeight"), "lead.lineHeight") > 27:
-                    failures.append("portal lead line height exceeds 27px")
-            except MobileLayoutError as exc:
-                failures.append(str(exc))
-        if not isinstance(buttons, list) or not buttons:
-            failures.append("missing portal actions")
-        else:
-            for index, button in enumerate(buttons):
-                if not isinstance(button, dict):
-                    failures.append(f"portal action {index} metrics are invalid")
-                    continue
-                try:
-                    if _number(button.get("height"), f"buttons[{index}].height") < 48:
-                        failures.append(
-                            f"portal action {index} is shorter than 48px"
-                        )
-                except MobileLayoutError as exc:
-                    failures.append(str(exc))
-
-    if case.kind == "repository-table":
-        revision = metrics.get("revision")
-        table = metrics.get("revisionTable")
-        if not isinstance(revision, dict):
-            failures.append("missing full revision token in repository table")
-        else:
-            if revision.get("whiteSpace") != "nowrap":
-                failures.append("repository revision is allowed to wrap")
-            if revision.get("overflowWrap") != "normal":
-                failures.append("repository revision overflow-wrap is not normal")
-            if revision.get("wordBreak") != "normal":
-                failures.append("repository revision word-break is not normal")
-            if revision.get("rectCount") != 1:
-                failures.append("repository revision occupies multiple line boxes")
-            try:
-                line_height = _number(revision.get("lineHeight"), "revision.lineHeight")
-                token_height = _number(revision.get("height"), "revision.height")
-                if token_height > line_height * 1.5:
-                    failures.append("repository revision is taller than one text line")
-            except MobileLayoutError as exc:
-                failures.append(str(exc))
-        if not isinstance(table, dict):
-            failures.append("missing repository revision table metrics")
-        else:
-            try:
-                table_client = _number(table.get("clientWidth"), "revisionTable.clientWidth")
-                table_scroll = _number(table.get("scrollWidth"), "revisionTable.scrollWidth")
-                if table_scroll + 1 < table_client:
-                    failures.append("repository table scroll geometry is invalid")
-            except MobileLayoutError as exc:
-                failures.append(str(exc))
-
-    return failures
-
-
-def validate_repository_viewer_metrics(
-    width: int,
-    height: int,
-    show_lines: bool,
-    wrap_lines: bool,
-    metrics: dict[str, Any],
-) -> list[str]:
-    """Validate one repository file viewer control state."""
+def validate_repository_browser_filter_metrics(metrics: dict[str, Any]) -> list[str]:
+    """Validate repository-browser filter behavior measured in a real browser."""
 
     if metrics.get("ready") is not True:
         return [
-            "repository file viewer measurement did not become ready: "
+            "repository browser filter measurement did not become ready: "
             f"{metrics.get('error', 'unknown error')}"
         ]
 
     failures: list[str] = []
     viewport = metrics.get("viewport")
     page = metrics.get("page")
-    state = metrics.get("state")
-    line = metrics.get("line")
-    code = metrics.get("code")
-    line_number = metrics.get("lineNumber")
+    initial = metrics.get("initial")
+    filtered = metrics.get("filtered")
+    opened = metrics.get("opened")
+    returned = metrics.get("returned")
+    slash = metrics.get("slash")
+    zero = metrics.get("zero")
+    cleared = metrics.get("cleared")
     if not all(
         isinstance(value, dict)
-        for value in (viewport, page, state, line, code, line_number)
+        for value in (
+            viewport,
+            page,
+            initial,
+            filtered,
+            opened,
+            returned,
+            slash,
+            zero,
+            cleared,
+        )
     ):
-        return ["repository file viewer measurement is incomplete"]
+        return ["repository browser filter measurement is incomplete"]
 
+    width, height = REPOSITORY_BROWSER_FILTER_VIEWPORT
     try:
-        measured_width = _number(viewport.get("width"), "repository viewport.width")
-        measured_height = _number(viewport.get("height"), "repository viewport.height")
-        client_width = _number(page.get("clientWidth"), "repository page.clientWidth")
-        scroll_width = _number(page.get("scrollWidth"), "repository page.scrollWidth")
-        line_left = _number(line.get("left"), "repository line.left")
-        line_width = _number(line.get("width"), "repository line.width")
-        code_left = _number(code.get("left"), "repository code.left")
-        code_width = _number(code.get("width"), "repository code.width")
+        measured_width = _number(viewport.get("width"), "filter viewport.width")
+        measured_height = _number(viewport.get("height"), "filter viewport.height")
+        client_width = _number(page.get("clientWidth"), "filter page.clientWidth")
+        scroll_width = _number(page.get("scrollWidth"), "filter page.scrollWidth")
+        total = int(_number(initial.get("total"), "filter initial.total"))
+        filtered_visible = int(
+            _number(filtered.get("visible"), "filter filtered.visible")
+        )
+        saved_scroll = _number(filtered.get("scrollTop"), "filter filtered.scrollTop")
+        returned_scroll = _number(
+            returned.get("scrollTop"), "filter returned.scrollTop"
+        )
+        zero_visible = int(_number(zero.get("visible"), "filter zero.visible"))
+        cleared_visible = int(
+            _number(cleared.get("visible"), "filter cleared.visible")
+        )
     except MobileLayoutError as exc:
         return [str(exc)]
 
-    if abs(measured_width - width) > 1:
+    if abs(measured_width - width) > 1 or abs(measured_height - height) > 1:
         failures.append(
-            f"repository viewer width is {measured_width:g}px, expected {width}px"
+            "repository browser filter viewport does not match the mobile acceptance size"
         )
-    if abs(measured_height - height) > 1:
-        failures.append(
-            f"repository viewer height is {measured_height:g}px, expected {height}px"
-        )
-    if state.get("showLines") is not show_lines:
-        failures.append("repository viewer line-number state did not apply")
-    if state.get("wrapLines") is not wrap_lines:
-        failures.append("repository viewer wrap state did not apply")
+    if scroll_width > client_width + 1:
+        failures.append("repository browser filter causes page-wide horizontal overflow")
+    if total < 1:
+        failures.append("repository browser exposes no filterable files")
+    if initial.get("status") != f"{total} files":
+        failures.append("repository browser initial filter count is inconsistent")
 
-    if show_lines:
-        if line_number.get("display") == "none":
-            failures.append("repository line numbers are hidden when enabled")
-        if code.get("gridColumnStart") != "2":
-            failures.append(
-                "repository file code is not explicitly placed in grid column 2"
-            )
-        if code_left <= line_left + 1:
-            failures.append("repository line-number gutter does not precede the code")
-        if code_width >= line_width - 1:
-            failures.append("repository line-number gutter does not reserve width")
-    else:
-        if line_number.get("display") != "none":
-            failures.append("repository line numbers remain visible when disabled")
-        if code.get("gridColumnStart") != "1":
-            failures.append(
-                "repository file code is not explicitly placed in grid column 1"
-            )
-        if abs(code_left - line_left) > 1:
-            failures.append(
-                "repository file code does not start at the line edge when line numbers are hidden"
-            )
-        if abs(code_width - line_width) > 1:
-            failures.append(
-                "repository file code does not fill the line when line numbers are hidden"
-            )
+    query = filtered.get("query")
+    if not isinstance(query, str) or not query:
+        failures.append("repository browser filter query is missing")
+    if filtered_visible < 1 or filtered_visible > total:
+        failures.append("repository browser filtered result count is invalid")
+    if filtered.get("allMatch") is not True:
+        failures.append("repository browser shows a file that does not match the query")
+    if filtered.get("ancestorsOpen") is not True:
+        failures.append("repository browser does not open matching file ancestors")
 
-    if wrap_lines:
-        if code.get("whiteSpace") != "pre-wrap":
-            failures.append("repository file wrapping is not pre-wrap")
-        if code.get("overflowWrap") != "anywhere":
-            failures.append("repository file overflow wrapping is not anywhere")
-        if scroll_width > client_width + 1:
-            failures.append(
-                "repository wrapped file viewer has page-wide horizontal overflow"
-            )
-    elif code.get("whiteSpace") != "pre":
-        failures.append("repository unwrapped file viewer is not preformatted")
+    selected_path = opened.get("selectedPath")
+    if opened.get("mobileView") != "content":
+        failures.append("repository browser quick-open did not enter Content mode")
+    if not isinstance(selected_path, str) or not selected_path:
+        failures.append("repository browser quick-open did not select a file")
+    if opened.get("hashPath") != selected_path:
+        failures.append("repository browser quick-open URL does not match the selection")
+    if opened.get("filterValue") != filtered.get("broadQuery"):
+        failures.append("repository browser quick-open lost the filter value")
+    if opened.get("filesFocused") is not True:
+        failures.append("repository browser quick-open did not focus the Files button")
+    frame_src = opened.get("frameSrc")
+    if not isinstance(frame_src, str) or "/files/site/content/" not in frame_src:
+        failures.append("repository browser quick-open did not load a bounded viewer URL")
+
+    if returned.get("mobileView") != "files":
+        failures.append("repository browser Files return did not restore Files mode")
+    if returned.get("filterValue") != filtered.get("broadQuery"):
+        failures.append("repository browser Files return lost the filter value")
+    if abs(returned_scroll - saved_scroll) > 1:
+        failures.append("repository browser Files return did not restore tree scroll")
+    if returned.get("filterFocused") is not True:
+        failures.append("repository browser Files return did not restore filter focus")
+
+    if slash.get("mobileView") != "files":
+        failures.append("repository browser slash shortcut did not restore Files mode")
+    if slash.get("filterValue") != filtered.get("broadQuery"):
+        failures.append("repository browser slash shortcut lost the filter value")
+    if slash.get("filterFocused") is not True:
+        failures.append("repository browser slash shortcut did not focus the filter")
+
+    if zero_visible != 0 or zero.get("status") != "No matching files":
+        failures.append("repository browser zero-result state is not explicit")
+    if cleared.get("inputValue") != "":
+        failures.append("repository browser Escape did not clear the filter")
+    if cleared_visible != total:
+        failures.append("repository browser clear did not restore all files")
+    if cleared.get("detailsRestored") is not True:
+        failures.append("repository browser clear did not restore directory open state")
+    if cleared.get("status") != f"{total} files":
+        failures.append("repository browser clear did not restore the file count")
 
     return failures
 
 
-def _load_playwright() -> tuple[Callable[[], Any], type[Exception]]:
-    """Load Playwright lazily so the ordinary unit-test build needs no browser dependency."""
-
-    try:
-        from playwright.sync_api import Error as PlaywrightError
-        from playwright.sync_api import sync_playwright
-    except ImportError as exc:
-        raise MobileLayoutError(
-            "Playwright is required for browser layout checks; install requirements-visual.txt"
-        ) from exc
-    return sync_playwright, PlaywrightError
+def _ascii_swapcase(value: str) -> str:
+    return "".join(
+        character.swapcase()
+        if character.isascii() and character.isalpha()
+        else character
+        for character in value
+    )
 
 
-def _validate_cases() -> None:
-    for case in CASES:
-        if (
-            not case.path.startswith("/")
-            or case.path.startswith("//")
-            or "\\" in case.path
-        ):
-            raise MobileLayoutError(f"unsafe layout-check path: {case.path!r}")
+def _visible_repository_paths(page: Any) -> list[str]:
+    paths = page.locator("a[data-repository-file]:visible").evaluate_all(
+        "elements => elements.map(element => element.dataset.filePath)"
+    )
+    if not isinstance(paths, list) or not all(isinstance(path, str) for path in paths):
+        raise MobileLayoutError("repository browser returned invalid visible file paths")
+    return paths
 
 
-def _repository_viewer_path(site_root: Path) -> str:
-    index = site_root / "files" / "site" / "index.html"
-    if index.is_symlink() or not index.is_file():
-        raise MobileLayoutError(f"repository browser index is unavailable: {index}")
-    parser = _RepositoryFileLinkParser(REPOSITORY_VIEWER_TARGET)
-    parser.feed(index.read_text(encoding="utf-8"))
-    if parser.href is None:
-        raise MobileLayoutError(
-            f"repository browser does not expose {REPOSITORY_VIEWER_TARGET}"
-        )
-    relative = PurePosixPath(parser.href)
-    if (
-        relative.is_absolute()
-        or ".." in relative.parts
-        or len(relative.parts) != 2
-        or relative.parts[0] != "content"
-        or relative.suffix != ".html"
-    ):
-        raise MobileLayoutError(
-            f"unsafe repository file viewer path for {REPOSITORY_VIEWER_TARGET}: {parser.href!r}"
-        )
-    destination = site_root / "files" / "site" / Path(*relative.parts)
-    if destination.is_symlink() or not destination.is_file():
-        raise MobileLayoutError(
-            f"repository file viewer is unavailable for {REPOSITORY_VIEWER_TARGET}: {destination}"
-        )
-    return "/" + PurePosixPath("files", "site", *relative.parts).as_posix()
-
-
-def serve(site_root: Path) -> tuple[ThreadingHTTPServer, threading.Thread, str]:
-    class Handler(SimpleHTTPRequestHandler):
-        def __init__(self, *args: Any, **kwargs: Any) -> None:
-            super().__init__(*args, directory=str(site_root), **kwargs)
-
-        def log_message(self, format: str, *args: Any) -> None:
-            return
-
-    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
-    thread.start()
-    host, port = server.server_address[:2]
-    return server, thread, f"http://{host}:{port}"
-
-
-def _measure_case(
+def _measure_repository_browser_filter(
     browser: Any,
     base_url: str,
-    case: CheckCase,
-    width: int,
-    height: int,
-    screenshot_path: Path | None,
+    output_root: Path,
 ) -> dict[str, Any]:
+    width, height = REPOSITORY_BROWSER_FILTER_VIEWPORT
     context = browser.new_context(
         viewport={"width": width, "height": height},
         device_scale_factor=1,
     )
     try:
         page = context.new_page()
-        page.goto(f"{base_url}{case.path}", wait_until="load", timeout=15_000)
-        page.wait_for_timeout(250)
-        metrics = page.evaluate(MEASURE_SCRIPT)
-        if not isinstance(metrics, dict):
-            raise MobileLayoutError("browser measurement script returned a non-object")
-        if screenshot_path is not None:
-            screenshot_path.parent.mkdir(parents=True, exist_ok=True)
-            page.screenshot(path=str(screenshot_path), full_page=False)
-        return metrics
-    finally:
-        context.close()
-
-
-def _measure_repository_viewer(
-    browser: Any,
-    base_url: str,
-    path: str,
-    width: int,
-    height: int,
-    show_lines: bool,
-    wrap_lines: bool,
-    screenshot_path: Path | None,
-) -> dict[str, Any]:
-    context = browser.new_context(
-        viewport={"width": width, "height": height},
-        device_scale_factor=1,
-    )
-    try:
-        page = context.new_page()
-        page.goto(f"{base_url}{path}", wait_until="load", timeout=15_000)
-        page.wait_for_timeout(100)
-        metrics = page.evaluate(
-            REPOSITORY_VIEWER_MEASURE_SCRIPT,
-            {"showLines": show_lines, "wrapLines": wrap_lines},
+        page.goto(
+            f"{base_url}{REPOSITORY_BROWSER_FILTER_PATH}",
+            wait_until="load",
+            timeout=15_000,
         )
-        if not isinstance(metrics, dict):
-            raise MobileLayoutError(
-                "repository file viewer measurement script returned a non-object"
-            )
-        if screenshot_path is not None:
-            screenshot_path.parent.mkdir(parents=True, exist_ok=True)
-            page.screenshot(path=str(screenshot_path), full_page=False)
-        return metrics
+        filter_input = page.locator('input[aria-label="Filter files"]')
+        filter_input.wait_for(state="visible", timeout=5_000)
+        filter_status = page.locator("[data-repository-filter-status]")
+        file_links = page.locator("a[data-repository-file]")
+        total = file_links.count()
+        if total < 1:
+            raise MobileLayoutError("repository browser has no files to filter")
+        paths = file_links.evaluate_all(
+            "elements => elements.map(element => element.dataset.filePath)"
+        )
+        if not isinstance(paths, list) or not all(isinstance(path, str) for path in paths):
+            raise MobileLayoutError("repository browser file paths are invalid")
+        target_path = next(
+            (
+                path
+                for path in paths
+                if "/" in path
+                and any(character.isascii() and character.isalpha() for character in path)
+            ),
+            next(
+                (
+                    path
+                    for path in paths
+                    if any(
+                        character.isascii() and character.isalpha()
+                        for character in path
+                    )
+                ),
+                paths[0],
+            ),
+        )
+        query = _ascii_swapcase(target_path)
+        details_before = page.locator(".tree details").evaluate_all(
+            "elements => elements.map(element => element.open)"
+        )
+        initial = {
+            "total": total,
+            "status": filter_status.text_content() or "",
+        }
+
+        filter_input.fill(query)
+        page.wait_for_timeout(50)
+        filtered_paths = _visible_repository_paths(page)
+        query_key = query.lower()
+        target = page.locator(
+            f'a[data-repository-file][data-file-path={json.dumps(target_path)}]'
+        )
+        ancestors_open = target.evaluate(
+            "element => { let current = element.parentElement; "
+            "while (current) { if (current.tagName === 'DETAILS' && !current.open) return false; "
+            "current = current.parentElement; } return true; }"
+        )
+
+        # Use a broad path query for the mobile context round trip so the tree
+        # retains realistic scrolling while Enter still has a deterministic
+        # first visible file to open.
+        broad_query = "."
+        filter_input.fill(broad_query)
+        page.wait_for_timeout(50)
+        broad_paths = _visible_repository_paths(page)
+        if not broad_paths:
+            broad_query = target_path
+            filter_input.fill(broad_query)
+            page.wait_for_timeout(50)
+            broad_paths = _visible_repository_paths(page)
+        tree_scroller = page.locator(".tree")
+        saved_scroll = tree_scroller.evaluate(
+            "element => { const value = Math.min(137, Math.max(0, element.scrollHeight - element.clientHeight)); "
+            "element.scrollTop = value; return element.scrollTop; }"
+        )
+        filtered = {
+            "query": query,
+            "visible": len(filtered_paths),
+            "allMatch": all(query_key in path.lower() for path in filtered_paths),
+            "ancestorsOpen": bool(ancestors_open),
+            "status": filter_status.text_content() or "",
+            "broadQuery": broad_query,
+            "broadVisible": len(broad_paths),
+            "scrollTop": saved_scroll,
+        }
+
+        filter_input.focus()
+        filter_input.press("Enter")
+        page.wait_for_function(
+            "() => document.querySelector('[data-repository-browser]').dataset.mobileView === 'content'"
+        )
+        selected_path = page.locator("[data-selected-file]").text_content() or ""
+        hash_path = page.evaluate(
+            "() => new URLSearchParams(location.hash.slice(1)).get('file') || ''"
+        )
+        opened = {
+            "mobileView": page.locator("[data-repository-browser]").get_attribute(
+                "data-mobile-view"
+            ),
+            "selectedPath": selected_path,
+            "hashPath": hash_path,
+            "frameSrc": page.locator("iframe[name='repository-file-viewer']").get_attribute(
+                "src"
+            ),
+            "filterValue": filter_input.input_value(),
+            "filesFocused": page.locator("[data-show-files]").evaluate(
+                "element => document.activeElement === element"
+            ),
+        }
+
+        page.locator("[data-show-files]").click()
+        page.wait_for_function(
+            "() => document.querySelector('[data-repository-browser]').dataset.mobileView === 'files'"
+        )
+        returned = {
+            "mobileView": page.locator("[data-repository-browser]").get_attribute(
+                "data-mobile-view"
+            ),
+            "filterValue": filter_input.input_value(),
+            "scrollTop": tree_scroller.evaluate("element => element.scrollTop"),
+            "filterFocused": filter_input.evaluate(
+                "element => document.activeElement === element"
+            ),
+        }
+
+        filter_input.press("Enter")
+        page.wait_for_function(
+            "() => document.querySelector('[data-repository-browser]').dataset.mobileView === 'content'"
+        )
+        page.locator("[data-show-files]").focus()
+        page.keyboard.press("/")
+        page.wait_for_function(
+            "() => document.querySelector('[data-repository-browser]').dataset.mobileView === 'files'"
+        )
+        slash = {
+            "mobileView": page.locator("[data-repository-browser]").get_attribute(
+                "data-mobile-view"
+            ),
+            "filterValue": filter_input.input_value(),
+            "filterFocused": filter_input.evaluate(
+                "element => document.activeElement === element"
+            ),
+        }
+
+        filter_input.fill(REPOSITORY_BROWSER_FILTER_ZERO_QUERY)
+        page.wait_for_timeout(50)
+        zero = {
+            "visible": len(_visible_repository_paths(page)),
+            "status": filter_status.text_content() or "",
+        }
+        filter_input.press("Escape")
+        page.wait_for_timeout(50)
+        details_after = page.locator(".tree details").evaluate_all(
+            "elements => elements.map(element => element.open)"
+        )
+        cleared = {
+            "visible": len(_visible_repository_paths(page)),
+            "inputValue": filter_input.input_value(),
+            "detailsRestored": details_after == details_before,
+            "status": filter_status.text_content() or "",
+        }
+        root = page.locator("html")
+        page_metrics = root.evaluate(
+            "element => ({clientWidth: element.clientWidth, scrollWidth: element.scrollWidth})"
+        )
+        screenshot_path = output_root / "repository-browser-filter-390x844.png"
+        screenshot_path.parent.mkdir(parents=True, exist_ok=True)
+        page.screenshot(path=str(screenshot_path), full_page=False)
+        return {
+            "ready": True,
+            "viewport": {"width": page.evaluate("() => innerWidth"), "height": page.evaluate("() => innerHeight")},
+            "page": page_metrics,
+            "initial": initial,
+            "filtered": filtered,
+            "opened": opened,
+            "returned": returned,
+            "slash": slash,
+            "zero": zero,
+            "cleared": cleared,
+        }
     finally:
         context.close()
 
 
-def run_checks(site_root: Path, output_root: Path) -> None:
-    if not site_root.is_dir():
-        raise MobileLayoutError(f"site root does not exist: {site_root}")
-    if not (site_root / "index.html").is_file():
-        raise MobileLayoutError(f"site root has no index.html: {site_root}")
-    _validate_cases()
-    repository_viewer_path = _repository_viewer_path(site_root)
-
-    sync_playwright, PlaywrightError = _load_playwright()
-    output_root.mkdir(parents=True, exist_ok=True)
-    server, thread, base_url = serve(site_root)
-    report: dict[str, Any] = {
-        "schema_version": 1,
-        "viewports": [
-            {"width": width, "height": height} for width, height in VIEWPORTS
-        ],
-        "repository_viewer_viewports": [
-            {"width": width, "height": height}
-            for width, height in REPOSITORY_VIEWER_VIEWPORTS
-        ],
-        "checks": [],
-        "repository_viewer_checks": [],
-        "failures": [],
-    }
-    failures: list[str] = []
-
+def _run_repository_browser_filter_check(site_root: Path, output_root: Path) -> None:
+    sync_playwright, PlaywrightError = core._load_playwright()
+    server, thread, base_url = core.serve(site_root)
     try:
         try:
             with sync_playwright() as playwright:
                 browser = playwright.chromium.launch(headless=True)
                 try:
-                    for case in CASES:
-                        for width, height in VIEWPORTS:
-                            screenshot_path = None
-                            if (width, height) == SCREENSHOT_VIEWPORT:
-                                screenshot_path = (
-                                    output_root / f"{case.name}-{width}x{height}.png"
-                                )
-                            try:
-                                metrics = _measure_case(
-                                    browser,
-                                    base_url,
-                                    case,
-                                    width,
-                                    height,
-                                    screenshot_path,
-                                )
-                                case_failures = validate_metrics(
-                                    case, width, height, metrics
-                                )
-                            except (MobileLayoutError, PlaywrightError) as exc:
-                                metrics = {"ready": False, "error": str(exc)}
-                                case_failures = [str(exc)]
-                            prefix = f"{case.name} {width}x{height}"
-                            failures.extend(
-                                f"{prefix}: {failure}"
-                                for failure in case_failures
-                            )
-                            report["checks"].append(
-                                {
-                                    "case": case.name,
-                                    "path": case.path,
-                                    "width": width,
-                                    "height": height,
-                                    "metrics": metrics,
-                                    "failures": case_failures,
-                                }
-                            )
-
-                    for width, height in REPOSITORY_VIEWER_VIEWPORTS:
-                        for show_lines, wrap_lines in REPOSITORY_VIEWER_STATES:
-                            screenshot_path = None
-                            if (
-                                (width, height) == SCREENSHOT_VIEWPORT
-                                and not show_lines
-                                and wrap_lines
-                            ):
-                                screenshot_path = output_root / (
-                                    "repository-viewer-no-lines-wrap-"
-                                    f"{width}x{height}.png"
-                                )
-                            try:
-                                metrics = _measure_repository_viewer(
-                                    browser,
-                                    base_url,
-                                    repository_viewer_path,
-                                    width,
-                                    height,
-                                    show_lines,
-                                    wrap_lines,
-                                    screenshot_path,
-                                )
-                                case_failures = validate_repository_viewer_metrics(
-                                    width,
-                                    height,
-                                    show_lines,
-                                    wrap_lines,
-                                    metrics,
-                                )
-                            except (MobileLayoutError, PlaywrightError) as exc:
-                                metrics = {"ready": False, "error": str(exc)}
-                                case_failures = [str(exc)]
-                            prefix = (
-                                f"repository-file-viewer {width}x{height} "
-                                f"lines={'on' if show_lines else 'off'} "
-                                f"wrap={'on' if wrap_lines else 'off'}"
-                            )
-                            failures.extend(
-                                f"{prefix}: {failure}"
-                                for failure in case_failures
-                            )
-                            report["repository_viewer_checks"].append(
-                                {
-                                    "case": "repository-file-viewer",
-                                    "path": repository_viewer_path,
-                                    "width": width,
-                                    "height": height,
-                                    "show_lines": show_lines,
-                                    "wrap_lines": wrap_lines,
-                                    "metrics": metrics,
-                                    "failures": case_failures,
-                                }
-                            )
+                    metrics = _measure_repository_browser_filter(
+                        browser, base_url, output_root
+                    )
                 finally:
                     browser.close()
         except PlaywrightError as exc:
-            raise MobileLayoutError(f"unable to run Playwright Chromium: {exc}") from exc
+            raise MobileLayoutError(
+                f"unable to run repository browser filter acceptance: {exc}"
+            ) from exc
     finally:
         server.shutdown()
         server.server_close()
         thread.join(timeout=5)
 
-    report["failures"] = failures
-    (output_root / "metrics.json").write_text(
+    failures = validate_repository_browser_filter_metrics(metrics)
+    report_path = output_root / "metrics.json"
+    try:
+        report = json.loads(report_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise MobileLayoutError(
+            f"unable to extend browser metrics report: {report_path}"
+        ) from exc
+    if not isinstance(report, dict):
+        raise MobileLayoutError("browser metrics report is not an object")
+    report["repository_browser_filter_check"] = {
+        "case": "repository-browser-filter",
+        "path": REPOSITORY_BROWSER_FILTER_PATH,
+        "width": REPOSITORY_BROWSER_FILTER_VIEWPORT[0],
+        "height": REPOSITORY_BROWSER_FILTER_VIEWPORT[1],
+        "metrics": metrics,
+        "failures": failures,
+    }
+    existing_failures = report.get("failures")
+    if not isinstance(existing_failures, list):
+        existing_failures = []
+    existing_failures.extend(
+        f"repository-browser-filter: {failure}" for failure in failures
+    )
+    report["failures"] = existing_failures
+    report_path.write_text(
         json.dumps(report, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
     if failures:
         raise MobileLayoutError(
-            "layout regression check failed:\n- " + "\n- ".join(failures)
+            "repository browser filter acceptance failed:\n- " + "\n- ".join(failures)
         )
+
+
+def run_checks(site_root: Path, output_root: Path) -> None:
+    core.run_checks(site_root, output_root)
+    _run_repository_browser_filter_check(site_root, output_root)
 
 
 def parse_args() -> argparse.Namespace:
@@ -728,10 +435,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     try:
-        run_checks(
-            args.site_root.resolve(strict=True),
-            args.output_root.resolve(),
-        )
+        run_checks(args.site_root.resolve(strict=True), args.output_root.resolve())
     except (OSError, MobileLayoutError) as exc:
         raise SystemExit(str(exc)) from exc
     return 0
