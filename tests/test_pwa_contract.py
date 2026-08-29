@@ -46,12 +46,14 @@ class PwaContractTests(unittest.TestCase):
         }
         states = {
             "states": [
-                {"id": "offline", "category": "connectivity"},
-                {"id": "sync-pending", "category": "progress"},
-                {"id": "sync-failed", "category": "error"},
-                {"id": "update-available", "category": "content"},
-                {"id": "update-applying", "category": "progress"},
-                {"id": "update-failed", "category": "error"},
+                {"id": "network-unavailable", "scope": "global", "category": "connectivity"},
+                {"id": "freshness-unverified", "scope": "global", "category": "degraded"},
+                {"id": "revalidating", "scope": "global", "category": "progress"},
+                {"id": "sync-pending", "scope": "global", "category": "progress"},
+                {"id": "sync-failed", "scope": "global", "category": "error"},
+                {"id": "update-available", "scope": "global", "category": "content"},
+                {"id": "update-applying", "scope": "global", "category": "progress"},
+                {"id": "update-failed", "scope": "global", "category": "error"},
             ]
         }
         return routes, surfaces, states
@@ -62,6 +64,8 @@ class PwaContractTests(unittest.TestCase):
             "schemaVersion": 1,
             "mode": "product",
             "manifestPath": "/manifest.webmanifest",
+            "manifestLinkRequired": True,
+            "secureContextRequired": True,
             "name": "Example PWA",
             "shortName": "Example",
             "startRouteId": "home",
@@ -70,13 +74,50 @@ class PwaContractTests(unittest.TestCase):
             "orientation": "any",
             "icons": [
                 {
-                    "id": "primary",
+                    "id": "vector",
                     "href": "/icons/app.svg",
                     "mediaType": "image/svg+xml",
                     "sizes": ["any"],
-                    "purposes": ["any", "maskable"],
-                }
+                    "purposes": ["any"],
+                },
+                {
+                    "id": "raster-192",
+                    "href": "/icons/app-192.png",
+                    "mediaType": "image/png",
+                    "sizes": ["192x192"],
+                    "purposes": ["any"],
+                },
+                {
+                    "id": "raster-512",
+                    "href": "/icons/app-512.png",
+                    "mediaType": "image/png",
+                    "sizes": ["512x512"],
+                    "purposes": ["any"],
+                },
+                {
+                    "id": "maskable-512",
+                    "href": "/icons/app-maskable-512.png",
+                    "mediaType": "image/png",
+                    "sizes": ["512x512"],
+                    "purposes": ["maskable"],
+                },
             ],
+            "vectorIconPolicy": "prefer-svg-when-compatible",
+            "vectorIconException": None,
+            "platformCompatibility": {
+                "android": {
+                    "requiredRasterSizes": ["192x192", "512x512"],
+                    "maskableIconRequired": True,
+                },
+                "ios": {
+                    "homeScreenIcon": {
+                        "relation": "apple-touch-icon",
+                        "href": "/icons/apple-touch-icon.png",
+                        "mediaType": "image/png",
+                        "sizes": ["180x180"],
+                    }
+                },
+            },
         }
         offline = {
             "$schema": "../schemas/pwa-offline.schema.json",
@@ -85,15 +126,19 @@ class PwaContractTests(unittest.TestCase):
             "availability": "offline-capable",
             "serviceWorkerScope": "/",
             "controlledRouteIds": ["home"],
-            "offlineStateId": "offline",
             "navigationFallbackRouteId": "home",
+            "networkUnavailableStateId": "network-unavailable",
+            "freshnessUnknownStateId": "freshness-unverified",
+            "revalidatingStateId": "revalidating",
             "surfacePolicies": [
                 {
                     "surfaceId": "primary",
                     "cacheableDataClassifications": ["public"],
-                    "readBehavior": "network-first",
                 }
             ],
+            "cacheStrategy": "implementation-defined",
+            "onlineFreshnessPolicy": "revalidate-before-display",
+            "offlineFreshnessPolicy": "indicate-unverified",
             "mutationBehavior": "queue-until-online",
             "pendingStateId": "sync-pending",
             "failureStateId": "sync-failed",
@@ -167,25 +212,42 @@ class PwaContractTests(unittest.TestCase):
             ("pwa-offline", offline),
             ("pwa-update", update),
         ):
-            Draft202012Validator(self.load(f"schemas/{name}.schema.json")).validate(document)
-
-    def test_network_only_product_does_not_require_service_worker_fields(self) -> None:
-        manifest, _offline, update = self.product_contracts()
-        offline = {
-            "$schema": "../schemas/pwa-offline.schema.json",
-            "schemaVersion": 1,
-            "mode": "product",
-            "availability": "network-only",
-        }
-        Draft202012Validator(self.load("schemas/pwa-offline.schema.json")).validate(offline)
-        result = self.run_validator(manifest, offline, update)
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            errors = list(Draft202012Validator(self.load(f"schemas/{name}.schema.json")).iter_errors(document))
+            self.assertEqual(errors, [], [error.message for error in errors])
 
     def test_product_cross_contract_semantics_validate(self) -> None:
         manifest, offline, update = self.product_contracts()
         result = self.run_validator(manifest, offline, update)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertIn("PWA product semantics", result.stdout)
+        self.assertIn("offline freshness", result.stdout)
+        self.assertIn("platform compatibility", result.stdout)
+
+    def test_cache_algorithm_is_not_a_contract_choice(self) -> None:
+        _manifest, offline, _update = self.product_contracts()
+        schema = self.load("schemas/pwa-offline.schema.json")
+        concrete = copy.deepcopy(offline)
+        concrete["cacheStrategy"] = "network-first"
+        self.assertTrue(list(Draft202012Validator(schema).iter_errors(concrete)))
+        legacy = copy.deepcopy(offline)
+        legacy["surfacePolicies"][0]["readBehavior"] = "cache-first"
+        self.assertTrue(list(Draft202012Validator(schema).iter_errors(legacy)))
+
+    def test_selected_pwa_requires_offline_capability_and_freshness_semantics(self) -> None:
+        _manifest, offline, _update = self.product_contracts()
+        schema = self.load("schemas/pwa-offline.schema.json")
+        network_only = copy.deepcopy(offline)
+        network_only["availability"] = "network-only"
+        self.assertTrue(list(Draft202012Validator(schema).iter_errors(network_only)))
+        for required in (
+            "networkUnavailableStateId",
+            "freshnessUnknownStateId",
+            "revalidatingStateId",
+            "onlineFreshnessPolicy",
+            "offlineFreshnessPolicy",
+        ):
+            incomplete = copy.deepcopy(offline)
+            incomplete.pop(required)
+            self.assertTrue(list(Draft202012Validator(schema).iter_errors(incomplete)), required)
 
     def test_start_route_must_be_canonical_deep_linkable_and_inside_scope(self) -> None:
         manifest, offline, update = self.product_contracts()
@@ -214,11 +276,12 @@ class PwaContractTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("undeclared data classifications", result.stderr)
 
-    def test_offline_and_update_states_have_semantic_category_floors(self) -> None:
+    def test_connectivity_freshness_and_revalidation_states_are_global_and_distinct(self) -> None:
         manifest, offline, update = self.product_contracts()
         _routes, surfaces, states = self.webapp_contracts()
-        states["states"][0]["category"] = "content"
-        states["states"][4]["category"] = "content"
+        states["states"][0]["scope"] = "route"
+        states["states"][2]["category"] = "content"
+        offline["freshnessUnknownStateId"] = offline["networkUnavailableStateId"]
         result = self.run_validator(
             manifest,
             offline,
@@ -227,8 +290,55 @@ class PwaContractTests(unittest.TestCase):
             states=states,
         )
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("offlineStateId", result.stderr)
+        self.assertIn("must have global scope", result.stderr)
+        self.assertIn("revalidatingStateId", result.stderr)
+        self.assertIn("must use distinct UI state ids", result.stderr)
+
+    def test_svg_is_preferred_but_a_reasoned_exception_is_allowed(self) -> None:
+        manifest, offline, update = self.product_contracts()
+        manifest["icons"] = [icon for icon in manifest["icons"] if icon["mediaType"] != "image/svg+xml"]
+        result = self.run_validator(manifest, offline, update)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("declare an SVG manifest icon or a non-blank vectorIconException", result.stderr)
+        manifest["vectorIconException"] = "The source artwork cannot be represented safely as SVG."
+        result = self.run_validator(manifest, offline, update)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_android_and_ios_compatibility_intent_fails_closed(self) -> None:
+        manifest, offline, update = self.product_contracts()
+        manifest["icons"] = [icon for icon in manifest["icons"] if "192x192" not in icon["sizes"]]
+        result = self.run_validator(manifest, offline, update)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Android compatibility raster size '192x192'", result.stderr)
+
+        manifest, offline, update = self.product_contracts()
+        for icon in manifest["icons"]:
+            icon["purposes"] = ["any"]
+        result = self.run_validator(manifest, offline, update)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("maskable manifest icon", result.stderr)
+
+        manifest, offline, update = self.product_contracts()
+        manifest["platformCompatibility"]["ios"]["homeScreenIcon"]["mediaType"] = "image/svg+xml"
+        result = self.run_validator(manifest, offline, update)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("iOS home-screen compatibility icon", result.stderr)
+
+    def test_update_states_have_global_semantic_category_floors(self) -> None:
+        manifest, offline, update = self.product_contracts()
+        _routes, surfaces, states = self.webapp_contracts()
+        states["states"][6]["scope"] = "route"
+        states["states"][6]["category"] = "content"
+        result = self.run_validator(
+            manifest,
+            offline,
+            update,
+            surfaces=surfaces,
+            states=states,
+        )
+        self.assertNotEqual(result.returncode, 0)
         self.assertIn("applyingStateId", result.stderr)
+        self.assertIn("global scope", result.stderr)
 
     def test_immediate_update_cannot_claim_blocked_activation(self) -> None:
         manifest, offline, update = self.product_contracts()

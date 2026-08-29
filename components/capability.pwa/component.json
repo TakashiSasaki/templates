@@ -3,7 +3,7 @@
   "id": "capability.pwa",
   "kind": "capability",
   "version": 1,
-  "summary": "Progressive Web App semantics for installability, offline behavior, and update lifecycle without prescribing a framework or service-worker library.",
+  "summary": "Progressive Web App semantics for installability, cross-platform application identity, offline freshness, and update lifecycle without prescribing cache or service-worker implementation strategy.",
   "requires": ["lifecycle.implementation-evidence"],
   "conflicts": [],
   "contract_registrations": [
@@ -14,7 +14,7 @@
       "migration_slug": "pwa-manifest",
       "document_schema_version": 1,
       "version_history": [{"version": 1, "change_type": "initial"}],
-      "purpose": "Declare product-owned Web App Manifest semantics and bind launch/scope intent to canonical Webapp routes without freezing browser-vendor installability heuristics."
+      "purpose": "Declare Web App Manifest installability semantics, launch/scope binding, and Android/iOS application-icon compatibility intent without freezing browser-vendor promotion heuristics."
     },
     {
       "id": "pwa_offline",
@@ -23,7 +23,7 @@
       "migration_slug": "pwa-offline",
       "document_schema_version": 1,
       "version_history": [{"version": 1, "change_type": "initial"}],
-      "purpose": "Declare whether the PWA is network-only or offline-capable and, when offline-capable, define controlled routes, cacheable data classifications, freshness behavior, and offline mutation semantics."
+      "purpose": "Declare offline-capable controlled routes, cacheable data classifications, explicit network-loss states, and freshness invariants while leaving the concrete cache algorithm implementation-defined."
     },
     {
       "id": "pwa_update",
@@ -36,6 +36,7 @@
     }
   ],
   "materials": [
+    {"source": "files/PWA.md", "destination": "PWA.md", "ownership": "seed"},
     {"source": "files/contracts/pwa-manifest.json", "destination": "contracts/pwa-manifest.json", "ownership": "seed"},
     {"source": "files/contracts/pwa-offline.json", "destination": "contracts/pwa-offline.json", "ownership": "seed"},
     {"source": "files/contracts/pwa-update.json", "destination": "contracts/pwa-update.json", "ownership": "seed"},

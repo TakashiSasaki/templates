@@ -55,6 +55,7 @@ def state_reference(
     *,
     field: str,
     categories: frozenset[str] | None = None,
+    global_scope: bool = True,
 ) -> None:
     if not isinstance(state_id, str):
         return
@@ -62,6 +63,8 @@ def state_reference(
     if state is None:
         errors.append(f"{field} references unknown UI state {state_id!r}")
         return
+    if global_scope and state.get("scope") != "global":
+        errors.append(f"{field} UI state {state_id!r} must have global scope")
     if categories is not None and state.get("category") not in categories:
         errors.append(
             f"{field} UI state {state_id!r} must have category one of {', '.join(sorted(categories))}"
@@ -91,15 +94,56 @@ def validate_manifest(
                 )
 
     icons = manifest.get("icons")
-    if isinstance(icons, list):
-        icon_ids = [icon.get("id") for icon in icons if isinstance(icon, dict) and isinstance(icon.get("id"), str)]
-        icon_hrefs = [icon.get("href") for icon in icons if isinstance(icon, dict) and isinstance(icon.get("href"), str)]
-        for duplicate, count in sorted(Counter(icon_ids).items()):
-            if count > 1:
-                errors.append(f"duplicate PWA manifest icon id: {duplicate}")
-        for duplicate, count in sorted(Counter(icon_hrefs).items()):
-            if count > 1:
-                errors.append(f"duplicate PWA manifest icon href: {duplicate}")
+    icon_list = [icon for icon in icons if isinstance(icon, dict)] if isinstance(icons, list) else []
+    icon_ids = [icon.get("id") for icon in icon_list if isinstance(icon.get("id"), str)]
+    icon_hrefs = [icon.get("href") for icon in icon_list if isinstance(icon.get("href"), str)]
+    for duplicate, count in sorted(Counter(icon_ids).items()):
+        if count > 1:
+            errors.append(f"duplicate PWA manifest icon id: {duplicate}")
+    for duplicate, count in sorted(Counter(icon_hrefs).items()):
+        if count > 1:
+            errors.append(f"duplicate PWA manifest icon href: {duplicate}")
+
+    svg_icons = [icon for icon in icon_list if icon.get("mediaType") == "image/svg+xml"]
+    vector_exception = manifest.get("vectorIconException")
+    if manifest.get("vectorIconPolicy") == "prefer-svg-when-compatible":
+        if not svg_icons and not isinstance(vector_exception, str):
+            errors.append(
+                "PWA vector icon policy prefers SVG when compatible; declare an SVG manifest icon or a non-blank vectorIconException"
+            )
+        if svg_icons and isinstance(vector_exception, str):
+            errors.append(
+                "PWA vectorIconException must be null when an SVG manifest icon is declared"
+            )
+
+    compatibility = manifest.get("platformCompatibility")
+    android = compatibility.get("android") if isinstance(compatibility, dict) else None
+    ios = compatibility.get("ios") if isinstance(compatibility, dict) else None
+    if isinstance(android, dict):
+        required_sizes = android.get("requiredRasterSizes")
+        if isinstance(required_sizes, list):
+            for required_size in required_sizes:
+                covered = any(
+                    icon.get("mediaType") != "image/svg+xml"
+                    and isinstance(icon.get("sizes"), list)
+                    and required_size in icon["sizes"]
+                    for icon in icon_list
+                )
+                if not covered:
+                    errors.append(
+                        f"Android compatibility raster size {required_size!r} is not backed by a declared non-SVG manifest icon"
+                    )
+        if android.get("maskableIconRequired") is True and not any(
+            isinstance(icon.get("purposes"), list) and "maskable" in icon["purposes"]
+            for icon in icon_list
+        ):
+            errors.append("Android compatibility requires at least one maskable manifest icon")
+
+    home_icon = ios.get("homeScreenIcon") if isinstance(ios, dict) else None
+    if isinstance(home_icon, dict) and home_icon.get("mediaType") == "image/svg+xml":
+        errors.append(
+            "iOS home-screen compatibility icon must provide raster artwork rather than SVG-only artwork"
+        )
     return errors
 
 
@@ -110,10 +154,10 @@ def validate_offline(
     surfaces: dict[str, dict[str, Any]],
     states: dict[str, dict[str, Any]],
 ) -> list[str]:
-    if offline.get("availability") == "network-only":
-        return []
     if offline.get("availability") != "offline-capable":
-        return [f"unsupported PWA offline availability: {offline.get('availability')!r}"]
+        return [
+            "selected PWA planning/product semantics must be offline-capable so network loss renders an intentional state instead of a broken page"
+        ]
 
     errors: list[str] = []
     controlled = offline.get("controlledRouteIds")
@@ -149,12 +193,35 @@ def validate_offline(
         elif fallback not in controlled_ids:
             errors.append("PWA navigation fallback route must be included in controlledRouteIds")
 
+    semantic_state_ids = [
+        offline.get("networkUnavailableStateId"),
+        offline.get("freshnessUnknownStateId"),
+        offline.get("revalidatingStateId"),
+    ]
+    if len(set(semantic_state_ids)) != len(semantic_state_ids):
+        errors.append(
+            "PWA network-unavailable, freshness-unknown, and revalidating states must use distinct UI state ids"
+        )
     state_reference(
         errors,
         states,
-        offline.get("offlineStateId"),
-        field="offlineStateId",
+        offline.get("networkUnavailableStateId"),
+        field="networkUnavailableStateId",
+        categories=frozenset({"connectivity"}),
+    )
+    state_reference(
+        errors,
+        states,
+        offline.get("freshnessUnknownStateId"),
+        field="freshnessUnknownStateId",
         categories=frozenset({"connectivity", "degraded"}),
+    )
+    state_reference(
+        errors,
+        states,
+        offline.get("revalidatingStateId"),
+        field="revalidatingStateId",
+        categories=frozenset({"progress"}),
     )
 
     policies = offline.get("surfacePolicies")
@@ -260,19 +327,17 @@ def validate(root: Path) -> list[str]:
         "pwa-update": update.get("mode"),
     }
     if len(set(modes.values())) != 1:
-        errors.append(f"PWA contract modes must match: {modes}")
-        return errors
+        return [f"PWA contract modes must match: {modes}"]
     pwa_mode = next(iter(modes.values()))
     evidence_mode = evidence.get("mode")
     if pwa_mode not in {"template", "planning", "product"}:
         return [f"unsupported PWA mode: {pwa_mode!r}"]
     if evidence_mode != pwa_mode:
-        errors.append(
+        return [
             f"PWA contract mode {pwa_mode!r} requires implementation-evidence mode {pwa_mode!r}; found {evidence_mode!r}"
-        )
-        return errors
+        ]
     if pwa_mode == "template":
-        return errors
+        return []
 
     routes, route_errors = indexed(routes_document.get("routes"), collection="routes")
     surfaces, surface_errors = indexed(surfaces_document.get("surfaces"), collection="surfaces")
@@ -304,9 +369,9 @@ def main() -> int:
     if mode == "template":
         print("PWA contracts: template mode OK; no product PWA claim is active")
     elif mode == "planning":
-        print("PWA planning semantics and Webapp cross-contract references: OK")
+        print("PWA planning installability, offline freshness, platform compatibility, and update semantics: OK")
     else:
-        print("PWA product semantics and Webapp cross-contract references: OK")
+        print("PWA product installability, offline freshness, platform compatibility, and update semantics: OK")
     return 0
 
 
