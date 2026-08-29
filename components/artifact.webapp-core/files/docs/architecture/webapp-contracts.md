@@ -12,15 +12,13 @@ Surfaces v2 uses `surfaceDependencies` for references from one declared browser-
 
 Routes v3 makes access-failure targets explicit. A `render-state` behavior names the route-scoped access state to render, while a `redirect` behavior names the semantic destination route. URL shape, query-parameter names, cookies, sessions, framework callbacks, and other transport details remain product-owned implementation concerns.
 
-Implementation evidence is generic. Webapp-specific evidence coverage is imposed by `scripts/validate_webapp_evidence.py`, which derives required targets from the five domain contracts plus their registered transitions. Browser identity contributes one current `favicon` target, so a completed product cannot omit favicon implementation evidence merely because the icon is outside the application DOM.
+Implementation evidence is generic. The current Webapp-specific evidence target inventory remains the established behavior families (`surfaces`, `routes`, `ui_states`, and `viewports`). Browser-identity executable proof is intentionally deferred to the browser/PWA evidence follow-up so that existing product fixtures are not taught to claim favicon implementation without actually emitting and serving the declared asset.
 
 ## Browser-sensitive proof strength
 
 Coverage alone is not sufficient for claims that are observable only through browser behavior. In product mode, each `routes` target and each `viewports` contract target whose `itemKind` is `viewport` or `input-capability` must include at least one positive and at least one negative proof declared as either `end-to-end-test` or `accessibility-test`.
 
 For these targets, `unit-test`, `integration-test`, `migration-test`, `inspection`, or `other` evidence may supplement browser-level proof, but cannot be the only proof. An HTTP-only integration test therefore cannot by itself verify route-entry focus, responsive layout, keyboard/input behavior, zoom/scrolling interaction, or other browser-observed claims.
-
-The favicon target is required evidence coverage but is not forced into the route/viewport browser-proof rule. A product may use deterministic inspection or integration proof to verify that document metadata declares `rel="icon"` and that the configured asset is present and served with the declared media type; a browser-level proof may additionally be recorded when the supported-browser matrix makes that useful.
 
 The proof kind remains a semantic declaration by the product. `end-to-end-test` used to satisfy this Webapp rule means a proof that exercises the supported browser interface in a browser runtime; relabeling a server-side or HTTP-only test does not make it valid evidence. `accessibility-test` likewise means an accessibility proof executed against the relevant browser-facing behavior. The validator checks the declared target/proof-kind relationship; it does not inspect or infer the internals of the referenced test implementation.
 

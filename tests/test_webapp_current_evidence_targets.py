@@ -38,10 +38,6 @@ class WebappCurrentEvidenceTargetTests(unittest.TestCase):
 
     def fixture(self, root: Path) -> None:
         self.write_json(
-            root / "contracts" / "browser-identity.json",
-            {"favicon": {"relation": "icon"}},
-        )
-        self.write_json(
             root / "contracts" / "surfaces.json",
             {"surfaces": [{"id": "main"}]},
         )
@@ -64,10 +60,6 @@ class WebappCurrentEvidenceTargetTests(unittest.TestCase):
             root / "contracts" / "manifest.json",
             {
                 "contracts": [
-                    {
-                        "id": "browser_identity",
-                        "versionHistory": [{"version": 1}],
-                    },
                     {
                         "id": "routes",
                         "versionHistory": [
@@ -110,7 +102,6 @@ class WebappCurrentEvidenceTargetTests(unittest.TestCase):
             self.assertEqual(
                 {target_key(target) for target in required},
                 {
-                    ("contract-item", "browser_identity", "favicon", "favicon"),
                     ("contract-item", "surfaces", "surface", "main"),
                     ("contract-item", "routes", "route", "home"),
                     ("contract-item", "ui_states", "ui-state", "ready"),

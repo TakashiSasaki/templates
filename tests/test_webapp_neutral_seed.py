@@ -64,7 +64,7 @@ class WebappNeutralSeedTests(unittest.TestCase):
             },
         )
 
-    def test_fresh_seed_has_six_current_evidence_targets(self) -> None:
+    def test_fresh_seed_has_five_current_behavior_evidence_targets(self) -> None:
         states = load_json("contracts/ui-states.json")["states"]
         viewports = load_json("contracts/viewports.json")
 
@@ -76,14 +76,13 @@ class WebappNeutralSeedTests(unittest.TestCase):
         self.assertEqual(viewports["inputCapabilities"], ["keyboard"])
 
         target_count = (
-            1
-            + len(load_json("contracts/surfaces.json")["surfaces"])
+            len(load_json("contracts/surfaces.json")["surfaces"])
             + len(load_json("contracts/routes.json")["routes"])
             + len(states)
             + len(viewports["viewports"])
             + len(viewports["inputCapabilities"])
         )
-        self.assertEqual(target_count, 6)
+        self.assertEqual(target_count, 5)
 
     def test_browser_identity_adds_a_seed_without_fabricating_an_asset(self) -> None:
         descriptor = json.loads((WEBAPP / "component.json").read_text(encoding="utf-8"))

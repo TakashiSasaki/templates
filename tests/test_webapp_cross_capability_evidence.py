@@ -53,10 +53,6 @@ class WebappCrossCapabilityEvidenceBoundaryTests(unittest.TestCase):
         }
 
     def fixture(self, root: Path) -> dict[str, object]:
-        self.write_json(
-            root / "contracts/browser-identity.json",
-            {"favicon": {"relation": "icon"}},
-        )
         self.write_json(root / "contracts/surfaces.json", {"surfaces": [{"id": "main"}]})
         self.write_json(root / "contracts/routes.json", {"routes": [{"id": "home"}]})
         self.write_json(root / "contracts/ui-states.json", {"states": []})
@@ -68,7 +64,6 @@ class WebappCrossCapabilityEvidenceBoundaryTests(unittest.TestCase):
             root / "contracts/manifest.json",
             {
                 "contracts": [
-                    {"id": "browser_identity", "versionHistory": [{"version": 1}]},
                     {"id": "routes", "versionHistory": [{"version": 1}]},
                     {"id": "surfaces", "versionHistory": [{"version": 1}]},
                     {"id": "ui_states", "versionHistory": [{"version": 1}]},
@@ -90,12 +85,6 @@ class WebappCrossCapabilityEvidenceBoundaryTests(unittest.TestCase):
             ],
             "requirements": [
                 {
-                    "id": "REQ-FAVICON",
-                    "description": "Browser identity declares a favicon.",
-                    "recordIds": ["browser-identity-favicon-favicon"],
-                    "requiredPositiveProofKinds": ["integration-test"],
-                },
-                {
                     "id": "REQ-SURFACE",
                     "description": "Main surface exists.",
                     "recordIds": ["surfaces-surface-main"],
@@ -115,16 +104,6 @@ class WebappCrossCapabilityEvidenceBoundaryTests(unittest.TestCase):
                 },
             ],
             "records": [
-                self.record(
-                    "browser-identity-favicon-favicon",
-                    {
-                        "kind": "contract-item",
-                        "contractId": "browser_identity",
-                        "itemKind": "favicon",
-                        "itemId": "favicon",
-                    },
-                    proof_kind="integration-test",
-                ),
                 self.record(
                     "surfaces-surface-main",
                     {
