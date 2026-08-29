@@ -5,13 +5,17 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 import sys
+import time
 import unittest
 from collections.abc import Iterator, Sequence
 from pathlib import Path
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+TIMING_LOG_PREFIX = "COMPOSITION_UNITTEST_TIMING "
+TIMING_SCHEMA_VERSION = 1
 
 # These are the tests that execute a real Chrome session as part of their
 # acceptance boundary. Keep the list at exact unittest-id granularity: many
@@ -49,6 +53,55 @@ TWO_SHARD_TIMING_OVERRIDES = {
     "test_webapp_auth_productization.WebappAuthenticationProductizationTests."
     "test_realistic_auth_fixture_reaches_transactional_release": 1,
 }
+
+
+class TimingTextTestResult(unittest.TextTestResult):
+    """Collect parent unittest durations without changing unittest semantics."""
+
+    def __init__(self, *args: object, **kwargs: object) -> None:
+        super().__init__(*args, **kwargs)
+        self.test_durations: list[tuple[str, float]] = []
+        self._started_ns: dict[int, int] = {}
+
+    def startTest(self, test: unittest.case.TestCase) -> None:
+        self._started_ns[id(test)] = time.perf_counter_ns()
+        super().startTest(test)
+
+    def stopTest(self, test: unittest.case.TestCase) -> None:
+        started_ns = self._started_ns.pop(id(test), None)
+        if started_ns is not None:
+            duration_seconds = max(
+                0.0,
+                (time.perf_counter_ns() - started_ns) / 1_000_000_000,
+            )
+            self.test_durations.append((test.id(), duration_seconds))
+        super().stopTest(test)
+
+
+def format_timing_records(
+    timings: Sequence[tuple[str, float]],
+    *,
+    suite: str,
+    shard_count: int,
+    shard_index: int,
+) -> list[str]:
+    """Return stable JSON-line telemetry suitable for later Actions-log aggregation."""
+    return [
+        TIMING_LOG_PREFIX
+        + json.dumps(
+            {
+                "schema_version": TIMING_SCHEMA_VERSION,
+                "suite": suite,
+                "shard_count": shard_count,
+                "shard_index": shard_index,
+                "test_id": test_id,
+                "duration_seconds": round(duration_seconds, 9),
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        for test_id, duration_seconds in sorted(timings, key=lambda item: item[0])
+    ]
 
 
 def iter_tests(suite: unittest.TestSuite) -> Iterator[unittest.case.TestCase]:
@@ -185,7 +238,19 @@ def main() -> int:
         f"{len(selected)} unittest instances",
         flush=True,
     )
-    result = unittest.TextTestRunner(verbosity=2).run(unittest.TestSuite(selected))
+    result = unittest.TextTestRunner(
+        verbosity=2,
+        resultclass=TimingTextTestResult,
+    ).run(unittest.TestSuite(selected))
+    if not isinstance(result, TimingTextTestResult):
+        raise RuntimeError("timing result class was not preserved by unittest runner")
+    for line in format_timing_records(
+        result.test_durations,
+        suite=args.suite,
+        shard_count=args.shard_count,
+        shard_index=args.shard_index,
+    ):
+        print(line, flush=True)
     return 0 if result.wasSuccessful() else 1
 
 
