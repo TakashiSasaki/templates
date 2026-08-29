@@ -30,17 +30,22 @@ class HTMLElement extends Element {
     this.textContent = "";
   }
   querySelector() { return null; }
+  querySelectorAll() { return []; }
   focus() {}
 }
 class HTMLButtonElement extends HTMLElement {
   addEventListener() {}
 }
 class HTMLAnchorElement extends HTMLElement {}
+class HTMLIFrameElement extends HTMLElement {}
+class HTMLDetailsElement extends HTMLElement {}
 
 global.Element = Element;
 global.HTMLElement = HTMLElement;
 global.HTMLButtonElement = HTMLButtonElement;
 global.HTMLAnchorElement = HTMLAnchorElement;
+global.HTMLIFrameElement = HTMLIFrameElement;
+global.HTMLDetailsElement = HTMLDetailsElement;
 
 const tree = new HTMLElement();
 const content = new HTMLElement();
@@ -74,6 +79,7 @@ const mobileViewport = {
 global.window = {
   matchMedia: () => mobileViewport,
   requestAnimationFrame: (callback) => callback(),
+  addEventListener() {},
 };
 
 vm.runInThisContext(fs.readFileSync(process.argv[1], "utf8"), {
