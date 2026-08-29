@@ -41,6 +41,7 @@ def repository_viewer_metrics(show_lines: bool, wrap_lines: bool) -> dict:
     return {
         "ready": True,
         "viewport": {"width": 390, "height": 844},
+        "page": {"clientWidth": 390, "scrollWidth": 390},
         "state": {"showLines": show_lines, "wrapLines": wrap_lines},
         "line": {"left": 0, "width": 390},
         "code": {
