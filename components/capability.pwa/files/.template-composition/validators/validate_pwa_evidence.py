@@ -124,13 +124,9 @@ def product_errors(
     browser_kinds = set(helper.BROWSER_LEVEL_PROOF_KINDS)
     capabilities = command_capabilities(evidence)
     records_by_target: dict[tuple[object, ...], list[dict[str, Any]]] = {}
-    records_by_id: dict[str, dict[str, Any]] = {}
     for record in records:
         if not isinstance(record, dict):
             continue
-        record_id = record.get("id")
-        if isinstance(record_id, str):
-            records_by_id[record_id] = record
         key = helper.target_key(record.get("target"))
         if len(key) >= 2 and key[1] in helper.PWA_CONTRACT_IDS:
             records_by_target.setdefault(key, []).append(record)
