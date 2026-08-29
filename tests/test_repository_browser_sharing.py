@@ -112,10 +112,12 @@ row.querySelector = (selector) => selector === "a.tree-source" ? source : null;
 row.appendChild(file);
 row.appendChild(source);
 
+const browserHeader = new HTMLElement();
 const tree = new HTMLElement();
+tree.appendChild(browserHeader);
 tree.appendChild(row);
 tree.querySelectorAll = (selector) => selector === "a[data-repository-file]" ? [file] : [];
-tree.querySelector = () => file;
+tree.querySelector = (selector) => selector === ".browser-header" ? browserHeader : file;
 
 const frame = new HTMLIFrameElement();
 frame.setAttribute("srcdoc", "placeholder");
@@ -142,18 +144,14 @@ browser.querySelector = (selector) => ({
 browser.contains = () => true;
 
 const body = new HTMLElement();
-const created = [];
 global.document = {
   body,
   querySelector: () => browser,
   documentElement: { classList: { add() {} } },
   createElement(tag) {
-    let element;
-    if (tag === "button") element = new HTMLButtonElement();
-    else if (tag === "textarea") element = new HTMLTextAreaElement();
-    else element = new HTMLElement();
-    created.push({ tag, element });
-    return element;
+    if (tag === "button") return new HTMLButtonElement();
+    if (tag === "textarea") return new HTMLTextAreaElement();
+    return new HTMLElement();
   },
   execCommand() { throw new Error("secure clipboard path should be used"); },
 };
@@ -195,7 +193,9 @@ vm.runInThisContext(fs.readFileSync(process.argv[1], "utf8"), {
   filename: process.argv[1],
 });
 
-const share = content.children.find((child) => child.getAttribute("data-repository-share") === "");
+const share = browserHeader.children.find(
+  (child) => child.getAttribute("data-repository-share") === ""
+);
 if (!(share instanceof HTMLElement)) throw new Error("share controls were not created");
 const buttons = Object.fromEntries(
   share.children
@@ -208,9 +208,10 @@ const status = share.children.find(
 
 (async () => {
   const initial = {
-    parentIsContent: share.parentElement === content,
-    position: share.style.position,
+    parentIsHeader: share.parentElement === browserHeader,
+    marginTop: share.style.marginTop,
     selected: selectedFileLabel.textContent,
+    labels: Object.fromEntries(Object.entries(buttons).map(([kind, button]) => [kind, button.textContent])),
     disabled: Object.fromEntries(Object.entries(buttons).map(([kind, button]) => [kind, button.disabled])),
   };
 
@@ -225,7 +226,7 @@ const status = share.children.find(
   viewportListener({ matches: true });
   const mobile = {
     parentIsToolbar: share.parentElement === mobileToolbar,
-    position: share.style.position,
+    marginTop: share.style.marginTop,
   };
 
   location.hash = "#file=missing.md";
@@ -266,9 +267,14 @@ const status = share.children.find(
         self.assertEqual(
             result["initial"],
             {
-                "parentIsContent": True,
-                "position": "absolute",
+                "parentIsHeader": True,
+                "marginTop": ".6rem",
                 "selected": "AGENTS.md",
+                "labels": {
+                    "path": "Copy path",
+                    "viewer": "Copy viewer link",
+                    "source": "Copy immutable source link",
+                },
                 "disabled": {"path": False, "viewer": False, "source": False},
             },
         )
@@ -283,10 +289,10 @@ const status = share.children.find(
         )
         self.assertEqual(result["pathStatus"], "Copied path")
         self.assertEqual(result["viewerStatus"], "Copied viewer link")
-        self.assertEqual(result["sourceStatus"], "Copied source link")
+        self.assertEqual(result["sourceStatus"], "Copied immutable source link")
         self.assertEqual(
             result["mobile"],
-            {"parentIsToolbar": True, "position": "static"},
+            {"parentIsToolbar": True, "marginTop": "0"},
         )
         self.assertEqual(
             result["invalid"],
