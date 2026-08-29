@@ -194,24 +194,34 @@ def product_errors(
     return errors
 
 
-def validate(root: Path) -> list[str]:
+def validate_with_mode(root: Path) -> tuple[list[str], str]:
+    """Validate one filesystem snapshot and return its authoritative PWA mode."""
     helper = load_target_helper(root)
     evidence = load_json(root, IMPLEMENTATION_EVIDENCE)
     pwa_mode = helper.pwa_mode(root)
     evidence_mode = evidence.get("mode")
     if evidence_mode != pwa_mode:
-        return [
-            f"PWA evidence coverage requires implementation-evidence mode {pwa_mode!r}; found {evidence_mode!r}"
-        ]
+        return (
+            [
+                f"PWA evidence coverage requires implementation-evidence mode {pwa_mode!r}; found {evidence_mode!r}"
+            ],
+            pwa_mode,
+        )
     if pwa_mode == "template":
-        return []
+        return [], pwa_mode
 
     expected = {helper.target_key(target) for target in helper.expected_targets(root)}
     if pwa_mode == "planning":
-        return planning_errors(evidence, helper, expected)
+        return planning_errors(evidence, helper, expected), pwa_mode
     if pwa_mode == "product":
-        return product_errors(evidence, helper, expected)
-    return [f"unsupported PWA evidence mode: {pwa_mode!r}"]
+        return product_errors(evidence, helper, expected), pwa_mode
+    return [f"unsupported PWA evidence mode: {pwa_mode!r}"], pwa_mode
+
+
+def validate(root: Path) -> list[str]:
+    """Compatibility entry point for callers that only need validation errors."""
+    errors, _mode = validate_with_mode(root)
+    return errors
 
 
 def main() -> int:
@@ -220,7 +230,7 @@ def main() -> int:
     args = parser.parse_args()
     root = Path(args.root).resolve()
     try:
-        errors = validate(root)
+        errors, mode = validate_with_mode(root)
     except (OSError, RuntimeError, ValueError, KeyError, TypeError, json.JSONDecodeError) as exc:
         print(f"ERROR: cannot validate PWA implementation evidence: {exc}", file=sys.stderr)
         return 1
@@ -228,8 +238,6 @@ def main() -> int:
         for error in errors:
             print(f"ERROR: {error}", file=sys.stderr)
         return 1
-    helper = load_target_helper(root)
-    mode = helper.pwa_mode(root)
     if mode == "template":
         print("PWA evidence coverage: template mode OK; no product PWA proof claim is active")
     elif mode == "planning":
