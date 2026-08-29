@@ -174,6 +174,23 @@ class PwaImplementationEvidenceTests(unittest.TestCase):
             errors = validator.validate(root)
             self.assertTrue(any("must be linked from at least one product requirement" in error for error in errors), errors)
 
+    def test_product_rejects_weak_requirement_proof_kind(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self.fixture(root, "product")
+            evidence = self.product_evidence()
+            evidence["requirements"][0]["requiredPositiveProofKinds"] = ["integration-test"]
+            self.write_json(root / "contracts" / "implementation-evidence.json", evidence)
+            errors = validator.validate(root)
+            self.assertTrue(
+                any(
+                    "must be linked from a requirement whose requiredPositiveProofKinds includes a browser-level kind"
+                    in error
+                    for error in errors
+                ),
+                errors,
+            )
+
     def test_product_requires_browser_capability_for_browser_level_proof(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
@@ -212,6 +229,28 @@ class PwaImplementationEvidenceTests(unittest.TestCase):
             self.write_json(root / "contracts" / "implementation-evidence.json", evidence)
             errors = validator.validate(root)
             self.assertTrue(any("browser-level kind" in error for error in errors), errors)
+
+    def test_planning_missing_family_reports_only_missing_target(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self.fixture(root, "planning")
+            evidence = self.planning_evidence()
+            evidence["requirements"] = evidence["requirements"][1:]
+            self.write_json(root / "contracts" / "implementation-evidence.json", evidence)
+            errors = validator.validate(root)
+            self.assertEqual(
+                sum("missing an implementation-evidence requirement target" in error for error in errors),
+                1,
+                errors,
+            )
+            self.assertFalse(
+                any(
+                    "must be covered by a requirement whose requiredPositiveProofKinds includes a browser-level kind"
+                    in error
+                    for error in errors
+                ),
+                errors,
+            )
 
     def test_planning_rejects_unknown_pwa_proof_family(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
