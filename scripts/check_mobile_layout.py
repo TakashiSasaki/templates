@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run deterministic mobile layout checks against a built documentation site."""
+"""Run deterministic Site layout checks against a built documentation site."""
 
 from __future__ import annotations
 
@@ -8,13 +8,22 @@ import json
 import math
 import threading
 from dataclasses import dataclass
+from html.parser import HTMLParser
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, Callable
 
 
 VIEWPORTS = ((360, 800), (390, 844), (412, 915))
 SCREENSHOT_VIEWPORT = (390, 844)
+REPOSITORY_VIEWER_VIEWPORTS = ((390, 844), (1280, 800))
+REPOSITORY_VIEWER_STATES = (
+    (True, False),
+    (True, True),
+    (False, False),
+    (False, True),
+)
+REPOSITORY_VIEWER_TARGET = "AGENTS.md"
 
 
 @dataclass(frozen=True)
@@ -116,8 +125,81 @@ MEASURE_SCRIPT = r"""
 """
 
 
+REPOSITORY_VIEWER_MEASURE_SCRIPT = r"""
+({showLines, wrapLines}) => {
+  const showLinesInput = document.querySelector("#show-lines");
+  const wrapLinesInput = document.querySelector("#wrap-lines");
+  const line = document.querySelector(".source-line");
+  const code = document.querySelector(".line-code");
+  const lineNumber = document.querySelector(".line-number");
+  if (!showLinesInput || !wrapLinesInput || !line || !code || !lineNumber) {
+    return {ready: false, error: "repository file viewer controls or source line are missing"};
+  }
+
+  showLinesInput.checked = showLines;
+  wrapLinesInput.checked = wrapLines;
+
+  const root = document.documentElement;
+  const lineRect = line.getBoundingClientRect();
+  const codeRect = code.getBoundingClientRect();
+  const codeStyle = getComputedStyle(code);
+  const lineNumberStyle = getComputedStyle(lineNumber);
+
+  return {
+    ready: true,
+    viewport: {
+      width: window.innerWidth,
+      height: window.innerHeight,
+    },
+    page: {
+      clientWidth: root.clientWidth,
+      scrollWidth: root.scrollWidth,
+    },
+    state: {
+      showLines: showLinesInput.checked,
+      wrapLines: wrapLinesInput.checked,
+    },
+    line: {
+      left: lineRect.left,
+      width: lineRect.width,
+    },
+    code: {
+      left: codeRect.left,
+      width: codeRect.width,
+      whiteSpace: codeStyle.whiteSpace,
+      overflowWrap: codeStyle.overflowWrap,
+      gridColumnStart: codeStyle.gridColumnStart,
+    },
+    lineNumber: {
+      display: lineNumberStyle.display,
+    },
+  };
+}
+"""
+
+
 class MobileLayoutError(RuntimeError):
     """Raised when the browser cannot produce trustworthy layout evidence."""
+
+
+class _RepositoryFileLinkParser(HTMLParser):
+    def __init__(self, target: str) -> None:
+        super().__init__(convert_charrefs=True)
+        self.target = target
+        self.href: str | None = None
+
+    def handle_starttag(
+        self,
+        tag: str,
+        attrs: list[tuple[str, str | None]],
+    ) -> None:
+        if tag != "a" or self.href is not None:
+            return
+        values = dict(attrs)
+        if values.get("data-file-path") == self.target:
+            href = values.get("href")
+            if href:
+                self.href = href
 
 
 def _number(value: Any, label: str) -> float:
@@ -270,6 +352,101 @@ def validate_metrics(
     return failures
 
 
+def validate_repository_viewer_metrics(
+    width: int,
+    height: int,
+    show_lines: bool,
+    wrap_lines: bool,
+    metrics: dict[str, Any],
+) -> list[str]:
+    """Validate one repository file viewer control state."""
+
+    if metrics.get("ready") is not True:
+        return [
+            "repository file viewer measurement did not become ready: "
+            f"{metrics.get('error', 'unknown error')}"
+        ]
+
+    failures: list[str] = []
+    viewport = metrics.get("viewport")
+    page = metrics.get("page")
+    state = metrics.get("state")
+    line = metrics.get("line")
+    code = metrics.get("code")
+    line_number = metrics.get("lineNumber")
+    if not all(
+        isinstance(value, dict)
+        for value in (viewport, page, state, line, code, line_number)
+    ):
+        return ["repository file viewer measurement is incomplete"]
+
+    try:
+        measured_width = _number(viewport.get("width"), "repository viewport.width")
+        measured_height = _number(viewport.get("height"), "repository viewport.height")
+        client_width = _number(page.get("clientWidth"), "repository page.clientWidth")
+        scroll_width = _number(page.get("scrollWidth"), "repository page.scrollWidth")
+        line_left = _number(line.get("left"), "repository line.left")
+        line_width = _number(line.get("width"), "repository line.width")
+        code_left = _number(code.get("left"), "repository code.left")
+        code_width = _number(code.get("width"), "repository code.width")
+    except MobileLayoutError as exc:
+        return [str(exc)]
+
+    if abs(measured_width - width) > 1:
+        failures.append(
+            f"repository viewer width is {measured_width:g}px, expected {width}px"
+        )
+    if abs(measured_height - height) > 1:
+        failures.append(
+            f"repository viewer height is {measured_height:g}px, expected {height}px"
+        )
+    if state.get("showLines") is not show_lines:
+        failures.append("repository viewer line-number state did not apply")
+    if state.get("wrapLines") is not wrap_lines:
+        failures.append("repository viewer wrap state did not apply")
+
+    if show_lines:
+        if line_number.get("display") == "none":
+            failures.append("repository line numbers are hidden when enabled")
+        if code.get("gridColumnStart") != "2":
+            failures.append(
+                "repository file code is not explicitly placed in grid column 2"
+            )
+        if code_left <= line_left + 1:
+            failures.append("repository line-number gutter does not precede the code")
+        if code_width >= line_width - 1:
+            failures.append("repository line-number gutter does not reserve width")
+    else:
+        if line_number.get("display") != "none":
+            failures.append("repository line numbers remain visible when disabled")
+        if code.get("gridColumnStart") != "1":
+            failures.append(
+                "repository file code is not explicitly placed in grid column 1"
+            )
+        if abs(code_left - line_left) > 1:
+            failures.append(
+                "repository file code does not start at the line edge when line numbers are hidden"
+            )
+        if abs(code_width - line_width) > 1:
+            failures.append(
+                "repository file code does not fill the line when line numbers are hidden"
+            )
+
+    if wrap_lines:
+        if code.get("whiteSpace") != "pre-wrap":
+            failures.append("repository file wrapping is not pre-wrap")
+        if code.get("overflowWrap") != "anywhere":
+            failures.append("repository file overflow wrapping is not anywhere")
+        if scroll_width > client_width + 1:
+            failures.append(
+                "repository wrapped file viewer has page-wide horizontal overflow"
+            )
+    elif code.get("whiteSpace") != "pre":
+        failures.append("repository unwrapped file viewer is not preformatted")
+
+    return failures
+
+
 def _load_playwright() -> tuple[Callable[[], Any], type[Exception]]:
     """Load Playwright lazily so the ordinary unit-test build needs no browser dependency."""
 
@@ -291,6 +468,35 @@ def _validate_cases() -> None:
             or "\\" in case.path
         ):
             raise MobileLayoutError(f"unsafe layout-check path: {case.path!r}")
+
+
+def _repository_viewer_path(site_root: Path) -> str:
+    index = site_root / "files" / "site" / "index.html"
+    if index.is_symlink() or not index.is_file():
+        raise MobileLayoutError(f"repository browser index is unavailable: {index}")
+    parser = _RepositoryFileLinkParser(REPOSITORY_VIEWER_TARGET)
+    parser.feed(index.read_text(encoding="utf-8"))
+    if parser.href is None:
+        raise MobileLayoutError(
+            f"repository browser does not expose {REPOSITORY_VIEWER_TARGET}"
+        )
+    relative = PurePosixPath(parser.href)
+    if (
+        relative.is_absolute()
+        or ".." in relative.parts
+        or len(relative.parts) != 2
+        or relative.parts[0] != "content"
+        or relative.suffix != ".html"
+    ):
+        raise MobileLayoutError(
+            f"unsafe repository file viewer path for {REPOSITORY_VIEWER_TARGET}: {parser.href!r}"
+        )
+    destination = site_root / "files" / "site" / Path(*relative.parts)
+    if destination.is_symlink() or not destination.is_file():
+        raise MobileLayoutError(
+            f"repository file viewer is unavailable for {REPOSITORY_VIEWER_TARGET}: {destination}"
+        )
+    return "/" + PurePosixPath("files", "site", *relative.parts).as_posix()
 
 
 def serve(site_root: Path) -> tuple[ThreadingHTTPServer, threading.Thread, str]:
@@ -335,12 +541,47 @@ def _measure_case(
         context.close()
 
 
+def _measure_repository_viewer(
+    browser: Any,
+    base_url: str,
+    path: str,
+    width: int,
+    height: int,
+    show_lines: bool,
+    wrap_lines: bool,
+    screenshot_path: Path | None,
+) -> dict[str, Any]:
+    context = browser.new_context(
+        viewport={"width": width, "height": height},
+        device_scale_factor=1,
+    )
+    try:
+        page = context.new_page()
+        page.goto(f"{base_url}{path}", wait_until="load", timeout=15_000)
+        page.wait_for_timeout(100)
+        metrics = page.evaluate(
+            REPOSITORY_VIEWER_MEASURE_SCRIPT,
+            {"showLines": show_lines, "wrapLines": wrap_lines},
+        )
+        if not isinstance(metrics, dict):
+            raise MobileLayoutError(
+                "repository file viewer measurement script returned a non-object"
+            )
+        if screenshot_path is not None:
+            screenshot_path.parent.mkdir(parents=True, exist_ok=True)
+            page.screenshot(path=str(screenshot_path), full_page=False)
+        return metrics
+    finally:
+        context.close()
+
+
 def run_checks(site_root: Path, output_root: Path) -> None:
     if not site_root.is_dir():
         raise MobileLayoutError(f"site root does not exist: {site_root}")
     if not (site_root / "index.html").is_file():
         raise MobileLayoutError(f"site root has no index.html: {site_root}")
     _validate_cases()
+    repository_viewer_path = _repository_viewer_path(site_root)
 
     sync_playwright, PlaywrightError = _load_playwright()
     output_root.mkdir(parents=True, exist_ok=True)
@@ -350,7 +591,12 @@ def run_checks(site_root: Path, output_root: Path) -> None:
         "viewports": [
             {"width": width, "height": height} for width, height in VIEWPORTS
         ],
+        "repository_viewer_viewports": [
+            {"width": width, "height": height}
+            for width, height in REPOSITORY_VIEWER_VIEWPORTS
+        ],
         "checks": [],
+        "repository_viewer_checks": [],
         "failures": [],
     }
     failures: list[str] = []
@@ -397,6 +643,61 @@ def run_checks(site_root: Path, output_root: Path) -> None:
                                     "failures": case_failures,
                                 }
                             )
+
+                    for width, height in REPOSITORY_VIEWER_VIEWPORTS:
+                        for show_lines, wrap_lines in REPOSITORY_VIEWER_STATES:
+                            screenshot_path = None
+                            if (
+                                (width, height) == SCREENSHOT_VIEWPORT
+                                and not show_lines
+                                and wrap_lines
+                            ):
+                                screenshot_path = output_root / (
+                                    "repository-viewer-no-lines-wrap-"
+                                    f"{width}x{height}.png"
+                                )
+                            try:
+                                metrics = _measure_repository_viewer(
+                                    browser,
+                                    base_url,
+                                    repository_viewer_path,
+                                    width,
+                                    height,
+                                    show_lines,
+                                    wrap_lines,
+                                    screenshot_path,
+                                )
+                                case_failures = validate_repository_viewer_metrics(
+                                    width,
+                                    height,
+                                    show_lines,
+                                    wrap_lines,
+                                    metrics,
+                                )
+                            except (MobileLayoutError, PlaywrightError) as exc:
+                                metrics = {"ready": False, "error": str(exc)}
+                                case_failures = [str(exc)]
+                            prefix = (
+                                f"repository-file-viewer {width}x{height} "
+                                f"lines={'on' if show_lines else 'off'} "
+                                f"wrap={'on' if wrap_lines else 'off'}"
+                            )
+                            failures.extend(
+                                f"{prefix}: {failure}"
+                                for failure in case_failures
+                            )
+                            report["repository_viewer_checks"].append(
+                                {
+                                    "case": "repository-file-viewer",
+                                    "path": repository_viewer_path,
+                                    "width": width,
+                                    "height": height,
+                                    "show_lines": show_lines,
+                                    "wrap_lines": wrap_lines,
+                                    "metrics": metrics,
+                                    "failures": case_failures,
+                                }
+                            )
                 finally:
                     browser.close()
         except PlaywrightError as exc:
@@ -413,7 +714,7 @@ def run_checks(site_root: Path, output_root: Path) -> None:
     )
     if failures:
         raise MobileLayoutError(
-            "mobile layout regression check failed:\n- " + "\n- ".join(failures)
+            "layout regression check failed:\n- " + "\n- ".join(failures)
         )
 
 
