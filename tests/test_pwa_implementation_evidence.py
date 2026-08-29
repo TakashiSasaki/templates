@@ -150,6 +150,28 @@ class PwaImplementationEvidenceTests(unittest.TestCase):
             self.assertTrue(any("unknown PWA implementation-evidence target" in error for error in errors), errors)
             self.assertTrue(any("missing PWA implementation-evidence target" in error for error in errors), errors)
 
+    def test_product_rejects_duplicate_records_for_same_family(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self.fixture(root, "product")
+            evidence = self.product_evidence()
+            duplicate = json.loads(json.dumps(evidence["records"][0]))
+            duplicate["id"] = "pwa-record-duplicate"
+            evidence["records"].append(duplicate)
+            self.write_json(root / "contracts" / "implementation-evidence.json", evidence)
+            errors = validator.validate(root)
+            self.assertTrue(any("must have exactly one implementation-evidence record" in error for error in errors), errors)
+
+    def test_product_rejects_unlinked_pwa_record(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self.fixture(root, "product")
+            evidence = self.product_evidence()
+            evidence["requirements"][0]["recordIds"] = ["pwa-record-02"]
+            self.write_json(root / "contracts" / "implementation-evidence.json", evidence)
+            errors = validator.validate(root)
+            self.assertTrue(any("must be linked from at least one product requirement" in error for error in errors), errors)
+
     def test_product_requires_browser_capability_for_browser_level_proof(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
@@ -174,6 +196,33 @@ class PwaImplementationEvidenceTests(unittest.TestCase):
             self.write_json(root / "contracts" / "implementation-evidence.json", evidence)
             errors = validator.validate(root)
             self.assertTrue(any("browser-level kind" in error for error in errors), errors)
+
+    def test_planning_rejects_unknown_pwa_proof_family(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self.fixture(root, "planning")
+            evidence = self.planning_evidence()
+            evidence["requirements"][0]["targets"] = [
+                {
+                    "kind": "contract-item",
+                    "contractId": "pwa_manifest",
+                    "itemKind": "proof-family",
+                    "itemId": "unknown-item",
+                }
+            ]
+            self.write_json(root / "contracts" / "implementation-evidence.json", evidence)
+            errors = validator.validate(root)
+            self.assertTrue(any("targets unknown proof family" in error for error in errors), errors)
+            self.assertTrue(any("missing an implementation-evidence requirement target" in error for error in errors), errors)
+
+    def test_pwa_contract_mode_mismatch_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self.fixture(root, "product")
+            self.write_json(root / "contracts" / "pwa-offline.json", {"mode": "planning"})
+            self.write_json(root / "contracts" / "implementation-evidence.json", self.product_evidence())
+            with self.assertRaisesRegex(ValueError, "PWA contract modes must match"):
+                validator.validate(root)
 
     def test_template_mode_activates_no_pwa_product_proof_claim(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
