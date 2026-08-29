@@ -1,6 +1,6 @@
 # Responsibility boundaries
 
-The Webapp artifact owns browser experience semantics: surfaces/audiences, canonical navigation, access-failure presentation, visible states, focus/announcement behavior, viewports, input capabilities, and Web-specific cross-contract/evidence coverage.
+The Webapp artifact owns browser experience semantics: browser identity/favicon declaration, surfaces/audiences, canonical navigation, access-failure presentation, visible states, focus/announcement behavior, viewports, input capabilities, and Web-specific cross-contract/evidence coverage.
 
 Reusable lifecycle components own contract registration/evolution, implementation-evidence mechanics, revision-bound release evidence, and digest-closed release handoff.
 
@@ -10,4 +10,4 @@ The concrete product owns implementation technology, commands, providers, backen
 
 ## Implementation-evidence target ownership
 
-The Webapp artifact validator is authoritative only for Webapp-owned target families (`routes`, `surfaces`, `ui_states`, and `viewports`). It requires complete coverage and rejects unknown targets inside those families. Evidence records for contracts owned by separately selected capabilities remain visible in the shared implementation-evidence graph but are validated by the generic lifecycle validator and the owning capability validator; Webapp validation must not reject them merely because they are outside the Webapp target inventory.
+The current Webapp artifact evidence validator is authoritative for the established behavior target families (`routes`, `surfaces`, `ui_states`, and `viewports`). It requires complete coverage and rejects unknown targets inside those families. Browser identity is now Webapp contract authority, but executable favicon evidence is introduced separately with the browser/PWA proof layer rather than being retrofitted as a claim into existing fixtures. Evidence records for contracts owned by separately selected capabilities remain visible in the shared implementation-evidence graph but are validated by the generic lifecycle validator and the owning capability validator; Webapp validation must not reject them merely because they are outside the current Webapp evidence target inventory.

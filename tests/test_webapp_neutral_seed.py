@@ -51,7 +51,20 @@ class WebappNeutralSeedTests(unittest.TestCase):
         )
         self.assertEqual(routes[0]["states"], ["ready"])
 
-    def test_fresh_seed_has_five_current_evidence_targets(self) -> None:
+    def test_fresh_seed_prefers_a_standard_svg_favicon(self) -> None:
+        identity = load_json("contracts/browser-identity.json")
+        self.assertEqual(
+            identity["favicon"],
+            {
+                "relation": "icon",
+                "href": "favicon.svg",
+                "mediaType": "image/svg+xml",
+                "sizes": ["any"],
+                "fallbacks": [],
+            },
+        )
+
+    def test_fresh_seed_has_five_current_behavior_evidence_targets(self) -> None:
         states = load_json("contracts/ui-states.json")["states"]
         viewports = load_json("contracts/viewports.json")
 
@@ -71,9 +84,9 @@ class WebappNeutralSeedTests(unittest.TestCase):
         )
         self.assertEqual(target_count, 5)
 
-    def test_seed_change_does_not_create_a_managed_upgrade_boundary(self) -> None:
+    def test_browser_identity_adds_a_seed_without_fabricating_an_asset(self) -> None:
         descriptor = json.loads((WEBAPP / "component.json").read_text(encoding="utf-8"))
-        self.assertEqual(descriptor["version"], 14)
+        self.assertEqual(descriptor["version"], 15)
         seed_destinations = {
             material["destination"]
             for material in descriptor["materials"]
@@ -81,6 +94,7 @@ class WebappNeutralSeedTests(unittest.TestCase):
         }
         self.assertTrue(
             {
+                "contracts/browser-identity.json",
                 "contracts/surfaces.json",
                 "contracts/routes.json",
                 "contracts/ui-states.json",
@@ -89,6 +103,7 @@ class WebappNeutralSeedTests(unittest.TestCase):
             }
             <= seed_destinations
         )
+        self.assertNotIn("favicon.svg", seed_destinations)
 
     def test_worksheet_makes_product_owned_expansion_explicit(self) -> None:
         worksheet = (FILES / "TEMPLATE.md").read_text(encoding="utf-8")

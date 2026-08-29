@@ -414,6 +414,7 @@ class PR3ProductionCatalogTests(unittest.TestCase):
         self.assertEqual(
             set(entries),
             {
+                "browser_identity",
                 "implementation_evidence",
                 "lifecycle_checkpoints",
                 "routes",

@@ -10,6 +10,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "scripts"
 COMPOSER = SCRIPTS / "compose.py"
+WEBAPP_COMPONENT = ROOT / "components" / "artifact.webapp-core" / "component.json"
+CURRENT_WEBAPP_VERSION = json.loads(WEBAPP_COMPONENT.read_text(encoding="utf-8"))["version"]
 if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
@@ -105,7 +107,7 @@ class WebappLegacyUpgradeTests(unittest.TestCase):
             for entry in lock["resolved_components"]
             if entry["id"] == "artifact.webapp-core"
         )
-        self.assertEqual(artifact["version"], 14)
+        self.assertEqual(artifact["version"], CURRENT_WEBAPP_VERSION)
         artifact["version"] = 3
         artifact["descriptor_sha256"] = "3" * 64
         lock_path.write_text(json.dumps(lock, indent=2) + "\n", encoding="utf-8")
@@ -154,7 +156,9 @@ class WebappLegacyUpgradeTests(unittest.TestCase):
             self.assertEqual(plan["components"]["removed"], [])
             changed = {entry["id"]: entry for entry in plan["components"]["changed"]}
             self.assertEqual(changed["artifact.webapp-core"]["from_version"], 3)
-            self.assertEqual(changed["artifact.webapp-core"]["to_version"], 14)
+            self.assertEqual(
+                changed["artifact.webapp-core"]["to_version"], CURRENT_WEBAPP_VERSION
+            )
             self.assertEqual(
                 changed["artifact.webapp-core"]["compatibility_boundary"],
                 "component-version",

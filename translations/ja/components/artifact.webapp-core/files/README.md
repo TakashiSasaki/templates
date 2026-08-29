@@ -12,19 +12,22 @@ walkthrough の最初の milestone は **valid な Composition scaffold** であ
 
 ## Webapp recipe が定義するもの
 
-`artifact.webapp-core` は browser-specific な semantics を所有します。対象は surface、canonical route、visible UI state、responsive viewport / input capability、およびそれらの cross-contract validation です。generic な contract evolution と implementation evidence は、再利用可能な `lifecycle.*` component を通じて Webapp baseline に含まれます。release execution、release evidence、release bundle の behavior は、consumer が `lifecycle.release-bundle` を明示的に選択した場合だけ追加されます。
+`artifact.webapp-core` は browser-specific な semantics を所有します。対象は browser identity / favicon declaration、surface、canonical route、visible UI state、responsive viewport / input capability、およびそれらの cross-contract validation です。generic な contract evolution と implementation evidence は、再利用可能な `lifecycle.*` component を通じて Webapp baseline に含まれます。release execution、release evidence、release bundle の behavior は、consumer が `lifecycle.release-bundle` を明示的に選択した場合だけ追加されます。
 
 この scaffold は、frontend framework、rendering model、package manager、backend、persistence layer、authentication provider、deployment platform、browser matrix、observability vendor を意図的に選択しません。
 
 ## Contracts
 
+- `contracts/browser-identity.json` — 標準的な favicon relationship、primary icon asset、および optional な compatibility fallback。
 - `contracts/surfaces.json` — browser-facing な surface boundary と audience。
 - `contracts/routes.json` — canonical navigation に加え、access failure の behavior と semantic な state / route target。
 - `contracts/ui-states.json` — 再利用可能な visible state と recovery / focus behavior。
 - `contracts/viewports.json` — responsive lower bound と input capability。
 - `contracts/implementation-evidence.json` — Webapp contract target と implementation / proof evidence を対応づける baseline contract。
-- `contracts/manifest.json` — 解決済み component metadata から生成される閉じた registry。
+- `contracts/manifest.json` — 解決済み component metadata から生成される閉じた registry。この Composition registry は Web App Manifest ではありません。
 - release execution / evidence / bundle contract は `lifecycle.release-bundle` を選択した場合だけ materialize されます。
+
+browser-identity seed は、単一の scalable asset で軽量かつ解像度非依存にしやすいため SVG favicon を推奨形として示します。ただし contract は、product や compatibility target が必要とする場合に別の image media type を許容します。PWA installability、application icon、offline behavior、update behavior は別の concern であり、favicon contract から暗黙には要求されません。
 
 ## Optional capability と release lifecycle
 

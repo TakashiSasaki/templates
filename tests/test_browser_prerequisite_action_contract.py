@@ -36,7 +36,6 @@ class BrowserPrerequisiteActionContractTests(unittest.TestCase):
 
     def test_component_materializes_action_contract(self) -> None:
         component = json.loads((WEBAPP / "component.json").read_text(encoding="utf-8"))
-        self.assertEqual(component["version"], 14)
         materials = {
             entry["destination"]: entry["ownership"]
             for entry in component["materials"]
