@@ -25,4 +25,15 @@
 - [Standalone browser interface](/capabilities/browser/)
 - [Headless service interface](/capabilities/service/)
 
+## Web アプリケーションのブラウザ体験
+
+Web アプリケーションにはブラウザ上の identity があり、必要に応じて PWA behavior を選択できます。Site はどちらの contract family も再定義せず、Composition が所有する正本への読者向け導線だけを提供します。
+
+- [Browser identity and favicon](/webapp/docs/architecture/contracts/) — Webapp contract family の reference には通常のブラウザ favicon が含まれ、installed application icon とは別の identity concern として扱われます。
+- [Progressive Web App capability](/capabilities/pwa/) — PWA decision record は、installability、application icon、offline / network-loss presentation、data freshness、update、cross-platform compatibility に関する正本をまとめています。
+
+別の [Policy PWA usage guide](/policy/pwa/) は、Policy documentation site 自体の install と利用方法を説明する文書です。再利用可能な application PWA capability の authority ではありません。
+
+ブラウザや OS によって実現機構は異なり得ます。現在のブラウザの install prompt や platform 固有の表示を Site の authority とみなさず、product invariant と evidence boundary については Composition の正本に従ってください。
+
 上記の公開 path は Site の publication destination です。build artifact 内での provenance は、`build-provenance.json` に記録された正確な Composition revision に解決されます。

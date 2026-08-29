@@ -31,6 +31,28 @@ from the implementation-runtime choices above.
 - [Standalone browser interface](browser/)
 - [Headless service interface](service/)
 
+## Web application browser experience
+
+Web applications also have browser-visible identity and may opt into PWA
+behavior. Site does not redefine either contract family; it provides reader
+paths to the Composition-owned sources.
+
+- [Browser identity and favicon](../webapp/docs/architecture/contracts/) — the
+  Webapp contract-family reference includes the ordinary browser favicon and
+  keeps that identity concern separate from installed-application icons.
+- [Progressive Web App capability](pwa/) — the PWA decision record groups the
+  canonical material for installability, application icons, offline/network-loss
+  presentation, data freshness, updates, and cross-platform compatibility.
+
+The separate [Policy PWA usage guide](../policy/pwa/) documents install and use
+of the Policy documentation site itself. It is not the reusable application PWA
+capability authority.
+
+Browser and operating-system mechanisms can differ. Follow the Composition
+source for the product invariants and evidence boundary rather than treating a
+current browser install prompt or platform-specific presentation detail as Site
+authority.
+
 The public paths above are Site publication destinations. Their provenance in a
 built artifact resolves to the exact Composition revision recorded in
 `build-provenance.json`.
