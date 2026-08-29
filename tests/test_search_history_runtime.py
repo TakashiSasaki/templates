@@ -210,10 +210,16 @@ class SearchHistoryRuntimeContractTests(unittest.TestCase):
         self.assertIn("python scripts/check_search_history_review_regressions.py", search_workflow)
 
         check_block = build_workflow.split("\n  check:\n", 1)[1]
-        self.assertIn("needs: build", check_block)
+        self.assertIn("needs:\n      - build\n      - classify_browser", check_block)
+        self.assertIn("test \"$BUILD_RESULT\" = success", check_block)
+        self.assertIn("test \"$CLASSIFIER_RESULT\" = success", check_block)
         self.assertIn("actions/download-artifact@v5", check_block)
         self.assertIn("python scripts/check_search_history.py", check_block)
         self.assertIn("python scripts/check_search_history_review_regressions.py", check_block)
+        self.assertIn(
+            "if: ${{ needs.classify_browser.outputs.required == 'true' }}",
+            check_block,
+        )
         self.assertIn("name: search-history-${{ github.event.pull_request.number }}", check_block)
 
 
