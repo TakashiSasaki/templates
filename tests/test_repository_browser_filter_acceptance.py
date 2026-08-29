@@ -17,12 +17,12 @@ def good_metrics() -> dict:
         "initial": {"total": 24, "status": "24 files"},
         "filtered": {
             "query": "DOCS/gUIDE.PY",
-            "visible": 1,
+            "exposed": 1,
             "allMatch": True,
             "ancestorsOpen": True,
             "status": "1 of 24 files",
             "broadQuery": ".",
-            "broadVisible": 20,
+            "broadExposed": 20,
             "scrollTop": 137,
         },
         "opened": {
@@ -44,9 +44,9 @@ def good_metrics() -> dict:
             "filterValue": ".",
             "filterFocused": True,
         },
-        "zero": {"visible": 0, "status": "No matching files"},
+        "zero": {"exposed": 0, "status": "No matching files"},
         "cleared": {
-            "visible": 24,
+            "exposed": 24,
             "inputValue": "",
             "detailsRestored": True,
             "status": "24 files",
@@ -62,7 +62,7 @@ class RepositoryBrowserFilterAcceptanceTests(unittest.TestCase):
         metrics = good_metrics()
         metrics["returned"]["scrollTop"] = 0
         metrics["returned"]["filterFocused"] = False
-        metrics["zero"] = {"visible": 1, "status": "1 of 24 files"}
+        metrics["zero"] = {"exposed": 1, "status": "1 of 24 files"}
         failures = validate_repository_browser_filter_metrics(metrics)
         self.assertIn(
             "repository browser Files return did not restore tree scroll",
@@ -93,6 +93,15 @@ class RepositoryBrowserFilterAcceptanceTests(unittest.TestCase):
         )
         self.assertIn(
             "repository browser clear did not restore directory open state",
+            failures,
+        )
+
+    def test_rejects_filter_count_drift(self) -> None:
+        metrics = good_metrics()
+        metrics["filtered"]["status"] = "2 of 24 files"
+        failures = validate_repository_browser_filter_metrics(metrics)
+        self.assertIn(
+            "repository browser filtered status count is inconsistent",
             failures,
         )
 
