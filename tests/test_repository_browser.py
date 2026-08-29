@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import os
 import subprocess
 import sys
@@ -180,6 +181,29 @@ class CurrentAuthorityRepositoryBrowserTests(unittest.TestCase):
         (root / "README.md").write_text("# Fixture\n", encoding="utf-8")
         run_git(root, "add", ".")
         run_git(root, "commit", "--quiet", "--message", "fixture")
+
+    def test_canonical_generator_rejects_retired_or_misordered_branches(self) -> None:
+        for retired in ("skill", "webapp"):
+            with self.subTest(retired=retired):
+                with self.assertRaises(argparse.ArgumentTypeError):
+                    repository_browser.parse_branch(f"{retired}=sources/{retired}")
+
+        with tempfile.TemporaryDirectory() as temporary:
+            output = Path(temporary)
+            invalid_branches = {
+                "site": output,
+                "policy": output,
+                "composition": output,
+            }
+            with self.assertRaisesRegex(
+                RepositoryBrowserError,
+                "branches must be supplied exactly in site, composition, policy order",
+            ):
+                generate_browser(
+                    "TakashiSasaki/templates",
+                    output,
+                    invalid_branches,
+                )
 
     def test_compat_entrypoint_delegates_to_canonical_authorities(self) -> None:
         wrapper = COMPOSITION_BROWSER_SCRIPT.read_text(encoding="utf-8")
