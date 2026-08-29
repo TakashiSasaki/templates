@@ -22,6 +22,8 @@ TIMING_SCHEMA_VERSION = 1
 # other tests describe or unit-test browser evidence without launching Chrome.
 REAL_BROWSER_TEST_IDS = frozenset(
     {
+        "test_pwa_browser_evidence.PwaBrowserEvidenceTests."
+        "test_mutable_origin_proves_pwa_browser_evidence_families",
         "test_selected_component_validation.SelectedComponentValidationTests."
         "test_product_release_checks_are_explicitly_deferred",
         "test_task_ledger_walkthrough_browser_acceptance."
