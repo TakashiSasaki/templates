@@ -16,6 +16,25 @@ from urllib.parse import urljoin, urlsplit, urlunsplit
 
 LANGUAGE_TAG = re.compile(r"\A[a-z]{2,3}(?:-[a-z0-9]{2,8})*\Z")
 PUBLICATION_NAME = re.compile(r"\A[a-z0-9]+(?:-[a-z0-9]+)*\Z")
+AUXILIARY_ROOTS = frozenset({"files", "guided", "repository-trees"})
+VOID_ELEMENTS = frozenset(
+    {
+        "area",
+        "base",
+        "br",
+        "col",
+        "embed",
+        "hr",
+        "img",
+        "input",
+        "link",
+        "meta",
+        "param",
+        "source",
+        "track",
+        "wbr",
+    }
+)
 
 
 class TranslationPairValidationError(RuntimeError):
@@ -37,6 +56,7 @@ class PageMetadata:
     alternates: tuple[tuple[str, str], ...]
     switcher_count: int
     switcher_links: tuple[tuple[str | None, str | None], ...]
+    invalid_metadata: tuple[str, ...]
 
 
 class ReaderPageParser(html.parser.HTMLParser):
@@ -47,13 +67,18 @@ class ReaderPageParser(html.parser.HTMLParser):
         self.alternates: list[tuple[str, str]] = []
         self.switcher_count = 0
         self.switcher_links: list[tuple[str | None, str | None]] = []
+        self.invalid_metadata: list[str] = []
         self._switcher_depth = 0
 
     @staticmethod
     def _attributes(attrs: list[tuple[str, str | None]]) -> dict[str, str | None]:
         result: dict[str, str | None] = {}
         for name, value in attrs:
-            result.setdefault(name.casefold(), value)
+            key = name.casefold()
+            if key in result:
+                result[key] = None
+            else:
+                result[key] = value
         return result
 
     @staticmethod
@@ -63,17 +88,26 @@ class ReaderPageParser(html.parser.HTMLParser):
     def _record_link(self, values: dict[str, str | None]) -> None:
         rel = self._tokens(values.get("rel"))
         href = values.get("href")
-        if "canonical" in rel and isinstance(href, str):
-            self.canonical_links.append(href)
+        if "canonical" in rel:
+            if isinstance(href, str) and href:
+                self.canonical_links.append(href)
+            else:
+                self.invalid_metadata.append("canonical link requires one href")
         if "alternate" in rel:
             hreflang = values.get("hreflang")
-            if isinstance(href, str) and isinstance(hreflang, str):
+            if isinstance(href, str) and href and isinstance(hreflang, str) and hreflang:
                 self.alternates.append((hreflang, href))
+            else:
+                self.invalid_metadata.append(
+                    "alternate link requires one href and one hreflang"
+                )
 
-    def handle_starttag(
+    def _record_start(
         self,
         tag: str,
         attrs: list[tuple[str, str | None]],
+        *,
+        self_closing: bool,
     ) -> None:
         values = self._attributes(attrs)
         lowered = tag.casefold()
@@ -93,29 +127,30 @@ class ReaderPageParser(html.parser.HTMLParser):
                 raise TranslationPairValidationError(
                     "translation switcher must not be nested"
                 )
-            self._switcher_depth = 1
-        elif active_before:
+            if not self_closing:
+                self._switcher_depth = 1
+        elif active_before and not self_closing and lowered not in VOID_ELEMENTS:
             self._switcher_depth += 1
 
-        if lowered == "a" and self._switcher_depth > 0:
+        if lowered == "a" and (active_before or starts_switcher):
             self.switcher_links.append((values.get("hreflang"), values.get("href")))
+
+    def handle_starttag(
+        self,
+        tag: str,
+        attrs: list[tuple[str, str | None]],
+    ) -> None:
+        self._record_start(tag, attrs, self_closing=False)
 
     def handle_startendtag(
         self,
         tag: str,
         attrs: list[tuple[str, str | None]],
     ) -> None:
-        values = self._attributes(attrs)
-        lowered = tag.casefold()
-        if lowered == "html":
-            self.html_languages.append(values.get("lang"))
-        if lowered == "link":
-            self._record_link(values)
-        if lowered == "a" and self._switcher_depth > 0:
-            self.switcher_links.append((values.get("hreflang"), values.get("href")))
+        self._record_start(tag, attrs, self_closing=True)
 
     def handle_endtag(self, tag: str) -> None:
-        if self._switcher_depth > 0:
+        if self._switcher_depth > 0 and tag.casefold() not in VOID_ELEMENTS:
             self._switcher_depth -= 1
 
     def metadata(self) -> PageMetadata:
@@ -126,6 +161,7 @@ class ReaderPageParser(html.parser.HTMLParser):
             alternates=tuple(self.alternates),
             switcher_count=self.switcher_count,
             switcher_links=tuple(self.switcher_links),
+            invalid_metadata=tuple(self.invalid_metadata),
         )
 
 
@@ -159,7 +195,13 @@ def read_json(path: Path) -> dict[str, Any]:
 
 
 def safe_markdown_path(value: Any, field: str) -> PurePosixPath:
-    if not isinstance(value, str) or not value or "\\" in value or ":" in value:
+    if (
+        not isinstance(value, str)
+        or not value
+        or "\\" in value
+        or ":" in value
+        or "\0" in value
+    ):
         raise TranslationPairValidationError(
             f"{field} must be a safe relative Markdown path"
         )
@@ -195,12 +237,9 @@ def load_pairs(path: Path) -> tuple[str, list[TranslationPair]]:
             "translation map schema_version must be integer 1"
         )
     canonical_language = data["canonical_language"]
-    if (
-        not isinstance(canonical_language, str)
-        or not LANGUAGE_TAG.fullmatch(canonical_language)
-    ):
+    if canonical_language != "en":
         raise TranslationPairValidationError(
-            "translation map canonical_language must be a lowercase language tag"
+            "translation map canonical_language must be en"
         )
     entries = data["translations"]
     if not isinstance(entries, list):
@@ -236,10 +275,10 @@ def load_pairs(path: Path) -> tuple[str, list[TranslationPair]]:
         if (
             not isinstance(language, str)
             or not LANGUAGE_TAG.fullmatch(language)
-            or language == canonical_language
+            or language.split("-", 1)[0] == canonical_language
         ):
             raise TranslationPairValidationError(
-                f"{field}.language must be a non-canonical lowercase language tag"
+                f"{field}.language must be a non-English lowercase language tag"
             )
         canonical = safe_markdown_path(
             entry["canonical_destination"],
@@ -282,13 +321,19 @@ def validate_canonical_url(value: str) -> str:
     if (
         parts.scheme not in {"http", "https"}
         or not parts.netloc
+        or parts.username is not None
+        or parts.password is not None
         or parts.query
         or parts.fragment
     ):
         raise TranslationPairValidationError(
-            "canonical URL must be an absolute HTTP or HTTPS URL without query or fragment"
+            "canonical URL must be an absolute HTTP or HTTPS URL without credentials, query, or fragment"
         )
     path = parts.path or "/"
+    if not path.startswith("/"):
+        raise TranslationPairValidationError(
+            "canonical URL must contain an absolute path"
+        )
     if not path.endswith("/"):
         path += "/"
     return urlunsplit((parts.scheme, parts.netloc, path, "", ""))
@@ -302,24 +347,15 @@ def markdown_to_html_path(destination: PurePosixPath) -> PurePosixPath:
 
 def public_url(destination: PurePosixPath, canonical_base: str) -> str:
     html_path = markdown_to_html_path(destination)
-    if html_path.name == "index.html":
-        route = html_path.parent.as_posix()
-        if route == ".":
-            route = ""
-        elif route:
-            route += "/"
-    else:
-        route = html_path.as_posix()
+    route = html_path.parent.as_posix()
+    if route == ".":
+        route = ""
+    elif route:
+        route += "/"
     return urljoin(canonical_base, route)
 
 
-def parse_page(path: Path, *, require_language: bool) -> PageMetadata:
-    try:
-        source = path.read_text(encoding="utf-8")
-    except (OSError, UnicodeError) as exc:
-        raise TranslationPairValidationError(
-            f"unable to read generated HTML {path}: {exc}"
-        ) from exc
+def parse_source(source: str, path: Path, *, require_language: bool) -> PageMetadata:
     parser = ReaderPageParser()
     try:
         parser.feed(source)
@@ -334,6 +370,16 @@ def parse_page(path: Path, *, require_language: bool) -> PageMetadata:
             f"found {len(parser.html_languages)}"
         )
     return parser.metadata()
+
+
+def parse_page(path: Path, *, require_language: bool) -> PageMetadata:
+    try:
+        source = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeError) as exc:
+        raise TranslationPairValidationError(
+            f"unable to read generated HTML {path}: {exc}"
+        ) from exc
+    return parse_source(source, path, require_language=require_language)
 
 
 def exact_language_map(
@@ -378,7 +424,7 @@ def validate_page(
     alternates: dict[str, str],
     switcher_links: dict[str, str],
 ) -> list[str]:
-    errors: list[str] = []
+    errors = [f"{path}: {message}" for message in metadata.invalid_metadata]
     if metadata.language != language:
         errors.append(
             f"{path}: html lang is {metadata.language!r}, expected {language!r}"
@@ -418,6 +464,23 @@ def validate_page(
                 f"expected {switcher_links!r}"
             )
     return errors
+
+
+def is_reader_candidate(page: Path, site_root: Path) -> bool:
+    try:
+        relative = page.relative_to(site_root)
+    except ValueError:
+        return False
+    parts = relative.parts
+    if not parts or parts[0] in AUXILIARY_ROOTS:
+        return False
+    if (
+        len(parts) >= 2
+        and LANGUAGE_TAG.fullmatch(parts[0]) is not None
+        and parts[1] == "guided"
+    ):
+        return False
+    return True
 
 
 def validate(
@@ -507,10 +570,22 @@ def validate(
             )
 
     for page in sorted(site_root.rglob("*.html")):
-        if page in expected_pages or not page.is_file() or page.is_symlink():
+        if (
+            page in expected_pages
+            or not page.is_file()
+            or page.is_symlink()
+            or not is_reader_candidate(page, site_root)
+        ):
             continue
         try:
-            metadata = parse_page(page, require_language=False)
+            source = page.read_text(encoding="utf-8")
+        except (OSError, UnicodeError) as exc:
+            errors.append(f"unable to read generated HTML {page}: {exc}")
+            continue
+        if "translation-switcher" not in source:
+            continue
+        try:
+            metadata = parse_source(source, page, require_language=False)
         except TranslationPairValidationError as exc:
             errors.append(str(exc))
             continue
