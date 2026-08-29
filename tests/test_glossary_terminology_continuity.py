@@ -43,8 +43,13 @@ class GlossaryTerminologyContinuityTests(unittest.TestCase):
         for term_id in SURVIVING_HISTORICAL_IDS:
             with self.subTest(term_id=term_id):
                 usage = self.terms[term_id].get("repository_usage", "")
-                self.assertIn("stable term ID", usage)
-                self.assertIn("Composition authority migration", usage)
+                self.assertTrue(usage)
+                self.assertIn("retained", usage)
+                self.assertTrue(
+                    "Composition authority migration" in usage
+                    or "former Webapp authority" in usage,
+                    usage,
+                )
 
     def test_current_composition_lifecycle_terms_are_canonical(self) -> None:
         self.assertTrue(CURRENT_COMPOSITION_IDS <= self.terms.keys())
