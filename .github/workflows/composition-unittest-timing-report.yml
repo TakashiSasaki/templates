@@ -105,6 +105,7 @@ jobs:
             };
 
             const selectedRuns = [];
+            const selectedRunIds = new Set();
             for (
               let page = 1;
               page <= maxRunPages && selectedRuns.length < runsToSample;
@@ -123,9 +124,11 @@ jobs:
                   run.name === workflowName &&
                   run.head_branch === branch &&
                   run.conclusion === 'success' &&
+                  !selectedRunIds.has(run.id) &&
                   selectedRuns.length < runsToSample
                 ) {
                   selectedRuns.push(run);
+                  selectedRunIds.add(run.id);
                 }
               }
               if (response.data.workflow_runs.length < 100) {
@@ -151,6 +154,15 @@ jobs:
                 }
               );
               const selectedJobs = jobs.filter((job) => coreJobNames.has(job.name));
+              const selectedJobNames = new Set(selectedJobs.map((job) => job.name));
+              if (
+                selectedJobs.length !== coreJobNames.size ||
+                selectedJobNames.size !== coreJobNames.size
+              ) {
+                throw new Error(
+                  `Run ${run.id} does not contain exactly the two current core jobs.`
+                );
+              }
               const runDir = path.join(inputRoot, String(run.id));
               fs.mkdirSync(runDir, { recursive: true });
               const manifestJobs = [];
