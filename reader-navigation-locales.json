@@ -9,6 +9,7 @@
         {"id": "policy-composition-coexistence", "canonical": "Policy–Composition coexistence", "localized": "Policy–Composition 共存"},
         {"id": "repository-trees", "canonical": "Repository trees", "localized": "リポジトリツリー"},
         {"id": "overview", "canonical": "Overview", "localized": "概要"},
+        {"id": "concepts-and-terminology", "canonical": "Concepts and terminology", "localized": "概念と用語"},
         {"id": "evaluate-composition", "canonical": "Evaluate Composition", "localized": "Composition 評価"},
         {"id": "composition", "canonical": "Composition", "localized": "Composition"},
         {"id": "use-composition", "canonical": "Use Composition", "localized": "Composition を使う"},
