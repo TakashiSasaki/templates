@@ -11,7 +11,7 @@ MANIFEST = ROOT / "site-manifest.json"
 SOURCE_LOCK = ROOT / "publication-sources.json"
 DEPLOYMENT_STATE = ROOT / "deployment-state.json"
 NAV_LOCALES = ROOT / "reader-navigation-locales.json"
-COMPOSITION_REVISION = "9e422e0d153480dcb87513323ef0d8a336cf3706"
+COMPOSITION_REVISION = "870237a771561b78a46ebba8e81b9f134d587f58"
 
 
 class HumanFirstOnboardingTests(unittest.TestCase):
