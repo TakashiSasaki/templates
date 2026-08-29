@@ -10,4 +10,6 @@ When current repository definitions make an exact-head check expected but live e
 
 Do not classify an expected check as absent from a single empty query, repeated queries against only one live index, or elapsed time alone. A confirmed-absence decision requires corroborating current evidence sufficient to distinguish delayed indexing or execution from a check that did not materialize.
 
+Once applicable exact-head checks have been positively identified and acceptable evidence has been recorded, do not re-enter discovery merely for conservatism while the proposed head and the conditions that determine check applicability remain unchanged. Re-enter discovery only when a concrete invalidation signal makes the prior discovery conclusion inapplicable or uncertain.
+
 Do not mutate the pull request or proposed head solely to manufacture new CI evidence while discovery remains unresolved. If uncertainty remains, keep merge authorization blocked rather than inferring success or non-applicability.

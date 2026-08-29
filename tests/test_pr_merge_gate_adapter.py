@@ -99,6 +99,57 @@ def test_adapter_ci_discovery_is_fail_closed_and_read_only() -> None:
         assert invariant in text
 
 
+def test_adapter_reuses_valid_evidence_and_forbids_agent_overconstraint() -> None:
+    text = SKILL.read_text(encoding="utf-8").lower()
+    for invariant in (
+        "do not discard the whole snapshot merely because one binding changes",
+        "invalidate the evidence bound to the former head",
+        "do not repeat a successful observation merely for conservatism",
+        (
+            "do not add an extra review cycle, waiting period, repeated live-state "
+            "read, or redundant evidence collection as a new mandatory gate"
+        ),
+        (
+            "reuse it while the exact head and the conditions that determine check "
+            "applicability remain unchanged"
+        ),
+        (
+            "do not rerun ci discovery or re-fetch workflow definitions solely to "
+            "make an already valid result feel newer"
+        ),
+        "do not request another independent review merely for conservatism",
+        "do not treat target-branch movement as an automatic instruction to rerun every gate",
+        "reacquire only the affected evidence",
+        "diagnostic work rather than new mandatory acceptance requirements",
+        (
+            "do not create additional stop conditions solely because a stricter "
+            "local procedure feels safer"
+        ),
+    ):
+        assert invariant in text
+
+
+def test_adapter_final_refresh_is_invalidation_driven() -> None:
+    text = SKILL.read_text(encoding="utf-8").lower()
+    for invariant in (
+        "refresh invalidating live state",
+        "current pr head equals the exact accepted head",
+        "current target-branch head is unchanged or its movement has been evaluated",
+        "current material review state and unresolved review threads",
+        (
+            "validate the binding facts of previously accepted scope, ci, and "
+            "completed-review evidence"
+        ),
+        (
+            "do not unconditionally re-fetch exact-head checks, completed reviews, "
+            "workflow definitions, or the effective diff"
+        ),
+        "if any binding changed or is unknown",
+        "reacquire only the affected evidence",
+    ):
+        assert invariant in text
+
+
 def test_adapter_requires_exact_head_review_and_guarded_merge() -> None:
     text = SKILL.read_text(encoding="utf-8").lower()
     for invariant in (
@@ -114,6 +165,12 @@ def test_adapter_requires_exact_head_review_and_guarded_merge() -> None:
         "do not retry blindly",
     ):
         assert invariant in text
+
+
+def test_adapter_uses_immutable_head_guard_instead_of_redundant_last_poll() -> None:
+    text = SKILL.read_text(encoding="utf-8").lower()
+    assert "use the immutable-head guard to close the proposed-head race" in text
+    assert "rather than inserting an extra unrequired head poll" in text
 
 
 def test_adapter_separates_merge_from_post_merge_readiness() -> None:
