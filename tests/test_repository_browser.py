@@ -59,6 +59,7 @@ class RepositoryBrowserSafetyTests(unittest.TestCase):
         run_git(root, "commit", "--quiet", "--message", "fixture")
 
     def test_base_renderer_preserves_bounded_sandboxed_source_views(self) -> None:
+        self.assertEqual(BASE_BRANCH_ORDER, ("site", "composition", "policy"))
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             repository = root / "repository"
@@ -73,6 +74,13 @@ class RepositoryBrowserSafetyTests(unittest.TestCase):
 
             self.assertEqual(len(messages), len(BASE_BRANCH_ORDER))
             self.assertTrue((output / "files/index.html").is_file())
+            self.assertTrue((output / "files/site").is_dir())
+            self.assertTrue((output / "files/composition").is_dir())
+            self.assertTrue((output / "files/policy").is_dir())
+            self.assertFalse((output / "files/skill").exists())
+            self.assertFalse((output / "files/webapp").exists())
+            root_index = (output / "files/index.html").read_text(encoding="utf-8")
+            self.assertIn("Site, Composition, and Policy authorities", root_index)
             page = (output / "files/site/index.html").read_text(encoding="utf-8")
             self.assertIn('name="repository-file-viewer"', page)
             self.assertIn('sandbox=""', page)
@@ -163,7 +171,7 @@ class RepositoryBrowserSafetyTests(unittest.TestCase):
                     generate_browser("TakashiSasaki/templates", output, branches)
 
 
-class CompositionRepositoryBrowserTests(unittest.TestCase):
+class CurrentAuthorityRepositoryBrowserTests(unittest.TestCase):
     def make_repository(self, root: Path) -> None:
         root.mkdir()
         run_git(root, "init", "--quiet")
@@ -173,7 +181,12 @@ class CompositionRepositoryBrowserTests(unittest.TestCase):
         run_git(root, "add", ".")
         run_git(root, "commit", "--quiet", "--message", "fixture")
 
-    def test_composition_entrypoint_accepts_only_site_composition_policy(self) -> None:
+    def test_compat_entrypoint_delegates_to_canonical_authorities(self) -> None:
+        wrapper = COMPOSITION_BROWSER_SCRIPT.read_text(encoding="utf-8")
+        self.assertNotIn("BRANCH_ORDER =", wrapper)
+        self.assertNotIn("def write_root_index", wrapper)
+        self.assertIn("return base.main()", wrapper)
+
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             repository = root / "repository"
