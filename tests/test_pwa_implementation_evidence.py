@@ -29,7 +29,8 @@ VALIDATOR_SOURCE = (
 
 def load_module(name: str, path: Path):
     spec = importlib.util.spec_from_file_location(name, path)
-    assert spec and spec.loader
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"cannot load module from {path}")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -121,6 +122,7 @@ class PwaImplementationEvidenceTests(unittest.TestCase):
             root = Path(temp_dir)
             self.fixture(root, "product")
             self.write_json(root / "contracts" / "implementation-evidence.json", self.product_evidence())
+            self.assertEqual(validator.validate_with_mode(root), ([], "product"))
             self.assertEqual(validator.validate(root), [])
 
     def test_contract_declarations_alone_do_not_count_as_product_evidence(self) -> None:
@@ -183,6 +185,20 @@ class PwaImplementationEvidenceTests(unittest.TestCase):
             self.assertTrue(any("lacks browser execution capability" in error for error in errors), errors)
             self.assertTrue(any("positive browser-level proof" in error for error in errors), errors)
             self.assertTrue(any("negative browser-level proof" in error for error in errors), errors)
+
+    def test_product_rejects_absent_positive_or_negative_evidence_fields(self) -> None:
+        for field, polarity in (
+            ("positiveEvidence", "positive browser-level proof"),
+            ("negativeEvidence", "negative browser-level proof"),
+        ):
+            with self.subTest(field=field), tempfile.TemporaryDirectory() as temp_dir:
+                root = Path(temp_dir)
+                self.fixture(root, "product")
+                evidence = self.product_evidence()
+                del evidence["records"][0][field]
+                self.write_json(root / "contracts" / "implementation-evidence.json", evidence)
+                errors = validator.validate(root)
+                self.assertTrue(any(polarity in error for error in errors), errors)
 
     def test_planning_requires_every_family_and_browser_level_intent(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
