@@ -8,6 +8,7 @@ from pathlib import Path
 
 from scripts.resolve_publication_sources import (
     SourceLockError,
+    render_source_lock,
     resolve_sources,
     write_outputs,
 )
@@ -46,6 +47,27 @@ class PublicationSourceLockTests(unittest.TestCase):
                     "policy=agent/policy-preview",
                 ],
                 output.getvalue().splitlines(),
+            )
+
+    def test_renderer_round_trips_canonical_locked_revisions(self) -> None:
+        revisions = {"composition": "1" * 40, "policy": "2" * 40}
+        rendered = render_source_lock(revisions)
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "publication-sources.json"
+            path.write_bytes(rendered)
+            self.assertEqual(resolve_sources(path, {}), revisions)
+        value = json.loads(rendered)
+        self.assertEqual(value["schema_version"], 1)
+        self.assertEqual(value["repository"], "TakashiSasaki/templates")
+        self.assertEqual(list(value["publications"]), ["composition", "policy"])
+        self.assertTrue(rendered.endswith(b"\n"))
+
+    def test_renderer_rejects_invalid_provider_set_and_revision(self) -> None:
+        with self.assertRaisesRegex(SourceLockError, "define exactly"):
+            render_source_lock({"composition": "1" * 40})
+        with self.assertRaisesRegex(SourceLockError, "full lowercase"):
+            render_source_lock(
+                {"composition": "not-a-sha", "policy": "2" * 40}
             )
 
     def test_boolean_schema_version_is_rejected(self) -> None:

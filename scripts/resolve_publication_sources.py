@@ -95,6 +95,36 @@ def parse_overrides(values: list[str]) -> dict[str, str]:
     return overrides
 
 
+def validate_locked_revisions(revisions: dict[str, str]) -> dict[str, str]:
+    if set(revisions) != set(PUBLICATION_NAMES):
+        raise SourceLockError(
+            "publication revisions must define exactly: "
+            + ", ".join(PUBLICATION_NAMES)
+        )
+    validated: dict[str, str] = {}
+    for name in PUBLICATION_NAMES:
+        revision = revisions[name]
+        if not isinstance(revision, str) or not FULL_COMMIT_PATTERN.fullmatch(revision):
+            raise SourceLockError(
+                f"{name} locked revision must be a full lowercase commit SHA"
+            )
+        validated[name] = revision
+    return validated
+
+
+def render_source_lock(revisions: dict[str, str]) -> bytes:
+    """Render the canonical schema-v1 publication source lock."""
+    validated = validate_locked_revisions(revisions)
+    value = {
+        "schema_version": 1,
+        "repository": EXPECTED_REPOSITORY,
+        "publications": {
+            name: {"revision": validated[name]} for name in PUBLICATION_NAMES
+        },
+    }
+    return (json.dumps(value, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
+
+
 def resolve_sources(path: Path, overrides: dict[str, str]) -> dict[str, str]:
     data = read_json_object(path)
     expected = {"schema_version", "repository", "publications"}
@@ -127,22 +157,18 @@ def resolve_sources(path: Path, overrides: dict[str, str]) -> dict[str, str]:
             + ", ".join(PUBLICATION_NAMES)
         )
 
-    resolved: dict[str, str] = {}
+    locked: dict[str, str] = {}
     for name in PUBLICATION_NAMES:
         entry = publications[name]
         if not isinstance(entry, dict) or set(entry) != {"revision"}:
             raise SourceLockError(
                 f"{name} publication entry must contain only revision"
             )
-        revision = entry["revision"]
-        if not isinstance(revision, str) or not FULL_COMMIT_PATTERN.fullmatch(
-            revision
-        ):
-            raise SourceLockError(
-                f"{name} locked revision must be a full lowercase commit SHA"
-            )
-        resolved[name] = overrides.get(name, revision)
-    return resolved
+        locked[name] = entry["revision"]
+    validated = validate_locked_revisions(locked)
+    return {
+        name: overrides.get(name, validated[name]) for name in PUBLICATION_NAMES
+    }
 
 
 def write_outputs(output: TextIO, resolved: dict[str, str]) -> None:
