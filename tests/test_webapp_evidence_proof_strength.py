@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.util
 import json
 import subprocess
 import sys
@@ -9,7 +10,19 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 COMPOSER = ROOT / "scripts" / "compose.py"
-BROWSER_SENSITIVE_ITEM_KINDS = {"input-capability", "route", "viewport"}
+TARGET_HELPER = (
+    ROOT
+    / "components"
+    / "artifact.webapp-core"
+    / "files"
+    / "scripts"
+    / "webapp_evidence_targets.py"
+)
+SPEC = importlib.util.spec_from_file_location("webapp_evidence_target_authority", TARGET_HELPER)
+if SPEC is None or SPEC.loader is None:
+    raise RuntimeError("cannot load Webapp evidence target authority")
+target_authority = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(target_authority)
 
 
 class WebappEvidenceProofStrengthTests(unittest.TestCase):
@@ -116,6 +129,7 @@ class WebappEvidenceProofStrengthTests(unittest.TestCase):
             self.assertIn("browser-sensitive Webapp target", result.stderr)
             self.assertIn("end-to-end-test", result.stderr)
             self.assertIn("accessibility-test", result.stderr)
+            self.assertIn("'browser_identity'", result.stderr)
             self.assertIn("'viewport'", result.stderr)
             self.assertIn("'input-capability'", result.stderr)
             self.assertIn("positive browser-level proof", result.stderr)
@@ -130,7 +144,7 @@ class WebappEvidenceProofStrengthTests(unittest.TestCase):
             strengthened = 0
             for record in records:
                 target_record = record["target"]
-                if target_record["itemKind"] not in BROWSER_SENSITIVE_ITEM_KINDS:
+                if not target_authority.requires_browser_level_proof(target_record):
                     continue
                 record["positiveEvidence"][0]["kind"] = "end-to-end-test"
                 record["negativeEvidence"][0]["kind"] = "accessibility-test"
@@ -139,7 +153,7 @@ class WebappEvidenceProofStrengthTests(unittest.TestCase):
             self.assertGreater(strengthened, 0)
             self.assertTrue(
                 any(
-                    record["target"]["itemKind"] not in BROWSER_SENSITIVE_ITEM_KINDS
+                    not target_authority.requires_browser_level_proof(record["target"])
                     and record["positiveEvidence"][0]["kind"] == "integration-test"
                     for record in records
                 )
