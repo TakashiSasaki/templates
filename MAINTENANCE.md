@@ -16,11 +16,13 @@ Provider histories remain independent. Publication does not merge, rebase, or ch
 2. Validate and review that provider pull request, including provider-local publication validation.
 3. Merge the provider pull request and record the actual merge commit SHA.
 4. Create the coordinated Site pull request from `site`.
-5. Update `publication-sources.json` with the reviewed full 40-character provider SHA.
-6. Update `site-manifest.json` when public document IDs, reader titles, hierarchy, ordering, or generated destinations change.
+5. Classify the provider diff, prepare exact provider/Composition checkouts, then advance the reviewed full-SHA lock and agent revision projections together with `scripts/advance_publication_source.py`. The tool compare-and-swaps against the expected current lock and writes `publication-sources.json` only after its projection preflight succeeds.
+6. Update `site-manifest.json`, reader navigation/localization, translations, glossary integration, or Site prose only when the provider public-interface change requires those Site-owned semantic changes.
 7. Run the complete Site build against the exact locked inputs before merging the Site pull request.
 
 The external provider set is exactly `composition` and `policy`. Skill and Web application remain separate reader/artifact concepts but are not separate provider checkouts.
+
+The deterministic cutover tool handles only the mechanical current-revision boundary: `publication-sources.json`, `agent.json`, and `assets/agent.json`. It does not infer reader IA, translation freshness, glossary semantics, or publication-catalog meaning. A failed expected-current check, checkout-identity check, release-descriptor preflight, or projection-target safety check must be corrected rather than bypassed with separate hand edits.
 
 ## Publication catalogs
 
@@ -151,7 +153,9 @@ For linked source files, fragment-free uncataloged regular-file targets resolve 
 
 ## Source locking and workflow overrides
 
-Normal builds resolve Composition and Policy from `publication-sources.json`. Each value is a lowercase full 40-character commit SHA.
+Normal builds resolve Composition and Policy from `publication-sources.json`. Each value is a lowercase full 40-character commit SHA. This file is the sole committed authority for the current external provider publication revisions.
+
+For a reviewed cutover, `scripts/advance_publication_source.py` requires the old lock value through `--expected-current`, an exact target provider checkout, and an exact Composition checkout at the prospective Composition revision. It renders the prospective lock and machine-facing agent projection from committed provider bytes before mutation, updates both agent projections first, and replaces the source lock last. This ordering makes an interrupted operation fail closed rather than advancing the authority before its projections are prepared.
 
 `composition_ref` and `policy_ref` workflow-call inputs are deliberate compatibility/review overrides. Empty inputs must resolve to the lock; they must never fall back to a pull-request merge ref or another mutable branch.
 
