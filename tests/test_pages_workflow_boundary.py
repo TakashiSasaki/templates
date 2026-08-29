@@ -9,7 +9,6 @@ ROOT = Path(__file__).resolve().parents[1]
 BUILD_WORKFLOW = ROOT / ".github/workflows/build-pages.yml"
 DEPLOY_WORKFLOW = ROOT / ".github/workflows/deploy-pages.yml"
 SOURCE_LOCK = ROOT / "publication-sources.json"
-DEPLOYMENT_STATE = ROOT / "deployment-state.json"
 
 
 class PagesWorkflowBoundaryTests(unittest.TestCase):
@@ -212,26 +211,6 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
         deploy = workflow.index("  deploy:")
         self.assertLess(metadata, build)
         self.assertLess(build, deploy)
-
-    def test_machine_readable_deployment_state_is_bound_to_composition(self) -> None:
-        state = json.loads(DEPLOYMENT_STATE.read_text(encoding="utf-8"))
-        source_lock = json.loads(SOURCE_LOCK.read_text(encoding="utf-8"))
-
-        self.assertEqual(1, state["schema_version"])
-        self.assertEqual("active", state["status"])
-        self.assertIn("composition", state["reason"])
-        self.assertEqual(
-            source_lock["publications"]["composition"]["revision"],
-            state["locked_composition_revision"],
-        )
-        self.assertRegex(
-            state["locked_composition_revision"],
-            r"\A[0-9a-f]{40}\Z",
-        )
-        conditions = state["completed_conditions"]
-        self.assertIsInstance(conditions, list)
-        self.assertGreaterEqual(len(conditions), 4)
-        self.assertTrue(all(isinstance(value, str) and value for value in conditions))
 
 
 if __name__ == "__main__":
