@@ -38,6 +38,10 @@ class WebappCurrentEvidenceTargetTests(unittest.TestCase):
 
     def fixture(self, root: Path) -> None:
         self.write_json(
+            root / "contracts" / "browser-identity.json",
+            {"favicon": {"relation": "icon", "href": "favicon.svg"}},
+        )
+        self.write_json(
             root / "contracts" / "surfaces.json",
             {"surfaces": [{"id": "main"}]},
         )
@@ -60,6 +64,10 @@ class WebappCurrentEvidenceTargetTests(unittest.TestCase):
             root / "contracts" / "manifest.json",
             {
                 "contracts": [
+                    {
+                        "id": "browser_identity",
+                        "versionHistory": [{"version": 1}],
+                    },
                     {
                         "id": "routes",
                         "versionHistory": [
@@ -88,7 +96,7 @@ class WebappCurrentEvidenceTargetTests(unittest.TestCase):
             },
         )
 
-    def test_required_targets_cover_only_current_product_items(self) -> None:
+    def test_required_targets_cover_browser_identity_and_current_product_items(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             self.fixture(root)
@@ -102,6 +110,7 @@ class WebappCurrentEvidenceTargetTests(unittest.TestCase):
             self.assertEqual(
                 {target_key(target) for target in required},
                 {
+                    ("contract-item", "browser_identity", "proof-family", "browser-identity"),
                     ("contract-item", "surfaces", "surface", "main"),
                     ("contract-item", "routes", "route", "home"),
                     ("contract-item", "ui_states", "ui-state", "ready"),
@@ -110,6 +119,10 @@ class WebappCurrentEvidenceTargetTests(unittest.TestCase):
                     ("contract-item", "viewports", "input-capability", "pointer"),
                 },
             )
+            identity = next(
+                target for target in required if target["contractId"] == "browser_identity"
+            )
+            self.assertTrue(_targets.requires_browser_level_proof(identity))
 
     def test_allowed_targets_add_only_registered_webapp_transitions(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
