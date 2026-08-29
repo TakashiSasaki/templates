@@ -3,7 +3,9 @@ name: Check publication freshness
 # Normative contract: PUBLICATION_FRESHNESS.md
 # The reviewed publication lock remains the release input. A different current
 # Composition HEAD is informational by itself; the compatibility signal is
-# whether that exact candidate revision passes the normal full Site build.
+# whether that exact candidate revision passes the normal full Site build when
+# the pull-request scope can affect publication integration. Scheduled/manual
+# diagnostics always execute the full candidate build.
 on:
   pull_request:
     branches:
@@ -38,6 +40,9 @@ jobs:
       composition_lock: ${{ steps.publication_refs.outputs.composition }}
       composition_head: ${{ steps.composition_head.outputs.result }}
       relation: ${{ steps.classify.outputs.relation }}
+      candidate_required: ${{ steps.candidate_scope.outputs.required }}
+      candidate_reason: ${{ steps.candidate_scope.outputs.reason }}
+      candidate_changed_count: ${{ steps.candidate_scope.outputs.changed_count }}
 
     steps:
       - name: Check out Site diagnostic implementation
@@ -45,6 +50,8 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           path: site-source
+          fetch-depth: 0
+          persist-credentials: false
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -56,6 +63,30 @@ jobs:
         env:
           SITE_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
         run: echo "sha=$SITE_REVISION" >> "$GITHUB_OUTPUT"
+
+      - name: Select candidate build scope
+        id: candidate_scope
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ "$EVENT_NAME" != pull_request ]; then
+            {
+              echo 'required=true'
+              echo 'reason=scheduled or manual diagnostic'
+              echo 'changed_count=0'
+              echo 'requiring_count=0'
+              echo 'requiring_paths=none'
+            } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git -C site-source diff --name-only --no-renames "$BASE_SHA" "$HEAD_SHA" > "$RUNNER_TEMP/publication-freshness-paths.txt"
+          test -s "$RUNNER_TEMP/publication-freshness-paths.txt"
+          python -I site-source/scripts/classify_site_browser_acceptance.py \
+            --changed-paths "$RUNNER_TEMP/publication-freshness-paths.txt" \
+            --output "$GITHUB_OUTPUT"
 
       - name: Resolve reviewed publication lock
         id: publication_refs
@@ -88,11 +119,38 @@ jobs:
             --current "$CURRENT_COMPOSITION" \
             --output "$GITHUB_OUTPUT"
 
+      - name: Report candidate build selection
+        env:
+          CANDIDATE_REQUIRED: ${{ steps.candidate_scope.outputs.required }}
+          CANDIDATE_REASON: ${{ steps.candidate_scope.outputs.reason }}
+          CHANGED_COUNT: ${{ steps.candidate_scope.outputs.changed_count }}
+        run: |
+          {
+            echo '### Publication freshness candidate selection'
+            echo
+            echo "- required: \`$CANDIDATE_REQUIRED\`"
+            echo "- reason: \`$CANDIDATE_REASON\`"
+            echo "- changed paths: \`$CHANGED_COUNT\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          case "$CANDIDATE_REQUIRED" in
+            true|false)
+              ;;
+            *)
+              echo "::error::Unexpected candidate build selection: $CANDIDATE_REQUIRED"
+              exit 1
+              ;;
+          esac
+
   # This diagnostic advances only Composition to a current immutable snapshot.
   # Policy deliberately remains at the reviewed lock resolved by build-pages.yml.
+  # Pull requests proven to contain only CI-observability changes keep the
+  # workflow/check surface but do not spend a second full Site build.
   candidate_build:
     name: Build with current Composition HEAD
-    if: github.repository == 'TakashiSasaki/templates'
+    if: >-
+      github.repository == 'TakashiSasaki/templates' &&
+      needs.resolve.outputs.candidate_required == 'true'
     needs: resolve
     uses: ./.github/workflows/build-pages.yml
     with:
@@ -115,6 +173,8 @@ jobs:
           LOCKED_COMPOSITION: ${{ needs.resolve.outputs.composition_lock }}
           CURRENT_COMPOSITION: ${{ needs.resolve.outputs.composition_head }}
           RELATION: ${{ needs.resolve.outputs.relation }}
+          CANDIDATE_REQUIRED: ${{ needs.resolve.outputs.candidate_required }}
+          CANDIDATE_REASON: ${{ needs.resolve.outputs.candidate_reason }}
           CANDIDATE_RESULT: ${{ needs.candidate_build.result }}
         run: |
           {
@@ -124,19 +184,28 @@ jobs:
             echo "- reviewed Site lock: \`$LOCKED_COMPOSITION\`"
             echo "- current Composition HEAD snapshot: \`$CURRENT_COMPOSITION\`"
             echo "- lock/head relation: \`$RELATION\`"
-            echo "- full candidate Site build: \`$CANDIDATE_RESULT\`"
+            echo "- candidate build required: \`$CANDIDATE_REQUIRED\`"
+            echo "- candidate selection reason: \`$CANDIDATE_REASON\`"
+            echo "- candidate Site build: \`$CANDIDATE_RESULT\`"
             echo '- Policy source: reviewed Site lock (no current-Policy override)'
           } >> "$GITHUB_STEP_SUMMARY"
 
-          case "$CANDIDATE_RESULT" in
-            success)
+          case "$CANDIDATE_REQUIRED:$CANDIDATE_RESULT" in
+            true:success)
               ;;
-            skipped)
-              echo "::error::Current Composition compatibility build was skipped; no compatibility conclusion is available."
+            false:skipped)
+              echo "::notice::Current Composition candidate build is non-applicable for this CI-observability-only pull request."
+              ;;
+            true:skipped)
+              echo "::error::Required current Composition compatibility build was skipped; no compatibility conclusion is available."
+              exit 1
+              ;;
+            false:success)
+              echo "::error::Non-applicable current Composition candidate build unexpectedly executed."
               exit 1
               ;;
             *)
-              echo "::error::Current Composition HEAD does not pass the normal full Site publication build."
+              echo "::error::Current Composition HEAD does not pass the required normal full Site publication build."
               exit 1
               ;;
           esac
@@ -145,7 +214,11 @@ jobs:
             current)
               ;;
             different)
-              echo "::warning::Composition publication lock differs from current Composition HEAD; the candidate build is compatible, but advancing the reviewed lock remains an explicit Site review decision."
+              if [ "$CANDIDATE_REQUIRED" = true ]; then
+                echo "::warning::Composition publication lock differs from current Composition HEAD; the candidate build is compatible, but advancing the reviewed lock remains an explicit Site review decision."
+              else
+                echo "::notice::Composition publication lock differs from current Composition HEAD; compatibility is intentionally not re-evaluated for this CI-observability-only pull request."
+              fi
               ;;
             *)
               echo "::error::Unexpected publication freshness relation: $RELATION"
