@@ -71,7 +71,6 @@ def _sorted_unique(targets: list[dict[str, Any]]) -> tuple[dict[str, Any], ...]:
 def expected_targets(root: Path) -> tuple[dict[str, Any], ...]:
     """Return current product targets that every Webapp product must evidence."""
     root = root.resolve()
-    load_json(root, "contracts/browser-identity.json")
     surfaces = load_json(root, "contracts/surfaces.json")
     routes = load_json(root, "contracts/routes.json")
     states = load_json(root, "contracts/ui-states.json")
