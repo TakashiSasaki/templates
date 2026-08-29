@@ -11,6 +11,7 @@ from typing import Any
 if __package__:
     from .webapp_evidence_targets import (
         BROWSER_LEVEL_PROOF_KINDS,
+        BROWSER_SENSITIVE_CONTRACT_ITEMS,
         OWNED_CONTRACT_IDS,
         allowed_targets,
         expected_targets,
@@ -20,6 +21,7 @@ if __package__:
 else:
     from webapp_evidence_targets import (
         BROWSER_LEVEL_PROOF_KINDS,
+        BROWSER_SENSITIVE_CONTRACT_ITEMS,
         OWNED_CONTRACT_IDS,
         allowed_targets,
         expected_targets,
@@ -189,7 +191,6 @@ def planning_requirement_errors(root: Path, evidence: dict[str, Any]) -> list[st
     allowed = {target_key(target) for target in allowed_targets(root)}
     allowed_kinds = ", ".join(sorted(BROWSER_LEVEL_PROOF_KINDS))
     seen: set[tuple[Any, ...]] = set()
-    strong: set[tuple[Any, ...]] = set()
     errors: list[str] = []
     for index, requirement in enumerate(requirements):
         if not isinstance(requirement, dict):
@@ -219,17 +220,14 @@ def planning_requirement_errors(root: Path, evidence: dict[str, Any]) -> list[st
                     f"unknown planning Webapp requirement target for {requirement_id!r}: {key}"
                 )
                 continue
-            if requires_browser_level_proof(target):
-                if declared.isdisjoint(BROWSER_LEVEL_PROOF_KINDS):
-                    errors.append(
-                        f"planning requirement {requirement_id!r} targets browser-sensitive "
-                        f"Webapp item {key} and must declare at least one browser-level "
-                        f"requiredPositiveProofKinds value ({allowed_kinds})"
-                    )
-                else:
-                    strong.add(key)
-            else:
-                strong.add(key)
+            if requires_browser_level_proof(target) and declared.isdisjoint(
+                BROWSER_LEVEL_PROOF_KINDS
+            ):
+                errors.append(
+                    f"planning requirement {requirement_id!r} targets browser-sensitive "
+                    f"Webapp item {key} and must declare at least one browser-level "
+                    f"requiredPositiveProofKinds value ({allowed_kinds})"
+                )
     for missing in sorted(expected - seen, key=str):
         errors.append(f"planned Webapp target is missing a planning requirement: {missing}")
     return errors
