@@ -99,6 +99,7 @@ TakashiSasaki/templates
   </div>
   <div class="portal-doc-links">
     <a class="portal-doc-link" href="/composition/">Composition を見る</a>
+    <a class="portal-doc-link" href="/composition/concepts/">Composition の概念と用語</a>
     <a class="portal-doc-link" href="/skill/">Agent Skill を見る</a>
     <a class="portal-doc-link" href="/policy/">Policy を見る</a>
     <a class="portal-doc-link" href="/capabilities/">Capabilities</a>

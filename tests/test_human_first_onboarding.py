@@ -9,6 +9,9 @@ LANDING = ROOT / "docs" / "landing.md"
 LANDING_JA = ROOT / "translations" / "ja" / "docs" / "landing.md"
 MANIFEST = ROOT / "site-manifest.json"
 SOURCE_LOCK = ROOT / "publication-sources.json"
+DEPLOYMENT_STATE = ROOT / "deployment-state.json"
+NAV_LOCALES = ROOT / "reader-navigation-locales.json"
+COMPOSITION_REVISION = "9e422e0d153480dcb87513323ef0d8a336cf3706"
 
 
 class HumanFirstOnboardingTests(unittest.TestCase):
@@ -55,16 +58,37 @@ class HumanFirstOnboardingTests(unittest.TestCase):
             "composition/use/skill-first-use-walkthrough.md",
         )
 
+    def test_composition_concepts_is_secondary_not_primary_onboarding(self) -> None:
+        landing = LANDING.read_text(encoding="utf-8")
+        explore_section = landing.index("Already started, or want the model?")
+        concepts = landing.index('href="composition/concepts/"')
+        self.assertGreater(concepts, explore_section)
+        self.assertNotIn("Composition concepts", landing[:explore_section])
+
+        manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+        composition = next(
+            node for node in manifest["navigation"] if node["title"] == "Composition"
+        )
+        concepts_entry = next(
+            node
+            for node in composition["children"]
+            if node.get("document") == "composition-concepts"
+        )
+        self.assertEqual(concepts_entry["title"], "Concepts and terminology")
+        self.assertEqual(concepts_entry["destination"], "composition/concepts/index.md")
+
     def test_site_locks_the_reviewed_human_onboarding_provider_revisions(self) -> None:
         lock = json.loads(SOURCE_LOCK.read_text(encoding="utf-8"))
         self.assertEqual(
             lock["publications"]["composition"]["revision"],
-            "941a71557a6d0edb31fb9302619f0b9fb6d9a017",
+            COMPOSITION_REVISION,
         )
         self.assertEqual(
             lock["publications"]["policy"]["revision"],
             "56448995f848ae2de0f38c49ceb1d35f55461ed1",
         )
+        deployment = json.loads(DEPLOYMENT_STATE.read_text(encoding="utf-8"))
+        self.assertEqual(deployment["locked_composition_revision"], COMPOSITION_REVISION)
 
     def test_separate_product_repository_mental_model_is_explicit(self) -> None:
         landing = LANDING.read_text(encoding="utf-8")
@@ -87,6 +111,17 @@ class HumanFirstOnboardingTests(unittest.TestCase):
             with self.subTest(href=href):
                 self.assertIn(f'href="{href}"', landing)
         self.assertIn("あなたの別 product repository", landing)
+        explore_section = landing.index("すでに始めている、または仕組みを知りたい")
+        concepts = landing.index('href="/composition/concepts/"')
+        self.assertGreater(concepts, explore_section)
+
+    def test_concepts_navigation_has_japanese_label(self) -> None:
+        locales = json.loads(NAV_LOCALES.read_text(encoding="utf-8"))
+        ja = next(locale for locale in locales["locales"] if locale["language"] == "ja")
+        label = next(
+            item for item in ja["labels"] if item["canonical"] == "Concepts and terminology"
+        )
+        self.assertEqual(label["localized"], "概念と用語")
 
 
 if __name__ == "__main__":
