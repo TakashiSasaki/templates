@@ -97,6 +97,27 @@ class RepositoryBrowserSafetyTests(unittest.TestCase):
             self.assertNotIn("<script>alert('escaped')</script>", combined)
             self.assertIn("Text view unavailable", combined)
             self.assertIn("Content-Security-Policy", combined)
+            self.assertIn(
+                ".line-number { grid-column: 1; position: sticky;",
+                combined,
+            )
+            self.assertIn(
+                ".line-code { display: block; grid-column: 2;",
+                combined,
+            )
+            self.assertIn(
+                "#show-lines:not(:checked) ~ main .source-line { "
+                "grid-template-columns: minmax(0, 1fr); }",
+                combined,
+            )
+            self.assertIn(
+                "#show-lines:not(:checked) ~ main .line-code { grid-column: 1; }",
+                combined,
+            )
+            self.assertNotIn(
+                "grid-template-columns: 0 minmax(0, 1fr)",
+                combined,
+            )
 
     def test_text_boundary_rejects_invalid_or_unsafe_content(self) -> None:
         self.assertEqual(decode_browser_text(b"hello\n"), ("hello\n", None))
