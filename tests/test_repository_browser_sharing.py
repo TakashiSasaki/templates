@@ -12,7 +12,7 @@ CONTROLLER = ROOT / "assets/javascripts/repository-browser.js"
 
 
 class RepositoryBrowserSharingTests(unittest.TestCase):
-    def test_selected_file_copy_controls_use_canonical_targets(self) -> None:
+    def test_selected_file_copy_controls_use_canonical_targets_and_fail_cleanly(self) -> None:
         node = shutil.which("node")
         if node is None:
             self.skipTest("node is required to execute the repository browser controller")
@@ -157,9 +157,17 @@ global.document = {
 };
 
 const copied = [];
+let rejectCopy = false;
 Object.defineProperty(global, "navigator", {
   configurable: true,
-  value: { clipboard: { writeText: async (value) => { copied.push(value); } } },
+  value: {
+    clipboard: {
+      async writeText(value) {
+        if (rejectCopy) throw new Error("clipboard permission denied");
+        copied.push(value);
+      },
+    },
+  },
 });
 
 const windowListeners = {};
@@ -222,6 +230,15 @@ const status = share.children.find(
   await buttons.source.listeners.click();
   const sourceStatus = status.textContent;
 
+  rejectCopy = true;
+  await buttons.path.listeners.click();
+  const failure = {
+    status: status.textContent,
+    disabled: buttons.path.disabled,
+    copiedCount: copied.length,
+  };
+  rejectCopy = false;
+
   mobileViewport.matches = true;
   viewportListener({ matches: true });
   const mobile = {
@@ -247,6 +264,7 @@ const status = share.children.find(
     pathStatus,
     viewerStatus,
     sourceStatus,
+    failure,
     mobile,
     invalid,
   }));
@@ -290,6 +308,14 @@ const status = share.children.find(
         self.assertEqual(result["pathStatus"], "Copied path")
         self.assertEqual(result["viewerStatus"], "Copied viewer link")
         self.assertEqual(result["sourceStatus"], "Copied immutable source link")
+        self.assertEqual(
+            result["failure"],
+            {
+                "status": "Copy failed: path",
+                "disabled": False,
+                "copiedCount": 3,
+            },
+        )
         self.assertEqual(
             result["mobile"],
             {"parentIsToolbar": True, "marginTop": "0"},
