@@ -36,7 +36,6 @@
     }
   ],
   "materials": [
-    {"source": "files/PWA.md", "destination": "PWA.md", "ownership": "seed"},
     {"source": "files/contracts/pwa-manifest.json", "destination": "contracts/pwa-manifest.json", "ownership": "seed"},
     {"source": "files/contracts/pwa-offline.json", "destination": "contracts/pwa-offline.json", "ownership": "seed"},
     {"source": "files/contracts/pwa-update.json", "destination": "contracts/pwa-update.json", "ownership": "seed"},
