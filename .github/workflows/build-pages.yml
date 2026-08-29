@@ -225,6 +225,13 @@ jobs:
             --translation-map build/translation-publication.json \
             --canonical-url "${PUBLIC_SITE_URL}"
 
+      - name: Validate generated translation reader pairs
+        run: |
+          python site-source/scripts/validate_translation_pairs.py \
+            --site-root build/site \
+            --translation-map build/translation-publication.json \
+            --canonical-url "${PUBLIC_SITE_URL}"
+
       - name: Finalize localized guided metadata
         run: |
           python site-source/scripts/finalize_guided_locales.py \
