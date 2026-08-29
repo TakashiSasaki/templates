@@ -10,6 +10,7 @@ from scripts.check_mobile_layout import (
     _number,
     _validate_cases,
     validate_metrics,
+    validate_repository_viewer_metrics,
 )
 
 
@@ -32,6 +33,25 @@ def compact_metrics() -> dict:
         "buttons": [],
         "revision": None,
         "revisionTable": None,
+    }
+
+
+def repository_viewer_metrics(show_lines: bool, wrap_lines: bool) -> dict:
+    line_number_width = 64 if show_lines else 0
+    return {
+        "ready": True,
+        "viewport": {"width": 390, "height": 844},
+        "page": {"clientWidth": 390, "scrollWidth": 390},
+        "state": {"showLines": show_lines, "wrapLines": wrap_lines},
+        "line": {"left": 0, "width": 390},
+        "code": {
+            "left": line_number_width,
+            "width": 390 - line_number_width,
+            "whiteSpace": "pre-wrap" if wrap_lines else "pre",
+            "overflowWrap": "anywhere" if wrap_lines else "normal",
+            "gridColumnStart": "2" if show_lines else "1",
+        },
+        "lineNumber": {"display": "block" if show_lines else "none"},
     }
 
 
@@ -69,6 +89,65 @@ class MobileLayoutRegressionTests(unittest.TestCase):
         failures = validate_metrics(case, 390, 844, metrics)
         self.assertIn("repository revision is allowed to wrap", failures)
         self.assertIn("repository revision occupies multiple line boxes", failures)
+
+    def test_repository_viewer_accepts_all_four_control_states(self) -> None:
+        for show_lines in (True, False):
+            for wrap_lines in (True, False):
+                with self.subTest(show_lines=show_lines, wrap_lines=wrap_lines):
+                    self.assertEqual(
+                        validate_repository_viewer_metrics(
+                            390,
+                            844,
+                            show_lines,
+                            wrap_lines,
+                            repository_viewer_metrics(show_lines, wrap_lines),
+                        ),
+                        [],
+                    )
+
+    def test_repository_viewer_rejects_collapsed_code_without_line_numbers(self) -> None:
+        metrics = repository_viewer_metrics(False, True)
+        metrics["code"]["width"] = 28.8
+        failures = validate_repository_viewer_metrics(
+            390,
+            844,
+            False,
+            True,
+            metrics,
+        )
+        self.assertIn(
+            "repository file code does not fill the line when line numbers are hidden",
+            failures,
+        )
+
+    def test_repository_viewer_requires_explicit_code_grid_column(self) -> None:
+        metrics = repository_viewer_metrics(False, True)
+        metrics["code"]["gridColumnStart"] = "auto"
+        failures = validate_repository_viewer_metrics(
+            390,
+            844,
+            False,
+            True,
+            metrics,
+        )
+        self.assertIn(
+            "repository file code is not explicitly placed in grid column 1",
+            failures,
+        )
+
+    def test_repository_viewer_requires_wrap_semantics(self) -> None:
+        metrics = repository_viewer_metrics(False, True)
+        metrics["code"]["whiteSpace"] = "pre"
+        metrics["code"]["overflowWrap"] = "normal"
+        failures = validate_repository_viewer_metrics(
+            390,
+            844,
+            False,
+            True,
+            metrics,
+        )
+        self.assertIn("repository file wrapping is not pre-wrap", failures)
+        self.assertIn("repository file overflow wrapping is not anywhere", failures)
 
     def test_landing_preserves_touch_target_floor(self) -> None:
         case = CheckCase("landing", "/", "landing")
