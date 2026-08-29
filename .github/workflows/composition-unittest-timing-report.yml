@@ -1,6 +1,13 @@
 name: Composition unittest timing report
 
 on:
+  pull_request:
+    branches:
+      - site
+    paths:
+      - .github/workflows/composition-unittest-timing-report.yml
+      - scripts/report_composition_unittest_timing.py
+      - tests/test_composition_unittest_timing_report.py
   workflow_dispatch:
     inputs:
       runs_to_sample:
@@ -32,7 +39,7 @@ jobs:
       - name: Download recent canonical Composition core logs
         uses: actions/github-script@v8
         env:
-          RUNS_TO_SAMPLE: ${{ inputs.runs_to_sample }}
+          RUNS_TO_SAMPLE: ${{ inputs.runs_to_sample || '3' }}
         with:
           script: |
             const fs = require('fs');
