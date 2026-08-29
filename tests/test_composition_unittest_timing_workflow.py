@@ -16,7 +16,7 @@ class CompositionUnittestTimingWorkflowTests(unittest.TestCase):
         self.workflow = yaml.load(self.workflow_text, Loader=yaml.BaseLoader)
         self.assertIsInstance(self.workflow, dict)
 
-    def test_trigger_is_scoped_and_permissions_are_read_only(self) -> None:
+    def test_trigger_is_scoped_scheduled_and_permissions_are_read_only(self) -> None:
         triggers = self.workflow["on"]
         pull_request = triggers["pull_request"]
 
@@ -29,6 +29,7 @@ class CompositionUnittestTimingWorkflowTests(unittest.TestCase):
             },
             set(pull_request["paths"]),
         )
+        self.assertEqual("41 18 * * *", triggers["schedule"][0]["cron"])
         self.assertIn("workflow_dispatch", triggers)
         self.assertEqual(
             {"contents": "read", "actions": "read"},
@@ -37,6 +38,22 @@ class CompositionUnittestTimingWorkflowTests(unittest.TestCase):
         self.assertNotIn("contents: write", self.workflow_text)
         self.assertNotIn("pages: write", self.workflow_text)
         self.assertNotIn("id-token: write", self.workflow_text)
+
+    def test_non_manual_runs_use_bounded_default_sample_count(self) -> None:
+        steps = self.workflow["jobs"]["report"]["steps"]
+        download = next(
+            step
+            for step in steps
+            if step["name"] == "Download recent canonical Composition core logs"
+        )
+
+        self.assertEqual(
+            "${{ inputs.runs_to_sample || '3' }}",
+            download["env"]["RUNS_TO_SAMPLE"],
+        )
+        dispatch = self.workflow["on"]["workflow_dispatch"]["inputs"]["runs_to_sample"]
+        self.assertEqual("5", dispatch["default"])
+        self.assertEqual("true", dispatch["required"])
 
     def test_self_test_checks_out_exact_pull_request_head(self) -> None:
         steps = self.workflow["jobs"]["report"]["steps"]
