@@ -315,6 +315,11 @@ class PwaBrowserEvidenceTests(unittest.TestCase):
                 recovered = self.wait_for_state(browser, "current")
                 self.assertEqual(recovered["value"], "revision-2")
 
+                browser.execute("window.checkUpdate(); return true;")
+                update_current = self.wait_for_state(browser, "update-current")
+                self.assertEqual(update_current["activeRevision"], "1")
+                self.assertEqual(update_current["current"], "true")
+
                 state.app_revision = 2
                 browser.execute("window.checkUpdate(); return true;")
                 available = self.wait_for_state(browser, "update-available")
