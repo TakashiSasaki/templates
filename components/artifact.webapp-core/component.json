@@ -2,7 +2,7 @@
   "schema_version": 1,
   "id": "artifact.webapp-core",
   "kind": "artifact",
-  "version": 15,
+  "version": 16,
   "summary": "Framework-neutral browser application identity, surfaces, routes, visible states, viewports, and Web-specific validation.",
   "requires": [
     "lifecycle.composition-state",
