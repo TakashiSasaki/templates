@@ -5,13 +5,17 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 import sys
+import time
 import unittest
 from collections.abc import Iterator, Sequence
 from pathlib import Path
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+TIMING_LOG_PREFIX = "COMPOSITION_UNITTEST_TIMING "
+TIMING_SCHEMA_VERSION = 1
 
 # These are the tests that execute a real Chrome session as part of their
 # acceptance boundary. Keep the list at exact unittest-id granularity: many
@@ -38,17 +42,65 @@ REAL_BROWSER_TEST_IDS = frozenset(
 )
 SUITES = ("all", "core", "real-browser")
 
-# PR #471 balanced unittest *counts*, but the post-merge run still measured
-# shard runtimes at 154.364 s versus 104.260 s. These two tests accounted for
-# roughly 26 s on the slower shard. Keep the general SHA-256 partition stable,
-# but move only these measured outliers when the production workflow uses two
-# shards. Other shard counts deliberately retain the pure hash assignment.
+# PR #478 added two measured two-shard overrides when Chrome-backed tests still
+# shared the production shards with the core suite. PR #513 later separated the
+# seven real-browser tests into their own one-shard job, so that historical
+# browser override no longer belongs to the production two-shard core suite.
+# Keep only the remaining measured core outlier until multi-run per-test timing
+# telemetry is available to support a less noisy balancing decision.
 TWO_SHARD_TIMING_OVERRIDES = {
     "test_composer_generated_material.ComposerGeneratedMaterialTests."
     "test_webapp_apply_generates_and_locks_contract_manifest": 1,
-    "test_webapp_auth_productization.WebappAuthenticationProductizationTests."
-    "test_realistic_auth_fixture_reaches_transactional_release": 1,
 }
+
+
+class TimingTextTestResult(unittest.TextTestResult):
+    """Collect parent unittest durations without changing unittest semantics."""
+
+    def __init__(self, *args: object, **kwargs: object) -> None:
+        super().__init__(*args, **kwargs)
+        self.test_durations: list[tuple[str, float]] = []
+        self._started_ns: dict[int, int] = {}
+
+    def startTest(self, test: unittest.case.TestCase) -> None:
+        self._started_ns[id(test)] = time.perf_counter_ns()
+        super().startTest(test)
+
+    def stopTest(self, test: unittest.case.TestCase) -> None:
+        started_ns = self._started_ns.pop(id(test), None)
+        if started_ns is not None:
+            duration_seconds = max(
+                0.0,
+                (time.perf_counter_ns() - started_ns) / 1_000_000_000,
+            )
+            self.test_durations.append((test.id(), duration_seconds))
+        super().stopTest(test)
+
+
+def format_timing_records(
+    timings: Sequence[tuple[str, float]],
+    *,
+    suite: str,
+    shard_count: int,
+    shard_index: int,
+) -> list[str]:
+    """Return stable JSON-line telemetry suitable for later Actions-log aggregation."""
+    return [
+        TIMING_LOG_PREFIX
+        + json.dumps(
+            {
+                "schema_version": TIMING_SCHEMA_VERSION,
+                "suite": suite,
+                "shard_count": shard_count,
+                "shard_index": shard_index,
+                "test_id": test_id,
+                "duration_seconds": round(duration_seconds, 9),
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        for test_id, duration_seconds in sorted(timings, key=lambda item: item[0])
+    ]
 
 
 def iter_tests(suite: unittest.TestSuite) -> Iterator[unittest.case.TestCase]:
@@ -73,6 +125,50 @@ def shard_index_for_test_id(test_id: str, shard_count: int) -> int:
     if shard_count == 2 and test_id in TWO_SHARD_TIMING_OVERRIDES:
         return TWO_SHARD_TIMING_OVERRIDES[test_id]
     return stable_hash_shard_index(test_id, shard_count)
+
+
+def validate_two_shard_timing_overrides(
+    tests: Sequence[unittest.case.TestCase],
+) -> None:
+    """Fail closed when a production core timing override becomes stale or inert."""
+    discovered_ids = {test.id() for test in tests}
+    override_ids = set(TWO_SHARD_TIMING_OVERRIDES)
+
+    missing = sorted(override_ids - discovered_ids)
+    if missing:
+        raise ValueError(
+            "two-shard timing overrides reference undiscovered unittest ids: "
+            + ", ".join(missing)
+        )
+
+    browser_overlap = sorted(override_ids & REAL_BROWSER_TEST_IDS)
+    if browser_overlap:
+        raise ValueError(
+            "two-shard core timing overrides reference real-browser unittest ids: "
+            + ", ".join(browser_overlap)
+        )
+
+    invalid_targets = sorted(
+        test_id
+        for test_id, shard_index in TWO_SHARD_TIMING_OVERRIDES.items()
+        if shard_index not in {0, 1}
+    )
+    if invalid_targets:
+        raise ValueError(
+            "two-shard timing overrides reference invalid shard indexes: "
+            + ", ".join(invalid_targets)
+        )
+
+    redundant = sorted(
+        test_id
+        for test_id, shard_index in TWO_SHARD_TIMING_OVERRIDES.items()
+        if stable_hash_shard_index(test_id, 2) == shard_index
+    )
+    if redundant:
+        raise ValueError(
+            "two-shard timing overrides no longer change stable hash assignment: "
+            + ", ".join(redundant)
+        )
 
 
 def discover_tests(start_directory: Path, pattern: str) -> list[unittest.case.TestCase]:
@@ -153,6 +249,11 @@ def main() -> int:
     discovered = discover_tests(start_directory, args.pattern)
     if not discovered:
         raise SystemExit("unittest discovery produced no tests")
+    if args.shard_count == 2:
+        try:
+            validate_two_shard_timing_overrides(discovered)
+        except ValueError as exc:
+            raise SystemExit(str(exc)) from exc
     try:
         tests = select_tests_for_suite(discovered, args.suite)
     except ValueError as exc:
@@ -185,7 +286,19 @@ def main() -> int:
         f"{len(selected)} unittest instances",
         flush=True,
     )
-    result = unittest.TextTestRunner(verbosity=2).run(unittest.TestSuite(selected))
+    result = unittest.TextTestRunner(
+        verbosity=2,
+        resultclass=TimingTextTestResult,
+    ).run(unittest.TestSuite(selected))
+    if not isinstance(result, TimingTextTestResult):
+        raise RuntimeError("timing result class was not preserved by unittest runner")
+    for line in format_timing_records(
+        result.test_durations,
+        suite=args.suite,
+        shard_count=args.shard_count,
+        shard_index=args.shard_index,
+    ):
+        print(line, flush=True)
     return 0 if result.wasSuccessful() else 1
 
 

@@ -1,16 +1,24 @@
 from __future__ import annotations
 
 import hashlib
+import io
+import json
 import unittest
 from collections import Counter
 from pathlib import Path
+from unittest import mock
 
 from scripts.run_unittest_shard import (
     REAL_BROWSER_TEST_IDS,
+    TIMING_LOG_PREFIX,
+    TIMING_SCHEMA_VERSION,
     TWO_SHARD_TIMING_OVERRIDES,
+    TimingTextTestResult,
     discover_tests,
+    format_timing_records,
     select_tests_for_suite,
     shard_index_for_test_id,
+    validate_two_shard_timing_overrides,
 )
 
 
@@ -25,7 +33,11 @@ class UnittestShardTests(unittest.TestCase):
             for index in range(64)
         ]
         assignments = [shard_index_for_test_id(test_id, 2) for test_id in test_ids]
-        self.assertEqual(assignments, [shard_index_for_test_id(test_id, 2) for test_id in test_ids])
+        expected = [
+            int.from_bytes(hashlib.sha256(test_id.encode("utf-8")).digest()[:8], "big") % 2
+            for test_id in test_ids
+        ]
+        self.assertEqual(assignments, expected)
         self.assertEqual(set(assignments), {0, 1})
         for test_id in test_ids:
             assigned = shard_index_for_test_id(test_id, 2)
@@ -34,15 +46,19 @@ class UnittestShardTests(unittest.TestCase):
                 [assigned],
             )
 
-    def test_two_shard_timing_overrides_are_narrow_and_do_not_change_other_counts(self) -> None:
+    def test_two_shard_timing_overrides_are_current_core_tests_and_nonredundant(self) -> None:
         expected = {
             "test_composer_generated_material.ComposerGeneratedMaterialTests."
             "test_webapp_apply_generates_and_locks_contract_manifest",
-            "test_webapp_auth_productization.WebappAuthenticationProductizationTests."
-            "test_realistic_auth_fixture_reaches_transactional_release",
         }
         self.assertEqual(set(TWO_SHARD_TIMING_OVERRIDES), expected)
         self.assertEqual(set(TWO_SHARD_TIMING_OVERRIDES.values()), {1})
+        self.assertFalse(expected & REAL_BROWSER_TEST_IDS)
+
+        discovered = discover_tests(ROOT / "tests", "test*.py")
+        validate_two_shard_timing_overrides(discovered)
+        core_ids = {test.id() for test in select_tests_for_suite(discovered, "core")}
+        self.assertTrue(expected <= core_ids)
 
         for test_id in expected:
             digest = hashlib.sha256(test_id.encode("utf-8")).digest()
@@ -54,6 +70,111 @@ class UnittestShardTests(unittest.TestCase):
                 shard_index_for_test_id(test_id, 3),
                 pure_hash_three_shard,
             )
+
+    def test_two_shard_timing_override_validation_rejects_stale_and_browser_ids(self) -> None:
+        discovered = discover_tests(ROOT / "tests", "test*.py")
+        browser_id = next(iter(REAL_BROWSER_TEST_IDS))
+
+        with mock.patch.dict(
+            TWO_SHARD_TIMING_OVERRIDES,
+            {"test_missing.ExampleTests.test_missing": 1},
+            clear=True,
+        ):
+            with self.assertRaisesRegex(ValueError, "undiscovered unittest ids"):
+                validate_two_shard_timing_overrides(discovered)
+
+        with mock.patch.dict(
+            TWO_SHARD_TIMING_OVERRIDES,
+            {browser_id: 1},
+            clear=True,
+        ):
+            with self.assertRaisesRegex(ValueError, "real-browser unittest ids"):
+                validate_two_shard_timing_overrides(discovered)
+
+    def test_timing_result_records_parent_test_duration(self) -> None:
+        class TimingFixture(unittest.TestCase):
+            def test_example(self) -> None:
+                pass
+
+        test = TimingFixture("test_example")
+        runner = unittest.TextTestRunner(
+            stream=io.StringIO(),
+            verbosity=0,
+            resultclass=TimingTextTestResult,
+        )
+        with mock.patch(
+            "scripts.run_unittest_shard.time.perf_counter_ns",
+            side_effect=[1_000_000_000, 1_250_000_000],
+        ):
+            result = runner.run(unittest.TestSuite([test]))
+
+        self.assertIsInstance(result, TimingTextTestResult)
+        self.assertEqual(
+            result.test_durations,
+            [(test.id(), 0.25)],
+        )
+
+    def test_timing_result_records_failed_and_skipped_tests_once(self) -> None:
+        class TimingFixture(unittest.TestCase):
+            def test_failure(self) -> None:
+                self.fail("expected failure")
+
+            @unittest.skip("expected skip")
+            def test_skip(self) -> None:
+                pass
+
+        failure = TimingFixture("test_failure")
+        skipped = TimingFixture("test_skip")
+        runner = unittest.TextTestRunner(
+            stream=io.StringIO(),
+            verbosity=0,
+            resultclass=TimingTextTestResult,
+        )
+        with mock.patch(
+            "scripts.run_unittest_shard.time.perf_counter_ns",
+            side_effect=[
+                1_000_000_000,
+                1_100_000_000,
+                2_000_000_000,
+                2_200_000_000,
+            ],
+        ):
+            result = runner.run(unittest.TestSuite([failure, skipped]))
+
+        self.assertIsInstance(result, TimingTextTestResult)
+        self.assertFalse(result.wasSuccessful())
+        self.assertEqual(len(result.failures), 1)
+        self.assertEqual(len(result.skipped), 1)
+        self.assertEqual(
+            result.test_durations,
+            [(failure.id(), 0.1), (skipped.id(), 0.2)],
+        )
+
+    def test_timing_records_are_stable_machine_readable_json_lines(self) -> None:
+        lines = format_timing_records(
+            [
+                ("test_z.ExampleTests.test_z", 0.2),
+                ("test_a.ExampleTests.test_a", 0.1234567894),
+            ],
+            suite="core",
+            shard_count=2,
+            shard_index=1,
+        )
+        self.assertEqual(len(lines), 2)
+        payloads = []
+        for line in lines:
+            self.assertTrue(line.startswith(TIMING_LOG_PREFIX))
+            payloads.append(json.loads(line.removeprefix(TIMING_LOG_PREFIX)))
+
+        self.assertEqual(
+            [payload["test_id"] for payload in payloads],
+            ["test_a.ExampleTests.test_a", "test_z.ExampleTests.test_z"],
+        )
+        self.assertEqual(payloads[0]["schema_version"], TIMING_SCHEMA_VERSION)
+        self.assertEqual(payloads[0]["suite"], "core")
+        self.assertEqual(payloads[0]["shard_count"], 2)
+        self.assertEqual(payloads[0]["shard_index"], 1)
+        self.assertEqual(payloads[0]["duration_seconds"], 0.123456789)
 
     def test_duplicate_test_ids_keep_their_execution_multiplicity(self) -> None:
         duplicate_id = "test_duplicate.ExampleTests.test_case"
