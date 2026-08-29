@@ -44,6 +44,10 @@ paths to the Composition-owned sources.
   canonical material for installability, application icons, offline/network-loss
   presentation, data freshness, updates, and cross-platform compatibility.
 
+The separate [Policy PWA usage guide](../policy/pwa/) documents install and use
+of the Policy documentation site itself. It is not the reusable application PWA
+capability authority.
+
 Browser and operating-system mechanisms can differ. Follow the Composition
 source for the product invariants and evidence boundary rather than treating a
 current browser install prompt or platform-specific presentation detail as Site
