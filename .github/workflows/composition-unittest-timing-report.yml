@@ -8,6 +8,8 @@ on:
       - .github/workflows/composition-unittest-timing-report.yml
       - scripts/report_composition_unittest_timing.py
       - tests/test_composition_unittest_timing*.py
+  schedule:
+    - cron: '41 18 * * *'
   workflow_dispatch:
     inputs:
       runs_to_sample:
