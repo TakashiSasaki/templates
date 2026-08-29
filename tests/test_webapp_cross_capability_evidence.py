@@ -64,6 +64,7 @@ class WebappCrossCapabilityEvidenceBoundaryTests(unittest.TestCase):
             root / "contracts/manifest.json",
             {
                 "contracts": [
+                    {"id": "browser_identity", "versionHistory": [{"version": 1}]},
                     {"id": "routes", "versionHistory": [{"version": 1}]},
                     {"id": "surfaces", "versionHistory": [{"version": 1}]},
                     {"id": "ui_states", "versionHistory": [{"version": 1}]},
@@ -85,6 +86,12 @@ class WebappCrossCapabilityEvidenceBoundaryTests(unittest.TestCase):
             ],
             "requirements": [
                 {
+                    "id": "REQ-BROWSER-IDENTITY",
+                    "description": "Browser identity is linked and observable in a browser.",
+                    "recordIds": ["browser-identity-proof-family-browser-identity"],
+                    "requiredPositiveProofKinds": ["end-to-end-test"],
+                },
+                {
                     "id": "REQ-SURFACE",
                     "description": "Main surface exists.",
                     "recordIds": ["surfaces-surface-main"],
@@ -104,6 +111,16 @@ class WebappCrossCapabilityEvidenceBoundaryTests(unittest.TestCase):
                 },
             ],
             "records": [
+                self.record(
+                    "browser-identity-proof-family-browser-identity",
+                    {
+                        "kind": "contract-item",
+                        "contractId": "browser_identity",
+                        "itemKind": "proof-family",
+                        "itemId": "browser-identity",
+                    },
+                    proof_kind="end-to-end-test",
+                ),
                 self.record(
                     "surfaces-surface-main",
                     {
