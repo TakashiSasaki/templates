@@ -446,7 +446,15 @@
     if (treeScroller instanceof HTMLElement) {
       treeScroller.scrollTop = treeReturnScrollTop;
     }
-    const candidates = [treeReturnFocus, selectedLink, filterInput];
+    const fallbackTreeControl = tree.querySelector(
+      "a[data-repository-file], summary, a, button"
+    );
+    const candidates = [
+      treeReturnFocus,
+      selectedLink,
+      filterInput,
+      fallbackTreeControl,
+    ];
     const focusTarget = candidates.find((candidate) => elementIsFilterVisible(candidate));
     if (focusTarget instanceof HTMLElement) {
       focusTarget.focus({ preventScroll: true });
