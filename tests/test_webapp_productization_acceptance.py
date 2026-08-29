@@ -27,6 +27,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+from browser_identity_probe import run_browser_identity_probe
 from browser_probe import _open_webdriver_session, run_browser_contract_probe
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -79,7 +80,11 @@ for label, command in CHECKS:
 viewports = json.loads(
     (ROOT / "contracts/viewports.json").read_text(encoding="utf-8")
 )
+browser_identity = json.loads(
+    (ROOT / "contracts/browser-identity.json").read_text(encoding="utf-8")
+)
 client_url = (ROOT / "product/client.html").resolve().as_uri()
+run_browser_identity_probe(client_url, browser_identity)
 run_browser_contract_probe(client_url, viewports)
 routes = json.loads((ROOT / "contracts/routes.json").read_text(encoding="utf-8"))["routes"]
 assert len(routes) == 1
@@ -377,7 +382,12 @@ class WebappProductizationAcceptanceTests(unittest.TestCase):
         product = target / "product"
         product.mkdir()
         (product / "prove_webapp.py").write_text(PROOF_SCRIPT, encoding="utf-8")
-        for name in ("browser_probe.py", "client.html"):
+        for name in (
+            "browser_probe.py",
+            "browser_identity_probe.py",
+            "client.html",
+            "favicon.svg",
+        ):
             (product / name).write_text(
                 (BROWSER_FIXTURE_DIR / name).read_text(encoding="utf-8"),
                 encoding="utf-8",
@@ -521,6 +531,10 @@ class WebappProductizationAcceptanceTests(unittest.TestCase):
             proof.returncode,
             0,
             f"stdout:\n{proof.stdout}\nstderr:\n{proof.stderr}",
+        )
+        self.assertIn(
+            "Browser identity proof: standard favicon linkage and primary asset retrieval passed",
+            proof.stdout,
         )
         self.assertIn(
             "Browser Webapp proof: responsive layout, scrolling, zoom, orientation, and declared input capabilities passed",
