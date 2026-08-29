@@ -36,15 +36,106 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
         self.assertNotIn("id-token: write", workflow)
         self.assertNotIn("\n  deploy:\n", workflow)
 
-        self.assertIn("needs: build", check_block)
+        self.assertIn("always() &&", check_block)
         self.assertIn("github.event_name == 'pull_request'", check_block)
         self.assertIn("inputs.site_ref == ''", check_block)
         self.assertIn(
             "github.event.pull_request.head.repo.full_name == github.repository",
             check_block,
         )
+        self.assertIn("needs:\n      - build\n      - classify_browser", check_block)
+        self.assertIn("BUILD_RESULT: ${{ needs.build.result }}", check_block)
+        self.assertIn(
+            "CLASSIFIER_RESULT: ${{ needs.classify_browser.result }}",
+            check_block,
+        )
+        self.assertIn(
+            "BROWSER_REQUIRED: ${{ needs.classify_browser.outputs.required }}",
+            check_block,
+        )
+        self.assertIn("test \"$BUILD_RESULT\" = success", check_block)
+        self.assertIn("test \"$CLASSIFIER_RESULT\" = success", check_block)
         self.assertIn("actions/download-artifact@v5", check_block)
         self.assertIn("name: github-pages", check_block)
+
+    def test_browser_classifier_is_exact_head_fail_closed_and_parallel_to_build(self) -> None:
+        workflow = BUILD_WORKFLOW.read_text(encoding="utf-8")
+        build_block, remainder = workflow.split("\n  classify_browser:\n", maxsplit=1)
+        classifier_block, check_block = remainder.split("\n  check:\n", maxsplit=1)
+
+        self.assertIn("actions/upload-pages-artifact@v5", build_block)
+        self.assertNotIn("needs: build", classifier_block)
+        self.assertIn("name: Classify browser acceptance scope", classifier_block)
+        self.assertIn(
+            "ref: ${{ github.event.pull_request.head.sha }}",
+            classifier_block,
+        )
+        self.assertIn("fetch-depth: 0", classifier_block)
+        self.assertIn("persist-credentials: false", classifier_block)
+        self.assertIn("python-version: '3.12.13'", classifier_block)
+        self.assertIn("git diff --name-only --no-renames", classifier_block)
+        self.assertIn("test -s \"$RUNNER_TEMP/site-browser-paths.txt\"", classifier_block)
+        self.assertIn(
+            "python -I scripts/classify_site_browser_acceptance.py",
+            classifier_block,
+        )
+        self.assertIn("required: ${{ steps.classify.outputs.required }}", classifier_block)
+        self.assertIn("reason: ${{ steps.classify.outputs.reason }}", classifier_block)
+
+        self.assertIn("Unexpected browser acceptance classification", check_block)
+        self.assertIn(
+            "if: ${{ needs.classify_browser.outputs.required == 'true' }}",
+            check_block,
+        )
+        self.assertIn(
+            "if: ${{ always() && needs.classify_browser.outputs.required == 'true' }}",
+            check_block,
+        )
+
+    def test_browser_heavy_steps_are_guarded_by_classifier_output(self) -> None:
+        workflow = BUILD_WORKFLOW.read_text(encoding="utf-8")
+        check_block = workflow.split("\n  check:\n", maxsplit=1)[1]
+        required_condition = "if: ${{ needs.classify_browser.outputs.required == 'true' }}"
+
+        heavy_steps = (
+            "Check out proposed Site revision",
+            "Download built Pages artifact",
+            "Extract built site",
+            "Set up Python",
+            "Install Playwright controller",
+            "Install Japanese browser font",
+            "Install Playwright Chromium",
+            "Check mobile layout geometry",
+            "Check localized inline Glossary chrome",
+            "Check PWA freshness lifecycle",
+            "Check localized PWA freshness chrome",
+            "Check PWA document commit correlation",
+            "Check PWA slow-network convergence",
+            "Check PWA freshness capability messaging",
+            "Check Site search history",
+            "Check review regressions for Site search history",
+        )
+        for index, step_name in enumerate(heavy_steps):
+            with self.subTest(step=step_name):
+                marker = f"      - name: {step_name}\n"
+                start = check_block.index(marker) + len(marker)
+                next_step = check_block.find("\n      - name:", start)
+                step_body = check_block[start:] if next_step == -1 else check_block[start:next_step]
+                self.assertIn(required_condition, step_body)
+
+        for evidence_step in (
+            "Upload mobile visual evidence",
+            "Upload search-history evidence",
+        ):
+            with self.subTest(step=evidence_step):
+                marker = f"      - name: {evidence_step}\n"
+                start = check_block.index(marker) + len(marker)
+                next_step = check_block.find("\n      - name:", start)
+                step_body = check_block[start:] if next_step == -1 else check_block[start:next_step]
+                self.assertIn(
+                    "if: ${{ always() && needs.classify_browser.outputs.required == 'true' }}",
+                    step_body,
+                )
 
     def test_reusable_workflow_checks_out_only_locked_external_providers(self) -> None:
         workflow = BUILD_WORKFLOW.read_text(encoding="utf-8")
