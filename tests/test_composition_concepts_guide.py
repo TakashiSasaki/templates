@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import unittest
 from pathlib import Path
 
@@ -11,6 +12,7 @@ DOC_INDEX = ROOT / "docs" / "index.md"
 JA_DOC_INDEX = ROOT / "translations" / "ja" / "docs" / "index.md"
 PUBLICATION_CATALOG = ROOT / "docs" / "publication-catalog.json"
 TRANSLATION_MANIFEST = ROOT / "translations" / "manifest.json"
+MARKDOWN_LINK = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
 
 
 class CompositionConceptsGuideTests(unittest.TestCase):
@@ -54,6 +56,16 @@ class CompositionConceptsGuideTests(unittest.TestCase):
                 "home": False,
             },
         )
+
+    def test_concepts_guide_relative_links_resolve_to_regular_files(self) -> None:
+        links = MARKDOWN_LINK.findall(CONCEPTS.read_text(encoding="utf-8"))
+        self.assertTrue(links)
+        for target in links:
+            with self.subTest(target=target):
+                self.assertFalse(target.startswith(("http://", "https://", "/")))
+                path = (CONCEPTS.parent / target).resolve()
+                self.assertTrue(path.is_file(), f"relative link target is not a file: {target}")
+                self.assertFalse(path.is_symlink(), f"relative link target must not be a symlink: {target}")
 
     def test_japanese_reference_translation_is_registered_and_optional_to_first_use(self) -> None:
         translation = JA_CONCEPTS.read_text(encoding="utf-8")
