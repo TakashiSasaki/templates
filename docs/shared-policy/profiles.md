@@ -121,7 +121,7 @@ Included modules:
 <!-- PROFILE: pull-request -->
 ### `pull-request`
 
-Use when the context owns pull-request lifecycle work. This profile is operational: it requires target-branch freshness, at least one completed independent review bound to the exact proposed head, review-thread closure, exact-head CI evidence, fail-closed handling while expected CI evidence is unresolved, current mergeability, a final live-state refresh, an immutable proposed-head guard for merge execution, and post-merge verification. Provider-specific APIs, field names, observation intervals, and retry mechanics belong to an adapter or repository-local policy rather than these shared semantics.
+Use when the context owns pull-request lifecycle work. This profile is operational: it requires target-branch freshness evaluation, at least one completed independent review bound to the exact proposed head, review-thread closure, exact-head CI evidence, fail-closed handling while expected CI evidence is unresolved, reuse of still-valid acceptance evidence with selective invalidation, current mergeability, a final invalidation-focused live-state refresh, an immutable proposed-head guard for merge execution, and post-merge verification. Provider-specific APIs, field names, observation intervals, and retry mechanics belong to an adapter or repository-local policy rather than these shared semantics.
 
 Included modules:
 
@@ -130,6 +130,7 @@ Included modules:
 - `policy/pull-request/review-thread-closure.md`
 - `policy/pull-request/exact-head-ci-evidence.md`
 - `policy/pull-request/ci-discovery-fail-closed.md`
+- `policy/pull-request/reuse-valid-evidence.md`
 - `policy/pull-request/current-mergeability.md`
 - `policy/pull-request/final-live-state-refresh.md`
 - `policy/pull-request/immutable-head-guard.md`
