@@ -158,9 +158,11 @@ def test_target_branch_movement_invalidates_only_affected_evidence() -> None:
     )
     required_semantics = (
         "current target branch full commit sha",
-        "inspect the intervening change",
-        "re-evaluate the evidence whose applicability or semantic basis could be affected",
-        "not an automatic reason to discard unrelated exact-head ci or review evidence",
+        "evaluate the proposed change against that exact target state",
+        "inspect the intervening target change",
+        "synchronize or rebuild the proposed head only when",
+        "do not require proposed-head synchronization solely because the target branch moved",
+        "does not by itself invalidate unrelated exact-head ci or review evidence",
     )
     for semantic in required_semantics:
         assert semantic.lower() in rule.lower()
