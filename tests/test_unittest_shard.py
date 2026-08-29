@@ -202,6 +202,7 @@ class UnittestShardTests(unittest.TestCase):
         core_ids = {test.id() for test in core_tests}
         browser_ids = {test.id() for test in browser_tests}
         self.assertEqual(browser_ids, set(REAL_BROWSER_TEST_IDS))
+        self.assertEqual(len(browser_ids), 8)
         self.assertIn(
             "test_pwa_browser_evidence.PwaBrowserEvidenceTests."
             "test_mutable_origin_proves_pwa_browser_evidence_families",
