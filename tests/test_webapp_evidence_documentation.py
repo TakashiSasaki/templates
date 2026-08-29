@@ -21,7 +21,7 @@ class WebappEvidenceDocumentationTests(unittest.TestCase):
         text = DOCUMENT.read_text(encoding="utf-8")
 
         self.assertIn("browser_identity/proof-family/browser-identity", text)
-        self.assertIn("browser execution capability", text)
+        self.assertIn("`browser` execution capability", text)
         self.assertIn("Planning mode applies the same proof-strength intent", text)
         self.assertNotIn("deferred to the browser/PWA evidence follow-up", text)
 
