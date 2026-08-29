@@ -164,6 +164,24 @@ class TranslationPairValidationTests(unittest.TestCase):
             ):
                 validate(site, mapping, BASE)
 
+    def test_malformed_alternate_metadata_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            site, mapping = self.prepare_pair(Path(directory))
+            canonical = site / "policy/index.html"
+            canonical.write_text(
+                canonical.read_text(encoding="utf-8").replace(
+                    f'<link rel="alternate" hreflang="ja" href="{BASE}ja/policy/">',
+                    f'<link rel="alternate" href="{BASE}ja/policy/">',
+                ),
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(
+                TranslationPairValidationError,
+                "alternate link requires one href and one hreflang",
+            ):
+                validate(site, mapping, BASE)
+
     def test_missing_generated_translation_page_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             site, mapping = self.prepare_pair(Path(directory))
@@ -196,6 +214,30 @@ class TranslationPairValidationTests(unittest.TestCase):
                 "without a current translation-publication mapping",
             ):
                 validate(site, mapping, BASE)
+
+    def test_auxiliary_generated_surfaces_are_not_reader_switcher_candidates(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            site, mapping = self.prepare_pair(root)
+            for relative in (
+                "files/site/content/example/index.html",
+                "repository-trees/previews/site/example/index.html",
+                "guided/policy/index.html",
+                "ja/guided/policy/index.html",
+            ):
+                page = site / relative
+                page.parent.mkdir(parents=True, exist_ok=True)
+                page.write_text(
+                    render_page(
+                        language="ja" if relative.startswith("ja/") else "en",
+                        canonical_url=f"{BASE}{relative.removesuffix('index.html')}",
+                        alternates={},
+                        switcher_links={"ja": f"{BASE}ja/unrelated/"},
+                    ),
+                    encoding="utf-8",
+                )
+
+            self.assertEqual(validate(site, mapping, BASE), (1, 1))
 
     def test_translation_destination_must_mirror_canonical_destination(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
