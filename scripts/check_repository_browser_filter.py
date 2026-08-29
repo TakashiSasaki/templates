@@ -292,7 +292,9 @@ def _measure_repository_browser_filter(
         filter_input.focus()
         filter_input.press("Enter")
         page.wait_for_function(
-            "() => document.querySelector('[data-repository-browser]').dataset.mobileView === 'content'"
+            "() => { const browser = document.querySelector('[data-repository-browser]'); "
+            "const files = document.querySelector('[data-show-files]'); "
+            "return browser?.dataset.mobileView === 'content' && document.activeElement === files; }"
         )
         selected_path = page.locator("[data-selected-file]").text_content() or ""
         hash_path = page.evaluate(
@@ -315,7 +317,12 @@ def _measure_repository_browser_filter(
 
         page.locator("[data-show-files]").click()
         page.wait_for_function(
-            "() => document.querySelector('[data-repository-browser]').dataset.mobileView === 'files'"
+            "expectedScroll => { const browser = document.querySelector('[data-repository-browser]'); "
+            "const filter = document.querySelector('input[aria-label=\"Filter files\"]'); "
+            "const tree = document.querySelector('.tree'); "
+            "return browser?.dataset.mobileView === 'files' && document.activeElement === filter "
+            "&& tree && Math.abs(tree.scrollTop - expectedScroll) <= 1; }",
+            arg=saved_scroll,
         )
         returned = {
             "mobileView": page.locator("[data-repository-browser]").get_attribute(
@@ -335,7 +342,9 @@ def _measure_repository_browser_filter(
         page.locator("[data-show-files]").focus()
         page.keyboard.press("/")
         page.wait_for_function(
-            "() => document.querySelector('[data-repository-browser]').dataset.mobileView === 'files'"
+            "() => { const browser = document.querySelector('[data-repository-browser]'); "
+            "const filter = document.querySelector('input[aria-label=\"Filter files\"]'); "
+            "return browser?.dataset.mobileView === 'files' && document.activeElement === filter; }"
         )
         slash = {
             "mobileView": page.locator("[data-repository-browser]").get_attribute(
@@ -396,6 +405,7 @@ def run_repository_browser_filter_check(
 ) -> None:
     sync_playwright, PlaywrightError = core._load_playwright()
     server, thread, base_url = core.serve(site_root)
+    metrics: dict[str, Any]
     try:
         try:
             with sync_playwright() as playwright:
@@ -406,10 +416,8 @@ def run_repository_browser_filter_check(
                     )
                 finally:
                     browser.close()
-        except PlaywrightError as exc:
-            raise MobileLayoutError(
-                f"unable to run repository browser filter acceptance: {exc}"
-            ) from exc
+        except (MobileLayoutError, PlaywrightError) as exc:
+            metrics = {"ready": False, "error": str(exc)}
     finally:
         server.shutdown()
         server.server_close()
