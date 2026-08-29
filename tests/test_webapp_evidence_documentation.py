@@ -32,6 +32,23 @@ class WebappEvidenceDocumentationTests(unittest.TestCase):
         self.assertIn("browser-backed executable proof", boundaries)
         self.assertIn("browser_identity/proof-family/browser-identity", toolchain)
         self.assertIn("browser-backed executable proof", toolchain)
+        self.assertIn(
+            "positive and negative browser-level proof backed by an authoritative command whose execution capabilities include `browser`",
+            toolchain,
+        )
+
+        self.assertIn(
+            "PWA installability, application-icon, offline/freshness, and update evidence are owned separately by `capability.pwa`",
+            contracts,
+        )
+        self.assertIn(
+            "`capability.pwa` owns its installability, application-icon, offline/freshness, and update proof families",
+            boundaries,
+        )
+        self.assertIn(
+            "PWA installability, application-icon, offline/freshness, and update proof families remain separately owned by `capability.pwa`",
+            toolchain,
+        )
 
         combined = "\n".join((contracts, boundaries, toolchain))
         for obsolete in (

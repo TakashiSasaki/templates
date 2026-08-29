@@ -14,6 +14,8 @@ Routes v3 makes access-failure targets explicit. A `render-state` behavior names
 
 Implementation evidence is generic, while `artifact.webapp-core` derives the Webapp-owned target inventory. Current products must cover the established behavior families (`surfaces`, `routes`, `ui_states`, and `viewports`) plus the fixed `browser_identity/proof-family/browser-identity` target. The browser-identity record is evidence of the emitted browser identity, not a restatement of `contracts/browser-identity.json`: executable proof must observe the standard favicon link and the declared asset rather than treating the contract declaration itself as implementation proof.
 
+PWA installability, application-icon, offline/freshness, and update evidence are owned separately by `capability.pwa`. Selecting that capability adds its own proof families without moving PWA semantics into the Webapp core contract families.
+
 ## Browser-sensitive proof strength
 
 Coverage alone is not sufficient for claims that are observable only through browser behavior. In product mode, the `browser_identity/proof-family/browser-identity` target, each `routes` target, and each `viewports` contract target whose `itemKind` is `viewport` or `input-capability` must include at least one positive and at least one negative proof declared as either `end-to-end-test` or `accessibility-test`.
