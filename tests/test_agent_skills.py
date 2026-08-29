@@ -143,6 +143,25 @@ class AgentSkillContractTests(unittest.TestCase):
         self.assertIn("Final merge authorization for every Site pull request", index)
         self.assertIn("reviews = 0", index)
 
+    def test_site_acceptance_handoff_reuses_valid_site_evidence(self) -> None:
+        skill = (
+            SKILLS_ROOT / "site-pr-exact-head-acceptance" / "SKILL.md"
+        ).read_text(encoding="utf-8").lower()
+        for invariant in (
+            "site handoff snapshot",
+            "do not discard the entire snapshot when only one binding changes",
+            "do not repeat discovery merely to make a still-valid result newer",
+            "do not automatically rerun unrelated diagnostics",
+            "target movement also does not by itself require a new proposed head",
+            "do not unconditionally reacquire the effective diff",
+            "elapsed time alone does not make exact-head site evidence stale",
+            "reuse the site-specific scope and ci evidence from the handoff snapshot",
+            "must not unconditionally reacquire site-specific evidence",
+            "diagnostic work does not become a mandatory acceptance condition",
+        ):
+            with self.subTest(invariant=invariant):
+                self.assertIn(invariant, skill)
+
     def test_merge_gate_source_pins_immutable_policy_adapter_identity(self) -> None:
         source = json.loads(MERGE_GATE_SOURCE.read_text(encoding="utf-8"))
         self.assertEqual(source["schema_version"], 1)
