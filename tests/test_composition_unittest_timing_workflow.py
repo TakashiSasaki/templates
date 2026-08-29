@@ -50,7 +50,7 @@ class CompositionUnittestTimingWorkflowTests(unittest.TestCase):
             checkout["with"]["ref"],
         )
 
-    def test_canonical_run_discovery_is_bounded_and_paginated(self) -> None:
+    def test_canonical_run_discovery_is_bounded_paginated_and_deduplicated(self) -> None:
         steps = self.workflow["jobs"]["report"]["steps"]
         download = next(
             step
@@ -63,6 +63,7 @@ class CompositionUnittestTimingWorkflowTests(unittest.TestCase):
         self.assertIn("const workflowName = 'Composition schema validation';", script)
         self.assertIn("const branch = 'composition';", script)
         self.assertIn("const maxRunPages = 5;", script)
+        self.assertIn("const selectedRunIds = new Set();", script)
         self.assertIn("page <= maxRunPages && selectedRuns.length < runsToSample", script)
         self.assertIn("listWorkflowRunsForRepo", script)
         self.assertIn("status: 'completed'", script)
@@ -70,8 +71,25 @@ class CompositionUnittestTimingWorkflowTests(unittest.TestCase):
         self.assertIn("page,", script)
         self.assertIn("run.head_branch === branch", script)
         self.assertIn("run.conclusion === 'success'", script)
+        self.assertIn("!selectedRunIds.has(run.id)", script)
+        self.assertIn("selectedRunIds.add(run.id)", script)
         self.assertIn("response.data.workflow_runs.length < 100", script)
         self.assertIn("max_repository_run_pages: maxRunPages", script)
+
+    def test_canonical_run_must_have_exact_current_core_job_topology(self) -> None:
+        steps = self.workflow["jobs"]["report"]["steps"]
+        download = next(
+            step
+            for step in steps
+            if step["name"] == "Download recent canonical Composition core logs"
+        )
+        script = download["with"]["script"]
+
+        self.assertIn("const coreJobNames = new Set([", script)
+        self.assertIn("const selectedJobNames = new Set(selectedJobs.map((job) => job.name));", script)
+        self.assertIn("selectedJobs.length !== coreJobNames.size", script)
+        self.assertIn("selectedJobNames.size !== coreJobNames.size", script)
+        self.assertIn("does not contain exactly the two current core jobs", script)
 
     def test_report_still_uses_isolated_python_and_artifact_output(self) -> None:
         steps = self.workflow["jobs"]["report"]["steps"]
