@@ -25,11 +25,6 @@ ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github/workflows/schema-validation.yml"
 
 
-class TimingFixture(unittest.TestCase):
-    def test_example(self) -> None:
-        pass
-
-
 class UnittestShardTests(unittest.TestCase):
     def test_deterministic_assignment_maps_each_test_id_to_exactly_one_shard(self) -> None:
         test_ids = [
@@ -68,15 +63,24 @@ class UnittestShardTests(unittest.TestCase):
             )
 
     def test_timing_result_records_parent_test_duration(self) -> None:
+        class TimingFixture(unittest.TestCase):
+            def test_example(self) -> None:
+                pass
+
         test = TimingFixture("test_example")
-        result = TimingTextTestResult(io.StringIO(), True, 2)
+        runner = unittest.TextTestRunner(
+            stream=io.StringIO(),
+            verbosity=0,
+            resultclass=TimingTextTestResult,
+        )
         with mock.patch(
             "scripts.run_unittest_shard.time.perf_counter_ns",
             side_effect=[1_000_000_000, 1_250_000_000],
         ):
-            result.startTest(test)
-            result.stopTest(test)
+            result = runner.run(unittest.TestSuite([test]))
 
+        self.assertIsInstance(result, TimingTextTestResult)
+        assert isinstance(result, TimingTextTestResult)
         self.assertEqual(
             result.test_durations,
             [(test.id(), 0.25)],
