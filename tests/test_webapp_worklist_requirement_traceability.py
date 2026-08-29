@@ -22,6 +22,10 @@ if str(TARGET_SCRIPTS) not in sys.path:
 import scaffold_webapp_evidence as scaffold
 
 
+IDENTITY_RECORD_ID = "browser-identity-proof-family-browser-identity"
+ROUTE_RECORD_ID = "routes-route-home"
+
+
 class WebappWorklistRequirementTraceabilityTests(unittest.TestCase):
     def write_json(self, path: Path, value: object) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -36,9 +40,24 @@ class WebappWorklistRequirementTraceabilityTests(unittest.TestCase):
             {"viewports": [], "inputCapabilities": []},
         )
 
+    def strong_browser_identity_record(self) -> dict:
+        return {
+            "id": IDENTITY_RECORD_ID,
+            "target": {
+                "kind": "contract-item",
+                "contractId": "browser_identity",
+                "itemKind": "proof-family",
+                "itemId": "browser-identity",
+            },
+            "implementationBoundary": {"status": "verified"},
+            "positiveEvidence": [{"status": "verified", "kind": "end-to-end-test"}],
+            "negativeEvidence": [{"status": "verified", "kind": "end-to-end-test"}],
+            "releaseGateIds": ["product-release"],
+        }
+
     def strong_route_record(self, *, proof_kind: str = "end-to-end-test") -> dict:
         return {
-            "id": "routes-route-home",
+            "id": ROUTE_RECORD_ID,
             "target": {
                 "kind": "contract-item",
                 "contractId": "routes",
@@ -51,6 +70,28 @@ class WebappWorklistRequirementTraceabilityTests(unittest.TestCase):
             "releaseGateIds": ["product-release"],
         }
 
+    def identity_requirement(self) -> dict:
+        return {
+            "id": "REQ-BROWSER-IDENTITY",
+            "description": "Browser identity is observable at the browser boundary.",
+            "recordIds": [IDENTITY_RECORD_ID],
+            "requiredPositiveProofKinds": ["end-to-end-test"],
+        }
+
+    def record_status(self, worklist: dict, record_id: str) -> str:
+        return next(
+            item["status"]
+            for item in worklist["recordStatuses"]
+            if item["id"] == record_id
+        )
+
+    def requirement_status(self, worklist: dict, requirement_id: str) -> str:
+        return next(
+            item["status"]
+            for item in worklist["requirements"]
+            if item["id"] == requirement_id
+        )
+
     def test_product_with_empty_requirement_ledger_cannot_project_green(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
@@ -60,13 +101,17 @@ class WebappWorklistRequirementTraceabilityTests(unittest.TestCase):
                 {
                     "mode": "product",
                     "requirements": [],
-                    "records": [self.strong_route_record()],
+                    "records": [
+                        self.strong_browser_identity_record(),
+                        self.strong_route_record(),
+                    ],
                 },
             )
 
             worklist = scaffold.render_worklist(root)
 
-            self.assertEqual(worklist["recordStatuses"][0]["status"], "verified")
+            self.assertEqual(self.record_status(worklist, ROUTE_RECORD_ID), "verified")
+            self.assertEqual(self.record_status(worklist, IDENTITY_RECORD_ID), "verified")
             self.assertEqual(worklist["requirements"], [])
             self.assertEqual(worklist["requirementLedgerStatus"], "missing")
             self.assertEqual(worklist["status"], "missing")
@@ -80,25 +125,30 @@ class WebappWorklistRequirementTraceabilityTests(unittest.TestCase):
                 {
                     "mode": "product",
                     "requirements": [
+                        self.identity_requirement(),
                         {
                             "id": "REQ-ROUTE-FOCUS",
                             "description": "Route entry honors the declared focus target.",
-                            "recordIds": ["routes-route-home"],
+                            "recordIds": [ROUTE_RECORD_ID],
                             "requiredPositiveProofKinds": ["accessibility-test"],
-                        }
+                        },
                     ],
                     "records": [
-                        self.strong_route_record(proof_kind="end-to-end-test")
+                        self.strong_browser_identity_record(),
+                        self.strong_route_record(proof_kind="end-to-end-test"),
                     ],
                 },
             )
 
             worklist = scaffold.render_worklist(root)
 
-            self.assertEqual(worklist["recordStatuses"][0]["status"], "verified")
+            self.assertEqual(self.record_status(worklist, ROUTE_RECORD_ID), "verified")
             self.assertEqual(worklist["requirementLedgerStatus"], "verified")
-            self.assertEqual(worklist["requirements"][0]["status"], "missing")
+            self.assertEqual(
+                self.requirement_status(worklist, "REQ-ROUTE-FOCUS"), "missing"
+            )
             self.assertEqual(worklist["requirementStatusCounts"]["missing"], 1)
+            self.assertEqual(worklist["requirementStatusCounts"]["verified"], 1)
             self.assertEqual(worklist["status"], "missing")
 
     def test_matching_required_positive_kind_closes_requirement_projection(self) -> None:
@@ -110,21 +160,27 @@ class WebappWorklistRequirementTraceabilityTests(unittest.TestCase):
                 {
                     "mode": "product",
                     "requirements": [
+                        self.identity_requirement(),
                         {
                             "id": "REQ-ROUTE-FOCUS",
                             "description": "Route entry honors the declared focus target.",
-                            "recordIds": ["routes-route-home"],
+                            "recordIds": [ROUTE_RECORD_ID],
                             "requiredPositiveProofKinds": ["end-to-end-test"],
-                        }
+                        },
                     ],
-                    "records": [self.strong_route_record()],
+                    "records": [
+                        self.strong_browser_identity_record(),
+                        self.strong_route_record(),
+                    ],
                 },
             )
 
             worklist = scaffold.render_worklist(root)
 
             self.assertEqual(worklist["requirementLedgerStatus"], "verified")
-            self.assertEqual(worklist["requirements"][0]["status"], "verified")
+            self.assertEqual(
+                self.requirement_status(worklist, "REQ-ROUTE-FOCUS"), "verified"
+            )
             self.assertEqual(worklist["status"], "verified")
 
 
