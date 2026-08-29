@@ -78,6 +78,7 @@
     {"source":"components/capability.cli/component.json","destination":"components/capability.cli/component.json","optional":false},
     {"source":"components/capability.mcp/component.json","destination":"components/capability.mcp/component.json","optional":false},
     {"source":"components/capability.mcp-apps/component.json","destination":"components/capability.mcp-apps/component.json","optional":false},
+    {"source":"components/capability.pwa/component.json","destination":"components/capability.pwa/component.json","optional":false},
     {"source":"components/capability.runtime/component.json","destination":"components/capability.runtime/component.json","optional":false},
     {"source":"components/capability.service/component.json","destination":"components/capability.service/component.json","optional":false},
     {"source":"components/capability.web-interface/component.json","destination":"components/capability.web-interface/component.json","optional":false},
