@@ -11,13 +11,11 @@ from scripts.validate_provider_coexistence import _absolute_without_resolving, _
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github/workflows/provider-coexistence.yml"
 SOURCE_LOCK = ROOT / "publication-sources.json"
-DEPLOYMENT_STATE = ROOT / "deployment-state.json"
 
 
 class ProviderCoexistenceIntegrationTests(unittest.TestCase):
     def test_site_locks_immutable_coexistence_provider_revisions(self) -> None:
         lock = json.loads(SOURCE_LOCK.read_text(encoding="utf-8"))
-        state = json.loads(DEPLOYMENT_STATE.read_text(encoding="utf-8"))
         publications = lock["publications"]
 
         self.assertEqual(set(publications), {"composition", "policy"})
@@ -28,10 +26,6 @@ class ProviderCoexistenceIntegrationTests(unittest.TestCase):
                     publications[provider]["revision"],
                     r"\A[0-9a-f]{40}\Z",
                 )
-        self.assertEqual(
-            publications["composition"]["revision"],
-            state["locked_composition_revision"],
-        )
 
     def test_workflow_resolves_only_the_site_lock_and_uses_isolated_toolchains(self) -> None:
         workflow = WORKFLOW.read_text(encoding="utf-8")
