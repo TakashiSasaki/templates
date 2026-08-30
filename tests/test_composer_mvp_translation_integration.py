@@ -50,13 +50,13 @@ class ComposerMvpTranslationIntegrationTests(unittest.TestCase):
             )
             self.assertTrue(composer.is_file())
             composer_text = composer.read_text(encoding="utf-8")
-            self.assertIn("# Composer MVP と managed-state contract", composer_text)
+            self.assertIn("# Composer architecture と managed-state contract", composer_text)
             self.assertIn("> **参考訳（非正本）:**", composer_text)
 
             index = docs_root / "ja" / "composition" / "docs" / "index.md"
             self.assertTrue(index.is_file())
             self.assertIn(
-                "[Composer MVP](../architecture/composer-mvp.md)",
+                "[Composer architecture](../architecture/composer-mvp.md)",
                 index.read_text(encoding="utf-8"),
             )
 
