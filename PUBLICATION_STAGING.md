@@ -50,7 +50,7 @@ Materialization is fail-closed. It requires:
 - exact localization coverage for every active Site reader locale when the title is new; and
 - the fully materialized manifest and locale overlay to pass the ordinary canonical validators before either file is replaced.
 
-The materializer does not edit the provider catalog. After materialization, the ordinary Site tests and assembler still require exact catalog coverage. A candidate provider that does not contain the staged document therefore fails in the normal way.
+The materializer does not edit the provider catalog. Site-owned unit/integration tests validate the reviewed pristine Site revision before materialization. After materialization, the ordinary strict assembler still requires exact catalog coverage against the exact provider candidate. A candidate provider that does not contain the staged document therefore fails in the normal way.
 
 ## Workflow boundary
 
@@ -66,9 +66,11 @@ When an external provider compatibility workflow explicitly supplies a staging I
 
 1. checks out the exact Site revision;
 2. resolves and checks out the exact provider revisions;
-3. materializes the named staging mapping into the disposable `site-source` checkout;
-4. runs the existing Site unit/integration tests; and
+3. runs the existing Site unit/integration tests against the pristine reviewed Site checkout;
+4. materializes the named staging mapping into the disposable `site-source` checkout; and
 5. runs the existing strict assembly and artifact validation against that exact materialized Site/provider pair.
+
+This ordering is deliberate. The Site test suite includes staging-protocol tests whose fixtures model the committed active Site state before staging. Running those tests after mutating the checkout would test the fixture against its own materialized output rather than validate the reviewed active contract. Exact provider-catalog compatibility is proved after materialization by the unchanged strict assembly path, not by weakening or skipping staging self-tests.
 
 The staging path is build-only. It must not be wired into `deploy-pages.yml`.
 

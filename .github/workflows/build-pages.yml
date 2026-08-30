@@ -89,6 +89,12 @@ jobs:
           ref: ${{ steps.publication_refs.outputs.policy }}
           path: policy-source
 
+      - name: Install pinned site dependencies
+        run: python -m pip install --requirement site-source/requirements.txt
+
+      - name: Run site assembly tests
+        run: PYTHONPATH=site-source python -m unittest discover --start-directory site-source/tests --verbose
+
       - name: Materialize staged publication mapping
         if: ${{ inputs.publication_staging_id != '' }}
         env:
@@ -97,12 +103,6 @@ jobs:
           python site-source/scripts/materialize_publication_staging.py \
             --site-root site-source \
             --staging-id "$PUBLICATION_STAGING_ID"
-
-      - name: Install pinned site dependencies
-        run: python -m pip install --requirement site-source/requirements.txt
-
-      - name: Run site assembly tests
-        run: PYTHONPATH=site-source python -m unittest discover --start-directory site-source/tests --verbose
 
       - name: Prepare repository-tree publication
         run: |
