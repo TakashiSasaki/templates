@@ -34,7 +34,7 @@
             {"title": "Composition model", "publication": "composition", "document": "composition-model", "destination": "composition/architecture/composition-model.md"},
             {"title": "Production catalog", "publication": "composition", "document": "catalog-architecture", "destination": "composition/architecture/catalog.md"},
             {"title": "Generated contract manifest", "publication": "composition", "document": "generated-contract-manifest", "destination": "composition/architecture/generated-contract-manifest.md"},
-            {"title": "Composer MVP", "publication": "composition", "document": "composer-mvp", "destination": "composition/architecture/composer-mvp.md"}
+            {"title": "Composer architecture", "publication": "composition", "document": "composer-mvp", "destination": "composition/architecture/composer-mvp.md"}
           ]
         },
         {

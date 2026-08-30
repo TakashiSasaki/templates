@@ -7,13 +7,13 @@
   "authorities": {
     "composition": {
       "role": "artifact-capability-lifecycle-semantics",
-      "publication_revision": "870237a771561b78a46ebba8e81b9f134d587f58",
+      "publication_revision": "cb38a6bee2ac277f9b94b1f8459020f77d999af8",
       "overview_document_id": "composition:overview",
       "publication_catalog_path": "docs/publication-catalog.json"
     },
     "policy": {
       "role": "coding-agent-operating-policy",
-      "publication_revision": "56448995f848ae2de0f38c49ceb1d35f55461ed1",
+      "publication_revision": "667776b32e654156258c191c8b3c0090ca4de94c",
       "overview_document_id": "policy:overview",
       "publication_catalog_path": "docs/publication-catalog.json",
       "relationship_to_composition": "independent-optional"
@@ -32,7 +32,7 @@
     }
   },
   "composition": {
-    "publication_revision": "870237a771561b78a46ebba8e81b9f134d587f58",
+    "publication_revision": "cb38a6bee2ac277f9b94b1f8459020f77d999af8",
     "installer": {
       "repository": "TakashiSasaki/templates",
       "revision": "5a3cfb200ed68d87da1a8e128b61b40401820347",

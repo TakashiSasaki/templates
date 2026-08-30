@@ -21,7 +21,7 @@
         {"id": "composition-model", "canonical": "Composition model", "localized": "Composition モデル"},
         {"id": "production-catalog", "canonical": "Production catalog", "localized": "Production catalog"},
         {"id": "generated-contract-manifest", "canonical": "Generated contract manifest", "localized": "Generated contract manifest"},
-        {"id": "composer-mvp", "canonical": "Composer MVP", "localized": "Composer MVP"},
+        {"id": "composer-mvp", "canonical": "Composer architecture", "localized": "Composer architecture"},
         {"id": "machine-authority-guides", "canonical": "Machine authority guides", "localized": "Machine authority ガイド"},
         {"id": "catalog-guide", "canonical": "Catalog guide", "localized": "Catalog ガイド"},
         {"id": "schema-guide", "canonical": "Schema guide", "localized": "Schema ガイド"},
