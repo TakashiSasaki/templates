@@ -151,6 +151,15 @@ notices for Japanese translations, duplicate translation declarations, and
 translation records whose recorded canonical Git blob no longer matches the
 current English source.
 
+When strict exact catalog coverage prevents the provider catalog and active Site
+mapping from merging independently, Policy may prove its catalog candidate
+against a reviewed full Site commit that contains the corresponding non-active
+Site-owned staging mapping and explicitly select its build-only staging ID. Site
+owns the staging mechanics; Policy only declares its provider catalog entry and
+consumes that immutable compatibility boundary. After the Policy catalog change
+merges, the dependent Site promotion must advance the Policy source lock and
+active mapping so ordinary builds pass without staging.
+
 A publication-set change is complete only after both the `policy` pull request
 and the dependent `site` pull request pass. The site source lock must record the
 reviewed full commit SHA that contains the catalog change.
