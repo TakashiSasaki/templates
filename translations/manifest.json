@@ -48,7 +48,7 @@
       "canonical": "docs/architecture/composer-mvp.md",
       "language": "ja",
       "translation": "translations/ja/docs/architecture/composer-mvp.md",
-      "canonical_blob_sha": "3b703044d79dce22db2a8e40e9428b0078de1a43",
+      "canonical_blob_sha": "098d3848bd0adbe5deaad727a9265a9e1a3db2e6",
       "surfaces": ["reader"]
     },
     {
@@ -62,7 +62,7 @@
       "canonical": "docs/consumer-guide.md",
       "language": "ja",
       "translation": "translations/ja/docs/consumer-guide.md",
-      "canonical_blob_sha": "b3578a334bbd830e38368d218321cda43623f76d",
+      "canonical_blob_sha": "eeec90cbc879968addc8895da39f36ba5ec4f952",
       "surfaces": ["reader"]
     },
     {
@@ -97,7 +97,7 @@
       "canonical": "docs/index.md",
       "language": "ja",
       "translation": "translations/ja/docs/index.md",
-      "canonical_blob_sha": "e96b661a0ce66c9fea63b393c93c650ee17fd653",
+      "canonical_blob_sha": "e4420b5644af673b2b5c8f1c8dddd41f0ce432f6",
       "surfaces": ["reader", "guided"]
     },
     {
@@ -111,7 +111,7 @@
       "canonical": "docs/reference/composer.md",
       "language": "ja",
       "translation": "translations/ja/docs/reference/composer.md",
-      "canonical_blob_sha": "5762b8d30b63c85cd74df46161c92827e4be61fe",
+      "canonical_blob_sha": "2e00e66311d9cbadcbddfa4a9e0d63e08a30b7b8",
       "surfaces": ["reader"]
     },
     {

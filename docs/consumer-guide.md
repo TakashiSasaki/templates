@@ -419,5 +419,5 @@ See the [Composer reference](reference/composer.md) for exact diagnostic meaning
 Normal consumer operation should not require the architecture documents. Use them when you need the design rationale or are maintaining the Composition authority itself:
 
 - [Composition model](architecture/composition-model.md) — authority, intent, lock, component, and ownership model;
-- [Composer MVP](architecture/composer-mvp.md) — deterministic resolver, reconciliation, transaction, digest precondition, and crash-recovery contract;
+- [Composer architecture](architecture/composer-mvp.md) — deterministic resolver, reconciliation, transaction, digest precondition, and crash-recovery contract;
 - [Composition state](../components/lifecycle.composition-state/files/docs/architecture/composition-state.md) — self-contained consumer validation contract.

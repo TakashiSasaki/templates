@@ -1,6 +1,6 @@
 # Composer reference
 
-This reference describes the consumer-facing contract of `scripts/compose.py`. For task-oriented instructions, start with [Using Composition](../consumer-guide.md). For design rationale, see [Composer MVP](../architecture/composer-mvp.md) and the [Composition model](../architecture/composition-model.md).
+This reference describes the consumer-facing contract of `scripts/compose.py`. For task-oriented instructions, start with [Using Composition](../consumer-guide.md). For design rationale, see [Composer architecture](../architecture/composer-mvp.md) and the [Composition model](../architecture/composition-model.md).
 
 Normal consumers reach this contract through the installed `skills/composition/` runner. The runner owns immutable source acquisition, isolated runtime construction, and target injection; it does not redefine lifecycle modes, plans, lock/transaction semantics, ownership, diagnostics, or Composer exit behavior. In direct source-checkout examples below, `--target /repo` is explicit. Through the runner, the equivalent target is supplied once as `--repository /repo`, and a second `--target` is rejected.
 

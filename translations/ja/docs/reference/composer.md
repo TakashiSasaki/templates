@@ -2,7 +2,7 @@
 
 > **参考訳（非正本）:** この文書は英語版 `docs/reference/composer.md` の日本語参考訳です。正本は英語版であり、内容または解釈に相違がある場合は英語版が優先されます。
 
-このリファレンスでは、`scripts/compose.py` の consumer-facing contract を説明します。タスク指向の手順については [Composition の利用方法](../consumer-guide.md) から始めてください。設計上の根拠については [Composer MVP](../architecture/composer-mvp.md) と [Composition model](../architecture/composition-model.md) を参照してください。
+このリファレンスでは、`scripts/compose.py` の consumer-facing contract を説明します。タスク指向の手順については [Composition の利用方法](../consumer-guide.md) から始めてください。設計上の根拠については [Composer architecture](../architecture/composer-mvp.md) と [Composition model](../architecture/composition-model.md) を参照してください。
 
 通常の consumer は、install 済みの `skills/composition/` runner を通じてこの contract を利用します。runner は immutable source の取得、isolated runtime の構築、target の注入を担当しますが、lifecycle mode、plan、lock/transaction semantics、ownership、diagnostics、Composer の exit behavior を再定義するものではありません。以下の direct source-checkout の例では `--target /repo` を明示します。runner 経由では同等の target を `--repository /repo` として1回だけ指定し、2つ目の `--target` は拒否されます。
 

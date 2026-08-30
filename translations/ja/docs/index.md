@@ -16,7 +16,7 @@
 ## Composition architecture
 
 - [Composition model](architecture/composition-model.md) — artifact、capability、lifecycle、ownership、intent、lock semantics を説明します。
-- [Composer MVP](architecture/composer-mvp.md) — resolver precedence、plan/apply safety、trust boundaries、managed reconciliation、recovery protocol を説明します。
+- [Composer architecture](architecture/composer-mvp.md) — resolver precedence、plan/apply safety、trust boundaries、managed reconciliation、recovery protocol を説明します。
 - [Production catalog architecture](architecture/catalog.md) — closed component と recipe inventory を説明します。
 - [Generated contract manifest](architecture/generated-contract-manifest.md) — deterministic generated contract registry architecture を説明します。
 

@@ -354,5 +354,5 @@ planning は fail-closed / read-only です。原因を直して `plan` を再�
 通常 consumer operation では architecture documents を読む必要はありません。設計理由や authority maintenance が必要な場合に参照します。
 
 - [Composition model](architecture/composition-model.md) — authority、intent、lock、component、ownership model。
-- [Composer MVP](architecture/composer-mvp.md) — resolver、reconciliation、transaction、digest precondition、crash recovery。
+- [Composer architecture](architecture/composer-mvp.md) — resolver、reconciliation、transaction、digest precondition、crash recovery。
 - [Composition state](../components/lifecycle.composition-state/files/docs/architecture/composition-state.md) — self-contained consumer validation contract。
