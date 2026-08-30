@@ -22,17 +22,19 @@ concurrency:
 jobs:
   compatibility:
     if: github.repository == 'TakashiSasaki/templates'
-    uses: TakashiSasaki/templates/.github/workflows/build-pages.yml@3ae5d1e60c65e7a8ebf5f9af0436044484e42983
+    uses: TakashiSasaki/templates/.github/workflows/build-pages.yml@76db390476b2b6fd2fb49c90fd4b9fbcf0c65f94
     with:
-      site_ref: 3ae5d1e60c65e7a8ebf5f9af0436044484e42983
+      site_ref: 76db390476b2b6fd2fb49c90fd4b9fbcf0c65f94
       policy_ref: ${{ github.sha }}
+      publication_staging_id: policy-concepts
     # The reusable workflow and Site source are pinned to the reviewed
-    # PR #313 Site merge commit. That revision includes the current
-    # composition + policy provider lock and the Site-owned canonical
-    # schema-v3 publication protocol established by PR #313. Composition is
-    # resolved from that Site revision's reviewed publication-sources lock.
+    # PR #643 Site merge commit. That revision retains the Site-owned
+    # policy-concepts staging mapping and runs pristine Site tests before
+    # explicit staged materialization and strict assembly. Composition is
+    # resolved from that exact Site revision's reviewed publication-sources lock.
     # For pull requests, github.sha is GitHub's proposed merge commit; for
     # workflow_dispatch it is the selected ref's exact commit. The called
-    # workflow is build-only and cannot deploy Pages.
+    # workflow is build-only, explicitly selects the policy-concepts staging ID,
+    # and cannot deploy Pages.
     permissions:
       contents: read

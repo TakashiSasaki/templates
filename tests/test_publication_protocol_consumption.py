@@ -53,3 +53,14 @@ def test_policy_catalog_keeps_policy_owned_v3_declarations() -> None:
     homes = [item for item in documents if item.get("home") is True]
     assert len(homes) == 1
     assert homes[0]["id"] == "overview"
+
+    identifiers = [item["id"] for item in documents]
+    assert identifiers.count("policy-concepts") == 1
+    getting_started = identifiers.index("getting-started")
+    assert identifiers[getting_started + 1] == "policy-concepts"
+    assert documents[getting_started + 1] == {
+        "id": "policy-concepts",
+        "source": "docs/policy-concepts.md",
+        "optional": False,
+        "home": False,
+    }

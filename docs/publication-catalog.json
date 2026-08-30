@@ -38,6 +38,12 @@
       "home": false
     },
     {
+      "id": "policy-concepts",
+      "source": "docs/policy-concepts.md",
+      "optional": false,
+      "home": false
+    },
+    {
       "id": "managed-operation",
       "source": "docs/managed-operation.md",
       "optional": false,
