@@ -161,6 +161,7 @@
           "title": "Introduction",
           "children": [
             {"title": "Getting started", "publication": "policy", "document": "getting-started", "destination": "policy/getting-started.md"},
+            {"title": "Policy concepts for first-time readers", "publication": "policy", "document": "policy-concepts", "destination": "policy/policy-concepts.md"},
             {"title": "Managed repository operation", "publication": "policy", "document": "managed-operation", "destination": "policy/managed-operation.md"},
             {"title": "CLI", "publication": "policy", "document": "cli", "destination": "policy/cli.md"},
             {"title": "Bootstrap skill", "publication": "policy", "document": "bootstrap", "destination": "policy/bootstrap.md"},

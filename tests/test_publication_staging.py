@@ -17,6 +17,10 @@ from scripts.reader_navigation_locales import load_overlays
 
 
 ROOT = Path(__file__).resolve().parents[1]
+FUTURE_ID = "future-policy-page"
+FUTURE_TITLE = "Future policy page"
+FUTURE_DESTINATION = "policy/future-policy-page.md"
+FUTURE_LOCALIZED = "将来の Policy ページ"
 
 
 def _copy_inputs(destination: Path) -> None:
@@ -26,6 +30,33 @@ def _copy_inputs(destination: Path) -> None:
         "reader-navigation-locales.json",
     ):
         shutil.copy2(ROOT / name, destination / name)
+
+
+def _configure_future_mapping(site_root: Path) -> None:
+    staging_path = site_root / "publication-staging.json"
+    staging = json.loads(staging_path.read_text(encoding="utf-8"))
+    staging["mappings"][0] = {
+        "id": FUTURE_ID,
+        "publication": "policy",
+        "document": FUTURE_ID,
+        "title": FUTURE_TITLE,
+        "destination": FUTURE_DESTINATION,
+        "insert_after": {
+            "publication": "policy",
+            "document": "getting-started",
+        },
+        "localizations": [
+            {
+                "language": "ja",
+                "label_id": FUTURE_ID,
+                "localized": FUTURE_LOCALIZED,
+            }
+        ],
+    }
+    staging_path.write_text(
+        json.dumps(staging, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
 
 
 def _pages(nodes):
@@ -44,22 +75,31 @@ def _prepared_navigation(site_root: Path):
 
 
 class PublicationStagingMaterializationTests(unittest.TestCase):
-    def test_policy_concepts_materializes_without_changing_active_authority(self) -> None:
+    def test_future_mapping_materializes_without_changing_active_authority(self) -> None:
         root_manifest_before = (ROOT / "site-manifest.json").read_bytes()
         root_locales_before = (ROOT / "reader-navigation-locales.json").read_bytes()
         active_manifest = json.loads(root_manifest_before.decode("utf-8"))
-        self.assertFalse(
+        active_pages = list(_pages(active_manifest["navigation"]))
+        self.assertTrue(
             any(
                 page.get("publication") == "policy"
                 and page.get("document") == "policy-concepts"
-                for page in _pages(active_manifest["navigation"])
+                for page in active_pages
+            )
+        )
+        self.assertFalse(
+            any(
+                page.get("publication") == "policy"
+                and page.get("document") == FUTURE_ID
+                for page in active_pages
             )
         )
 
         with tempfile.TemporaryDirectory() as temporary_directory:
             site_root = Path(temporary_directory)
             _copy_inputs(site_root)
-            materialize(site_root, "policy-concepts")
+            _configure_future_mapping(site_root)
+            materialize(site_root, FUTURE_ID)
 
             prepared_navigation = _prepared_navigation(site_root)
             overlays = load_overlays(
@@ -73,14 +113,11 @@ class PublicationStagingMaterializationTests(unittest.TestCase):
             ]
             identifiers = [page["document"] for page in policy_pages]
             getting_started = identifiers.index("getting-started")
-            self.assertEqual("policy-concepts", identifiers[getting_started + 1])
-            concepts = policy_pages[getting_started + 1]
-            self.assertEqual("Policy concepts for first-time readers", concepts["title"])
-            self.assertEqual("policy/policy-concepts.md", concepts["destination"])
-            self.assertEqual(
-                "Policy の概念（初めての読者向け）",
-                overlays["ja"]["Policy concepts for first-time readers"],
-            )
+            self.assertEqual(FUTURE_ID, identifiers[getting_started + 1])
+            future_page = policy_pages[getting_started + 1]
+            self.assertEqual(FUTURE_TITLE, future_page["title"])
+            self.assertEqual(FUTURE_DESTINATION, future_page["destination"])
+            self.assertEqual(FUTURE_LOCALIZED, overlays["ja"][FUTURE_TITLE])
             self.assertIn("Repository trees", overlays["ja"])
             self.assertIn("Composition tree", overlays["ja"])
             self.assertIn("Policy tree", overlays["ja"])
@@ -107,67 +144,33 @@ class PublicationStagingMaterializationTests(unittest.TestCase):
             }
             self.assertEqual(before, after)
 
-    def test_existing_active_document_is_rejected(self) -> None:
+    def test_historical_active_staging_id_is_rejected_without_mutation(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             site_root = Path(temporary_directory)
             _copy_inputs(site_root)
-            manifest_path = site_root / "site-manifest.json"
-            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-            introduction = next(
-                node
-                for node in manifest["navigation"]
-                if node.get("title") == "Policy"
-            )["children"]
-            introduction = next(
-                node for node in introduction if node.get("title") == "Introduction"
-            )["children"]
-            introduction.append(
-                {
-                    "title": "Policy concepts for first-time readers",
-                    "publication": "policy",
-                    "document": "policy-concepts",
-                    "destination": "policy/policy-concepts.md",
-                }
-            )
-            manifest_path.write_text(
-                json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
-                encoding="utf-8",
-            )
-            locale_path = site_root / "reader-navigation-locales.json"
-            locales = json.loads(locale_path.read_text(encoding="utf-8"))
-            for locale in locales["locales"]:
-                language = locale["language"]
-                localized = (
-                    "Policy の概念（初めての読者向け）"
-                    if language == "ja"
-                    else f"Policy concepts for first-time readers ({language})"
-                )
-                locale["labels"].append(
-                    {
-                        "id": "policy-concepts",
-                        "canonical": "Policy concepts for first-time readers",
-                        "localized": localized,
-                    }
-                )
-            locale_path.write_text(
-                json.dumps(locales, ensure_ascii=False, indent=2) + "\n",
-                encoding="utf-8",
-            )
+            before = {
+                name: (site_root / name).read_bytes()
+                for name in ("site-manifest.json", "reader-navigation-locales.json")
+            }
             with self.assertRaisesRegex(
                 PublicationStagingError,
                 "already active",
             ):
                 materialize(site_root, "policy-concepts")
+            after = {
+                name: (site_root / name).read_bytes()
+                for name in ("site-manifest.json", "reader-navigation-locales.json")
+            }
+            self.assertEqual(before, after)
 
     def test_existing_destination_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             site_root = Path(temporary_directory)
             _copy_inputs(site_root)
+            _configure_future_mapping(site_root)
             staging_path = site_root / "publication-staging.json"
             staging = json.loads(staging_path.read_text(encoding="utf-8"))
-            mapping = staging["mappings"][0]
-            mapping["document"] = "policy-concepts-alt"
-            mapping["destination"] = "policy/getting-started.md"
+            staging["mappings"][0]["destination"] = "policy/getting-started.md"
             staging_path.write_text(
                 json.dumps(staging, ensure_ascii=False, indent=2) + "\n",
                 encoding="utf-8",
@@ -176,12 +179,13 @@ class PublicationStagingMaterializationTests(unittest.TestCase):
                 PublicationStagingError,
                 "staged destination is already active",
             ):
-                materialize(site_root, "policy-concepts")
+                materialize(site_root, FUTURE_ID)
 
     def test_missing_anchor_is_rejected_without_partial_write(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             site_root = Path(temporary_directory)
             _copy_inputs(site_root)
+            _configure_future_mapping(site_root)
             staging_path = site_root / "publication-staging.json"
             staging = json.loads(staging_path.read_text(encoding="utf-8"))
             staging["mappings"][0]["insert_after"]["document"] = "not-present"
@@ -192,7 +196,7 @@ class PublicationStagingMaterializationTests(unittest.TestCase):
             before_manifest = (site_root / "site-manifest.json").read_bytes()
             before_locales = (site_root / "reader-navigation-locales.json").read_bytes()
             with self.assertRaisesRegex(PublicationStagingError, "anchor"):
-                materialize(site_root, "policy-concepts")
+                materialize(site_root, FUTURE_ID)
             self.assertEqual(
                 before_manifest,
                 (site_root / "site-manifest.json").read_bytes(),
@@ -206,6 +210,7 @@ class PublicationStagingMaterializationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary_directory:
             site_root = Path(temporary_directory)
             _copy_inputs(site_root)
+            _configure_future_mapping(site_root)
             staging_path = site_root / "publication-staging.json"
             staging = json.loads(staging_path.read_text(encoding="utf-8"))
             staging["mappings"][0]["localizations"] = []
@@ -217,7 +222,7 @@ class PublicationStagingMaterializationTests(unittest.TestCase):
                 PublicationStagingError,
                 "exactly cover active reader locales",
             ):
-                materialize(site_root, "policy-concepts")
+                materialize(site_root, FUTURE_ID)
 
     def test_invalid_staging_language_is_rejected_at_the_contract_boundary(self) -> None:
         for invalid in ("JA", "Japanese", "j", "en"):
@@ -225,6 +230,7 @@ class PublicationStagingMaterializationTests(unittest.TestCase):
                 with tempfile.TemporaryDirectory() as temporary_directory:
                     site_root = Path(temporary_directory)
                     _copy_inputs(site_root)
+                    _configure_future_mapping(site_root)
                     staging_path = site_root / "publication-staging.json"
                     staging = json.loads(staging_path.read_text(encoding="utf-8"))
                     staging["mappings"][0]["localizations"][0]["language"] = invalid
@@ -236,7 +242,7 @@ class PublicationStagingMaterializationTests(unittest.TestCase):
                         PublicationStagingError,
                         "non-English lowercase language tag",
                     ):
-                        materialize(site_root, "policy-concepts")
+                        materialize(site_root, FUTURE_ID)
 
     def test_invalid_staging_label_id_is_rejected_at_the_contract_boundary(self) -> None:
         for invalid in ("Policy Concepts", "PolicyConcepts", "policy_concepts"):
@@ -244,6 +250,7 @@ class PublicationStagingMaterializationTests(unittest.TestCase):
                 with tempfile.TemporaryDirectory() as temporary_directory:
                     site_root = Path(temporary_directory)
                     _copy_inputs(site_root)
+                    _configure_future_mapping(site_root)
                     staging_path = site_root / "publication-staging.json"
                     staging = json.loads(staging_path.read_text(encoding="utf-8"))
                     staging["mappings"][0]["localizations"][0]["label_id"] = invalid
@@ -255,12 +262,13 @@ class PublicationStagingMaterializationTests(unittest.TestCase):
                         PublicationStagingError,
                         "lowercase kebab-case",
                     ):
-                        materialize(site_root, "policy-concepts")
+                        materialize(site_root, FUTURE_ID)
 
     def test_existing_canonical_title_reuses_locale_overlay(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             site_root = Path(temporary_directory)
             _copy_inputs(site_root)
+            _configure_future_mapping(site_root)
             staging_path = site_root / "publication-staging.json"
             staging = json.loads(staging_path.read_text(encoding="utf-8"))
             mapping = staging["mappings"][0]
@@ -274,7 +282,7 @@ class PublicationStagingMaterializationTests(unittest.TestCase):
                 (site_root / "reader-navigation-locales.json").read_text(encoding="utf-8")
             )
 
-            materialize(site_root, "policy-concepts")
+            materialize(site_root, FUTURE_ID)
 
             prepared_navigation = _prepared_navigation(site_root)
             overlays = load_overlays(
@@ -291,6 +299,7 @@ class PublicationStagingMaterializationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary_directory:
             site_root = Path(temporary_directory)
             _copy_inputs(site_root)
+            _configure_future_mapping(site_root)
             staging_path = site_root / "publication-staging.json"
             staging = json.loads(staging_path.read_text(encoding="utf-8"))
             staging["mappings"][0]["title"] = "Getting started"
@@ -302,7 +311,7 @@ class PublicationStagingMaterializationTests(unittest.TestCase):
                 PublicationStagingError,
                 "localizations must be empty when the canonical title already exists",
             ):
-                materialize(site_root, "policy-concepts")
+                materialize(site_root, FUTURE_ID)
 
     def test_schema_version_requires_exact_integer_one(self) -> None:
         for invalid in (True, 1.0, 2):
@@ -360,9 +369,10 @@ class PublicationStagingMaterializationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary_directory:
             site_root = Path(temporary_directory)
             _copy_inputs(site_root)
+            _configure_future_mapping(site_root)
             staging_path = site_root / "publication-staging.json"
             staging = json.loads(staging_path.read_text(encoding="utf-8"))
-            staging["mappings"][0]["destination"] = "policy/policy-concepts.html"
+            staging["mappings"][0]["destination"] = "policy/future-policy-page.html"
             staging_path.write_text(
                 json.dumps(staging, ensure_ascii=False, indent=2) + "\n",
                 encoding="utf-8",
@@ -371,21 +381,22 @@ class PublicationStagingMaterializationTests(unittest.TestCase):
                 PublicationStagingError,
                 "must be a Markdown destination",
             ):
-                materialize(site_root, "policy-concepts")
+                materialize(site_root, FUTURE_ID)
 
     def test_unsafe_destination_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             site_root = Path(temporary_directory)
             _copy_inputs(site_root)
+            _configure_future_mapping(site_root)
             staging_path = site_root / "publication-staging.json"
             staging = json.loads(staging_path.read_text(encoding="utf-8"))
-            staging["mappings"][0]["destination"] = "../policy-concepts.md"
+            staging["mappings"][0]["destination"] = "../future-policy-page.md"
             staging_path.write_text(
                 json.dumps(staging, ensure_ascii=False, indent=2) + "\n",
                 encoding="utf-8",
             )
             with self.assertRaises(PublicationStagingError):
-                materialize(site_root, "policy-concepts")
+                materialize(site_root, FUTURE_ID)
 
 
 class PublicationStagingWorkflowTests(unittest.TestCase):
