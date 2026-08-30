@@ -403,11 +403,15 @@ class PublicationStagingWorkflowTests(unittest.TestCase):
         )
         self.assertIn('--staging-id "$PUBLICATION_STAGING_ID"', workflow)
         self.assertNotIn('--staging-id "${{ inputs.publication_staging_id }}"', workflow)
+        composition_checkout = workflow.index("- name: Check out composition publication")
         policy_checkout = workflow.index("- name: Check out policy publication")
-        materialize_step = workflow.index("- name: Materialize staged publication mapping")
         tests = workflow.index("- name: Run site assembly tests")
-        self.assertLess(policy_checkout, materialize_step)
-        self.assertLess(materialize_step, tests)
+        materialize_step = workflow.index("- name: Materialize staged publication mapping")
+        prepare = workflow.index("- name: Prepare repository-tree publication")
+        self.assertLess(composition_checkout, tests)
+        self.assertLess(policy_checkout, tests)
+        self.assertLess(tests, materialize_step)
+        self.assertLess(materialize_step, prepare)
         self.assertNotIn("publication_staging_id", deploy)
 
 
