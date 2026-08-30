@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "mappings": [
+    {
+      "id": "policy-concepts",
+      "publication": "policy",
+      "document": "policy-concepts",
+      "title": "Policy concepts for first-time readers",
+      "destination": "policy/policy-concepts.md",
+      "insert_after": {
+        "publication": "policy",
+        "document": "getting-started"
+      },
+      "localizations": [
+        {
+          "language": "ja",
+          "label_id": "policy-concepts",
+          "localized": "Policy の概念（初めての読者向け）"
+        }
+      ]
+    }
+  ]
+}

@@ -6,12 +6,13 @@ When working on the `site` authority, load the smallest matching skill from `.ag
 
 ## Skill routing
 
+- Coordinated cross-authority document-set change that requires a Site staging PR before a provider publication PR: `PUBLICATION_STAGING.md` for the staging protocol, then `.agents/skills/site-publication-cutover/SKILL.md` for the final Site promotion step.
 - Provider publication update after a reviewed `composition` or `policy` merge: `.agents/skills/site-publication-cutover/SKILL.md`
 - Site-specific pull-request scope, exact-head CI, browser/publication acceptance, and base-drift preparation: `.agents/skills/site-pr-exact-head-acceptance/SKILL.md`
 - Final merge authorization for every Site pull request: `.agents/skills/pr-merge-gate/SKILL.md`
 - Site browser/PWA/mobile/search regression failure triage: `.agents/skills/site-browser-regression-triage/SKILL.md`
 
-If more than one skill applies, use only the minimal set needed and follow them in dependency order. A normal Site PR completion path is task-specific work -> `site-pr-exact-head-acceptance` -> `pr-merge-gate`. A publication cutover normally uses `site-publication-cutover` first, then Site acceptance, then the merge gate. A browser failure encountered during Site acceptance may temporarily use `site-browser-regression-triage`, then return to Site acceptance after the repair creates a new head.
+If more than one skill applies, use only the minimal set needed and follow them in dependency order. A normal Site PR completion path is task-specific work -> `site-pr-exact-head-acceptance` -> `pr-merge-gate`. A normal publication cutover uses `site-publication-cutover` first, then Site acceptance, then the merge gate. A coordinated document-set change that cannot merge provider-first uses `PUBLICATION_STAGING.md` first, then the provider candidate compatibility build, then `site-publication-cutover` for promotion after the provider merge. A browser failure encountered during Site acceptance may temporarily use `site-browser-regression-triage`, then return to Site acceptance after the repair creates a new head.
 
 `site-pr-exact-head-acceptance` establishes Site-specific acceptance evidence but never authorizes merge. Before declaring a Site PR merge-ready, merging it, or completing a task whose final action is a merge, load `pr-merge-gate`. Green CI and `reviews = 0` must never be interpreted as a clean review state.
 

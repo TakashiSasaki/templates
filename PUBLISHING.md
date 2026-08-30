@@ -253,3 +253,20 @@ Before a Site cutover is considered complete:
 - `/build-provenance.json` records Site, Composition, and Policy revisions;
 - generated links/fragments/canonical URLs validate; and
 - the `site`-only deployment boundary remains intact.
+
+## Coordinated cross-authority document-set changes
+
+When adding a provider document would make either a provider-first or Site-first
+merge fail the exact catalog-coverage contract, use `PUBLICATION_STAGING.md`.
+The required sequence is Site staging PR → provider publication PR → Site
+promotion PR. The staging PR must leave the active Site manifest and provider
+locks coherent; the provider candidate build must use the reviewed full-SHA Site
+staging revision and explicitly name the staging ID; and the promotion PR must
+advance the provider lock to the actual merged provider commit and succeed again
+without staging.
+
+`publication_staging_id` is a build-only compatibility input. It must never be
+supplied by `.github/workflows/deploy-pages.yml` or treated as a permanent
+publication mode. Staging changes Site-owned integration metadata only; provider
+prose, catalogs, glossary definitions, and provider translations remain owned by
+the provider authority.

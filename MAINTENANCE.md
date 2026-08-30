@@ -24,6 +24,8 @@ The external provider set is exactly `composition` and `policy`. Skill and Web a
 
 The deterministic cutover tool handles only the mechanical current-revision boundary: `publication-sources.json`, `agent.json`, and `assets/agent.json`. It does not infer reader IA, translation freshness, glossary semantics, or publication-catalog meaning. A failed expected-current check, checkout-identity check, release-descriptor preflight, or projection-target safety check must be corrected rather than bypassed with separate hand edits.
 
+When a new provider catalog document would make the ordinary provider-first sequence invalid because Site does not yet map it, do not weaken exact catalog coverage and do not merge either authority into an invalid active state. Follow `PUBLICATION_STAGING.md` instead: merge a Site staging PR that leaves active publication unchanged, validate the exact provider candidate against that reviewed Site staging revision with an explicit staging ID, merge the provider only after that compatibility build passes, then perform the ordinary Site promotion/cutover against the actual provider merge commit. Staging is build-only and must never be wired into `.github/workflows/deploy-pages.yml`.
+
 ## Publication catalogs
 
 Every publication root used by the assembler contains `docs/publication-catalog.json` using schema version 3. The catalog is an explicit allowlist, not a branch-wide copy rule.
