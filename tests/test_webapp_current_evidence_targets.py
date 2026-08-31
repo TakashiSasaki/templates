@@ -50,6 +50,10 @@ class WebappCurrentEvidenceTargetTests(unittest.TestCase):
             {"routes": [{"id": "home"}]},
         )
         self.write_json(
+            root / "contracts" / "application-routes.json",
+            {"routes": [{"routeId": "home"}]},
+        )
+        self.write_json(
             root / "contracts" / "ui-states.json",
             {"states": [{"id": "ready"}]},
         )
@@ -65,6 +69,10 @@ class WebappCurrentEvidenceTargetTests(unittest.TestCase):
             {
                 "contracts": [
                     {
+                        "id": "application_routes",
+                        "versionHistory": [{"version": 1}],
+                    },
+                    {
                         "id": "browser_identity",
                         "versionHistory": [{"version": 1}],
                     },
@@ -74,6 +82,7 @@ class WebappCurrentEvidenceTargetTests(unittest.TestCase):
                             {"version": 1},
                             {"version": 2},
                             {"version": 3},
+                            {"version": 4},
                         ],
                     },
                     {
@@ -112,7 +121,12 @@ class WebappCurrentEvidenceTargetTests(unittest.TestCase):
                 {
                     ("contract-item", "browser_identity", "proof-family", "browser-identity"),
                     ("contract-item", "surfaces", "surface", "main"),
-                    ("contract-item", "routes", "route", "home"),
+                    (
+                        "contract-item",
+                        "application_routes",
+                        "application-route",
+                        "home",
+                    ),
                     ("contract-item", "ui_states", "ui-state", "ready"),
                     ("contract-item", "viewports", "viewport", "compact"),
                     ("contract-item", "viewports", "input-capability", "keyboard"),
@@ -135,11 +149,13 @@ class WebappCurrentEvidenceTargetTests(unittest.TestCase):
             self.assertEqual(
                 allowed - required,
                 {
-                    ("contract-transition", "routes", 1, 2),
-                    ("contract-transition", "routes", 2, 3),
                     ("contract-transition", "surfaces", 1, 2),
                     ("contract-transition", "ui_states", 1, 2),
                 },
+            )
+            self.assertNotIn(
+                ("contract-transition", "routes", 3, 4),
+                allowed,
             )
             self.assertNotIn(
                 ("contract-transition", "other_contract", 1, 2),
