@@ -70,20 +70,64 @@ class RoutesV3AccessFailureTests(unittest.TestCase):
         return json.loads(path.read_text(encoding="utf-8"))
 
     def write_route_documents(self, target: Path, routes: dict) -> None:
-        behavior_fields = {"surface", "authentication", "historyBehavior", "authenticationReturn", "accessFailures", "states"}
+        behavior_fields = {
+            "surface",
+            "authentication",
+            "historyBehavior",
+            "authenticationReturn",
+            "accessFailures",
+            "states",
+        }
+        shared_excluded_fields = behavior_fields | {"routeId"}
         shared_routes = []
         application_routes = []
         for route in routes["routes"]:
-            shared_routes.append({key: value for key, value in route.items() if key not in behavior_fields})
-            application_routes.append({"routeId": route["id"], **{key: route[key] for key in behavior_fields}})
-        self.write_json(target / "contracts/routes.json", {"$schema": "../schemas/routes.schema.json", "schemaVersion": 4, "routes": shared_routes})
-        self.write_json(target / "contracts/application-routes.json", {"$schema": "../schemas/application-routes.schema.json", "schemaVersion": 1, "routes": application_routes})
+            shared_routes.append(
+                {
+                    key: value
+                    for key, value in route.items()
+                    if key not in shared_excluded_fields
+                }
+            )
+            application_routes.append(
+                {
+                    "routeId": route["id"],
+                    **{key: route[key] for key in behavior_fields},
+                }
+            )
+        self.write_json(
+            target / "contracts/routes.json",
+            {
+                "$schema": "../schemas/routes.schema.json",
+                "schemaVersion": 4,
+                "routes": shared_routes,
+            },
+        )
+        self.write_json(
+            target / "contracts/application-routes.json",
+            {
+                "$schema": "../schemas/application-routes.schema.json",
+                "schemaVersion": 1,
+                "routes": application_routes,
+            },
+        )
 
     def load_routes_with_behavior(self, target: Path) -> dict:
         routes = self.load_json(target / "contracts/routes.json")
         application = self.load_json(target / "contracts/application-routes.json")
         behavior_by_id = {item["routeId"]: item for item in application["routes"]}
-        return {"$schema": routes["$schema"], "schemaVersion": routes["schemaVersion"], "routes": [{**route, **behavior_by_id[route["id"]], "id": route["id"]} for route in routes["routes"]]}
+        return {
+            "$schema": routes["$schema"],
+            "schemaVersion": routes["schemaVersion"],
+            "routes": [
+                {
+                    **route,
+                    **behavior_by_id[route["id"]],
+                    "id": route["id"],
+                }
+                for route in routes["routes"]
+            ],
+        }
 
     def configure_access_fixture(self, target: Path) -> None:
         self.write_json(
@@ -322,7 +366,7 @@ class RoutesV3AccessFailureTests(unittest.TestCase):
 
     def test_explicit_access_fixture_binds_render_state_targets(self) -> None:
         routes = self.load_routes_with_behavior(self.target)
-        self.assertEqual(routes["schemaVersion"], 3)
+        self.assertEqual(routes["schemaVersion"], 4)
         application = self.route(routes, "application-home")
         self.assertEqual(
             application["accessFailures"],
@@ -589,7 +633,7 @@ class RoutesV3AccessFailureTests(unittest.TestCase):
 
     def test_composer_materializes_routes_v3_and_v3_validator(self) -> None:
         routes = self.load_routes_with_behavior(self.target)
-        self.assertEqual(routes["schemaVersion"], 3)
+        self.assertEqual(routes["schemaVersion"], 4)
         validator_source = (
             self.target / "scripts/validate_contracts_impl.py"
         ).read_text(encoding="utf-8")
