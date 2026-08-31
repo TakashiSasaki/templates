@@ -256,7 +256,7 @@ def _validate_source_graph(components: dict[str, dict[str, Any]], recipes: dict[
         for reference in descriptor["requires"] + descriptor["conflicts"]:
             if reference not in ids:
                 raise CompositionError("UNKNOWN_COMPONENT", f"{component_id} references missing component {reference}")
-        if descriptor["kind"] in {"capability", "lifecycle"} and any(
+        if descriptor["component_role"] in {"capability", "lifecycle"} and any(
             reference.startswith("artifact.")
             for reference in descriptor["requires"] + descriptor["conflicts"]
         ):
@@ -274,7 +274,7 @@ def _validate_source_graph(components: dict[str, dict[str, Any]], recipes: dict[
 
     for recipe_id, recipe in recipes.items():
         artifact = recipe["artifact"]
-        if artifact not in components or components[artifact]["kind"] != "artifact":
+        if artifact not in components or components[artifact]["component_role"] != "artifact":
             raise CompositionError("INVALID_RECIPE", f"recipe {recipe_id} has unknown artifact {artifact}")
         groups = [
             set(recipe["required_components"]),
@@ -284,7 +284,7 @@ def _validate_source_graph(components: dict[str, dict[str, Any]], recipes: dict[
         if groups[0] & groups[1] or groups[0] & groups[2] or groups[1] & groups[2]:
             raise CompositionError("INVALID_RECIPE", f"recipe {recipe_id} selection classes overlap")
         for component_id in set().union(*groups):
-            if component_id not in components or components[component_id]["kind"] == "artifact":
+            if component_id not in components or components[component_id]["component_role"] in {"artifact", "foundation"}:
                 raise CompositionError(
                     "INVALID_RECIPE",
                     f"recipe {recipe_id} references invalid selectable component {component_id}",

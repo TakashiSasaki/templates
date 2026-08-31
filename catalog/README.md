@@ -124,3 +124,8 @@ The catalog is source authority, not consumer material and not an execution-hook
 The composer validates this closed source graph, resolves a recipe plus consumer configuration against one exact clean Git revision, and writes the resulting component/file closure to `.template-composition/lock.json` after successful initial materialization. Generated materials are dispatched only through allowlisted declarative generator IDs.
 
 For an unmanaged target, initial composition refuses a pre-existing composition lock rather than inferring a managed-state transition. Existing managed repositories instead use explicit operations: `update` preserves the normalized intent recorded by lock schema v2 while advancing to a descendant Composition source revision, and `upgrade` accepts an explicit new configuration for changes such as recipe, component selection, parameters, or component versions. Neither operation is a general-purpose merge engine: locally modified `managed`/`generated` material and owner/ownership-mode transitions fail closed rather than being overwritten or inferred.
+
+
+### Component roles and direct selection
+
+Recipes select one artifact and expose optional capability or lifecycle components. Components with the `foundation` role are dependencies of artifact components: they are resolved automatically, are not listed as recipe options, and are not direct consumer include targets. See [Composition concepts](../docs/guides/composition-concepts.md) for the four-role mental model and the provider glossary for canonical terminology.

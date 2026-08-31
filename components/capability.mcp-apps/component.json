@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "id": "capability.mcp-apps",
-  "kind": "capability",
-  "version": 4,
+  "component_role": "capability",
+  "version": 5,
   "summary": "Machine-readable MCP Apps contract with pre-coding View and association authority.",
   "requires": [
     "capability.mcp"
@@ -16,7 +16,10 @@
       "migration_slug": "mcp-apps",
       "document_schema_version": 2,
       "version_history": [
-        {"version": 1, "change_type": "initial"},
+        {
+          "version": 1,
+          "change_type": "initial"
+        },
         {
           "version": 2,
           "change_type": "breaking",
@@ -27,11 +30,35 @@
     }
   ],
   "materials": [
-    {"source": "files/MCP_APPS.md", "destination": "MCP_APPS.md", "ownership": "seed"},
-    {"source": "files/docs/mcp-apps.md", "destination": "docs/mcp-apps.md", "ownership": "managed"},
-    {"source": "files/contracts/mcp-apps.json", "destination": "contracts/mcp-apps.json", "ownership": "seed"},
-    {"source": "files/schemas/mcp-apps.schema.json", "destination": "schemas/mcp-apps.schema.json", "ownership": "managed"},
-    {"source": "files/.template-composition/validators/validate_mcp_apps.py", "destination": ".template-composition/validators/validate_mcp_apps.py", "ownership": "managed"},
-    {"source": "files/docs/migrations/mcp-apps-v1-to-v2.md", "destination": "docs/migrations/mcp-apps-v1-to-v2.md", "ownership": "managed"}
+    {
+      "source": "files/MCP_APPS.md",
+      "destination": "MCP_APPS.md",
+      "ownership": "seed"
+    },
+    {
+      "source": "files/docs/mcp-apps.md",
+      "destination": "docs/mcp-apps.md",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/contracts/mcp-apps.json",
+      "destination": "contracts/mcp-apps.json",
+      "ownership": "seed"
+    },
+    {
+      "source": "files/schemas/mcp-apps.schema.json",
+      "destination": "schemas/mcp-apps.schema.json",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/.template-composition/validators/validate_mcp_apps.py",
+      "destination": ".template-composition/validators/validate_mcp_apps.py",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/docs/migrations/mcp-apps-v1-to-v2.md",
+      "destination": "docs/migrations/mcp-apps-v1-to-v2.md",
+      "ownership": "managed"
+    }
   ]
 }

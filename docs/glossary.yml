@@ -6,8 +6,8 @@
       "term": "Composition component",
       "localized_labels": {"ja": {"term": "コンポジションコンポーネント"}},
       "origin": "repository",
-      "definition": "A closed reusable source authority identified as an artifact, capability, or lifecycle component. Its descriptor declares dependencies, conflicts, materialized files, ownership modes, and any contract registrations used by deterministic composition.",
-      "related_terms": ["templates-composition-artifact-component", "templates-composition-capability-component", "templates-composition-lifecycle-component", "templates-composition-recipe"]
+      "definition": "A closed reusable source authority with a component role: foundation, artifact, capability, or lifecycle. Its descriptor declares dependencies, conflicts, materialized files, ownership modes, and any contract registrations used by deterministic composition.",
+      "related_terms": ["templates-composition-component-role", "templates-composition-foundation-component", "templates-composition-artifact-component", "templates-composition-capability-component", "templates-composition-lifecycle-component", "templates-composition-recipe"]
     },
     {
       "id": "templates-composition-artifact-component",
@@ -281,6 +281,22 @@
       "authority": {"kind": "normative", "sources": [{"title": "Model Context Protocol Specification", "url": "https://modelcontextprotocol.io/specification/2026-07-28", "version": "2026-07-28"}]},
       "repository_usage": "capability.mcp uses MCP 2026-07-28 as the initial core protocol baseline, while optional extensions such as MCP Apps remain separately selected composition capabilities.",
       "related_terms": ["templates-composition-capability-component"]
+    },
+    {
+      "id": "templates-composition-component-role",
+      "term": "Component role",
+      "localized_labels": {"ja": {"term": "コンポーネントロール"}},
+      "origin": "repository",
+      "definition": "The machine-readable role assigned to every Composition component. It explains whether the component supplies a shared required base (foundation), defines what is being built (artifact), adds an optional observable behavior (capability), or manages the artifact over time (lifecycle).",
+      "related_terms": ["templates-composition-component", "templates-composition-foundation-component", "templates-composition-artifact-component", "templates-composition-capability-component", "templates-composition-lifecycle-component"]
+    },
+    {
+      "id": "templates-composition-foundation-component",
+      "term": "Foundation component",
+      "localized_labels": {"ja": {"term": "基盤コンポーネント"}},
+      "origin": "repository",
+      "definition": "A shared mandatory baseline introduced through an artifact component dependency. Foundations are not consumer-selectable product capabilities and cannot be directly included by a recipe.",
+      "related_terms": ["templates-composition-component-role", "templates-composition-artifact-component", "templates-composition-recipe"]
     }
   ]
 }

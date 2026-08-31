@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "id": "capability.service",
-  "kind": "capability",
-  "version": 4,
+  "component_role": "capability",
+  "version": 5,
   "summary": "Independently reachable non-browser service contract with pre-coding operation authority.",
   "requires": [
     "capability.runtime",
@@ -17,7 +17,10 @@
       "migration_slug": "service-interface",
       "document_schema_version": 2,
       "version_history": [
-        {"version": 1, "change_type": "initial"},
+        {
+          "version": 1,
+          "change_type": "initial"
+        },
         {
           "version": 2,
           "change_type": "breaking",
@@ -28,10 +31,30 @@
     }
   ],
   "materials": [
-    {"source": "files/SERVICE_INTERFACE.md", "destination": "SERVICE_INTERFACE.md", "ownership": "seed"},
-    {"source": "files/contracts/service-interface.json", "destination": "contracts/service-interface.json", "ownership": "seed"},
-    {"source": "files/schemas/service-interface.schema.json", "destination": "schemas/service-interface.schema.json", "ownership": "managed"},
-    {"source": "files/.template-composition/validators/validate_service_interface.py", "destination": ".template-composition/validators/validate_service_interface.py", "ownership": "managed"},
-    {"source": "files/docs/migrations/service-interface-v1-to-v2.md", "destination": "docs/migrations/service-interface-v1-to-v2.md", "ownership": "managed"}
+    {
+      "source": "files/SERVICE_INTERFACE.md",
+      "destination": "SERVICE_INTERFACE.md",
+      "ownership": "seed"
+    },
+    {
+      "source": "files/contracts/service-interface.json",
+      "destination": "contracts/service-interface.json",
+      "ownership": "seed"
+    },
+    {
+      "source": "files/schemas/service-interface.schema.json",
+      "destination": "schemas/service-interface.schema.json",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/.template-composition/validators/validate_service_interface.py",
+      "destination": ".template-composition/validators/validate_service_interface.py",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/docs/migrations/service-interface-v1-to-v2.md",
+      "destination": "docs/migrations/service-interface-v1-to-v2.md",
+      "ownership": "managed"
+    }
   ]
 }

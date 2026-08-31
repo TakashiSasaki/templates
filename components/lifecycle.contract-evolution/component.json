@@ -1,17 +1,41 @@
 {
   "schema_version": 1,
   "id": "lifecycle.contract-evolution",
-  "kind": "lifecycle",
-  "version": 1,
+  "component_role": "lifecycle",
+  "version": 2,
   "summary": "Generic closed contract registry, schema binding, version history, and migration validation.",
   "requires": [],
   "conflicts": [],
   "materials": [
-    {"source":"files/.template-composition/requirements-validation.lock","destination":".template-composition/requirements-validation.lock","ownership":"managed"},
-    {"source":"files/.template-composition/validators/contract_common.py","destination":".template-composition/validators/contract_common.py","ownership":"managed"},
-    {"source":"files/.template-composition/validators/validate_contract_evolution.py","destination":".template-composition/validators/validate_contract_evolution.py","ownership":"managed"},
-    {"source":"files/schemas/contract-manifest.schema.json","destination":"schemas/contract-manifest.schema.json","ownership":"managed"},
-    {"source":"files/docs/architecture/contract-evolution.md","destination":"docs/architecture/contract-evolution.md","ownership":"managed"},
-    {"destination":"contracts/manifest.json","ownership":"generated","generator":"contract-manifest-v1"}
+    {
+      "source": "files/.template-composition/requirements-validation.lock",
+      "destination": ".template-composition/requirements-validation.lock",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/.template-composition/validators/contract_common.py",
+      "destination": ".template-composition/validators/contract_common.py",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/.template-composition/validators/validate_contract_evolution.py",
+      "destination": ".template-composition/validators/validate_contract_evolution.py",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/schemas/contract-manifest.schema.json",
+      "destination": "schemas/contract-manifest.schema.json",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/docs/architecture/contract-evolution.md",
+      "destination": "docs/architecture/contract-evolution.md",
+      "ownership": "managed"
+    },
+    {
+      "destination": "contracts/manifest.json",
+      "ownership": "generated",
+      "generator": "contract-manifest-v1"
+    }
   ]
 }

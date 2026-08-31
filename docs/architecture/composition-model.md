@@ -4,11 +4,12 @@
 
 The `composition` branch is the canonical source authority for reusable artifact semantics, application capabilities, lifecycle contracts, recipes, schemas, and the deterministic Composer.
 
-Composition separates three authority classes:
+Composition separates four component roles:
 
-1. **artifact semantics** — what kind of artifact is being developed, such as a Web application or Agent Skill;
-2. **capabilities** — reusable optional behavior such as runtime, CLI, MCP, MCP Apps, browser exposure, or a headless service; and
-3. **lifecycle contracts** — reusable composition state, contract evolution, implementation evidence, release evidence, and release-bundle behavior.
+1. **foundations** — shared mandatory baseline semantics introduced transitively by an artifact;
+2. **artifact semantics** — what is being built, such as a Website, Web application, or Agent Skill;
+3. **capabilities** — reusable optional behavior such as runtime, CLI, MCP, MCP Apps, browser exposure, or a headless service; and
+4. **lifecycle contracts** — reusable machinery for composition state, contract evolution, implementation evidence, release evidence, and release-bundle behavior.
 
 Web applications and Agent Skills remain distinct artifacts. They share reusable authorities through recipes over one component catalog rather than through duplicated monolithic templates.
 
@@ -38,13 +39,14 @@ Source-side Composer operations are required only when deriving a new state (`in
 
 ## Authority classes
 
-Component IDs have exactly one of three prefixes:
+Component IDs have exactly one component-role prefix:
 
+- `foundation.*` — shared mandatory baseline semantics;
 - `artifact.*` — artifact-specific semantics;
-- `capability.*` — reusable application capabilities; or
-- `lifecycle.*` — reusable product-lifecycle contracts.
+- `capability.*` — reusable optional capabilities; or
+- `lifecycle.*` — reusable product-lifecycle machinery.
 
-The prefix must agree with the descriptor `kind`. Generic `capability.*` and `lifecycle.*` descriptors must not require or conflict with concrete `artifact.*` authorities. Artifact components may require reusable capabilities/lifecycle components when those contracts are intrinsic to the artifact.
+The prefix must agree with descriptor `component_role`. A foundation is introduced only through an artifact dependency; it is not recipe-selectable. Non-artifact descriptors must not require or conflict with concrete `artifact.*` authorities. Artifact components may require foundations, reusable capabilities, or lifecycle components when those contracts are intrinsic to the artifact.
 
 The production catalog is closed. Catalog validation requires component and recipe inventories to match the source tree, dependencies to exist and be acyclic, identities to be unique, generic/artifact boundaries to hold, and selected conflicts to be rejected.
 
@@ -53,7 +55,7 @@ The production catalog is closed. Catalog validation requires component and reci
 A component descriptor declares:
 
 - stable component `id`;
-- component `kind`;
+- component `component_role`;
 - positive integer component `version`;
 - human-readable summary;
 - required component IDs;

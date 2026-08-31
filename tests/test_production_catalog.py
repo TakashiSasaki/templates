@@ -93,12 +93,12 @@ class ProductionCatalogTests(unittest.TestCase):
             with self.subTest(component=component_id):
                 validator.validate(descriptor)
                 self.assertEqual(descriptor["id"], component_id)
-                self.assertEqual(descriptor["kind"], component_id.split(".", 1)[0])
+                self.assertEqual(descriptor["component_role"], component_id.split(".", 1)[0])
                 self.assertNotIn(component_id, descriptor["requires"])
                 self.assertFalse(set(descriptor["requires"]) & set(descriptor["conflicts"]))
                 for referenced in descriptor["requires"] + descriptor["conflicts"]:
                     self.assertIn(referenced, component_ids)
-                if descriptor["kind"] in {"capability", "lifecycle"}:
+                if descriptor["component_role"] in {"capability", "lifecycle"}:
                     self.assertFalse(
                         any(item.startswith("artifact.") for item in descriptor["requires"] + descriptor["conflicts"])
                     )
@@ -142,7 +142,7 @@ class ProductionCatalogTests(unittest.TestCase):
                 validator.validate(recipe)
                 self.assertEqual(recipe["id"], recipe_id)
                 self.assertIn(recipe["artifact"], self.components)
-                self.assertEqual(self.components[recipe["artifact"]]["kind"], "artifact")
+                self.assertEqual(self.components[recipe["artifact"]]["component_role"], "artifact")
                 groups = [
                     set(recipe["required_components"]),
                     set(recipe["default_components"]),
@@ -153,7 +153,7 @@ class ProductionCatalogTests(unittest.TestCase):
                 self.assertFalse(groups[1] & groups[2])
                 for component_id in set().union(*groups):
                     self.assertIn(component_id, self.components)
-                    self.assertNotEqual(self.components[component_id]["kind"], "artifact")
+                    self.assertNotIn(self.components[component_id]["component_role"], {"artifact", "foundation"})
 
     def test_skill_recipe_exposes_generic_capabilities_and_lifecycle(self):
         recipe = self.recipes["skill"]

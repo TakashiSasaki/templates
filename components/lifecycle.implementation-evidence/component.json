@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "id": "lifecycle.implementation-evidence",
-  "kind": "lifecycle",
-  "version": 13,
+  "component_role": "lifecycle",
+  "version": 14,
   "summary": "Artifact-neutral implementation boundaries, target-bound product requirements, proof-kind-to-execution capability binding, repository harness authority, negative-path constraints, and provider-dispatched release-gate contract.",
   "requires": [
     "lifecycle.contract-evolution",
@@ -17,28 +17,99 @@
       "migration_slug": "implementation-evidence",
       "document_schema_version": 6,
       "version_history": [
-        {"version": 1, "change_type": "initial"},
-        {"version": 2, "change_type": "breaking", "migration": "docs/migrations/implementation-evidence-v1-to-v2.md"},
-        {"version": 3, "change_type": "breaking", "migration": "docs/migrations/implementation-evidence-v2-to-v3.md"},
-        {"version": 4, "change_type": "breaking", "migration": "docs/migrations/implementation-evidence-v3-to-v4.md"},
-        {"version": 5, "change_type": "breaking", "migration": "docs/migrations/implementation-evidence-v4-to-v5.md"},
-        {"version": 6, "change_type": "breaking", "migration": "docs/migrations/implementation-evidence-v5-to-v6.md"}
+        {
+          "version": 1,
+          "change_type": "initial"
+        },
+        {
+          "version": 2,
+          "change_type": "breaking",
+          "migration": "docs/migrations/implementation-evidence-v1-to-v2.md"
+        },
+        {
+          "version": 3,
+          "change_type": "breaking",
+          "migration": "docs/migrations/implementation-evidence-v2-to-v3.md"
+        },
+        {
+          "version": 4,
+          "change_type": "breaking",
+          "migration": "docs/migrations/implementation-evidence-v3-to-v4.md"
+        },
+        {
+          "version": 5,
+          "change_type": "breaking",
+          "migration": "docs/migrations/implementation-evidence-v4-to-v5.md"
+        },
+        {
+          "version": 6,
+          "change_type": "breaking",
+          "migration": "docs/migrations/implementation-evidence-v5-to-v6.md"
+        }
       ],
       "purpose": "Map target-bound explicit product requirements and artifact-defined contract targets to implementation boundaries, execution-capability-bound positive/negative proofs, repository harnesses, authoritative commands, and release gates."
     }
   ],
   "materials": [
-    {"source": "files/contracts/implementation-evidence.json", "destination": "contracts/implementation-evidence.json", "ownership": "seed"},
-    {"source": "files/schemas/implementation-evidence.schema.json", "destination": "schemas/implementation-evidence.schema.json", "ownership": "managed"},
-    {"source": "files/.template-composition/validators/validate_implementation_evidence.py", "destination": ".template-composition/validators/validate_implementation_evidence.py", "ownership": "managed"},
-    {"source": "files/.template-composition/implementation-evidence-actions.json", "destination": ".template-composition/implementation-evidence-actions.json", "ownership": "managed"},
-    {"source": "files/.template-composition/implementation-evidence-actions.schema.json", "destination": ".template-composition/implementation-evidence-actions.schema.json", "ownership": "managed"},
-    {"source": "files/.template-composition/implementation-evidence-release-readiness.schema.json", "destination": ".template-composition/implementation-evidence-release-readiness.schema.json", "ownership": "managed"},
-    {"source": "files/docs/architecture/implementation-evidence.md", "destination": "docs/architecture/implementation-evidence.md", "ownership": "managed"},
-    {"source": "files/docs/migrations/implementation-evidence-v1-to-v2.md", "destination": "docs/migrations/implementation-evidence-v1-to-v2.md", "ownership": "managed"},
-    {"source": "files/docs/migrations/implementation-evidence-v2-to-v3.md", "destination": "docs/migrations/implementation-evidence-v2-to-v3.md", "ownership": "managed"},
-    {"source": "files/docs/migrations/implementation-evidence-v3-to-v4.md", "destination": "docs/migrations/implementation-evidence-v3-to-v4.md", "ownership": "managed"},
-    {"source": "files/docs/migrations/implementation-evidence-v4-to-v5.md", "destination": "docs/migrations/implementation-evidence-v4-to-v5.md", "ownership": "managed"},
-    {"source": "files/docs/migrations/implementation-evidence-v5-to-v6.md", "destination": "docs/migrations/implementation-evidence-v5-to-v6.md", "ownership": "managed"}
+    {
+      "source": "files/contracts/implementation-evidence.json",
+      "destination": "contracts/implementation-evidence.json",
+      "ownership": "seed"
+    },
+    {
+      "source": "files/schemas/implementation-evidence.schema.json",
+      "destination": "schemas/implementation-evidence.schema.json",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/.template-composition/validators/validate_implementation_evidence.py",
+      "destination": ".template-composition/validators/validate_implementation_evidence.py",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/.template-composition/implementation-evidence-actions.json",
+      "destination": ".template-composition/implementation-evidence-actions.json",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/.template-composition/implementation-evidence-actions.schema.json",
+      "destination": ".template-composition/implementation-evidence-actions.schema.json",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/.template-composition/implementation-evidence-release-readiness.schema.json",
+      "destination": ".template-composition/implementation-evidence-release-readiness.schema.json",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/docs/architecture/implementation-evidence.md",
+      "destination": "docs/architecture/implementation-evidence.md",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/docs/migrations/implementation-evidence-v1-to-v2.md",
+      "destination": "docs/migrations/implementation-evidence-v1-to-v2.md",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/docs/migrations/implementation-evidence-v2-to-v3.md",
+      "destination": "docs/migrations/implementation-evidence-v2-to-v3.md",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/docs/migrations/implementation-evidence-v3-to-v4.md",
+      "destination": "docs/migrations/implementation-evidence-v3-to-v4.md",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/docs/migrations/implementation-evidence-v4-to-v5.md",
+      "destination": "docs/migrations/implementation-evidence-v4-to-v5.md",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/docs/migrations/implementation-evidence-v5-to-v6.md",
+      "destination": "docs/migrations/implementation-evidence-v5-to-v6.md",
+      "ownership": "managed"
+    }
   ]
 }

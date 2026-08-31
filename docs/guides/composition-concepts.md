@@ -18,14 +18,15 @@ what you want to build
         |
         v
 resolved component closure
-   |          |          |
-   v          v          v
-artifact   capability  lifecycle
-component  components  components
-        \      |      /
-         \     |     /
-          v    v    v
-            Composer
+    |          |          |          |
+    v          v          v          v
+artifact   foundation capability  lifecycle
+component  components components  components
+    |          ^          |          |
+    +--requires-+---------+----------+
+                         |
+                         v
+                      Composer
                |
                v
        consumer repository
@@ -50,7 +51,8 @@ The important distinction is between **selection**, **semantics**, and **materia
 | **Recipe** | a sequence of CLI steps or tutorial instructions | A starting selection that chooses exactly one artifact component and defines which reusable capability or lifecycle components are required, defaulted, or selectable. The walkthrough is the procedure; the recipe is selection authority. |
 | **Artifact** | one generated file | The kind of produced thing whose identity-specific semantics are being defined. Current production recipes create an Agent Skill or a Web application. |
 | **Artifact component** | the finished product itself | The Composition component that owns artifact-specific reusable semantics. `artifact.skill-core` and `artifact.webapp-core` are current examples. |
-| **Component** | a visual UI widget or package dependency | A closed reusable Composition source authority. Component descriptors declare dependencies, conflicts, materialized destinations, ownership modes, and optional contract registrations. |
+| **Component** | a visual UI widget or package dependency | A closed reusable Composition source authority. Component descriptors declare a component role, dependencies, conflicts, materialized destinations, ownership modes, and optional contract registrations. |
+| **Foundation component** | a capability to include explicitly | A shared mandatory baseline introduced by an artifact dependency. Foundations are resolved transitively and are never recipe-selectable consumer capabilities. |
 | **Capability component** | a property automatically implied by the artifact | An optional artifact-neutral behavior such as runtime, packaged CLI, MCP, MCP Apps, standalone browser interface, or headless service. Select it only when the product actually exposes that behavior. |
 | **Lifecycle component** | a chronological project phase | Reusable product-lifecycle machinery such as Composition state, contract evolution, implementation evidence, lifecycle checkpoints, or release behavior. |
 | **Contract** | only an HTTP/API contract | In Composition documentation, concrete selected components can register machine-readable contract documents and schemas for artifact or lifecycle behavior. The exact meaning belongs to the registered contract and its owning component; there is no single generic `contract.json`. |
@@ -111,3 +113,17 @@ For example, an instruction-only or knowledge-augmented Skill does not need an a
 - For strict semantics and ownership rules, use the [Composition model](../architecture/composition-model.md).
 - For exact commands and diagnostics, use the [Composer reference](../reference/composer.md).
 - For canonical repository terminology and cross-authority disambiguation, use the integrated glossary generated from provider-owned `docs/glossary.yml` sources.
+
+
+## Component roles: a practical mental model
+
+A **recipe** is the consumer-facing starting point. It chooses an **artifact component**—the answer to “what am I building?”—and exposes only optional components that a consumer may deliberately select. A **component** is the reusable authority that contributes one coherent set of semantics and materials to that resolved product.
+
+Read component roles as four questions, in this order:
+
+1. **Foundation — What shared base is required?** A foundation is automatically introduced through an artifact dependency. It is mandatory when the artifact needs it, but it is not a product capability to select directly.
+2. **Artifact — What am I building?** An artifact defines the product identity and its identity-specific contracts.
+3. **Capability — What else can it do?** A capability adds an externally observable behavior, such as PWA support, a runtime, a CLI, or an MCP interface.
+4. **Lifecycle — How is it managed over time?** A lifecycle component supplies reusable machinery for validation, evolution, evidence, checkpoints, or release.
+
+A future Website recipe, for example, can select a Website artifact that requires a shared Web foundation. A consumer sees the Website identity and can choose PWA or runtime capabilities; the foundation is resolved automatically and is never an include target. The descriptor represents this with `component_role` (`foundation`, `artifact`, `capability`, or `lifecycle`), while canonical definitions remain in the provider glossary.

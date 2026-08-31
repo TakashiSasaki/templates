@@ -191,7 +191,7 @@ class PwaContractTests(unittest.TestCase):
 
     def test_descriptor_registers_three_pwa_contracts_without_runtime_dependency(self) -> None:
         descriptor = json.loads((COMPONENT / "component.json").read_text(encoding="utf-8"))
-        self.assertEqual(descriptor["version"], 2)
+        self.assertEqual(descriptor["version"], 3)
         self.assertEqual(descriptor["requires"], ["lifecycle.implementation-evidence"])
         self.assertEqual(
             [registration["id"] for registration in descriptor["contract_registrations"]],

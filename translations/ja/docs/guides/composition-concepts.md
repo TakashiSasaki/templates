@@ -20,14 +20,15 @@ Composition は、作りたい artifact の種類と明示的な consumer intent
     |
     v
 resolved component closure
-   |          |          |
-   v          v          v
-artifact   capability  lifecycle
-component  components  components
-        \      |      /
-         \     |     /
-          v    v    v
-            Composer
+    |          |          |          |
+    v          v          v          v
+artifact   foundation capability  lifecycle
+component  components components  components
+    |          ^          |          |
+    +--requires-+---------+----------+
+                         |
+                         v
+                      Composer
                |
                v
        consumer repository
@@ -52,7 +53,8 @@ component  components  components
 | **Recipe** | CLI 手順やtutorialの順番 | exactly one artifact componentを選び、required/default/selectableな capability/lifecycle component を定める開始selectionです。walkthroughが手順であり、recipeはselection authorityです。 |
 | **Artifact** | 1個の生成file | identity-specific semanticsを定義する「作られるものの種類」です。現在のproduction recipeはAgent SkillまたはWeb applicationを作ります。 |
 | **Artifact component** | 完成したproductそのもの | artifact固有の再利用可能semanticsを所有するComposition componentです。現在は `artifact.skill-core` と `artifact.webapp-core` があります。 |
-| **Component** | UI widgetやpackage dependency | closed reusable Composition source authorityです。descriptorがdependency、conflict、materialized destination、ownership mode、optional contract registrationを宣言します。 |
+| **Component** | UI widgetやpackage dependency | closed reusable Composition source authorityです。descriptorがcomponent role、dependency、conflict、materialized destination、ownership mode、optional contract registrationを宣言します。 |
+| **Foundation component** | 明示的にincludeするcapability | artifact dependency により導入される共有必須baselineです。foundationは推移的にresolveされ、recipeから選択するconsumer capabilityではありません。 |
 | **Capability component** | artifactなら自動的に付く性質 | runtime、packaged CLI、MCP、MCP Apps、standalone browser interface、headless serviceなどのoptionalでartifact-neutralなbehaviorです。productが実際にそのbehaviorを公開するときだけ選びます。 |
 | **Lifecycle component** | 時系列上のproject phase | Composition state、contract evolution、implementation evidence、lifecycle checkpoint、release behaviorなどの再利用可能なproduct-lifecycle machineryです。 |
 | **Contract** | HTTP/API contractだけ | 選択されたcomponentはartifactまたはlifecycle behaviorについてmachine-readableなcontract documentとschemaをregisterできます。exact meaningは各registered contractとowner componentが持ち、単一のgeneric `contract.json` はありません。 |
@@ -113,3 +115,17 @@ contracts/viewports.json
 - strict semanticsとownership ruleは [Composition model](../architecture/composition-model.md)。
 - exact commandとdiagnosticは [Composer reference](../reference/composer.md)。
 - canonical repository terminologyとcross-authority disambiguationは、provider-owned `docs/glossary.yml` から生成されるintegrated glossaryを参照してください。
+
+
+## コンポーネントロール: 実用的なメンタルモデル
+
+**recipe** は利用者向けの開始点です。recipe は「何を作るのか」を示す **artifact component** を選択し、利用者が明示的に選択できる optional component だけを公開します。**component** は、解決されたプロダクトに一貫した意味論とマテリアルを与える再利用可能な authority です。
+
+コンポーネントロールは、次の四つの問いとして順に読むことができます。
+
+1. **Foundation — どの共有基盤が必要か?** Foundation は artifact の依存関係を通じて自動導入されます。artifact に必要なら必須ですが、利用者が直接選択する product capability ではありません。
+2. **Artifact — 何を作っているのか?** Artifact はプロダクトの identity と、それに固有の contract を定義します。
+3. **Capability — ほかに何ができるか?** Capability は、PWA、runtime、CLI、MCP interface など externally observable な振る舞いを追加します。
+4. **Lifecycle — 時間とともにどのように管理するか?** Lifecycle component は validation、evolution、evidence、checkpoint、release のための再利用可能な仕組みを提供します。
+
+将来の Website recipe は、共有 Web foundation を必要とする Website artifact を選択できます。利用者には Website identity が提示され、PWA や runtime capability を選べます。foundation は自動解決され、include target にはなりません。descriptor ではこれを `component_role`（`foundation`、`artifact`、`capability`、`lifecycle`）で表現し、canonical definition は provider glossary に置きます。

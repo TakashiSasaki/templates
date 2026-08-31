@@ -86,7 +86,7 @@ class WebappNeutralSeedTests(unittest.TestCase):
 
     def test_browser_identity_adds_a_seed_without_fabricating_an_asset(self) -> None:
         descriptor = json.loads((WEBAPP / "component.json").read_text(encoding="utf-8"))
-        self.assertEqual(descriptor["version"], 17)
+        self.assertEqual(descriptor["version"], 18)
         seed_destinations = {
             material["destination"]
             for material in descriptor["materials"]

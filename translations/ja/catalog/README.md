@@ -126,3 +126,8 @@ catalog は source authority であり、consumer material でも execution-hook
 Composer はこの閉じた source graph を検証し、1つの正確で clean な Git revision に対して recipe と consumer configuration を解決し、initial materialization が成功した後に得られた component / file closure を `.template-composition/lock.json` に書き込みます。Generated material は allowlist に含まれる declarative generator ID を通じてのみ dispatch されます。
 
 unmanaged target では、initial composition は managed-state transition を推測せず、既存の composition lock がある場合は拒否します。既存の managed repository では代わりに明示的な operation を使います。`update` は lock schema v2 に記録された normalized intent を維持したまま descendant の Composition source revision へ進み、`upgrade` は recipe、component selection、parameter、component version などを変更するための明示的な新しい configuration を受け取ります。どちらの operation も汎用 merge engine ではありません。local で変更された `managed` / `generated` material や、owner / ownership-mode transition は上書きや推測を行わず fail closed します。
+
+
+### コンポーネントロールと直接選択
+
+recipe は1つの artifact を選択し、optional な capability または lifecycle component を公開します。`foundation` role の component は artifact component の依存関係です。自動的に解決され、recipe option には現れず、consumer が直接 include する target でもありません。四つの role によるメンタルモデルは [Composition concepts](../../docs/guides/composition-concepts.md) を、canonical terminology は provider glossary を参照してください。

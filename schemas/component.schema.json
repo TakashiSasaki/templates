@@ -7,7 +7,7 @@
   "required": [
     "schema_version",
     "id",
-    "kind",
+    "component_role",
     "version",
     "summary",
     "requires",
@@ -118,14 +118,7 @@
     },
     "id": {
       "type": "string",
-      "pattern": "^(artifact|capability|lifecycle)\\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
-    },
-    "kind": {
-      "enum": [
-        "artifact",
-        "capability",
-        "lifecycle"
-      ]
+      "pattern": "^(foundation|artifact|capability|lifecycle)\\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
     },
     "version": {
       "type": "integer",
@@ -140,7 +133,7 @@
       "uniqueItems": true,
       "items": {
         "type": "string",
-        "pattern": "^(artifact|capability|lifecycle)\\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+        "pattern": "^(foundation|artifact|capability|lifecycle)\\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
       }
     },
     "conflicts": {
@@ -148,7 +141,7 @@
       "uniqueItems": true,
       "items": {
         "type": "string",
-        "pattern": "^(artifact|capability|lifecycle)\\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+        "pattern": "^(foundation|artifact|capability|lifecycle)\\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
       }
     },
     "contract_registrations": {
@@ -214,18 +207,26 @@
           }
         ]
       }
+    },
+    "component_role": {
+      "enum": [
+        "foundation",
+        "artifact",
+        "capability",
+        "lifecycle"
+      ]
     }
   },
   "allOf": [
     {
       "if": {
         "properties": {
-          "kind": {
+          "component_role": {
             "const": "artifact"
           }
         },
         "required": [
-          "kind"
+          "component_role"
         ]
       },
       "then": {
@@ -239,12 +240,12 @@
     {
       "if": {
         "properties": {
-          "kind": {
+          "component_role": {
             "const": "capability"
           }
         },
         "required": [
-          "kind"
+          "component_role"
         ]
       },
       "then": {
@@ -258,18 +259,37 @@
     {
       "if": {
         "properties": {
-          "kind": {
+          "component_role": {
             "const": "lifecycle"
           }
         },
         "required": [
-          "kind"
+          "component_role"
         ]
       },
       "then": {
         "properties": {
           "id": {
             "pattern": "^lifecycle\\."
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "component_role": {
+            "const": "foundation"
+          }
+        },
+        "required": [
+          "component_role"
+        ]
+      },
+      "then": {
+        "properties": {
+          "id": {
+            "pattern": "^foundation\\."
           }
         }
       }

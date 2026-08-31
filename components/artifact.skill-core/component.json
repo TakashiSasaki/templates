@@ -1,25 +1,73 @@
 {
   "schema_version": 1,
   "id": "artifact.skill-core",
-  "kind": "artifact",
-  "version": 1,
+  "component_role": "artifact",
+  "version": 2,
   "summary": "Minimal Agent Skill artifact semantics, development guidance, and Skill-specific structural validation.",
   "requires": [
     "lifecycle.composition-state"
   ],
   "conflicts": [],
   "materials": [
-    {"source":"files/.editorconfig","destination":".editorconfig","ownership":"seed"},
-    {"source":"files/.github/workflows/validate-skill.yml","destination":".github/workflows/validate-skill.yml","ownership":"managed"},
-    {"source":"files/.gitignore","destination":".gitignore","ownership":"seed"},
-    {"source":"files/AGENTS.md","destination":"AGENTS.md","ownership":"seed"},
-    {"source":"files/LICENSE.template","destination":"LICENSE.template","ownership":"seed"},
-    {"source":"files/README.md","destination":"README.md","ownership":"seed"},
-    {"source":"files/SKILL.md","destination":"SKILL.md","ownership":"seed"},
-    {"source":"files/docs/architecture.md","destination":"docs/architecture.md","ownership":"managed"},
-    {"source":"files/docs/index.md","destination":"docs/index.md","ownership":"managed"},
-    {"source":"files/docs/skill-capability-map.md","destination":"docs/skill-capability-map.md","ownership":"managed"},
-    {"source":"files/docs/skill-profiles.md","destination":"docs/skill-profiles.md","ownership":"managed"},
-    {"source":"files/.github/scripts/validate_skill.py","destination":".github/scripts/validate_skill.py","ownership":"managed"}
+    {
+      "source": "files/.editorconfig",
+      "destination": ".editorconfig",
+      "ownership": "seed"
+    },
+    {
+      "source": "files/.github/workflows/validate-skill.yml",
+      "destination": ".github/workflows/validate-skill.yml",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/.gitignore",
+      "destination": ".gitignore",
+      "ownership": "seed"
+    },
+    {
+      "source": "files/AGENTS.md",
+      "destination": "AGENTS.md",
+      "ownership": "seed"
+    },
+    {
+      "source": "files/LICENSE.template",
+      "destination": "LICENSE.template",
+      "ownership": "seed"
+    },
+    {
+      "source": "files/README.md",
+      "destination": "README.md",
+      "ownership": "seed"
+    },
+    {
+      "source": "files/SKILL.md",
+      "destination": "SKILL.md",
+      "ownership": "seed"
+    },
+    {
+      "source": "files/docs/architecture.md",
+      "destination": "docs/architecture.md",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/docs/index.md",
+      "destination": "docs/index.md",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/docs/skill-capability-map.md",
+      "destination": "docs/skill-capability-map.md",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/docs/skill-profiles.md",
+      "destination": "docs/skill-profiles.md",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/.github/scripts/validate_skill.py",
+      "destination": ".github/scripts/validate_skill.py",
+      "ownership": "managed"
+    }
   ]
 }

@@ -82,7 +82,7 @@ def validate_component_semantics(value: dict) -> None:
     overlap = required & conflicts
     if overlap:
         raise ValueError(f"required/conflicting component overlap: {sorted(overlap)}")
-    if value["kind"] != "artifact":
+    if value["component_role"] != "artifact":
         artifact_relations = sorted(
             relation
             for relation in required | conflicts
@@ -90,7 +90,7 @@ def validate_component_semantics(value: dict) -> None:
         )
         if artifact_relations:
             raise ValueError(
-                "capability/lifecycle components must not depend on or conflict with artifact components: "
+                "non-artifact components must not depend on or conflict with artifact components: "
                 f"{artifact_relations}"
             )
     for material in value["materials"]:
@@ -166,9 +166,9 @@ class CompositionSchemaTests(unittest.TestCase):
             with self.subTest(name=name):
                 self.assert_schema_valid(name, value)
 
-    def test_component_kind_must_match_id_namespace(self) -> None:
+    def test_component_role_must_match_id_namespace(self) -> None:
         value = copy.deepcopy(self.examples["component"])
-        value["kind"] = "artifact"
+        value["component_role"] = "artifact"
         with self.assertRaises(ValidationError):
             self.assert_schema_valid("component", value)
 
