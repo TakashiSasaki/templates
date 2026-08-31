@@ -20,14 +20,15 @@ Composition は、作りたい artifact の種類と明示的な consumer intent
     |
     v
 resolved component closure
-   |          |          |
-   v          v          v
-artifact   capability  lifecycle
-component  components  components
-        \      |      /
-         \     |     /
-          v    v    v
-            Composer
+    |          |          |          |
+    v          v          v          v
+artifact   foundation capability  lifecycle
+component  components components  components
+    |          ^          |          |
+    +--requires-+---------+----------+
+                         |
+                         v
+                      Composer
                |
                v
        consumer repository
@@ -52,7 +53,8 @@ component  components  components
 | **Recipe** | CLI 手順やtutorialの順番 | exactly one artifact componentを選び、required/default/selectableな capability/lifecycle component を定める開始selectionです。walkthroughが手順であり、recipeはselection authorityです。 |
 | **Artifact** | 1個の生成file | identity-specific semanticsを定義する「作られるものの種類」です。現在のproduction recipeはAgent SkillまたはWeb applicationを作ります。 |
 | **Artifact component** | 完成したproductそのもの | artifact固有の再利用可能semanticsを所有するComposition componentです。現在は `artifact.skill-core` と `artifact.webapp-core` があります。 |
-| **Component** | UI widgetやpackage dependency | closed reusable Composition source authorityです。descriptorがdependency、conflict、materialized destination、ownership mode、optional contract registrationを宣言します。 |
+| **Component** | UI widgetやpackage dependency | closed reusable Composition source authorityです。descriptorがcomponent role、dependency、conflict、materialized destination、ownership mode、optional contract registrationを宣言します。 |
+| **Foundation component** | 明示的にincludeするcapability | artifact dependency により導入される共有必須baselineです。foundationは推移的にresolveされ、recipeから選択するconsumer capabilityではありません。 |
 | **Capability component** | artifactなら自動的に付く性質 | runtime、packaged CLI、MCP、MCP Apps、standalone browser interface、headless serviceなどのoptionalでartifact-neutralなbehaviorです。productが実際にそのbehaviorを公開するときだけ選びます。 |
 | **Lifecycle component** | 時系列上のproject phase | Composition state、contract evolution、implementation evidence、lifecycle checkpoint、release behaviorなどの再利用可能なproduct-lifecycle machineryです。 |
 | **Contract** | HTTP/API contractだけ | 選択されたcomponentはartifactまたはlifecycle behaviorについてmachine-readableなcontract documentとschemaをregisterできます。exact meaningは各registered contractとowner componentが持ち、単一のgeneric `contract.json` はありません。 |

@@ -6,11 +6,12 @@
 
 `composition` branch は、再利用可能な artifact semantics、application capabilities、lifecycle contracts、recipes、schemas、および deterministic Composer の canonical source authority です。
 
-Composition は3種類の authority class を分離します。
+Composition は4つの component role を分離します。
 
-1. **artifact semantics** — Web application や Agent Skill のように、どの種類の artifact を開発しているかを表します。
-2. **capabilities** — runtime、CLI、MCP、MCP Apps、browser exposure、headless service など、再利用可能で任意選択の behavior を表します。
-3. **lifecycle contracts** — 再利用可能な composition state、contract evolution、implementation evidence、release evidence、release-bundle behavior を表します。
+1. **foundations** — artifact dependency により導入される共有必須 baseline semantics を表します。
+2. **artifact semantics** — Website、Web application、Agent Skill のように何を作るかを表します。
+3. **capabilities** — runtime、CLI、MCP、MCP Apps、browser exposure、headless service など、再利用可能で任意選択の behavior を表します。
+4. **lifecycle contracts** — composition state、contract evolution、implementation evidence、release evidence、release-bundle の再利用可能な machinery を表します。
 
 Web application と Agent Skill は引き続き異なる artifact です。重複する monolithic template を持つのではなく、1つの component catalog に対する recipe を通じて再利用可能な authority を共有します。
 
@@ -40,13 +41,14 @@ source-side Composer operation が必要なのは、新しい state (`initial`, 
 
 ## Authority classes
 
-Component ID は、次の3つの prefix のいずれか1つだけを持ちます。
+Component ID は、次の component-role prefix のいずれか1つだけを持ちます。
 
+- `foundation.*` — shared mandatory baseline semantics
 - `artifact.*` — artifact-specific semantics
-- `capability.*` — reusable application capabilities
-- `lifecycle.*` — reusable product-lifecycle contracts
+- `capability.*` — reusable optional capabilities
+- `lifecycle.*` — reusable product-lifecycle machinery
 
-prefix は descriptor の `kind` と一致しなければなりません。generic な `capability.*` と `lifecycle.*` descriptor は、具体的な `artifact.*` authority を要求したり、それと conflict したりしてはなりません。artifact component は、それらの contract が artifact に本質的である場合、reusable capability/lifecycle component を require できます。
+prefix は descriptor の `component_role` と一致しなければなりません。foundation は artifact dependency により導入され、recipe から直接選択できません。non-artifact descriptor は、具体的な `artifact.*` authority を要求したり、それと conflict したりしてはなりません。artifact component は、それらの contract が artifact に本質的である場合、foundation、reusable capability、lifecycle component を require できます。
 
 production catalog は closed です。catalog validation では、component と recipe inventory が source tree と一致していること、dependency が存在し acyclic であること、identity が unique であること、generic/artifact boundary が保持されること、および選択された conflict が reject されることを要求します。
 
@@ -55,7 +57,7 @@ production catalog は closed です。catalog validation では、component と
 component descriptor は次を宣言します。
 
 - stable component `id`
-- component `kind`
+- component `component_role`
 - positive integer component `version`
 - human-readable summary
 - required component IDs
