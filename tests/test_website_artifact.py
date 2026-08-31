@@ -13,6 +13,21 @@ from jsonschema import Draft202012Validator
 ROOT = Path(__file__).resolve().parents[1]
 COMPONENT = ROOT / "components" / "artifact.website-core"
 FILES = COMPONENT / "files"
+PLANNING_EVIDENCE_EXAMPLE = (
+    ROOT
+    / "examples"
+    / "onboarding"
+    / "project-docs"
+    / "implementation-evidence.planning.json"
+)
+EVIDENCE_SCHEMA = (
+    ROOT
+    / "components"
+    / "lifecycle.implementation-evidence"
+    / "files"
+    / "schemas"
+    / "implementation-evidence.schema.json"
+)
 
 
 def load(path: Path):
@@ -27,17 +42,38 @@ class WebsiteArtifactTests(unittest.TestCase):
         self.routes = load(ROOT / "components/foundation.web/files/contracts/routes.json")
         self.viewports = load(ROOT / "components/foundation.web/files/contracts/viewports.json")
 
-    def write_fixture(self, *, evidence_mode: str = "template", structure=None, metadata=None, discovery=None, routes=None, viewports=None) -> Path:
+    def write_fixture(
+        self,
+        *,
+        evidence_mode: str = "template",
+        evidence=None,
+        structure=None,
+        metadata=None,
+        discovery=None,
+        routes=None,
+        viewports=None,
+    ) -> Path:
         temp = tempfile.TemporaryDirectory()
         self.addCleanup(temp.cleanup)
         root = Path(temp.name)
+        evidence_document = (
+            {
+                "mode": evidence_mode,
+                "commands": [],
+                "releaseGates": [],
+                "records": [],
+                "requirements": [],
+            }
+            if evidence is None
+            else evidence
+        )
         docs = {
             "contracts/site-structure.json": self.structure if structure is None else structure,
             "contracts/document-metadata.json": self.metadata if metadata is None else metadata,
             "contracts/site-discovery.json": self.discovery if discovery is None else discovery,
             "contracts/routes.json": self.routes if routes is None else routes,
             "contracts/viewports.json": self.viewports if viewports is None else viewports,
-            "contracts/implementation-evidence.json": {"mode": evidence_mode, "commands": [], "releaseGates": [], "records": [], "requirements": []},
+            "contracts/implementation-evidence.json": evidence_document,
         }
         for relative, value in docs.items():
             path = root / relative
@@ -46,17 +82,100 @@ class WebsiteArtifactTests(unittest.TestCase):
         return root
 
     def run_contract_validator(self, root: Path):
-        return subprocess.run([sys.executable, str(FILES / "scripts/validate_website_contracts.py"), str(root)], cwd=ROOT, text=True, capture_output=True, check=False)
+        return subprocess.run(
+            [sys.executable, str(FILES / "scripts/validate_website_contracts.py"), str(root)],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
+    def run_evidence_validator(self, root: Path):
+        return subprocess.run(
+            [sys.executable, str(FILES / "scripts/validate_website_evidence.py"), str(root)],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
+    def project_docs_fixture(self, evidence: dict) -> Path:
+        routes = copy.deepcopy(self.routes)
+        routes["routes"].append(
+            {
+                "id": "guide",
+                "path": "/guide",
+                "canonical": True,
+                "aliases": [],
+                "deepLink": True,
+                "accessibility": {
+                    "documentTitleRequired": True,
+                    "focusTarget": "main-heading",
+                },
+            }
+        )
+        structure = copy.deepcopy(self.structure)
+        structure["pages"].append(
+            {
+                "id": "guide",
+                "routeId": "guide",
+                "role": "content",
+                "title": "Guide",
+                "parentPageId": "home",
+            }
+        )
+        structure["primaryNavigationPageIds"] = ["home", "guide"]
+        metadata = copy.deepcopy(self.metadata)
+        metadata["siteName"] = "Project Docs"
+        metadata["pages"].append(
+            {
+                "pageId": "guide",
+                "title": "Guide",
+                "description": "Project Docs guide.",
+                "indexability": "index",
+                "canonicalPathPolicy": "route-canonical",
+                "socialPreview": "none",
+            }
+        )
+        discovery = copy.deepcopy(self.discovery)
+        discovery["canonicalOrigin"] = "https://docs.example.test"
+        discovery["sitemap"]["pageIds"] = ["home", "guide"]
+        return self.write_fixture(
+            evidence=evidence,
+            structure=structure,
+            metadata=metadata,
+            discovery=discovery,
+            routes=routes,
+        )
 
     def test_component_and_recipe_establish_sibling_website_artifact(self) -> None:
         descriptor = load(COMPONENT / "component.json")
         recipe = load(ROOT / "recipes/website.json")
         catalog = load(ROOT / "catalog/catalog.json")
         self.assertEqual(descriptor["component_role"], "artifact")
-        self.assertEqual(descriptor["requires"], ["foundation.web", "lifecycle.composition-state", "lifecycle.implementation-evidence"])
-        self.assertEqual([item["id"] for item in descriptor["contract_registrations"]], ["site_structure", "document_metadata", "site_discovery"])
+        self.assertEqual(
+            descriptor["requires"],
+            [
+                "foundation.web",
+                "lifecycle.composition-state",
+                "lifecycle.implementation-evidence",
+            ],
+        )
+        self.assertEqual(
+            [item["id"] for item in descriptor["contract_registrations"]],
+            ["site_structure", "document_metadata", "site_discovery"],
+        )
         self.assertEqual(recipe["artifact"], "artifact.website-core")
-        self.assertEqual(recipe["optional_components"], ["capability.pwa", "capability.runtime", "capability.service", "capability.web-interface", "lifecycle.release-bundle"])
+        self.assertEqual(
+            recipe["optional_components"],
+            [
+                "capability.pwa",
+                "capability.runtime",
+                "capability.service",
+                "capability.web-interface",
+                "lifecycle.release-bundle",
+            ],
+        )
         self.assertIn("artifact.website-core", catalog["components"])
         self.assertIn("website", catalog["recipes"])
         self.assertNotIn("artifact.webapp-core", descriptor["requires"])
@@ -69,36 +188,133 @@ class WebsiteArtifactTests(unittest.TestCase):
         result = self.run_contract_validator(self.write_fixture())
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
+    def test_project_docs_planning_example_covers_exact_derived_website_targets(self) -> None:
+        schema = load(EVIDENCE_SCHEMA)
+        evidence = load(PLANNING_EVIDENCE_EXAMPLE)
+        Draft202012Validator.check_schema(schema)
+        self.assertEqual(list(Draft202012Validator(schema).iter_errors(evidence)), [])
+
+        result = self.run_evidence_validator(self.project_docs_fixture(evidence))
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+        incomplete = copy.deepcopy(evidence)
+        discovery_requirement = next(
+            item
+            for item in incomplete["requirements"]
+            if item["id"] == "WEBSITE-DISCOVERY"
+        )
+        discovery_requirement["targets"] = [
+            target
+            for target in discovery_requirement["targets"]
+            if target["itemId"] != "sitemap"
+        ]
+        result = self.run_evidence_validator(self.project_docs_fixture(incomplete))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("missing planning Website evidence target", result.stderr)
+        self.assertIn("sitemap", result.stderr)
+
     def test_every_website_page_binds_exactly_one_shared_route(self) -> None:
         routes = copy.deepcopy(self.routes)
-        routes["routes"].append({"id": "about", "path": "/about", "canonical": True, "aliases": [], "deepLink": True, "accessibility": {"documentTitleRequired": True, "focusTarget": "main-heading"}})
+        routes["routes"].append(
+            {
+                "id": "about",
+                "path": "/about",
+                "canonical": True,
+                "aliases": [],
+                "deepLink": True,
+                "accessibility": {
+                    "documentTitleRequired": True,
+                    "focusTarget": "main-heading",
+                },
+            }
+        )
         result = self.run_contract_validator(self.write_fixture(routes=routes))
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("missing page bindings", result.stderr)
 
         structure = copy.deepcopy(self.structure)
-        structure["pages"].append({"id": "other", "routeId": "unknown", "role": "content", "title": "Other", "parentPageId": "home"})
+        structure["pages"].append(
+            {
+                "id": "other",
+                "routeId": "unknown",
+                "role": "content",
+                "title": "Other",
+                "parentPageId": "home",
+            }
+        )
         result = self.run_contract_validator(self.write_fixture(structure=structure))
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("unknown shared routes", result.stderr)
 
     def test_page_hierarchy_fails_closed_on_missing_parent_and_cycle(self) -> None:
         routes = copy.deepcopy(self.routes)
-        routes["routes"].extend([
-            {"id": "a", "path": "/a", "canonical": True, "aliases": [], "deepLink": True, "accessibility": {"documentTitleRequired": True, "focusTarget": "main-heading"}},
-            {"id": "b", "path": "/b", "canonical": True, "aliases": [], "deepLink": True, "accessibility": {"documentTitleRequired": True, "focusTarget": "main-heading"}},
-        ])
+        routes["routes"].extend(
+            [
+                {
+                    "id": "a",
+                    "path": "/a",
+                    "canonical": True,
+                    "aliases": [],
+                    "deepLink": True,
+                    "accessibility": {
+                        "documentTitleRequired": True,
+                        "focusTarget": "main-heading",
+                    },
+                },
+                {
+                    "id": "b",
+                    "path": "/b",
+                    "canonical": True,
+                    "aliases": [],
+                    "deepLink": True,
+                    "accessibility": {
+                        "documentTitleRequired": True,
+                        "focusTarget": "main-heading",
+                    },
+                },
+            ]
+        )
         structure = copy.deepcopy(self.structure)
-        structure["pages"].extend([
-            {"id": "a", "routeId": "a", "role": "content", "title": "A", "parentPageId": "b"},
-            {"id": "b", "routeId": "b", "role": "content", "title": "B", "parentPageId": "a"},
-        ])
+        structure["pages"].extend(
+            [
+                {
+                    "id": "a",
+                    "routeId": "a",
+                    "role": "content",
+                    "title": "A",
+                    "parentPageId": "b",
+                },
+                {
+                    "id": "b",
+                    "routeId": "b",
+                    "role": "content",
+                    "title": "B",
+                    "parentPageId": "a",
+                },
+            ]
+        )
         metadata = copy.deepcopy(self.metadata)
         for page_id in ("a", "b"):
-            metadata["pages"].append({"pageId": page_id, "title": page_id.upper(), "description": page_id, "indexability": "index", "canonicalPathPolicy": "route-canonical", "socialPreview": "none"})
+            metadata["pages"].append(
+                {
+                    "pageId": page_id,
+                    "title": page_id.upper(),
+                    "description": page_id,
+                    "indexability": "index",
+                    "canonicalPathPolicy": "route-canonical",
+                    "socialPreview": "none",
+                }
+            )
         discovery = copy.deepcopy(self.discovery)
         discovery["sitemap"]["pageIds"] = ["home", "a", "b"]
-        result = self.run_contract_validator(self.write_fixture(structure=structure, metadata=metadata, discovery=discovery, routes=routes))
+        result = self.run_contract_validator(
+            self.write_fixture(
+                structure=structure,
+                metadata=metadata,
+                discovery=discovery,
+                routes=routes,
+            )
+        )
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("hierarchy contains a cycle", result.stderr)
 
@@ -121,7 +337,9 @@ class WebsiteArtifactTests(unittest.TestCase):
         self.assertIn("requires a concrete valid HTTPS canonicalOrigin", result.stderr)
         discovery = copy.deepcopy(self.discovery)
         discovery["canonicalOrigin"] = "https://example.test/"
-        result = self.run_contract_validator(self.write_fixture(evidence_mode="product", discovery=discovery))
+        result = self.run_contract_validator(
+            self.write_fixture(evidence_mode="product", discovery=discovery)
+        )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
     def test_website_evidence_targets_do_not_depend_on_webapp_private_contracts(self) -> None:
