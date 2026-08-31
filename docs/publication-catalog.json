@@ -272,6 +272,12 @@
       "home": false
     },
     {
+      "id": "web-routes-v3-migration",
+      "source": "components/foundation.web/files/docs/migrations/routes-v3-to-v4.md",
+      "optional": false,
+      "home": false
+    },
+    {
       "id": "surfaces-v2-migration",
       "source": "components/artifact.webapp-core/files/docs/migrations/surfaces-v1-to-v2.md",
       "optional": false,
