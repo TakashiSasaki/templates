@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate Progressive Web App contracts against Webapp semantic authority."""
+"""Validate artifact-neutral Progressive Web App semantics against shared Web routes."""
 from __future__ import annotations
 
 import argparse
@@ -13,9 +13,6 @@ PWA_MANIFEST = Path("contracts/pwa-manifest.json")
 PWA_OFFLINE = Path("contracts/pwa-offline.json")
 PWA_UPDATE = Path("contracts/pwa-update.json")
 ROUTES = Path("contracts/routes.json")
-APPLICATION_ROUTES = Path("contracts/application-routes.json")
-SURFACES = Path("contracts/surfaces.json")
-UI_STATES = Path("contracts/ui-states.json")
 IMPLEMENTATION_EVIDENCE = Path("contracts/implementation-evidence.json")
 
 
@@ -52,33 +49,7 @@ def path_in_scope(path: str, scope: str) -> bool:
     return path == scope_root or path.startswith(scope)
 
 
-def state_reference(
-    errors: list[str],
-    states: dict[str, dict[str, Any]],
-    state_id: object,
-    *,
-    field: str,
-    categories: frozenset[str] | None = None,
-    global_scope: bool = True,
-) -> None:
-    if not isinstance(state_id, str):
-        return
-    state = states.get(state_id)
-    if state is None:
-        errors.append(f"{field} references unknown UI state {state_id!r}")
-        return
-    if global_scope and state.get("scope") != "global":
-        errors.append(f"{field} UI state {state_id!r} must have global scope")
-    if categories is not None and state.get("category") not in categories:
-        errors.append(
-            f"{field} UI state {state_id!r} must have category one of {', '.join(sorted(categories))}"
-        )
-
-
-def validate_manifest(
-    manifest: dict[str, Any],
-    routes: dict[str, dict[str, Any]],
-) -> list[str]:
+def validate_manifest(manifest: dict[str, Any], routes: dict[str, dict[str, Any]]) -> list[str]:
     errors: list[str] = []
     route_id = manifest.get("startRouteId")
     scope = manifest.get("scope")
@@ -93,9 +64,7 @@ def validate_manifest(
                 errors.append(f"PWA start route {route_id!r} must be deep-linkable")
             path = route.get("path")
             if isinstance(path, str) and isinstance(scope, str) and not path_in_scope(path, scope):
-                errors.append(
-                    f"PWA start route {route_id!r} path {path!r} is outside manifest scope {scope!r}"
-                )
+                errors.append(f"PWA start route {route_id!r} path {path!r} is outside manifest scope {scope!r}")
 
     icons = manifest.get("icons")
     icon_list = [icon for icon in icons if isinstance(icon, dict)] if isinstance(icons, list) else []
@@ -112,9 +81,7 @@ def validate_manifest(
     vector_exception = manifest.get("vectorIconException")
     if manifest.get("vectorIconPolicy") == "prefer-svg-when-compatible":
         if not svg_icons and not isinstance(vector_exception, str):
-            errors.append(
-                "PWA vector icon policy prefers SVG when compatible; declare an SVG manifest icon or a non-blank vectorIconException"
-            )
+            errors.append("PWA vector icon policy prefers SVG when compatible; declare an SVG manifest icon or a non-blank vectorIconException")
         if svg_icons and isinstance(vector_exception, str):
             errors.append("PWA vectorIconException must be null when an SVG manifest icon is declared")
 
@@ -132,9 +99,7 @@ def validate_manifest(
                     for icon in icon_list
                 )
                 if not covered:
-                    errors.append(
-                        f"Android compatibility raster size {required_size!r} is not backed by a declared non-SVG manifest icon"
-                    )
+                    errors.append(f"Android compatibility raster size {required_size!r} is not backed by a declared non-SVG manifest icon")
         if android.get("maskableIconRequired") is True and not any(
             isinstance(icon.get("purposes"), list) and "maskable" in icon["purposes"]
             for icon in icon_list
@@ -147,24 +112,15 @@ def validate_manifest(
     return errors
 
 
-def validate_offline(
-    offline: dict[str, Any],
-    manifest: dict[str, Any],
-    routes: dict[str, dict[str, Any]],
-    surfaces: dict[str, dict[str, Any]],
-    states: dict[str, dict[str, Any]],
-) -> list[str]:
+def validate_offline(offline: dict[str, Any], manifest: dict[str, Any], routes: dict[str, dict[str, Any]]) -> list[str]:
     if offline.get("availability") != "offline-capable":
-        return [
-            "selected PWA planning/product semantics must be offline-capable so network loss renders an intentional state instead of a broken page"
-        ]
+        return ["selected PWA planning/product semantics must be offline-capable so network loss has an intentional caller-visible presentation instead of a broken page"]
 
     errors: list[str] = []
     controlled = offline.get("controlledRouteIds")
+    controlled_ids = {item for item in controlled if isinstance(item, str)} if isinstance(controlled, list) else set()
     service_scope = offline.get("serviceWorkerScope")
     manifest_scope = manifest.get("scope")
-    controlled_surfaces: set[str] = set()
-    controlled_ids = set(controlled) if isinstance(controlled, list) else set()
     if isinstance(controlled, list):
         for route_id in controlled:
             if not isinstance(route_id, str):
@@ -175,16 +131,9 @@ def validate_offline(
                 continue
             path = route.get("path")
             if isinstance(path, str) and isinstance(service_scope, str) and not path_in_scope(path, service_scope):
-                errors.append(
-                    f"PWA controlled route {route_id!r} path {path!r} is outside serviceWorkerScope {service_scope!r}"
-                )
+                errors.append(f"PWA controlled route {route_id!r} path {path!r} is outside serviceWorkerScope {service_scope!r}")
             if isinstance(path, str) and isinstance(manifest_scope, str) and not path_in_scope(path, manifest_scope):
-                errors.append(
-                    f"PWA controlled route {route_id!r} path {path!r} is outside manifest scope {manifest_scope!r}"
-                )
-            surface_id = route.get("surface")
-            if isinstance(surface_id, str):
-                controlled_surfaces.add(surface_id)
+                errors.append(f"PWA controlled route {route_id!r} path {path!r} is outside manifest scope {manifest_scope!r}")
 
     fallback = offline.get("navigationFallbackRouteId")
     if isinstance(fallback, str):
@@ -193,115 +142,33 @@ def validate_offline(
         elif fallback not in controlled_ids:
             errors.append("PWA navigation fallback route must be included in controlledRouteIds")
 
-    semantic_state_ids = [
-        offline.get("networkUnavailableStateId"),
-        offline.get("freshnessUnknownStateId"),
-        offline.get("revalidatingStateId"),
-    ]
-    if len(set(semantic_state_ids)) != len(semantic_state_ids):
-        errors.append("PWA network-unavailable, freshness-unknown, and revalidating states must use distinct UI state ids")
-    state_reference(
-        errors,
-        states,
-        offline.get("networkUnavailableStateId"),
-        field="networkUnavailableStateId",
-        categories=frozenset({"connectivity"}),
-    )
-    state_reference(
-        errors,
-        states,
-        offline.get("freshnessUnknownStateId"),
-        field="freshnessUnknownStateId",
-        categories=frozenset({"connectivity", "degraded"}),
-    )
-    state_reference(
-        errors,
-        states,
-        offline.get("revalidatingStateId"),
-        field="revalidatingStateId",
-        categories=frozenset({"progress"}),
-    )
-
-    policies = offline.get("surfacePolicies")
-    policy_surfaces: set[str] = set()
+    policies = offline.get("routePolicies")
+    policy_ids: list[str] = []
     if isinstance(policies, list):
         for policy in policies:
-            if not isinstance(policy, dict):
+            if not isinstance(policy, dict) or not isinstance(policy.get("routeId"), str):
                 continue
-            surface_id = policy.get("surfaceId")
-            if not isinstance(surface_id, str):
-                continue
-            if surface_id in policy_surfaces:
-                errors.append(f"duplicate PWA offline surface policy: {surface_id}")
-                continue
-            policy_surfaces.add(surface_id)
-            surface = surfaces.get(surface_id)
-            if surface is None:
-                errors.append(f"PWA offline surface policy references unknown surface {surface_id!r}")
-                continue
-            declared = set(surface.get("dataClassifications", []))
-            cacheable = set(policy.get("cacheableDataClassifications", []))
-            unknown = cacheable - declared
-            if unknown:
-                errors.append(
-                    f"PWA offline surface {surface_id!r} marks undeclared data classifications cacheable: {sorted(unknown)}"
-                )
-    if policy_surfaces != controlled_surfaces:
-        missing = sorted(controlled_surfaces - policy_surfaces)
-        extra = sorted(policy_surfaces - controlled_surfaces)
-        if missing:
-            errors.append(f"PWA offline controlled surfaces are missing explicit cache policies: {missing}")
-        if extra:
-            errors.append(f"PWA offline surface policies do not belong to controlled routes: {extra}")
-
-    mutation = offline.get("mutationBehavior")
-    if mutation == "queue-until-online":
-        state_reference(
-            errors,
-            states,
-            offline.get("pendingStateId"),
-            field="pendingStateId",
-            categories=frozenset({"progress", "connectivity"}),
-        )
-        state_reference(
-            errors,
-            states,
-            offline.get("failureStateId"),
-            field="failureStateId",
-            categories=frozenset({"error", "degraded", "connectivity"}),
-        )
-    elif "pendingStateId" in offline or "failureStateId" in offline:
-        errors.append("pendingStateId/failureStateId are only valid when mutationBehavior is queue-until-online")
+            route_id = policy["routeId"]
+            policy_ids.append(route_id)
+            if route_id not in routes:
+                errors.append(f"PWA offline route policy references unknown route {route_id!r}")
+    for duplicate, count in sorted(Counter(policy_ids).items()):
+        if count > 1:
+            errors.append(f"duplicate PWA offline route policy: {duplicate}")
+    policy_set = set(policy_ids)
+    missing = sorted(controlled_ids - policy_set)
+    extra = sorted(policy_set - controlled_ids)
+    if missing:
+        errors.append(f"PWA controlled routes are missing explicit offline route policies: {missing}")
+    if extra:
+        errors.append(f"PWA offline route policies do not belong to controlled routes: {extra}")
     return errors
 
 
-def validate_update(update: dict[str, Any], states: dict[str, dict[str, Any]]) -> list[str]:
-    errors: list[str] = []
-    activation = update.get("activation")
-    if activation == "user-confirmed":
-        state_reference(errors, states, update.get("updateAvailableStateId"), field="updateAvailableStateId")
-    elif "updateAvailableStateId" in update:
-        errors.append("updateAvailableStateId is only valid when activation is user-confirmed")
-
-    if "applyingStateId" in update:
-        state_reference(
-            errors,
-            states,
-            update.get("applyingStateId"),
-            field="applyingStateId",
-            categories=frozenset({"progress"}),
-        )
-    if "failureStateId" in update:
-        state_reference(
-            errors,
-            states,
-            update.get("failureStateId"),
-            field="failureStateId",
-            categories=frozenset({"error", "degraded"}),
-        )
-    if activation == "immediate" and update.get("unsavedChangesPolicy") == "block-activation":
-        errors.append("immediate PWA update activation cannot use block-activation unsavedChangesPolicy")
-    return errors
+def validate_update(update: dict[str, Any]) -> list[str]:
+    if update.get("activation") == "immediate" and update.get("unsavedChangesPolicy") == "block-activation":
+        return ["immediate PWA update activation cannot use block-activation unsavedChangesPolicy"]
+    return []
 
 
 def validate(root: Path) -> list[str]:
@@ -322,49 +189,15 @@ def validate(root: Path) -> list[str]:
     if pwa_mode not in {"template", "planning", "product"}:
         return [f"unsupported PWA mode: {pwa_mode!r}"]
     if evidence_mode != pwa_mode:
-        return [
-            f"PWA contract mode {pwa_mode!r} requires implementation-evidence mode {pwa_mode!r}; found {evidence_mode!r}"
-        ]
+        return [f"PWA contract mode {pwa_mode!r} requires implementation-evidence mode {pwa_mode!r}; found {evidence_mode!r}"]
     if pwa_mode == "template":
         return []
 
     routes_document = load_json(root, ROUTES)
-    surfaces_document = load_json(root, SURFACES)
-    states_document = load_json(root, UI_STATES)
-    routes, route_errors = indexed(routes_document.get("routes"), collection="routes")
-    errors: list[str] = []
-    errors.extend(route_errors)
-
-    application_routes_path = root / APPLICATION_ROUTES
-    if application_routes_path.is_file():
-        application_document = load_json(root, APPLICATION_ROUTES)
-        application_by_route_id: dict[str, dict[str, Any]] = {}
-        for behavior in application_document.get("routes", []):
-            route_id = behavior.get("routeId") if isinstance(behavior, dict) else None
-            if not isinstance(route_id, str):
-                errors.append("PWA application route behavior has a non-string routeId")
-                continue
-            if route_id in application_by_route_id:
-                errors.append(f"PWA application route behavior is duplicated: {route_id!r}")
-                continue
-            application_by_route_id[route_id] = behavior
-        for route_id in application_by_route_id:
-            if route_id not in routes:
-                errors.append(f"PWA application route behavior references unknown route {route_id!r}")
-        for route_id, route in list(routes.items()):
-            behavior = application_by_route_id.get(route_id)
-            if behavior is None:
-                errors.append(f"PWA shared route has no application behavior: {route_id!r}")
-                continue
-            routes[route_id] = {**route, **behavior, "id": route_id}
-
-    surfaces, surface_errors = indexed(surfaces_document.get("surfaces"), collection="surfaces")
-    states, state_errors = indexed(states_document.get("states"), collection="UI states")
-    errors.extend(surface_errors)
-    errors.extend(state_errors)
+    routes, errors = indexed(routes_document.get("routes"), collection="routes")
     errors.extend(validate_manifest(manifest, routes))
-    errors.extend(validate_offline(offline, manifest, routes, surfaces, states))
-    errors.extend(validate_update(update, states))
+    errors.extend(validate_offline(offline, manifest, routes))
+    errors.extend(validate_update(update))
     return errors
 
 
@@ -386,9 +219,9 @@ def main() -> int:
     if mode == "template":
         print("PWA contracts: template mode OK; no product PWA claim is active")
     elif mode == "planning":
-        print("PWA planning installability, offline freshness, platform compatibility, and update semantics: OK")
+        print("PWA planning installability, route-scoped offline freshness, platform compatibility, and update semantics: OK")
     else:
-        print("PWA product installability, offline freshness, platform compatibility, and update semantics: OK")
+        print("PWA product installability, route-scoped offline freshness, platform compatibility, and update semantics: OK")
     return 0
 
 

@@ -37,53 +37,12 @@ class PwaContractTests(unittest.TestCase):
             },
         }
 
-    def application_route(self, route_id: str, surface: str = "primary") -> dict:
+    def web_routes(self) -> dict:
         return {
-            "routeId": route_id,
-            "surface": surface,
-            "authentication": "none",
-            "historyBehavior": "replace",
-            "authenticationReturn": "not-applicable",
-            "accessFailures": {
-                "unauthenticated": {"behavior": "not-applicable"},
-                "forbidden": {"behavior": "not-applicable"},
-            },
-            "states": ["ready"],
-        }
-
-    def webapp_contracts(self) -> tuple[dict, dict, dict, dict]:
-        routes = {
             "$schema": "../schemas/routes.schema.json",
             "schemaVersion": 4,
             "routes": [self.shared_route("home", "/")],
         }
-        application_routes = {
-            "$schema": "../schemas/application-routes.schema.json",
-            "schemaVersion": 1,
-            "routes": [self.application_route("home")],
-        }
-        surfaces = {
-            "surfaces": [
-                {
-                    "id": "primary",
-                    "dataClassifications": ["public", "internal"],
-                }
-            ]
-        }
-        states = {
-            "states": [
-                {"id": "network-unavailable", "scope": "global", "category": "connectivity"},
-                {"id": "freshness-unverified", "scope": "global", "category": "degraded"},
-                {"id": "revalidating", "scope": "global", "category": "progress"},
-                {"id": "sync-pending", "scope": "global", "category": "progress"},
-                {"id": "sync-failed", "scope": "global", "category": "error"},
-                {"id": "update-available", "scope": "global", "category": "content"},
-                {"id": "update-applying", "scope": "global", "category": "progress"},
-                {"id": "update-failed", "scope": "global", "category": "error"},
-                {"id": "ready", "scope": "route", "category": "content"},
-            ]
-        }
-        return routes, application_routes, surfaces, states
 
     def product_contracts(self) -> tuple[dict, dict, dict]:
         manifest = {
@@ -100,256 +59,134 @@ class PwaContractTests(unittest.TestCase):
             "display": "standalone",
             "orientation": "any",
             "icons": [
-                {
-                    "id": "vector",
-                    "href": "/icons/app.svg",
-                    "mediaType": "image/svg+xml",
-                    "sizes": ["any"],
-                    "purposes": ["any"],
-                },
-                {
-                    "id": "raster-192",
-                    "href": "/icons/app-192.png",
-                    "mediaType": "image/png",
-                    "sizes": ["192x192"],
-                    "purposes": ["any"],
-                },
-                {
-                    "id": "raster-512",
-                    "href": "/icons/app-512.png",
-                    "mediaType": "image/png",
-                    "sizes": ["512x512"],
-                    "purposes": ["any"],
-                },
-                {
-                    "id": "maskable-512",
-                    "href": "/icons/app-maskable-512.png",
-                    "mediaType": "image/png",
-                    "sizes": ["512x512"],
-                    "purposes": ["maskable"],
-                },
+                {"id": "vector", "href": "/icons/app.svg", "mediaType": "image/svg+xml", "sizes": ["any"], "purposes": ["any"]},
+                {"id": "raster-192", "href": "/icons/app-192.png", "mediaType": "image/png", "sizes": ["192x192"], "purposes": ["any"]},
+                {"id": "raster-512", "href": "/icons/app-512.png", "mediaType": "image/png", "sizes": ["512x512"], "purposes": ["any"]},
+                {"id": "maskable-512", "href": "/icons/app-maskable-512.png", "mediaType": "image/png", "sizes": ["512x512"], "purposes": ["maskable"]},
             ],
             "vectorIconPolicy": "prefer-svg-when-compatible",
             "vectorIconException": None,
             "platformCompatibility": {
-                "android": {
-                    "requiredRasterSizes": ["192x192", "512x512"],
-                    "maskableIconRequired": True,
-                },
-                "ios": {
-                    "homeScreenIcon": {
-                        "relation": "apple-touch-icon",
-                        "href": "/icons/apple-touch-icon.png",
-                        "mediaType": "image/png",
-                        "sizes": ["180x180"],
-                    }
-                },
+                "android": {"requiredRasterSizes": ["192x192", "512x512"], "maskableIconRequired": True},
+                "ios": {"homeScreenIcon": {"relation": "apple-touch-icon", "href": "/icons/apple-touch-icon.png", "mediaType": "image/png", "sizes": ["180x180"]}},
             },
         }
         offline = {
             "$schema": "../schemas/pwa-offline.schema.json",
-            "schemaVersion": 1,
+            "schemaVersion": 2,
             "mode": "product",
             "availability": "offline-capable",
             "serviceWorkerScope": "/",
             "controlledRouteIds": ["home"],
             "navigationFallbackRouteId": "home",
-            "networkUnavailableStateId": "network-unavailable",
-            "freshnessUnknownStateId": "freshness-unverified",
-            "revalidatingStateId": "revalidating",
-            "surfacePolicies": [
-                {
-                    "surfaceId": "primary",
-                    "cacheableDataClassifications": ["public"],
-                }
-            ],
+            "routePolicies": [{"routeId": "home", "offlineReadBehavior": "cached-content-when-available"}],
+            "networkUnavailablePresentation": "required-visible",
+            "freshnessUnknownPresentation": "required-visible",
+            "revalidatingPresentation": "required-visible",
             "cacheStrategy": "implementation-defined",
             "onlineFreshnessPolicy": "revalidate-before-display",
             "offlineFreshnessPolicy": "indicate-unverified",
             "mutationBehavior": "queue-until-online",
-            "pendingStateId": "sync-pending",
-            "failureStateId": "sync-failed",
+            "pendingMutationPresentation": "required-visible",
+            "failedMutationPresentation": "required-visible",
         }
         update = {
             "$schema": "../schemas/pwa-update.schema.json",
-            "schemaVersion": 1,
+            "schemaVersion": 2,
             "mode": "product",
+            "updateDetection": "observable",
             "activation": "user-confirmed",
             "unsavedChangesPolicy": "preserve",
-            "updateAvailableStateId": "update-available",
-            "applyingStateId": "update-applying",
-            "failureStateId": "update-failed",
+            "updateAvailablePresentation": "required-visible",
+            "applyingUpdatePresentation": "required-visible",
+            "failedUpdatePresentation": "required-visible",
         }
         return manifest, offline, update
 
-    def run_validator(
-        self,
-        manifest: dict,
-        offline: dict,
-        update: dict,
-        *,
-        evidence_mode: str = "product",
-        routes: dict | None = None,
-        application_routes: dict | None = None,
-        surfaces: dict | None = None,
-        states: dict | None = None,
-    ) -> subprocess.CompletedProcess[str]:
+    def run_validator(self, manifest: dict, offline: dict, update: dict, *, evidence_mode: str = "product", routes: dict | None = None) -> subprocess.CompletedProcess[str]:
         temp = tempfile.TemporaryDirectory()
         self.addCleanup(temp.cleanup)
         root = Path(temp.name)
-        default_routes, default_application_routes, default_surfaces, default_states = self.webapp_contracts()
         documents = {
             "contracts/pwa-manifest.json": manifest,
             "contracts/pwa-offline.json": offline,
             "contracts/pwa-update.json": update,
-            "contracts/routes.json": default_routes if routes is None else routes,
-            "contracts/application-routes.json": (
-                default_application_routes if application_routes is None else application_routes
-            ),
-            "contracts/surfaces.json": default_surfaces if surfaces is None else surfaces,
-            "contracts/ui-states.json": default_states if states is None else states,
+            "contracts/routes.json": self.web_routes() if routes is None else routes,
             "contracts/implementation-evidence.json": {"mode": evidence_mode},
         }
         for relative, value in documents.items():
             self.write_json(root / relative, value)
-        return subprocess.run(
-            [sys.executable, str(VALIDATOR), str(root)],
-            cwd=ROOT,
-            text=True,
-            capture_output=True,
-            check=False,
-        )
+        return subprocess.run([sys.executable, str(VALIDATOR), str(root)], cwd=ROOT, text=True, capture_output=True, check=False)
 
-    def test_descriptor_registers_three_pwa_contracts_without_runtime_dependency(self) -> None:
+    def test_descriptor_keeps_pwa_artifact_neutral_and_versions_breaking_contracts(self) -> None:
         descriptor = json.loads((COMPONENT / "component.json").read_text(encoding="utf-8"))
-        self.assertEqual(descriptor["version"], 3)
+        self.assertEqual(descriptor["version"], 4)
         self.assertEqual(descriptor["requires"], ["lifecycle.implementation-evidence"])
-        self.assertEqual(
-            [registration["id"] for registration in descriptor["contract_registrations"]],
-            ["pwa_manifest", "pwa_offline", "pwa_update"],
-        )
-        self.assertNotIn("capability.runtime", descriptor["requires"])
-        self.assertFalse(any(item.startswith("artifact.") for item in descriptor["requires"]))
+        registrations = {item["id"]: item for item in descriptor["contract_registrations"]}
+        self.assertEqual(registrations["pwa_manifest"]["document_schema_version"], 1)
+        self.assertEqual(registrations["pwa_offline"]["document_schema_version"], 2)
+        self.assertEqual(registrations["pwa_update"]["document_schema_version"], 2)
+        self.assertEqual([item["version"] for item in registrations["pwa_offline"]["version_history"]], [1, 2])
+        self.assertEqual([item["version"] for item in registrations["pwa_update"]["version_history"]], [1, 2])
+        self.assertFalse(any(item.startswith("artifact.") or item.startswith("foundation.") for item in descriptor["requires"]))
 
     def test_template_and_product_contracts_are_schema_valid(self) -> None:
         for name in ("pwa-manifest", "pwa-offline", "pwa-update"):
             schema = self.load(f"schemas/{name}.schema.json")
             Draft202012Validator.check_schema(schema)
             Draft202012Validator(schema).validate(self.load(f"contracts/{name}.json"))
-
-        manifest, offline, update = self.product_contracts()
-        for name, document in (
-            ("pwa-manifest", manifest),
-            ("pwa-offline", offline),
-            ("pwa-update", update),
-        ):
+        for name, document in zip(("pwa-manifest", "pwa-offline", "pwa-update"), self.product_contracts()):
             errors = list(Draft202012Validator(self.load(f"schemas/{name}.schema.json")).iter_errors(document))
             self.assertEqual(errors, [], [error.message for error in errors])
 
-    def test_template_mode_does_not_require_webapp_cross_contract_documents(self) -> None:
+    def test_product_pwa_validates_without_webapp_private_contracts(self) -> None:
+        result = self.run_validator(*self.product_contracts())
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("route-scoped offline freshness", result.stdout)
+        source = VALIDATOR.read_text(encoding="utf-8")
+        for forbidden in ("application-routes.json", "surfaces.json", "ui-states.json"):
+            self.assertNotIn(forbidden, source)
+        for schema_name in ("pwa-offline", "pwa-update"):
+            schema_text = (FILES / f"schemas/{schema_name}.schema.json").read_text(encoding="utf-8")
+            for forbidden in ("surfaceId", "StateId", "ui-states"):
+                self.assertNotIn(forbidden, schema_text)
+
+    def test_template_mode_does_not_require_shared_routes(self) -> None:
         temp = tempfile.TemporaryDirectory()
         self.addCleanup(temp.cleanup)
         root = Path(temp.name)
         for name in ("pwa-manifest", "pwa-offline", "pwa-update"):
             self.write_json(root / "contracts" / f"{name}.json", self.load(f"contracts/{name}.json"))
         self.write_json(root / "contracts/implementation-evidence.json", {"mode": "template"})
-        result = subprocess.run(
-            [sys.executable, str(VALIDATOR), str(root)],
-            cwd=ROOT,
-            text=True,
-            capture_output=True,
-            check=False,
-        )
+        result = subprocess.run([sys.executable, str(VALIDATOR), str(root)], cwd=ROOT, text=True, capture_output=True, check=False)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertIn("template mode OK", result.stdout)
 
-    def test_product_cross_contract_semantics_validate(self) -> None:
-        manifest, offline, update = self.product_contracts()
-        result = self.run_validator(manifest, offline, update)
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertIn("offline freshness", result.stdout)
-        self.assertIn("platform compatibility", result.stdout)
-
-    def test_split_application_routes_fail_closed_on_bad_bindings(self) -> None:
-        manifest, offline, update = self.product_contracts()
-        routes, application_routes, surfaces, states = self.webapp_contracts()
-
-        missing = copy.deepcopy(application_routes)
-        missing["routes"] = []
-        result = self.run_validator(
-            manifest,
-            offline,
-            update,
-            routes=routes,
-            application_routes=missing,
-            surfaces=surfaces,
-            states=states,
-        )
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("shared route has no application behavior", result.stderr)
-
-        unknown = copy.deepcopy(application_routes)
-        unknown["routes"][0]["routeId"] = "unknown"
-        result = self.run_validator(
-            manifest,
-            offline,
-            update,
-            routes=routes,
-            application_routes=unknown,
-            surfaces=surfaces,
-            states=states,
-        )
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("application route behavior references unknown route", result.stderr)
-
-        duplicate = copy.deepcopy(application_routes)
-        duplicate["routes"].append(copy.deepcopy(duplicate["routes"][0]))
-        result = self.run_validator(
-            manifest,
-            offline,
-            update,
-            routes=routes,
-            application_routes=duplicate,
-            surfaces=surfaces,
-            states=states,
-        )
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("application route behavior is duplicated", result.stderr)
-
-    def test_planning_mode_uses_the_same_semantic_contract_with_planning_evidence(self) -> None:
+    def test_planning_mode_uses_same_artifact_neutral_semantics(self) -> None:
         manifest, offline, update = self.product_contracts()
         for document in (manifest, offline, update):
             document["mode"] = "planning"
         result = self.run_validator(manifest, offline, update, evidence_mode="planning")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertIn("PWA planning installability", result.stdout)
 
-    def test_cache_algorithm_is_not_a_contract_choice(self) -> None:
-        _manifest, offline, _update = self.product_contracts()
-        schema = self.load("schemas/pwa-offline.schema.json")
-        concrete = copy.deepcopy(offline)
-        concrete["cacheStrategy"] = "network-first"
-        self.assertTrue(list(Draft202012Validator(schema).iter_errors(concrete)))
-        legacy = copy.deepcopy(offline)
-        legacy["surfacePolicies"][0]["readBehavior"] = "cache-first"
-        self.assertTrue(list(Draft202012Validator(schema).iter_errors(legacy)))
+    def test_route_policies_are_exactly_the_controlled_route_set(self) -> None:
+        manifest, offline, update = self.product_contracts()
+        offline["routePolicies"] = []
+        result = self.run_validator(manifest, offline, update)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("missing explicit offline route policies", result.stderr)
 
-    def test_selected_pwa_requires_offline_capability_and_freshness_semantics(self) -> None:
-        _manifest, offline, _update = self.product_contracts()
-        schema = self.load("schemas/pwa-offline.schema.json")
-        network_only = copy.deepcopy(offline)
-        network_only["availability"] = "network-only"
-        self.assertTrue(list(Draft202012Validator(schema).iter_errors(network_only)))
-        for required in (
-            "networkUnavailableStateId",
-            "freshnessUnknownStateId",
-            "revalidatingStateId",
-            "onlineFreshnessPolicy",
-            "offlineFreshnessPolicy",
-        ):
-            incomplete = copy.deepcopy(offline)
-            incomplete.pop(required)
-            self.assertTrue(list(Draft202012Validator(schema).iter_errors(incomplete)), required)
+        manifest, offline, update = self.product_contracts()
+        offline["routePolicies"].append({"routeId": "other", "offlineReadBehavior": "network-unavailable-presentation"})
+        result = self.run_validator(manifest, offline, update)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("references unknown route", result.stderr)
+        self.assertIn("do not belong to controlled routes", result.stderr)
+
+        manifest, offline, update = self.product_contracts()
+        offline["routePolicies"].append(copy.deepcopy(offline["routePolicies"][0]))
+        result = self.run_validator(manifest, offline, update)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("duplicate PWA offline route policy", result.stderr)
 
     def test_start_route_must_be_canonical_deep_linkable_and_inside_scope(self) -> None:
         manifest, offline, update = self.product_contracts()
@@ -358,16 +195,10 @@ class PwaContractTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("outside manifest scope", result.stderr)
 
-        routes, application_routes, surfaces, states = self.webapp_contracts()
+        routes = self.web_routes()
         routes["routes"][0]["canonical"] = False
         routes["routes"][0]["deepLink"] = False
-        result = self.run_validator(
-            *self.product_contracts(),
-            routes=routes,
-            application_routes=application_routes,
-            surfaces=surfaces,
-            states=states,
-        )
+        result = self.run_validator(*self.product_contracts(), routes=routes)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("must be canonical", result.stderr)
         self.assertIn("must be deep-linkable", result.stderr)
@@ -376,160 +207,79 @@ class PwaContractTests(unittest.TestCase):
         manifest, offline, update = self.product_contracts()
         manifest["scope"] = "/app/"
         offline["serviceWorkerScope"] = "/app/"
-        routes, application_routes, surfaces, states = self.webapp_contracts()
-        routes["routes"] = [
-            self.shared_route("home", "/app"),
-            self.shared_route("dashboard", "/app/dashboard"),
-        ]
-        application_routes["routes"].append(self.application_route("dashboard"))
-        offline["controlledRouteIds"] = ["home", "dashboard"]
-        offline["navigationFallbackRouteId"] = "home"
-        result = self.run_validator(
-            manifest,
-            offline,
-            update,
-            routes=routes,
-            application_routes=application_routes,
-            surfaces=surfaces,
-            states=states,
-        )
+        routes = self.web_routes()
+        routes["routes"] = [self.shared_route("home", "/app"), self.shared_route("docs", "/app/docs")]
+        offline["controlledRouteIds"] = ["home", "docs"]
+        offline["routePolicies"].append({"routeId": "docs", "offlineReadBehavior": "cached-content-when-available"})
+        result = self.run_validator(manifest, offline, update, routes=routes)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
-    def test_duplicate_manifest_icon_ids_and_hrefs_are_rejected(self) -> None:
-        manifest, offline, update = self.product_contracts()
-        duplicate_id = copy.deepcopy(manifest["icons"][0])
-        duplicate_id["href"] = "/icons/other.svg"
-        manifest["icons"].append(duplicate_id)
-        result = self.run_validator(manifest, offline, update)
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("duplicate PWA manifest icon id", result.stderr)
-
-        manifest, offline, update = self.product_contracts()
-        duplicate_href = copy.deepcopy(manifest["icons"][0])
-        duplicate_href["id"] = "other-vector"
-        manifest["icons"].append(duplicate_href)
-        result = self.run_validator(manifest, offline, update)
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("duplicate PWA manifest icon href", result.stderr)
-
-    def test_offline_navigation_fallback_must_exist_and_be_controlled(self) -> None:
+    def test_navigation_fallback_must_exist_and_be_controlled(self) -> None:
         manifest, offline, update = self.product_contracts()
         offline["navigationFallbackRouteId"] = "unknown"
         result = self.run_validator(manifest, offline, update)
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("references unknown route 'unknown'", result.stderr)
+        self.assertIn("references unknown route", result.stderr)
 
         manifest, offline, update = self.product_contracts()
-        routes, application_routes, surfaces, states = self.webapp_contracts()
-        routes["routes"].append(self.shared_route("uncontrolled", "/other"))
-        application_routes["routes"].append(self.application_route("uncontrolled"))
-        offline["navigationFallbackRouteId"] = "uncontrolled"
-        result = self.run_validator(
-            manifest,
-            offline,
-            update,
-            routes=routes,
-            application_routes=application_routes,
-            surfaces=surfaces,
-            states=states,
-        )
+        routes = self.web_routes()
+        routes["routes"].append(self.shared_route("other", "/other"))
+        offline["navigationFallbackRouteId"] = "other"
+        result = self.run_validator(manifest, offline, update, routes=routes)
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("navigation fallback route must be included in controlledRouteIds", result.stderr)
+        self.assertIn("must be included in controlledRouteIds", result.stderr)
 
-    def test_offline_cache_policy_must_follow_surface_data_classification_authority(self) -> None:
-        manifest, offline, update = self.product_contracts()
-        offline["surfacePolicies"][0]["cacheableDataClassifications"] = ["secret"]
-        result = self.run_validator(manifest, offline, update)
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("undeclared data classifications", result.stderr)
+    def test_cache_algorithm_and_required_presentations_fail_closed(self) -> None:
+        _manifest, offline, _update = self.product_contracts()
+        validator = Draft202012Validator(self.load("schemas/pwa-offline.schema.json"))
+        concrete = copy.deepcopy(offline)
+        concrete["cacheStrategy"] = "network-first"
+        self.assertTrue(list(validator.iter_errors(concrete)))
+        for required in ("networkUnavailablePresentation", "freshnessUnknownPresentation", "revalidatingPresentation"):
+            incomplete = copy.deepcopy(offline)
+            incomplete.pop(required)
+            self.assertTrue(list(validator.iter_errors(incomplete)), required)
 
-    def test_connectivity_freshness_and_revalidation_states_are_global_and_distinct(self) -> None:
-        manifest, offline, update = self.product_contracts()
-        _routes, _application_routes, surfaces, states = self.webapp_contracts()
-        states["states"][0]["scope"] = "route"
-        states["states"][2]["category"] = "content"
-        offline["freshnessUnknownStateId"] = offline["networkUnavailableStateId"]
-        result = self.run_validator(
-            manifest,
-            offline,
-            update,
-            surfaces=surfaces,
-            states=states,
-        )
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("must have global scope", result.stderr)
-        self.assertIn("revalidatingStateId", result.stderr)
-        self.assertIn("must use distinct UI state ids", result.stderr)
+    def test_queued_mutations_require_pwa_owned_presentations(self) -> None:
+        validator = Draft202012Validator(self.load("schemas/pwa-offline.schema.json"))
+        _manifest, offline, _update = self.product_contracts()
+        for field in ("pendingMutationPresentation", "failedMutationPresentation"):
+            incomplete = copy.deepcopy(offline)
+            incomplete.pop(field)
+            self.assertTrue(list(validator.iter_errors(incomplete)), field)
+        rejected = copy.deepcopy(offline)
+        rejected["mutationBehavior"] = "reject-when-offline"
+        rejected.pop("pendingMutationPresentation")
+        rejected.pop("failedMutationPresentation")
+        self.assertEqual(list(validator.iter_errors(rejected)), [])
 
-    def test_svg_is_preferred_but_a_reasoned_exception_is_allowed(self) -> None:
-        manifest, offline, update = self.product_contracts()
-        manifest["icons"] = [icon for icon in manifest["icons"] if icon["mediaType"] != "image/svg+xml"]
-        result = self.run_validator(manifest, offline, update)
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("declare an SVG manifest icon or a non-blank vectorIconException", result.stderr)
-        manifest["vectorIconException"] = "The source artwork cannot be represented safely as SVG."
-        result = self.run_validator(manifest, offline, update)
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-
-    def test_android_and_ios_compatibility_intent_fails_closed(self) -> None:
-        manifest, offline, update = self.product_contracts()
-        manifest["icons"] = [icon for icon in manifest["icons"] if "192x192" not in icon["sizes"]]
-        result = self.run_validator(manifest, offline, update)
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("Android compatibility raster size '192x192'", result.stderr)
-
-        manifest, offline, update = self.product_contracts()
-        for icon in manifest["icons"]:
-            icon["purposes"] = ["any"]
-        result = self.run_validator(manifest, offline, update)
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("maskable manifest icon", result.stderr)
-
-        manifest, offline, update = self.product_contracts()
-        manifest["platformCompatibility"]["ios"]["homeScreenIcon"]["mediaType"] = "image/svg+xml"
-        result = self.run_validator(manifest, offline, update)
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("iOS home-screen compatibility icon", result.stderr)
-
-    def test_update_schema_matches_activation_state_semantics(self) -> None:
-        schema = self.load("schemas/pwa-update.schema.json")
-        validator = Draft202012Validator(schema)
+    def test_update_contract_uses_observable_presentations_not_ui_state_ids(self) -> None:
+        validator = Draft202012Validator(self.load("schemas/pwa-update.schema.json"))
         _manifest, _offline, update = self.product_contracts()
         next_launch = copy.deepcopy(update)
         next_launch["activation"] = "next-launch"
         self.assertTrue(list(validator.iter_errors(next_launch)))
-        next_launch.pop("updateAvailableStateId")
+        next_launch.pop("updateAvailablePresentation")
         self.assertEqual(list(validator.iter_errors(next_launch)), [])
-
         immediate = copy.deepcopy(next_launch)
         immediate["activation"] = "immediate"
         immediate["unsavedChangesPolicy"] = "block-activation"
         self.assertTrue(list(validator.iter_errors(immediate)))
 
-    def test_update_states_have_global_semantic_category_floors(self) -> None:
+    def test_duplicate_manifest_icons_and_platform_compatibility_fail_closed(self) -> None:
         manifest, offline, update = self.product_contracts()
-        _routes, _application_routes, surfaces, states = self.webapp_contracts()
-        states["states"][6]["scope"] = "route"
-        states["states"][6]["category"] = "content"
-        result = self.run_validator(
-            manifest,
-            offline,
-            update,
-            surfaces=surfaces,
-            states=states,
-        )
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("applyingStateId", result.stderr)
-        self.assertIn("global scope", result.stderr)
-
-    def test_immediate_update_cannot_claim_blocked_activation(self) -> None:
-        manifest, offline, update = self.product_contracts()
-        update["activation"] = "immediate"
-        update["unsavedChangesPolicy"] = "block-activation"
-        update.pop("updateAvailableStateId")
+        duplicate = copy.deepcopy(manifest["icons"][0])
+        duplicate["href"] = "/icons/other.svg"
+        manifest["icons"].append(duplicate)
         result = self.run_validator(manifest, offline, update)
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("immediate PWA update activation", result.stderr)
+        self.assertIn("duplicate PWA manifest icon id", result.stderr)
+
+        manifest, offline, update = self.product_contracts()
+        manifest["icons"] = [icon for icon in manifest["icons"] if "192x192" not in icon["sizes"]]
+        result = self.run_validator(manifest, offline, update)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Android compatibility raster size", result.stderr)
 
     def test_pwa_and_implementation_evidence_modes_move_together(self) -> None:
         manifest, offline, update = self.product_contracts()

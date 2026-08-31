@@ -4,34 +4,35 @@
   "additionalProperties": false,
   "required": ["$schema", "schemaVersion", "mode"],
   "$defs": {
-    "identifier": {"type": "string", "pattern": "^[a-z][a-z0-9-]*(?![\\s\\S])"}
+    "presentation": {"const": "required-visible"}
   },
   "properties": {
     "$schema": {"const": "../schemas/pwa-update.schema.json"},
-    "schemaVersion": {"const": 1},
+    "schemaVersion": {"const": 2},
     "mode": {"enum": ["template", "planning", "product"]},
+    "updateDetection": {"const": "observable"},
     "activation": {"enum": ["next-launch", "user-confirmed", "immediate"]},
     "unsavedChangesPolicy": {"enum": ["preserve", "block-activation", "not-applicable"]},
-    "updateAvailableStateId": {"$ref": "#/$defs/identifier"},
-    "applyingStateId": {"$ref": "#/$defs/identifier"},
-    "failureStateId": {"$ref": "#/$defs/identifier"}
+    "updateAvailablePresentation": {"$ref": "#/$defs/presentation"},
+    "applyingUpdatePresentation": {"$ref": "#/$defs/presentation"},
+    "failedUpdatePresentation": {"$ref": "#/$defs/presentation"}
   },
   "allOf": [
     {
       "if": {"properties": {"mode": {"const": "template"}}, "required": ["mode"]},
-      "then": {"not": {"anyOf": [{"required": ["activation"]}, {"required": ["unsavedChangesPolicy"]}, {"required": ["updateAvailableStateId"]}, {"required": ["applyingStateId"]}, {"required": ["failureStateId"]}]}}
+      "then": {"not": {"anyOf": [{"required": ["updateDetection"]}, {"required": ["activation"]}, {"required": ["unsavedChangesPolicy"]}, {"required": ["updateAvailablePresentation"]}, {"required": ["applyingUpdatePresentation"]}, {"required": ["failedUpdatePresentation"]}]}}
     },
     {
       "if": {"properties": {"mode": {"enum": ["planning", "product"]}}, "required": ["mode"]},
-      "then": {"required": ["activation", "unsavedChangesPolicy"]}
+      "then": {"required": ["updateDetection", "activation", "unsavedChangesPolicy"]}
     },
     {
       "if": {"properties": {"activation": {"const": "user-confirmed"}}, "required": ["activation"]},
-      "then": {"required": ["updateAvailableStateId"]}
+      "then": {"required": ["updateAvailablePresentation"]}
     },
     {
       "if": {"properties": {"activation": {"enum": ["next-launch", "immediate"]}}, "required": ["activation"]},
-      "then": {"not": {"required": ["updateAvailableStateId"]}}
+      "then": {"not": {"required": ["updateAvailablePresentation"]}}
     },
     {
       "if": {"properties": {"activation": {"const": "immediate"}}, "required": ["activation"]},
