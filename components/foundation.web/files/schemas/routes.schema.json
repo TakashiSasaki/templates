@@ -2,11 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
   "additionalProperties": false,
-  "required": [
-    "$schema",
-    "schemaVersion",
-    "routes"
-  ],
+  "required": ["$schema", "schemaVersion", "routes"],
   "$defs": {
     "identifier": {
       "type": "string",
@@ -20,15 +16,41 @@
       "type": "string",
       "minLength": 1,
       "pattern": "[^\\u0000-\\u0020\\u007F-\\u00A0\\u00AD\\u034F\\u061C\\u115F\\u1160\\u1680\\u17B4\\u17B5\\u180B-\\u180F\\u2000-\\u200F\\u2028-\\u202F\\u205F-\\u206F\\u2800\\u3000\\u3164\\uFE00-\\uFE0F\\uFEFF\\uFFA0\\uFFF0-\\uFFFF𓑁𓑂𝅙]"
+    },
+    "accessFailure": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["behavior", "stateId"],
+          "properties": {
+            "behavior": {"const": "render-state"},
+            "stateId": {"$ref": "#/$defs/identifier"}
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["behavior", "routeId"],
+          "properties": {
+            "behavior": {"const": "redirect"},
+            "routeId": {"$ref": "#/$defs/identifier"}
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["behavior"],
+          "properties": {
+            "behavior": {"const": "not-applicable"}
+          }
+        }
+      ]
     }
   },
   "properties": {
-    "$schema": {
-      "const": "../schemas/routes.schema.json"
-    },
-    "schemaVersion": {
-      "const": 1
-    },
+    "$schema": {"const": "../schemas/routes.schema.json"},
+    "schemaVersion": {"const": 3},
     "routes": {
       "type": "array",
       "minItems": 1,
@@ -38,48 +60,113 @@
         "required": [
           "id",
           "path",
+          "surface",
           "canonical",
           "aliases",
+          "authentication",
           "deepLink",
+          "historyBehavior",
+          "authenticationReturn",
+          "accessFailures",
+          "states",
           "accessibility"
         ],
         "properties": {
-          "id": {
-            "$ref": "#/$defs/identifier"
-          },
-          "path": {
-            "$ref": "#/$defs/routePath"
-          },
-          "canonical": {
-            "const": true
-          },
+          "id": {"$ref": "#/$defs/identifier"},
+          "path": {"$ref": "#/$defs/routePath"},
+          "surface": {"$ref": "#/$defs/identifier"},
+          "canonical": {"const": true},
           "aliases": {
             "type": "array",
             "uniqueItems": true,
-            "items": {
-              "$ref": "#/$defs/routePath"
+            "items": {"$ref": "#/$defs/routePath"}
+          },
+          "authentication": {"enum": ["none", "optional", "required"]},
+          "deepLink": {"type": "boolean"},
+          "historyBehavior": {"enum": ["push", "replace"]},
+          "authenticationReturn": {"enum": ["same-route", "not-applicable"]},
+          "accessFailures": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["unauthenticated", "forbidden"],
+            "properties": {
+              "unauthenticated": {"$ref": "#/$defs/accessFailure"},
+              "forbidden": {"$ref": "#/$defs/accessFailure"}
             }
           },
-          "deepLink": {
-            "type": "boolean"
+          "states": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {"$ref": "#/$defs/identifier"}
           },
           "accessibility": {
             "type": "object",
             "additionalProperties": false,
-            "required": [
-              "documentTitleRequired",
-              "focusTarget"
-            ],
+            "required": ["documentTitleRequired", "focusTarget"],
             "properties": {
-              "documentTitleRequired": {
-                "const": true
-              },
-              "focusTarget": {
-                "$ref": "#/$defs/nonBlankText"
+              "documentTitleRequired": {"const": true},
+              "focusTarget": {"$ref": "#/$defs/nonBlankText"}
+            }
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {"authentication": {"const": "required"}},
+              "required": ["authentication"]
+            },
+            "then": {
+              "properties": {
+                "authenticationReturn": {"const": "same-route"},
+                "accessFailures": {
+                  "properties": {
+                    "unauthenticated": {
+                      "properties": {
+                        "behavior": {"enum": ["render-state", "redirect"]}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {"authentication": {"const": "none"}},
+              "required": ["authentication"]
+            },
+            "then": {
+              "properties": {
+                "authenticationReturn": {"const": "not-applicable"},
+                "accessFailures": {
+                  "properties": {
+                    "unauthenticated": {
+                      "properties": {"behavior": {"const": "not-applicable"}}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {"authentication": {"const": "optional"}},
+              "required": ["authentication"]
+            },
+            "then": {
+              "properties": {
+                "accessFailures": {
+                  "properties": {
+                    "unauthenticated": {
+                      "properties": {"behavior": {"const": "not-applicable"}}
+                    }
+                  }
+                }
               }
             }
           }
-        }
+        ]
       }
     }
   }

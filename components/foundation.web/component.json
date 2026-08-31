@@ -26,11 +26,21 @@
       "document": "contracts/routes.json",
       "schema": "schemas/routes.schema.json",
       "migration_slug": "routes",
-      "document_schema_version": 1,
+      "document_schema_version": 3,
       "version_history": [
         {
           "version": 1,
           "change_type": "initial"
+        },
+        {
+          "version": 2,
+          "change_type": "breaking",
+          "migration": "docs/migrations/routes-v1-to-v2.md"
+        },
+        {
+          "version": 3,
+          "change_type": "breaking",
+          "migration": "docs/migrations/routes-v2-to-v3.md"
         }
       ],
       "purpose": "Declare canonical Web paths, aliases, deep-link expectations, browser history behavior, and generic navigation accessibility semantics."
