@@ -45,7 +45,7 @@
 
   <div class="portal-artifact-grid">
     <a class="portal-artifact-card portal-artifact-card--webapp" href="/web/">
-      <span class="portal-artifact-card__icon"><img src="/images/icon-webapp.svg" alt=""></span>
+      <span class="portal-artifact-card__icon"><img src="/images/icon-web.svg" alt=""></span>
       <span class="portal-artifact-card__copy">
         <strong>Website か Web アプリケーションかを選ぶ</strong>
         <span>content/document と task/state の product identity から browser artifact を分類し、それぞれの product walkthrough へ進みます。</span>
