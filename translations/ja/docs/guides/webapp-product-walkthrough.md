@@ -236,7 +236,7 @@ python /absolute/path/to/agent-skills/composition/scripts/run.py \
 | File | Ownership | Action |
 | --- | --- | --- |
 | `README.md`, `TEMPLATE.md`, `RUNTIME.md`, `CLI_INTERFACE.md`, `SERVICE_INTERFACE.md` | `seed` | **編集する。** consumer ownership に移っています。 |
-| Webapp contract JSON | `seed` | **編集する。** product の実態に合わせる。 |
+| `contracts/routes.json`, `contracts/application-routes.json`, `contracts/surfaces.json`, `contracts/ui-states.json`, `contracts/viewports.json` | `seed` | **編集する。** shared route identity/navigation は `routes.json`、Webapp の surface/authentication/access-failure/history/state behavior は `application-routes.json` に分け、browser contracts を product の実態に合わせる。 |
 | `contracts/cli-interface.json` | `seed` | **selected CLI を product claim にするとき編集する。** caller-visible CLI と executable proof が揃うまでは `template` mode を維持する。 |
 | `contracts/implementation-evidence.json` | `seed` | **real proof ができてから編集する。** |
 | `contracts/manifest.json` | `generated` | **hand-edit しない。** |
@@ -252,11 +252,13 @@ python /absolute/path/to/agent-skills/composition/scripts/run.py \
 
 Task Ledger が本当に実装する contract だけを残します。
 
-Browser: `primary` surface、`/` の home route、実際に表示する state、tested viewport/input behavior を記述します。
+Browser contract の小さな inventory は、`primary` surface、`/` にある canonical/deep-linkable な shared `home` route、`home` を `primary` surface と application behavior に結び付ける application-route record、実際に表示する state、tested viewport/input behavior で構成できます。
+
+`contracts/routes.json` は shared Web foundation authority です。semantic route ID、path、canonical/alias/deep-link properties、generic accessibility expectations を宣言し、Webapp の surface、authentication、access-failure、history、state behavior は入れません。`contracts/application-routes.json` は Webapp-owned join で、`routeId` によって shared route を参照し、surface、authentication/access-failure behavior、history behavior、route states を付加します。
 
 viewport coverage の先頭 target では `minWidthPx: 0` を維持してください。これは幅 0px のブラウザをサポートするという意味ではなく、validator が coverage graph の先頭に隙間がないことを確認するための coverage-start sentinel です。この walkthrough の実ブラウザ proof が検証する実用上の最小幅は 320px であり、`minWidthPx: 0` の sentinel と tested minimum の 320px は別の概念です。
 
-この reference product では `home` route の `states` を `["ready", "empty", "error"]` にします。`contracts/ui-states.json` では `ready` を残し、route-scoped の `empty` と `error` を追加します。`empty` は `category: "content"`、`error` は `category: "error"`、`#message` が status region なので両方の `announcement` は `"polite"`、3 state の `focusStrategy` は `"preserve"` とします。下の実装は `empty` で `No tasks yet.`、list refresh failure で既存contentを維持したまま `Could not load tasks.` を表示し、task completion 後には置換後のactionへfocusを復元し、focused taskをdeleteした後はstatus filterへfocusを移します。observable state を evidence requirement の削減目的で route inventory から外してはいけません。
+この reference product では `contracts/application-routes.json` の `home` application-route record の `states` array を `["ready", "empty", "error"]` にします。`contracts/ui-states.json` では `ready` を残し、route-scoped の `empty` と `error` を追加します。`empty` は `category: "content"`、`error` は `category: "error"`、`#message` が status region なので両方の `announcement` は `"polite"`、3 state の `focusStrategy` は `"preserve"` とします。下の実装は `empty` で `No tasks yet.`、list refresh failure で既存contentを維持したまま `Could not load tasks.` を表示し、task completion 後には置換後のactionへfocusを復元し、focused taskをdeleteした後はstatus filterへfocusを移します。observable state を evidence requirement の削減目的で application-route inventory から外してはいけません。
 
 `RUNTIME.md` の例:
 
