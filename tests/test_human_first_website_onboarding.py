@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import subprocess
 import unittest
 from pathlib import Path
 
@@ -18,14 +19,35 @@ SELECTION_JA = (
 )
 CATALOG_JA = ROOT / "translations" / "ja" / "catalog" / "README.md"
 EXAMPLE_CONFIG = ROOT / "examples" / "onboarding" / "project-docs" / "composition.json"
+PLANNING_EVIDENCE_EXAMPLE = (
+    ROOT
+    / "examples"
+    / "onboarding"
+    / "project-docs"
+    / "implementation-evidence.planning.json"
+)
 CONFIG_SCHEMA = ROOT / "schemas" / "composition-config.schema.json"
-WEBSITE_RECIPE = ROOT / "recipes" / "website.json"
+EVIDENCE_SCHEMA = (
+    ROOT
+    / "components"
+    / "lifecycle.implementation-evidence"
+    / "files"
+    / "schemas"
+    / "implementation-evidence.schema.json"
+)
 WEBSITE_REVISION = "379073f376ce1de80948abd2e92d5560b573e7e6"
 PINNED_WEBSITE_RECIPE_BLOB_SHA = "f22f44ecee7b8e7b5c039be71e818cd5e8bd5840"
 
 
 def git_blob_sha(data: bytes) -> str:
     return hashlib.sha1(f"blob {len(data)}\0".encode() + data).hexdigest()
+
+
+def git_show_bytes(revision: str, path: str) -> bytes:
+    return subprocess.check_output(
+        ["git", "show", f"{revision}:{path}"],
+        cwd=ROOT,
+    )
 
 
 class HumanFirstWebsiteOnboardingTests(unittest.TestCase):
@@ -87,7 +109,7 @@ class HumanFirstWebsiteOnboardingTests(unittest.TestCase):
         )
 
     def test_pinned_recipe_matches_every_optional_path_advertised_by_walkthrough(self) -> None:
-        recipe_bytes = WEBSITE_RECIPE.read_bytes()
+        recipe_bytes = git_show_bytes(WEBSITE_REVISION, "recipes/website.json")
         self.assertEqual(git_blob_sha(recipe_bytes), PINNED_WEBSITE_RECIPE_BLOB_SHA)
         recipe = json.loads(recipe_bytes)
         text = WALKTHROUGH.read_text(encoding="utf-8")
@@ -121,6 +143,19 @@ class HumanFirstWebsiteOnboardingTests(unittest.TestCase):
         ):
             self.assertIn(private, text)
         self.assertIn("Project Docs does **not** need Webapp-private", text)
+
+    def test_planning_evidence_example_is_schema_valid_and_explicitly_used(self) -> None:
+        schema = json.loads(EVIDENCE_SCHEMA.read_text(encoding="utf-8"))
+        evidence = json.loads(PLANNING_EVIDENCE_EXAMPLE.read_text(encoding="utf-8"))
+        Draft202012Validator.check_schema(schema)
+        self.assertEqual(list(Draft202012Validator(schema).iter_errors(evidence)), [])
+        self.assertEqual(evidence["mode"], "planning")
+        self.assertGreaterEqual(len(evidence["requirements"]), 1)
+        text = WALKTHROUGH.read_text(encoding="utf-8")
+        self.assertIn("implementation-evidence.planning.json", text)
+        self.assertIn('"id": "WEBSITE-BROWSER"', text)
+        self.assertIn('"id": "WEBSITE-DISCOVERY"', text)
+        self.assertIn("every target derived from the current contracts is covered", text)
 
     def test_checkpoint_lifecycle_is_mandatory_and_precedes_implementation(self) -> None:
         text = WALKTHROUGH.read_text(encoding="utf-8")
@@ -246,7 +281,7 @@ class HumanFirstWebsiteOnboardingTests(unittest.TestCase):
         )
         self.assertEqual(
             translated["docs/guides/website-product-walkthrough.md"]["canonical_blob_sha"],
-            "327805e28421a6f037951247277f273ce6247627",
+            git_blob_sha(WALKTHROUGH.read_bytes()),
         )
         self.assertEqual(
             translated["docs/guides/website-webapp-selection.md"]["translation"],
@@ -263,6 +298,9 @@ class HumanFirstWebsiteOnboardingTests(unittest.TestCase):
             "`artifact.website-core`",
             "transitive `foundation.web`",
             WEBSITE_REVISION,
+            "implementation-evidence.planning.json",
+            '"id": "WEBSITE-BROWSER"',
+            '"id": "WEBSITE-DISCOVERY"',
             "mandatory planning checkpoint",
             "Mandatory product checkpoint",
             "favicon.svg",
