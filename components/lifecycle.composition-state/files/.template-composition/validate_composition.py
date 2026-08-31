@@ -20,6 +20,7 @@ POLICY_STATE_PREFIX = ".agent-policy"
 CANONICAL_REPOSITORY = "TakashiSasaki/templates"
 COMPONENT_RE = re.compile(r"^(foundation|artifact|capability|lifecycle)\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$")
 SELECTABLE_COMPONENT_RE = re.compile(r"^(capability|lifecycle)\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$")
+PARAMETER_COMPONENT_RE = re.compile(r"^(artifact|capability|lifecycle)\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$")
 RECIPE_RE = re.compile(r"^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 REVISION_RE = re.compile(r"^(?!0{40}$)[0-9a-f]{40}$")
