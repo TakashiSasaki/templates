@@ -36,6 +36,7 @@ class WebappEvidenceProjectionTests(unittest.TestCase):
     def fixture(self, root: Path, proof_status: str = "verified") -> Path:
         self.write_json(root / "contracts/surfaces.json", {"surfaces": [{"id": "main"}]})
         self.write_json(root / "contracts/routes.json", {"routes": []})
+        self.write_json(root / "contracts/application-routes.json", {"routes": []})
         self.write_json(root / "contracts/ui-states.json", {"states": []})
         self.write_json(
             root / "contracts/viewports.json",
@@ -173,6 +174,10 @@ class WebappEvidenceProjectionTests(unittest.TestCase):
             root = Path(temp_dir)
             self.write_json(root / "contracts/surfaces.json", {"surfaces": [{"id": "main"}]})
             self.write_json(root / "contracts/routes.json", {"routes": [{"id": "home"}]})
+            self.write_json(
+                root / "contracts/application-routes.json",
+                {"routes": [{"routeId": "home"}]},
+            )
             self.write_json(root / "contracts/ui-states.json", {"states": []})
             self.write_json(
                 root / "contracts/viewports.json",
@@ -190,8 +195,8 @@ class WebappEvidenceProjectionTests(unittest.TestCase):
             self.assertEqual(
                 [item["recordId"] for item in worklist["artifactProofRequirements"]],
                 [
+                    "application-routes-application-route-home",
                     "browser-identity-proof-family-browser-identity",
-                    "routes-route-home",
                     "viewports-input-capability-keyboard",
                     "viewports-viewport-base",
                 ],
