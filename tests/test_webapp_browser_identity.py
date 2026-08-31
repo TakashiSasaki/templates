@@ -8,16 +8,16 @@ from pathlib import Path
 from jsonschema import Draft202012Validator
 
 ROOT = Path(__file__).resolve().parents[1]
-WEBAPP = ROOT / "components" / "artifact.webapp-core"
-FILES = WEBAPP / "files"
+FOUNDATION = ROOT / "components" / "foundation.web"
+FILES = FOUNDATION / "files"
 
 
-class WebappBrowserIdentityTests(unittest.TestCase):
+class WebFoundationBrowserIdentityTests(unittest.TestCase):
     def load_json(self, relative: str) -> dict:
         return json.loads((FILES / relative).read_text(encoding="utf-8"))
 
-    def test_browser_identity_is_registered_as_webapp_authority(self) -> None:
-        descriptor = json.loads((WEBAPP / "component.json").read_text(encoding="utf-8"))
+    def test_browser_identity_is_registered_as_foundation_authority(self) -> None:
+        descriptor = json.loads((FOUNDATION / "component.json").read_text(encoding="utf-8"))
         registrations = {
             item["id"]: item for item in descriptor["contract_registrations"]
         }

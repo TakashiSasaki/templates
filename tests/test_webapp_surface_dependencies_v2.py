@@ -11,6 +11,7 @@ from jsonschema import Draft202012Validator
 
 ROOT = Path(__file__).resolve().parents[1]
 WEBAPP = ROOT / "components" / "artifact.webapp-core" / "files"
+FOUNDATION = ROOT / "components" / "foundation.web" / "files"
 VALIDATOR_IMPL = WEBAPP / "scripts" / "validate_contracts_impl.py"
 
 
@@ -38,9 +39,10 @@ class WebappSurfaceDependenciesV2Tests(unittest.TestCase):
         self.surfaces = load_json(WEBAPP / "contracts" / "surfaces.json")
         documents = {
             "surfaces": copy.deepcopy(self.surfaces),
-            "routes": load_json(WEBAPP / "contracts" / "routes.json"),
+            "routes": load_json(FOUNDATION / "contracts" / "routes.json"),
+            "application_routes": load_json(WEBAPP / "contracts" / "application-routes.json"),
             "ui_states": load_json(WEBAPP / "contracts" / "ui-states.json"),
-            "viewports": load_json(WEBAPP / "contracts" / "viewports.json"),
+            "viewports": load_json(FOUNDATION / "contracts" / "viewports.json"),
         }
         application = copy.deepcopy(documents["surfaces"]["surfaces"][0])
         application.update(

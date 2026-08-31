@@ -115,6 +115,7 @@ class ComposerMVPTests(unittest.TestCase):
                 payload["resolved_components"],
                 [
                     "artifact.webapp-core",
+                    "foundation.web",
                     "lifecycle.composition-state",
                     "lifecycle.contract-evolution",
                     "lifecycle.implementation-evidence",
