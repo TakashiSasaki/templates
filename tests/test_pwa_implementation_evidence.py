@@ -8,23 +8,8 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-HELPER_SOURCE = (
-    ROOT
-    / "components"
-    / "capability.pwa"
-    / "files"
-    / "scripts"
-    / "pwa_evidence_targets.py"
-)
-VALIDATOR_SOURCE = (
-    ROOT
-    / "components"
-    / "capability.pwa"
-    / "files"
-    / ".template-composition"
-    / "validators"
-    / "validate_pwa_evidence.py"
-)
+HELPER_SOURCE = ROOT / "components" / "capability.pwa" / "files" / "scripts" / "pwa_evidence_targets.py"
+VALIDATOR_SOURCE = ROOT / "components" / "capability.pwa" / "files" / ".template-composition" / "validators" / "validate_pwa_evidence.py"
 
 
 def load_module(name: str, path: Path):
@@ -56,20 +41,18 @@ class PwaImplementationEvidenceTests(unittest.TestCase):
         return [dict(target) for target in helper_source.family_targets()]
 
     def planning_evidence(self) -> dict:
-        requirements = []
-        for index, target in enumerate(self.targets(), 1):
-            requirements.append(
+        return {
+            "mode": "planning",
+            "commands": [],
+            "records": [],
+            "requirements": [
                 {
                     "id": f"requirement-{index:02d}",
                     "targets": [target],
                     "requiredPositiveProofKinds": ["end-to-end-test"],
                 }
-            )
-        return {
-            "mode": "planning",
-            "commands": [],
-            "records": [],
-            "requirements": requirements,
+                for index, target in enumerate(self.targets(), 1)
+            ],
         }
 
     def product_evidence(self) -> dict:
@@ -134,7 +117,10 @@ class PwaImplementationEvidenceTests(unittest.TestCase):
             evidence["requirements"] = []
             self.write_json(root / "contracts" / "implementation-evidence.json", evidence)
             errors = validator.validate(root)
-            self.assertEqual(sum("missing PWA implementation-evidence target" in error for error in errors), 8)
+            self.assertEqual(
+                sum("missing PWA implementation-evidence target" in error for error in errors),
+                len(self.targets()),
+            )
 
     def test_product_rejects_unknown_pwa_proof_family(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -224,7 +210,6 @@ class PwaImplementationEvidenceTests(unittest.TestCase):
             evidence = self.planning_evidence()
             self.write_json(root / "contracts" / "implementation-evidence.json", evidence)
             self.assertEqual(validator.validate(root), [])
-
             evidence["requirements"][0]["requiredPositiveProofKinds"] = ["inspection"]
             self.write_json(root / "contracts" / "implementation-evidence.json", evidence)
             errors = validator.validate(root)

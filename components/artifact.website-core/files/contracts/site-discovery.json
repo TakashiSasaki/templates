@@ -1,0 +1,14 @@
+{
+  "$schema": "../schemas/site-discovery.schema.json",
+  "schemaVersion": 1,
+  "canonicalOrigin": null,
+  "robots": {
+    "path": "/robots.txt",
+    "policy": "match-document-indexability"
+  },
+  "sitemap": {
+    "path": "/sitemap.xml",
+    "pageIds": ["home"]
+  },
+  "feeds": []
+}

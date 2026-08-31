@@ -1,0 +1,17 @@
+{
+  "$schema": "../schemas/document-metadata.schema.json",
+  "schemaVersion": 1,
+  "siteName": "Website",
+  "defaultLanguage": "en",
+  "siteSocialPreview": "none",
+  "pages": [
+    {
+      "pageId": "home",
+      "title": "Home",
+      "description": "Primary Website page.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    }
+  ]
+}

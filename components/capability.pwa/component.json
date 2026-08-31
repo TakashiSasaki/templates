@@ -2,8 +2,8 @@
   "schema_version": 1,
   "id": "capability.pwa",
   "component_role": "capability",
-  "version": 3,
-  "summary": "Progressive Web App semantics for installability, cross-platform application identity, offline freshness, and update lifecycle without prescribing cache or service-worker implementation strategy.",
+  "version": 4,
+  "summary": "Progressive Web App semantics for installability, cross-platform identity, route-scoped offline freshness, and update lifecycle across Web products without prescribing implementation strategy.",
   "requires": [
     "lifecycle.implementation-evidence"
   ],
@@ -28,28 +28,38 @@
       "document": "contracts/pwa-offline.json",
       "schema": "schemas/pwa-offline.schema.json",
       "migration_slug": "pwa-offline",
-      "document_schema_version": 1,
+      "document_schema_version": 2,
       "version_history": [
         {
           "version": 1,
           "change_type": "initial"
+        },
+        {
+          "version": 2,
+          "change_type": "breaking",
+          "migration": "docs/migrations/pwa-offline-v1-to-v2.md"
         }
       ],
-      "purpose": "Declare offline-capable controlled routes, cacheable data classifications, explicit network-loss states, and freshness invariants while leaving the concrete cache algorithm implementation-defined."
+      "purpose": "Declare offline-capable controlled Web routes, route-scoped cached-content behavior, explicit caller-visible network-loss and freshness presentation obligations, and mutation behavior without depending on artifact-specific surface or UI-state vocabularies."
     },
     {
       "id": "pwa_update",
       "document": "contracts/pwa-update.json",
       "schema": "schemas/pwa-update.schema.json",
       "migration_slug": "pwa-update",
-      "document_schema_version": 1,
+      "document_schema_version": 2,
       "version_history": [
         {
           "version": 1,
           "change_type": "initial"
+        },
+        {
+          "version": 2,
+          "change_type": "breaking",
+          "migration": "docs/migrations/pwa-update-v1-to-v2.md"
         }
       ],
-      "purpose": "Declare caller-visible PWA update activation and unsaved-state behavior independently of the chosen service-worker implementation."
+      "purpose": "Declare observable PWA update detection, activation, unsaved-work handling, and caller-visible update presentation obligations independently of artifact-specific UI-state contracts."
     }
   ],
   "materials": [
@@ -86,6 +96,16 @@
     {
       "source": "files/schemas/pwa-update.schema.json",
       "destination": "schemas/pwa-update.schema.json",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/docs/migrations/pwa-offline-v1-to-v2.md",
+      "destination": "docs/migrations/pwa-offline-v1-to-v2.md",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/docs/migrations/pwa-update-v1-to-v2.md",
+      "destination": "docs/migrations/pwa-update-v1-to-v2.md",
       "ownership": "managed"
     },
     {

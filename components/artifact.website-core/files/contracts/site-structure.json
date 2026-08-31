@@ -1,0 +1,15 @@
+{
+  "$schema": "../schemas/site-structure.schema.json",
+  "schemaVersion": 1,
+  "homePageId": "home",
+  "pages": [
+    {
+      "id": "home",
+      "routeId": "home",
+      "role": "home",
+      "title": "Home",
+      "parentPageId": null
+    }
+  ],
+  "primaryNavigationPageIds": ["home"]
+}
