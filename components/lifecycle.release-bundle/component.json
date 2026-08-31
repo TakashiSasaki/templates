@@ -2,25 +2,58 @@
   "schema_version": 1,
   "id": "lifecycle.release-bundle",
   "component_role": "lifecycle",
-  "version": 4,
+  "version": 5,
   "summary": "Deterministic digest-closed handoff, serialized producers, and recoverable one-command release orchestration.",
-  "requires": ["lifecycle.release-evidence"],
+  "requires": [
+    "lifecycle.release-evidence"
+  ],
   "conflicts": [],
-  "contract_registrations": [{
-    "id": "release_bundle",
-    "document": "contracts/release-bundle.json",
-    "schema": "schemas/release-bundle.schema.json",
-    "migration_slug": "release-bundle",
-    "document_schema_version": 1,
-    "version_history": [{"version":1,"change_type":"initial"}],
-    "purpose": "Bind an approved candidate revision to the exact active registered contract bytes handed to the next system."
-  }],
+  "contract_registrations": [
+    {
+      "id": "release_bundle",
+      "document": "contracts/release-bundle.json",
+      "schema": "schemas/release-bundle.schema.json",
+      "migration_slug": "release-bundle",
+      "document_schema_version": 1,
+      "version_history": [
+        {
+          "version": 1,
+          "change_type": "initial"
+        }
+      ],
+      "purpose": "Bind an approved candidate revision to the exact active registered contract bytes handed to the next system."
+    }
+  ],
   "materials": [
-    {"source":"files/contracts/release-bundle.json","destination":"contracts/release-bundle.json","ownership":"seed"},
-    {"source":"files/schemas/release-bundle.schema.json","destination":"schemas/release-bundle.schema.json","ownership":"managed"},
-    {"source":"files/.template-composition/release/produce_release_bundle.py","destination":".template-composition/release/produce_release_bundle.py","ownership":"managed"},
-    {"source":"files/.template-composition/release/produce_release.py","destination":".template-composition/release/produce_release.py","ownership":"managed"},
-    {"source":"files/.template-composition/validators/validate_release_bundle.py","destination":".template-composition/validators/validate_release_bundle.py","ownership":"managed"},
-    {"source":"files/docs/architecture/release-bundle.md","destination":"docs/architecture/release-bundle.md","ownership":"managed"}
+    {
+      "source": "files/contracts/release-bundle.json",
+      "destination": "contracts/release-bundle.json",
+      "ownership": "seed"
+    },
+    {
+      "source": "files/schemas/release-bundle.schema.json",
+      "destination": "schemas/release-bundle.schema.json",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/.template-composition/release/produce_release_bundle.py",
+      "destination": ".template-composition/release/produce_release_bundle.py",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/.template-composition/release/produce_release.py",
+      "destination": ".template-composition/release/produce_release.py",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/.template-composition/validators/validate_release_bundle.py",
+      "destination": ".template-composition/validators/validate_release_bundle.py",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/docs/architecture/release-bundle.md",
+      "destination": "docs/architecture/release-bundle.md",
+      "ownership": "managed"
+    }
   ]
 }

@@ -2,9 +2,11 @@
   "schema_version": 1,
   "id": "capability.pwa",
   "component_role": "capability",
-  "version": 2,
+  "version": 3,
   "summary": "Progressive Web App semantics for installability, cross-platform application identity, offline freshness, and update lifecycle without prescribing cache or service-worker implementation strategy.",
-  "requires": ["lifecycle.implementation-evidence"],
+  "requires": [
+    "lifecycle.implementation-evidence"
+  ],
   "conflicts": [],
   "contract_registrations": [
     {
@@ -13,7 +15,12 @@
       "schema": "schemas/pwa-manifest.schema.json",
       "migration_slug": "pwa-manifest",
       "document_schema_version": 1,
-      "version_history": [{"version": 1, "change_type": "initial"}],
+      "version_history": [
+        {
+          "version": 1,
+          "change_type": "initial"
+        }
+      ],
       "purpose": "Declare Web App Manifest installability semantics, launch/scope binding, and Android/iOS application-icon compatibility intent without freezing browser-vendor promotion heuristics."
     },
     {
@@ -22,7 +29,12 @@
       "schema": "schemas/pwa-offline.schema.json",
       "migration_slug": "pwa-offline",
       "document_schema_version": 1,
-      "version_history": [{"version": 1, "change_type": "initial"}],
+      "version_history": [
+        {
+          "version": 1,
+          "change_type": "initial"
+        }
+      ],
       "purpose": "Declare offline-capable controlled routes, cacheable data classifications, explicit network-loss states, and freshness invariants while leaving the concrete cache algorithm implementation-defined."
     },
     {
@@ -31,20 +43,65 @@
       "schema": "schemas/pwa-update.schema.json",
       "migration_slug": "pwa-update",
       "document_schema_version": 1,
-      "version_history": [{"version": 1, "change_type": "initial"}],
+      "version_history": [
+        {
+          "version": 1,
+          "change_type": "initial"
+        }
+      ],
       "purpose": "Declare caller-visible PWA update activation and unsaved-state behavior independently of the chosen service-worker implementation."
     }
   ],
   "materials": [
-    {"source": "files/PWA.md", "destination": "PWA.md", "ownership": "seed"},
-    {"source": "files/contracts/pwa-manifest.json", "destination": "contracts/pwa-manifest.json", "ownership": "seed"},
-    {"source": "files/contracts/pwa-offline.json", "destination": "contracts/pwa-offline.json", "ownership": "seed"},
-    {"source": "files/contracts/pwa-update.json", "destination": "contracts/pwa-update.json", "ownership": "seed"},
-    {"source": "files/schemas/pwa-manifest.schema.json", "destination": "schemas/pwa-manifest.schema.json", "ownership": "managed"},
-    {"source": "files/schemas/pwa-offline.schema.json", "destination": "schemas/pwa-offline.schema.json", "ownership": "managed"},
-    {"source": "files/schemas/pwa-update.schema.json", "destination": "schemas/pwa-update.schema.json", "ownership": "managed"},
-    {"source": "files/scripts/pwa_evidence_targets.py", "destination": "scripts/pwa_evidence_targets.py", "ownership": "managed"},
-    {"source": "files/.template-composition/validators/validate_pwa.py", "destination": ".template-composition/validators/validate_pwa.py", "ownership": "managed"},
-    {"source": "files/.template-composition/validators/validate_pwa_evidence.py", "destination": ".template-composition/validators/validate_pwa_evidence.py", "ownership": "managed"}
+    {
+      "source": "files/PWA.md",
+      "destination": "PWA.md",
+      "ownership": "seed"
+    },
+    {
+      "source": "files/contracts/pwa-manifest.json",
+      "destination": "contracts/pwa-manifest.json",
+      "ownership": "seed"
+    },
+    {
+      "source": "files/contracts/pwa-offline.json",
+      "destination": "contracts/pwa-offline.json",
+      "ownership": "seed"
+    },
+    {
+      "source": "files/contracts/pwa-update.json",
+      "destination": "contracts/pwa-update.json",
+      "ownership": "seed"
+    },
+    {
+      "source": "files/schemas/pwa-manifest.schema.json",
+      "destination": "schemas/pwa-manifest.schema.json",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/schemas/pwa-offline.schema.json",
+      "destination": "schemas/pwa-offline.schema.json",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/schemas/pwa-update.schema.json",
+      "destination": "schemas/pwa-update.schema.json",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/scripts/pwa_evidence_targets.py",
+      "destination": "scripts/pwa_evidence_targets.py",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/.template-composition/validators/validate_pwa.py",
+      "destination": ".template-composition/validators/validate_pwa.py",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/.template-composition/validators/validate_pwa_evidence.py",
+      "destination": ".template-composition/validators/validate_pwa_evidence.py",
+      "ownership": "managed"
+    }
   ]
 }

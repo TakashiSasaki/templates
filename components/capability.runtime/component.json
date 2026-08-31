@@ -2,7 +2,7 @@
   "schema_version": 1,
   "id": "capability.runtime",
   "component_role": "capability",
-  "version": 1,
+  "version": 2,
   "summary": "Maintained implementation runtime, commands, dependencies, distribution, environment, and deployment lifecycle.",
   "requires": [],
   "conflicts": [],

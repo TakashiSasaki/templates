@@ -2,33 +2,88 @@
   "schema_version": 1,
   "id": "lifecycle.release-execution",
   "component_role": "lifecycle",
-  "version": 6,
+  "version": 7,
   "summary": "Product-owned fixed-argv bindings, proof-harness identity closure, hardened candidate verification, and shared release lifecycle serialization.",
-  "requires": ["lifecycle.implementation-evidence"],
+  "requires": [
+    "lifecycle.implementation-evidence"
+  ],
   "conflicts": [],
-  "contract_registrations": [{
-    "id": "release_execution",
-    "document": "contracts/release-execution.json",
-    "schema": "schemas/release-execution.schema.json",
-    "migration_slug": "release-execution",
-    "document_schema_version": 2,
-    "version_history": [
-      {"version": 1, "change_type": "initial"},
-      {"version": 2, "change_type": "breaking", "migration": "docs/migrations/release-execution-v1-to-v2.md"}
-    ],
-    "purpose": "Bind authoritative implementation-evidence commands and their declared repository proof harnesses to product-owned fixed argv and repository-relative working directories without shell parsing."
-  }],
+  "contract_registrations": [
+    {
+      "id": "release_execution",
+      "document": "contracts/release-execution.json",
+      "schema": "schemas/release-execution.schema.json",
+      "migration_slug": "release-execution",
+      "document_schema_version": 2,
+      "version_history": [
+        {
+          "version": 1,
+          "change_type": "initial"
+        },
+        {
+          "version": 2,
+          "change_type": "breaking",
+          "migration": "docs/migrations/release-execution-v1-to-v2.md"
+        }
+      ],
+      "purpose": "Bind authoritative implementation-evidence commands and their declared repository proof harnesses to product-owned fixed argv and repository-relative working directories without shell parsing."
+    }
+  ],
   "materials": [
-    {"source": "files/contracts/release-execution.json", "destination": "contracts/release-execution.json", "ownership": "seed"},
-    {"source": "files/schemas/release-execution.schema.json", "destination": "schemas/release-execution.schema.json", "ownership": "managed"},
-    {"source": "files/.template-composition/release/candidate.py", "destination": ".template-composition/release/candidate.py", "ownership": "managed"},
-    {"source": "files/.template-composition/release/verify_candidate.py", "destination": ".template-composition/release/verify_candidate.py", "ownership": "managed"},
-    {"source": "files/.template-composition/release/lifecycle_lock.py", "destination": ".template-composition/release/lifecycle_lock.py", "ownership": "managed"},
-    {"source": "files/.template-composition/release-execution-actions.json", "destination": ".template-composition/release-execution-actions.json", "ownership": "managed"},
-    {"source": "files/.template-composition/release-execution-actions.schema.json", "destination": ".template-composition/release-execution-actions.schema.json", "ownership": "managed"},
-    {"source": "files/.template-composition/release-candidate-verification.schema.json", "destination": ".template-composition/release-candidate-verification.schema.json", "ownership": "managed"},
-    {"source": "files/.template-composition/validators/validate_release_execution.py", "destination": ".template-composition/validators/validate_release_execution.py", "ownership": "managed"},
-    {"source": "files/docs/architecture/release-execution.md", "destination": "docs/architecture/release-execution.md", "ownership": "managed"},
-    {"source": "files/docs/migrations/release-execution-v1-to-v2.md", "destination": "docs/migrations/release-execution-v1-to-v2.md", "ownership": "managed"}
+    {
+      "source": "files/contracts/release-execution.json",
+      "destination": "contracts/release-execution.json",
+      "ownership": "seed"
+    },
+    {
+      "source": "files/schemas/release-execution.schema.json",
+      "destination": "schemas/release-execution.schema.json",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/.template-composition/release/candidate.py",
+      "destination": ".template-composition/release/candidate.py",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/.template-composition/release/verify_candidate.py",
+      "destination": ".template-composition/release/verify_candidate.py",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/.template-composition/release/lifecycle_lock.py",
+      "destination": ".template-composition/release/lifecycle_lock.py",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/.template-composition/release-execution-actions.json",
+      "destination": ".template-composition/release-execution-actions.json",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/.template-composition/release-execution-actions.schema.json",
+      "destination": ".template-composition/release-execution-actions.schema.json",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/.template-composition/release-candidate-verification.schema.json",
+      "destination": ".template-composition/release-candidate-verification.schema.json",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/.template-composition/validators/validate_release_execution.py",
+      "destination": ".template-composition/validators/validate_release_execution.py",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/docs/architecture/release-execution.md",
+      "destination": "docs/architecture/release-execution.md",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/docs/migrations/release-execution-v1-to-v2.md",
+      "destination": "docs/migrations/release-execution-v1-to-v2.md",
+      "ownership": "managed"
+    }
   ]
 }
