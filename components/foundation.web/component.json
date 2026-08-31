@@ -77,6 +77,16 @@
       "ownership": "seed"
     },
     {
+      "source": "files/docs/migrations/routes-v1-to-v2.md",
+      "destination": "docs/migrations/routes-v1-to-v2.md",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/docs/migrations/routes-v2-to-v3.md",
+      "destination": "docs/migrations/routes-v2-to-v3.md",
+      "ownership": "managed"
+    },
+    {
       "source": "files/schemas/browser-identity.schema.json",
       "destination": "schemas/browser-identity.schema.json",
       "ownership": "managed"
