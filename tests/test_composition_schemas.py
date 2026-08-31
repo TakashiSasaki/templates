@@ -90,7 +90,7 @@ def validate_component_semantics(value: dict) -> None:
         )
         if artifact_relations:
             raise ValueError(
-                non-artifact components must not depend on or conflict with artifact components: "
+                "non-artifact components must not depend on or conflict with artifact components: "
                 f"{artifact_relations}"
             )
     for material in value["materials"]:

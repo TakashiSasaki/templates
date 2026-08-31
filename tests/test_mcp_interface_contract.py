@@ -84,7 +84,7 @@ class McpInterfaceContractTests(unittest.TestCase):
 
     def test_descriptor_registers_machine_contract_and_evidence_dependency(self) -> None:
         descriptor = json.loads((COMPONENT / "component.json").read_text(encoding="utf-8"))
-        self.assertEqual(descriptor["version"], 4)
+        self.assertEqual(descriptor["version"], 5)
         self.assertEqual(descriptor["requires"], ["capability.runtime", "lifecycle.implementation-evidence"])
         registrations = {entry["id"]: entry for entry in descriptor["contract_registrations"]}
         self.assertIn("mcp_interface", registrations)

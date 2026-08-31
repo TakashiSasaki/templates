@@ -37,7 +37,7 @@ class ReleaseCandidateActionContractTests(unittest.TestCase):
 
     def test_component_materializes_release_candidate_action(self) -> None:
         component = json.loads((RELEASE / "component.json").read_text(encoding="utf-8"))
-        self.assertEqual(component["version"], 6)
+        self.assertEqual(component["version"], 7)
         materials = {
             entry["destination"]: entry["ownership"]
             for entry in component["materials"]
