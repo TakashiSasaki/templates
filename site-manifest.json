@@ -24,7 +24,6 @@
         {"title": "Concepts and terminology", "publication": "composition", "document": "composition-concepts", "destination": "composition/concepts/index.md"},
         {"title": "Evaluate Composition", "publication": "composition", "document": "evaluation-guide", "destination": "composition/evaluate/index.md"},
         {"title": "Use Composition", "publication": "composition", "document": "consumer-guide", "destination": "composition/use/index.md"},
-        {"title": "Webapp product walkthrough", "publication": "composition", "document": "webapp-product-walkthrough", "destination": "composition/use/webapp-product-walkthrough.md"},
         {"title": "Produce a product release", "publication": "composition", "document": "release-guide", "destination": "composition/release/index.md"},
         {"title": "Composer reference", "publication": "composition", "document": "composer-reference", "destination": "composition/reference/composer.md"},
         {"title": "Documentation index", "publication": "composition", "document": "documentation-index", "destination": "composition/docs/index.md"},
@@ -66,7 +65,46 @@
       ]
     },
     {
-      "title": "Application capabilities",
+      "title": "Web",
+      "children": [
+        {"title": "Choose Website or Web application", "publication": "composition", "document": "website-webapp-selection", "destination": "web/index.md"},
+        {
+          "title": "Shared route migrations",
+          "children": [
+            {"title": "Routes v1 to v2", "publication": "composition", "document": "web-routes-v1-migration", "destination": "web/migrations/routes-v1-to-v2.md"},
+            {"title": "Routes v2 to v3", "publication": "composition", "document": "web-routes-v2-migration", "destination": "web/migrations/routes-v2-to-v3.md"},
+            {"title": "Routes v3 to v4", "publication": "composition", "document": "web-routes-v3-migration", "destination": "web/migrations/routes-v3-to-v4.md"}
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Website",
+      "children": [
+        {"title": "Product walkthrough", "publication": "composition", "document": "website-product-walkthrough", "destination": "website/index.md"}
+      ]
+    },
+    {
+      "title": "Web application",
+      "children": [
+        {"title": "Product walkthrough", "publication": "composition", "document": "webapp-product-walkthrough", "destination": "webapp/product-walkthrough.md"},
+        {"title": "Overview", "publication": "composition", "document": "webapp-overview", "destination": "webapp/index.md"},
+        {"title": "Template contract", "publication": "composition", "document": "webapp-template", "destination": "webapp/TEMPLATE.md"},
+        {"title": "Documentation index", "publication": "composition", "document": "webapp-documentation-index", "destination": "webapp/docs/index.md"},
+        {"title": "Webapp contracts", "publication": "composition", "document": "webapp-contracts", "destination": "webapp/docs/architecture/contracts.md"},
+        {"title": "Responsibility boundaries", "publication": "composition", "document": "webapp-responsibility-boundaries", "destination": "webapp/docs/architecture/responsibility-boundaries.md"},
+        {"title": "Validation toolchain", "publication": "composition", "document": "webapp-validation-toolchain", "destination": "webapp/docs/architecture/validation-toolchain.md"},
+        {
+          "title": "Domain migrations",
+          "children": [
+            {"title": "Surfaces v1 to v2", "publication": "composition", "document": "surfaces-v2-migration", "destination": "webapp/docs/migrations/surfaces-v1-to-v2.md"},
+            {"title": "UI states v1 to v2", "publication": "composition", "document": "ui-states-migration", "destination": "webapp/docs/migrations/ui-states-v1-to-v2.md"}
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Reusable capabilities",
       "children": [
         {"title": "Overview", "publication": "site", "document": "capabilities-overview", "destination": "capabilities/index.md"},
         {"title": "Runtime decision record", "publication": "composition", "document": "runtime-decision-record", "destination": "capabilities/runtime/index.md"},
@@ -81,29 +119,11 @@
         {"title": "MCP Apps v1 to v2", "publication": "composition", "document": "mcp-apps-v2-migration", "destination": "capabilities/mcp-apps/migrations/v1-to-v2.md"},
         {"title": "Standalone browser interface", "publication": "composition", "document": "browser-interface", "destination": "capabilities/browser/index.md"},
         {"title": "Progressive Web App", "publication": "composition", "document": "pwa-capability", "destination": "capabilities/pwa/index.md"},
+        {"title": "PWA offline v1 to v2", "publication": "composition", "document": "pwa-offline-v2-migration", "destination": "capabilities/pwa/migrations/offline-v1-to-v2.md"},
+        {"title": "PWA update v1 to v2", "publication": "composition", "document": "pwa-update-v2-migration", "destination": "capabilities/pwa/migrations/update-v1-to-v2.md"},
         {"title": "Web interface v1 to v2", "publication": "composition", "document": "web-interface-v2-migration", "destination": "capabilities/browser/migrations/v1-to-v2.md"},
         {"title": "Headless service interface", "publication": "composition", "document": "service-interface", "destination": "capabilities/service/index.md"},
         {"title": "Service interface v1 to v2", "publication": "composition", "document": "service-interface-v2-migration", "destination": "capabilities/service/migrations/v1-to-v2.md"}
-      ]
-    },
-    {
-      "title": "Web application",
-      "children": [
-        {"title": "Overview", "publication": "composition", "document": "webapp-overview", "destination": "webapp/index.md"},
-        {"title": "Template contract", "publication": "composition", "document": "webapp-template", "destination": "webapp/TEMPLATE.md"},
-        {"title": "Documentation index", "publication": "composition", "document": "webapp-documentation-index", "destination": "webapp/docs/index.md"},
-        {"title": "Webapp contracts", "publication": "composition", "document": "webapp-contracts", "destination": "webapp/docs/architecture/contracts.md"},
-        {"title": "Responsibility boundaries", "publication": "composition", "document": "webapp-responsibility-boundaries", "destination": "webapp/docs/architecture/responsibility-boundaries.md"},
-        {"title": "Validation toolchain", "publication": "composition", "document": "webapp-validation-toolchain", "destination": "webapp/docs/architecture/validation-toolchain.md"},
-        {
-          "title": "Domain migrations",
-          "children": [
-            {"title": "Routes v1 to v2", "publication": "composition", "document": "routes-migration", "destination": "webapp/docs/migrations/routes-v1-to-v2.md"},
-            {"title": "Routes v2 to v3", "publication": "composition", "document": "routes-v3-migration", "destination": "webapp/docs/migrations/routes-v2-to-v3.md"},
-            {"title": "Surfaces v1 to v2", "publication": "composition", "document": "surfaces-v2-migration", "destination": "webapp/docs/migrations/surfaces-v1-to-v2.md"},
-            {"title": "UI states v1 to v2", "publication": "composition", "document": "ui-states-migration", "destination": "webapp/docs/migrations/ui-states-v1-to-v2.md"}
-          ]
-        }
       ]
     },
     {
@@ -206,7 +226,7 @@
                 {"title": "ADR-0003 Application-neutral scope", "publication": "policy", "document": "adr-application-neutral-scope", "destination": "policy/adr/0003-application-neutral-policy-scope.md"},
                 {"title": "ADR-0005 Single policy authority", "publication": "policy", "document": "adr-single-policy-authority", "destination": "policy/adr/0005-single-policy-authority.md"},
                 {"title": "ADR-0006 Copyable artifact policy adoption", "publication": "policy", "document": "adr-copyable-artifact-policy-adoption", "destination": "policy/adr/0006-copyable-artifact-policy-adoption.md"},
-                {"title": "ADR-0007 Single agent-policy skill runtime cache", "publication": "policy", "document": "adr-single-agent-policy-skill-runtime-cache", "destination": "policy/adr/0007-single-agent-policy-skill-runtime-cache.md"}
+                {"title": "ADR-0007 Single agent-policy skill runtime cache", "publication": "policy", "document": "adr-single-agent-policy-skill-runtime-cache", "destination": "policy/adr/0007-single-agent-policy-runtime-cache.md"}
               ]
             },
             {
