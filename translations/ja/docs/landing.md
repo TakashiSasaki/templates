@@ -8,7 +8,7 @@
   <div class="portal-cover__copy">
     <p class="portal-cover__kicker">まず、達成したい作業から選ぶ</p>
     <h1 id="portal-cover-title">
-      <span class="portal-accent portal-accent--webapp">Web アプリケーション</span>を作る、
+      <span class="portal-accent portal-accent--webapp">Website または Web アプリケーション</span>を作る、
       <span class="portal-accent portal-accent--skill">Agent Skill</span>を作る、
       または coding-agent rules を導入する
     </h1>
@@ -17,8 +17,8 @@
       product は別 repository に置き、そこへ目的に合った templates の tooling と contracts を適用します。
     </p>
     <div class="portal-cover__actions">
-      <a class="portal-cover__button portal-cover__button--primary" href="/composition/use/webapp-product-walkthrough/">
-        Web アプリケーションを作る <span aria-hidden="true">→</span>
+      <a class="portal-cover__button portal-cover__button--primary" href="/web/">
+        Website か Web アプリケーションかを選ぶ <span aria-hidden="true">→</span>
       </a>
       <a class="portal-cover__button portal-cover__button--secondary" href="/composition/use/skill-first-use-walkthrough/">
         Agent Skill を作る <span aria-hidden="true">→</span>
@@ -26,13 +26,13 @@
     </div>
     <ul class="portal-cover__signals" role="list">
       <li>具体的な作業から始め、architecture は必要になってから確認します。</li>
-      <li>Webapp と Agent Skill の初回利用には、それぞれ canonical な一本道の walkthrough があります。</li>
+      <li>Website と Web application は browser foundation を共有しますが、sibling product identity のままです。</li>
       <li>Policy は optional で、Composition とは独立しています。</li>
     </ul>
   </div>
 
   <div class="portal-cover__visual">
-    <img src="/images/landing-architecture.svg" alt="Composition が Agent Skill と Web アプリケーションのアーティファクトを定義し、Policy がコーディングエージェントの動作を独立して定義し、Site が両者を検証済みの一つのポータルとして公開する構成">
+    <img src="/images/landing-architecture.svg" alt="Composition が Agent Skill、Website、Web application の artifact を定義し、Policy が coding-agent operation を独立して定義し、Site が両 authority を検証済みの一つのポータルとして公開する構成">
   </div>
 </section>
 
@@ -44,11 +44,11 @@
   </div>
 
   <div class="portal-artifact-grid">
-    <a class="portal-artifact-card portal-artifact-card--webapp" href="/composition/use/webapp-product-walkthrough/">
+    <a class="portal-artifact-card portal-artifact-card--webapp" href="/web/">
       <span class="portal-artifact-card__icon"><img src="/images/icon-webapp.svg" alt=""></span>
       <span class="portal-artifact-card__copy">
-        <strong>Web アプリケーションを作る</strong>
-        <span>Task Ledger の end-to-end walkthrough を、別 product repository の作成から valid scaffold と明確な実装開始地点まで順に進めます。</span>
+        <strong>Website か Web アプリケーションかを選ぶ</strong>
+        <span>content/document と task/state の product identity から browser artifact を分類し、それぞれの product walkthrough へ進みます。</span>
       </span>
       <span class="portal-artifact-card__arrow" aria-hidden="true">→</span>
     </a>
@@ -100,6 +100,9 @@ TakashiSasaki/templates
   <div class="portal-doc-links">
     <a class="portal-doc-link" href="/composition/">Composition を見る</a>
     <a class="portal-doc-link" href="/composition/concepts/">Composition の概念と用語</a>
+    <a class="portal-doc-link" href="/web/">Website か Web application か</a>
+    <a class="portal-doc-link" href="/website/">Website を見る</a>
+    <a class="portal-doc-link" href="/webapp/">Web application を見る</a>
     <a class="portal-doc-link" href="/skill/">Agent Skill を見る</a>
     <a class="portal-doc-link" href="/policy/">Policy を見る</a>
     <a class="portal-doc-link" href="/capabilities/">Capabilities</a>
