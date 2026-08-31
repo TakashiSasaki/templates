@@ -111,3 +111,17 @@ For example, an instruction-only or knowledge-augmented Skill does not need an a
 - For strict semantics and ownership rules, use the [Composition model](../architecture/composition-model.md).
 - For exact commands and diagnostics, use the [Composer reference](../reference/composer.md).
 - For canonical repository terminology and cross-authority disambiguation, use the integrated glossary generated from provider-owned `docs/glossary.yml` sources.
+
+
+## Component roles: a practical mental model
+
+A **recipe** is the consumer-facing starting point. It chooses an **artifact component**—the answer to “what am I building?”—and exposes only optional components that a consumer may deliberately select. A **component** is the reusable authority that contributes one coherent set of semantics and materials to that resolved product.
+
+Read component roles as four questions, in this order:
+
+1. **Foundation — What shared base is required?** A foundation is automatically introduced through an artifact dependency. It is mandatory when the artifact needs it, but it is not a product capability to select directly.
+2. **Artifact — What am I building?** An artifact defines the product identity and its identity-specific contracts.
+3. **Capability — What else can it do?** A capability adds an externally observable behavior, such as PWA support, a runtime, a CLI, or an MCP interface.
+4. **Lifecycle — How is it managed over time?** A lifecycle component supplies reusable machinery for validation, evolution, evidence, checkpoints, or release.
+
+A future Website recipe, for example, can select a Website artifact that requires a shared Web foundation. A consumer sees the Website identity and can choose PWA or runtime capabilities; the foundation is resolved automatically and is never an include target. The descriptor represents this with `component_role` (`foundation`, `artifact`, `capability`, or `lifecycle`), while canonical definitions remain in the provider glossary.

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "id": "lifecycle.release-execution",
-  "kind": "lifecycle",
+  "component_role": "lifecycle",
   "version": 6,
   "summary": "Product-owned fixed-argv bindings, proof-harness identity closure, hardened candidate verification, and shared release lifecycle serialization.",
   "requires": ["lifecycle.implementation-evidence"],

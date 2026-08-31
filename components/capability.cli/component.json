@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "id": "capability.cli",
-  "kind": "capability",
+  "component_role": "capability",
   "version": 4,
   "summary": "Stable caller-visible packaged CLI contract with pre-coding entrypoint authority.",
   "requires": [

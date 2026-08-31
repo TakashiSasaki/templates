@@ -113,3 +113,17 @@ contracts/viewports.json
 - strict semanticsとownership ruleは [Composition model](../architecture/composition-model.md)。
 - exact commandとdiagnosticは [Composer reference](../reference/composer.md)。
 - canonical repository terminologyとcross-authority disambiguationは、provider-owned `docs/glossary.yml` から生成されるintegrated glossaryを参照してください。
+
+
+## コンポーネントロール: 実用的なメンタルモデル
+
+**recipe** は利用者向けの開始点です。recipe は「何を作るのか」を示す **artifact component** を選択し、利用者が明示的に選択できる optional component だけを公開します。**component** は、解決されたプロダクトに一貫した意味論とマテリアルを与える再利用可能な authority です。
+
+コンポーネントロールは、次の四つの問いとして順に読むことができます。
+
+1. **Foundation — どの共有基盤が必要か?** Foundation は artifact の依存関係を通じて自動導入されます。artifact に必要なら必須ですが、利用者が直接選択する product capability ではありません。
+2. **Artifact — 何を作っているのか?** Artifact はプロダクトの identity と、それに固有の contract を定義します。
+3. **Capability — ほかに何ができるか?** Capability は、PWA、runtime、CLI、MCP interface など externally observable な振る舞いを追加します。
+4. **Lifecycle — 時間とともにどのように管理するか?** Lifecycle component は validation、evolution、evidence、checkpoint、release のための再利用可能な仕組みを提供します。
+
+将来の Website recipe は、共有 Web foundation を必要とする Website artifact を選択できます。利用者には Website identity が提示され、PWA や runtime capability を選べます。foundation は自動解決され、include target にはなりません。descriptor ではこれを `component_role`（`foundation`、`artifact`、`capability`、`lifecycle`）で表現し、canonical definition は provider glossary に置きます。

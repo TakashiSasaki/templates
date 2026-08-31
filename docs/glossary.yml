@@ -4,283 +4,643 @@
     {
       "id": "templates-composition-component",
       "term": "Composition component",
-      "localized_labels": {"ja": {"term": "コンポジションコンポーネント"}},
+      "localized_labels": {
+        "ja": {
+          "term": "コンポジションコンポーネント"
+        }
+      },
       "origin": "repository",
-      "definition": "A closed reusable source authority identified as an artifact, capability, or lifecycle component. Its descriptor declares dependencies, conflicts, materialized files, ownership modes, and any contract registrations used by deterministic composition.",
-      "related_terms": ["templates-composition-artifact-component", "templates-composition-capability-component", "templates-composition-lifecycle-component", "templates-composition-recipe"]
+      "definition": "A closed reusable source authority with a component role: foundation, artifact, capability, or lifecycle. Its descriptor declares dependencies, conflicts, materialized files, ownership modes, and any contract registrations used by deterministic composition.",
+      "related_terms": [
+        "templates-composition-component-role",
+        "templates-composition-foundation-component",
+        "templates-composition-artifact-component",
+        "templates-composition-capability-component",
+        "templates-composition-lifecycle-component",
+        "templates-composition-recipe"
+      ]
     },
     {
       "id": "templates-composition-artifact-component",
       "term": "Artifact component",
-      "localized_labels": {"ja": {"term": "アーティファクトコンポーネント"}},
+      "localized_labels": {
+        "ja": {
+          "term": "アーティファクトコンポーネント"
+        }
+      },
       "origin": "repository",
       "definition": "A composition component that defines the identity-specific semantics of the produced artifact, such as an Agent Skill or Web application, while reusable capabilities and lifecycle concerns remain separate authorities.",
-      "related_terms": ["templates-composition-component", "templates-artifact-contract"]
+      "related_terms": [
+        "templates-composition-component",
+        "templates-artifact-contract"
+      ]
     },
     {
       "id": "templates-composition-capability-component",
       "term": "Capability component",
-      "localized_labels": {"ja": {"term": "ケイパビリティコンポーネント"}},
+      "localized_labels": {
+        "ja": {
+          "term": "ケイパビリティコンポーネント"
+        }
+      },
       "origin": "repository",
       "definition": "An artifact-neutral composition component that adds an optional application capability such as an implementation runtime, packaged CLI, MCP interface, MCP Apps extension, standalone browser interface, or headless service.",
-      "related_terms": ["templates-composition-component", "templates-implementation-runtime", "templates-runtime-decision-record", "external-mcp-model-context-protocol"]
+      "related_terms": [
+        "templates-composition-component",
+        "templates-implementation-runtime",
+        "templates-runtime-decision-record",
+        "external-mcp-model-context-protocol"
+      ]
     },
     {
       "id": "templates-composition-lifecycle-component",
       "term": "Lifecycle component",
-      "localized_labels": {"ja": {"term": "ライフサイクルコンポーネント"}},
+      "localized_labels": {
+        "ja": {
+          "term": "ライフサイクルコンポーネント"
+        }
+      },
       "origin": "repository",
       "definition": "An artifact-neutral composition component that adds product lifecycle machinery such as resolved-state validation, contract evolution, implementation evidence, release evidence, or release handoff.",
-      "related_terms": ["templates-composition-component", "templates-contract-manifest", "templates-implementation-evidence", "templates-release-evidence", "templates-release-bundle"]
+      "related_terms": [
+        "templates-composition-component",
+        "templates-contract-manifest",
+        "templates-implementation-evidence",
+        "templates-release-evidence",
+        "templates-release-bundle"
+      ]
     },
     {
       "id": "templates-composition-recipe",
       "term": "Composition recipe",
-      "localized_labels": {"ja": {"term": "コンポジションレシピ"}},
+      "localized_labels": {
+        "ja": {
+          "term": "コンポジションレシピ"
+        }
+      },
       "origin": "repository",
       "definition": "A consumer-facing artifact recipe that selects exactly one artifact component and defines which reusable capability or lifecycle components are required, defaulted, or available for explicit selection.",
-      "related_terms": ["templates-composition-component", "templates-composition-lock"]
+      "related_terms": [
+        "templates-composition-component",
+        "templates-composition-lock"
+      ]
     },
     {
       "id": "templates-composition-lock",
       "term": "Composition lock",
-      "localized_labels": {"ja": {"term": "コンポジションロック"}},
+      "localized_labels": {
+        "ja": {
+          "term": "コンポジションロック"
+        }
+      },
       "origin": "repository",
       "definition": "The deterministic .template-composition/lock.json resolved-state record written last by the composer. It binds the exact composition source revision, configuration bytes, resolved components, descriptor digests, material destinations, owners, ownership modes, and materialized-byte digests.",
-      "related_terms": ["templates-composition-recipe", "templates-composition-material-ownership", "templates-composition-component-owner", "templates-composition-ownership-mode", "templates-composition-managed-material", "templates-composition-seed-material", "templates-composition-generated-material"]
+      "related_terms": [
+        "templates-composition-recipe",
+        "templates-composition-material-ownership",
+        "templates-composition-component-owner",
+        "templates-composition-ownership-mode",
+        "templates-composition-managed-material",
+        "templates-composition-seed-material",
+        "templates-composition-generated-material"
+      ]
     },
     {
       "id": "templates-composition-material-ownership",
       "term": "Material ownership",
-      "localized_labels": {"ja": {"term": "マテリアル所有権", "aliases": ["マテリアルオーナーシップ"]}},
+      "localized_labels": {
+        "ja": {
+          "term": "マテリアル所有権",
+          "aliases": [
+            "マテリアルオーナーシップ"
+          ]
+        }
+      },
       "origin": "repository",
       "definition": "The Composition rule that assigns every materialized destination exactly one component owner and one ownership mode. The owner identifies which resolved component claims the destination, while the mode determines whether Composition retains authority over its bytes or transfers content ownership to the consumer.",
-      "related_terms": ["templates-composition-component-owner", "templates-composition-ownership-mode", "templates-composition-lock"]
+      "related_terms": [
+        "templates-composition-component-owner",
+        "templates-composition-ownership-mode",
+        "templates-composition-lock"
+      ]
     },
     {
       "id": "templates-composition-component-owner",
       "term": "Component owner",
-      "localized_labels": {"ja": {"term": "コンポーネント所有者"}},
+      "localized_labels": {
+        "ja": {
+          "term": "コンポーネント所有者"
+        }
+      },
       "origin": "repository",
       "definition": "The single resolved Composition component recorded as the owner of a materialized destination. It identifies which component claims that destination and is independent of the destination's ownership mode; owner transitions are never inferred automatically.",
-      "related_terms": ["templates-composition-component", "templates-composition-material-ownership", "templates-composition-ownership-mode", "templates-composition-lock"]
+      "related_terms": [
+        "templates-composition-component",
+        "templates-composition-material-ownership",
+        "templates-composition-ownership-mode",
+        "templates-composition-lock"
+      ]
     },
     {
       "id": "templates-composition-ownership-mode",
       "term": "Ownership mode",
-      "aliases": ["ownership modes"],
-      "localized_labels": {"ja": {"term": "オーナーシップモード", "aliases": ["所有モード"]}},
+      "aliases": [
+        "ownership modes"
+      ],
+      "localized_labels": {
+        "ja": {
+          "term": "オーナーシップモード",
+          "aliases": [
+            "所有モード"
+          ]
+        }
+      },
       "origin": "repository",
       "definition": "The per-destination lifecycle classification recorded as managed, generated, or seed in the Composition lock. It determines byte authority after materialization: managed and generated content remain Composition-controlled, while seed content transfers to the consumer.",
-      "related_terms": ["templates-composition-material-ownership", "templates-composition-managed-material", "templates-composition-seed-material", "templates-composition-generated-material", "templates-composition-lock"]
+      "related_terms": [
+        "templates-composition-material-ownership",
+        "templates-composition-managed-material",
+        "templates-composition-seed-material",
+        "templates-composition-generated-material",
+        "templates-composition-lock"
+      ]
     },
     {
       "id": "templates-composition-managed-material",
       "term": "Managed material",
-      "localized_labels": {"ja": {"term": "管理対象マテリアル"}},
+      "localized_labels": {
+        "ja": {
+          "term": "管理対象マテリアル"
+        }
+      },
       "origin": "repository",
       "definition": "Materialized content whose composition source remains authoritative after initial application. Consumer-time validation requires its current bytes to continue matching the composition lock digest.",
-      "related_terms": ["templates-composition-lock", "templates-composition-material-ownership", "templates-composition-ownership-mode", "templates-composition-seed-material", "templates-composition-generated-material"]
+      "related_terms": [
+        "templates-composition-lock",
+        "templates-composition-material-ownership",
+        "templates-composition-ownership-mode",
+        "templates-composition-seed-material",
+        "templates-composition-generated-material"
+      ]
     },
     {
       "id": "templates-composition-seed-material",
       "term": "Seed material",
-      "localized_labels": {"ja": {"term": "シードマテリアル"}},
+      "localized_labels": {
+        "ja": {
+          "term": "シードマテリアル"
+        }
+      },
       "origin": "repository",
       "definition": "Materialized initial content whose ownership transfers to the consumer repository after composition. The file must remain present, but consumer edits are allowed to diverge from the initial lock digest.",
-      "related_terms": ["templates-composition-lock", "templates-composition-material-ownership", "templates-composition-ownership-mode", "templates-composition-managed-material", "templates-composition-generated-material"]
+      "related_terms": [
+        "templates-composition-lock",
+        "templates-composition-material-ownership",
+        "templates-composition-ownership-mode",
+        "templates-composition-managed-material",
+        "templates-composition-generated-material"
+      ]
     },
     {
       "id": "templates-composition-generated-material",
       "term": "Generated material",
-      "localized_labels": {"ja": {"term": "生成マテリアル"}},
+      "localized_labels": {
+        "ja": {
+          "term": "生成マテリアル"
+        }
+      },
       "origin": "repository",
       "definition": "Materialized content produced deterministically by an allowlisted declarative generator from resolved composition authorities rather than copied from one source file. Its bytes remain composition-managed and digest-bound in the lock.",
-      "related_terms": ["templates-composition-lock", "templates-composition-material-ownership", "templates-composition-ownership-mode", "templates-composition-managed-material", "templates-composition-seed-material", "templates-contract-manifest"]
+      "related_terms": [
+        "templates-composition-lock",
+        "templates-composition-material-ownership",
+        "templates-composition-ownership-mode",
+        "templates-composition-managed-material",
+        "templates-composition-seed-material",
+        "templates-contract-manifest"
+      ]
     },
     {
       "id": "templates-skill-profile",
       "term": "Skill profile",
-      "localized_labels": {"ja": {"term": "スキルプロファイル", "aliases": ["Skill プロファイル"]}},
+      "localized_labels": {
+        "ja": {
+          "term": "スキルプロファイル",
+          "aliases": [
+            "Skill プロファイル"
+          ]
+        }
+      },
       "origin": "repository",
       "definition": "A Skill-specific resource pattern describing whether a concrete Agent Skill is instruction-only, knowledge-augmented, asset-driven, or script-assisted. Application runtime and public interfaces are composition capabilities rather than Skill profiles.",
-      "related_terms": ["templates-policy-profile", "templates-skill-template-scaffold", "templates-composition-capability-component"]
+      "related_terms": [
+        "templates-policy-profile",
+        "templates-skill-template-scaffold",
+        "templates-composition-capability-component"
+      ]
     },
     {
       "id": "templates-skill-template-scaffold",
       "term": "Skill template scaffold",
-      "localized_labels": {"ja": {"term": "スキルテンプレート・スキャフォールド", "aliases": ["スキルテンプレート雛形"]}},
+      "localized_labels": {
+        "ja": {
+          "term": "スキルテンプレート・スキャフォールド",
+          "aliases": [
+            "スキルテンプレート雛形"
+          ]
+        }
+      },
       "origin": "repository",
       "definition": "The uncustomized Agent Skill seed identified by the reserved template-scaffold sentinel. The sentinel is not a fifth concrete Skill profile and must be replaced before the repository is treated as an operational Skill.",
-      "related_terms": ["templates-skill-profile", "templates-composition-artifact-component"]
+      "related_terms": [
+        "templates-skill-profile",
+        "templates-composition-artifact-component"
+      ]
     },
     {
       "id": "templates-implementation-runtime",
       "term": "Implementation runtime",
-      "localized_labels": {"ja": {"term": "実装ランタイム"}},
+      "localized_labels": {
+        "ja": {
+          "term": "実装ランタイム"
+        }
+      },
       "origin": "repository",
       "definition": "The implementation ecosystem and operational choices used to build and run a composed artifact, including its language/runtime, runtime version, dependency and package workflow, exact commands, environment, distribution, and deployment.",
-      "related_terms": ["templates-composition-capability-component", "templates-runtime-decision-record"]
+      "related_terms": [
+        "templates-composition-capability-component",
+        "templates-runtime-decision-record"
+      ]
     },
     {
       "id": "templates-runtime-decision-record",
       "term": "Implementation runtime decision record",
-      "aliases": ["Runtime decision record"],
-      "localized_labels": {"ja": {"term": "実装ランタイム決定記録", "aliases": ["ランタイム決定記録"]}},
+      "aliases": [
+        "Runtime decision record"
+      ],
+      "localized_labels": {
+        "ja": {
+          "term": "実装ランタイム決定記録",
+          "aliases": [
+            "ランタイム決定記録"
+          ]
+        }
+      },
       "origin": "repository",
       "definition": "The consumer-owned RUNTIME.md decision record materialized by capability.runtime. It records the selected implementation runtime, dependency workflow, exact commands, protocol selections, environment, distribution, and deployment lifecycle without belonging specifically to Skill or Webapp semantics.",
-      "related_terms": ["templates-implementation-runtime", "templates-composition-capability-component"]
+      "related_terms": [
+        "templates-implementation-runtime",
+        "templates-composition-capability-component"
+      ]
     },
     {
       "id": "templates-contract-manifest",
       "term": "Contract manifest",
-      "localized_labels": {"ja": {"term": "コントラクトマニフェスト", "aliases": ["契約マニフェスト"]}},
+      "localized_labels": {
+        "ja": {
+          "term": "コントラクトマニフェスト",
+          "aliases": [
+            "契約マニフェスト"
+          ]
+        }
+      },
       "origin": "repository",
       "definition": "The deterministic generated contracts/manifest.json registry built from contract registrations in the resolved component closure. It identifies active contract documents, schemas, purposes, version histories, and migrations without being a handwritten source file.",
-      "related_terms": ["templates-composition-generated-material", "templates-composition-lifecycle-component", "templates-release-bundle"]
+      "related_terms": [
+        "templates-composition-generated-material",
+        "templates-composition-lifecycle-component",
+        "templates-release-bundle"
+      ]
     },
     {
       "id": "templates-implementation-evidence",
       "term": "Implementation evidence",
-      "localized_labels": {"ja": {"term": "実装エビデンス", "aliases": ["実装証跡"]}},
+      "localized_labels": {
+        "ja": {
+          "term": "実装エビデンス",
+          "aliases": [
+            "実装証跡"
+          ]
+        }
+      },
       "origin": "repository",
       "definition": "An artifact-neutral lifecycle contract that maps artifact-defined contract targets to repository-local implementation boundaries, positive and negative proofs, authoritative command definitions, and release gates. It defines what must be proved and run but does not record candidate execution itself.",
-      "related_terms": ["templates-release-evidence", "templates-artifact-contract", "templates-composition-lifecycle-component"]
+      "related_terms": [
+        "templates-release-evidence",
+        "templates-artifact-contract",
+        "templates-composition-lifecycle-component"
+      ]
     },
     {
       "id": "templates-release-evidence",
       "term": "Release evidence",
-      "localized_labels": {"ja": {"term": "リリースエビデンス", "aliases": ["リリース証跡"]}},
+      "localized_labels": {
+        "ja": {
+          "term": "リリースエビデンス",
+          "aliases": [
+            "リリース証跡"
+          ]
+        }
+      },
       "origin": "repository",
       "definition": "An artifact-neutral revision-specific record that binds one exact candidate revision to completed authoritative command and release-gate results, execution provenance, and the resulting release decision.",
-      "related_terms": ["templates-implementation-evidence", "templates-release-bundle", "templates-composition-lifecycle-component"]
+      "related_terms": [
+        "templates-implementation-evidence",
+        "templates-release-bundle",
+        "templates-composition-lifecycle-component"
+      ]
     },
     {
       "id": "templates-release-bundle",
       "term": "Release bundle",
-      "localized_labels": {"ja": {"term": "リリースバンドル"}},
+      "localized_labels": {
+        "ja": {
+          "term": "リリースバンドル"
+        }
+      },
       "origin": "repository",
       "definition": "An artifact-neutral deterministic handoff contract that binds an approved candidate revision to the exact current bytes of the active registered contract set transferred to the next system.",
-      "related_terms": ["templates-contract-manifest", "templates-release-evidence", "templates-composition-lifecycle-component"]
+      "related_terms": [
+        "templates-contract-manifest",
+        "templates-release-evidence",
+        "templates-composition-lifecycle-component"
+      ]
     },
     {
       "id": "templates-webapp-template-mode",
       "term": "Template mode",
-      "localized_labels": {"ja": {"term": "テンプレートモード"}},
+      "localized_labels": {
+        "ja": {
+          "term": "テンプレートモード"
+        }
+      },
       "origin": "repository",
       "definition": "The Composition lifecycle state in which a selected contract carries no active product requirement or concrete implementation claim. Template mode provides scaffold/default contract structure only; it is not a claim that a repository is merely a template or that a concrete product has been validated.",
       "repository_usage": "This stable term ID predates the Composition authority migration and is retained because the same lifecycle concept survives under the current artifact-neutral Composition model.",
-      "related_terms": ["templates-composition-planning-mode", "templates-webapp-product-mode", "templates-implementation-evidence"]
+      "related_terms": [
+        "templates-composition-planning-mode",
+        "templates-webapp-product-mode",
+        "templates-implementation-evidence"
+      ]
     },
     {
       "id": "templates-composition-planning-mode",
       "term": "Planning mode",
-      "localized_labels": {"ja": {"term": "プランニングモード", "aliases": ["計画モード"]}},
+      "localized_labels": {
+        "ja": {
+          "term": "プランニングモード",
+          "aliases": [
+            "計画モード"
+          ]
+        }
+      },
       "origin": "repository",
       "definition": "The narrow Composition lifecycle state used after explicit product requirements and their intended machine-contract targets are known but before concrete implementation-evidence records exist. Planning mode keeps implementation records and release execution claims incomplete while preserving stable requirement identity and required proof kinds.",
       "repository_usage": "Planning mode is a contract state, not a synonym for the whole project-planning phase.",
-      "related_terms": ["templates-webapp-template-mode", "templates-webapp-product-mode", "templates-implementation-evidence", "templates-composition-release-readiness"]
+      "related_terms": [
+        "templates-webapp-template-mode",
+        "templates-webapp-product-mode",
+        "templates-implementation-evidence",
+        "templates-composition-release-readiness"
+      ]
     },
     {
       "id": "templates-webapp-product-mode",
       "term": "Product mode",
-      "localized_labels": {"ja": {"term": "プロダクトモード"}},
+      "localized_labels": {
+        "ja": {
+          "term": "プロダクトモード"
+        }
+      },
       "origin": "repository",
       "definition": "The Composition lifecycle state in which the concrete implementation and evidence graph is active: product requirements link to implementation boundaries, proofs, authoritative commands, and release gates according to the selected contracts.",
       "repository_usage": "Product mode does not mean implementation complete, release ready, released, or deployed. Product-mode proofs may still be deferred or otherwise incomplete until the separate release-readiness contract passes. This stable term ID predates the Composition authority migration and is retained for the surviving concept.",
-      "related_terms": ["templates-webapp-template-mode", "templates-composition-planning-mode", "templates-implementation-evidence", "templates-composition-release-readiness"]
+      "related_terms": [
+        "templates-webapp-template-mode",
+        "templates-composition-planning-mode",
+        "templates-implementation-evidence",
+        "templates-composition-release-readiness"
+      ]
     },
     {
       "id": "templates-webapp-contract-family",
       "term": "Contract family",
-      "localized_labels": {"ja": {"term": "コントラクトファミリー"}},
+      "localized_labels": {
+        "ja": {
+          "term": "コントラクトファミリー"
+        }
+      },
       "origin": "repository",
       "definition": "A stable versioned identity for one registered contract concern, with its active or retired state, current schema version, contiguous version history, migration path, document/schema locations, and evidence relationship maintained through contract evolution.",
       "repository_usage": "The concept originated in the former Webapp authority but now applies through the artifact-neutral Composition contract-evolution lifecycle; the historical stable ID is retained because the concept itself survives.",
-      "related_terms": ["templates-contract-manifest", "templates-composition-lifecycle-component"]
+      "related_terms": [
+        "templates-contract-manifest",
+        "templates-composition-lifecycle-component"
+      ]
     },
     {
       "id": "templates-webapp-candidate-revision",
       "term": "Candidate revision",
-      "localized_labels": {"ja": {"term": "候補リビジョン"}},
+      "localized_labels": {
+        "ja": {
+          "term": "候補リビジョン"
+        }
+      },
       "origin": "repository",
       "definition": "The exact immutable product source revision named for release production, against which authoritative proofs run and to which approved release evidence and the resulting release bundle are bound.",
       "repository_usage": "This is the product release-candidate revision in the Composition release lifecycle, not a generic pull-request candidate or Policy toolchain promotion candidate. The stable term ID predates the Composition authority migration and is retained for the surviving concept.",
-      "related_terms": ["templates-release-evidence", "templates-release-bundle", "templates-composition-release-readiness"]
+      "related_terms": [
+        "templates-release-evidence",
+        "templates-release-bundle",
+        "templates-composition-release-readiness"
+      ]
     },
     {
       "id": "templates-composition-consumer-repository",
       "term": "Composition consumer repository",
-      "localized_labels": {"ja": {"term": "コンポジション利用リポジトリ"}},
+      "localized_labels": {
+        "ja": {
+          "term": "コンポジション利用リポジトリ"
+        }
+      },
       "origin": "repository",
       "definition": "A product or artifact repository that consumes Composition recipes/components and may carry Composition-managed state, materialized contracts, or consumer-owned seed content. It is the target of Composer operations rather than the Composition source-authority repository itself.",
       "repository_usage": "Consumer refers to the repository or its maintainer consuming Composition, not to an application end user or customer.",
-      "related_terms": ["templates-composition-recipe", "templates-composition-lock", "templates-composition-initial-operation", "templates-composition-update-operation", "templates-composition-upgrade-operation"]
+      "related_terms": [
+        "templates-composition-recipe",
+        "templates-composition-lock",
+        "templates-composition-initial-operation",
+        "templates-composition-update-operation",
+        "templates-composition-upgrade-operation"
+      ]
     },
     {
       "id": "templates-composition-initial-operation",
       "term": "Initial composition",
-      "localized_labels": {"ja": {"term": "初回コンポジション"}},
+      "localized_labels": {
+        "ja": {
+          "term": "初回コンポジション"
+        }
+      },
       "origin": "repository",
       "definition": "The first Composer materialization of a not-yet-managed consumer repository from explicit consumer configuration. It requires no existing Composition lock, refuses unsafe destination replacement, and writes the lock last to establish managed Composition state.",
       "repository_usage": "Initial composition is one explicit Composer operation mode; it is not a generic project initialization step.",
-      "related_terms": ["templates-composition-consumer-repository", "templates-composition-lock", "templates-composition-update-operation", "templates-composition-upgrade-operation"]
+      "related_terms": [
+        "templates-composition-consumer-repository",
+        "templates-composition-lock",
+        "templates-composition-update-operation",
+        "templates-composition-upgrade-operation"
+      ]
     },
     {
       "id": "templates-composition-update-operation",
       "term": "Composition update",
-      "localized_labels": {"ja": {"term": "コンポジション更新"}},
+      "localized_labels": {
+        "ja": {
+          "term": "コンポジション更新"
+        }
+      },
       "origin": "repository",
       "definition": "A managed Composer reconciliation that preserves the normalized consumer intent already recorded in lock schema version 2 while reconciling that intent against the current descendant Composition source revision.",
       "repository_usage": "Update does not accept replacement configuration and cannot cross a Composition component-version compatibility boundary; the size of the source change does not determine whether an operation is an update.",
-      "related_terms": ["templates-composition-consumer-repository", "templates-composition-lock", "templates-composition-upgrade-operation", "templates-composition-component-version"]
+      "related_terms": [
+        "templates-composition-consumer-repository",
+        "templates-composition-lock",
+        "templates-composition-upgrade-operation",
+        "templates-composition-component-version"
+      ]
     },
     {
       "id": "templates-composition-upgrade-operation",
       "term": "Composition upgrade",
-      "localized_labels": {"ja": {"term": "コンポジションアップグレード"}},
+      "localized_labels": {
+        "ja": {
+          "term": "コンポジションアップグレード"
+        }
+      },
       "origin": "repository",
       "definition": "A managed Composer reconciliation that consumes explicit replacement consumer configuration and may change recipe selection, includes/excludes, component parameters, or cross a declared Composition component-version compatibility boundary.",
       "repository_usage": "Upgrade means explicit replacement intent or a compatibility-boundary crossing in Composer semantics; it is not defined merely by a source change being large or major.",
-      "related_terms": ["templates-composition-consumer-repository", "templates-composition-lock", "templates-composition-update-operation", "templates-composition-component-version"]
+      "related_terms": [
+        "templates-composition-consumer-repository",
+        "templates-composition-lock",
+        "templates-composition-update-operation",
+        "templates-composition-component-version"
+      ]
     },
     {
       "id": "templates-composition-component-version",
       "term": "Composition component version",
-      "localized_labels": {"ja": {"term": "コンポジションコンポーネントバージョン"}},
+      "localized_labels": {
+        "ja": {
+          "term": "コンポジションコンポーネントバージョン"
+        }
+      },
       "origin": "repository",
       "definition": "The positive integer compatibility boundary declared by a Composition component descriptor. A managed update cannot cross a version change, while an explicit upgrade may; same-version descriptor drift is rejected as an invariant violation.",
       "repository_usage": "A Composition component version is not Semantic Versioning and does not encode major/minor/patch significance.",
-      "related_terms": ["templates-composition-component", "templates-composition-update-operation", "templates-composition-upgrade-operation"]
+      "related_terms": [
+        "templates-composition-component",
+        "templates-composition-update-operation",
+        "templates-composition-upgrade-operation"
+      ]
     },
     {
       "id": "templates-composition-release-readiness",
       "term": "Composition release readiness",
-      "localized_labels": {"ja": {"term": "コンポジション・リリース準備完了性"}},
+      "localized_labels": {
+        "ja": {
+          "term": "コンポジション・リリース準備完了性"
+        }
+      },
       "origin": "repository",
       "definition": "The implementation-evidence lifecycle decision that a product-mode evidence graph is ready for release production: required targets and requirements are covered and every proof required by the selected release gates is verified rather than deferred or missing.",
       "repository_usage": "Passing Composition release readiness permits the Composition release producer to proceed; it does not by itself prove packaging, signing, deployment, external artifact identity, or post-deployment success.",
-      "related_terms": ["templates-implementation-evidence", "templates-webapp-product-mode", "templates-webapp-candidate-revision", "templates-release-evidence"]
+      "related_terms": [
+        "templates-implementation-evidence",
+        "templates-webapp-product-mode",
+        "templates-webapp-candidate-revision",
+        "templates-release-evidence"
+      ]
     },
     {
       "id": "templates-composition-lifecycle-checkpoint",
       "term": "Lifecycle checkpoint",
-      "localized_labels": {"ja": {"term": "ライフサイクルチェックポイント"}},
+      "localized_labels": {
+        "ja": {
+          "term": "ライフサイクルチェックポイント"
+        }
+      },
       "origin": "repository",
       "definition": "A content-addressed Composition lifecycle record that preserves validated planning or product contract state, parent/sequence linkage, and selected validation snapshots so later transitions can be checked against the recorded baseline.",
       "repository_usage": "The local checkpoint hash chain is not a trusted timestamp or external attestation and cannot by itself prove real-world chronology against wholesale history replacement.",
-      "related_terms": ["templates-composition-planning-mode", "templates-webapp-product-mode", "templates-composition-lifecycle-component"]
+      "related_terms": [
+        "templates-composition-planning-mode",
+        "templates-webapp-product-mode",
+        "templates-composition-lifecycle-component"
+      ]
     },
     {
       "id": "external-mcp-model-context-protocol",
       "term": "Model Context Protocol",
-      "aliases": ["MCP"],
-      "localized_labels": {"ja": {"term": "モデルコンテキストプロトコル"}},
+      "aliases": [
+        "MCP"
+      ],
+      "localized_labels": {
+        "ja": {
+          "term": "モデルコンテキストプロトコル"
+        }
+      },
       "origin": "external",
       "summary": "An open protocol that standardizes how LLM applications connect to external context sources, tools, and capabilities through host, client, and server roles.",
-      "authority": {"kind": "normative", "sources": [{"title": "Model Context Protocol Specification", "url": "https://modelcontextprotocol.io/specification/2026-07-28", "version": "2026-07-28"}]},
+      "authority": {
+        "kind": "normative",
+        "sources": [
+          {
+            "title": "Model Context Protocol Specification",
+            "url": "https://modelcontextprotocol.io/specification/2026-07-28",
+            "version": "2026-07-28"
+          }
+        ]
+      },
       "repository_usage": "capability.mcp uses MCP 2026-07-28 as the initial core protocol baseline, while optional extensions such as MCP Apps remain separately selected composition capabilities.",
-      "related_terms": ["templates-composition-capability-component"]
+      "related_terms": [
+        "templates-composition-capability-component"
+      ]
+    },
+    {
+      "id": "templates-composition-component-role",
+      "term": "Component role",
+      "localized_labels": {
+        "ja": {
+          "term": "コンポーネントロール"
+        }
+      },
+      "origin": "repository",
+      "definition": "The machine-readable role assigned to every Composition component. It explains whether the component supplies a shared required base (foundation), defines what is being built (artifact), adds an optional observable behavior (capability), or manages the artifact over time (lifecycle).",
+      "related_terms": [
+        "templates-composition-component",
+        "templates-composition-foundation-component",
+        "templates-composition-artifact-component",
+        "templates-composition-capability-component",
+        "templates-composition-lifecycle-component"
+      ]
+    },
+    {
+      "id": "templates-composition-foundation-component",
+      "term": "Foundation component",
+      "localized_labels": {
+        "ja": {
+          "term": "基盤コンポーネント"
+        }
+      },
+      "origin": "repository",
+      "definition": "A shared mandatory baseline introduced through an artifact component dependency. Foundations are not consumer-selectable product capabilities and cannot be directly included by a recipe.",
+      "related_terms": [
+        "templates-composition-component-role",
+        "templates-composition-artifact-component",
+        "templates-composition-recipe"
+      ]
     }
   ]
 }

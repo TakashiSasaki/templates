@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "id": "capability.mcp-apps",
-  "kind": "capability",
+  "component_role": "capability",
   "version": 4,
   "summary": "Machine-readable MCP Apps contract with pre-coding View and association authority.",
   "requires": [

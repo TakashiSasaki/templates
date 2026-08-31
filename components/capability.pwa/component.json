@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "id": "capability.pwa",
-  "kind": "capability",
+  "component_role": "capability",
   "version": 2,
   "summary": "Progressive Web App semantics for installability, cross-platform application identity, offline freshness, and update lifecycle without prescribing cache or service-worker implementation strategy.",
   "requires": ["lifecycle.implementation-evidence"],

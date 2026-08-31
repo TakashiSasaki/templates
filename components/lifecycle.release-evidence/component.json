@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "id": "lifecycle.release-evidence",
-  "kind": "lifecycle",
+  "component_role": "lifecycle",
   "version": 7,
   "summary": "Revision-bound command execution provenance, verified-evidence release gating, and orchestration-safe serialized publication.",
   "requires": [

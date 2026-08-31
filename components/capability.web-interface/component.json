@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "id": "capability.web-interface",
-  "kind": "capability",
+  "component_role": "capability",
   "version": 4,
   "summary": "Standalone browser/API endpoint contract with pre-coding endpoint authority and machine-checked evidence.",
   "requires": [

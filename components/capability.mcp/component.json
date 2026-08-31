@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "id": "capability.mcp",
-  "kind": "capability",
+  "component_role": "capability",
   "version": 4,
   "summary": "Machine-readable MCP contract with pre-coding transport and operation authority.",
   "requires": [

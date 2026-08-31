@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "id": "lifecycle.implementation-evidence",
-  "kind": "lifecycle",
+  "component_role": "lifecycle",
   "version": 13,
   "summary": "Artifact-neutral implementation boundaries, target-bound product requirements, proof-kind-to-execution capability binding, repository harness authority, negative-path constraints, and provider-dispatched release-gate contract.",
   "requires": [

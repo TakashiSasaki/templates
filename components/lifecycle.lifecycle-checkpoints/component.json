@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "id": "lifecycle.lifecycle-checkpoints",
-  "kind": "lifecycle",
+  "component_role": "lifecycle",
   "version": 3,
   "summary": "Content-addressed validated planning/product checkpoints, historical transition authority, canonical checkpoint action commands, and structured machine-action results.",
   "requires": [
