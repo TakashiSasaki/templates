@@ -82,7 +82,11 @@ def pwa_mode(root: Path) -> str:
 def active_families(root: Path) -> tuple[tuple[str, str, str], ...]:
     offline = load_json(root, PWA_CONTRACT_PATHS["pwa_offline"])
     policies = offline.get("routePolicies")
-    policy_list = [item for item in policies if isinstance(item, dict)] if isinstance(policies, list) else []
+    if not isinstance(policies, list) or not policies:
+        return PROOF_FAMILIES
+    policy_list = [item for item in policies if isinstance(item, dict)]
+    if not policy_list:
+        return PROOF_FAMILIES
     cached_content = any(item.get("offlineReadBehavior") == "cached-content-when-available" for item in policy_list)
     return BASE_PROOF_FAMILIES + (CACHED_CONTENT_PROOF_FAMILIES if cached_content else ())
 

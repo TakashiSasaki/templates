@@ -25,8 +25,9 @@ class WebsiteArtifactTests(unittest.TestCase):
         self.metadata = load(FILES / "contracts/document-metadata.json")
         self.discovery = load(FILES / "contracts/site-discovery.json")
         self.routes = load(ROOT / "components/foundation.web/files/contracts/routes.json")
+        self.viewports = load(ROOT / "components/foundation.web/files/contracts/viewports.json")
 
-    def write_fixture(self, *, evidence_mode: str = "template", structure=None, metadata=None, discovery=None, routes=None) -> Path:
+    def write_fixture(self, *, evidence_mode: str = "template", structure=None, metadata=None, discovery=None, routes=None, viewports=None) -> Path:
         temp = tempfile.TemporaryDirectory()
         self.addCleanup(temp.cleanup)
         root = Path(temp.name)
@@ -35,6 +36,7 @@ class WebsiteArtifactTests(unittest.TestCase):
             "contracts/document-metadata.json": self.metadata if metadata is None else metadata,
             "contracts/site-discovery.json": self.discovery if discovery is None else discovery,
             "contracts/routes.json": self.routes if routes is None else routes,
+            "contracts/viewports.json": self.viewports if viewports is None else viewports,
             "contracts/implementation-evidence.json": {"mode": evidence_mode, "commands": [], "releaseGates": [], "records": [], "requirements": []},
         }
         for relative, value in docs.items():
@@ -116,7 +118,7 @@ class WebsiteArtifactTests(unittest.TestCase):
     def test_product_mode_requires_concrete_canonical_origin(self) -> None:
         result = self.run_contract_validator(self.write_fixture(evidence_mode="product"))
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("requires a concrete HTTPS canonicalOrigin", result.stderr)
+        self.assertIn("requires a concrete valid HTTPS canonicalOrigin", result.stderr)
         discovery = copy.deepcopy(self.discovery)
         discovery["canonicalOrigin"] = "https://example.test/"
         result = self.run_contract_validator(self.write_fixture(evidence_mode="product", discovery=discovery))
