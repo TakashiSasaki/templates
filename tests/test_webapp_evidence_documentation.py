@@ -24,13 +24,13 @@ class WebappEvidenceDocumentationTests(unittest.TestCase):
         boundaries = self.read_document("responsibility-boundaries.md")
         toolchain = self.read_document("validation-toolchain.md")
 
-        self.assertIn("browser_identity/proof-family/browser-identity", contracts)
+        self.assertIn("application_routes", contracts)
         self.assertIn("`browser` execution capability", contracts)
         self.assertIn("Planning mode applies the same proof-strength intent", contracts)
 
-        self.assertIn("browser_identity/proof-family/browser-identity", boundaries)
+        self.assertIn("application-route", boundaries)
         self.assertIn("browser-backed executable proof", boundaries)
-        self.assertIn("browser_identity/proof-family/browser-identity", toolchain)
+        self.assertIn("application-route", toolchain)
         self.assertIn("browser-backed executable proof", toolchain)
         self.assertIn(
             "positive and negative browser-level proof backed by an authoritative command whose execution capabilities include `browser`",

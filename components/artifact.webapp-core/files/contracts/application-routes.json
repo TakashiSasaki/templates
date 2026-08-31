@@ -1,0 +1,24 @@
+{
+  "$schema": "../schemas/application-routes.schema.json",
+  "schemaVersion": 1,
+  "routes": [
+    {
+      "routeId": "home",
+      "surface": "primary",
+      "authentication": "none",
+      "historyBehavior": "replace",
+      "authenticationReturn": "not-applicable",
+      "accessFailures": {
+        "unauthenticated": {
+          "behavior": "not-applicable"
+        },
+        "forbidden": {
+          "behavior": "not-applicable"
+        }
+      },
+      "states": [
+        "ready"
+      ]
+    }
+  ]
+}

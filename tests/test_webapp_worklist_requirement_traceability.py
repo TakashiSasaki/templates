@@ -23,7 +23,7 @@ import scaffold_webapp_evidence as scaffold
 
 
 IDENTITY_RECORD_ID = "browser-identity-proof-family-browser-identity"
-ROUTE_RECORD_ID = "routes-route-home"
+ROUTE_RECORD_ID = "application-routes-application-route-home"
 
 
 class WebappWorklistRequirementTraceabilityTests(unittest.TestCase):
@@ -33,7 +33,10 @@ class WebappWorklistRequirementTraceabilityTests(unittest.TestCase):
 
     def write_contracts(self, root: Path) -> None:
         self.write_json(root / "contracts/surfaces.json", {"surfaces": []})
-        self.write_json(root / "contracts/routes.json", {"routes": [{"id": "home"}]})
+        self.write_json(
+            root / "contracts/application-routes.json",
+            {"routes": [{"routeId": "home"}]},
+        )
         self.write_json(root / "contracts/ui-states.json", {"states": []})
         self.write_json(
             root / "contracts/viewports.json",
@@ -60,8 +63,8 @@ class WebappWorklistRequirementTraceabilityTests(unittest.TestCase):
             "id": ROUTE_RECORD_ID,
             "target": {
                 "kind": "contract-item",
-                "contractId": "routes",
-                "itemKind": "route",
+                "contractId": "application_routes",
+                "itemKind": "application-route",
                 "itemId": "home",
             },
             "implementationBoundary": {"status": "verified"},

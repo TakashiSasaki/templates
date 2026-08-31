@@ -54,7 +54,10 @@ class WebappCrossCapabilityEvidenceBoundaryTests(unittest.TestCase):
 
     def fixture(self, root: Path) -> dict[str, object]:
         self.write_json(root / "contracts/surfaces.json", {"surfaces": [{"id": "main"}]})
-        self.write_json(root / "contracts/routes.json", {"routes": [{"id": "home"}]})
+        self.write_json(
+            root / "contracts/application-routes.json",
+            {"routes": [{"routeId": "home"}]},
+        )
         self.write_json(root / "contracts/ui-states.json", {"states": []})
         self.write_json(
             root / "contracts/viewports.json",
@@ -65,7 +68,7 @@ class WebappCrossCapabilityEvidenceBoundaryTests(unittest.TestCase):
             {
                 "contracts": [
                     {"id": "browser_identity", "versionHistory": [{"version": 1}]},
-                    {"id": "routes", "versionHistory": [{"version": 1}]},
+                    {"id": "application_routes", "versionHistory": [{"version": 1}]},
                     {"id": "surfaces", "versionHistory": [{"version": 1}]},
                     {"id": "ui_states", "versionHistory": [{"version": 1}]},
                     {"id": "viewports", "versionHistory": [{"version": 1}]},
@@ -99,8 +102,8 @@ class WebappCrossCapabilityEvidenceBoundaryTests(unittest.TestCase):
                 },
                 {
                     "id": "REQ-ROUTE",
-                    "description": "Home route works in a browser.",
-                    "recordIds": ["routes-route-home"],
+                    "description": "Home application route works in a browser.",
+                    "recordIds": ["application-routes-application-route-home"],
                     "requiredPositiveProofKinds": ["end-to-end-test"],
                 },
                 {
@@ -132,11 +135,11 @@ class WebappCrossCapabilityEvidenceBoundaryTests(unittest.TestCase):
                     proof_kind="integration-test",
                 ),
                 self.record(
-                    "routes-route-home",
+                    "application-routes-application-route-home",
                     {
                         "kind": "contract-item",
-                        "contractId": "routes",
-                        "itemKind": "route",
+                        "contractId": "application_routes",
+                        "itemKind": "application-route",
                         "itemId": "home",
                     },
                     proof_kind="end-to-end-test",
@@ -180,11 +183,11 @@ class WebappCrossCapabilityEvidenceBoundaryTests(unittest.TestCase):
             mutated = deepcopy(evidence)
             mutated["records"].append(
                 self.record(
-                    "routes-route-missing",
+                    "application-routes-application-route-missing",
                     {
                         "kind": "contract-item",
-                        "contractId": "routes",
-                        "itemKind": "route",
+                        "contractId": "application_routes",
+                        "itemKind": "application-route",
                         "itemId": "missing",
                     },
                     proof_kind="end-to-end-test",

@@ -12,17 +12,18 @@ walkthrough の最初の milestone は **valid な Composition scaffold** であ
 
 ## Webapp recipe が定義するもの
 
-`artifact.webapp-core` は browser-specific な semantics を所有します。対象は browser identity / favicon declaration、surface、canonical route、visible UI state、responsive viewport / input capability、およびそれらの cross-contract validation です。generic な contract evolution と implementation evidence は、再利用可能な `lifecycle.*` component を通じて Webapp baseline に含まれます。release execution、release evidence、release bundle の behavior は、consumer が `lifecycle.release-bundle` を明示的に選択した場合だけ追加されます。
+`foundation.web` は browser identity / favicon declaration、一般化された canonical route、responsive viewport / input expectation という必須の shared browser baseline を所有します。`artifact.webapp-core` は application-specific な semantics、すなわち surface、task/action UI state、および各 shared route に付加される application behavior を所有します。generic な contract evolution と implementation evidence は、再利用可能な `lifecycle.*` component を通じて Webapp baseline に含まれます。release execution、release evidence、release bundle の behavior は、consumer が `lifecycle.release-bundle` を明示的に選択した場合だけ追加されます。
 
 この scaffold は、frontend framework、rendering model、package manager、backend、persistence layer、authentication provider、deployment platform、browser matrix、observability vendor を意図的に選択しません。
 
 ## Contracts
 
-- `contracts/browser-identity.json` — 標準的な favicon relationship、primary icon asset、および optional な compatibility fallback。
+- `contracts/browser-identity.json` — `foundation.web` 由来。標準的な favicon relationship、primary icon asset、および optional な compatibility fallback。
 - `contracts/surfaces.json` — browser-facing な surface boundary と audience。
-- `contracts/routes.json` — canonical navigation に加え、access failure の behavior と semantic な state / route target。
+- `contracts/routes.json` — `foundation.web` 由来。canonical navigation と generic な browser navigation / accessibility semantics。
+- `contracts/application-routes.json` — Webapp 固有の route behavior。surface、authentication / access failure、history、state target を宣言します。
 - `contracts/ui-states.json` — 再利用可能な visible state と recovery / focus behavior。
-- `contracts/viewports.json` — responsive lower bound と input capability。
+- `contracts/viewports.json` — `foundation.web` 由来。responsive lower bound と input capability。
 - `contracts/implementation-evidence.json` — Webapp contract target と implementation / proof evidence を対応づける baseline contract。
 - `contracts/manifest.json` — 解決済み component metadata から生成される閉じた registry。この Composition registry は Web App Manifest ではありません。
 - release execution / evidence / bundle contract は `lifecycle.release-bundle` を選択した場合だけ materialize されます。

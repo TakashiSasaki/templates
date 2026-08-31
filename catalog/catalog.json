@@ -10,6 +10,7 @@
     "capability.runtime",
     "capability.service",
     "capability.web-interface",
+    "foundation.web",
     "lifecycle.composition-state",
     "lifecycle.contract-evolution",
     "lifecycle.implementation-evidence",
@@ -18,5 +19,8 @@
     "lifecycle.release-evidence",
     "lifecycle.release-execution"
   ],
-  "recipes": ["skill", "webapp"]
+  "recipes": [
+    "skill",
+    "webapp"
+  ]
 }

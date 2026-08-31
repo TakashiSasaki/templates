@@ -61,10 +61,12 @@ class TaskLedgerWalkthroughBrowserAcceptanceTests(unittest.TestCase):
         return target
 
     def specialize_browser_contracts(self, target: Path) -> None:
-        routes_path = target / "contracts" / "routes.json"
-        routes = json.loads(routes_path.read_text(encoding="utf-8"))
-        routes["routes"][0]["states"] = ["ready", "empty", "error"]
-        self.write_json(routes_path, routes)
+        application_routes_path = target / "contracts" / "application-routes.json"
+        application_routes = json.loads(
+            application_routes_path.read_text(encoding="utf-8")
+        )
+        application_routes["routes"][0]["states"] = ["ready", "empty", "error"]
+        self.write_json(application_routes_path, application_routes)
 
         states_path = target / "contracts" / "ui-states.json"
         states = json.loads(states_path.read_text(encoding="utf-8"))

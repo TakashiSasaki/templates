@@ -24,17 +24,43 @@ class PwaContractTests(unittest.TestCase):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
 
-    def webapp_contracts(self) -> tuple[dict, dict, dict]:
+    def shared_route(self, route_id: str, path: str) -> dict:
+        return {
+            "id": route_id,
+            "path": path,
+            "canonical": True,
+            "aliases": [],
+            "deepLink": True,
+            "accessibility": {
+                "documentTitleRequired": True,
+                "focusTarget": "main-heading",
+            },
+        }
+
+    def application_route(self, route_id: str, surface: str = "primary") -> dict:
+        return {
+            "routeId": route_id,
+            "surface": surface,
+            "authentication": "none",
+            "historyBehavior": "replace",
+            "authenticationReturn": "not-applicable",
+            "accessFailures": {
+                "unauthenticated": {"behavior": "not-applicable"},
+                "forbidden": {"behavior": "not-applicable"},
+            },
+            "states": ["ready"],
+        }
+
+    def webapp_contracts(self) -> tuple[dict, dict, dict, dict]:
         routes = {
-            "routes": [
-                {
-                    "id": "home",
-                    "path": "/",
-                    "surface": "primary",
-                    "canonical": True,
-                    "deepLink": True,
-                }
-            ]
+            "$schema": "../schemas/routes.schema.json",
+            "schemaVersion": 4,
+            "routes": [self.shared_route("home", "/")],
+        }
+        application_routes = {
+            "$schema": "../schemas/application-routes.schema.json",
+            "schemaVersion": 1,
+            "routes": [self.application_route("home")],
         }
         surfaces = {
             "surfaces": [
@@ -54,9 +80,10 @@ class PwaContractTests(unittest.TestCase):
                 {"id": "update-available", "scope": "global", "category": "content"},
                 {"id": "update-applying", "scope": "global", "category": "progress"},
                 {"id": "update-failed", "scope": "global", "category": "error"},
+                {"id": "ready", "scope": "route", "category": "content"},
             ]
         }
-        return routes, surfaces, states
+        return routes, application_routes, surfaces, states
 
     def product_contracts(self) -> tuple[dict, dict, dict]:
         manifest = {
@@ -163,20 +190,24 @@ class PwaContractTests(unittest.TestCase):
         *,
         evidence_mode: str = "product",
         routes: dict | None = None,
+        application_routes: dict | None = None,
         surfaces: dict | None = None,
         states: dict | None = None,
     ) -> subprocess.CompletedProcess[str]:
         temp = tempfile.TemporaryDirectory()
         self.addCleanup(temp.cleanup)
         root = Path(temp.name)
-        default_routes, default_surfaces, default_states = self.webapp_contracts()
+        default_routes, default_application_routes, default_surfaces, default_states = self.webapp_contracts()
         documents = {
             "contracts/pwa-manifest.json": manifest,
             "contracts/pwa-offline.json": offline,
             "contracts/pwa-update.json": update,
-            "contracts/routes.json": routes or default_routes,
-            "contracts/surfaces.json": surfaces or default_surfaces,
-            "contracts/ui-states.json": states or default_states,
+            "contracts/routes.json": default_routes if routes is None else routes,
+            "contracts/application-routes.json": (
+                default_application_routes if application_routes is None else application_routes
+            ),
+            "contracts/surfaces.json": default_surfaces if surfaces is None else surfaces,
+            "contracts/ui-states.json": default_states if states is None else states,
             "contracts/implementation-evidence.json": {"mode": evidence_mode},
         }
         for relative, value in documents.items():
@@ -239,6 +270,52 @@ class PwaContractTests(unittest.TestCase):
         self.assertIn("offline freshness", result.stdout)
         self.assertIn("platform compatibility", result.stdout)
 
+    def test_split_application_routes_fail_closed_on_bad_bindings(self) -> None:
+        manifest, offline, update = self.product_contracts()
+        routes, application_routes, surfaces, states = self.webapp_contracts()
+
+        missing = copy.deepcopy(application_routes)
+        missing["routes"] = []
+        result = self.run_validator(
+            manifest,
+            offline,
+            update,
+            routes=routes,
+            application_routes=missing,
+            surfaces=surfaces,
+            states=states,
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("shared route has no application behavior", result.stderr)
+
+        unknown = copy.deepcopy(application_routes)
+        unknown["routes"][0]["routeId"] = "unknown"
+        result = self.run_validator(
+            manifest,
+            offline,
+            update,
+            routes=routes,
+            application_routes=unknown,
+            surfaces=surfaces,
+            states=states,
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("application route behavior references unknown route", result.stderr)
+
+        duplicate = copy.deepcopy(application_routes)
+        duplicate["routes"].append(copy.deepcopy(duplicate["routes"][0]))
+        result = self.run_validator(
+            manifest,
+            offline,
+            update,
+            routes=routes,
+            application_routes=duplicate,
+            surfaces=surfaces,
+            states=states,
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("application route behavior is duplicated", result.stderr)
+
     def test_planning_mode_uses_the_same_semantic_contract_with_planning_evidence(self) -> None:
         manifest, offline, update = self.product_contracts()
         for document in (manifest, offline, update):
@@ -281,12 +358,13 @@ class PwaContractTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("outside manifest scope", result.stderr)
 
-        routes, surfaces, states = self.webapp_contracts()
+        routes, application_routes, surfaces, states = self.webapp_contracts()
         routes["routes"][0]["canonical"] = False
         routes["routes"][0]["deepLink"] = False
         result = self.run_validator(
             *self.product_contracts(),
             routes=routes,
+            application_routes=application_routes,
             surfaces=surfaces,
             states=states,
         )
@@ -298,11 +376,12 @@ class PwaContractTests(unittest.TestCase):
         manifest, offline, update = self.product_contracts()
         manifest["scope"] = "/app/"
         offline["serviceWorkerScope"] = "/app/"
-        routes, surfaces, states = self.webapp_contracts()
+        routes, application_routes, surfaces, states = self.webapp_contracts()
         routes["routes"] = [
-            {"id": "home", "path": "/app", "surface": "primary", "canonical": True, "deepLink": True},
-            {"id": "dashboard", "path": "/app/dashboard", "surface": "primary", "canonical": True, "deepLink": True},
+            self.shared_route("home", "/app"),
+            self.shared_route("dashboard", "/app/dashboard"),
         ]
+        application_routes["routes"].append(self.application_route("dashboard"))
         offline["controlledRouteIds"] = ["home", "dashboard"]
         offline["navigationFallbackRouteId"] = "home"
         result = self.run_validator(
@@ -310,6 +389,7 @@ class PwaContractTests(unittest.TestCase):
             offline,
             update,
             routes=routes,
+            application_routes=application_routes,
             surfaces=surfaces,
             states=states,
         )
@@ -340,16 +420,16 @@ class PwaContractTests(unittest.TestCase):
         self.assertIn("references unknown route 'unknown'", result.stderr)
 
         manifest, offline, update = self.product_contracts()
-        routes, surfaces, states = self.webapp_contracts()
-        routes["routes"].append(
-            {"id": "uncontrolled", "path": "/other", "surface": "primary", "canonical": True, "deepLink": True}
-        )
+        routes, application_routes, surfaces, states = self.webapp_contracts()
+        routes["routes"].append(self.shared_route("uncontrolled", "/other"))
+        application_routes["routes"].append(self.application_route("uncontrolled"))
         offline["navigationFallbackRouteId"] = "uncontrolled"
         result = self.run_validator(
             manifest,
             offline,
             update,
             routes=routes,
+            application_routes=application_routes,
             surfaces=surfaces,
             states=states,
         )
@@ -365,7 +445,7 @@ class PwaContractTests(unittest.TestCase):
 
     def test_connectivity_freshness_and_revalidation_states_are_global_and_distinct(self) -> None:
         manifest, offline, update = self.product_contracts()
-        _routes, surfaces, states = self.webapp_contracts()
+        _routes, _application_routes, surfaces, states = self.webapp_contracts()
         states["states"][0]["scope"] = "route"
         states["states"][2]["category"] = "content"
         offline["freshnessUnknownStateId"] = offline["networkUnavailableStateId"]
@@ -428,7 +508,7 @@ class PwaContractTests(unittest.TestCase):
 
     def test_update_states_have_global_semantic_category_floors(self) -> None:
         manifest, offline, update = self.product_contracts()
-        _routes, surfaces, states = self.webapp_contracts()
+        _routes, _application_routes, surfaces, states = self.webapp_contracts()
         states["states"][6]["scope"] = "route"
         states["states"][6]["category"] = "content"
         result = self.run_validator(

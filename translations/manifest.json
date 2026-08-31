@@ -33,7 +33,7 @@
       "canonical": "components/artifact.webapp-core/files/README.md",
       "language": "ja",
       "translation": "translations/ja/components/artifact.webapp-core/files/README.md",
-      "canonical_blob_sha": "faab370fafb1c9bf0b655ca05efcb5f20bc3b6b5",
+      "canonical_blob_sha": "2eb43c39cd503013454a41c2ca90694d8481fa3b",
       "surfaces": [
         "reader"
       ]
@@ -96,7 +96,7 @@
       "canonical": "docs/guides/composition-concepts.md",
       "language": "ja",
       "translation": "translations/ja/docs/guides/composition-concepts.md",
-      "canonical_blob_sha": "4b994a062e41c3282d41b33e6032c0c3d1295159",
+      "canonical_blob_sha": "6e3d979c273ee83c1e5148fe1c5ac10d4ea55c80",
       "surfaces": [
         "reader"
       ]
@@ -114,7 +114,7 @@
       "canonical": "docs/guides/webapp-product-walkthrough.md",
       "language": "ja",
       "translation": "translations/ja/docs/guides/webapp-product-walkthrough.md",
-      "canonical_blob_sha": "86707b51914fa2974837e5841223f865906aee73",
+      "canonical_blob_sha": "f2de35a0ec0a7bc21b6b8ce6f01b615757019352",
       "surfaces": [
         "reader"
       ]

@@ -2,19 +2,20 @@
   "schema_version": 1,
   "id": "artifact.webapp-core",
   "component_role": "artifact",
-  "version": 18,
-  "summary": "Framework-neutral browser application identity, surfaces, routes, visible states, viewports, and Web-specific validation.",
+  "version": 19,
+  "summary": "Framework-neutral Web application identity with application surfaces, UI states, application route behavior, and Web-specific validation.",
   "requires": [
+    "foundation.web",
     "lifecycle.composition-state",
     "lifecycle.implementation-evidence"
   ],
   "conflicts": [],
   "contract_registrations": [
     {
-      "id": "browser_identity",
-      "document": "contracts/browser-identity.json",
-      "schema": "schemas/browser-identity.schema.json",
-      "migration_slug": "browser-identity",
+      "id": "application_routes",
+      "document": "contracts/application-routes.json",
+      "schema": "schemas/application-routes.schema.json",
+      "migration_slug": "application-routes",
       "document_schema_version": 1,
       "version_history": [
         {
@@ -22,31 +23,7 @@
           "change_type": "initial"
         }
       ],
-      "purpose": "Declare the product favicon relationship, primary asset, and compatibility fallback assets without selecting a rendering framework or PWA packaging model."
-    },
-    {
-      "id": "routes",
-      "document": "contracts/routes.json",
-      "schema": "schemas/routes.schema.json",
-      "migration_slug": "routes",
-      "document_schema_version": 3,
-      "version_history": [
-        {
-          "version": 1,
-          "change_type": "initial"
-        },
-        {
-          "version": 2,
-          "change_type": "breaking",
-          "migration": "docs/migrations/routes-v1-to-v2.md"
-        },
-        {
-          "version": 3,
-          "change_type": "breaking",
-          "migration": "docs/migrations/routes-v2-to-v3.md"
-        }
-      ],
-      "purpose": "Declare canonical routes, aliases, explicit access-failure targets, authentication return behavior, deep-link expectations, route states, and accessibility requirements."
+      "purpose": "Declare Web application-specific route-to-surface bindings, authentication/access-failure behavior, history behavior, and UI-state applicability for shared Web routes."
     },
     {
       "id": "surfaces",
@@ -85,20 +62,6 @@
         }
       ],
       "purpose": "Define reusable user-visible states, ownership scope, recovery actions, announcements, and focus strategies."
-    },
-    {
-      "id": "viewports",
-      "document": "contracts/viewports.json",
-      "schema": "schemas/viewports.schema.json",
-      "migration_slug": "viewports",
-      "document_schema_version": 1,
-      "version_history": [
-        {
-          "version": 1,
-          "change_type": "initial"
-        }
-      ],
-      "purpose": "Declare responsive viewport lower bounds, input capabilities, zoom support, scrolling policy, and orientation independence."
     }
   ],
   "materials": [
@@ -123,14 +86,14 @@
       "ownership": "seed"
     },
     {
-      "source": "files/contracts/browser-identity.json",
-      "destination": "contracts/browser-identity.json",
+      "source": "files/contracts/application-routes.json",
+      "destination": "contracts/application-routes.json",
       "ownership": "seed"
     },
     {
-      "source": "files/contracts/routes.json",
-      "destination": "contracts/routes.json",
-      "ownership": "seed"
+      "source": "files/schemas/application-routes.schema.json",
+      "destination": "schemas/application-routes.schema.json",
+      "ownership": "managed"
     },
     {
       "source": "files/contracts/surfaces.json",
@@ -143,21 +106,6 @@
       "ownership": "seed"
     },
     {
-      "source": "files/contracts/viewports.json",
-      "destination": "contracts/viewports.json",
-      "ownership": "seed"
-    },
-    {
-      "source": "files/schemas/browser-identity.schema.json",
-      "destination": "schemas/browser-identity.schema.json",
-      "ownership": "managed"
-    },
-    {
-      "source": "files/schemas/routes.schema.json",
-      "destination": "schemas/routes.schema.json",
-      "ownership": "managed"
-    },
-    {
       "source": "files/schemas/surfaces.schema.json",
       "destination": "schemas/surfaces.schema.json",
       "ownership": "managed"
@@ -165,21 +113,6 @@
     {
       "source": "files/schemas/ui-states.schema.json",
       "destination": "schemas/ui-states.schema.json",
-      "ownership": "managed"
-    },
-    {
-      "source": "files/schemas/viewports.schema.json",
-      "destination": "schemas/viewports.schema.json",
-      "ownership": "managed"
-    },
-    {
-      "source": "files/docs/migrations/routes-v1-to-v2.md",
-      "destination": "docs/migrations/routes-v1-to-v2.md",
-      "ownership": "managed"
-    },
-    {
-      "source": "files/docs/migrations/routes-v2-to-v3.md",
-      "destination": "docs/migrations/routes-v2-to-v3.md",
       "ownership": "managed"
     },
     {

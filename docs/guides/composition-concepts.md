@@ -86,14 +86,18 @@ A minimal static browser application can start with the `webapp` recipe and no o
 }
 ```
 
-The recipe selects `artifact.webapp-core` plus its baseline lifecycle dependencies. The Webapp artifact component supplies browser-specific contract families such as routes, surfaces, UI states, and viewports. After materialization, the consumer repository receives editable seed contract documents such as:
+The recipe selects `artifact.webapp-core` plus its baseline lifecycle dependencies. The artifact requires `foundation.web`, so the Composer also resolves that shared mandatory baseline transitively. `foundation.web` supplies browser identity, generalized routes, and viewport/input contracts; `artifact.webapp-core` supplies application surfaces, application-route behavior, and UI states. After materialization, the consumer repository receives editable seed contract documents such as:
 
 ```text
+contracts/browser-identity.json
 contracts/routes.json
+contracts/viewports.json
+contracts/application-routes.json
 contracts/surfaces.json
 contracts/ui-states.json
-contracts/viewports.json
 ```
+
+The shared `routes.json` records product-neutral path, canonical/deep-link, and accessibility semantics. Webapp-specific surface, authentication/access-failure, history, and state behavior belongs in `application-routes.json`; do not put those fields back into the shared route document.
 
 Those files describe the product you are building; they are not a complete implementation. Product code, framework choice, storage, tests, and other consumer-owned files are implemented separately.
 

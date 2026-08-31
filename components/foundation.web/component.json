@@ -1,0 +1,115 @@
+{
+  "schema_version": 1,
+  "id": "foundation.web",
+  "component_role": "foundation",
+  "version": 1,
+  "summary": "Mandatory shared Web baseline: browser identity, generalized routes, viewports, and product-neutral browser navigation semantics.",
+  "requires": [],
+  "conflicts": [],
+  "contract_registrations": [
+    {
+      "id": "browser_identity",
+      "document": "contracts/browser-identity.json",
+      "schema": "schemas/browser-identity.schema.json",
+      "migration_slug": "browser-identity",
+      "document_schema_version": 1,
+      "version_history": [
+        {
+          "version": 1,
+          "change_type": "initial"
+        }
+      ],
+      "purpose": "Declare browser identity and favicon relationships shared by Web products without selecting a rendering framework or product artifact."
+    },
+    {
+      "id": "routes",
+      "document": "contracts/routes.json",
+      "schema": "schemas/routes.schema.json",
+      "migration_slug": "routes",
+      "document_schema_version": 4,
+      "version_history": [
+        {
+          "version": 1,
+          "change_type": "initial"
+        },
+        {
+          "version": 2,
+          "change_type": "breaking",
+          "migration": "docs/migrations/routes-v1-to-v2.md"
+        },
+        {
+          "version": 3,
+          "change_type": "breaking",
+          "migration": "docs/migrations/routes-v2-to-v3.md"
+        },
+        {
+          "version": 4,
+          "change_type": "breaking",
+          "migration": "docs/migrations/routes-v3-to-v4.md"
+        }
+      ],
+      "purpose": "Declare canonical Web paths, aliases, deep-link expectations, and generic browser navigation/accessibility semantics without application state or authorization behavior."
+    },
+    {
+      "id": "viewports",
+      "document": "contracts/viewports.json",
+      "schema": "schemas/viewports.schema.json",
+      "migration_slug": "viewports",
+      "document_schema_version": 1,
+      "version_history": [
+        {
+          "version": 1,
+          "change_type": "initial"
+        }
+      ],
+      "purpose": "Declare shared browser viewport and input-accessibility expectations for Web products."
+    }
+  ],
+  "materials": [
+    {
+      "source": "files/contracts/browser-identity.json",
+      "destination": "contracts/browser-identity.json",
+      "ownership": "seed"
+    },
+    {
+      "source": "files/contracts/routes.json",
+      "destination": "contracts/routes.json",
+      "ownership": "seed"
+    },
+    {
+      "source": "files/contracts/viewports.json",
+      "destination": "contracts/viewports.json",
+      "ownership": "seed"
+    },
+    {
+      "source": "files/docs/migrations/routes-v1-to-v2.md",
+      "destination": "docs/migrations/routes-v1-to-v2.md",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/docs/migrations/routes-v2-to-v3.md",
+      "destination": "docs/migrations/routes-v2-to-v3.md",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/schemas/browser-identity.schema.json",
+      "destination": "schemas/browser-identity.schema.json",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/schemas/routes.schema.json",
+      "destination": "schemas/routes.schema.json",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/schemas/viewports.schema.json",
+      "destination": "schemas/viewports.schema.json",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/docs/migrations/routes-v3-to-v4.md",
+      "destination": "docs/migrations/routes-v3-to-v4.md",
+      "ownership": "managed"
+    }
+  ]
+}

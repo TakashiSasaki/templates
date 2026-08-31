@@ -19,16 +19,8 @@ import test_webapp_productization_acceptance as product_helpers
 
 ROOT = Path(__file__).resolve().parents[1]
 REDIRECT_FIXTURE = ROOT / "tests" / "fixtures" / "webapp_auth" / "redirect_app.py"
-WEBAPP_COMPONENT = ROOT / "components" / "artifact.webapp-core" / "component.json"
-MIGRATION = (
-    ROOT
-    / "components"
-    / "artifact.webapp-core"
-    / "files"
-    / "docs"
-    / "migrations"
-    / "routes-v2-to-v3.md"
-)
+FOUNDATION_COMPONENT = ROOT / "components" / "foundation.web" / "component.json"
+MIGRATION = ROOT / "components" / "foundation.web" / "files" / "docs" / "migrations" / "routes-v3-to-v4.md"
 
 
 class RoutesV3AccessFailureTests(unittest.TestCase):
@@ -46,7 +38,7 @@ class RoutesV3AccessFailureTests(unittest.TestCase):
             raise
         cls._baseline_contracts = {
             name: helper.load_json(cls.target / "contracts" / name)
-            for name in ("routes.json", "surfaces.json", "ui-states.json")
+            for name in ("routes.json", "application-routes.json", "surfaces.json", "ui-states.json")
         }
 
     @classmethod
@@ -76,6 +68,66 @@ class RoutesV3AccessFailureTests(unittest.TestCase):
 
     def load_json(self, path: Path) -> dict:
         return json.loads(path.read_text(encoding="utf-8"))
+
+    def write_route_documents(self, target: Path, routes: dict) -> None:
+        behavior_fields = {
+            "surface",
+            "authentication",
+            "historyBehavior",
+            "authenticationReturn",
+            "accessFailures",
+            "states",
+        }
+        shared_excluded_fields = behavior_fields | {"routeId"}
+        shared_routes = []
+        application_routes = []
+        for route in routes["routes"]:
+            shared_routes.append(
+                {
+                    key: value
+                    for key, value in route.items()
+                    if key not in shared_excluded_fields
+                }
+            )
+            application_routes.append(
+                {
+                    "routeId": route["id"],
+                    **{key: route[key] for key in behavior_fields},
+                }
+            )
+        self.write_json(
+            target / "contracts/routes.json",
+            {
+                "$schema": "../schemas/routes.schema.json",
+                "schemaVersion": 4,
+                "routes": shared_routes,
+            },
+        )
+        self.write_json(
+            target / "contracts/application-routes.json",
+            {
+                "$schema": "../schemas/application-routes.schema.json",
+                "schemaVersion": 1,
+                "routes": application_routes,
+            },
+        )
+
+    def load_routes_with_behavior(self, target: Path) -> dict:
+        routes = self.load_json(target / "contracts/routes.json")
+        application = self.load_json(target / "contracts/application-routes.json")
+        behavior_by_id = {item["routeId"]: item for item in application["routes"]}
+        return {
+            "$schema": routes["$schema"],
+            "schemaVersion": routes["schemaVersion"],
+            "routes": [
+                {
+                    **route,
+                    **behavior_by_id[route["id"]],
+                    "id": route["id"],
+                }
+                for route in routes["routes"]
+            ],
+        }
 
     def configure_access_fixture(self, target: Path) -> None:
         self.write_json(
@@ -228,6 +280,7 @@ class RoutesV3AccessFailureTests(unittest.TestCase):
                 ],
             },
         )
+        self.write_route_documents(target, self.load_json(target / "contracts/routes.json"))
 
     def materialize_target(self, root: Path) -> Path:
         helper = self.helper()
@@ -267,11 +320,11 @@ class RoutesV3AccessFailureTests(unittest.TestCase):
         routes_path = self.target / "contracts/routes.json"
         surfaces_path = self.target / "contracts/surfaces.json"
         states_path = self.target / "contracts/ui-states.json"
-        routes = self.load_json(routes_path)
+        routes = self.load_routes_with_behavior(self.target)
         surfaces = self.load_json(surfaces_path)
         states = self.load_json(states_path)
         mutate(routes, surfaces, states)
-        self.write_json(routes_path, routes)
+        self.write_route_documents(self.target, routes)
         self.write_json(surfaces_path, surfaces)
         self.write_json(states_path, states)
         result = self.validate_contracts(self.target)
@@ -312,8 +365,8 @@ class RoutesV3AccessFailureTests(unittest.TestCase):
             connection.close()
 
     def test_explicit_access_fixture_binds_render_state_targets(self) -> None:
-        routes = self.load_json(self.target / "contracts/routes.json")
-        self.assertEqual(routes["schemaVersion"], 3)
+        routes = self.load_routes_with_behavior(self.target)
+        self.assertEqual(routes["schemaVersion"], 4)
         application = self.route(routes, "application-home")
         self.assertEqual(
             application["accessFailures"],
@@ -335,7 +388,7 @@ class RoutesV3AccessFailureTests(unittest.TestCase):
         surfaces_path = self.target / "contracts/surfaces.json"
         routes_path = self.target / "contracts/routes.json"
         surfaces = self.load_json(surfaces_path)
-        routes = self.load_json(routes_path)
+        routes = self.load_routes_with_behavior(self.target)
 
         surfaces["surfaces"].append(
             {
@@ -379,7 +432,7 @@ class RoutesV3AccessFailureTests(unittest.TestCase):
             }
         )
         self.write_json(surfaces_path, surfaces)
-        self.write_json(routes_path, routes)
+        self.write_route_documents(self.target, routes)
 
         valid = self.validate_contracts(self.target)
         self.assertEqual(valid.returncode, 0, valid.stdout + valid.stderr)
@@ -411,7 +464,7 @@ class RoutesV3AccessFailureTests(unittest.TestCase):
             self.assertFalse(thread.is_alive())
 
         application["accessFailures"]["unauthenticated"]["returnTo"] = "same-route"
-        self.write_json(routes_path, routes)
+        self.write_route_documents(self.target, routes)
         invalid = self.validate_contracts(self.target)
         self.assertNotEqual(invalid.returncode, 0, invalid.stdout + invalid.stderr)
 
@@ -526,13 +579,13 @@ class RoutesV3AccessFailureTests(unittest.TestCase):
         )
 
     def test_current_component_preserves_routes_v3_history_and_migration(self) -> None:
-        component = self.load_json(WEBAPP_COMPONENT)
+        component = self.load_json(FOUNDATION_COMPONENT)
         registration = next(
             item
             for item in component["contract_registrations"]
             if item["id"] == "routes"
         )
-        self.assertEqual(registration["document_schema_version"], 3)
+        self.assertEqual(registration["document_schema_version"], 4)
         self.assertEqual(
             registration["version_history"],
             [
@@ -547,6 +600,11 @@ class RoutesV3AccessFailureTests(unittest.TestCase):
                     "change_type": "breaking",
                     "migration": "docs/migrations/routes-v2-to-v3.md",
                 },
+                {
+                    "version": 4,
+                    "change_type": "breaking",
+                    "migration": "docs/migrations/routes-v3-to-v4.md",
+                },
             ],
         )
         material_pairs = {
@@ -555,32 +613,32 @@ class RoutesV3AccessFailureTests(unittest.TestCase):
         }
         self.assertIn(
             (
-                "files/docs/migrations/routes-v2-to-v3.md",
-                "docs/migrations/routes-v2-to-v3.md",
+                "files/docs/migrations/routes-v3-to-v4.md",
+                "docs/migrations/routes-v3-to-v4.md",
             ),
             material_pairs,
         )
         self.assertIn(
             (
-                "files/scripts/validate_contracts_impl.py",
-                "scripts/validate_contracts_impl.py",
+                "files/schemas/routes.schema.json",
+                "schemas/routes.schema.json",
             ),
             material_pairs,
         )
         migration = MIGRATION.read_text(encoding="utf-8")
         self.assertIn(
-            "Routes schema v3 makes every access-failure destination explicit", migration
+            "Routes v4 is owned by `foundation.web`", migration
         )
-        self.assertIn("does not prescribe a query parameter name", migration)
+        self.assertIn("application-routes.json", migration)
 
     def test_composer_materializes_routes_v3_and_v3_validator(self) -> None:
-        routes = self.load_json(self.target / "contracts/routes.json")
-        self.assertEqual(routes["schemaVersion"], 3)
+        routes = self.load_routes_with_behavior(self.target)
+        self.assertEqual(routes["schemaVersion"], 4)
         validator_source = (
             self.target / "scripts/validate_contracts_impl.py"
         ).read_text(encoding="utf-8")
         self.assertIn("unknown redirect route", validator_source)
-        self.assertTrue((self.target / "docs/migrations/routes-v2-to-v3.md").is_file())
+        self.assertTrue((self.target / "docs/migrations/routes-v3-to-v4.md").is_file())
         valid = self.validate_contracts(self.target)
         self.assertEqual(valid.returncode, 0, valid.stdout + valid.stderr)
 

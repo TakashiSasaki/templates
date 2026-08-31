@@ -121,7 +121,7 @@
         "properties": {
           "id": {
             "type": "string",
-            "pattern": "^(artifact|capability|lifecycle)\\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+            "pattern": "^(foundation|artifact|capability|lifecycle)\\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
           },
           "version": {
             "type": "integer",
@@ -154,7 +154,7 @@
           },
           "component": {
             "type": "string",
-            "pattern": "^(artifact|capability|lifecycle)\\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+            "pattern": "^(foundation|artifact|capability|lifecycle)\\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
           },
           "ownership": {
             "enum": [

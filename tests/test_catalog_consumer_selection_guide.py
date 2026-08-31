@@ -153,6 +153,7 @@ class CatalogConsumerSelectionGuideTests(unittest.TestCase):
             minimal_webapp,
             {
                 "artifact.webapp-core",
+                "foundation.web",
                 "lifecycle.composition-state",
                 *WEBAPP_BASELINE_LIFECYCLE,
             },
@@ -191,6 +192,7 @@ class CatalogConsumerSelectionGuideTests(unittest.TestCase):
             release_webapp,
             {
                 "artifact.webapp-core",
+                "foundation.web",
                 "lifecycle.composition-state",
                 *RELEASE_LIFECYCLE_CLOSURE,
             },

@@ -18,8 +18,9 @@ POLICY_CONFIG_RELATIVE = ".agent-policy.yml"
 POLICY_LOCK_RELATIVE = ".agent-policy.lock"
 POLICY_STATE_PREFIX = ".agent-policy"
 CANONICAL_REPOSITORY = "TakashiSasaki/templates"
-COMPONENT_RE = re.compile(r"^(artifact|capability|lifecycle)\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$")
+COMPONENT_RE = re.compile(r"^(foundation|artifact|capability|lifecycle)\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$")
 SELECTABLE_COMPONENT_RE = re.compile(r"^(capability|lifecycle)\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$")
+PARAMETER_COMPONENT_RE = re.compile(r"^(artifact|capability|lifecycle)\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$")
 RECIPE_RE = re.compile(r"^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 REVISION_RE = re.compile(r"^(?!0{40}$)[0-9a-f]{40}$")
@@ -148,7 +149,7 @@ def _validate_intent(intent: Any) -> list[str]:
         errors.append("composition lock intent parameters must be an object")
     else:
         for key, value in parameters.items():
-            if not COMPONENT_RE.fullmatch(key) or not isinstance(value, dict):
+            if not PARAMETER_COMPONENT_RE.fullmatch(key) or not isinstance(value, dict):
                 errors.append(f"composition lock intent parameter namespace is invalid: {key!r}")
     return errors
 

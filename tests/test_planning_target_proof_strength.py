@@ -38,7 +38,7 @@ class PlanningTargetProofStrengthTests(unittest.TestCase):
             ),
             (
                 "REQ-PLAN-WEBAPP-ROUTE",
-                self.target("routes", "route", "home"),
+                self.target("application_routes", "application-route", "home"),
                 "end-to-end-test",
             ),
             (
@@ -349,7 +349,7 @@ class PlanningTargetProofStrengthTests(unittest.TestCase):
             projected = {item["id"]: item for item in worklist["requirements"]}
             self.assertEqual(
                 projected["REQ-PLAN-WEBAPP-ROUTE"]["targets"],
-                [self.target("routes", "route", "home")],
+                [self.target("application_routes", "application-route", "home")],
             )
             self.assertEqual(
                 projected["REQ-PLAN-CLI"]["targets"],

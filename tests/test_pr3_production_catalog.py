@@ -274,6 +274,7 @@ class PR3ProductionCatalogTests(unittest.TestCase):
             closure,
             [
                 "artifact.webapp-core",
+                "foundation.web",
                 "lifecycle.composition-state",
                 "lifecycle.contract-evolution",
                 "lifecycle.implementation-evidence",
@@ -415,6 +416,7 @@ class PR3ProductionCatalogTests(unittest.TestCase):
         self.assertEqual(
             set(entries),
             {
+                "application_routes",
                 "browser_identity",
                 "implementation_evidence",
                 "lifecycle_checkpoints",
@@ -424,11 +426,12 @@ class PR3ProductionCatalogTests(unittest.TestCase):
                 "viewports",
             },
         )
-        self.assertEqual(entries["routes"]["documentSchemaVersion"], 3)
+        self.assertEqual(entries["application_routes"]["documentSchemaVersion"], 1)
+        self.assertEqual(entries["routes"]["documentSchemaVersion"], 4)
         self.assertEqual(entries["ui_states"]["documentSchemaVersion"], 2)
         self.assertEqual(
             [entry["version"] for entry in entries["routes"]["versionHistory"]],
-            [1, 2, 3],
+            [1, 2, 3, 4],
         )
         self.assertEqual(
             [entry["version"] for entry in entries["ui_states"]["versionHistory"]],
