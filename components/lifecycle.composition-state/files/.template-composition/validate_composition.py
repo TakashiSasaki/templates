@@ -148,7 +148,7 @@ def _validate_intent(intent: Any) -> list[str]:
         errors.append("composition lock intent parameters must be an object")
     else:
         for key, value in parameters.items():
-            if not COMPONENT_RE.fullmatch(key) or not isinstance(value, dict):
+            if not PARAMETER_COMPONENT_RE.fullmatch(key) or not isinstance(value, dict):
                 errors.append(f"composition lock intent parameter namespace is invalid: {key!r}")
     return errors
 

@@ -76,7 +76,7 @@
         "parameters": {
           "type": "object",
           "propertyNames": {
-            "pattern": "^(foundation|artifact|capability|lifecycle)\\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+            "pattern": "^(artifact|capability|lifecycle)\\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
           },
           "additionalProperties": {
             "type": "object"
