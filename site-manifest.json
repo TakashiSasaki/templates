@@ -226,7 +226,7 @@
                 {"title": "ADR-0003 Application-neutral scope", "publication": "policy", "document": "adr-application-neutral-scope", "destination": "policy/adr/0003-application-neutral-policy-scope.md"},
                 {"title": "ADR-0005 Single policy authority", "publication": "policy", "document": "adr-single-policy-authority", "destination": "policy/adr/0005-single-policy-authority.md"},
                 {"title": "ADR-0006 Copyable artifact policy adoption", "publication": "policy", "document": "adr-copyable-artifact-policy-adoption", "destination": "policy/adr/0006-copyable-artifact-policy-adoption.md"},
-                {"title": "ADR-0007 Single agent-policy skill runtime cache", "publication": "policy", "document": "adr-single-agent-policy-skill-runtime-cache", "destination": "policy/adr/0007-single-agent-policy-runtime-cache.md"}
+                {"title": "ADR-0007 Single agent-policy skill runtime cache", "publication": "policy", "document": "adr-single-agent-policy-skill-runtime-cache", "destination": "policy/adr/0007-single-agent-policy-skill-runtime-cache.md"}
               ]
             },
             {
