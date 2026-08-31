@@ -20,7 +20,7 @@ EXPECTED_SVGS = {
     "landing-architecture.svg",
     "icon-skill.svg",
     "icon-policy.svg",
-    "icon-webapp.svg",
+    "icon-web.svg",
 }
 FORBIDDEN_SVG_ELEMENTS = {
     "animate",
@@ -81,12 +81,15 @@ class LandingPageTests(unittest.TestCase):
         self.assertIn('class="portal-cover"', text)
         self.assertNotIn('href="overview/"', text)
         self.assertIn(
-            'class="portal-cover__button portal-cover__button--primary" href="composition/use/webapp-product-walkthrough/"',
+            'class="portal-cover__button portal-cover__button--primary" href="web/"',
             text,
         )
         self.assertEqual(text.count('class="portal-cover__button '), 2)
         for destination in (
-            "composition/use/webapp-product-walkthrough/",
+            "web/",
+            "website/",
+            "webapp/",
+            "composition/use/skill-first-use-walkthrough/",
             "composition/",
             "capabilities/",
             "lifecycle/",
@@ -104,6 +107,7 @@ class LandingPageTests(unittest.TestCase):
         self.assertIn('class="portal-artifact-grid"', text)
         self.assertIn('class="portal-artifact-card portal-artifact-card--skill"', text)
         self.assertIn('class="portal-artifact-card portal-artifact-card--webapp"', text)
+        self.assertIn("Choose Website or Web application", text)
         self.assertNotIn("portal-artifact-card--policy", text)
         self.assertIn('class="portal-policy-panel"', text)
         self.assertIn("Independent task · Policy", text)
@@ -251,7 +255,8 @@ class LandingPageTests(unittest.TestCase):
         project = parsed["project"]
         self.assertEqual(project["site_name"], "Templates Documentation Portal")
         self.assertEqual(project["site_url"], "https://templates.moukaeritai.work/")
-        self.assertIn("skill, policy, and Web application", project["site_description"])
+        self.assertIn("Website, Web application, Agent Skill", project["site_description"])
+        self.assertIn("coding-agent Policy", project["site_description"])
 
 
 if __name__ == "__main__":
