@@ -1,0 +1,42 @@
+{
+  "$schema": "../schemas/application-routes.schema.json",
+  "schemaVersion": 1,
+  "routes": [
+    {
+      "routeId": "home",
+      "surface": "public",
+      "authentication": "optional",
+      "historyBehavior": "push",
+      "authenticationReturn": "same-route",
+      "accessFailures": {
+        "unauthenticated": {"behavior": "not-applicable"},
+        "forbidden": {"behavior": "not-applicable"}
+      },
+      "states": ["loading", "populated", "recoverable-error", "retrying", "offline"]
+    },
+    {
+      "routeId": "application-home",
+      "surface": "application",
+      "authentication": "required",
+      "historyBehavior": "push",
+      "authenticationReturn": "same-route",
+      "accessFailures": {
+        "unauthenticated": {"behavior": "render-state", "stateId": "unauthorized"},
+        "forbidden": {"behavior": "render-state", "stateId": "forbidden"}
+      },
+      "states": ["loading", "empty", "populated", "partial", "recoverable-error", "retrying", "offline", "unauthorized", "forbidden"]
+    },
+    {
+      "routeId": "status",
+      "surface": "status",
+      "authentication": "optional",
+      "historyBehavior": "replace",
+      "authenticationReturn": "not-applicable",
+      "accessFailures": {
+        "unauthenticated": {"behavior": "not-applicable"},
+        "forbidden": {"behavior": "not-applicable"}
+      },
+      "states": ["loading", "populated", "partial", "recoverable-error", "retrying"]
+    }
+  ]
+}
