@@ -7,14 +7,14 @@ import re
 from pathlib import Path
 from typing import Any
 
-DOMAIN_IDS = {"surfaces", "routes", "ui_states", "viewports"}
+DOMAIN_IDS = {"surfaces", "application_routes", "ui_states", "viewports"}
 OWNED_CONTRACT_IDS = DOMAIN_IDS | {"browser_identity"}
 RECORD_ID = re.compile(r"^[a-z][a-z0-9-]*$")
 BROWSER_LEVEL_PROOF_KINDS = ("accessibility-test", "end-to-end-test")
 BROWSER_SENSITIVE_CONTRACT_ITEMS = frozenset(
     {
         ("browser_identity", "proof-family"),
-        ("routes", "route"),
+        ("application_routes", "application-route"),
         ("viewports", "input-capability"),
         ("viewports", "viewport"),
     }
@@ -72,7 +72,7 @@ def expected_targets(root: Path) -> tuple[dict[str, Any], ...]:
     """Return current product targets that every Webapp product must evidence."""
     root = root.resolve()
     surfaces = load_json(root, "contracts/surfaces.json")
-    routes = load_json(root, "contracts/routes.json")
+    application_routes = load_json(root, "contracts/application-routes.json")
     states = load_json(root, "contracts/ui-states.json")
     viewports = load_json(root, "contracts/viewports.json")
 
@@ -96,11 +96,11 @@ def expected_targets(root: Path) -> tuple[dict[str, Any], ...]:
     expected.extend(
         {
             "kind": "contract-item",
-            "contractId": "routes",
-            "itemKind": "route",
-            "itemId": item["id"],
+            "contractId": "application_routes",
+            "itemKind": "application-route",
+            "itemId": item["routeId"],
         }
-        for item in routes["routes"]
+        for item in application_routes["routes"]
     )
     expected.extend(
         {

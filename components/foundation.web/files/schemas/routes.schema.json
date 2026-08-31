@@ -20,54 +20,6 @@
       "type": "string",
       "minLength": 1,
       "pattern": "[^\\u0000-\\u0020\\u007F-\\u00A0\\u00AD\\u034F\\u061C\\u115F\\u1160\\u1680\\u17B4\\u17B5\\u180B-\\u180F\\u2000-\\u200F\\u2028-\\u202F\\u205F-\\u206F\\u2800\\u3000\\u3164\\uFE00-\\uFE0F\\uFEFF\\uFFA0\\uFFF0-\\uFFFF𓑁𓑂𝅙]"
-    },
-    "accessFailure": {
-      "oneOf": [
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "behavior",
-            "stateId"
-          ],
-          "properties": {
-            "behavior": {
-              "const": "render-state"
-            },
-            "stateId": {
-              "$ref": "#/$defs/identifier"
-            }
-          }
-        },
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "behavior",
-            "routeId"
-          ],
-          "properties": {
-            "behavior": {
-              "const": "redirect"
-            },
-            "routeId": {
-              "$ref": "#/$defs/identifier"
-            }
-          }
-        },
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "behavior"
-          ],
-          "properties": {
-            "behavior": {
-              "const": "not-applicable"
-            }
-          }
-        }
-      ]
     }
   },
   "properties": {

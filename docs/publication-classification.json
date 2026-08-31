@@ -14,14 +14,6 @@
       "reason": "Consumer coding-agent instructions copied into concrete Skill repositories are operational artifact material, not reader-facing Composition publication."
     },
     {
-      "source": "components/foundation.web/files/docs/migrations/routes-v1-to-v2.md",
-      "reason": "Historical migration provenance retained with the shared Web foundation; reader-facing migration explanation is published through provider architecture guidance."
-    },
-    {
-      "source": "components/foundation.web/files/docs/migrations/routes-v2-to-v3.md",
-      "reason": "Historical migration provenance retained with the shared Web foundation; reader-facing migration explanation is published through provider architecture guidance."
-    },
-    {
       "source": "docs/migrations/pr2-skill-capabilities.md",
       "reason": "Stage-specific authority-migration provenance is retained for Composition authority maintenance but is redundant with the consolidated migration history and immutable PR record, so it is not part of the reader-facing publication."
     },

@@ -18,7 +18,7 @@ For each browser-facing surface, identify its audience, authentication and autho
 
 For each canonical route, record its surface owner, aliases, authentication behavior, deep-link/history behavior, access-failure behavior and semantic target, supported UI states, document-title requirement, and focus target. For `render-state`, bind the failure to a declared route-scoped access state. For `redirect`, bind it to the semantic destination route; keep concrete URL/query/cookie/session transport product-owned.
 
-The Webapp application-route contract requires every route behavior to declare a non-blank `accessibility.focusTarget`, so route implementation evidence is browser-sensitive. A route record needs real positive and negative browser-level proof (`end-to-end-test` and/or `accessibility-test`), and every product requirement linked to that route record must declare at least one of those browser-level kinds in `requiredPositiveProofKinds`. Static inspection, HTTP reachability, and process-level integration tests cannot substitute for route-entry focus proof.
+The shared `foundation.web` routes contract requires every route to declare a non-blank `accessibility.focusTarget`, so route implementation evidence is browser-sensitive. A route record needs real positive and negative browser-level proof (`end-to-end-test` and/or `accessibility-test`), and every product requirement linked to that route record must declare at least one of those browser-level kinds in `requiredPositiveProofKinds`. Static inspection, HTTP reachability, and process-level integration tests cannot substitute for route-entry focus proof.
 
 ## Visible states
 

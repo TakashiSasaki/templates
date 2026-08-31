@@ -13,6 +13,7 @@ PWA_MANIFEST = Path("contracts/pwa-manifest.json")
 PWA_OFFLINE = Path("contracts/pwa-offline.json")
 PWA_UPDATE = Path("contracts/pwa-update.json")
 ROUTES = Path("contracts/routes.json")
+APPLICATION_ROUTES = Path("contracts/application-routes.json")
 SURFACES = Path("contracts/surfaces.json")
 UI_STATES = Path("contracts/ui-states.json")
 IMPLEMENTATION_EVIDENCE = Path("contracts/implementation-evidence.json")
@@ -331,10 +332,34 @@ def validate(root: Path) -> list[str]:
     surfaces_document = load_json(root, SURFACES)
     states_document = load_json(root, UI_STATES)
     routes, route_errors = indexed(routes_document.get("routes"), collection="routes")
-    surfaces, surface_errors = indexed(surfaces_document.get("surfaces"), collection="surfaces")
-    states, state_errors = indexed(states_document.get("states"), collection="UI states")
     errors: list[str] = []
     errors.extend(route_errors)
+
+    application_routes_path = root / APPLICATION_ROUTES
+    if application_routes_path.is_file():
+        application_document = load_json(root, APPLICATION_ROUTES)
+        application_by_route_id: dict[str, dict[str, Any]] = {}
+        for behavior in application_document.get("routes", []):
+            route_id = behavior.get("routeId") if isinstance(behavior, dict) else None
+            if not isinstance(route_id, str):
+                errors.append("PWA application route behavior has a non-string routeId")
+                continue
+            if route_id in application_by_route_id:
+                errors.append(f"PWA application route behavior is duplicated: {route_id!r}")
+                continue
+            application_by_route_id[route_id] = behavior
+        for route_id in application_by_route_id:
+            if route_id not in routes:
+                errors.append(f"PWA application route behavior references unknown route {route_id!r}")
+        for route_id, route in list(routes.items()):
+            behavior = application_by_route_id.get(route_id)
+            if behavior is None:
+                errors.append(f"PWA shared route has no application behavior: {route_id!r}")
+                continue
+            routes[route_id] = {**route, **behavior, "id": route_id}
+
+    surfaces, surface_errors = indexed(surfaces_document.get("surfaces"), collection="surfaces")
+    states, state_errors = indexed(states_document.get("states"), collection="UI states")
     errors.extend(surface_errors)
     errors.extend(state_errors)
     errors.extend(validate_manifest(manifest, routes))
