@@ -80,8 +80,6 @@ git init
 
 現在公開されている skill の stable runtime manifest は `website` recipe より古いため、この walkthrough では CI-green immutable Website-capable Composition revision `379073f376ce1de80948abd2e92d5560b573e7e6` を明示的に選択します。この revision には Website recipe と step 14 で説明する optional component set が含まれます。installed runner は immutable full-SHA override を support しています。この walkthrough の **すべて** の runner invocation で同じ revision を使ってください。省略すると consumer lock ではなく、より古い stable runtime-manifest revision に戻ります。
 
-その exact revision に対して read-only doctor を実行します。
-
 ```sh
 python /absolute/path/to/agent-skills/composition/scripts/run.py \
   --repository /absolute/path/to/project-docs \
@@ -113,8 +111,6 @@ Project Docs は content/document-oriented なので `website` を選択しま�
 
 ## 4. Inspect → plan → review → apply
 
-まず inspect します。
-
 ```sh
 python /absolute/path/to/agent-skills/composition/scripts/run.py \
   --repository /absolute/path/to/project-docs \
@@ -124,8 +120,6 @@ python /absolute/path/to/agent-skills/composition/scripts/run.py \
 
 fresh directory では `state: "unmanaged"` が期待値です。
 
-absolute config path で plan します。
-
 ```sh
 python /absolute/path/to/agent-skills/composition/scripts/run.py \
   --repository /absolute/path/to/project-docs \
@@ -133,14 +127,7 @@ python /absolute/path/to/agent-skills/composition/scripts/run.py \
   plan --config /absolute/path/to/project-docs/composition.json
 ```
 
-Initial planning is read-only です。apply 前に resolved closure が次を満たすことを確認します。
-
-- `artifact.website-core`
-- transitive `foundation.web`
-- `lifecycle.lifecycle-checkpoints` を含む Website baseline lifecycle components
-- **含まれない:** `artifact.webapp-core`、`capability.pwa`、`capability.runtime`
-
-全 action を理解し、`conflicts` が空であることを確認してから同じ exact revision で apply します。
+Initial planning は read-only です。apply 前に resolved closure が `artifact.website-core`、transitive `foundation.web`、`lifecycle.lifecycle-checkpoints` を含み、`artifact.webapp-core`、`capability.pwa`、`capability.runtime` を含まないことを確認します。全 action を理解し、`conflicts` が空であることを確認します。
 
 ```sh
 python /absolute/path/to/agent-skills/composition/scripts/run.py \
@@ -206,6 +193,49 @@ canonical path と alias は同じ URL namespace を共有します。同じ pat
 
 Website evidence target は current Website/shared contracts から導出されます。browser identity、Website page、page metadata、viewport、input capability は browser-sensitive target です。planning requirement は `end-to-end-test` や `accessibility-test` のような browser-level positive proof kind を宣言する必要があります。
 
+step 7 の exact two-page Project Docs baseline では、step 9 の前に scaffold evidence file を次の planning payload に置換します。
+
+```json
+{
+  "$schema": "../schemas/implementation-evidence.schema.json",
+  "schemaVersion": 6,
+  "mode": "planning",
+  "commands": [],
+  "releaseGates": [],
+  "records": [],
+  "requirements": [
+    {
+      "id": "WEBSITE-BROWSER",
+      "description": "Project Docs browser-facing Website behavior requires browser-level positive proof.",
+      "targets": [
+        {"kind": "contract-item", "contractId": "browser_identity", "itemKind": "proof-family", "itemId": "browser-identity"},
+        {"kind": "contract-item", "contractId": "document_metadata", "itemKind": "page-metadata", "itemId": "guide"},
+        {"kind": "contract-item", "contractId": "document_metadata", "itemKind": "page-metadata", "itemId": "home"},
+        {"kind": "contract-item", "contractId": "site_structure", "itemKind": "page", "itemId": "guide"},
+        {"kind": "contract-item", "contractId": "site_structure", "itemKind": "page", "itemId": "home"},
+        {"kind": "contract-item", "contractId": "viewports", "itemKind": "input-capability", "itemId": "keyboard"},
+        {"kind": "contract-item", "contractId": "viewports", "itemKind": "viewport", "itemId": "base"}
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": ["accessibility-test", "end-to-end-test"]
+    },
+    {
+      "id": "WEBSITE-DISCOVERY",
+      "description": "Project Docs discovery resources require inspection against the declared public Website contract.",
+      "targets": [
+        {"kind": "contract-item", "contractId": "site_discovery", "itemKind": "proof-family", "itemId": "canonical-origin"},
+        {"kind": "contract-item", "contractId": "site_discovery", "itemKind": "proof-family", "itemId": "robots"},
+        {"kind": "contract-item", "contractId": "site_discovery", "itemKind": "proof-family", "itemId": "sitemap"}
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": ["inspection"]
+    }
+  ]
+}
+```
+
+同じ payload は `examples/onboarding/project-docs/implementation-evidence.planning.json` にあり、implementation-evidence schema と Website validator の derived target inventory に対して regression check されています。page、feed、viewport、input capability を baseline より増やした場合はこの target list をそのまま再利用せず、current contracts から導出される全 target を planning requirements で cover してから validate します。
+
 canonical origin、robots、sitemap、feed など discovery proof family も evidence が必要ですが、すべてが browser-sensitive とは限りません。observable requirement に合う proof strength を使います。
 
 後で別 evidence-producing capability を追加しても、Website validator は Website/shared target だけを所有します。PWA/runtime/service/Web-interface evidence を Website evidence として複製しません。
@@ -254,23 +284,15 @@ generated file、internal link、robots/sitemap consistency、browser-identity a
 - 宣言した favicon/browser identity が実際に到達可能で使用されることを確認
 - keyboard で primary navigation を操作
 - representative viewport で forbidden horizontal scrolling がないことを確認
-- happy path だけでなく unknown path など negative route case を確認
+- happy path screenshot だけでなく negative route/path case を確認
 
-source inspection、HTTP fetch 成功、unit test、contract declaration だけでは browser-backed proof になりません。それらを `end-to-end-test` と再分類してはいけません。environment が required browser proof を実行できなければ proof を deferred にし、release readiness は `NOT READY` のままにします。
+source inspection、HTTP fetch success、unit test、contract declaration だけでは browser-backed proof になりません。それらを `end-to-end-test` と relabel しません。必要な browser proof を実行できない environment では deferred とし、release readiness は `NOT READY` のままにします。
 
-## 12. Product evidence を埋め planning baseline に対して validate する
+## 12. Product evidence を記録して planning に対して validate する
 
-implementation boundary と real proof command が存在してから `contracts/implementation-evidence.json` を `mode: "product"` にします。
+implementation boundary と実 proof command が存在してから `contracts/implementation-evidence.json` を `mode: "product"` にします。
 
-各 required Website target について:
-
-- target ごとに current record を1つ持つ
-- browser-sensitive record を少なくとも1つの requirement から link する
-- required な positive/negative browser-backed evidence を持つ
-- browser-level proof は execution capability に `browser` を持つ authoritative command を参照する
-- unrelated capability record は各 capability 自身の contract ID のまま保ち Website target にコピーしない
-
-同じ exact revision に対して product verification と Composition validation を再実行します。
+各 required Website target について、current record は1つ、browser-sensitive record は requirement から link、必要な positive/negative browser-backed evidence を記録し、browser-level proof の authoritative command は execution capability `browser` を宣言します。unrelated capability record を Website target に複製しません。
 
 ```sh
 python /absolute/path/to/agent-skills/composition/scripts/run.py \
@@ -279,13 +301,11 @@ python /absolute/path/to/agent-skills/composition/scripts/run.py \
   validate
 ```
 
-product-mode validation は step 9 の validated planning checkpoint を要求し、stable requirement と required proof kind が planning baseline と一致することを検証します。
+Product-mode validation は step 9 の validated planning checkpoint を要求し、stable requirement と required proof kind が planning baseline と一致することを確認します。
 
 ## 13. Mandatory product checkpoint を作って再 validate する
 
-product-mode validation が成功したら `lifecycle.next_actions` の product checkpoint entry に従います。その `next_action_command.argv` をそのまま実行します。lifecycle machinery が latest planning checkpoint binding を解決するため、parent や command ordering を prose から再構成しません。
-
-product checkpoint 成功後に Composition validation をもう一度実行します。
+product-mode validation 成功後、`lifecycle.next_actions` の product checkpoint entry に従い、`next_action_command.argv` をそのまま実行します。parent や command ordering を prose から再構成しません。
 
 ```sh
 python /absolute/path/to/agent-skills/composition/scripts/run.py \
@@ -294,11 +314,11 @@ python /absolute/path/to/agent-skills/composition/scripts/run.py \
   validate
 ```
 
-この final validation が closed planning-to-product lifecycle state を確認します。planning baseline または required product checkpoint なしで evidence を `product` に切り替えただけの product は、この walkthrough では complete ではありません。
+この final validation が planning-to-product lifecycle state の closure を確認します。
 
-## 14. PWA / runtime / service / Web-interface / release-bundle は optional のまま
+## 14. Optional PWA/runtime/service/Web-interface/release-bundle behavior は optional のまま
 
-immutable revision `379073f376ce1de80948abd2e92d5560b573e7e6` の `website` recipe が公開する optional selection は正確に次の5つです。
+immutable revision `379073f376ce1de80948abd2e92d5560b573e7e6` の `website` recipe は次だけを optional selection として公開します。
 
 - `capability.pwa`
 - `capability.runtime`
@@ -306,39 +326,35 @@ immutable revision `379073f376ce1de80948abd2e92d5560b573e7e6` の `website` reci
 - `capability.web-interface`
 - `lifecycle.release-bundle`
 
-Project Docs が installability/offline/update behavior を後から support する場合は `capability.pwa` を include する upgrade を行います。PWA は cross-cutting capability なので、artifact は Website のままです。network-only offline read policy では cached-content proof は不要で、route policy が cached content を許可するときだけ cached-content/freshness proof family が active になります。
+Project Docs が後で installability/offline/update behavior を support するなら `capability.pwa` を追加します。PWA は cross-cutting capability なので Website のままです。maintained server runtime があれば `capability.runtime`、独立して support する non-browser API があれば `capability.service`、別に support する browser-facing operational/diagnostic interface があれば `capability.web-interface` を追加します。packaging lifecycle が必要な場合だけ `lifecycle.release-bundle` を選択します。どの選択も `artifact.website-core` を `artifact.webapp-core` に変えません。
 
-maintained server runtime を持つなら `capability.runtime` を追加します。独立して support される non-browser API を公開するなら `capability.service` を追加し、runtime dependency は推移的に解決されます。別個に support される browser-facing operational/diagnostic interface を公開するなら `capability.web-interface` を使います。repository が packaging lifecycle を必要とするときだけ `lifecycle.release-bundle` を選択します。どの選択も `artifact.website-core` を `artifact.webapp-core` に変えず、release-bundle lifecycle の選択だけで release readiness が成立することもありません。
-
-intent を変える場合は ordinary `update` ではなく `upgrade` を使います。upgrade 後も同じ immutable revision を plan/apply/validate 全体で一貫して使い、追加 capability 自身の contract と evidence requirement を満たします。
+selected component intent を変更するときは ordinary `update` ではなく `upgrade` を使います。upgrade 後も同じ immutable revision で plan/apply/validate し、追加 capability 自身の contract/evidence requirement を満たします。
 
 ## 15. Release-readiness evaluation を実行する
 
-ordinary `validate` は contract/lifecycle validity を確立しますが、release-readiness decision の代わりにはなりません。product checkpoint と final validation が成功した後、`lifecycle.next_actions` を確認します。release readiness を評価可能な場合、`check-release-readiness` implementation-evidence action が投影されなければなりません。
+ordinary `validate` は contract/lifecycle validity を確認しますが、release-readiness decision の代わりではありません。product checkpoint と final validation 成功後、`lifecycle.next_actions` が `check-release-readiness` implementation-evidence action を投影することを確認します。
 
-その action の complete `next_action_command.argv` をそのまま実行します。prose から command を再構成してはいけません。managed action registry は operation を `check-release-readiness` として定義し、structured output は `.template-composition/implementation-evidence-release-readiness.schema.json` に従います。
+その complete `next_action_command.argv` をそのまま実行します。prose から command を再構成しません。structured output の `release_readiness` field を authority とします。
 
-structured `release_readiness` field を authority として扱います。
-
-- `ready`: blocking condition がない
+- `ready`: blocking condition なし
 - `not-ready`: 少なくとも1つ blocking condition が残る
-- provider/action execution failure: operational failure であり、成功した `not-ready` decision ではない
+- provider/action execution failure: operational failure であり、successful `not-ready` decision ではない
 
-required deferred browser proof は `not-ready` result を生じさせるか、その blocking condition に寄与しなければなりません。silent に release-ready と扱ってはいけません。structured result を product の release evidence とともに記録します。
+required browser proof が deferred なら `not-ready` を生成または構成しなければならず、release-ready とみなしてはいけません。structured result を product の release evidence とともに記録します。
 
 ## 16. Completion criteria
 
-この walkthrough の Project Docs が complete なのは次をすべて満たす場合です。
+Project Docs がこの walkthrough で complete なのは次がすべて true の場合です。
 
-- recipe が `website` で、resolved closure が `artifact.website-core` + transitive `foundation.web` を含み、Webapp-private artifact contract を含まない
-- すべての `scripts/run.py` invocation が immutable Website-capable revision `379073f376ce1de80948abd2e92d5560b573e7e6` を使用し、古い published stable toolchain へ silently fallback していない
-- routes、site structure、metadata、discovery、viewport、browser-identity contracts が実装済み Website を表し、`siteName: "Project Docs"` が seeded placeholder に置き換わっている
-- actual page/content/navigation と `favicon.svg` のような宣言済み browser-identity asset が consumer-owned implementation に存在する
-- product implementation 前の validated planning checkpoint と、その transition を閉じる final product checkpoint が存在する
-- required product checks と real browser-backed positive/negative evidence が通る
-- implementation evidence が truthful な `product` mode で browser-sensitive record が requirement-linked
-- product checkpoint 後の Composition validation が通る
-- machine-projected `check-release-readiness` action を実際に実行し、structured result を記録している
-- required deferred proof があれば silently waive せず `release_readiness` を `not-ready` に保つ
+- recipe は `website` のままで、closure は `artifact.website-core` + transitive `foundation.web` を含み Webapp-private artifact contract を含まない
+- すべての `scripts/run.py` invocation が immutable Website-capable revision `379073f376ce1de80948abd2e92d5560b573e7e6` を使用した
+- routes/site structure/metadata/discovery/viewport/browser identity が実装済み Website を記述し、seed placeholder ではなく `siteName: "Project Docs"` になっている
+- actual page/content/navigation と `favicon.svg` など宣言済み browser-identity asset が consumer-owned implementation に存在する
+- implementation 前に validated planning checkpoint があり、product checkpoint が transition を閉じている
+- required product check と real browser-backed positive/negative evidence が完了している
+- implementation evidence は truthful な `product` mode で、browser-sensitive record が requirement-linked である
+- product checkpoint 後の Composition validation が成功する
+- machine-projected `check-release-readiness` action を実際に実行し structured result を記録している
+- required deferred proof が silently waived されず `release_readiness` を `not-ready` に保つ
 
-static/dynamic や deployment で迷った場合は [Website と Web application の選び方](website-webapp-selection.md) に戻ってください。
+rendering/deployment の曖昧さがある場合は [Website と Web application の選び方](website-webapp-selection.md) に戻ってください。static/dynamic は classifier ではありません。
