@@ -55,8 +55,8 @@ class ImplementationEvidencePlanningTests(unittest.TestCase):
                 "REQ-PLAN-BROWSER-FILTER",
                 {
                     "kind": "contract-item",
-                    "contractId": "routes",
-                    "itemKind": "route",
+                    "contractId": "application_routes",
+                    "itemKind": "application-route",
                     "itemId": "home",
                 },
                 "end-to-end-test",
