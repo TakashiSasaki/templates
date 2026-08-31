@@ -48,6 +48,12 @@ def validate(root: Path) -> list[str]:
     if mode == "template":
         return []
     expected = {target_key(target): target for target in expected_targets(root)}
+    expected_keys = set(expected)
+    owned_contract_ids = {
+        key[1]
+        for key in expected_keys
+        if len(key) > 1 and isinstance(key[1], str)
+    }
     errors: list[str] = []
 
     if mode == "planning":
@@ -59,6 +65,8 @@ def validate(root: Path) -> list[str]:
             target_list = [item for item in targets if isinstance(item, dict)] if isinstance(targets, list) else []
             declared = {item for item in requirement.get("requiredPositiveProofKinds", []) if isinstance(item, str)}
             for target in target_list:
+                if target.get("contractId") not in owned_contract_ids:
+                    continue
                 key = target_key(target)
                 if key not in expected:
                     errors.append(f"unknown planning Website evidence target: {key}")
@@ -66,7 +74,7 @@ def validate(root: Path) -> list[str]:
                 seen.add(key)
                 if requires_browser_level_proof(target) and declared.isdisjoint(BROWSER_LEVEL_PROOF_KINDS):
                     errors.append(f"browser-sensitive planning Website target {key} requires one of {BROWSER_LEVEL_PROOF_KINDS} in requiredPositiveProofKinds")
-        for key in sorted(set(expected) - seen, key=repr):
+        for key in sorted(expected_keys - seen, key=repr):
             errors.append(f"missing planning Website evidence target: {key}")
         return errors
 
@@ -74,11 +82,12 @@ def validate(root: Path) -> list[str]:
         return [f"unsupported Website implementation-evidence mode: {mode!r}"]
 
     records = evidence.get("records")
-    record_list = [item for item in records if isinstance(item, dict) and isinstance(item.get("target"), dict)] if isinstance(records, list) else []
+    all_records = [item for item in records if isinstance(item, dict) and isinstance(item.get("target"), dict)] if isinstance(records, list) else []
+    record_list = [item for item in all_records if item["target"].get("contractId") in owned_contract_ids]
     actual_keys = [target_key(item["target"]) for item in record_list]
-    for key in sorted(set(expected) - set(actual_keys), key=repr):
+    for key in sorted(expected_keys - set(actual_keys), key=repr):
         errors.append(f"missing Website implementation-evidence target: {key}")
-    for key in sorted(set(actual_keys) - set(expected), key=repr):
+    for key in sorted(set(actual_keys) - expected_keys, key=repr):
         errors.append(f"unknown Website implementation-evidence target: {key}")
     if len(actual_keys) != len(set(actual_keys)):
         errors.append("Website implementation evidence contains duplicate targets")
@@ -98,14 +107,18 @@ def validate(root: Path) -> list[str]:
         if not browser_backed(record.get("negativeEvidence"), capabilities):
             errors.append(f"browser-sensitive Website target {key} requires negative browser-backed proof")
 
+    linked_record_ids: set[str] = set()
     for requirement in evidence.get("requirements", []):
         if not isinstance(requirement, dict):
             continue
         record_ids = {item for item in requirement.get("recordIds", []) if isinstance(item, str)}
+        linked_record_ids.update(record_ids)
         if record_ids & browser_record_ids:
             declared = {item for item in requirement.get("requiredPositiveProofKinds", []) if isinstance(item, str)}
             if declared.isdisjoint(BROWSER_LEVEL_PROOF_KINDS):
                 errors.append(f"Website requirement {requirement.get('id')!r} links a browser-sensitive target and must require one of {BROWSER_LEVEL_PROOF_KINDS}")
+    for record_id in sorted(browser_record_ids - linked_record_ids):
+        errors.append(f"browser-sensitive Website evidence record {record_id!r} must be linked from at least one product requirement")
     return errors
 
 
