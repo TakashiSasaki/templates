@@ -3,6 +3,7 @@
   "components": [
     "artifact.skill-core",
     "artifact.webapp-core",
+    "artifact.website-core",
     "capability.cli",
     "capability.mcp",
     "capability.mcp-apps",
@@ -21,6 +22,7 @@
   ],
   "recipes": [
     "skill",
-    "webapp"
+    "webapp",
+    "website"
   ]
 }

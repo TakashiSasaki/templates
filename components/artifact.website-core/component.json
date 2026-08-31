@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "id": "artifact.website-core",
+  "component_role": "artifact",
+  "version": 1,
+  "summary": "Framework-neutral content-oriented Website identity with page structure, document metadata, discovery semantics, shared Web foundation, and Website-specific evidence coverage.",
+  "requires": [
+    "foundation.web",
+    "lifecycle.composition-state",
+    "lifecycle.implementation-evidence"
+  ],
+  "conflicts": [],
+  "contract_registrations": [
+    {
+      "id": "site_structure",
+      "document": "contracts/site-structure.json",
+      "schema": "schemas/site-structure.schema.json",
+      "migration_slug": "site-structure",
+      "document_schema_version": 1,
+      "version_history": [{"version": 1, "change_type": "initial"}],
+      "purpose": "Declare the Website page inventory, shared-route bindings, home page, parent hierarchy, and primary navigation without introducing Web application surfaces or UI states."
+    },
+    {
+      "id": "document_metadata",
+      "document": "contracts/document-metadata.json",
+      "schema": "schemas/document-metadata.schema.json",
+      "migration_slug": "document-metadata",
+      "document_schema_version": 1,
+      "version_history": [{"version": 1, "change_type": "initial"}],
+      "purpose": "Declare site identity and per-page observable document title, description, language, canonical-path, indexability, and social-preview intent."
+    },
+    {
+      "id": "site_discovery",
+      "document": "contracts/site-discovery.json",
+      "schema": "schemas/site-discovery.schema.json",
+      "migration_slug": "site-discovery",
+      "document_schema_version": 1,
+      "version_history": [{"version": 1, "change_type": "initial"}],
+      "purpose": "Declare canonical-origin, robots, sitemap, and feed discovery obligations and bind the sitemap inventory to indexable Website pages."
+    }
+  ],
+  "materials": [
+    {"source": "files/.github/workflows/validate-website.yml", "destination": ".github/workflows/validate-website.yml", "ownership": "managed"},
+    {"source": "files/contracts/site-structure.json", "destination": "contracts/site-structure.json", "ownership": "seed"},
+    {"source": "files/contracts/document-metadata.json", "destination": "contracts/document-metadata.json", "ownership": "seed"},
+    {"source": "files/contracts/site-discovery.json", "destination": "contracts/site-discovery.json", "ownership": "seed"},
+    {"source": "files/schemas/site-structure.schema.json", "destination": "schemas/site-structure.schema.json", "ownership": "managed"},
+    {"source": "files/schemas/document-metadata.schema.json", "destination": "schemas/document-metadata.schema.json", "ownership": "managed"},
+    {"source": "files/schemas/site-discovery.schema.json", "destination": "schemas/site-discovery.schema.json", "ownership": "managed"},
+    {"source": "files/scripts/validate_website_contracts.py", "destination": "scripts/validate_website_contracts.py", "ownership": "managed"},
+    {"source": "files/scripts/website_evidence_targets.py", "destination": "scripts/website_evidence_targets.py", "ownership": "managed"},
+    {"source": "files/scripts/validate_website_evidence.py", "destination": "scripts/validate_website_evidence.py", "ownership": "managed"}
+  ]
+}
