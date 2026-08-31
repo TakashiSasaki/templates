@@ -6,164 +6,141 @@
       "canonical": "README.md",
       "language": "ja",
       "translation": "translations/ja/README.md",
-      "canonical_blob_sha": "24e3f773bcb5757bdd287177ebbb8ad30e09715c",
-      "surfaces": [
-        "reader"
-      ]
+      "canonical_blob_sha": "a5870beb02bc92fc598d0087407323c886fbd4b8",
+      "surfaces": ["reader"]
     },
     {
       "canonical": "catalog/README.md",
       "language": "ja",
       "translation": "translations/ja/catalog/README.md",
-      "canonical_blob_sha": "e8ed713c9c13384af79c9bb4539beca191660e20",
-      "surfaces": [
-        "reader"
-      ]
+      "canonical_blob_sha": "a26ef877d3f3f1018939f4bfbf2bb43c12976844",
+      "surfaces": ["reader"]
     },
     {
       "canonical": "components/artifact.skill-core/files/README.md",
       "language": "ja",
       "translation": "translations/ja/components/artifact.skill-core/files/README.md",
       "canonical_blob_sha": "c4384cc6cab8919cad8766ec5bedd4729bdfa850",
-      "surfaces": [
-        "reader"
-      ]
+      "surfaces": ["reader"]
     },
     {
       "canonical": "components/artifact.webapp-core/files/README.md",
       "language": "ja",
       "translation": "translations/ja/components/artifact.webapp-core/files/README.md",
       "canonical_blob_sha": "2eb43c39cd503013454a41c2ca90694d8481fa3b",
-      "surfaces": [
-        "reader"
-      ]
+      "surfaces": ["reader"]
     },
     {
       "canonical": "docs/architecture/catalog.md",
       "language": "ja",
       "translation": "translations/ja/docs/architecture/catalog.md",
-      "canonical_blob_sha": "3eed38ada5cd37e008b653d930739f3e2ff7933f",
-      "surfaces": [
-        "reader"
-      ]
+      "canonical_blob_sha": "b136b2480ab671d0cd88788d6fda909527b7b1ca",
+      "surfaces": ["reader"]
     },
     {
       "canonical": "docs/architecture/composition-model.md",
       "language": "ja",
       "translation": "translations/ja/docs/architecture/composition-model.md",
       "canonical_blob_sha": "650f6556e8e3c98b2b10bb1c40b08be5734e3ad5",
-      "surfaces": [
-        "reader"
-      ]
+      "surfaces": ["reader"]
     },
     {
       "canonical": "docs/architecture/composer-mvp.md",
       "language": "ja",
       "translation": "translations/ja/docs/architecture/composer-mvp.md",
       "canonical_blob_sha": "098d3848bd0adbe5deaad727a9265a9e1a3db2e6",
-      "surfaces": [
-        "reader"
-      ]
+      "surfaces": ["reader"]
     },
     {
       "canonical": "docs/architecture/generated-contract-manifest.md",
       "language": "ja",
       "translation": "translations/ja/docs/architecture/generated-contract-manifest.md",
       "canonical_blob_sha": "ac0b5a4585f4cd35a098c193ac4c907179490875",
-      "surfaces": [
-        "reader"
-      ]
+      "surfaces": ["reader"]
     },
     {
       "canonical": "docs/consumer-guide.md",
       "language": "ja",
       "translation": "translations/ja/docs/consumer-guide.md",
-      "canonical_blob_sha": "eeec90cbc879968addc8895da39f36ba5ec4f952",
-      "surfaces": [
-        "reader"
-      ]
+      "canonical_blob_sha": "ed37afe4101c8dc4f350002753835cb224532fd7",
+      "surfaces": ["reader"]
     },
     {
       "canonical": "docs/evaluation-guide.md",
       "language": "ja",
       "translation": "translations/ja/docs/evaluation-guide.md",
       "canonical_blob_sha": "541e700e3298a0da3622f698e5244bee71d1efe5",
-      "surfaces": [
-        "reader"
-      ]
+      "surfaces": ["reader"]
     },
     {
       "canonical": "docs/guides/composition-concepts.md",
       "language": "ja",
       "translation": "translations/ja/docs/guides/composition-concepts.md",
-      "canonical_blob_sha": "6e3d979c273ee83c1e5148fe1c5ac10d4ea55c80",
-      "surfaces": [
-        "reader"
-      ]
+      "canonical_blob_sha": "e41550350c995c87c7e53caed10f79f40adad8cc",
+      "surfaces": ["reader"]
     },
     {
       "canonical": "docs/guides/skill-first-use-walkthrough.md",
       "language": "ja",
       "translation": "translations/ja/docs/guides/skill-first-use-walkthrough.md",
       "canonical_blob_sha": "bb0dccb5d0944036c89219f92ca9ab82096c543d",
-      "surfaces": [
-        "reader"
-      ]
+      "surfaces": ["reader"]
     },
     {
       "canonical": "docs/guides/webapp-product-walkthrough.md",
       "language": "ja",
       "translation": "translations/ja/docs/guides/webapp-product-walkthrough.md",
       "canonical_blob_sha": "f2de35a0ec0a7bc21b6b8ce6f01b615757019352",
-      "surfaces": [
-        "reader"
-      ]
+      "surfaces": ["reader"]
+    },
+    {
+      "canonical": "docs/guides/website-product-walkthrough.md",
+      "language": "ja",
+      "translation": "translations/ja/docs/guides/website-product-walkthrough.md",
+      "canonical_blob_sha": "327805e28421a6f037951247277f273ce6247627",
+      "surfaces": ["reader"]
+    },
+    {
+      "canonical": "docs/guides/website-webapp-selection.md",
+      "language": "ja",
+      "translation": "translations/ja/docs/guides/website-webapp-selection.md",
+      "canonical_blob_sha": "31a221a38a5e9d391bd669aa5b890fcba7d98c7f",
+      "surfaces": ["reader"]
     },
     {
       "canonical": "docs/index.md",
       "language": "ja",
       "translation": "translations/ja/docs/index.md",
-      "canonical_blob_sha": "e4420b5644af673b2b5c8f1c8dddd41f0ce432f6",
-      "surfaces": [
-        "reader",
-        "guided"
-      ]
+      "canonical_blob_sha": "2ccf418f0639ff3029de19bdd0faf7198d78eb71",
+      "surfaces": ["reader", "guided"]
     },
     {
       "canonical": "docs/publication-catalog.md",
       "language": "ja",
       "translation": "translations/ja/docs/publication-catalog.md",
-      "canonical_blob_sha": "842a5f698a922b08ad323a1c866871ff956ed2b4",
-      "surfaces": [
-        "reader"
-      ]
+      "canonical_blob_sha": "e6f7be088e3775bf30278bcd48b464d6c761d3bc",
+      "surfaces": ["reader"]
     },
     {
       "canonical": "docs/reference/composer.md",
       "language": "ja",
       "translation": "translations/ja/docs/reference/composer.md",
       "canonical_blob_sha": "2e00e66311d9cbadcbddfa4a9e0d63e08a30b7b8",
-      "surfaces": [
-        "reader"
-      ]
+      "surfaces": ["reader"]
     },
     {
       "canonical": "docs/release-guide.md",
       "language": "ja",
       "translation": "translations/ja/docs/release-guide.md",
       "canonical_blob_sha": "038b9ab421c1de1bde945c55e75a47ef8adc0abb",
-      "surfaces": [
-        "reader"
-      ]
+      "surfaces": ["reader"]
     },
     {
       "canonical": "schemas/README.md",
       "language": "ja",
       "translation": "translations/ja/schemas/README.md",
-      "canonical_blob_sha": "34c12fd31372732f11c296f72b1110453a03fa84",
-      "surfaces": [
-        "reader"
-      ]
+      "canonical_blob_sha": "b291acaad74636d50c7af96d871caed2e9934b80",
+      "surfaces": ["reader"]
     }
   ]
 }

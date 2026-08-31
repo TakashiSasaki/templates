@@ -2,7 +2,7 @@
 
 > **参考訳（非正本）:** この文書は英語版 `docs/consumer-guide.md` の日本語参考訳です。正本は英語版であり、内容または解釈に相違がある場合は英語版が優先されます。
 
-このガイドは、Composition を使用して具体的な Agent Skill または Web application repository を作成・保守する consumer 向けです。通常の consumer はインストール済み Composition skill runner を使用し、その下では Composer が引き続き semantic authority です。
+このガイドは、Composition を使用して具体的な Agent Skill、Website、または Web application repository を作成・保守する consumer 向けです。通常の consumer はインストール済み Composition skill runner を使用し、その下では Composer が引き続き semantic authority です。
 
 ここで **Composition authority 保守者** とは、`TakashiSasaki/templates` の `composition` authority 自体を変更・保守する人を指します。consumer repository の保守者とは区別します。
 
@@ -144,7 +144,15 @@ Composition authority 保守者は exact clean checkout から `scripts/compose.
 
 ## Consumer configuration
 
-initial composition と新しい upgrade には consumer configuration file が必要です。最小の Skill configuration は次です。
+initial composition と新しい upgrade には consumer configuration file が必要です。最初に rendering strategy、deployment topology、runtime、optional capability ではなく artifact の **product identity** を選びます。
+
+- Agent Skill を作る場合は `skill`。
+- browser product が主に、人が発見・移動・閲覧・共有する document/content である場合は `website`。
+- browser product が主に、application state と recoverable UI state を通じて interactive task を実行するものである場合は `webapp`。
+
+browser artifact の境界は [Website または Web application を選ぶ](guides/website-webapp-selection.md) を参照してください。static/dynamic rendering、CDN/server hosting、PWA support、JavaScript の有無は artifact identity を決めません。
+
+最小の Skill configuration は次です。
 
 ```json
 {
@@ -158,18 +166,37 @@ initial composition と新しい upgrade には consumer configuration file が�
 }
 ```
 
-Web application では `"recipe": "webapp"` を使用します。optional `capability.*` / `lifecycle.*` は選択 recipe が公開するものだけを `components.include` に追加します。`recipes/` 以下が selectable component の source of truth です。
+最小の Website configuration は recipe だけを変えます。
 
-Web application の capability は process/listener topology ではなく、caller-visible contract に基づいて選択します。
+```json
+{
+  "schema_version": 1,
+  "recipe": "website",
+  "components": {
+    "include": [],
+    "exclude": []
+  },
+  "parameters": {}
+}
+```
+
+Web application では `"recipe": "webapp"` を使用します。optional `capability.*` / `lifecycle.*` は選択 recipe が公開するものだけを `components.include` に追加します。`recipes/` 以下が selectable component の source of truth です。`foundation.web` のような shared foundation は artifact の transitive dependency であり、consumer が直接 include する対象ではありません。
+
+capability は process/listener/hosting/rendering topology ではなく caller-visible product requirement に基づいて選択します。PWA と runtime は optional capability であり、Website を Webapp に変えたり Webapp を Website に変えたりしません。
 
 | Product requirement | Composition selection |
 | --- | --- |
-| Browser application の surfaces、routes、visible states、responsive behavior | `webapp` baseline (`artifact.webapp-core`) |
+| content/document page、site hierarchy、metadata、discovery、generalized route、responsive browser behavior | `website` baseline (`artifact.website-core`) |
+| interactive application surface、application route、visible/recoverable UI state、responsive browser behavior | `webapp` baseline (`artifact.webapp-core`) |
+| Website または Webapp の installability、offline behavior、explicit update lifecycle | selected recipe が公開する場合 `capability.pwa` |
 | 独立して保守される browser-facing operational/diagnostic/demonstration interface | `capability.web-interface` |
 | browser implementation detail にすぎない BFF/JSON endpoint | その理由だけでは `capability.service` を追加しない |
 | browser と独立して caller が利用する HTTP/JSON 等の API | `capability.service` |
 | browser interface と独立 API が同じ process/listener/proxy を共有 | 両方を選ぶ。shared topology は contract を統合しない |
-| 保守対象 CLI | `capability.cli` |
+| maintained implementation runtime | selected recipe が公開する場合 `capability.runtime` |
+| maintained CLI | selected recipe が公開する場合 `capability.cli` |
+
+`capability.service` は independently reachable な non-browser service contract を意味します。`capability.web-interface` は browser-facing routing、interaction、security、health、failure behavior を所有します。shared listener は capability が1つだけである証拠ではなく、private BFF route だけで independent service contract が存在することにもなりません。
 
 現在の production revision では parameter-specific materialization behavior は定義されていません。component が明示的に対応 parameter contract を文書化していない限り `parameters` は空にします。parameter の変更も explicit `upgrade` boundary です。
 
@@ -218,15 +245,17 @@ python /path/to/agent-skills/composition/scripts/run.py \
 
 ### Initial apply 後: scaffold を product にする
 
-initial validation が証明するのは resolved Composition state と selected template contract の internal validity です。Webapp の `template` mode は application implementation、product test、deployment、release readiness の証明ではありません。
+initial validation が証明するのは resolved Composition state と selected template contract の internal validity です。Website と Webapp の baseline implementation evidence は、product implementation claim を持たない `template` mode から始まります。その状態での VALID は Website/application implementation、product test、deployment、release readiness の証明ではありません。
 
 1. lock の ownership boundary を読み、`seed` と ordinary consumer file を編集し、`managed` / `generated` / lock / transaction material は手作業で編集しない。
-2. seed assumption を実際の product contract に置き換える。
-3. product を consumer-owned source file に実装する。
-4. Webapp では `python scripts/scaffold_webapp_evidence.py` で現在の evidence-target worklist を確認する。
-5. product coding 前に `contracts/implementation-evidence.json` を `template` から `planning` にし、stable requirement ID を記録する。real proof が整ったら records/commands/gates を接続して `product` に進める。
-6. product 自身の verification と Composition `validate` の両方を行う。
+2. seed assumption を実際の product contract に置き換える。Website は generalized route、site structure、document metadata、discovery、viewport、selected capability worksheet を具体化する。Webapp は generalized/application route、surface、UI state、viewport、selected capability worksheet を具体化する。
+3. product を consumer-owned source file に実装する。Composition は framework、rendering strategy、persistence layer、API design、authentication provider、deployment platform、product-specific test implementation を選ばない。
+4. Webapp では `python scripts/scaffold_webapp_evidence.py` で deterministic な current evidence-target worklist を確認する。Website では [Website product walkthrough](guides/website-product-walkthrough.md) に従って Website/shared contract から active target を扱い、evidence structure のためだけに Webapp-private surface/UI state を発明しない。
+5. product coding 前に `contracts/implementation-evidence.json` を `template` から `planning` にし、stable requirement ID、description、empty `recordIds`、`requiredPositiveProofKinds` を記録する。real implementation boundary と proof definition が整ったら records/commands/gates を接続して `product` に進める。
+6. product 自身の verification と Composition `validate` の両方を行う。両者は補完関係にあり、相互の代替ではない。
 7. coding-agent Policy も使用する場合は seed ownership transfer 後に明示的に adopt する。
+
+Webapp では `TEMPLATE.md` が generated product worksheet として詳細な contract customization / implementation-evidence guidance を持ちます。Website では Website artifact contracts と walkthrough を product-specific reader guidance として使います。どちらも canonical evidence document を自動的に書き換えないため、consumer が truthful な evidence claim に責任を持ちます。
 
 ## Composition repository で Policy を使う
 

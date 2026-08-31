@@ -56,7 +56,7 @@ class WebsiteArtifactTests(unittest.TestCase):
         self.assertEqual(descriptor["requires"], ["foundation.web", "lifecycle.composition-state", "lifecycle.implementation-evidence"])
         self.assertEqual([item["id"] for item in descriptor["contract_registrations"]], ["site_structure", "document_metadata", "site_discovery"])
         self.assertEqual(recipe["artifact"], "artifact.website-core")
-        self.assertEqual(recipe["optional_components"], ["capability.pwa", "capability.runtime", "capability.web-interface", "lifecycle.release-bundle"])
+        self.assertEqual(recipe["optional_components"], ["capability.pwa", "capability.runtime", "capability.service", "capability.web-interface", "lifecycle.release-bundle"])
         self.assertIn("artifact.website-core", catalog["components"])
         self.assertIn("website", catalog["recipes"])
         self.assertNotIn("artifact.webapp-core", descriptor["requires"])

@@ -2,17 +2,23 @@
 
 > **参考訳（非正本）:** この文書は英語版 `README.md` の日本語参考訳です。正本は英語版であり、内容または解釈に相違がある場合は英語版が優先されます。
 
-Composition は `TakashiSasaki/templates` における canonical authority であり、再利用可能な Skill および Web アプリケーションの artifact semantics、application capabilities、lifecycle contracts、recipes、schemas、および deterministic Composer を管理します。
+Composition は `TakashiSasaki/templates` における canonical authority であり、再利用可能な Agent Skill、Website、Web application の artifact semantics、shared foundation、application capability、lifecycle contract、recipe、schema、および deterministic Composer を管理します。
 
 consumer repository は、artifact recipe と明示的な consumer intent から生成されます。Composer は deterministic な component closure を解決し、source files と generated files を materialize し、解決済み状態を `.template-composition/lock.json` に記録して、consumer repository を自己完結した状態にします。
 
 ## ここから始める
 
-**初めて Web application を作る場合**は、[Webapp product walkthrough](docs/guides/webapp-product-walkthrough.md) から始めてください。これは canonical な zero-to-one path です。別 product repository を作り、prerequisites を確認し、Composition を install し、`composition.json` を作成し、`inspect -> plan -> apply -> validate` を進め、editing boundary を理解した後、product implementation と evidence まで続きます。開始前に Composition architecture を理解する必要はありません。
+**browser-facing product を作る場合**は、まず [Website と Web application の選び方](docs/guides/website-webapp-selection.md) を参照してください。artifact は product identity と caller-visible behavior から選びます。content/document の discovery と navigation が中心なら `website`、task/state/action-oriented な browser product なら `webapp` です。static generation、server rendering、client rendering、CDN hosting、runtime selection、PWA 技術は artifact type の判定条件ではありません。
+
+artifact を選んだ後は、対応する zero-to-one path を進めます。
+
+- [Website product walkthrough](docs/guides/website-product-walkthrough.md) — 別 product repository から content/document-oriented Website を作成し、Composition lifecycle、Website contract、implementation evidence、browser proof まで進めます。Webapp-only の surface や UI state は導入しません。
+- [Webapp product walkthrough](docs/guides/webapp-product-walkthrough.md) — 別 product repository から interactive Web application を作成し、installation、`composition.json`、`inspect -> plan -> apply -> validate`、ownership、implementation、product test、evidence まで進めます。
+- [Agent Skill first-use walkthrough](docs/guides/skill-first-use-walkthrough.md) — Composition architecture を先に学ばず reusable Agent Skill を作成する first-use path です。
 
 **独立した clean-room evaluation を実行する場合**は、[Evaluating Composition](docs/evaluation-guide.md) から始めてください。これは formal protocol、scorecard guide、scorecard schema、および output sequence への canonical evaluator entry point です。この maintainer/evaluator path は通常の consumer onboarding とは分離され、consumer bootstrap contract を変更しません。
 
-Agent Skill の作成、既存 managed repository の保守、Composition update/upgrade、recovery、ownership、conflict handling など、その他の consumer work には [Using Composition](docs/consumer-guide.md) を使用します。
+既存 managed repository の保守、Composition update/upgrade、recovery、ownership、conflict handling には [Using Composition](docs/consumer-guide.md) を使用します。
 
 通常の consumer は installable な `skills/composition/` runner を使用し、`TakashiSasaki/templates` や provider branch を clone しません。local prerequisite は CPython 3.11 から 3.14 であり、通常の consumer execution に Git は不要です。runner は immutable な full-SHA Composition revision を選択し、その revision の GitHub HTTPS archive を OS の temporary directory に取得して source-file digest inventory を検証し、正確に validation 済みの Python runtime を構築または再利用し、consumer repository を target として Composer を呼び出した後、source snapshot を削除します。Composition authority 保守者は direct reviewed-source-checkout entrypoint を引き続き利用でき、その path では Git が authority-maintenance prerequisite です。
 
@@ -34,15 +40,18 @@ inspect -> plan -> apply -> validate
 
 Composition は意図的に fail-closed です。planning は read-only であり、mutation の前には完全な plan が作成されます。Composition-owned bytes に対する local changes は暗黙に上書きされず、未対応の ownership transition や component transition は推測せず拒否されます。
 
-## Artifacts、capabilities、lifecycle
+## Foundation、artifact、capability、lifecycle
 
-production catalog は、再利用可能な authority を次の3種類に分離します。
+production catalog は、再利用可能な authority を四つの reusable component role に分離します。
 
-- `artifact.*` は `artifact.skill-core` や `artifact.webapp-core` など artifact-specific semantics を定義します。
-- `capability.*` は runtime、CLI、MCP、MCP Apps、browser、headless service など、再利用可能な runtime/interface/service behavior を定義します。
-- `lifecycle.*` は composition-state、contract-evolution、implementation-evidence、release-evidence、および release-bundle behavior を定義します。
+- `foundation.*` は artifact が推移的に導入する shared mandatory baseline semantics を定義します。`foundation.web` は Website / Webapp が共通に利用する browser identity、generalized routes、viewports を所有します。
+- `artifact.*` は何を作るかを定義します。現在は `artifact.skill-core`、`artifact.website-core`、`artifact.webapp-core` があります。browser artifact はそれぞれ、自身の domain-specific contract と、その artifact-owned semantics に対する evidence-target derivation / validator logic を所有します。
+- `capability.*` は runtime、CLI、MCP、MCP Apps、PWA、standalone browser interface、headless service など再利用可能な optional behavior を定義します。
+- `lifecycle.*` は composition-state、contract-evolution、implementation-evidence、checkpoint、release-evidence、release-bundle behavior を定義します。`lifecycle.implementation-evidence` は artifact / capability validator が利用する artifact-neutral evidence machinery を所有します。
 
-`recipes/skill.json` は `artifact.skill-core` を選択し、application capability と product lifecycle component は opt-in です。`recipes/webapp.json` は `artifact.webapp-core` を選択し、contract evolution と implementation evidence を baseline とします。release lifecycle は `lifecycle.release-bundle` による明示的な opt-in であり、runtime と interface capability も独立して optional です。したがって static / CDN Web application は、browser-facing であるという理由だけで application runtime や release lifecycle を持つ必要はありません。
+recipe は artifact をちょうど1つ選択します。foundation component は consumer が直接選ぶものではなく、artifact dependency から推移的に解決されます。`recipes/skill.json` は `artifact.skill-core` を選択します。`recipes/website.json` は `artifact.website-core` を選択し、`foundation.web` 上に Website page structure、document metadata、discovery、Website-specific evidence を追加します。`recipes/webapp.json` は `artifact.webapp-core` を選択し、同じ shared foundation 上に application-specific route、surface、UI state、Webapp evidence を追加します。
+
+browser delivery topology は artifact identity と直交します。statically generated な documentation / publishing product は runtime capability なしで `website` を利用できます。CDN-hosted stateful SPA は runtime capability なしで `webapp` を利用できます。`capability.pwa` は Website / Webapp のどちらからも選択でき、artifact identity を変更しません。runtime、interface、release capability も同様に独立した明示的 choice です。
 
 すべての artifact は `lifecycle.composition-state` を必要とします。これにより、自己完結した consumer validator と lock schema が `.template-composition/` 以下に materialize されます。
 
@@ -70,7 +79,7 @@ Site は reader-facing information architecture、publication mapping、およ�
 
 ## Composition authority 保守者向けリファレンス
 
-ここでいう **Composition authority 保守者** とは、`TakashiSasaki/templates` の `composition` authority 自体を変更・保守する人を指します。たとえば Composer、production catalog、schemas、architecture、provider publication contract などを変更する側です。consumer Skill または Web application repository の保守者を意味するものではありません。consumer repository を保守する場合は、まず [Using Composition](docs/consumer-guide.md) と [Composer reference](docs/reference/composer.md) を参照してください。
+ここでいう **Composition authority 保守者** とは、`TakashiSasaki/templates` の `composition` authority 自体を変更・保守する人を指します。たとえば Composer、production catalog、schemas、architecture、provider publication contract などを変更する側です。consumer Agent Skill、Website、Web application repository の保守者を意味するものではありません。consumer repository を保守する場合は、まず [Using Composition](docs/consumer-guide.md) と対応する first-use walkthrough を参照してください。
 
 主要な詳細リファレンスは次のとおりです。
 

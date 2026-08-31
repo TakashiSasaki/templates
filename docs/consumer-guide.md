@@ -1,8 +1,8 @@
 # Using Composition
 
-This guide is for consumers who use Composition to create and maintain a concrete Agent Skill or Web application repository. Normal consumers use the installed Composition skill runner; the Composer remains the semantic authority underneath that runner.
+This guide is for consumers who use Composition to create and maintain a concrete Agent Skill, Website, or Web application repository. Normal consumers use the installed Composition skill runner; the Composer remains the semantic authority underneath that runner.
 
-In this guide, maintainers of a concrete Skill or Web application repository are consumers. **Composition authority maintainer** refers only to someone changing or maintaining the `composition` authority itself in `TakashiSasaki/templates`.
+In this guide, maintainers of a concrete Skill, Website, or Web application repository are consumers. **Composition authority maintainer** refers only to someone changing or maintaining the `composition` authority itself in `TakashiSasaki/templates`.
 
 For exact Composer options, plan fields, ownership definitions, and diagnostic codes, see the [Composer reference](reference/composer.md).
 
@@ -142,7 +142,15 @@ Composition authority maintainers may still execute `scripts/compose.py` directl
 
 ## Consumer configuration
 
-Initial composition and a new upgrade require a consumer configuration file. A minimal Skill configuration is:
+Initial composition and a new upgrade require a consumer configuration file. Start by choosing the artifact **product identity**, not its rendering strategy, deployment topology, runtime, or optional capabilities.
+
+- Choose `skill` for an Agent Skill.
+- Choose `website` when the supported browser product is primarily documents/content that people discover, navigate, read, and share.
+- Choose `webapp` when the supported browser product is primarily interactive tasks performed through application state and recoverable UI states.
+
+For the browser boundary, use [Choose Website or Web application](guides/website-webapp-selection.md). Static versus dynamic rendering, CDN versus server hosting, PWA support, and whether JavaScript is present do not decide the artifact identity.
+
+A minimal Skill configuration is:
 
 ```json
 {
@@ -156,18 +164,35 @@ Initial composition and a new upgrade require a consumer configuration file. A m
 }
 ```
 
-For a Web application, use `"recipe": "webapp"`. Add optional `capability.*` or `lifecycle.*` component IDs through `components.include` only when the selected recipe exposes them. Recipe files under `recipes/` are the source of truth for selectable components.
+A minimal Website configuration changes only the recipe:
 
-For Web applications, select capabilities from the caller-visible contract you intend to support rather than from process or listener topology alone. The `webapp` recipe already provides the browser-application artifact contract; do not add a capability merely because implementation code happens to share a process or port.
+```json
+{
+  "schema_version": 1,
+  "recipe": "website",
+  "components": {
+    "include": [],
+    "exclude": []
+  },
+  "parameters": {}
+}
+```
+
+For a Web application, use `"recipe": "webapp"`. Add optional `capability.*` or `lifecycle.*` component IDs through `components.include` only when the selected recipe exposes them. Recipe files under `recipes/` are the source of truth for selectable components. Shared foundations such as `foundation.web` are transitive artifact dependencies and are not direct consumer include targets.
+
+Select capabilities from caller-visible product requirements rather than from process, listener, hosting, or rendering topology alone. PWA and runtime are optional capabilities and do not change Website into Webapp or Webapp into Website.
 
 | Product requirement | Composition selection |
 | --- | --- |
-| Browser application surfaces, routes, visible states, and responsive behavior | `webapp` recipe baseline (`artifact.webapp-core`) |
+| Content/document pages, site hierarchy, metadata, discovery, generalized routes, and responsive browser behavior | `website` recipe baseline (`artifact.website-core`) |
+| Interactive application surfaces, application routes, visible/recoverable UI states, and responsive browser behavior | `webapp` recipe baseline (`artifact.webapp-core`) |
+| Installability, offline behavior, or an explicit update lifecycle for either Website or Webapp | add `capability.pwa` when the selected recipe exposes it |
 | A separately maintained browser-facing operational, diagnostic, demonstration, or explicitly contracted Web interface | add `capability.web-interface` |
 | A backend-for-frontend or JSON endpoint used only as an implementation detail of the browser interface, with no supported independent caller contract | do not add `capability.service` solely for that endpoint |
 | An HTTP/JSON or other non-browser API that callers may use independently of the browser | add `capability.service` |
 | Browser interface and independently supported API share one process, listener, or reverse proxy | add both applicable capabilities; shared topology does not merge their contracts |
-| A maintained command-line interface | add `capability.cli` |
+| A maintained implementation runtime | add `capability.runtime` when the selected recipe exposes it |
+| A maintained command-line interface | add `capability.cli` when the selected recipe exposes it |
 
 `capability.service` means an independently reachable non-browser service contract. `capability.web-interface` owns its browser-facing routing, interaction, security, health, and failure behavior. A shared listener is therefore not evidence that only one capability exists, and a private BFF route is not by itself evidence that an independent service contract exists.
 
@@ -225,19 +250,19 @@ A successful initial apply writes `.template-composition/lock.json` last. The lo
 
 ### After initial apply: turn the scaffold into a product
 
-Initial validation proves that the resolved Composition state and selected template contracts are internally valid. For a Webapp, baseline implementation evidence deliberately starts in `template` mode with no product implementation claims. A successful validation in that state must not be interpreted as proof that the application has been implemented, tested, deployed, or made release-ready.
+Initial validation proves that the resolved Composition state and selected template contracts are internally valid. Website and Webapp baseline implementation evidence deliberately starts in `template` mode with no product implementation claims. A successful validation in that state must not be interpreted as proof that the Website or application has been implemented, tested, deployed, or made release-ready.
 
 Use this sequence after initial materialization:
 
 1. Read `.template-composition/lock.json` and preserve the ownership boundary: edit `seed` and ordinary consumer files; do not hand-edit `managed`, `generated`, lock, or transaction material.
-2. Replace the seed assumptions with the product's actual contract. For a Webapp, concretize surfaces, routes, UI states, viewports, and every selected capability worksheet that applies to the product.
-3. Implement the product in consumer-owned source files. Composition intentionally does not choose the framework, persistence layer, API design, authentication provider, deployment platform, or product-specific test implementation.
-4. For a Webapp, run `python scripts/scaffold_webapp_evidence.py` to render the deterministic current evidence-target worklist. The command is read-only and writes the worklist to standard output.
+2. Replace seed assumptions with the product's actual contract. A Website concretizes generalized routes, site structure, document metadata, discovery, viewports, and selected capability worksheets. A Webapp concretizes generalized/application routes, surfaces, UI states, viewports, and selected capability worksheets.
+3. Implement the product in consumer-owned source files. Composition intentionally does not choose the framework, rendering strategy, persistence layer, API design, authentication provider, deployment platform, or product-specific test implementation.
+4. For a Webapp, run `python scripts/scaffold_webapp_evidence.py` to render the deterministic current evidence-target worklist. For a Website, derive the active targets from the Website/shared contracts as described in the [Website product walkthrough](guides/website-product-walkthrough.md); do not invent Webapp-private surfaces or UI states merely to satisfy evidence structure.
 5. Before product coding, switch `contracts/implementation-evidence.json` from `template` to `planning` and capture the stable caller-visible requirement IDs, descriptions, empty `recordIds`, and `requiredPositiveProofKinds`. Preserve those IDs. After implementation boundaries and real proof definitions exist, connect the records/commands/gates and switch from `planning` to `product`.
 6. Run the product's own verification commands and Composition `validate`. Composition validation and product verification are complementary: neither substitutes for the other.
 7. If the repository also uses coding-agent Policy, adopt it explicitly after Composition has transferred seed ownership. Policy may then guide the remaining implementation and verification work without becoming a Composition capability.
 
-For Webapps, `TEMPLATE.md` is the generated product worksheet and contains the detailed contract-customization and implementation-evidence guidance. The scaffold command does not rewrite the canonical evidence document automatically; the consumer remains responsible for truthful evidence claims.
+For Webapps, `TEMPLATE.md` is the generated product worksheet and contains the detailed contract-customization and implementation-evidence guidance. For Websites, use the Website artifact contracts and walkthrough as the product-specific reader guidance. Neither path rewrites the canonical evidence document automatically; the consumer remains responsible for truthful evidence claims.
 
 ## Use Policy with a Composition repository
 

@@ -6,7 +6,7 @@
 
 canonical な repository terminology は `docs/glossary.yml` にあります。厳密な Composition semantics は component descriptor、recipe、schema、および [Composition model](../architecture/composition-model.md) にあります。operation の正確な挙動は [Composer reference](../reference/composer.md) が正本です。このページがそれらと食い違う場合は authority を優先し、このページを修正してください。
 
-Web application や Agent Skill を作り始める前に、このページを読む必要は **ありません**。first-use walkthrough が引き続き主要な zero-to-one path です。
+Website、Web application、Agent Skill を作り始める前に、このページを読む必要は **ありません**。first-use walkthrough が主要な zero-to-one path です。browser-facing product では、まず [Website と Web application の選び方](website-webapp-selection.md) を使い、implementation technology ではなく product identity から artifact を選択してください。
 
 ## Mental model
 
@@ -51,11 +51,11 @@ component  components components  components
 | Word | こう決めつけない | この repository では |
 | --- | --- | --- |
 | **Recipe** | CLI 手順や tutorial の順番 | exactly one artifact component を選び、required/default/selectable な capability/lifecycle component を定める開始 selection です。walkthrough が手順であり、recipe は selection authority です。 |
-| **Artifact** | 1個の生成 file | identity-specific semantics を定義する「作られるものの種類」です。現在の production recipe は Agent Skill または Web application を作ります。 |
-| **Artifact component** | 完成した product そのもの | artifact 固有の再利用可能 semantics を所有する Composition component です。現在は `artifact.skill-core` と `artifact.webapp-core` があります。 |
+| **Artifact** | 1個の生成 file | identity-specific semantics を定義する「作られるものの種類」です。現在の production recipe は Agent Skill、Website、Web application を作ります。 |
+| **Artifact component** | 完成した product そのもの | artifact 固有の再利用可能 semantics を所有する Composition component です。現在は `artifact.skill-core`、`artifact.website-core`、`artifact.webapp-core` があります。 |
 | **Component** | UI widget や package dependency | closed reusable Composition source authority です。descriptor が component role、dependency、conflict、materialized destination、ownership mode、optional contract registration を宣言します。 |
 | **Foundation component** | 明示的に include する capability | artifact dependency により導入される共有必須 baseline です。foundation は推移的に resolve され、recipe から選択する consumer capability ではありません。 |
-| **Capability component** | artifact なら自動的に付く性質 | runtime、packaged CLI、MCP、MCP Apps、standalone browser interface、headless service などの optional で artifact-neutral な behavior です。product が実際にその behavior を公開するときだけ選びます。 |
+| **Capability component** | artifact なら自動的に付く性質 | runtime、packaged CLI、MCP、MCP Apps、PWA、standalone browser interface、headless service などの optional で artifact-neutral な behavior です。product が実際にその behavior を公開するときだけ選びます。 |
 | **Lifecycle component** | 時系列上の project phase | Composition state、contract evolution、implementation evidence、lifecycle checkpoint、release behavior などの再利用可能な product-lifecycle machinery です。 |
 | **Contract** | HTTP/API contract だけ | 選択された component は artifact または lifecycle behavior について machine-readable な contract document と schema を register できます。exact meaning は各 registered contract と owner component が持ち、単一の generic `contract.json` はありません。 |
 | **Material** | 抽象的な設計素材 | resolved component から consumer repository へ materialize される file destination です。各 destination には exactly one component owner と one ownership mode があります。 |
@@ -72,9 +72,49 @@ component  components components  components
 
 これらの語を区別する canonical place は integrated glossary です。語が似ているという理由だけで、Composition 側に Policy-owned `Artifact contract` の第二定義を作ってはいけません。
 
-## 例: minimal Web application
+## 例: Website と Web application は Web foundation を共有する
 
-minimal static browser application は `webapp` recipe と optional component なしで開始できます。
+browser-facing product は、まず sibling artifact identity から選びます。
+
+- content/document、discovery、navigation が中心なら `website`。
+- task、action、application state、state transition が中心なら `webapp`。
+
+両 artifact は `foundation.web` を require するため、browser identity、generalized routes、viewport/input semantics は一つの shared authority を持ちます。その上で artifact component が identity-specific contract を追加します。
+
+```text
+foundation.web
+|- browser identity
+|- generalized routes
+`- viewports
+
+artifact.website-core
+|- site structure
+|- document metadata
+`- discovery
+
+artifact.webapp-core
+|- application routes
+|- surfaces
+`- UI states
+```
+
+最小 Website は optional component なしで開始できます。
+
+```json
+{
+  "schema_version": 1,
+  "recipe": "website",
+  "components": {
+    "include": [],
+    "exclude": []
+  },
+  "parameters": {}
+}
+```
+
+shared / Website-specific seed contract には `browser-identity.json`、`routes.json`、`viewports.json`、`site-structure.json`、`document-metadata.json`、`site-discovery.json` が含まれます。Webapp-only の `application-routes.json`、`surfaces.json`、`ui-states.json` は入りません。
+
+最小 Web application は sibling の `webapp` recipe を使います。
 
 ```json
 {
@@ -88,22 +128,11 @@ minimal static browser application は `webapp` recipe と optional component �
 }
 ```
 
-recipe は `artifact.webapp-core` と baseline lifecycle dependency を選びます。artifact は `foundation.web` を必要とするため、Composer はこの共有必須 baseline も transitive に resolve します。`foundation.web` は browser identity、一般化された routes、viewport/input contract を提供し、`artifact.webapp-core` は application surface、application-route behavior、UI state を提供します。materialization 後、consumer repository には次のような editable seed contract document が入ります。
+shared `routes.json` は product-neutral な path、canonical/deep-link、accessibility semantics を所有します。Webapp 固有の surface、authentication/access-failure、history、state behavior は `application-routes.json` に置き、shared route document に戻してはいけません。
 
-```text
-contracts/browser-identity.json
-contracts/routes.json
-contracts/viewports.json
-contracts/application-routes.json
-contracts/surfaces.json
-contracts/ui-states.json
-```
+static generation、server rendering、client rendering、CDN hosting、application runtime の有無は Website / Webapp の判定条件ではありません。`capability.pwa` も artifact-neutral な optional capability であり、どちらの artifact も identity を変えず installable product として offline/update behavior を定義できます。
 
-shared `routes.json` は product-neutral な path、canonical/deep-link、accessibility semantics を記述します。Webapp 固有の surface、authentication/access-failure、history、state behavior は `application-routes.json` に置き、shared route document に戻してはいけません。
-
-これらは作ろうとしている product を記述する file であり、complete implementation ではありません。product code、framework choice、storage、test などの consumer-owned file は別途実装します。
-
-後から maintained implementation runtime、packaged CLI、MCP、service、complete release lifecycle が必要になった場合は、該当する top-level capability/lifecycle component を include します。Composer が transitive requirement を resolve するため、consumer が全 prerequisite を列挙する必要はありません。
+これらの contract は作ろうとしている product を記述しますが、complete implementation ではありません。product code、framework choice、storage、test などの consumer-owned file は別途実装します。maintained implementation runtime、packaged CLI、MCP、service、complete release lifecycle が必要なら、該当する top-level capability/lifecycle component を include します。Composer が transitive requirement を resolve するため、consumer が全 prerequisite を列挙する必要はありません。
 
 ## 例: Agent Skill
 
@@ -113,13 +142,14 @@ shared `routes.json` は product-neutral な path、canonical/deep-link、access
 
 ## 次に読むもの
 
+- Website / Web application を選ぶ場合は [Website と Web application の選び方](website-webapp-selection.md)。
+- Website を今すぐ作る場合は [Website product walkthrough](website-product-walkthrough.md)。
 - Web application を今すぐ作る場合は [Webapp product walkthrough](webapp-product-walkthrough.md)。
 - Agent Skill を今すぐ作る場合は [Agent Skill first-use walkthrough](skill-first-use-walkthrough.md)。
 - optional component を選ぶ場合は [production catalog guide](../../catalog/README.md)。
 - strict semantics と ownership rule は [Composition model](../architecture/composition-model.md)。
 - exact command と diagnostic は [Composer reference](../reference/composer.md)。
 - canonical repository terminology と cross-authority disambiguation は、provider-owned `docs/glossary.yml` から生成される integrated glossary を参照してください。
-
 
 ## コンポーネントロール: 実用的なメンタルモデル
 
@@ -132,4 +162,4 @@ shared `routes.json` は product-neutral な path、canonical/deep-link、access
 3. **Capability — ほかに何ができるか?** Capability は、PWA、runtime、CLI、MCP interface など externally observable な振る舞いを追加します。
 4. **Lifecycle — 時間とともにどのように管理するか?** Lifecycle component は validation、evolution、evidence、checkpoint、release のための再利用可能な仕組みを提供します。
 
-将来の Website recipe は、共有 Web foundation を必要とする Website artifact を選択できます。利用者には Website identity が提示され、PWA や runtime capability を選べます。foundation は自動解決され、include target にはなりません。descriptor ではこれを `component_role`（`foundation`、`artifact`、`capability`、`lifecycle`）で表現し、canonical definition は provider glossary に置きます。
+現在の Website/Webapp split はこの境界を直接示します。`artifact.website-core` と `artifact.webapp-core` は sibling product identity であり、どちらも `foundation.web` を require します。consumer は一つの artifact recipe を選び、その後 optional な PWA や runtime capability を選択できます。foundation は自動解決され、include target にはなりません。descriptor はこれらの責任を `component_role`（`foundation`、`artifact`、`capability`、`lifecycle`）で表し、canonical definition は provider glossary に置きます。

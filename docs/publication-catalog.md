@@ -1,6 +1,6 @@
 # Composition publication boundary
 
-The `composition` branch owns one provider publication boundary for the reusable composition system. It replaces the former assumption that Skill and Webapp documentation must be published from two independent template authorities.
+The `composition` branch owns one provider publication boundary for the reusable composition system. It replaces the former assumption that Skill and Webapp documentation must be published from independent template authorities. Agent Skill, Website, and Web application semantics now live as distinct artifact responsibilities inside one Composition provider, with shared Web semantics owned once by `foundation.web`.
 
 The generic schema-v3 publication protocol is Site-owned. Composition owns the declarations in its catalog and the provider-specific semantics layered on top of that shared protocol. Composition CI consumes the Site implementation from reviewed full commit SHA `3ae5d1e60c65e7a8ebf5f9af0436044484e42983`; it does not maintain a second generic parser or follow the mutable `site` branch.
 
@@ -13,9 +13,11 @@ This is a development/publication dependency only. The Composer runtime, managed
 The catalog publishes explanatory Markdown for:
 
 - composition architecture and the deterministic composer;
+- the Website/Web application selection boundary and the shared `foundation.web` model;
 - the Agent Skill artifact model;
-- the Web application artifact model;
-- reusable runtime, CLI, MCP, MCP Apps, browser, and service capabilities;
+- the Website artifact model and first-use path;
+- the Web application artifact model and first-use path;
+- reusable runtime, CLI, MCP, MCP Apps, PWA, browser, and service capabilities;
 - reusable composition-state, contract-evolution, implementation-evidence, release-execution, release-evidence, and release-bundle lifecycle contracts;
 - the canonical independent clean-room evaluation entry point that routes evaluators to the formal protocol, scorecard guide, scorecard schema, and output sequence; and
 - one consolidated authority-migration history that explains why former monolithic Skill/Webapp responsibilities moved to their present authorities and points to immutable PR provenance for stage-level detail.
@@ -54,12 +56,14 @@ The classification file and translation manifest are Composition maintenance met
 Machine-readable source authorities are published as supporting assets rather than rendered documentation. Composition-specific coverage validation requires the catalog assets to cover:
 
 - `catalog/catalog.json`;
-- both production recipes;
+- all three production recipes (`skill`, `website`, and `webapp`);
 - every top-level composition JSON Schema, including the immutable skill-installer release schema;
 - the stable `release/composition-installer.json` identity descriptor;
-- every production component descriptor;
-- Webapp domain contract/schema seeds;
-- reusable lifecycle contract/schema seeds; and
+- every production component descriptor, including `foundation.web`;
+- shared Web foundation contract/schema seeds;
+- Website domain contracts and schemas;
+- Webapp domain contracts and schemas;
+- reusable lifecycle contract/schema seeds;
 - the consumer composition-lock schema; and
 - the formal clean-room evaluation protocol, scorecard guide, and scorecard schema.
 
@@ -75,7 +79,7 @@ A machine-readable file is not public merely because it exists in the branch. It
 
 ## Authority and URL model
 
-The provider identity is `composition`. Skill and Webapp remain distinct artifact semantics inside that provider, not independent source authorities. Site integration may group their documents separately for readers, but it must not reconstruct separate canonical Skill/Webapp source ownership.
+The provider identity is `composition`. Agent Skill, Website, and Web application remain distinct artifact semantics inside that provider, not independent source authorities. Website and Webapp share `foundation.web` rather than reconstructing duplicate browser identity, route, or viewport authorities. Site integration may group the three artifact families separately for readers, but it must not reconstruct separate canonical source ownership for them.
 
 This repository is not yet production-facing, so the composition migration does not preserve the former provider URL namespace merely for backward compatibility. Site information architecture is a Site-owned concern and is handled separately from this provider allowlist.
 
@@ -83,7 +87,7 @@ This repository is not yet production-facing, so the composition migration does 
 
 `docs/glossary.yml` is the Composition-owned terminology source. Its record semantics remain validated by Composition after the generic Site protocol confirms that the catalog declares an existing safe `.yml` glossary source.
 
-It retains `templates-skill-profile` because Policy legitimately relates Policy profiles to Skill profiles, but definitions that depended on the retired copyable-template architecture are not preserved. Generic composition/lifecycle concepts use composition-owned IDs rather than being mislabeled as Webapp-only or Skill-only concepts.
+It retains `templates-skill-profile` because Policy legitimately relates Policy profiles to Skill profiles, but definitions that depended on the retired copyable-template architecture are not preserved. Generic composition/lifecycle concepts use composition-owned IDs rather than being mislabeled as Webapp-only, Website-only, or Skill-only concepts.
 
 The glossary file is encoded as strict JSON, which is a valid YAML 1.2 subset. This lets Composition validate its provider-specific terminology semantics with the Python standard library while remaining compatible with the Site glossary reader.
 

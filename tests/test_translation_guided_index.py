@@ -28,7 +28,7 @@ class GuidedIndexTranslationTests(unittest.TestCase):
         self.assertEqual(entry["translation"], "translations/ja/docs/index.md")
         self.assertEqual(
             entry["canonical_blob_sha"],
-            "e4420b5644af673b2b5c8f1c8dddd41f0ce432f6",
+            "2ccf418f0639ff3029de19bdd0faf7198d78eb71",
         )
         self.assertEqual(entry["surfaces"], ["reader", "guided"])
 

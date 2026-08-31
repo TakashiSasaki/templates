@@ -6,12 +6,17 @@ Every component ID resolves to `components/<component-id>/component.json`; every
 
 ## Consumer selection guide
 
-Choose the recipe from the artifact you are building, not from the language, framework, or deployment platform.
+Choose the recipe from the artifact you are building, not from the language, framework, rendering strategy, or deployment platform. For browser-facing products, use [Choose Website or Web application](../docs/guides/website-webapp-selection.md) before selecting optional capabilities.
 
 | You are building | Recipe | Base material and behavior | Lifecycle baseline |
 | --- | --- | --- | --- |
 | An Agent Skill repository | `skill` | Skill structure including `SKILL.md`, development guidance, and Skill-specific validation | `lifecycle.composition-state` only; application capabilities and contract/release lifecycle components are opt-in |
-| A browser-facing Web application repository | `webapp` | Routes, surfaces, visible UI states, viewports, Web-specific validation, and framework-neutral browser application structure | `lifecycle.composition-state` + implementation evidence + contract evolution; the release lifecycle is opt-in through `lifecycle.release-bundle` |
+| A content/document-oriented Website repository | `website` | Shared browser identity/routes/viewports plus Website page structure, document metadata, discovery, and Website-specific validation | `lifecycle.composition-state` + implementation evidence + contract evolution; the release lifecycle is opt-in through `lifecycle.release-bundle` |
+| An interactive Web application repository | `webapp` | Shared browser identity/routes/viewports plus application routes, surfaces, visible UI states, and Webapp-specific validation | `lifecycle.composition-state` + implementation evidence + contract evolution; the release lifecycle is opt-in through `lifecycle.release-bundle` |
+
+Website versus Web application is a product-identity choice. Static generation, server rendering, client rendering, CDN hosting, and the presence of a runtime do not select the recipe. Documentation, publishing, institutional information, and other document-navigation products use `website`; task/state/action-oriented browser products use `webapp`.
+
+For a concrete zero-to-one Website path, follow the [Website product walkthrough](../docs/guides/website-product-walkthrough.md). It keeps Website contracts, browser proof, and product evidence separate from Webapp-private surface/state semantics.
 
 Select optional application capabilities according to externally visible behavior. Include the capability you need directly; the Composer resolves its dependencies transitively.
 
@@ -21,23 +26,34 @@ Select optional application capabilities according to externally visible behavio
 | A packaged command-line interface | `capability.cli` | `capability.runtime` + implementation evidence (and contract evolution) | Machine-readable caller-visible CLI contract with executable-proof enforcement |
 | An MCP protocol endpoint/interface | `capability.mcp` | `capability.runtime` + implementation evidence (and contract evolution) | Machine-readable MCP transport/operation contract with executable protocol-proof enforcement plus qualitative client/security/semantic-equivalence guidance |
 | An MCP Apps extension UI | `capability.mcp-apps` | `capability.mcp`, therefore `capability.runtime` + implementation evidence (and contract evolution) | Machine-readable Apps extension/View/tool-association contract with protocol/browser/end-to-end proof enforcement plus qualitative bridge/visibility/sandbox/fallback guidance |
-| An installable Progressive Web App with intentional network-loss, freshness, mobile application-icon, and update behavior | `capability.pwa` (`webapp`) | implementation evidence (and contract evolution) | Web App Manifest, offline/freshness, Android/iOS application-identity compatibility, and update lifecycle contracts without prescribing a cache algorithm or service-worker library |
+| An installable Progressive Web App with intentional network-loss, freshness, mobile application-icon, and update behavior | `capability.pwa` (`website` or `webapp`) | implementation evidence (and contract evolution) | Artifact-neutral Web App Manifest, offline/freshness, Android/iOS application-identity compatibility, and update lifecycle contracts without prescribing a cache algorithm or service-worker library |
 | An independently reachable non-browser service | `capability.service` | `capability.runtime` + implementation evidence (and contract evolution) | Machine-readable service operation contract with executable-proof enforcement |
 | A standalone browser-facing interface backed by an application runtime | `capability.web-interface` | `capability.runtime` + implementation evidence (and contract evolution) | Machine-readable external endpoint contract with browser/executable proof-strength enforcement plus qualitative security and failure-isolation guidance |
 
-A browser-facing artifact does **not** imply `capability.runtime` or `capability.web-interface`. For example, a static/CDN Webapp can use the `webapp` recipe with no optional components. Add runtime-bound capabilities only when the product actually exposes those behaviors.
+A browser-facing artifact does **not** imply `capability.runtime`, `capability.web-interface`, or `capability.pwa`. A statically generated Website can use the `website` recipe with no optional components. A CDN-hosted stateful SPA can use the `webapp` recipe with no runtime component. Add runtime-bound or PWA capabilities only when the product actually exposes those behaviors.
 
-Lifecycle components are selected according to the product workflow. The `skill` recipe exposes each lifecycle level independently. The `webapp` recipe already includes contract evolution and implementation evidence in its baseline, and exposes `lifecycle.release-bundle` as the one top-level release choice. Choose the highest-level lifecycle behavior exposed by the recipe; prerequisites are resolved automatically:
+Lifecycle components are selected according to the product workflow. The `skill` recipe exposes each lifecycle level independently. The `website` and `webapp` recipes already include contract evolution and implementation evidence in their baselines, and expose `lifecycle.release-bundle` as the one top-level release choice. Choose the highest-level lifecycle behavior exposed by the recipe; prerequisites are resolved automatically:
 
 | Need | Include | Dependency closure |
 | --- | --- | --- |
 | Versioned contract evolution and migrations | `lifecycle.contract-evolution` (`skill`) | contract evolution only |
-| Implementation boundaries, proofs, authoritative commands, and release gates | `lifecycle.implementation-evidence` (`skill`; Webapp baseline) | implementation evidence -> contract evolution |
+| Implementation boundaries, proofs, authoritative commands, and release gates | `lifecycle.implementation-evidence` (`skill`; Website/Webapp baseline) | implementation evidence -> contract evolution |
 | Product-owned fixed-argv release execution and candidate verification | `lifecycle.release-execution` (`skill`) | release execution -> implementation evidence -> contract evolution |
 | Revision-bound release evidence production | `lifecycle.release-evidence` (`skill`) | release evidence -> release execution -> implementation evidence -> contract evolution |
-| Deterministic release bundle and one-command release orchestration | `lifecycle.release-bundle` (`skill` or `webapp`) | release bundle -> release evidence -> release execution -> implementation evidence -> contract evolution |
+| Deterministic release bundle and one-command release orchestration | `lifecycle.release-bundle` (`skill`, `website`, or `webapp`) | release bundle -> release evidence -> release execution -> implementation evidence -> contract evolution |
 
-A minimal static Webapp therefore uses an empty include list and receives browser contracts plus implementation-evidence/contract-evolution support, but no release execution/evidence/bundle materials:
+A minimal Website uses an empty include list and receives `foundation.web`, Website contracts, implementation-evidence/contract-evolution support, and no PWA/runtime/release materials:
+
+```json
+{
+  "schema_version": 1,
+  "recipe": "website",
+  "components": {"include": [], "exclude": []},
+  "parameters": {}
+}
+```
+
+A minimal Web application likewise uses an empty include list, but receives Webapp-private application routes, surfaces, and UI states in addition to the shared Web foundation:
 
 ```json
 {
@@ -48,7 +64,21 @@ A minimal static Webapp therefore uses an empty include list and receives browse
 }
 ```
 
-A release-ready Webapp selects only the top-level release component:
+A PWA Website selects PWA explicitly without changing artifact identity:
+
+```json
+{
+  "schema_version": 1,
+  "recipe": "website",
+  "components": {
+    "include": ["capability.pwa"],
+    "exclude": []
+  },
+  "parameters": {}
+}
+```
+
+A Webapp that uses the complete Composition release lifecycle selects only the top-level release component; release readiness is established later by the resulting evidence and gates, not by component selection itself:
 
 ```json
 {
@@ -62,12 +92,12 @@ A release-ready Webapp selects only the top-level release component:
 }
 ```
 
-A runtime-backed Webapp that does not use the Composition release lifecycle can instead select runtime independently:
+A runtime-backed Website or Webapp that does not use the Composition release lifecycle can instead select runtime independently. For example:
 
 ```json
 {
   "schema_version": 1,
-  "recipe": "webapp",
+  "recipe": "website",
   "components": {
     "include": ["capability.runtime"],
     "exclude": []
@@ -117,14 +147,13 @@ Production catalog validation establishes:
 - deterministic manifest rendering from resolved `contract_registrations`;
 - every resolvable production component owns at least one materialized file, because the composition lock requires every resolved component to have a file-ownership witness;
 - portable single-owner material destinations; and
-- successful materialized validation for production Skill and Webapp compositions.
+- successful materialized validation for production Skill, Website, and Webapp compositions.
 
 The catalog is source authority, not consumer material and not an execution-hook registry.
 
 The composer validates this closed source graph, resolves a recipe plus consumer configuration against one exact clean Git revision, and writes the resulting component/file closure to `.template-composition/lock.json` after successful initial materialization. Generated materials are dispatched only through allowlisted declarative generator IDs.
 
 For an unmanaged target, initial composition refuses a pre-existing composition lock rather than inferring a managed-state transition. Existing managed repositories instead use explicit operations: `update` preserves the normalized intent recorded by lock schema v2 while advancing to a descendant Composition source revision, and `upgrade` accepts an explicit new configuration for changes such as recipe, component selection, parameters, or component versions. Neither operation is a general-purpose merge engine: locally modified `managed`/`generated` material and owner/ownership-mode transitions fail closed rather than being overwritten or inferred.
-
 
 ### Component roles and direct selection
 

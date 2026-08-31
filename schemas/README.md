@@ -2,8 +2,8 @@
 
 The JSON Schema Draft 2020-12 contracts define the composition source, resolved-state, and immutable installer-publication model.
 
-- `component.schema.json` — artifact/capability/lifecycle descriptors, materials, dependencies/conflicts, optional `contract_registrations`, and bounded generated-material handler IDs.
-- `recipe.schema.json` — consumer-facing artifact recipes.
+- `component.schema.json` — foundation/artifact/capability/lifecycle descriptors, materials, dependencies/conflicts, optional `contract_registrations`, and bounded generated-material handler IDs.
+- `recipe.schema.json` — consumer-facing artifact recipes. Recipes select one artifact and may expose capability/lifecycle choices; foundation components are resolved transitively rather than selected directly by consumers.
 - `composition-config.schema.json` — unresolved consumer intent.
 - `composition-lock.schema.json` — immutable-source-bound resolved managed state, including normalized consumer intent.
 - `composition-transaction.schema.json` — deterministic interrupted-update/upgrade recovery metadata and mutation preconditions.
@@ -12,7 +12,7 @@ The JSON Schema Draft 2020-12 contracts define the composition source, resolved-
 
 A contract registration names one component-owned contract document/schema, stable migration slug, current document schema version, complete version history, and purpose. Registration metadata is source-time composition input; it is not copied into a consumer as an independent authority. `lifecycle.contract-evolution` deterministically renders the consumer `contracts/manifest.json` from the resolved registration set.
 
-JSON Schema validates document shape. Repository tests and `scripts/compose.py` additionally enforce cross-document semantics such as safe paths, disjoint selections, dependency closure, portable destination ownership, registration uniqueness/ownership, deterministic generation, source tracking, resolved-owner references, materialized validation, and transaction action consistency. Installer-publication verification additionally checks the referenced immutable Git history and the `toolchain -> skill source -> installer -> publication` ancestry chain; those properties cannot be established by JSON Schema alone.
+JSON Schema validates document shape. Repository tests and `scripts/compose.py` additionally enforce cross-document semantics such as safe paths, component-role/id agreement, foundation direct-selection restrictions, disjoint selections, dependency closure, portable destination ownership, registration uniqueness/ownership, deterministic generation, source tracking, resolved-owner references, materialized validation, and transaction action consistency. Installer-publication verification additionally checks the referenced immutable Git history and the `toolchain -> skill source -> installer -> publication` ancestry chain; those properties cannot be established by JSON Schema alone.
 
 Destination schemas enforce provider ownership as well as Composer-internal metadata reservation. Composition materials, lock inventories, and transaction actions may not claim `.agent-policy.yml`, `.agent-policy.lock`, or `.agent-policy/**`; those are foreign Policy-owned paths. This is a path-ownership constraint only: Composition does not parse Policy schemas, locks, profiles, or runtime state.
 

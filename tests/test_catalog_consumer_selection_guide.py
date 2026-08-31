@@ -15,6 +15,12 @@ APPLICATION_CAPABILITIES = {
     "capability.web-interface",
 }
 WEBAPP_APPLICATION_CAPABILITIES = APPLICATION_CAPABILITIES | {"capability.pwa"}
+WEBSITE_APPLICATION_CAPABILITIES = {
+    "capability.pwa",
+    "capability.runtime",
+    "capability.service",
+    "capability.web-interface",
+}
 SKILL_LIFECYCLE_OPTIONS = {
     "lifecycle.contract-evolution",
     "lifecycle.implementation-evidence",
@@ -22,8 +28,8 @@ SKILL_LIFECYCLE_OPTIONS = {
     "lifecycle.release-evidence",
     "lifecycle.release-execution",
 }
-WEBAPP_LIFECYCLE_OPTIONS = {"lifecycle.release-bundle"}
-WEBAPP_BASELINE_LIFECYCLE = {
+BROWSER_LIFECYCLE_OPTIONS = {"lifecycle.release-bundle"}
+BROWSER_BASELINE_LIFECYCLE = {
     "lifecycle.contract-evolution",
     "lifecycle.implementation-evidence",
     "lifecycle.lifecycle-checkpoints",
@@ -47,9 +53,7 @@ def dependency_closure(*component_ids: str) -> set[str]:
     queue = list(component_ids)
     while queue:
         component_id = queue.pop()
-        descriptor = load_json(
-            ROOT / "components" / component_id / "component.json"
-        )
+        descriptor = load_json(ROOT / "components" / component_id / "component.json")
         for dependency in descriptor["requires"]:
             if dependency not in selected:
                 selected.add(dependency)
@@ -63,13 +67,18 @@ class CatalogConsumerSelectionGuideTests(unittest.TestCase):
         docs_index = (ROOT / "docs" / "index.md").read_text(encoding="utf-8")
 
         self.assertIn("## Consumer selection guide", guide)
+        self.assertIn("Website", guide)
+        self.assertIn("Web application", guide)
+        self.assertIn("website-webapp-selection.md", guide)
         self.assertIn(
             "[Choosing a recipe and components](../catalog/README.md)",
             docs_index,
         )
+        self.assertIn("website-webapp-selection.md", docs_index)
 
     def test_recipe_exposure_matches_consumer_selection_model(self) -> None:
         skill = load_json(ROOT / "recipes" / "skill.json")
+        website = load_json(ROOT / "recipes" / "website.json")
         webapp = load_json(ROOT / "recipes" / "webapp.json")
 
         self.assertEqual(skill["artifact"], "artifact.skill-core")
@@ -77,10 +86,17 @@ class CatalogConsumerSelectionGuideTests(unittest.TestCase):
             set(skill["optional_components"]),
             APPLICATION_CAPABILITIES | SKILL_LIFECYCLE_OPTIONS,
         )
+
+        self.assertEqual(website["artifact"], "artifact.website-core")
+        self.assertEqual(
+            set(website["optional_components"]),
+            WEBSITE_APPLICATION_CAPABILITIES | BROWSER_LIFECYCLE_OPTIONS,
+        )
+
         self.assertEqual(webapp["artifact"], "artifact.webapp-core")
         self.assertEqual(
             set(webapp["optional_components"]),
-            WEBAPP_APPLICATION_CAPABILITIES | WEBAPP_LIFECYCLE_OPTIONS,
+            WEBAPP_APPLICATION_CAPABILITIES | BROWSER_LIFECYCLE_OPTIONS,
         )
 
     def test_machine_readable_dependency_closures_match_selection_contract(self) -> None:
@@ -125,7 +141,6 @@ class CatalogConsumerSelectionGuideTests(unittest.TestCase):
                 "lifecycle.lifecycle-checkpoints",
             },
         )
-
         self.assertEqual(
             dependency_closure("artifact.skill-core", "capability.service"),
             {
@@ -138,11 +153,52 @@ class CatalogConsumerSelectionGuideTests(unittest.TestCase):
                 "lifecycle.lifecycle-checkpoints",
             },
         )
-
         self.assertEqual(
             dependency_closure("artifact.skill-core", "lifecycle.release-bundle"),
             {
                 "artifact.skill-core",
+                "lifecycle.composition-state",
+                *RELEASE_LIFECYCLE_CLOSURE,
+            },
+        )
+
+        minimal_website = dependency_closure("artifact.website-core")
+        self.assertEqual(
+            minimal_website,
+            {
+                "artifact.website-core",
+                "foundation.web",
+                "lifecycle.composition-state",
+                *BROWSER_BASELINE_LIFECYCLE,
+            },
+        )
+        self.assertNotIn("artifact.webapp-core", minimal_website)
+        self.assertFalse(minimal_website & WEBSITE_APPLICATION_CAPABILITIES)
+
+        pwa_website = dependency_closure("artifact.website-core", "capability.pwa")
+        self.assertEqual(pwa_website, minimal_website | {"capability.pwa"})
+        self.assertNotIn("artifact.webapp-core", pwa_website)
+        self.assertNotIn("capability.runtime", pwa_website)
+
+        runtime_website = dependency_closure("artifact.website-core", "capability.runtime")
+        self.assertEqual(runtime_website, minimal_website | {"capability.runtime"})
+        self.assertNotIn("artifact.webapp-core", runtime_website)
+
+        service_website = dependency_closure("artifact.website-core", "capability.service")
+        self.assertEqual(
+            service_website,
+            minimal_website | {"capability.runtime", "capability.service"},
+        )
+        self.assertNotIn("artifact.webapp-core", service_website)
+
+        release_website = dependency_closure(
+            "artifact.website-core", "lifecycle.release-bundle"
+        )
+        self.assertEqual(
+            release_website,
+            {
+                "artifact.website-core",
+                "foundation.web",
                 "lifecycle.composition-state",
                 *RELEASE_LIFECYCLE_CLOSURE,
             },
@@ -155,9 +211,10 @@ class CatalogConsumerSelectionGuideTests(unittest.TestCase):
                 "artifact.webapp-core",
                 "foundation.web",
                 "lifecycle.composition-state",
-                *WEBAPP_BASELINE_LIFECYCLE,
+                *BROWSER_BASELINE_LIFECYCLE,
             },
         )
+        self.assertNotIn("artifact.website-core", minimal_webapp)
         self.assertFalse(minimal_webapp & WEBAPP_APPLICATION_CAPABILITIES)
         self.assertFalse(
             minimal_webapp
@@ -168,21 +225,11 @@ class CatalogConsumerSelectionGuideTests(unittest.TestCase):
             }
         )
 
-        runtime_webapp = dependency_closure(
-            "artifact.webapp-core", "capability.runtime"
-        )
-        self.assertEqual(
-            runtime_webapp,
-            minimal_webapp | {"capability.runtime"},
-        )
+        runtime_webapp = dependency_closure("artifact.webapp-core", "capability.runtime")
+        self.assertEqual(runtime_webapp, minimal_webapp | {"capability.runtime"})
 
-        pwa_webapp = dependency_closure(
-            "artifact.webapp-core", "capability.pwa"
-        )
-        self.assertEqual(
-            pwa_webapp,
-            minimal_webapp | {"capability.pwa"},
-        )
+        pwa_webapp = dependency_closure("artifact.webapp-core", "capability.pwa")
+        self.assertEqual(pwa_webapp, minimal_webapp | {"capability.pwa"})
         self.assertNotIn("capability.runtime", pwa_webapp)
 
         release_webapp = dependency_closure(
