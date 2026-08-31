@@ -1,0 +1,17 @@
+{
+  "$schema": "../schemas/routes.schema.json",
+  "schemaVersion": 1,
+  "routes": [
+    {
+      "id": "home",
+      "path": "/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    }
+  ]
+}

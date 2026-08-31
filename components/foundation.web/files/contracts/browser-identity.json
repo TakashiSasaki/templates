@@ -1,0 +1,13 @@
+{
+  "$schema": "../schemas/browser-identity.schema.json",
+  "schemaVersion": 1,
+  "favicon": {
+    "relation": "icon",
+    "href": "favicon.svg",
+    "mediaType": "image/svg+xml",
+    "sizes": [
+      "any"
+    ],
+    "fallbacks": []
+  }
+}

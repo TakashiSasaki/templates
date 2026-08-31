@@ -1,0 +1,17 @@
+{
+  "$schema": "../schemas/viewports.schema.json",
+  "schemaVersion": 1,
+  "viewports": [
+    {
+      "id": "base",
+      "minWidthPx": 0,
+      "description": "Baseline responsive layout; add breakpoints only when product behavior requires them."
+    }
+  ],
+  "inputCapabilities": ["keyboard"],
+  "constraints": {
+    "zoomSupported": true,
+    "horizontalScrolling": "never",
+    "orientationIndependent": true
+  }
+}

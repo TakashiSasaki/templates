@@ -249,7 +249,18 @@ def cross_validate(documents: dict[str, Any]) -> list[str]:
     errors: list[str] = []
 
     surfaces = documents["surfaces"]["surfaces"]
-    routes = documents["routes"]["routes"]
+    shared_routes = documents["routes"]["routes"]
+    application_routes = documents["application_routes"]["routes"]
+    application_by_route_id = {entry["routeId"]: entry for entry in application_routes}
+    shared_ids = {entry["id"] for entry in shared_routes}
+    errors.extend(f"application route behavior references unknown shared route {entry['routeId']}" for entry in application_routes if entry["routeId"] not in shared_ids)
+    routes = []
+    for entry in shared_routes:
+        behavior = application_by_route_id.get(entry["id"])
+        if behavior is None:
+            errors.append(f"shared route {entry['id']} has no Webapp application-route behavior")
+            continue
+        routes.append({**entry, **behavior, "id": entry["id"]})
     states = documents["ui_states"]["states"]
     viewports = documents["viewports"]["viewports"]
 
