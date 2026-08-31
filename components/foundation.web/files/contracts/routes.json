@@ -1,22 +1,13 @@
 {
   "$schema": "../schemas/routes.schema.json",
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "routes": [
     {
       "id": "home",
       "path": "/",
-      "surface": "primary",
       "canonical": true,
       "aliases": [],
-      "authentication": "none",
       "deepLink": true,
-      "historyBehavior": "replace",
-      "authenticationReturn": "not-applicable",
-      "accessFailures": {
-        "unauthenticated": {"behavior": "not-applicable"},
-        "forbidden": {"behavior": "not-applicable"}
-      },
-      "states": ["ready"],
       "accessibility": {
         "documentTitleRequired": true,
         "focusTarget": "main-heading"

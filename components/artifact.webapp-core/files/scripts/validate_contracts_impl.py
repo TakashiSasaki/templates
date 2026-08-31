@@ -250,41 +250,20 @@ def cross_validate(documents: dict[str, Any]) -> list[str]:
 
     surfaces = documents["surfaces"]["surfaces"]
     shared_routes = documents["routes"]["routes"]
-    # Existing Webapp consumers own their application behavior in the routes
-    # document. A future generic route document omits these fields and must be
-    # completed by the Webapp-only application_routes contract instead.
-    legacy_webapp_fields = {
-        "surface", "authentication", "historyBehavior",
-        "authenticationReturn", "accessFailures", "states",
-    }
-    if all(legacy_webapp_fields <= set(entry) for entry in shared_routes):
-        routes = shared_routes
-    else:
-        application_routes = documents.get("application_routes", {}).get("routes", [])
-        duplicate_application_route_ids = _duplicate_values(
-            [entry["routeId"] for entry in application_routes]
-        )
-        for duplicate in sorted(duplicate_application_route_ids):
-            errors.append(f"duplicate application route behavior routeId: {duplicate}")
-
-        application_by_route_id = {
-            entry["routeId"]: entry for entry in application_routes
-        }
-        shared_ids = {entry["id"] for entry in shared_routes}
-        errors.extend(
-            f"application route behavior references unknown shared route {entry['routeId']}"
-            for entry in application_routes
-            if entry["routeId"] not in shared_ids
-        )
-        routes = []
-        for entry in shared_routes:
-            behavior = application_by_route_id.get(entry["id"])
-            if behavior is None:
-                errors.append(
-                    f"shared route {entry['id']} has no Webapp application-route behavior"
-                )
-                continue
-            routes.append({**entry, **behavior, "id": entry["id"]})
+    application_routes = documents["application_routes"]["routes"]
+    duplicate_application_route_ids = _duplicate_values([entry["routeId"] for entry in application_routes])
+    for duplicate in sorted(duplicate_application_route_ids):
+        errors.append(f"duplicate application route behavior routeId: {duplicate}")
+    application_by_route_id = {entry["routeId"]: entry for entry in application_routes}
+    shared_ids = {entry["id"] for entry in shared_routes}
+    errors.extend(f"application route behavior references unknown shared route {entry['routeId']}" for entry in application_routes if entry["routeId"] not in shared_ids)
+    routes = []
+    for entry in shared_routes:
+        behavior = application_by_route_id.get(entry["id"])
+        if behavior is None:
+            errors.append(f"shared route {entry['id']} has no Webapp application-route behavior")
+            continue
+        routes.append({**entry, **behavior, "id": entry["id"]})
     states = documents["ui_states"]["states"]
     viewports = documents["viewports"]["viewports"]
 

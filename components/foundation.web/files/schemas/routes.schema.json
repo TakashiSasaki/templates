@@ -2,7 +2,11 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
   "additionalProperties": false,
-  "required": ["$schema", "schemaVersion", "routes"],
+  "required": [
+    "$schema",
+    "schemaVersion",
+    "routes"
+  ],
   "$defs": {
     "identifier": {
       "type": "string",
@@ -22,35 +26,57 @@
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["behavior", "stateId"],
+          "required": [
+            "behavior",
+            "stateId"
+          ],
           "properties": {
-            "behavior": {"const": "render-state"},
-            "stateId": {"$ref": "#/$defs/identifier"}
+            "behavior": {
+              "const": "render-state"
+            },
+            "stateId": {
+              "$ref": "#/$defs/identifier"
+            }
           }
         },
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["behavior", "routeId"],
+          "required": [
+            "behavior",
+            "routeId"
+          ],
           "properties": {
-            "behavior": {"const": "redirect"},
-            "routeId": {"$ref": "#/$defs/identifier"}
+            "behavior": {
+              "const": "redirect"
+            },
+            "routeId": {
+              "$ref": "#/$defs/identifier"
+            }
           }
         },
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["behavior"],
+          "required": [
+            "behavior"
+          ],
           "properties": {
-            "behavior": {"const": "not-applicable"}
+            "behavior": {
+              "const": "not-applicable"
+            }
           }
         }
       ]
     }
   },
   "properties": {
-    "$schema": {"const": "../schemas/routes.schema.json"},
-    "schemaVersion": {"const": 3},
+    "$schema": {
+      "const": "../schemas/routes.schema.json"
+    },
+    "schemaVersion": {
+      "const": 4
+    },
     "routes": {
       "type": "array",
       "minItems": 1,
@@ -60,113 +86,48 @@
         "required": [
           "id",
           "path",
-          "surface",
           "canonical",
           "aliases",
-          "authentication",
           "deepLink",
-          "historyBehavior",
-          "authenticationReturn",
-          "accessFailures",
-          "states",
           "accessibility"
         ],
         "properties": {
-          "id": {"$ref": "#/$defs/identifier"},
-          "path": {"$ref": "#/$defs/routePath"},
-          "surface": {"$ref": "#/$defs/identifier"},
-          "canonical": {"const": true},
+          "id": {
+            "$ref": "#/$defs/identifier"
+          },
+          "path": {
+            "$ref": "#/$defs/routePath"
+          },
+          "canonical": {
+            "const": true
+          },
           "aliases": {
             "type": "array",
             "uniqueItems": true,
-            "items": {"$ref": "#/$defs/routePath"}
-          },
-          "authentication": {"enum": ["none", "optional", "required"]},
-          "deepLink": {"type": "boolean"},
-          "historyBehavior": {"enum": ["push", "replace"]},
-          "authenticationReturn": {"enum": ["same-route", "not-applicable"]},
-          "accessFailures": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": ["unauthenticated", "forbidden"],
-            "properties": {
-              "unauthenticated": {"$ref": "#/$defs/accessFailure"},
-              "forbidden": {"$ref": "#/$defs/accessFailure"}
+            "items": {
+              "$ref": "#/$defs/routePath"
             }
           },
-          "states": {
-            "type": "array",
-            "minItems": 1,
-            "uniqueItems": true,
-            "items": {"$ref": "#/$defs/identifier"}
+          "deepLink": {
+            "type": "boolean"
           },
           "accessibility": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["documentTitleRequired", "focusTarget"],
+            "required": [
+              "documentTitleRequired",
+              "focusTarget"
+            ],
             "properties": {
-              "documentTitleRequired": {"const": true},
-              "focusTarget": {"$ref": "#/$defs/nonBlankText"}
-            }
-          }
-        },
-        "allOf": [
-          {
-            "if": {
-              "properties": {"authentication": {"const": "required"}},
-              "required": ["authentication"]
-            },
-            "then": {
-              "properties": {
-                "authenticationReturn": {"const": "same-route"},
-                "accessFailures": {
-                  "properties": {
-                    "unauthenticated": {
-                      "properties": {
-                        "behavior": {"enum": ["render-state", "redirect"]}
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          {
-            "if": {
-              "properties": {"authentication": {"const": "none"}},
-              "required": ["authentication"]
-            },
-            "then": {
-              "properties": {
-                "authenticationReturn": {"const": "not-applicable"},
-                "accessFailures": {
-                  "properties": {
-                    "unauthenticated": {
-                      "properties": {"behavior": {"const": "not-applicable"}}
-                    }
-                  }
-                }
-              }
-            }
-          },
-          {
-            "if": {
-              "properties": {"authentication": {"const": "optional"}},
-              "required": ["authentication"]
-            },
-            "then": {
-              "properties": {
-                "accessFailures": {
-                  "properties": {
-                    "unauthenticated": {
-                      "properties": {"behavior": {"const": "not-applicable"}}
-                    }
-                  }
-                }
+              "documentTitleRequired": {
+                "const": true
+              },
+              "focusTarget": {
+                "$ref": "#/$defs/nonBlankText"
               }
             }
           }
-        ]
+        }
       }
     }
   }
