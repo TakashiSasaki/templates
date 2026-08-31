@@ -43,7 +43,7 @@
 
   <div class="portal-artifact-grid">
     <a class="portal-artifact-card portal-artifact-card--webapp" href="web/">
-      <span class="portal-artifact-card__icon"><img src="images/icon-webapp.svg" alt=""></span>
+      <span class="portal-artifact-card__icon"><img src="images/icon-web.svg" alt=""></span>
       <span class="portal-artifact-card__copy">
         <strong>Choose Website or Web application</strong>
         <span>Classify the browser product from content/document versus task/state behavior, then continue to the matching product walkthrough.</span>
