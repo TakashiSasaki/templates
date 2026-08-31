@@ -182,7 +182,7 @@ Task Ledger deliberately supports three caller-visible concerns beyond the Webap
 
 | Requirement | Selection | Why |
 | --- | --- | --- |
-| Browser product UI | `webapp` recipe baseline | The Webapp artifact already defines browser surfaces, routes, visible states, viewports, and Web-specific validation. |
+| Browser product UI | `webapp` recipe baseline | The Webapp artifact resolves the shared Web foundation and defines application-specific surfaces, route behavior, visible states, and Web-specific validation. |
 | Python process and execution commands | `capability.runtime` | The product has a maintained application runtime. |
 | Independent HTTP JSON API | `capability.service` | Non-browser callers may use the API without the browser UI. |
 | Maintained `list` / `export` CLI | `capability.cli` | The CLI is a supported caller-visible interface. |
@@ -392,7 +392,7 @@ For this Task Ledger configuration, concrete examples are:
 | `RUNTIME.md` | `seed` | **Edit it.** Record the actual Task Ledger runtime decisions. |
 | `CLI_INTERFACE.md` | `seed` | **Edit it.** Define the supported `list` / `export` behavior. |
 | `SERVICE_INTERFACE.md` | `seed` | **Edit it.** Define the independently supported JSON API. |
-| `contracts/routes.json`, `contracts/surfaces.json`, `contracts/ui-states.json`, `contracts/viewports.json` | `seed` | **Edit them.** Make the browser contracts truthful for Task Ledger. |
+| `contracts/routes.json`, `contracts/application-routes.json`, `contracts/surfaces.json`, `contracts/ui-states.json`, `contracts/viewports.json` | `seed` | **Edit them.** Keep shared route identity/navigation in `routes.json` and application behavior in `application-routes.json`, and make all browser contracts truthful for Task Ledger. |
 | `contracts/cli-interface.json` | `seed` | **Edit it when the selected CLI becomes a product claim.** Keep it in `template` mode until the caller-visible CLI and executable proof exist. |
 | `contracts/implementation-evidence.json` | `seed` | **Edit later, after real proofs exist.** It initially remains in `template` mode. |
 | `contracts/manifest.json` | `generated` | **Do not hand-edit it.** Composition regenerates it deterministically. |
@@ -422,13 +422,15 @@ A small Task Ledger inventory can use:
 | Contract | Product decision |
 | --- | --- |
 | surface | `primary`: Task Ledger browser UI, local-product audience, non-diagnostic |
-| route | `home` at `/`: canonical task-list route |
-| states | `ready`, `empty`, and `error`, matching the observable reference-product states |
+| shared route | `home` at `/`: canonical, deep-linkable task-list path with the generated `main-heading` focus target |
+| application route | bind `home` to `primary`; keep the chosen authentication/history/access-failure behavior and declare `ready`, `empty`, and `error` as the observable Task Ledger states |
 | viewport | retain or revise the responsive lower bound and input/zoom behavior to match tested behavior |
 
-For this reference product, retain the required `"minWidthPx": 0` coverage-start sentinel on the `base` entry in `contracts/viewports.json`; the browser proof below exercises a representative 320px narrow browser viewport. Keep the generated `home` route focus target as `main-heading`; Section 12 makes that heading programmatically focusable and focuses it on route entry.
+`contracts/routes.json` is shared Web foundation authority: it declares the semantic route ID, path, canonical/alias/deep-link properties, and generic accessibility expectations. Do not put Webapp surface, authentication, access-failure, history, or state behavior into that document. `contracts/application-routes.json` is the Webapp-owned join: its `routeId` references the shared route and attaches the application surface, authentication/access-failure behavior, history behavior, and route states.
 
-For this reference product, set the `home` route `states` array to `["ready", "empty", "error"]`. In `contracts/ui-states.json`, retain `ready` and add route-scoped `empty` and `error` items. Use `category: "content"` for `empty`, `category: "error"` for `error`, `announcement: "polite"` for both because `#message` is a status region, and `focusStrategy: "preserve"` for all three. The implementation below renders `No tasks yet.` for `empty`, renders `Could not load tasks.` on a failed list refresh while leaving the existing content in place, restores focus to the replacement task action after completion, and moves focus to the status-filter fallback after deleting the focused task. Do not omit observable states from the route inventory merely to reduce evidence requirements.
+For this reference product, retain the required `"minWidthPx": 0` coverage-start sentinel on the `base` entry in `contracts/viewports.json`; the browser proof below exercises a representative 320px narrow browser viewport. Keep the generated `home` shared route focus target as `main-heading`; Section 12 makes that heading programmatically focusable and focuses it on route entry.
+
+For this reference product, set the `home` application-route record's `states` array in `contracts/application-routes.json` to `["ready", "empty", "error"]`. In `contracts/ui-states.json`, retain `ready` and add route-scoped `empty` and `error` items. Use `category: "content"` for `empty`, `category: "error"` for `error`, `announcement: "polite"` for both because `#message` is a status region, and `focusStrategy: "preserve"` for all three. The implementation below renders `No tasks yet.` for `empty`, renders `Could not load tasks.` on a failed list refresh while leaving the existing content in place, restores focus to the replacement task action after completion, and moves focus to the status-filter fallback after deleting the focused task. Do not omit observable states from the application-route inventory merely to reduce evidence requirements.
 
 Do not add authentication, administration, role-based authorization, touch support, multiple breakpoints, or diagnostic surfaces merely because a larger application might need them.
 
@@ -1120,7 +1122,7 @@ None from the generator itself. The redirected worklist above is outside the rep
 
 **What this means**
 
-The target set comes from the actual current surface, route, state, and viewport contracts. If those contracts change, regenerate the worklist.
+The Webapp-owned target set comes from the actual current surface, application-route, state, and viewport contracts, plus the browser-identity proof family. Shared `routes.json` remains foundation authority and is joined by `application-routes.json`; do not invent a separate Webapp evidence target for the shared route document.
 
 **Next**
 
