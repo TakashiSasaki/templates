@@ -261,6 +261,12 @@ def cross_validate(documents: dict[str, Any]) -> list[str]:
         routes = shared_routes
     else:
         application_routes = documents.get("application_routes", {}).get("routes", [])
+        duplicate_application_route_ids = _duplicate_values(
+            [entry["routeId"] for entry in application_routes]
+        )
+        for duplicate in sorted(duplicate_application_route_ids):
+            errors.append(f"duplicate application route behavior routeId: {duplicate}")
+
         application_by_route_id = {
             entry["routeId"]: entry for entry in application_routes
         }

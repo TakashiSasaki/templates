@@ -260,14 +260,14 @@
       "home": false
     },
     {
-      "id": "routes-migration",
-      "source": "components/artifact.webapp-core/files/docs/migrations/routes-v1-to-v2.md",
+      "id": "web-routes-v1-migration",
+      "source": "components/foundation.web/files/docs/migrations/routes-v1-to-v2.md",
       "optional": false,
       "home": false
     },
     {
-      "id": "routes-v3-migration",
-      "source": "components/artifact.webapp-core/files/docs/migrations/routes-v2-to-v3.md",
+      "id": "web-routes-v2-migration",
+      "source": "components/foundation.web/files/docs/migrations/routes-v2-to-v3.md",
       "optional": false,
       "home": false
     },
