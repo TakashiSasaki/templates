@@ -30,8 +30,8 @@ SPEC.loader.exec_module(validator)
 
 def evidence(
     *,
-    contract_id: str = "routes",
-    item_kind: str = "route",
+    contract_id: str = "application_routes",
+    item_kind: str = "application-route",
     proof_kind: str = "integration-test",
     required_kind: str = "integration-test",
 ) -> dict:
@@ -97,7 +97,7 @@ class WebappFocusTargetEvidenceTests(unittest.TestCase):
             validator.BROWSER_SENSITIVE_CONTRACT_ITEMS,
             {
                 ("browser_identity", "proof-family"),
-                ("routes", "route"),
+                ("application_routes", "application-route"),
                 ("viewports", "input-capability"),
                 ("viewports", "viewport"),
             },
