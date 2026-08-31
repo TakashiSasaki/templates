@@ -41,7 +41,7 @@ component  components components  components
 重要なのは **selection**、**semantics**、**materialization** を区別することです。
 
 - **recipe** は consumer-facing な開始時の selection です。
-- **component** は直接またはtransitiveに選ばれる再利用可能な source authority です。
+- **component** は直接または transitive に選ばれる再利用可能な source authority です。
 - component は contract document と schema を register したり、その他の file を materialize したりできます。
 - **Composer** は complete component closure を resolve して materialize します。
 - **Composition lock** は materialization 成功後の exact resolved state を記録します。
@@ -50,31 +50,31 @@ component  components components  components
 
 | Word | こう決めつけない | この repository では |
 | --- | --- | --- |
-| **Recipe** | CLI 手順やtutorialの順番 | exactly one artifact componentを選び、required/default/selectableな capability/lifecycle component を定める開始selectionです。walkthroughが手順であり、recipeはselection authorityです。 |
-| **Artifact** | 1個の生成file | identity-specific semanticsを定義する「作られるものの種類」です。現在のproduction recipeはAgent SkillまたはWeb applicationを作ります。 |
-| **Artifact component** | 完成したproductそのもの | artifact固有の再利用可能semanticsを所有するComposition componentです。現在は `artifact.skill-core` と `artifact.webapp-core` があります。 |
-| **Component** | UI widgetやpackage dependency | closed reusable Composition source authorityです。descriptorがcomponent role、dependency、conflict、materialized destination、ownership mode、optional contract registrationを宣言します。 |
-| **Foundation component** | 明示的にincludeするcapability | artifact dependency により導入される共有必須baselineです。foundationは推移的にresolveされ、recipeから選択するconsumer capabilityではありません。 |
-| **Capability component** | artifactなら自動的に付く性質 | runtime、packaged CLI、MCP、MCP Apps、standalone browser interface、headless serviceなどのoptionalでartifact-neutralなbehaviorです。productが実際にそのbehaviorを公開するときだけ選びます。 |
-| **Lifecycle component** | 時系列上のproject phase | Composition state、contract evolution、implementation evidence、lifecycle checkpoint、release behaviorなどの再利用可能なproduct-lifecycle machineryです。 |
-| **Contract** | HTTP/API contractだけ | 選択されたcomponentはartifactまたはlifecycle behaviorについてmachine-readableなcontract documentとschemaをregisterできます。exact meaningは各registered contractとowner componentが持ち、単一のgeneric `contract.json` はありません。 |
-| **Material** | 抽象的な設計素材 | resolved componentからconsumer repositoryへmaterializeされるfile destinationです。各destinationにはexactly one component ownerとone ownership modeがあります。 |
-| **Seed material** | immutableなtemplate output | 初期contentで、materialization後にbyte ownershipがconsumerへ移ります。selectedである間file自体は必要ですが、consumer editはinitial digestからdivergeできます。 |
-| **Managed / generated material** | consumerが自由に置換できるfile | Composition-controlled bytesです。consumer-time validationではresolved lock stateとの一致が必要です。 |
-| **Composition lock** | mutexやprocess lock | `.template-composition/lock.json` にあるdeterministic recordです。exact source revision、normalized intent、resolved components、ownership、material digestを記録します。 |
+| **Recipe** | CLI 手順や tutorial の順番 | exactly one artifact component を選び、required/default/selectable な capability/lifecycle component を定める開始 selection です。walkthrough が手順であり、recipe は selection authority です。 |
+| **Artifact** | 1個の生成 file | identity-specific semantics を定義する「作られるものの種類」です。現在の production recipe は Agent Skill または Web application を作ります。 |
+| **Artifact component** | 完成した product そのもの | artifact 固有の再利用可能 semantics を所有する Composition component です。現在は `artifact.skill-core` と `artifact.webapp-core` があります。 |
+| **Component** | UI widget や package dependency | closed reusable Composition source authority です。descriptor が component role、dependency、conflict、materialized destination、ownership mode、optional contract registration を宣言します。 |
+| **Foundation component** | 明示的に include する capability | artifact dependency により導入される共有必須 baseline です。foundation は推移的に resolve され、recipe から選択する consumer capability ではありません。 |
+| **Capability component** | artifact なら自動的に付く性質 | runtime、packaged CLI、MCP、MCP Apps、standalone browser interface、headless service などの optional で artifact-neutral な behavior です。product が実際にその behavior を公開するときだけ選びます。 |
+| **Lifecycle component** | 時系列上の project phase | Composition state、contract evolution、implementation evidence、lifecycle checkpoint、release behavior などの再利用可能な product-lifecycle machinery です。 |
+| **Contract** | HTTP/API contract だけ | 選択された component は artifact または lifecycle behavior について machine-readable な contract document と schema を register できます。exact meaning は各 registered contract と owner component が持ち、単一の generic `contract.json` はありません。 |
+| **Material** | 抽象的な設計素材 | resolved component から consumer repository へ materialize される file destination です。各 destination には exactly one component owner と one ownership mode があります。 |
+| **Seed material** | immutable な template output | 初期 content で、materialization 後に byte ownership が consumer へ移ります。selected である間 file 自体は必要ですが、consumer edit は initial digest から diverge できます。 |
+| **Managed / generated material** | consumer が自由に置換できる file | Composition-controlled bytes です。consumer-time validation では resolved lock state との一致が必要です。 |
+| **Composition lock** | mutex や process lock | `.template-composition/lock.json` にある deterministic record です。exact source revision、normalized intent、resolved components、ownership、material digest を記録します。 |
 
 ### Artifact component と Artifact contract は同じではない
 
 これらは意図的に別概念です。
 
-- **Artifact component** はCompositionのauthority classであり、作られるartifact種別に固有の再利用可能semanticsを所有します。
-- **Artifact contract** はPolicyが所有するrepository-wideな分類で、produced artifactが何を含むべきか、何を行うべきかを定義するrequirement classです。
+- **Artifact component** は Composition の authority class であり、作られる artifact 種別に固有の再利用可能 semantics を所有します。
+- **Artifact contract** は Policy が所有する repository-wide な分類で、produced artifact が何を含むべきか、何を行うべきかを定義する requirement class です。
 
-これらの語を区別するcanonical placeはintegrated glossaryです。語が似ているという理由だけで、Composition側にPolicy-owned `Artifact contract` の第二定義を作ってはいけません。
+これらの語を区別する canonical place は integrated glossary です。語が似ているという理由だけで、Composition 側に Policy-owned `Artifact contract` の第二定義を作ってはいけません。
 
 ## 例: minimal Web application
 
-minimal static browser applicationは `webapp` recipe とoptional componentなしで開始できます。
+minimal static browser application は `webapp` recipe と optional component なしで開始できます。
 
 ```json
 {
@@ -88,33 +88,37 @@ minimal static browser applicationは `webapp` recipe とoptional componentな�
 }
 ```
 
-recipeは `artifact.webapp-core` とbaseline lifecycle dependencyを選びます。Webapp artifact componentはroutes、surfaces、UI states、viewportsなどbrowser-specific contract familyを提供します。materialization後、consumer repositoryには次のようなeditable seed contract documentが入ります。
+recipe は `artifact.webapp-core` と baseline lifecycle dependency を選びます。artifact は `foundation.web` を必要とするため、Composer はこの共有必須 baseline も transitive に resolve します。`foundation.web` は browser identity、一般化された routes、viewport/input contract を提供し、`artifact.webapp-core` は application surface、application-route behavior、UI state を提供します。materialization 後、consumer repository には次のような editable seed contract document が入ります。
 
 ```text
+contracts/browser-identity.json
 contracts/routes.json
+contracts/viewports.json
+contracts/application-routes.json
 contracts/surfaces.json
 contracts/ui-states.json
-contracts/viewports.json
 ```
 
-これらは作ろうとしているproductを記述するfileであり、complete implementationではありません。product code、framework choice、storage、testなどのconsumer-owned fileは別途実装します。
+shared `routes.json` は product-neutral な path、canonical/deep-link、accessibility semantics を記述します。Webapp 固有の surface、authentication/access-failure、history、state behavior は `application-routes.json` に置き、shared route document に戻してはいけません。
 
-後からmaintained implementation runtime、packaged CLI、MCP、service、complete release lifecycleが必要になった場合は、該当するtop-level capability/lifecycle componentをincludeします。Composerがtransitive requirementをresolveするため、consumerが全prerequisiteを列挙する必要はありません。
+これらは作ろうとしている product を記述する file であり、complete implementation ではありません。product code、framework choice、storage、test などの consumer-owned file は別途実装します。
+
+後から maintained implementation runtime、packaged CLI、MCP、service、complete release lifecycle が必要になった場合は、該当する top-level capability/lifecycle component を include します。Composer が transitive requirement を resolve するため、consumer が全 prerequisite を列挙する必要はありません。
 
 ## 例: Agent Skill
 
-`skill` recipeは `artifact.skill-core` を選びます。initial materialには、別consumer repositoryでSkillを作り始めるためのSkill structureとvalidationが含まれます。application capabilityと大部分のproduct lifecycle machineryは、Skillだから自動的に付くのではなくopt-inです。
+`skill` recipe は `artifact.skill-core` を選びます。initial material には、別 consumer repository で Skill を作り始めるための Skill structure と validation が含まれます。application capability と大部分の product lifecycle machinery は、Skill だから自動的に付くのではなく opt-in です。
 
-例えばinstruction-onlyまたはknowledge-augmented Skillは、他のSkillがCLI、MCP、service behaviorを公開する可能性があるという理由だけでapplication runtimeを必要としません。
+例えば instruction-only または knowledge-augmented Skill は、他の Skill が CLI、MCP、service behavior を公開する可能性があるという理由だけで application runtime を必要としません。
 
 ## 次に読むもの
 
-- Web applicationを今すぐ作る場合は [Webapp product walkthrough](webapp-product-walkthrough.md)。
-- Agent Skillを今すぐ作る場合は [Agent Skill first-use walkthrough](skill-first-use-walkthrough.md)。
-- optional componentを選ぶ場合は [production catalog guide](../../catalog/README.md)。
-- strict semanticsとownership ruleは [Composition model](../architecture/composition-model.md)。
-- exact commandとdiagnosticは [Composer reference](../reference/composer.md)。
-- canonical repository terminologyとcross-authority disambiguationは、provider-owned `docs/glossary.yml` から生成されるintegrated glossaryを参照してください。
+- Web application を今すぐ作る場合は [Webapp product walkthrough](webapp-product-walkthrough.md)。
+- Agent Skill を今すぐ作る場合は [Agent Skill first-use walkthrough](skill-first-use-walkthrough.md)。
+- optional component を選ぶ場合は [production catalog guide](../../catalog/README.md)。
+- strict semantics と ownership rule は [Composition model](../architecture/composition-model.md)。
+- exact command と diagnostic は [Composer reference](../reference/composer.md)。
+- canonical repository terminology と cross-authority disambiguation は、provider-owned `docs/glossary.yml` から生成される integrated glossary を参照してください。
 
 
 ## コンポーネントロール: 実用的なメンタルモデル
