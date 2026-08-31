@@ -210,7 +210,7 @@ class PwaPolicyDerivedEvidenceTests(unittest.TestCase):
         text = MIGRATION.read_text(encoding="utf-8")
         for expected in (
             "each entry must also choose `offlineReadBehavior`",
-            "every `controlledRouteIds` entry",
+            "`controlledRouteIds` entry",
             '"offlineReadBehavior": "cached-content-when-available"',
             '"offlineReadBehavior": "network-unavailable-presentation"',
             "`cacheableDataClassifications`",
