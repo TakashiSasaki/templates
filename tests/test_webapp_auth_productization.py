@@ -30,7 +30,13 @@ class WebappAuthenticationProductizationTests(unittest.TestCase):
 
     def install_auth_contract_fixture(self, target: Path) -> None:
         contract_fixture = FIXTURE_DIR / "contracts"
-        for name in ("surfaces.json", "routes.json", "ui-states.json", "viewports.json"):
+        for name in (
+            "surfaces.json",
+            "routes.json",
+            "application-routes.json",
+            "ui-states.json",
+            "viewports.json",
+        ):
             (target / "contracts" / name).write_text(
                 (contract_fixture / name).read_text(encoding="utf-8"),
                 encoding="utf-8",
@@ -63,11 +69,26 @@ class WebappAuthenticationProductizationTests(unittest.TestCase):
             {
                 "id": "admin",
                 "path": "/admin",
-                "surface": "admin",
                 "canonical": True,
                 "aliases": [],
-                "authentication": "required",
                 "deepLink": True,
+                "accessibility": {
+                    "documentTitleRequired": True,
+                    "focusTarget": "main-heading",
+                },
+            }
+        )
+        self.write_json(routes_path, routes)
+
+        application_routes_path = target / "contracts/application-routes.json"
+        application_routes = json.loads(
+            application_routes_path.read_text(encoding="utf-8")
+        )
+        application_routes["routes"].append(
+            {
+                "routeId": "admin",
+                "surface": "admin",
+                "authentication": "required",
                 "historyBehavior": "push",
                 "authenticationReturn": "same-route",
                 "accessFailures": {
@@ -87,13 +108,9 @@ class WebappAuthenticationProductizationTests(unittest.TestCase):
                     "unauthorized",
                     "forbidden",
                 ],
-                "accessibility": {
-                    "documentTitleRequired": True,
-                    "focusTarget": "main-heading",
-                },
             }
         )
-        self.write_json(routes_path, routes)
+        self.write_json(application_routes_path, application_routes)
 
     def target_locator(self, evidence_target: dict) -> str:
         if evidence_target.get("contractId") in {"browser_identity", "viewports"}:
@@ -133,8 +150,8 @@ class WebappAuthenticationProductizationTests(unittest.TestCase):
             },
             {
                 "kind": "contract-item",
-                "contractId": "routes",
-                "itemKind": "route",
+                "contractId": "application_routes",
+                "itemKind": "application-route",
                 "itemId": "admin",
             },
         ):
