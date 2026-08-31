@@ -208,6 +208,49 @@ Route canonical paths and aliases share one URL namespace. Do not assign the sam
 
 Website evidence targets are derived from the current Website/shared contracts. Browser-sensitive targets include browser identity, Website pages, page metadata, viewports, and input capabilities. Planning requirements for those targets must declare a browser-level positive proof kind such as `end-to-end-test` or `accessibility-test`.
 
+For the exact two-page Project Docs baseline in step 7, replace the scaffold evidence file with this planning payload before step 9:
+
+```json
+{
+  "$schema": "../schemas/implementation-evidence.schema.json",
+  "schemaVersion": 6,
+  "mode": "planning",
+  "commands": [],
+  "releaseGates": [],
+  "records": [],
+  "requirements": [
+    {
+      "id": "WEBSITE-BROWSER",
+      "description": "Project Docs browser-facing Website behavior requires browser-level positive proof.",
+      "targets": [
+        {"kind": "contract-item", "contractId": "browser_identity", "itemKind": "proof-family", "itemId": "browser-identity"},
+        {"kind": "contract-item", "contractId": "document_metadata", "itemKind": "page-metadata", "itemId": "guide"},
+        {"kind": "contract-item", "contractId": "document_metadata", "itemKind": "page-metadata", "itemId": "home"},
+        {"kind": "contract-item", "contractId": "site_structure", "itemKind": "page", "itemId": "guide"},
+        {"kind": "contract-item", "contractId": "site_structure", "itemKind": "page", "itemId": "home"},
+        {"kind": "contract-item", "contractId": "viewports", "itemKind": "input-capability", "itemId": "keyboard"},
+        {"kind": "contract-item", "contractId": "viewports", "itemKind": "viewport", "itemId": "base"}
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": ["accessibility-test", "end-to-end-test"]
+    },
+    {
+      "id": "WEBSITE-DISCOVERY",
+      "description": "Project Docs discovery resources require inspection against the declared public Website contract.",
+      "targets": [
+        {"kind": "contract-item", "contractId": "site_discovery", "itemKind": "proof-family", "itemId": "canonical-origin"},
+        {"kind": "contract-item", "contractId": "site_discovery", "itemKind": "proof-family", "itemId": "robots"},
+        {"kind": "contract-item", "contractId": "site_discovery", "itemKind": "proof-family", "itemId": "sitemap"}
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": ["inspection"]
+    }
+  ]
+}
+```
+
+The same payload is stored at `examples/onboarding/project-docs/implementation-evidence.planning.json` and is regression-checked against the Website evidence schema and the Website validator's derived target inventory for this Project Docs baseline. If you add a page, feed, viewport, or input capability beyond the baseline, do **not** reuse the target list unchanged: update planning requirements so every target derived from the current contracts is covered before validating.
+
 Discovery proof families such as canonical origin, robots, sitemap, and feeds still need evidence, but they are not all intrinsically browser-sensitive. Use proof strength appropriate to the observable requirement rather than labelling every check as browser proof.
 
 If the repository also selects another evidence-producing capability later, Website validation owns only Website/shared targets. PWA, runtime, service, or Web-interface evidence remains owned by that component's validator; do not duplicate it as Website evidence.
