@@ -60,11 +60,22 @@ for label, command in CHECKS:
         print(result.stderr, file=sys.stderr, end="")
         raise SystemExit(result.returncode)
 
-routes = {
+shared_routes = {
     route["id"]: route
     for route in json.loads(
         (ROOT / "contracts/routes.json").read_text(encoding="utf-8")
     )["routes"]
+}
+application_routes = {
+    route["routeId"]: route
+    for route in json.loads(
+        (ROOT / "contracts/application-routes.json").read_text(encoding="utf-8")
+    )["routes"]
+}
+assert set(shared_routes) == set(application_routes)
+routes = {
+    route_id: {**route, **application_routes[route_id], "id": route_id}
+    for route_id, route in shared_routes.items()
 }
 surfaces = {
     surface["id"]: surface
