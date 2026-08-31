@@ -153,7 +153,7 @@ class ProductionCatalogTests(unittest.TestCase):
                 self.assertFalse(groups[1] & groups[2])
                 for component_id in set().union(*groups):
                     self.assertIn(component_id, self.components)
-                    self.assertNotEqual(self.components[component_id]["component_role"], "artifact")
+                    self.assertNotIn(self.components[component_id]["component_role"], {"artifact", "foundation"})
 
     def test_skill_recipe_exposes_generic_capabilities_and_lifecycle(self):
         recipe = self.recipes["skill"]

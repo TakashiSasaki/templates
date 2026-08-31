@@ -284,7 +284,7 @@ def _validate_source_graph(components: dict[str, dict[str, Any]], recipes: dict[
         if groups[0] & groups[1] or groups[0] & groups[2] or groups[1] & groups[2]:
             raise CompositionError("INVALID_RECIPE", f"recipe {recipe_id} selection classes overlap")
         for component_id in set().union(*groups):
-            if component_id not in components or components[component_id]["component_role"] == "artifact":
+            if component_id not in components or components[component_id]["component_role"] in {"artifact", "foundation"}:
                 raise CompositionError(
                     "INVALID_RECIPE",
                     f"recipe {recipe_id} references invalid selectable component {component_id}",
