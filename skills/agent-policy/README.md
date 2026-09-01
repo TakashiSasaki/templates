@@ -78,6 +78,16 @@ python <pinned-installer.py> /path/to/agent-policy \
 
 Verification is read-only with respect to the installed Skill and does not download or install runtime material. It uses streaming SHA-256 and enforces the Skill distribution size limit while recomputing the closed tree inventory. A missing, mismatched, linked, oversized, or otherwise tampered installation fails this verification. `runtime-manifest.json` remains a separate runtime-selection contract and cannot substitute for Skill-source installation provenance.
 
+After verification, the installed Skill tree remains immutable trust material throughout a trusted-review invocation. Trusted bootstrap must not create Python bytecode caches, logs, temporary files, or state inside that tree. The installed `bootstrap.py` and `run.py` set `sys.dont_write_bytecode` before importing sibling Skill modules, and the dispatcher should invoke trusted bootstrap with bytecode writes disabled as well, for example:
+
+```text
+python -B scripts/run.py --repository <trusted-base-snapshot> check --config <config-path>
+```
+
+Runtime and dependency-cache state must remain outside the installed Skill root. A deployment may instead execute from an equivalently isolated read-only verified tree. If ordinary execution can alter the attested path/type inventory, that installation is not usable as trusted automated-review bootstrap.
+
+The authenticated bootstrap then verifies and hands off the trusted base's generated `pr-review` Skill. Semantic and adapter projections used by that procedure are deterministically reproduced, then their exact bytes/digests are bound to the review run through serialization. A base change invalidates the complete semantic result from the old trusted root and requires the review to run again against the replacement base even when the `pr-review` Skill bytes themselves are unchanged.
+
 ## Installation during repository development
 
 A reviewed checkout can install the skill tree from that checkout:
