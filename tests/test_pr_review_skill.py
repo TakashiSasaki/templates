@@ -173,7 +173,11 @@ def test_canonical_prompt_is_a_thin_non_normative_invocation() -> None:
 
     assert "non-normative invocation template" in prompt
     assert "not a bootstrap contract" in prompt
-    assert "installed immutable `agent-policy` Skill bootstrap establishes executable provenance" in prompt
+    bootstrap_phrase = (
+        "installed immutable `agent-policy` Skill bootstrap establishes "
+        "executable provenance"
+    )
+    assert bootstrap_phrase in prompt
     assert "verified `pr-review` Skill is the sole review-execution procedural authority" in prompt
     assert "Semantic review projection: `<repository-relative-semantic-output-path>`" in prompt
     assert "GitHub adapter projection: `<repository-relative-github-adapter-output-path>`" in prompt
