@@ -207,6 +207,29 @@ def require_no_symlink_components(path: Path) -> None:
             break
 
 
+def hash_regular_file(path: Path, *, remaining_limit: int) -> tuple[str, int]:
+    stat = path.stat(follow_symlinks=False)
+    if stat.st_nlink != 1:
+        raise RuntimeError(f"installed skill contains a hard-linked file: {path}")
+    if stat.st_size < 0 or stat.st_size > remaining_limit:
+        raise RuntimeError("installed skill exceeds the size limit")
+
+    digest = hashlib.sha256()
+    consumed = 0
+    with path.open("rb") as source:
+        while True:
+            chunk = source.read(min(64 * 1024, remaining_limit - consumed + 1))
+            if not chunk:
+                break
+            consumed += len(chunk)
+            if consumed > remaining_limit:
+                raise RuntimeError("installed skill exceeds the size limit")
+            digest.update(chunk)
+    if consumed != stat.st_size:
+        raise RuntimeError(f"installed skill file changed while hashing: {path}")
+    return digest.hexdigest(), consumed
+
+
 def installed_file_digests(target: Path) -> dict[str, str]:
     target = target.expanduser().absolute()
     require_no_symlink_components(target)
@@ -214,6 +237,7 @@ def installed_file_digests(target: Path) -> dict[str, str]:
         raise RuntimeError(f"installed skill directory is missing: {target}")
 
     digests: dict[str, str] = {}
+    total_size = 0
     for path in sorted(target.rglob("*"), key=lambda item: item.as_posix()):
         if path.is_symlink():
             raise RuntimeError(f"installed skill contains a symbolic link: {path}")
@@ -222,7 +246,12 @@ def installed_file_digests(target: Path) -> dict[str, str]:
         if not path.is_file():
             raise RuntimeError(f"installed skill contains a non-regular file: {path}")
         relative = path.relative_to(target).as_posix()
-        digests[relative] = hashlib.sha256(path.read_bytes()).hexdigest()
+        digest, consumed = hash_regular_file(
+            path,
+            remaining_limit=SKILL_LIMIT - total_size,
+        )
+        total_size += consumed
+        digests[relative] = digest
 
     missing = {path.as_posix() for path in REQUIRED_SKILL_PATHS} - set(digests)
     if missing:
@@ -299,6 +328,8 @@ def load_installation_attestation(path: Path) -> dict[str, object]:
     require_no_symlink_components(path)
     if not path.is_file():
         raise RuntimeError(f"installation attestation is missing: {path}")
+    if path.stat(follow_symlinks=False).st_nlink != 1:
+        raise RuntimeError("installation attestation must not be hard linked")
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
