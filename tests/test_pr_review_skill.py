@@ -104,8 +104,16 @@ def test_pr_review_skill_defers_ci_classification_to_semantic_policy() -> None:
     skill = (SKILL_ROOT / "SKILL.md").read_text(encoding="utf-8")
 
     assert "record the exact revision and state each item covers" in skill
-    assert "Do not classify pending, skipped, stale, inaccessible, missing, successful, or failed evidence" in skill
-    assert "pass the observed evidence to the bound semantic review policy for classification" in skill
+    ci_classification = (
+        "Do not classify pending, skipped, stale, inaccessible, missing, "
+        "successful, or failed evidence"
+    )
+    semantic_handoff = (
+        "pass the observed evidence to the bound semantic review policy "
+        "for classification"
+    )
+    assert ci_classification in skill
+    assert semantic_handoff in skill
     assert "is not by itself a code defect" not in skill
     assert "is not a pass" not in skill
 
