@@ -41,6 +41,14 @@ Other guidance was already owned elsewhere and is deliberately reused instead of
 
 Operational requirements such as resolving the exact pull-request base and head, refreshing the head before emitting a review, retrieving current CI evidence, and serializing a GitHub review belong to review procedure or adapter layers rather than new semantic modules. ADR-0008 records that boundary.
 
+## Statement-level disposition of the revised guidance
+
+`docs/review-guidance-disposition.json` is the machine-readable, non-authoritative disposition record for the frozen migration inputs `RG-01` through `RG-09` and `AP-01` through `AP-08`. It records whether each statement is already owned by canonical policy, contributes to the single new semantic rule in this change, belongs to the planned review procedure, or belongs to the planned adapter.
+
+The disposition record is deliberately not another review policy source. Tests require every frozen input ID to appear exactly once, every semantic authority reference to resolve to a composed canonical rule, and the set of newly introduced semantic authorities to be exactly `{review.assess-applicable-risk-domains}`. Multiple frozen statements may therefore map to the same canonical rule without creating duplicate authority.
+
+Procedure and adapter entries identify the downstream owner planned by ADR-0008; they do not make the disposition file procedural or transport authority. Those requirements become executable only in the dedicated reviewed follow-up that supplies `pr-review` and the adapter.
+
 ## What does not belong here
 
 The frozen Skill review document also contains an output and integration protocol. Those requirements are deliberately not copied into `policy/review/`:
