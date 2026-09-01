@@ -113,6 +113,73 @@ class WebsiteComposerAcceptanceTests(unittest.TestCase):
             ):
                 self.assertFalse((target / "contracts" / forbidden).exists(), forbidden)
 
+    def test_website_service_materializes_runtime_and_validates_without_webapp_contracts(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            config_path = self.write_config(
+                root, config(include=["capability.service"])
+            )
+            target = root / "consumer"
+            applied, payload = self.run_composer(
+                "apply", target=target, config_path=config_path
+            )
+            self.assertEqual(applied.returncode, 0, applied.stderr)
+            self.assertEqual(payload["status"], "applied")
+
+            lock = json.loads(
+                (target / ".template-composition" / "lock.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+            resolved = [entry["id"] for entry in lock["resolved_components"]]
+            for required_component in (
+                "artifact.website-core",
+                "foundation.web",
+                "capability.service",
+                "capability.runtime",
+            ):
+                self.assertIn(required_component, resolved)
+            self.assertNotIn("artifact.webapp-core", resolved)
+
+            for required_contract in (
+                "routes.json",
+                "site-structure.json",
+                "document-metadata.json",
+                "site-discovery.json",
+                "service-interface.json",
+            ):
+                self.assertTrue(
+                    (target / "contracts" / required_contract).is_file(),
+                    required_contract,
+                )
+            for forbidden_contract in (
+                "application-routes.json",
+                "surfaces.json",
+                "ui-states.json",
+            ):
+                self.assertFalse(
+                    (target / "contracts" / forbidden_contract).exists(),
+                    forbidden_contract,
+                )
+
+            for required_material in (
+                "SERVICE_INTERFACE.md",
+                "RUNTIME.md",
+                "docs/runtime-selection.md",
+                "schemas/service-interface.schema.json",
+                ".template-composition/validators/validate_service_interface.py",
+                "docs/migrations/service-interface-v1-to-v2.md",
+            ):
+                self.assertTrue((target / required_material).is_file(), required_material)
+
+            validated, validation = self.run_composer("validate", target=target)
+            self.assertEqual(
+                validated.returncode,
+                0,
+                validated.stdout + validated.stderr,
+            )
+            self.assertEqual(validation["status"], "valid")
+
     def test_runtime_backed_website_is_an_orthogonal_opt_in(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
