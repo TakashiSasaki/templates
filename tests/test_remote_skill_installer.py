@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import io
+import json
 import subprocess
 import sys
 import tarfile
@@ -61,8 +62,14 @@ def skill_archive(*, extra_members: list[tarfile.TarInfo] | None = None) -> byte
     return buffer.getvalue()
 
 
+def materialize_skill(target: Path) -> None:
+    installer.extract_skill_archive(skill_archive(), target)
+
+
 def test_remote_installer_pins_the_policy_owned_skill_revision() -> None:
     assert installer.TOOLCHAIN_REPOSITORY == "TakashiSasaki/templates"
+    assert installer.INSTALLER_PATH == "scripts/install_agent_policy_skill.py"
+    assert installer.SKILL_SOURCE_PATH == "skills/agent-policy"
     assert (
         installer.SKILL_SOURCE_REVISION
         == "499dc8699e3dcd9f460d603718bdf2266c45e7ca"
@@ -160,6 +167,105 @@ def test_install_downloaded_skill_delegates_to_atomic_local_installer(
     assert command[0] == sys.executable
     assert command[2:] == [str(target), "--replace"]
     assert observed["check"] is True
+
+
+def test_installation_attestation_binds_source_root_and_all_files(
+    tmp_path: Path,
+) -> None:
+    target = tmp_path / "installed" / "agent-policy"
+    target.parent.mkdir(parents=True)
+    materialize_skill(target)
+    attestation = tmp_path / "trust" / "agent-policy-installation.json"
+    installer_revision = "a" * 40
+
+    installer.write_installation_attestation(
+        target,
+        attestation,
+        installer_revision=installer_revision,
+    )
+    value = json.loads(attestation.read_text(encoding="utf-8"))
+
+    assert value["installer"] == {
+        "repository": "TakashiSasaki/templates",
+        "revision": installer_revision,
+        "path": "scripts/install_agent_policy_skill.py",
+    }
+    assert value["skill_source"] == {
+        "repository": "TakashiSasaki/templates",
+        "revision": installer.SKILL_SOURCE_REVISION,
+        "path": "skills/agent-policy",
+    }
+    assert value["installation"]["root"] == str(target.absolute())
+    assert set(value["installation"]["files"]) == {
+        "README.md",
+        "SKILL.md",
+        "runtime-manifest.json",
+        "scripts/install.py",
+    }
+    installer.verify_installation_attestation(
+        target,
+        attestation,
+        installer_revision=installer_revision,
+    )
+
+
+def test_installation_attestation_detects_installed_skill_tampering(
+    tmp_path: Path,
+) -> None:
+    target = tmp_path / "installed" / "agent-policy"
+    target.parent.mkdir(parents=True)
+    materialize_skill(target)
+    attestation = tmp_path / "trust" / "agent-policy-installation.json"
+    installer_revision = "a" * 40
+    installer.write_installation_attestation(
+        target,
+        attestation,
+        installer_revision=installer_revision,
+    )
+
+    (target / "SKILL.md").write_text("modified\n", encoding="utf-8")
+
+    with pytest.raises(RuntimeError, match="does not match installed skill bytes"):
+        installer.verify_installation_attestation(
+            target,
+            attestation,
+            installer_revision=installer_revision,
+        )
+
+
+def test_installation_attestation_must_be_outside_skill_tree(tmp_path: Path) -> None:
+    target = tmp_path / "installed" / "agent-policy"
+    target.parent.mkdir(parents=True)
+    materialize_skill(target)
+
+    with pytest.raises(ValueError, match="outside the installed skill tree"):
+        installer.write_installation_attestation(
+            target,
+            target / "installation-attestation.json",
+            installer_revision="a" * 40,
+        )
+
+
+def test_installed_skill_digest_rejects_symlink_path_components(
+    tmp_path: Path,
+) -> None:
+    real_parent = tmp_path / "real"
+    target = real_parent / "agent-policy"
+    real_parent.mkdir()
+    materialize_skill(target)
+    alias = tmp_path / "alias"
+    alias.symlink_to(real_parent, target_is_directory=True)
+
+    with pytest.raises(RuntimeError, match="symbolic-link component"):
+        installer.installed_file_digests(alias / "agent-policy")
+
+
+def test_attestation_requires_full_installer_revision(tmp_path: Path) -> None:
+    target = tmp_path / "agent-policy"
+    materialize_skill(target)
+
+    with pytest.raises(ValueError, match="installer revision"):
+        installer.installation_attestation(target, installer_revision="policy")
 
 
 def test_download_archive_rejects_oversized_content_length() -> None:
