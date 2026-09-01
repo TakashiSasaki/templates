@@ -14,6 +14,7 @@ WALKTHROUGH = ROOT / "docs" / "guides" / "website-product-walkthrough.md"
 WALKTHROUGH_JA = (
     ROOT / "translations" / "ja" / "docs" / "guides" / "website-product-walkthrough.md"
 )
+CONSUMER_GUIDE_JA = ROOT / "translations" / "ja" / "docs" / "consumer-guide.md"
 SELECTION_JA = (
     ROOT / "translations" / "ja" / "docs" / "guides" / "website-webapp-selection.md"
 )
@@ -25,6 +26,13 @@ PLANNING_EVIDENCE_EXAMPLE = (
     / "onboarding"
     / "project-docs"
     / "implementation-evidence.planning.json"
+)
+PRODUCT_EVIDENCE_EXAMPLE = (
+    ROOT
+    / "examples"
+    / "onboarding"
+    / "project-docs"
+    / "implementation-evidence.product.json"
 )
 CONFIG_SCHEMA = ROOT / "schemas" / "composition-config.schema.json"
 EVIDENCE_SCHEMA = (
@@ -262,6 +270,32 @@ class HumanFirstWebsiteOnboardingTests(unittest.TestCase):
         self.assertNotIn("(../../docs/guides/website-product-walkthrough.md)", catalog)
         self.assertIn("(../../catalog/README.md)", selection)
         self.assertNotIn("(../../../catalog/README.md)", selection)
+
+    def test_japanese_walkthrough_links_to_stable_install_anchor_and_product_asset(self) -> None:
+        text = WALKTHROUGH_JA.read_text(encoding="utf-8")
+        consumer_guide = CONSUMER_GUIDE_JA.read_text(encoding="utf-8")
+        self.assertIn('<a id="composition-skill-install"></a>', consumer_guide)
+        self.assertIn("(../consumer-guide.md#composition-skill-install)", text)
+        self.assertNotIn("#install-and-run-the-composition-skill", text)
+
+        match = re.search(
+            r"\[published Project Docs product evidence example\]\(([^)]+)\)",
+            text,
+        )
+        self.assertIsNotNone(match)
+        assert match is not None
+        linked_target = (WALKTHROUGH_JA.parent / match.group(1)).resolve()
+        self.assertEqual(linked_target, PRODUCT_EVIDENCE_EXAMPLE.resolve())
+        self.assertTrue(linked_target.is_file())
+
+        publication = json.loads(
+            (ROOT / "docs" / "publication-catalog.json").read_text(encoding="utf-8")
+        )
+        assets = {entry["source"]: entry["destination"] for entry in publication["assets"]}
+        self.assertEqual(
+            assets["examples/onboarding/project-docs/implementation-evidence.product.json"],
+            "website/examples/project-docs/implementation-evidence.product.json",
+        )
 
     def test_publication_and_translation_authorities_include_new_reader_paths(self) -> None:
         publication = json.loads(
