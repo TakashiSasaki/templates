@@ -18,7 +18,7 @@
     </p>
     <div class="portal-cover__actions">
       <a class="portal-cover__button portal-cover__button--primary" href="/web/">
-        Website か Web アプリケーションかを選ぶ <span aria-hidden="true">→</span>
+        Website / Web アプリケーション <span aria-hidden="true">→</span>
       </a>
       <a class="portal-cover__button portal-cover__button--secondary" href="/composition/use/skill-first-use-walkthrough/">
         Agent Skill を作る <span aria-hidden="true">→</span>
@@ -26,7 +26,7 @@
     </div>
     <ul class="portal-cover__signals" role="list">
       <li>具体的な作業から始め、architecture は必要になってから確認します。</li>
-      <li>browser product の選択と、その公開 route の背後にある shared Web semantics は Composition が所有します。</li>
+      <li>browser product の選択と shared Web semantics は Composition が所有します。</li>
       <li>Policy は optional で、Composition とは独立しています。</li>
     </ul>
   </div>
