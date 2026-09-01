@@ -24,10 +24,10 @@ TRANSLATED_SKILL_WALKTHROUGH = (
 TRANSLATED_WEBAPP_WALKTHROUGH = (
     ROOT / "translations" / "ja" / "docs" / "guides" / "webapp-product-walkthrough.md"
 )
-INSTALLER_REVISION = "5a3cfb200ed68d87da1a8e128b61b40401820347"
-INSTALLER_SHA256 = "114c3375f4edef8aa64f42ab3beeaae246fdf8b960f6eb09868648e6a62cd1ab"
-SKILL_REVISION = "8defa866d088de7f8c29bc3a5443dc2df69983dc"
-TOOLCHAIN_REVISION = "199f25731170a6e25d25aa759fa6edc038623f58"
+INSTALLER_REVISION = "60bb93751f0163d7c523a06a32c2fefb562ee7e3"
+INSTALLER_SHA256 = "e79e43785f92bbc049619360e0680873504b0f33db1670010d85750786d24b93"
+SKILL_REVISION = "3e1c093a173c406e9fea2ea761e1aa1f0cf32038"
+TOOLCHAIN_REVISION = "b4581b58301b1f2736fce86dfcd56d7ddb98bff0"
 RAW_INSTALLER_URL = (
     "https://raw.githubusercontent.com/TakashiSasaki/templates/"
     f"{INSTALLER_REVISION}/scripts/install_composition_skill.py"
@@ -107,6 +107,14 @@ class CompositionSkillInstallerPublicationTests(unittest.TestCase):
             verifier.verify("HEAD"),
             (INSTALLER_REVISION, SKILL_REVISION, TOOLCHAIN_REVISION),
         )
+
+    def test_stable_toolchain_contains_every_published_recipe(self) -> None:
+        recipes = sorted((ROOT / "recipes").glob("*.json"))
+        self.assertTrue(recipes)
+        for recipe in recipes:
+            relative = recipe.relative_to(ROOT).as_posix()
+            with self.subTest(recipe=relative):
+                verifier.require_file(TOOLCHAIN_REVISION, relative)
 
     def test_release_readme_publishes_only_verified_full_sha_installer(self) -> None:
         content = RELEASE_README.read_text(encoding="utf-8")
