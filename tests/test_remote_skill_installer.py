@@ -247,6 +247,66 @@ def test_installation_attestation_must_be_outside_skill_tree(tmp_path: Path) -> 
         )
 
 
+def test_attestation_destination_is_preflighted_before_install(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    target = tmp_path / "agent-policy"
+
+    def unexpected_download(*_args: object, **_kwargs: object) -> bytes:
+        raise AssertionError("download must not run before attestation preflight")
+
+    monkeypatch.setattr(installer, "download_archive", unexpected_download)
+    status = installer.main(
+        [
+            str(target),
+            "--installer-revision",
+            "a" * 40,
+            "--attestation",
+            str(target / "installation-attestation.json"),
+        ]
+    )
+
+    assert status == 1
+    assert not target.exists()
+
+
+def test_verify_only_cli_does_not_download_or_install(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    target = tmp_path / "agent-policy"
+    materialize_skill(target)
+    attestation = tmp_path / "trust" / "agent-policy-installation.json"
+    installer_revision = "a" * 40
+    installer.write_installation_attestation(
+        target,
+        attestation,
+        installer_revision=installer_revision,
+    )
+
+    def unexpected_download(*_args: object, **_kwargs: object) -> bytes:
+        raise AssertionError("verify-only must not download")
+
+    def unexpected_install(*_args: object, **_kwargs: object) -> None:
+        raise AssertionError("verify-only must not install")
+
+    monkeypatch.setattr(installer, "download_archive", unexpected_download)
+    monkeypatch.setattr(installer, "install_downloaded_skill", unexpected_install)
+    status = installer.main(
+        [
+            str(target),
+            "--installer-revision",
+            installer_revision,
+            "--attestation",
+            str(attestation),
+            "--verify-only",
+        ]
+    )
+
+    assert status == 0
+
+
 def test_installed_skill_digest_rejects_symlink_path_components(
     tmp_path: Path,
 ) -> None:
