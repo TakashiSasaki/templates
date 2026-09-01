@@ -1,7 +1,7 @@
 [project]
 site_name = "Templates Documentation Portal"
 site_url = "https://templates.moukaeritai.work/"
-site_description = "A reproducible documentation portal for independent skill, policy, and Web application templates."
+site_description = "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance."
 repo_url = "https://github.com/TakashiSasaki/templates"
 repo_name = "TakashiSasaki/templates"
 docs_dir = "docs"

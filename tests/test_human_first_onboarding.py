@@ -18,25 +18,30 @@ class HumanFirstOnboardingTests(unittest.TestCase):
         explore_section = landing.index("Already started, or want the model?")
         self.assertLess(task_section, explore_section)
         for label in (
-            "Create a Web application",
+            "Choose Website or Web application",
             "Create an Agent Skill",
             "Add coding-agent rules to a repository",
         ):
             with self.subTest(label=label):
                 self.assertIn(label, landing[:explore_section])
 
-    def test_webapp_task_links_directly_to_canonical_walkthrough(self) -> None:
+    def test_browser_task_routes_through_canonical_selector(self) -> None:
         landing = LANDING.read_text(encoding="utf-8")
-        self.assertIn(
+        self.assertIn('href="web/"', landing)
+        self.assertNotIn(
             'href="composition/use/webapp-product-walkthrough/"',
             landing,
         )
-        manifest = MANIFEST.read_text(encoding="utf-8")
-        self.assertIn('"document": "webapp-product-walkthrough"', manifest)
-        self.assertIn(
-            '"destination": "composition/use/webapp-product-walkthrough.md"',
-            manifest,
-        )
+        manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+        serialized = MANIFEST.read_text(encoding="utf-8")
+        self.assertIn('"document": "website-webapp-selection"', serialized)
+        self.assertIn('"destination": "web/index.md"', serialized)
+        self.assertIn('"document": "website-product-walkthrough"', serialized)
+        self.assertIn('"destination": "website/index.md"', serialized)
+        self.assertIn('"document": "webapp-product-walkthrough"', serialized)
+        self.assertIn('"destination": "webapp/product-walkthrough.md"', serialized)
+        web = next(node for node in manifest["navigation"] if node["title"] == "Web")
+        self.assertEqual(web["children"][0]["document"], "website-webapp-selection")
 
     def test_skill_task_links_directly_to_canonical_walkthrough(self) -> None:
         landing = LANDING.read_text(encoding="utf-8")
@@ -85,15 +90,16 @@ class HumanFirstOnboardingTests(unittest.TestCase):
         self.assertIn('href="policy/getting-started/"', landing)
         self.assertIn("Policy is a separate authority, not a Composition capability", landing)
 
-    def test_japanese_landing_preserves_same_task_routes(self) -> None:
+    def test_japanese_landing_preserves_selector_first_task_routes(self) -> None:
         landing = LANDING_JA.read_text(encoding="utf-8")
         for href in (
-            '/composition/use/webapp-product-walkthrough/',
-            '/composition/use/skill-first-use-walkthrough/',
-            '/policy/getting-started/',
+            "/web/",
+            "/composition/use/skill-first-use-walkthrough/",
+            "/policy/getting-started/",
         ):
             with self.subTest(href=href):
                 self.assertIn(f'href="{href}"', landing)
+        self.assertNotIn("/composition/use/webapp-product-walkthrough/", landing)
         self.assertIn("あなたの別 product repository", landing)
         explore_section = landing.index("すでに始めている、または仕組みを知りたい")
         concepts = landing.index('href="/composition/concepts/"')

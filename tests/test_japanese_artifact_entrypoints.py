@@ -20,31 +20,37 @@ class RouteRecord:
 
 
 class JapaneseArtifactEntrypointTests(unittest.TestCase):
-    def test_skill_and_webapp_walkthrough_entrypoints_localize_without_deep_route_guessing(self) -> None:
+    def test_selector_and_downstream_artifact_routes_localize_without_deep_route_guessing(self) -> None:
         source_text = LANDING_TRANSLATION.read_text(encoding="utf-8")
-        self.assertIn('href="/composition/use/skill-first-use-walkthrough/"', source_text)
-        self.assertIn('href="/composition/use/webapp-product-walkthrough/"', source_text)
-        self.assertNotIn('href="/ja/composition/use/skill-first-use-walkthrough/"', source_text)
-        self.assertNotIn('href="/ja/composition/use/webapp-product-walkthrough/"', source_text)
+        for route in (
+            "/web/",
+            "/website/",
+            "/webapp/",
+            "/composition/use/skill-first-use-walkthrough/",
+        ):
+            with self.subTest(route=route):
+                self.assertIn(f'href="{route}"', source_text)
+                self.assertNotIn(f'href="/ja{route}"', source_text)
+        self.assertNotIn(
+            'href="/composition/use/webapp-product-walkthrough/"',
+            source_text,
+        )
 
         with tempfile.TemporaryDirectory() as temporary:
             docs = Path(temporary) / "docs"
             landing = docs / "ja" / "index.md"
-            skill_walkthrough = (
-                docs
-                / "ja"
-                / "composition"
-                / "use"
-                / "skill-first-use-walkthrough.md"
-            )
-            webapp_walkthrough = (
-                docs
-                / "ja"
-                / "composition"
-                / "use"
-                / "webapp-product-walkthrough.md"
-            )
-            skill_walkthrough.parent.mkdir(parents=True)
+            localized = {
+                "web": docs / "ja" / "web" / "index.md",
+                "website": docs / "ja" / "website" / "index.md",
+                "webapp": docs / "ja" / "webapp" / "index.md",
+                "skill": (
+                    docs
+                    / "ja"
+                    / "composition"
+                    / "use"
+                    / "skill-first-use-walkthrough.md"
+                ),
+            }
             landing.parent.mkdir(parents=True, exist_ok=True)
             landing.write_text(
                 source_text
@@ -52,34 +58,45 @@ class JapaneseArtifactEntrypointTests(unittest.TestCase):
                 + "[Webapp reference](/webapp/docs/)\n",
                 encoding="utf-8",
             )
-            skill_walkthrough.write_text("# Skill walkthrough JA\n", encoding="utf-8")
-            webapp_walkthrough.write_text("# Webapp walkthrough JA\n", encoding="utf-8")
+            for path in localized.values():
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("# localized\n", encoding="utf-8")
 
             records = [
                 RouteRecord("ja", PurePosixPath("index.md"), PurePosixPath("ja/index.md")),
                 RouteRecord(
                     "ja",
-                    PurePosixPath("composition/use/skill-first-use-walkthrough.md"),
-                    PurePosixPath("ja/composition/use/skill-first-use-walkthrough.md"),
+                    PurePosixPath("web/index.md"),
+                    PurePosixPath("ja/web/index.md"),
                 ),
                 RouteRecord(
                     "ja",
-                    PurePosixPath("composition/use/webapp-product-walkthrough.md"),
-                    PurePosixPath("ja/composition/use/webapp-product-walkthrough.md"),
+                    PurePosixPath("website/index.md"),
+                    PurePosixPath("ja/website/index.md"),
+                ),
+                RouteRecord(
+                    "ja",
+                    PurePosixPath("webapp/index.md"),
+                    PurePosixPath("ja/webapp/index.md"),
+                ),
+                RouteRecord(
+                    "ja",
+                    PurePosixPath("composition/use/skill-first-use-walkthrough.md"),
+                    PurePosixPath("ja/composition/use/skill-first-use-walkthrough.md"),
                 ),
             ]
 
             rewrite_current_localized_links(records, docs)
             rendered = landing.read_text(encoding="utf-8")
 
-            self.assertIn(
-                'href="/ja/composition/use/skill-first-use-walkthrough/"',
-                rendered,
-            )
-            self.assertIn(
-                'href="/ja/composition/use/webapp-product-walkthrough/"',
-                rendered,
-            )
+            for route in (
+                "/ja/web/",
+                "/ja/website/",
+                "/ja/webapp/",
+                "/ja/composition/use/skill-first-use-walkthrough/",
+            ):
+                with self.subTest(route=route):
+                    self.assertIn(f'href="{route}"', rendered)
             self.assertIn("[Skill contract](/skill/SKILL/)", rendered)
             self.assertIn("[Webapp reference](/webapp/docs/)", rendered)
 

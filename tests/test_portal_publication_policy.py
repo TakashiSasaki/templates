@@ -28,7 +28,10 @@ class PortalPublicationPolicyTests(unittest.TestCase):
         portal = PORTAL_HOME.read_text(encoding="utf-8")
 
         for destination in (
-            "composition/use/webapp-product-walkthrough/",
+            "web/",
+            "website/",
+            "webapp/",
+            "composition/use/skill-first-use-walkthrough/",
             "skill/",
             "policy/getting-started/",
             "composition/",
@@ -70,8 +73,10 @@ class PortalPublicationPolicyTests(unittest.TestCase):
         for entry in (
             "`/composition/`",
             "`/skill/`",
-            "`/capabilities/`",
+            "`/web/`",
+            "`/website/`",
             "`/webapp/`",
+            "`/capabilities/`",
             "`/lifecycle/`",
             "`/policy/`",
             "`/repository-trees/`",
@@ -85,7 +90,7 @@ class PortalPublicationPolicyTests(unittest.TestCase):
         self.assertIn("Composition and Policy", policy)
         self.assertIn("former Skill/Webapp copyable-template trees are retired", policy)
 
-    def test_integrated_navigation_uses_composition_as_skill_and_webapp_authority(self) -> None:
+    def test_integrated_navigation_projects_shared_web_and_sibling_browser_artifacts(self) -> None:
         manifest = json.loads(SITE_MANIFEST.read_text(encoding="utf-8"))
         pages = list(iter_pages(manifest["navigation"]))
         indexed = {
@@ -95,10 +100,7 @@ class PortalPublicationPolicyTests(unittest.TestCase):
 
         self.assertEqual(indexed[("site", "portal-home")], "index.md")
         self.assertNotIn(("site", "portal-overview"), indexed)
-        self.assertEqual(
-            indexed[("composition", "overview")],
-            "composition/index.md",
-        )
+        self.assertEqual(indexed[("composition", "overview")], "composition/index.md")
         self.assertEqual(
             indexed[("composition", "composition-concepts")],
             "composition/concepts/index.md",
@@ -106,10 +108,6 @@ class PortalPublicationPolicyTests(unittest.TestCase):
         self.assertEqual(
             indexed[("composition", "consumer-guide")],
             "composition/use/index.md",
-        )
-        self.assertEqual(
-            indexed[("composition", "webapp-product-walkthrough")],
-            "composition/use/webapp-product-walkthrough.md",
         )
         self.assertEqual(
             indexed[("composition", "release-guide")],
@@ -124,20 +122,48 @@ class PortalPublicationPolicyTests(unittest.TestCase):
             "skill/index.md",
         )
         self.assertEqual(
-            indexed[("composition", "mcp-apps-interface")],
-            "capabilities/mcp-apps/index.md",
+            indexed[("composition", "website-webapp-selection")],
+            "web/index.md",
+        )
+        self.assertEqual(
+            indexed[("composition", "website-product-walkthrough")],
+            "website/index.md",
+        )
+        self.assertEqual(
+            indexed[("composition", "webapp-product-walkthrough")],
+            "webapp/product-walkthrough.md",
         )
         self.assertEqual(
             indexed[("composition", "webapp-overview")],
             "webapp/index.md",
         )
         self.assertEqual(
-            indexed[("composition", "routes-v3-migration")],
-            "webapp/docs/migrations/routes-v2-to-v3.md",
+            indexed[("composition", "web-routes-v1-migration")],
+            "web/migrations/routes-v1-to-v2.md",
+        )
+        self.assertEqual(
+            indexed[("composition", "web-routes-v2-migration")],
+            "web/migrations/routes-v2-to-v3.md",
+        )
+        self.assertEqual(
+            indexed[("composition", "web-routes-v3-migration")],
+            "web/migrations/routes-v3-to-v4.md",
         )
         self.assertEqual(
             indexed[("composition", "surfaces-v2-migration")],
             "webapp/docs/migrations/surfaces-v1-to-v2.md",
+        )
+        self.assertEqual(
+            indexed[("composition", "pwa-offline-v2-migration")],
+            "capabilities/pwa/migrations/offline-v1-to-v2.md",
+        )
+        self.assertEqual(
+            indexed[("composition", "pwa-update-v2-migration")],
+            "capabilities/pwa/migrations/update-v1-to-v2.md",
+        )
+        self.assertEqual(
+            indexed[("composition", "mcp-apps-interface")],
+            "capabilities/mcp-apps/index.md",
         )
         self.assertEqual(
             indexed[("composition", "contract-evolution")],
@@ -156,19 +182,19 @@ class PortalPublicationPolicyTests(unittest.TestCase):
         publications = {page["publication"] for page in pages}
         self.assertEqual(publications, {"site", "composition", "policy"})
         self.assertNotIn("skill", publications)
+        self.assertNotIn("website", publications)
         self.assertNotIn("webapp", publications)
 
         composition_group = next(
             node for node in manifest["navigation"] if node["title"] == "Composition"
         )
         self.assertEqual(
-            [child["title"] for child in composition_group["children"][:8]],
+            [child["title"] for child in composition_group["children"][:7]],
             [
                 "Overview",
                 "Concepts and terminology",
                 "Evaluate Composition",
                 "Use Composition",
-                "Webapp product walkthrough",
                 "Produce a product release",
                 "Composer reference",
                 "Documentation index",
@@ -177,11 +203,14 @@ class PortalPublicationPolicyTests(unittest.TestCase):
 
         top_level_titles = [node["title"] for node in manifest["navigation"]]
         self.assertNotIn("Portal overview", top_level_titles)
+        self.assertNotIn("Application capabilities", top_level_titles)
         for title in (
             "Composition",
             "Agent Skill",
-            "Application capabilities",
+            "Web",
+            "Website",
             "Web application",
+            "Reusable capabilities",
             "Lifecycle contracts",
             "Policy",
         ):

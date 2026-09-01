@@ -67,13 +67,19 @@ class HistoricalNavigationTests(unittest.TestCase):
         documents = {item.get("document"): item for item in leaves}
 
         self.assertEqual(
-            documents["routes-migration"]["destination"],
-            "webapp/docs/migrations/routes-v1-to-v2.md",
+            documents["web-routes-v1-migration"]["destination"],
+            "web/migrations/routes-v1-to-v2.md",
         )
         self.assertEqual(
-            documents["routes-v3-migration"]["destination"],
-            "webapp/docs/migrations/routes-v2-to-v3.md",
+            documents["web-routes-v2-migration"]["destination"],
+            "web/migrations/routes-v2-to-v3.md",
         )
+        self.assertEqual(
+            documents["web-routes-v3-migration"]["destination"],
+            "web/migrations/routes-v3-to-v4.md",
+        )
+        self.assertNotIn("routes-migration", documents)
+        self.assertNotIn("routes-v3-migration", documents)
         self.assertEqual(
             documents["ui-states-migration"]["destination"],
             "webapp/docs/migrations/ui-states-v1-to-v2.md",

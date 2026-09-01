@@ -10,6 +10,12 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 
+from scripts.translation_link_identity import (
+    TranslationLinkProjectionError,
+    build_translation_projection,
+    normalize_provider_relative,
+    project_translation_target,
+)
 from scripts.translation_manifest import (
     TranslationManifestError,
     load_translation_manifest,
@@ -101,26 +107,6 @@ def _optional_regular_file(
             f"{field} must be a regular file when present: {relative}"
         )
     return current
-
-
-def _normalize_relative(base: PurePosixPath, raw: str) -> PurePosixPath:
-    parts = list(base.parts)
-    for part in PurePosixPath(raw).parts:
-        if part in ("", "."):
-            continue
-        if part == "..":
-            if not parts:
-                raise TranslationPublicationError(
-                    f"translation link escapes the provider root: {raw}"
-                )
-            parts.pop()
-            continue
-        parts.append(part)
-    if not parts:
-        raise TranslationPublicationError(
-            f"translation link resolves to the provider root: {raw}"
-        )
-    return PurePosixPath(*parts)
 
 
 def _validate_japanese_notice(text: str, field: str) -> None:
@@ -261,6 +247,9 @@ def _rewrite_link(
         tuple[str, str, PurePosixPath], PurePosixPath
     ],
     asset_routes: dict[str, list[AssetRoute]],
+    translation_projections: dict[
+        str, dict[PurePosixPath, PurePosixPath]
+    ],
 ) -> str:
     leading, target, trailing = _split_link_target(raw)
     if not target:
@@ -275,7 +264,19 @@ def _rewrite_link(
     ):
         return raw
 
-    target_source = _normalize_relative(record.canonical_source.parent, parsed.path)
+    try:
+        translated_target = normalize_provider_relative(
+            record.translation_source.parent,
+            parsed.path,
+        )
+        target_source = project_translation_target(
+            translated_target,
+            parsed.path,
+            translation_projections.get(record.publication, {}),
+        )
+    except TranslationLinkProjectionError as exc:
+        raise TranslationPublicationError(str(exc)) from exc
+
     document_source = _document_source(
         record.publication,
         target_source,
@@ -332,6 +333,9 @@ def _rewrite_markdown(
         tuple[str, str, PurePosixPath], PurePosixPath
     ],
     asset_routes: dict[str, list[AssetRoute]],
+    translation_projections: dict[
+        str, dict[PurePosixPath, PurePosixPath]
+    ],
 ) -> str:
     output: list[str] = []
     fence_character: str | None = None
@@ -360,6 +364,7 @@ def _rewrite_markdown(
                 canonical_destinations,
                 translated_destinations,
                 asset_routes,
+                translation_projections,
             )
             return f"{match.group('image')}[{match.group('label')}]({target})"
 
@@ -372,6 +377,7 @@ def _rewrite_markdown(
                 canonical_destinations,
                 translated_destinations,
                 asset_routes,
+                translation_projections,
             )
             newline = rewritten[len(rewritten.rstrip("\r\n")) :]
             rewritten = (
@@ -394,6 +400,7 @@ def _load_records(
     list[TranslationRecord],
     dict[tuple[str, PurePosixPath], PurePosixPath],
     dict[str, list[AssetRoute]],
+    dict[str, dict[PurePosixPath, PurePosixPath]],
 ]:
     page_destinations = {
         (page["publication"], page["document"]): page["destination"]
@@ -415,11 +422,15 @@ def _load_records(
         )
 
     records: list[TranslationRecord] = []
+    translation_projections: dict[
+        str, dict[PurePosixPath, PurePosixPath]
+    ] = {}
     manifest_relative = PurePosixPath("translations/manifest.json")
     for publication, (root, documents, _) in sorted(publications.items()):
         label = f"{publication} translation manifest"
         manifest_path = _optional_regular_file(root, manifest_relative, label)
         if manifest_path is None:
+            translation_projections[publication] = {}
             continue
         try:
             manifest = load_translation_manifest(
@@ -427,7 +438,10 @@ def _load_records(
                 label,
                 publication_root=root,
             )
-        except TranslationManifestError as exc:
+            translation_projections[publication] = build_translation_projection(
+                manifest.entries
+            )
+        except (TranslationManifestError, TranslationLinkProjectionError) as exc:
             raise TranslationPublicationError(str(exc)) from exc
 
         source_to_document = {
@@ -451,7 +465,7 @@ def _load_records(
                     f"{field}.canonical is not included in the assembled site"
                 )
 
-            canonical_file = _regular_file(root, canonical, f"{field}.canonical")
+            _regular_file(root, canonical, f"{field}.canonical")
             source_file = _regular_file(root, translation, f"{field}.translation")
             if entry.current_blob_sha is None:
                 raise TranslationPublicationError(
@@ -486,7 +500,12 @@ def _load_records(
                 )
             )
 
-    return records, canonical_destinations, publication_asset_routes
+    return (
+        records,
+        canonical_destinations,
+        publication_asset_routes,
+        translation_projections,
+    )
 
 
 def publish_translations(
@@ -505,7 +524,12 @@ def publish_translations(
     ``skip_stale=True`` so stale non-authoritative derivatives are unavailable
     without invalidating otherwise valid canonical English pages.
     """
-    records, canonical_destinations, asset_routes = _load_records(
+    (
+        records,
+        canonical_destinations,
+        asset_routes,
+        translation_projections,
+    ) = _load_records(
         publications,
         included_pages,
         skip_stale=skip_stale,
@@ -547,6 +571,7 @@ def publish_translations(
             canonical_destinations,
             translated_destinations,
             asset_routes,
+            translation_projections,
         )
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(rewritten, encoding="utf-8")

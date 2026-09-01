@@ -6,7 +6,7 @@
   <div class="portal-cover__copy">
     <p class="portal-cover__kicker">Start from the task you want to complete</p>
     <h1 id="portal-cover-title">
-      Build a <span class="portal-accent portal-accent--webapp">Web application</span>,
+      Build a <span class="portal-accent portal-accent--webapp">Website or Web application</span>,
       create an <span class="portal-accent portal-accent--skill">Agent Skill</span>,
       or add coding-agent rules
     </h1>
@@ -15,8 +15,8 @@
       Keep your product in a separate repository, then use the appropriate templates tooling and contracts there.
     </p>
     <div class="portal-cover__actions">
-      <a class="portal-cover__button portal-cover__button--primary" href="composition/use/webapp-product-walkthrough/">
-        Create a Web application <span aria-hidden="true">→</span>
+      <a class="portal-cover__button portal-cover__button--primary" href="web/">
+        Website or Web application <span aria-hidden="true">→</span>
       </a>
       <a class="portal-cover__button portal-cover__button--secondary" href="composition/use/skill-first-use-walkthrough/">
         Create an Agent Skill <span aria-hidden="true">→</span>
@@ -24,13 +24,13 @@
     </div>
     <ul class="portal-cover__signals" role="list">
       <li>Start with a concrete task; learn the architecture later.</li>
-      <li>Webapp and Agent Skill first use each have a canonical step-by-step walkthrough.</li>
+      <li>Composition owns browser-product selection and shared Web semantics.</li>
       <li>Policy is optional and independent from Composition.</li>
     </ul>
   </div>
 
   <div class="portal-cover__visual">
-    <img src="images/landing-architecture.svg" alt="Composition defines Agent Skill and Web application artifacts while Policy independently defines coding-agent operation; the Site publishes both through one validated portal">
+    <img src="images/landing-architecture.svg" alt="Composition defines Agent Skill, Website, and Web application artifacts while Policy independently defines coding-agent operation; the Site publishes both authorities through one validated portal">
   </div>
 </section>
 
@@ -42,11 +42,11 @@
   </div>
 
   <div class="portal-artifact-grid">
-    <a class="portal-artifact-card portal-artifact-card--webapp" href="composition/use/webapp-product-walkthrough/">
-      <span class="portal-artifact-card__icon"><img src="images/icon-webapp.svg" alt=""></span>
+    <a class="portal-artifact-card portal-artifact-card--webapp" href="web/">
+      <span class="portal-artifact-card__icon"><img src="images/icon-web.svg" alt=""></span>
       <span class="portal-artifact-card__copy">
-        <strong>Create a Web application</strong>
-        <span>Follow one end-to-end Task Ledger walkthrough from a separate product repository to a valid scaffold and clear implementation next steps.</span>
+        <strong>Choose Website or Web application</strong>
+        <span>Follow Composition's canonical selector, then continue to the published Website or Web application walkthrough.</span>
       </span>
       <span class="portal-artifact-card__arrow" aria-hidden="true">→</span>
     </a>
@@ -98,6 +98,9 @@ your separate product repository
   <div class="portal-doc-links">
     <a class="portal-doc-link" href="composition/">Explore Composition</a>
     <a class="portal-doc-link" href="composition/concepts/">Composition concepts</a>
+    <a class="portal-doc-link" href="web/">Website or Web application?</a>
+    <a class="portal-doc-link" href="website/">Explore Website</a>
+    <a class="portal-doc-link" href="webapp/">Explore Web application</a>
     <a class="portal-doc-link" href="skill/">Explore Agent Skill</a>
     <a class="portal-doc-link" href="policy/">Explore Policy</a>
     <a class="portal-doc-link" href="capabilities/">Capabilities</a>

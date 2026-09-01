@@ -29,6 +29,14 @@ class ProviderTranslationFragmentSafetyTests(unittest.TestCase):
             ("composition", "ja", PurePosixPath("docs/reference/composer.md")):
                 PurePosixPath("ja/composition/reference/composer.md"),
         }
+        translation_projections = {
+            "composition": {
+                PurePosixPath("translations/ja/docs/index.md"):
+                    PurePosixPath("docs/index.md"),
+                PurePosixPath("translations/ja/docs/reference/composer.md"):
+                    PurePosixPath("docs/reference/composer.md"),
+            }
+        }
         source = (
             "[plain](reference/composer.md)\n"
             "[fragment](reference/composer.md#installation)\n"
@@ -43,6 +51,7 @@ class ProviderTranslationFragmentSafetyTests(unittest.TestCase):
             canonical_destinations,
             translated_destinations,
             {"composition": []},
+            translation_projections,
         )
 
         self.assertIn("[plain](../reference/composer.md)", rewritten)

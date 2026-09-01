@@ -8,16 +8,16 @@ This policy applies to the `site`, `composition`, and `policy` authorities in
 The `site` branch publishes one human-readable GitHub Pages portal from exact
 reviewed revisions of two external Provider branches:
 
-- `composition` — canonical Agent Skill and Web application artifact semantics,
-  reusable application capabilities, lifecycle contracts, recipes, schemas, and
-  composer documentation;
+- `composition` — canonical Agent Skill, Website, and Web application artifact
+  semantics, shared foundations, reusable capabilities, lifecycle contracts,
+  recipes, schemas, and composer documentation;
 - `policy` — canonical coding-agent operating policy and the agent-policy
   toolchain.
 
 `site` owns integration and deployment. It is not an external Provider branch.
 The portal may group Composition material under reader-oriented paths such as
-`/skill/`, `/webapp/`, `/capabilities/`, and `/lifecycle/`; those paths do not
-create separate source ownership.
+`/skill/`, `/web/`, `/website/`, `/webapp/`, `/capabilities/`, and `/lifecycle/`;
+those paths do not create separate source ownership.
 
 The publication system must be explicit, reproducible, reviewable, and safe
 against accidental branch-wide disclosure.
@@ -48,8 +48,8 @@ The `site` branch owns:
 - the sole repository workflow authorized to deploy GitHub Pages.
 
 A document is globally identified by `publication:document`, for example
-`composition:skill-contract`, `composition:contract-evolution`, or
-`policy:overview`.
+`composition:skill-contract`, `composition:website-webapp-selection`,
+`composition:contract-evolution`, or `policy:overview`.
 
 ## Human and machine projection parity
 
@@ -120,14 +120,18 @@ catalog entry is a public-interface change and requires review.
 
 `composition` is one provider even though it contains several semantic classes:
 
-- `artifact.skill-core` and `artifact.webapp-core` remain distinct artifact
-  identities;
-- `capability.*` components are reusable application capabilities;
+- `foundation.web` is the transitive shared browser foundation for Website and
+  Web application artifacts;
+- `artifact.skill-core`, `artifact.website-core`, and `artifact.webapp-core`
+  remain distinct artifact identities;
+- `capability.*` components are reusable optional capabilities rather than
+  artifact classifiers; and
 - `lifecycle.*` components are reusable lifecycle contracts.
 
-The Site must not reconstruct `skill` and `webapp` as independent canonical
-providers. Reader grouping may distinguish them, but provenance must resolve to
-one exact Composition revision.
+The Site must not reconstruct `skill`, `website`, or `webapp` as independent
+canonical providers. Reader grouping may distinguish them and may expose shared
+Web material separately, but provenance must resolve to one exact Composition
+revision.
 
 Consumer-generated `contracts/manifest.json` is not a source publication file.
 The Composition provider publishes the descriptors, contract registrations, and
@@ -209,8 +213,10 @@ The integrated IA must provide at least:
 - `/`;
 - `/composition/`;
 - `/skill/`;
-- `/capabilities/`;
+- `/web/`;
+- `/website/`;
 - `/webapp/`;
+- `/capabilities/`;
 - `/lifecycle/`;
 - `/policy/`;
 - `/repository-trees/` with Composition and Policy entries;

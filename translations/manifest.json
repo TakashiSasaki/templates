@@ -6,7 +6,7 @@
       "canonical": "docs/landing.md",
       "language": "ja",
       "translation": "translations/ja/docs/landing.md",
-      "canonical_blob_sha": "b03221e7a7bbc44bb6d89e5609daaabd3d872334",
+      "canonical_blob_sha": "2f9e82db7cf38320b4c41e578dee2a9244f1b5dc",
       "surfaces": ["reader"]
     },
     {
@@ -20,7 +20,7 @@
       "canonical": "docs/capabilities.md",
       "language": "ja",
       "translation": "translations/ja/docs/capabilities.md",
-      "canonical_blob_sha": "a5d49aff3e5ab07d606d8a7167d29ef8a3fac8b9",
+      "canonical_blob_sha": "f5af281c44cc79d27269ed9064505db850b79100",
       "surfaces": ["reader"]
     },
     {

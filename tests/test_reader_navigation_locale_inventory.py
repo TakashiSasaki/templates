@@ -24,10 +24,22 @@ class ReaderNavigationLocaleInventoryTests(unittest.TestCase):
         )
 
         self.assertEqual(set(overlays), {"ja"})
-        self.assertEqual(overlays["ja"]["Documentation portal"], "ドキュメントポータル")
-        self.assertEqual(overlays["ja"]["Repository trees"], "リポジトリツリー")
-        self.assertEqual(overlays["ja"]["Composition model"], "Composition モデル")
-        self.assertEqual(overlays["ja"]["Publication boundary"], "公開境界")
+        japanese = overlays["ja"]
+        self.assertEqual(japanese["Documentation portal"], "ドキュメントポータル")
+        self.assertEqual(japanese["Repository trees"], "リポジトリツリー")
+        self.assertEqual(japanese["Composition model"], "Composition モデル")
+        self.assertEqual(japanese["Publication boundary"], "公開境界")
+        self.assertEqual(japanese["Web"], "Web")
+        self.assertEqual(
+            japanese["Choose Website or Web application"],
+            "Website と Web application を選ぶ",
+        )
+        self.assertEqual(japanese["Website"], "Website")
+        self.assertEqual(japanese["Web application"], "Web application")
+        self.assertEqual(japanese["Reusable capabilities"], "再利用可能な capability")
+        self.assertEqual(japanese["Routes v3 to v4"], "Routes v3 → v4")
+        self.assertEqual(japanese["PWA offline v1 to v2"], "PWA offline v1 → v2")
+        self.assertEqual(japanese["PWA update v1 to v2"], "PWA update v1 → v2")
 
 
 if __name__ == "__main__":

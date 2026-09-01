@@ -1,27 +1,23 @@
-# Application capabilities
+# Reusable capabilities
 
-This is the Site-owned reader index for reusable application capabilities. The
-canonical capability semantics and source documents are owned by the
-`composition` provider; this page only supplies the stable `/capabilities/`
-reader entry point and groups the published destinations.
+This is the Site-owned reader index for Composition capability publications. It
+defines public navigation only. Canonical artifact, foundation, capability,
+runtime, routing, viewport, and evidence semantics remain owned by the
+`composition` provider.
 
-For the Composition-level explanation of how these components participate in a
-composition, see the [Composition documentation index](../composition/docs/#reusable-application-capabilities).
+For Composition's canonical model, use [Composition concepts](../composition/concepts/).
+For browser-artifact selection, use the provider-owned
+[Choose Website or Web application](../web/) guide. The Site does not restate
+those decision rules here.
 
-## Implementation runtime
+## Published Composition routes
 
-Defines how the application is implemented and run, including its
-language/runtime, dependency workflow, commands, environment, distribution,
-and deployment choices.
+### Implementation runtime
 
 - [Implementation runtime decision record](runtime/)
 - [Choosing an implementation runtime](runtime/selection/)
 
-## Interfaces
-
-Defines how users, agents, browsers, or other systems interact with the
-application. Interface contracts describe caller-visible behavior separately
-from the implementation-runtime choices above.
+### Interfaces
 
 - [Packaged CLI interface](cli/)
 - [MCP interface](mcp/)
@@ -31,28 +27,16 @@ from the implementation-runtime choices above.
 - [Standalone browser interface](browser/)
 - [Headless service interface](service/)
 
-## Web application browser experience
+### Browser-related entries
 
-Web applications also have browser-visible identity and may opt into PWA
-behavior. Site does not redefine either contract family; it provides reader
-paths to the Composition-owned sources.
+- [Choose Website or Web application](../web/)
+- [Website](../website/)
+- [Web application](../webapp/)
+- [Progressive Web App capability](pwa/)
 
-- [Browser identity and favicon](../webapp/docs/architecture/contracts/) — the
-  Webapp contract-family reference includes the ordinary browser favicon and
-  keeps that identity concern separate from installed-application icons.
-- [Progressive Web App capability](pwa/) — the PWA decision record groups the
-  canonical material for installability, application icons, offline/network-loss
-  presentation, data freshness, updates, and cross-platform compatibility.
+The separate [Policy PWA usage guide](../policy/pwa/) is the reader route for
+installing and using the Policy documentation site; it is not the Composition
+capability document.
 
-The separate [Policy PWA usage guide](../policy/pwa/) documents install and use
-of the Policy documentation site itself. It is not the reusable application PWA
-capability authority.
-
-Browser and operating-system mechanisms can differ. Follow the Composition
-source for the product invariants and evidence boundary rather than treating a
-current browser install prompt or platform-specific presentation detail as Site
-authority.
-
-The public paths above are Site publication destinations. Their provenance in a
-built artifact resolves to the exact Composition revision recorded in
-`build-provenance.json`.
+All Composition links above are Site publication destinations. Their exact
+provider revision is recorded in the built artifact's `build-provenance.json`.
