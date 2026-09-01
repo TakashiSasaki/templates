@@ -17,7 +17,7 @@ The example product is **Project Docs**, a small documentation Website with a ho
 9. **Checkpoint planning** — validate the planning state and execute the machine-projected planning checkpoint action before implementation begins.
 10. **Implement content and presentation** — create the consumer-owned HTML/CSS/assets or equivalent implementation, including the declared browser identity asset.
 11. **Run product and browser proof** — prove generated/reachable content and the browser-sensitive Website targets with real browser-backed evidence.
-12. **Populate and validate product evidence** — connect proof commands and records, switch implementation evidence to `product` only when truthful, and validate against the preserved planning baseline.
+12. **Populate and validate product evidence** — connect proof commands, release gates, records, and stable requirements; switch implementation evidence to `product` only when truthful; and validate against the preserved planning baseline.
 13. **Checkpoint product** — execute the machine-projected product checkpoint action and revalidate the closed lifecycle transition.
 14. **Optional capabilities** — add PWA/runtime/service/interface/release-bundle behavior only when the product actually supports or needs it.
 15. **Evaluate release readiness** — execute the machine-projected `check-release-readiness` action; deferred required browser proof means `not-ready`.
@@ -305,15 +305,31 @@ Source inspection, successful HTTP fetches, unit tests, or contract declarations
 
 ## 12. Populate product evidence and validate against planning
 
-Only after the implementation boundaries and real proof commands exist should `contracts/implementation-evidence.json` claim `mode: "product"`.
+Only after implementation boundaries and concrete proof harnesses exist should `contracts/implementation-evidence.json` claim `mode: "product"`. For the exact two-page Project Docs baseline, `examples/onboarding/project-docs/implementation-evidence.product.json` is a machine-checked product graph derived from the planning example in step 8.
+
+The checked-in product example intentionally keeps every proof `status` as `deferred`. That makes the structural product evidence valid without falsely claiming that a consumer has already executed browser or discovery proof; release-readiness therefore remains `not-ready` until the real proof has run. Before using the example in Project Docs, create the referenced repository proof harnesses (`tests/verify_project_docs_browser.py` and `tests/verify_project_docs_discovery.py`) or replace those command/harness locators with your actual repository proof programs.
+
+Product evidence is a cross-reference graph, not just a list of records:
+
+1. `commands` declare the executable proof harnesses and their execution capabilities. A command used for negative evidence must declare `supportsNegativePath: true`.
+2. Each `releaseGates[].commandIds` lists the proof commands that the gate actually executes.
+3. Each record's positive and negative proof uses `commandId` to identify the command that produced that proof.
+4. Each record's `releaseGateIds` names at least one selected gate whose `commandIds` includes **every** proof command used by that record.
+5. Each stable planning requirement keeps the same `id`, `targets`, and `requiredPositiveProofKinds`, then replaces its empty planning `recordIds` with the product records covering exactly those targets.
+6. Do not leave an unused command or release gate in the evidence document; product validation rejects unused graph nodes as well as unknown references.
+
+In the Project Docs example, all browser-sensitive records point to `project-docs-browser-proof` and select `project-docs-browser-gate`; the discovery records point to `project-docs-discovery-proof` and select `project-docs-discovery-gate`. The browser gate's `commandIds` contains the browser proof command, and the discovery gate's `commandIds` contains the discovery proof command. This ensures the commands cited by evidence are actually part of the release gate selected by each linked record.
 
 For each required Website target:
 
 - use exactly one current record for the target;
-- link browser-sensitive records from at least one requirement;
+- link every record from the stable requirement that owns its declared target;
 - provide positive and negative browser-backed evidence where required;
-- reference authoritative commands whose execution capabilities include `browser` for browser-level proof; and
+- reference authoritative commands whose execution capabilities include `browser` for browser-level proof;
+- give every linked record at least one valid `releaseGateIds` entry and ensure that gate executes all of the record's proof commands; and
 - keep unrelated capability records under their own contract IDs rather than copying them into Website targets.
+
+After the real proof command succeeds, change a proof from `deferred` to `verified` only when its locator, command, description, and expected result truthfully describe the proof that was actually executed. Do not bulk-convert the example's deferred statuses merely to make release-readiness green.
 
 Then rerun product verification and Composition validation against the same exact revision:
 
@@ -324,7 +340,7 @@ python /absolute/path/to/agent-skills/composition/scripts/run.py \
   validate
 ```
 
-Product-mode validation requires the validated planning checkpoint created in step 9 and verifies that stable requirements and required proof kinds still match that planning baseline.
+Product-mode validation requires the validated planning checkpoint created in step 9 and verifies that stable requirements and required proof kinds still match that planning baseline. It also fails closed on missing release gates, unknown command/gate references, proof commands that are not executed by a selected release gate, and unused commands or gates.
 
 ## 13. Create the mandatory product checkpoint and revalidate
 
@@ -381,7 +397,7 @@ Project Docs is complete for this walkthrough when all of the following are true
 - the actual pages/content/navigation and any declared browser-identity asset such as `favicon.svg` exist in consumer-owned implementation files;
 - a validated planning checkpoint exists from before product implementation and the final product checkpoint closes that transition;
 - required product checks and real browser-backed positive/negative evidence have passed;
-- implementation evidence truthfully uses `product` mode and browser-sensitive records are requirement-linked;
+- implementation evidence truthfully uses `product` mode, every Website record is requirement-linked, every linked record selects a release gate, and every proof command is executed by that selected gate;
 - Composition validation passes after the product checkpoint;
 - the machine-projected `check-release-readiness` action has actually been executed and its structured result recorded; and
 - any required deferred proof keeps `release_readiness` at `not-ready` rather than being silently waived.
