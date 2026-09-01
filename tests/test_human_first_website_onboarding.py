@@ -43,8 +43,21 @@ EVIDENCE_SCHEMA = (
     / "schemas"
     / "implementation-evidence.schema.json"
 )
-WEBSITE_REVISION = "ca8b8bc9091c6c199224cd9b66c9a59229f1b6ac"
-PINNED_WEBSITE_RECIPE_BLOB_SHA = "f22f44ecee7b8e7b5c039be71e818cd5e8bd5840"
+RELEASE_DESCRIPTOR = ROOT / "release" / "composition-installer.json"
+
+
+def stable_toolchain_revision() -> str:
+    descriptor = json.loads(RELEASE_DESCRIPTOR.read_text(encoding="utf-8"))
+    toolchain = descriptor.get("toolchain")
+    if not isinstance(toolchain, dict):
+        raise AssertionError("stable release descriptor must declare toolchain")
+    revision = toolchain.get("revision")
+    if not isinstance(revision, str):
+        raise AssertionError("stable release descriptor must declare toolchain revision")
+    return revision
+
+
+WEBSITE_REVISION = stable_toolchain_revision()
 
 
 def git_blob_sha(data: bytes) -> str:
@@ -97,29 +110,24 @@ class HumanFirstWebsiteOnboardingTests(unittest.TestCase):
             text,
         )
 
-    def test_walkthrough_pins_every_runner_invocation_to_one_revision(self) -> None:
+    def test_walkthrough_uses_stable_runner_without_revision_bridge(self) -> None:
         text = WALKTHROUGH.read_text(encoding="utf-8")
-        self.assertIn(
-            "currently published skill's stable runtime manifest predates the `website` recipe",
-            text,
-        )
+        self.assertIn("published stable Composition toolchain is Website-capable", text)
         shell_blocks = re.findall(r"```sh\n(.*?)\n```", text, flags=re.DOTALL)
         runner_commands = [block for block in shell_blocks if "scripts/run.py" in block]
         self.assertGreaterEqual(len(runner_commands), 7)
         for command in runner_commands:
             with self.subTest(command=command):
-                self.assertEqual(command.count("--revision"), 1)
-                self.assertIn(f"--revision {WEBSITE_REVISION}", command)
-        self.assertNotIn("--revision 98e38718abef02f4e1ffdd864764b77dcc2d4375", text)
-        self.assertNotIn("--revision 379073f376ce1de80948abd2e92d5560b573e7e6", text)
+                self.assertNotIn("--revision", command)
         self.assertIn(
-            f"Confirm the doctor output identifies `{WEBSITE_REVISION}` as the selected toolchain",
+            f"Confirm the doctor output identifies `{WEBSITE_REVISION}` as the selected stable toolchain",
             text,
         )
 
-    def test_pinned_recipe_matches_every_optional_path_advertised_by_walkthrough(self) -> None:
+    def test_stable_recipe_matches_every_optional_path_advertised_by_walkthrough(self) -> None:
         recipe_bytes = git_show_bytes(WEBSITE_REVISION, "recipes/website.json")
-        self.assertEqual(git_blob_sha(recipe_bytes), PINNED_WEBSITE_RECIPE_BLOB_SHA)
+        current_recipe_bytes = (ROOT / "recipes" / "website.json").read_bytes()
+        self.assertEqual(git_blob_sha(recipe_bytes), git_blob_sha(current_recipe_bytes))
         recipe = json.loads(recipe_bytes)
         text = WALKTHROUGH.read_text(encoding="utf-8")
         start = text.index("## 14. Optional")
@@ -130,7 +138,7 @@ class HumanFirstWebsiteOnboardingTests(unittest.TestCase):
         )
         self.assertEqual(advertised, set(recipe["optional_components"]))
         self.assertIn(
-            f"At immutable revision `{WEBSITE_REVISION}`, the `website` recipe exposes exactly",
+            f"At stable toolchain revision `{WEBSITE_REVISION}`, the `website` recipe exposes exactly",
             optional_section,
         )
 
