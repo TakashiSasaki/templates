@@ -16,7 +16,7 @@ Use this verified Skill as the sole procedural authority for an independent read
 
 This Skill does **not** select or verify its own executable authority.
 
-Before any step below runs, require bootstrap evidence produced by the immutable `agent-policy` Skill bootstrap contract in `skills/agent-policy/references/pr-review-bootstrap.md` (or an explicitly authorized equivalent trusted loader). The evidence must bind:
+Before any step below runs, require bootstrap evidence produced by the **Trusted `pr-review` bootstrap** section of an installed immutable `agent-policy` Skill (or an explicitly authorized equivalent trusted loader). The evidence must bind:
 
 - stable repository identity;
 - pull-request identity;
