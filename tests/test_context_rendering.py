@@ -72,7 +72,7 @@ outputs:
     enabled: true
     path: .agents/review/GITHUB_REVIEW_JSON_V1.md
     context: review
-    renderer: github-review-json-v1
+    renderer: github-review-json-adapter-v1
 skills:
   enabled: []
 """,
@@ -116,7 +116,9 @@ def test_v2_renders_distinct_policy_contexts(tmp_path: Path) -> None:
     }
 
 
-def test_v2_renders_github_review_json_as_adapter_only(tmp_path: Path) -> None:
+def test_v2_renders_github_review_json_adapter_without_semantic_rule_bodies(
+    tmp_path: Path,
+) -> None:
     _write_v2_repository(tmp_path)
 
     assert validate.run(tmp_path, ".agent-policy.yml") == []
@@ -149,6 +151,33 @@ def test_v2_renders_github_review_json_as_adapter_only(tmp_path: Path) -> None:
     assert "must serialize every blocking finding supplied by the semantic review result" in adapter
     assert "must not add a confidence threshold" in adapter
     assert "0.90" not in adapter
+
+
+def test_transitional_github_review_renderer_keeps_combined_semantics(
+    tmp_path: Path,
+) -> None:
+    _write_v2_repository(tmp_path)
+    config_path = tmp_path / ".agent-policy.yml"
+    config_path.write_text(
+        config_path.read_text(encoding="utf-8").replace(
+            "renderer: github-review-json-adapter-v1",
+            "renderer: github-review-json-v1",
+        ),
+        encoding="utf-8",
+    )
+
+    assert validate.run(tmp_path, ".agent-policy.yml") == []
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+    assert check.run(tmp_path, ".agent-policy.yml") == []
+
+    combined = (tmp_path / ".agents/review/GITHUB_REVIEW_JSON_V1.md").read_text(
+        encoding="utf-8"
+    )
+    assert "renderer: github-review-json-v1" in combined
+    assert "project.review-only" in combined
+    assert "review.require-change-causality" in combined
+    assert "security.validate-boundaries" in combined
+    assert '"event": "REQUEST_CHANGES"' in combined
 
 
 def test_v2_rejects_unknown_output_context(tmp_path: Path) -> None:
