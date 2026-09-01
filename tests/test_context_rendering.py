@@ -146,6 +146,9 @@ def test_v2_renders_github_review_json_as_adapter_only(tmp_path: Path) -> None:
     assert '"side": "RIGHT"' in adapter
     assert '"schema_version": 1' in adapter
     assert "exactly one standard JSON object" in adapter
+    assert "must serialize every blocking finding supplied by the semantic review result" in adapter
+    assert "must not add a confidence threshold" in adapter
+    assert "0.90" not in adapter
 
 
 def test_v2_rejects_unknown_output_context(tmp_path: Path) -> None:
