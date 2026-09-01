@@ -1,0 +1,91 @@
+{
+  "$schema": "../schemas/implementation-evidence.schema.json",
+  "schemaVersion": 6,
+  "mode": "planning",
+  "commands": [],
+  "releaseGates": [],
+  "records": [],
+  "requirements": [
+    {
+      "id": "WEBSITE-BROWSER",
+      "description": "Project Docs browser-facing Website behavior requires browser-level positive proof.",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "browser_identity",
+          "itemKind": "proof-family",
+          "itemId": "browser-identity"
+        },
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "guide"
+        },
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "home"
+        },
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "guide"
+        },
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "home"
+        },
+        {
+          "kind": "contract-item",
+          "contractId": "viewports",
+          "itemKind": "input-capability",
+          "itemId": "keyboard"
+        },
+        {
+          "kind": "contract-item",
+          "contractId": "viewports",
+          "itemKind": "viewport",
+          "itemId": "base"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "accessibility-test",
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "WEBSITE-DISCOVERY",
+      "description": "Project Docs discovery resources require inspection against the declared public Website contract.",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_discovery",
+          "itemKind": "proof-family",
+          "itemId": "canonical-origin"
+        },
+        {
+          "kind": "contract-item",
+          "contractId": "site_discovery",
+          "itemKind": "proof-family",
+          "itemId": "robots"
+        },
+        {
+          "kind": "contract-item",
+          "contractId": "site_discovery",
+          "itemKind": "proof-family",
+          "itemId": "sitemap"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "inspection"
+      ]
+    }
+  ]
+}

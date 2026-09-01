@@ -25,23 +25,27 @@ copy される `managed` または `seed` material では、`materials[].source`
 
 ## Dependency graph
 
-Catalog validation は dependency reference が存在することと production graph が acyclic であることを要求します。generic capability/lifecycle descriptor は artifact-specific component に depend または conflict してはなりません。
+Catalog validation は dependency reference が存在することと production graph が acyclic であることを要求します。generic capability/lifecycle descriptor は artifact-specific component に depend または conflict してはなりません。foundation component は複数の artifact identity に必要な shared mandatory base を提供し、recipe から直接選択するのではなく dependency closure で到達します。
 
 これは source-graph validation であり、具体的な consumer resolution ではありません。Composer は別途、recipe、explicit consumer include/exclude intent、parameters、conflicts、transitive dependency closure を適用し、consumer-specific な component set を1つ導出します。
 
 ## Recipe validation
 
-すべての production recipe は catalog 内の artifact を1つ指定し、capability/lifecycle selection には catalog 内のものだけを使用します。required/default/optional group は pairwise disjoint です。
+すべての production recipe は catalog 内の artifact を1つ指定し、capability/lifecycle selection には catalog 内のものだけを使用します。required/default/optional group は pairwise disjoint です。foundation component は recipe selection ではありません。artifact が foundation を require し、Composer が推移的に解決します。
 
-`skill` recipe は意図的に default application capability を持ちません。これにより minimal Agent Skill が維持され、runtime と public interface は暗黙に materialize されるのではなく opt-in になります。`webapp` recipe も application capability を optional のままにします。`artifact.webapp-core` は reusable implementation-evidence baseline を要求し、そこから contract evolution が推移的に追加されます。一方、`lifecycle.release-bundle` は recipe が明示的な top-level release selection として公開します。したがって runtime selection と release selection は独立した consumer intent です。
+`skill` recipe は意図的に default application capability を持ちません。これにより minimal Agent Skill が維持され、runtime と public interface は暗黙に materialize されるのではなく opt-in になります。
 
-この分離は `artifact.webapp-core` v4 の compatibility boundary です。以前の v3 Webapp は complete release chain を推移的に受け取っていました。v4 upgrade でその挙動を維持したい場合は `lifecycle.release-bundle` を明示的に選択し、選択しない場合は Webapp evidence baseline のみになります。
+`website` と `webapp` recipe はどちらも artifact dependency を通じて shared `foundation.web` を解決しますが、sibling な artifact identity のままです。`website` は Website-owned な page structure、document metadata、discovery、Website evidence semantics を追加します。`webapp` は application-specific route、surface、UI state、Webapp evidence semantics を追加します。static generation、server rendering、client rendering、CDN hosting、runtime selection、PWA selection は、この2つの artifact recipe の判定条件ではありません。
+
+どちらの browser-facing recipe も application capability は optional のままです。artifact baseline は reusable implementation evidence を要求し、そこから contract evolution が推移的に追加されます。一方、`lifecycle.release-bundle` は明示的な top-level release selection として公開されます。したがって runtime selection と release selection は独立した consumer intent です。`capability.pwa` も artifact-neutral な optional capability であり、artifact identity を変えず `website` / `webapp` のどちらからも選択できます。
+
+Webapp の compatibility history として、`artifact.webapp-core` v4 では release lifecycle が baseline から分離されました。以前の v3 Webapp は complete release chain を推移的に受け取っていました。v4 upgrade でその挙動を維持したい場合は `lifecycle.release-bundle` を明示的に選択し、選択しない場合は Webapp evidence baseline のみになります。
 
 ## Portable destination ownership
 
 resolved production selection では、各 materialized destination に portable owner が1つ存在しなければなりません。validation は portable ASCII path identity について destination を case-insensitive に比較し、file/directory-prefix collision を reject します。
 
-現在のすべての production recipe について maximal selection がこの invariant に対して regression-tested され、公開されているすべての optional capability と complete transitive lifecycle closure を含みます。artifact、capability、lifecycle component、recipe のいずれを追加する場合も、同じ ownership rule を保持しなければなりません。
+現在のすべての production recipe について maximal selection がこの invariant に対して regression-tested され、公開されているすべての optional capability と complete transitive lifecycle closure を含みます。foundation、artifact、capability、lifecycle component、recipe のいずれを追加する場合も、同じ ownership rule を保持しなければなりません。
 
 ## Catalog と consumer resolution
 

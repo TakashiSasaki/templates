@@ -23,23 +23,27 @@ This makes component source content reviewable as a closed set rather than allow
 
 ## Dependency graph
 
-Catalog validation requires dependency references to exist and the production graph to be acyclic. Generic capability/lifecycle descriptors must not depend on or conflict with artifact-specific components.
+Catalog validation requires dependency references to exist and the production graph to be acyclic. Generic capability/lifecycle descriptors must not depend on or conflict with artifact-specific components. Foundation components provide shared mandatory bases for artifact identities and are reached through dependency closure rather than direct recipe selection.
 
 This is source-graph validation, not concrete consumer resolution. The Composer separately applies a recipe, explicit consumer include/exclude intent, parameters, conflicts, and transitive dependency closure to derive one consumer-specific component set.
 
 ## Recipe validation
 
-Every production recipe names one catalog artifact and only catalog capability/lifecycle selections. Required/default/optional groups are pairwise disjoint.
+Every production recipe names one catalog artifact and only catalog capability/lifecycle selections. Required/default/optional groups are pairwise disjoint. Foundation components are not recipe selections: an artifact requires them and the Composer resolves them transitively.
 
-The `skill` recipe intentionally has no default application capabilities. This preserves the minimal Agent Skill: runtime and public interfaces are opt-in rather than silently materialized. The `webapp` recipe likewise keeps application capabilities optional. `artifact.webapp-core` requires the reusable implementation-evidence baseline, which brings contract evolution transitively, while `lifecycle.release-bundle` is exposed by the recipe as an explicit top-level release selection. Runtime selection and release selection are therefore independent consumer intent.
+The `skill` recipe intentionally has no default application capabilities. This preserves the minimal Agent Skill: runtime and public interfaces are opt-in rather than silently materialized.
 
-This separation is a compatibility boundary of `artifact.webapp-core` v4. Earlier v3 Webapps received the complete release chain transitively. A v4 upgrade that intends to retain that behavior explicitly selects `lifecycle.release-bundle`; an upgrade that omits it receives only the Webapp evidence baseline.
+The `website` and `webapp` recipes both resolve the shared `foundation.web` through their artifact dependency, but remain sibling artifact identities. `website` adds Website-owned page structure, document metadata, discovery, and Website evidence semantics. `webapp` adds application-specific routes, surfaces, UI states, and Webapp evidence semantics. Static generation, server rendering, client rendering, CDN hosting, runtime selection, and PWA selection do not choose between the two artifact recipes.
+
+Both browser-facing recipes keep application capabilities optional. Their artifact baselines require reusable implementation evidence, which brings contract evolution transitively, while `lifecycle.release-bundle` is exposed as an explicit top-level release selection. Runtime selection and release selection are therefore independent consumer intent. `capability.pwa` is likewise an optional artifact-neutral capability and may be selected by either `website` or `webapp` without changing artifact identity.
+
+For Webapp compatibility history, `artifact.webapp-core` v4 separated the release lifecycle from the baseline. Earlier v3 Webapps received the complete release chain transitively. A v4 upgrade that intends to retain that behavior explicitly selects `lifecycle.release-bundle`; an upgrade that omits it receives only the Webapp evidence baseline.
 
 ## Portable destination ownership
 
 A resolved production selection must have one portable owner per materialized destination. Validation compares destinations case-insensitively for portable ASCII path identity and rejects file/directory-prefix collisions.
 
-The maximal selection of every current production recipe is regression-tested for this invariant, including all exposed optional capabilities and the complete transitive lifecycle closure. Adding an artifact, capability, lifecycle component, or recipe must preserve the same ownership rule.
+The maximal selection of every current production recipe is regression-tested for this invariant, including all exposed optional capabilities and the complete transitive lifecycle closure. Adding a foundation, artifact, capability, lifecycle component, or recipe must preserve the same ownership rule.
 
 ## Catalog and consumer resolution
 

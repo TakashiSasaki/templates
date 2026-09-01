@@ -4,7 +4,7 @@ This page is an **explanatory guide**, not a second semantic authority. It is fo
 
 Canonical repository terminology remains in `docs/glossary.yml`. Exact Composition semantics remain in the component descriptors, recipes, schemas, and [Composition model](../architecture/composition-model.md). Operational behavior remains in the [Composer reference](../reference/composer.md). If this page ever disagrees with those authorities, follow the authority and fix this page.
 
-You do **not** need to read this page before creating a Web application or Agent Skill. The first-use walkthroughs remain the primary zero-to-one paths.
+You do **not** need to read this page before creating a Website, Web application, or Agent Skill. The first-use walkthroughs remain the primary zero-to-one paths. For a browser-facing product, first use [Choose Website or Web application](website-webapp-selection.md) to select the artifact from product identity rather than implementation technology.
 
 ## Mental model
 
@@ -49,11 +49,11 @@ The important distinction is between **selection**, **semantics**, and **materia
 | Word | Do not assume | How to read it here |
 | --- | --- | --- |
 | **Recipe** | a sequence of CLI steps or tutorial instructions | A starting selection that chooses exactly one artifact component and defines which reusable capability or lifecycle components are required, defaulted, or selectable. The walkthrough is the procedure; the recipe is selection authority. |
-| **Artifact** | one generated file | The kind of produced thing whose identity-specific semantics are being defined. Current production recipes create an Agent Skill or a Web application. |
-| **Artifact component** | the finished product itself | The Composition component that owns artifact-specific reusable semantics. `artifact.skill-core` and `artifact.webapp-core` are current examples. |
+| **Artifact** | one generated file | The kind of produced thing whose identity-specific semantics are being defined. Current production recipes create an Agent Skill, a Website, or a Web application. |
+| **Artifact component** | the finished product itself | The Composition component that owns artifact-specific reusable semantics. `artifact.skill-core`, `artifact.website-core`, and `artifact.webapp-core` are current examples. |
 | **Component** | a visual UI widget or package dependency | A closed reusable Composition source authority. Component descriptors declare a component role, dependencies, conflicts, materialized destinations, ownership modes, and optional contract registrations. |
 | **Foundation component** | a capability to include explicitly | A shared mandatory baseline introduced by an artifact dependency. Foundations are resolved transitively and are never recipe-selectable consumer capabilities. |
-| **Capability component** | a property automatically implied by the artifact | An optional artifact-neutral behavior such as runtime, packaged CLI, MCP, MCP Apps, standalone browser interface, or headless service. Select it only when the product actually exposes that behavior. |
+| **Capability component** | a property automatically implied by the artifact | An optional artifact-neutral behavior such as runtime, packaged CLI, MCP, MCP Apps, PWA, standalone browser interface, or headless service. Select it only when the product actually exposes that behavior. |
 | **Lifecycle component** | a chronological project phase | Reusable product-lifecycle machinery such as Composition state, contract evolution, implementation evidence, lifecycle checkpoints, or release behavior. |
 | **Contract** | only an HTTP/API contract | In Composition documentation, concrete selected components can register machine-readable contract documents and schemas for artifact or lifecycle behavior. The exact meaning belongs to the registered contract and its owning component; there is no single generic `contract.json`. |
 | **Material** | an abstract design input | A file destination materialized into the consumer repository by a resolved component. Each destination has exactly one component owner and one ownership mode. |
@@ -70,9 +70,49 @@ These are deliberately different concepts.
 
 The integrated glossary is the canonical place to disambiguate these terms. Composition must not create a second definition of the Policy-owned `Artifact contract` merely because the words are similar.
 
-## Example: minimal Web application
+## Example: Website and Web application share a Web foundation
 
-A minimal static browser application can start with the `webapp` recipe and no optional components:
+A browser-facing product first chooses between sibling artifact identities:
+
+- choose `website` when content/documents, discovery, and navigation are the primary product model;
+- choose `webapp` when tasks, actions, application state, and state transitions are primary.
+
+Both artifacts require `foundation.web`, so browser identity, generalized routes, and viewport/input semantics have one shared authority. The artifact components then add different identity-specific contracts:
+
+```text
+foundation.web
+|- browser identity
+|- generalized routes
+`- viewports
+
+artifact.website-core
+|- site structure
+|- document metadata
+`- discovery
+
+artifact.webapp-core
+|- application routes
+|- surfaces
+`- UI states
+```
+
+A minimal Website can start with no optional components:
+
+```json
+{
+  "schema_version": 1,
+  "recipe": "website",
+  "components": {
+    "include": [],
+    "exclude": []
+  },
+  "parameters": {}
+}
+```
+
+Its shared and Website-specific seed contracts include `browser-identity.json`, `routes.json`, `viewports.json`, `site-structure.json`, `document-metadata.json`, and `site-discovery.json`. It does not receive Webapp-only `application-routes.json`, `surfaces.json`, or `ui-states.json`.
+
+A minimal Web application uses the sibling `webapp` recipe:
 
 ```json
 {
@@ -86,22 +126,11 @@ A minimal static browser application can start with the `webapp` recipe and no o
 }
 ```
 
-The recipe selects `artifact.webapp-core` plus its baseline lifecycle dependencies. The artifact requires `foundation.web`, so the Composer also resolves that shared mandatory baseline transitively. `foundation.web` supplies browser identity, generalized routes, and viewport/input contracts; `artifact.webapp-core` supplies application surfaces, application-route behavior, and UI states. After materialization, the consumer repository receives editable seed contract documents such as:
+The shared `routes.json` still owns product-neutral path, canonical/deep-link, and accessibility semantics. Webapp-specific surface, authentication/access-failure, history, and state behavior belongs in `application-routes.json`; do not put those fields back into the shared route document.
 
-```text
-contracts/browser-identity.json
-contracts/routes.json
-contracts/viewports.json
-contracts/application-routes.json
-contracts/surfaces.json
-contracts/ui-states.json
-```
+Static generation, server rendering, client rendering, CDN hosting, and the presence of an application runtime do not select between Website and Webapp. `capability.pwa` is likewise an artifact-neutral optional capability: either artifact can become installable and define offline/update behavior without changing artifact identity.
 
-The shared `routes.json` records product-neutral path, canonical/deep-link, and accessibility semantics. Webapp-specific surface, authentication/access-failure, history, and state behavior belongs in `application-routes.json`; do not put those fields back into the shared route document.
-
-Those files describe the product you are building; they are not a complete implementation. Product code, framework choice, storage, tests, and other consumer-owned files are implemented separately.
-
-If the product later needs a maintained implementation runtime, a packaged CLI, MCP, a service, or the complete release lifecycle, include the appropriate top-level capability or lifecycle component. The Composer resolves transitive requirements rather than requiring the consumer to enumerate every prerequisite.
+These contracts describe the product you are building; they are not a complete implementation. Product code, framework choice, storage, tests, and other consumer-owned files are implemented separately. If the product later needs a maintained implementation runtime, packaged CLI, MCP, service, or complete release lifecycle, include the appropriate top-level capability or lifecycle component. The Composer resolves transitive requirements rather than requiring the consumer to enumerate every prerequisite.
 
 ## Example: Agent Skill
 
@@ -111,13 +140,14 @@ For example, an instruction-only or knowledge-augmented Skill does not need an a
 
 ## Where to go next
 
+- To choose Website or Web application, use [Choose Website or Web application](website-webapp-selection.md).
+- To build a Website now, use the [Website product walkthrough](website-product-walkthrough.md).
 - To build a Web application now, use the [Webapp product walkthrough](webapp-product-walkthrough.md).
 - To build an Agent Skill now, use the [Agent Skill first-use walkthrough](skill-first-use-walkthrough.md).
 - To choose optional components, use the [production catalog guide](../../catalog/README.md).
 - For strict semantics and ownership rules, use the [Composition model](../architecture/composition-model.md).
 - For exact commands and diagnostics, use the [Composer reference](../reference/composer.md).
 - For canonical repository terminology and cross-authority disambiguation, use the integrated glossary generated from provider-owned `docs/glossary.yml` sources.
-
 
 ## Component roles: a practical mental model
 
@@ -130,4 +160,4 @@ Read component roles as four questions, in this order:
 3. **Capability — What else can it do?** A capability adds an externally observable behavior, such as PWA support, a runtime, a CLI, or an MCP interface.
 4. **Lifecycle — How is it managed over time?** A lifecycle component supplies reusable machinery for validation, evolution, evidence, checkpoints, or release.
 
-A future Website recipe, for example, can select a Website artifact that requires a shared Web foundation. A consumer sees the Website identity and can choose PWA or runtime capabilities; the foundation is resolved automatically and is never an include target. The descriptor represents this with `component_role` (`foundation`, `artifact`, `capability`, or `lifecycle`), while canonical definitions remain in the provider glossary.
+The current Website/Webapp split demonstrates the boundary directly. `artifact.website-core` and `artifact.webapp-core` are sibling product identities that both require `foundation.web`; a consumer selects one artifact recipe and may then choose optional PWA or runtime capabilities. The foundation is resolved automatically and is never an include target. The descriptor represents these responsibilities with `component_role` (`foundation`, `artifact`, `capability`, or `lifecycle`), while canonical definitions remain in the provider glossary.

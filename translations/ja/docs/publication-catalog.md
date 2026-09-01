@@ -2,7 +2,7 @@
 
 > **参考訳（非正本）:** この文書は英語版 `docs/publication-catalog.md` の日本語参考訳です。正本は英語版であり、内容または解釈に相違がある場合は英語版が優先されます。
 
-`composition` branch は、再利用可能な composition system に対する1つの provider publication boundary を所有します。これは、Skill と Webapp の documentation を2つの独立した template authority から公開しなければならない、という従来の前提を置き換えるものです。
+`composition` branch は、再利用可能な composition system に対する1つの provider publication boundary を所有します。これは、Skill と Webapp の documentation を独立した template authority から公開しなければならないという従来の前提を置き換えるものです。現在は Agent Skill、Website、Web application が1つの Composition provider 内で distinct artifact responsibility として存在し、shared Web semantics は `foundation.web` が一度だけ所有します。
 
 generic な schema-v3 publication protocol は Site-owned です。Composition は、自身の catalog 内の declaration と、その共有 protocol の上に重ねる provider-specific semantics を所有します。Composition CI は、review 済みの full commit SHA `3ae5d1e60c65e7a8ebf5f9af0436044484e42983` から Site implementation を利用します。Composition は generic parser の2つ目の実装を維持せず、mutable な `site` branch を追従しません。
 
@@ -15,9 +15,11 @@ generic な schema-v3 publication protocol は Site-owned です。Composition �
 catalog は次の explanatory Markdown を公開します。
 
 - composition architecture と deterministic Composer。
+- Website / Web application の selection boundary と shared `foundation.web` model。
 - Agent Skill artifact model。
-- Web application artifact model。
-- 再利用可能な runtime、CLI、MCP、MCP Apps、browser、service capability。
+- Website artifact model と first-use path。
+- Web application artifact model と first-use path。
+- 再利用可能な runtime、CLI、MCP、MCP Apps、PWA、browser、service capability。
 - 再利用可能な composition-state、contract-evolution、implementation-evidence、release-execution、release-evidence、release-bundle lifecycle contract。
 - evaluator を formal protocol、scorecard guide、scorecard schema、output sequence へ案内する、canonical な independent clean-room evaluation entry point。
 - 旧 monolithic Skill / Webapp responsibility が現在の authority へ移動した理由を説明し、stage-level detail の immutable PR provenance を示す、統合された1つの authority-migration history。
@@ -26,7 +28,7 @@ publication home は branch の `README.md` です。`docs/index.md` は guided 
 
 ## Markdown classification boundary
 
-catalog は allowlist ですが、allowlist に含まれないこと自体も意図的でなければなりません。そのため Composition は、non-authoritative derivative のための `translations/manifest.json` と、明示的な非公開 exclusion のための `docs/publication-classification.json` という、2つの追加の Composition-owned declaration によって repository-source Markdown の maintenance boundary を閉じます。どちらの declaration も generic Site publication protocol の一部ではありません。
+catalog は allowlist ですが、allowlist に含まれないこと自体も意図的でなければなりません。そのため Composition は、non-authoritative derivative のための `translations/manifest.json` と、明示的な非公開 exclusion のための `docs/publication-classification.json` という2つの追加 Composition-owned declaration によって repository-source Markdown の maintenance boundary を閉じます。どちらも generic Site publication protocol の一部ではありません。
 
 Composition source tree 内のすべての Markdown file は、正確に次のいずれか1つでなければなりません。
 
@@ -56,11 +58,13 @@ classification file と translation manifest は Composition maintenance metadat
 Machine-readable source authority は rendered documentation ではなく supporting asset として公開されます。Composition-specific coverage validation は、catalog asset が次を網羅することを要求します。
 
 - `catalog/catalog.json`。
-- production recipe 2件すべて。
-- immutable skill-installer release schema を含む、top-level composition JSON Schema すべて。
+- production recipe 3件すべて（`skill`、`website`、`webapp`）。
+- immutable skill-installer release schema を含む top-level composition JSON Schema すべて。
 - stable な `release/composition-installer.json` identity descriptor。
-- production component descriptor すべて。
-- Webapp domain contract / schema seed。
+- `foundation.web` を含む production component descriptor すべて。
+- shared Web foundation contract / schema seed。
+- Website domain contracts と schemas。
+- Webapp domain contracts と schemas。
 - 再利用可能な lifecycle contract / schema seed。
 - consumer composition-lock schema。
 - formal clean-room evaluation protocol、scorecard guide、scorecard schema。
@@ -77,7 +81,7 @@ machine-readable file は branch に存在するだけでは public になりま
 
 ## Authority and URL model
 
-provider identity は `composition` です。Skill と Webapp はその provider 内部の distinct artifact semantics であり、独立した source authority ではありません。Site integration は reader 向けにそれらの document を別々に group 化できますが、別個の canonical Skill / Webapp source ownership を再構成してはなりません。
+provider identity は `composition` です。Agent Skill、Website、Web application はその provider 内部の distinct artifact semantics であり、独立した source authority ではありません。Website と Webapp は `foundation.web` を共有し、browser identity、route、viewport authority を重複して再構成しません。Site integration は reader 向けに3つの artifact family を別々に group 化できますが、それらに対する別個の canonical source ownership を再構成してはなりません。
 
 この repository はまだ production-facing ではないため、composition migration は backward compatibility だけを理由に旧 provider URL namespace を維持しません。Site information architecture は Site-owned concern であり、この provider allowlist とは別に扱われます。
 
@@ -85,7 +89,7 @@ provider identity は `composition` です。Skill と Webapp はその provider
 
 `docs/glossary.yml` は Composition-owned terminology source です。その record semantics は、generic Site protocol が catalog に existing safe `.yml` glossary source が宣言されていることを確認した後、引き続き Composition が validation します。
 
-Policy が Policy profile と Skill profile を正当に関連付けるため `templates-skill-profile` は維持されますが、retired copyable-template architecture に依存していた definition は維持しません。generic な composition / lifecycle concept は Webapp-only や Skill-only concept と誤って分類せず、composition-owned ID を使います。
+Policy が Policy profile と Skill profile を正当に関連付けるため `templates-skill-profile` は維持されますが、retired copyable-template architecture に依存していた definition は維持しません。generic な composition / lifecycle concept は Webapp-only、Website-only、Skill-only concept と誤って分類せず、composition-owned ID を使います。
 
 glossary file は strict JSON として encode されており、これは有効な YAML 1.2 subset です。これにより Composition は Python standard library だけで provider-specific terminology semantics を validation しつつ、Site glossary reader との compatibility を維持できます。
 

@@ -1,13 +1,14 @@
 {
   "schema_version": 1,
   "id": "website",
-  "summary": "Framework-neutral content-oriented Website with shared Web routes, page structure, document metadata, discovery semantics, and implementation evidence; PWA, runtime, Web interface, and release are explicit opt-ins.",
+  "summary": "Framework-neutral content-oriented Website with shared Web routes, page structure, document metadata, discovery semantics, and implementation evidence; PWA, runtime, service, Web interface, and release are explicit opt-ins.",
   "artifact": "artifact.website-core",
   "required_components": [],
   "default_components": [],
   "optional_components": [
     "capability.pwa",
     "capability.runtime",
+    "capability.service",
     "capability.web-interface",
     "lifecycle.release-bundle"
   ]

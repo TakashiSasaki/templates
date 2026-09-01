@@ -1,0 +1,542 @@
+{
+  "$schema": "../schemas/implementation-evidence.schema.json",
+  "schemaVersion": 6,
+  "mode": "product",
+  "commands": [
+    {
+      "id": "project-docs-browser-proof",
+      "command": "python tests/verify_project_docs_browser.py",
+      "purpose": "Exercise Project Docs browser identity, pages, metadata, keyboard operation, and viewport behavior with positive and negative browser paths.",
+      "execution": {
+        "capabilities": [
+          "accessibility",
+          "browser",
+          "end-to-end"
+        ],
+        "harness": {
+          "kind": "repository-file",
+          "locator": "tests/verify_project_docs_browser.py"
+        },
+        "supportsNegativePath": true
+      }
+    },
+    {
+      "id": "project-docs-discovery-proof",
+      "command": "python tests/verify_project_docs_discovery.py",
+      "purpose": "Inspect Project Docs canonical-origin, robots, and sitemap outputs against the declared discovery contract, including negative drift cases.",
+      "execution": {
+        "capabilities": [
+          "inspection"
+        ],
+        "harness": {
+          "kind": "repository-file",
+          "locator": "tests/verify_project_docs_discovery.py"
+        },
+        "supportsNegativePath": true
+      }
+    }
+  ],
+  "releaseGates": [
+    {
+      "id": "project-docs-browser-gate",
+      "purpose": "Block release unless the Project Docs browser proof command covers all browser-facing Website records.",
+      "commandIds": [
+        "project-docs-browser-proof"
+      ]
+    },
+    {
+      "id": "project-docs-discovery-gate",
+      "purpose": "Block release unless the Project Docs discovery proof command covers all discovery records.",
+      "commandIds": [
+        "project-docs-discovery-proof"
+      ]
+    }
+  ],
+  "records": [
+    {
+      "id": "browser-identity-proof",
+      "target": {
+        "kind": "contract-item",
+        "contractId": "browser_identity",
+        "itemKind": "proof-family",
+        "itemId": "browser-identity"
+      },
+      "implementationBoundary": {
+        "status": "verified",
+        "description": "This consumer-owned Project Docs file implements the declared Website target.",
+        "locator": "favicon.svg"
+      },
+      "positiveEvidence": [
+        {
+          "id": "browser-identity-proof-positive",
+          "status": "deferred",
+          "kind": "end-to-end-test",
+          "description": "The browser loads Project Docs with the declared favicon/browser identity.",
+          "locator": "tests/verify_project_docs_browser.py",
+          "commandId": "project-docs-browser-proof",
+          "expectedResult": "The browser loads Project Docs with the declared favicon/browser identity."
+        }
+      ],
+      "negativeEvidence": [
+        {
+          "id": "browser-identity-proof-negative",
+          "status": "deferred",
+          "kind": "end-to-end-test",
+          "description": "The browser proof fails when the declared favicon/browser identity is missing or not used.",
+          "locator": "tests/verify_project_docs_browser.py",
+          "commandId": "project-docs-browser-proof",
+          "expectedResult": "The browser proof fails when the declared favicon/browser identity is missing or not used."
+        }
+      ],
+      "releaseGateIds": [
+        "project-docs-browser-gate"
+      ]
+    },
+    {
+      "id": "guide-metadata-proof",
+      "target": {
+        "kind": "contract-item",
+        "contractId": "document_metadata",
+        "itemKind": "page-metadata",
+        "itemId": "guide"
+      },
+      "implementationBoundary": {
+        "status": "verified",
+        "description": "This consumer-owned Project Docs file implements the declared Website target.",
+        "locator": "guide/index.html"
+      },
+      "positiveEvidence": [
+        {
+          "id": "guide-metadata-proof-positive",
+          "status": "deferred",
+          "kind": "end-to-end-test",
+          "description": "The /guide document exposes the declared Project Docs title and metadata.",
+          "locator": "tests/verify_project_docs_browser.py",
+          "commandId": "project-docs-browser-proof",
+          "expectedResult": "The /guide document exposes the declared Project Docs title and metadata."
+        }
+      ],
+      "negativeEvidence": [
+        {
+          "id": "guide-metadata-proof-negative",
+          "status": "deferred",
+          "kind": "end-to-end-test",
+          "description": "The browser proof fails when /guide exposes stale or missing declared metadata.",
+          "locator": "tests/verify_project_docs_browser.py",
+          "commandId": "project-docs-browser-proof",
+          "expectedResult": "The browser proof fails when /guide exposes stale or missing declared metadata."
+        }
+      ],
+      "releaseGateIds": [
+        "project-docs-browser-gate"
+      ]
+    },
+    {
+      "id": "home-metadata-proof",
+      "target": {
+        "kind": "contract-item",
+        "contractId": "document_metadata",
+        "itemKind": "page-metadata",
+        "itemId": "home"
+      },
+      "implementationBoundary": {
+        "status": "verified",
+        "description": "This consumer-owned Project Docs file implements the declared Website target.",
+        "locator": "index.html"
+      },
+      "positiveEvidence": [
+        {
+          "id": "home-metadata-proof-positive",
+          "status": "deferred",
+          "kind": "end-to-end-test",
+          "description": "The home document exposes the declared Project Docs title and metadata.",
+          "locator": "tests/verify_project_docs_browser.py",
+          "commandId": "project-docs-browser-proof",
+          "expectedResult": "The home document exposes the declared Project Docs title and metadata."
+        }
+      ],
+      "negativeEvidence": [
+        {
+          "id": "home-metadata-proof-negative",
+          "status": "deferred",
+          "kind": "end-to-end-test",
+          "description": "The browser proof fails when the home document exposes stale or missing declared metadata.",
+          "locator": "tests/verify_project_docs_browser.py",
+          "commandId": "project-docs-browser-proof",
+          "expectedResult": "The browser proof fails when the home document exposes stale or missing declared metadata."
+        }
+      ],
+      "releaseGateIds": [
+        "project-docs-browser-gate"
+      ]
+    },
+    {
+      "id": "guide-page-proof",
+      "target": {
+        "kind": "contract-item",
+        "contractId": "site_structure",
+        "itemKind": "page",
+        "itemId": "guide"
+      },
+      "implementationBoundary": {
+        "status": "verified",
+        "description": "This consumer-owned Project Docs file implements the declared Website target.",
+        "locator": "guide/index.html"
+      },
+      "positiveEvidence": [
+        {
+          "id": "guide-page-proof-positive",
+          "status": "deferred",
+          "kind": "end-to-end-test",
+          "description": "The /guide page is reachable, exposes its main focus target, and participates in primary navigation.",
+          "locator": "tests/verify_project_docs_browser.py",
+          "commandId": "project-docs-browser-proof",
+          "expectedResult": "The /guide page is reachable, exposes its main focus target, and participates in primary navigation."
+        }
+      ],
+      "negativeEvidence": [
+        {
+          "id": "guide-page-proof-negative",
+          "status": "deferred",
+          "kind": "end-to-end-test",
+          "description": "The browser proof fails when /guide is unreachable, lacks its focus target, or breaks primary navigation.",
+          "locator": "tests/verify_project_docs_browser.py",
+          "commandId": "project-docs-browser-proof",
+          "expectedResult": "The browser proof fails when /guide is unreachable, lacks its focus target, or breaks primary navigation."
+        }
+      ],
+      "releaseGateIds": [
+        "project-docs-browser-gate"
+      ]
+    },
+    {
+      "id": "home-page-proof",
+      "target": {
+        "kind": "contract-item",
+        "contractId": "site_structure",
+        "itemKind": "page",
+        "itemId": "home"
+      },
+      "implementationBoundary": {
+        "status": "verified",
+        "description": "This consumer-owned Project Docs file implements the declared Website target.",
+        "locator": "index.html"
+      },
+      "positiveEvidence": [
+        {
+          "id": "home-page-proof-positive",
+          "status": "deferred",
+          "kind": "end-to-end-test",
+          "description": "The home page is reachable, exposes its main focus target, and participates in primary navigation.",
+          "locator": "tests/verify_project_docs_browser.py",
+          "commandId": "project-docs-browser-proof",
+          "expectedResult": "The home page is reachable, exposes its main focus target, and participates in primary navigation."
+        }
+      ],
+      "negativeEvidence": [
+        {
+          "id": "home-page-proof-negative",
+          "status": "deferred",
+          "kind": "end-to-end-test",
+          "description": "The browser proof fails when the home page is unreachable, lacks its focus target, or breaks primary navigation.",
+          "locator": "tests/verify_project_docs_browser.py",
+          "commandId": "project-docs-browser-proof",
+          "expectedResult": "The browser proof fails when the home page is unreachable, lacks its focus target, or breaks primary navigation."
+        }
+      ],
+      "releaseGateIds": [
+        "project-docs-browser-gate"
+      ]
+    },
+    {
+      "id": "keyboard-input-proof",
+      "target": {
+        "kind": "contract-item",
+        "contractId": "viewports",
+        "itemKind": "input-capability",
+        "itemId": "keyboard"
+      },
+      "implementationBoundary": {
+        "status": "verified",
+        "description": "This consumer-owned Project Docs file implements the declared Website target.",
+        "locator": "index.html"
+      },
+      "positiveEvidence": [
+        {
+          "id": "keyboard-input-proof-positive",
+          "status": "deferred",
+          "kind": "accessibility-test",
+          "description": "Primary Project Docs navigation is operable with keyboard input.",
+          "locator": "tests/verify_project_docs_browser.py",
+          "commandId": "project-docs-browser-proof",
+          "expectedResult": "Primary Project Docs navigation is operable with keyboard input."
+        }
+      ],
+      "negativeEvidence": [
+        {
+          "id": "keyboard-input-proof-negative",
+          "status": "deferred",
+          "kind": "accessibility-test",
+          "description": "The accessibility proof fails when required navigation cannot be operated with keyboard input.",
+          "locator": "tests/verify_project_docs_browser.py",
+          "commandId": "project-docs-browser-proof",
+          "expectedResult": "The accessibility proof fails when required navigation cannot be operated with keyboard input."
+        }
+      ],
+      "releaseGateIds": [
+        "project-docs-browser-gate"
+      ]
+    },
+    {
+      "id": "base-viewport-proof",
+      "target": {
+        "kind": "contract-item",
+        "contractId": "viewports",
+        "itemKind": "viewport",
+        "itemId": "base"
+      },
+      "implementationBoundary": {
+        "status": "verified",
+        "description": "This consumer-owned Project Docs file implements the declared Website target.",
+        "locator": "assets/site.css"
+      },
+      "positiveEvidence": [
+        {
+          "id": "base-viewport-proof-positive",
+          "status": "deferred",
+          "kind": "end-to-end-test",
+          "description": "The baseline viewport renders Project Docs without forbidden page-wide horizontal overflow.",
+          "locator": "tests/verify_project_docs_browser.py",
+          "commandId": "project-docs-browser-proof",
+          "expectedResult": "The baseline viewport renders Project Docs without forbidden page-wide horizontal overflow."
+        }
+      ],
+      "negativeEvidence": [
+        {
+          "id": "base-viewport-proof-negative",
+          "status": "deferred",
+          "kind": "end-to-end-test",
+          "description": "The browser proof fails when the baseline viewport produces forbidden page-wide horizontal overflow.",
+          "locator": "tests/verify_project_docs_browser.py",
+          "commandId": "project-docs-browser-proof",
+          "expectedResult": "The browser proof fails when the baseline viewport produces forbidden page-wide horizontal overflow."
+        }
+      ],
+      "releaseGateIds": [
+        "project-docs-browser-gate"
+      ]
+    },
+    {
+      "id": "canonical-origin-proof",
+      "target": {
+        "kind": "contract-item",
+        "contractId": "site_discovery",
+        "itemKind": "proof-family",
+        "itemId": "canonical-origin"
+      },
+      "implementationBoundary": {
+        "status": "verified",
+        "description": "This consumer-owned Project Docs resource implements the declared Website discovery target.",
+        "locator": "index.html"
+      },
+      "positiveEvidence": [
+        {
+          "id": "canonical-origin-proof-positive",
+          "status": "deferred",
+          "kind": "inspection",
+          "description": "Generated canonical references use the declared HTTPS Project Docs origin.",
+          "locator": "tests/verify_project_docs_discovery.py",
+          "commandId": "project-docs-discovery-proof",
+          "expectedResult": "Generated canonical references use the declared HTTPS Project Docs origin."
+        }
+      ],
+      "negativeEvidence": [
+        {
+          "id": "canonical-origin-proof-negative",
+          "status": "deferred",
+          "kind": "inspection",
+          "description": "The discovery proof fails when generated canonical references drift from the declared origin.",
+          "locator": "tests/verify_project_docs_discovery.py",
+          "commandId": "project-docs-discovery-proof",
+          "expectedResult": "The discovery proof fails when generated canonical references drift from the declared origin."
+        }
+      ],
+      "releaseGateIds": [
+        "project-docs-discovery-gate"
+      ]
+    },
+    {
+      "id": "robots-proof",
+      "target": {
+        "kind": "contract-item",
+        "contractId": "site_discovery",
+        "itemKind": "proof-family",
+        "itemId": "robots"
+      },
+      "implementationBoundary": {
+        "status": "verified",
+        "description": "This consumer-owned Project Docs resource implements the declared Website discovery target.",
+        "locator": "robots.txt"
+      },
+      "positiveEvidence": [
+        {
+          "id": "robots-proof-positive",
+          "status": "deferred",
+          "kind": "inspection",
+          "description": "robots.txt matches the declared Project Docs discovery policy.",
+          "locator": "tests/verify_project_docs_discovery.py",
+          "commandId": "project-docs-discovery-proof",
+          "expectedResult": "robots.txt matches the declared Project Docs discovery policy."
+        }
+      ],
+      "negativeEvidence": [
+        {
+          "id": "robots-proof-negative",
+          "status": "deferred",
+          "kind": "inspection",
+          "description": "The discovery proof fails when robots.txt is missing or contradicts the declared policy.",
+          "locator": "tests/verify_project_docs_discovery.py",
+          "commandId": "project-docs-discovery-proof",
+          "expectedResult": "The discovery proof fails when robots.txt is missing or contradicts the declared policy."
+        }
+      ],
+      "releaseGateIds": [
+        "project-docs-discovery-gate"
+      ]
+    },
+    {
+      "id": "sitemap-proof",
+      "target": {
+        "kind": "contract-item",
+        "contractId": "site_discovery",
+        "itemKind": "proof-family",
+        "itemId": "sitemap"
+      },
+      "implementationBoundary": {
+        "status": "verified",
+        "description": "This consumer-owned Project Docs resource implements the declared Website discovery target.",
+        "locator": "sitemap.xml"
+      },
+      "positiveEvidence": [
+        {
+          "id": "sitemap-proof-positive",
+          "status": "deferred",
+          "kind": "inspection",
+          "description": "sitemap.xml contains exactly the declared indexable Project Docs pages.",
+          "locator": "tests/verify_project_docs_discovery.py",
+          "commandId": "project-docs-discovery-proof",
+          "expectedResult": "sitemap.xml contains exactly the declared indexable Project Docs pages."
+        }
+      ],
+      "negativeEvidence": [
+        {
+          "id": "sitemap-proof-negative",
+          "status": "deferred",
+          "kind": "inspection",
+          "description": "The discovery proof fails when sitemap.xml omits or adds pages relative to the declared indexable inventory.",
+          "locator": "tests/verify_project_docs_discovery.py",
+          "commandId": "project-docs-discovery-proof",
+          "expectedResult": "The discovery proof fails when sitemap.xml omits or adds pages relative to the declared indexable inventory."
+        }
+      ],
+      "releaseGateIds": [
+        "project-docs-discovery-gate"
+      ]
+    }
+  ],
+  "requirements": [
+    {
+      "id": "WEBSITE-BROWSER",
+      "description": "Project Docs browser-facing Website behavior requires browser-level positive proof.",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "browser_identity",
+          "itemKind": "proof-family",
+          "itemId": "browser-identity"
+        },
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "guide"
+        },
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "home"
+        },
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "guide"
+        },
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "home"
+        },
+        {
+          "kind": "contract-item",
+          "contractId": "viewports",
+          "itemKind": "input-capability",
+          "itemId": "keyboard"
+        },
+        {
+          "kind": "contract-item",
+          "contractId": "viewports",
+          "itemKind": "viewport",
+          "itemId": "base"
+        }
+      ],
+      "recordIds": [
+        "browser-identity-proof",
+        "guide-metadata-proof",
+        "home-metadata-proof",
+        "guide-page-proof",
+        "home-page-proof",
+        "keyboard-input-proof",
+        "base-viewport-proof"
+      ],
+      "requiredPositiveProofKinds": [
+        "accessibility-test",
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "WEBSITE-DISCOVERY",
+      "description": "Project Docs discovery resources require inspection against the declared public Website contract.",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_discovery",
+          "itemKind": "proof-family",
+          "itemId": "canonical-origin"
+        },
+        {
+          "kind": "contract-item",
+          "contractId": "site_discovery",
+          "itemKind": "proof-family",
+          "itemId": "robots"
+        },
+        {
+          "kind": "contract-item",
+          "contractId": "site_discovery",
+          "itemKind": "proof-family",
+          "itemId": "sitemap"
+        }
+      ],
+      "recordIds": [
+        "canonical-origin-proof",
+        "robots-proof",
+        "sitemap-proof"
+      ],
+      "requiredPositiveProofKinds": [
+        "inspection"
+      ]
+    }
+  ]
+}

@@ -4,8 +4,8 @@
 
 JSON Schema Draft 2020-12 contract は、composition source、resolved state、immutable installer publication の model を定義します。
 
-- `component.schema.json` — artifact / capability / lifecycle descriptor、material、dependency / conflict、任意の `contract_registrations`、および範囲を限定した generated-material handler ID。
-- `recipe.schema.json` — consumer-facing artifact recipe。
+- `component.schema.json` — foundation / artifact / capability / lifecycle descriptor、material、dependency / conflict、任意の `contract_registrations`、および範囲を限定した generated-material handler ID。
+- `recipe.schema.json` — consumer-facing artifact recipe。recipe は1つの artifact を選び、capability / lifecycle choice を公開できます。foundation component は consumer が直接選択するのではなく推移的に解決されます。
 - `composition-config.schema.json` — 未解決の consumer intent。
 - `composition-lock.schema.json` — normalized consumer intent を含む、immutable source に束縛された resolved managed state。
 - `composition-transaction.schema.json` — deterministic な interrupted update / upgrade recovery metadata と mutation precondition。
@@ -14,7 +14,7 @@ JSON Schema Draft 2020-12 contract は、composition source、resolved state、i
 
 contract registration は、component-owned contract document / schema、stable migration slug、現在の document schema version、完全な version history、purpose を1件指定します。registration metadata は source-time の composition input であり、consumer に独立した authority としてコピーされるものではありません。`lifecycle.contract-evolution` は、解決済み registration set から consumer の `contracts/manifest.json` を deterministic に render します。
 
-JSON Schema が検証するのは document shape です。repository test と `scripts/compose.py` は、それに加えて safe path、selection の disjointness、dependency closure、portable destination ownership、registration の uniqueness / ownership、deterministic generation、source tracking、resolved-owner reference、materialized validation、transaction action consistency などの cross-document semantics を強制します。installer-publication verification はさらに、参照された immutable Git history と `toolchain -> skill source -> installer -> publication` の ancestry chain を検査します。これらの性質は JSON Schema だけでは保証できません。
+JSON Schema が検証するのは document shape です。repository test と `scripts/compose.py` は、それに加えて safe path、component role / ID の一致、foundation の direct-selection 制約、selection の disjointness、dependency closure、portable destination ownership、registration の uniqueness / ownership、deterministic generation、source tracking、resolved-owner reference、materialized validation、transaction action consistency などの cross-document semantics を強制します。installer-publication verification はさらに、参照された immutable Git history と `toolchain -> skill source -> installer -> publication` の ancestry chain を検査します。これらの性質は JSON Schema だけでは保証できません。
 
 Destination schema は、Composer 内部 metadata の予約だけでなく provider ownership も強制します。Composition material、lock inventory、transaction action は `.agent-policy.yml`、`.agent-policy.lock`、`.agent-policy/**` を claim できません。これらは外部の Policy-owned path です。これは path ownership の制約に限られ、Composition が Policy schema、lock、profile、runtime state を parse することはありません。
 

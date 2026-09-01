@@ -8,12 +8,17 @@
 
 ## Consumer 向け選択ガイド
 
-recipe は、言語、framework、deployment platform ではなく、作成する artifact の種類から選択します。
+recipe は、言語、framework、rendering strategy、deployment platform ではなく、作成する artifact の種類から選択します。browser-facing product では optional capability を選ぶ前に [Website と Web application の選び方](../docs/guides/website-webapp-selection.md) を参照してください。
 
 | 作成するもの | Recipe | 基本 material と挙動 | Lifecycle の基準 |
 | --- | --- | --- | --- |
 | Agent Skill repository | `skill` | `SKILL.md` を含む Skill 構造、開発ガイダンス、Skill 固有 validation | `lifecycle.composition-state` のみ。application capability と contract/release lifecycle component は opt-in |
-| browser-facing Web application repository | `webapp` | route、surface、可視 UI state、viewport、Web 固有 validation、framework-neutral な browser application 構造 | `lifecycle.composition-state` + implementation evidence + contract evolution。release lifecycle は `lifecycle.release-bundle` による opt-in |
+| content/document-oriented Website repository | `website` | shared browser identity/routes/viewports と Website page structure、document metadata、discovery、Website 固有 validation | `lifecycle.composition-state` + implementation evidence + contract evolution。release lifecycle は `lifecycle.release-bundle` による opt-in |
+| interactive Web application repository | `webapp` | shared browser identity/routes/viewports と application route、surface、visible UI state、Webapp 固有 validation | `lifecycle.composition-state` + implementation evidence + contract evolution。release lifecycle は `lifecycle.release-bundle` による opt-in |
+
+Website と Web application の区別は product identity の判断です。static generation、server rendering、client rendering、CDN hosting、runtime の有無は recipe を決めません。documentation、publishing、institutional information など document navigation が中心なら `website`、task/state/action-oriented browser product なら `webapp` を選びます。
+
+具体的な zero-to-one Website path は [Website product walkthrough](../docs/guides/website-product-walkthrough.md) を参照してください。Website contract、browser proof、product evidence を Webapp-private な surface/state semantics と分離したまま進めます。
 
 optional application capability は、外部から見える product の挙動に基づいて選択します。必要な capability を直接 include すれば、Composer が dependency を推移的に解決します。
 
@@ -21,25 +26,36 @@ optional application capability は、外部から見える product の挙動に
 | --- | --- | --- | --- |
 | 維持対象となる implementation runtime、dependency/distribution 規則、command、environment、deployment lifecycle | `capability.runtime` | — | runtime の選択・保守契約 |
 | packaged command-line interface | `capability.cli` | `capability.runtime` + implementation evidence（および contract evolution） | executable-proof enforcement を伴う machine-readable caller-visible CLI contract |
-| MCP protocol endpoint/interface | `capability.mcp` | `capability.runtime` + implementation evidence（および contract evolution） | executable protocol-proof enforcement を伴う machine-readable MCP transport / operation contract と、定性的な client / security / semantic-equivalence guidance |
-| MCP Apps extension UI | `capability.mcp-apps` | `capability.mcp`、したがって `capability.runtime` + implementation evidence（および contract evolution） | protocol / browser / end-to-end proof enforcement を伴う machine-readable Apps extension / View / tool-association contract と、定性的な bridge / visibility / sandbox / fallback guidance |
-| installable な Progressive Web App として、network loss、freshness、mobile application icon、update behavior を意図的に定義する | `capability.pwa` (`webapp`) | implementation evidence（および contract evolution） | cache algorithm や service-worker library を規定せず、Web App Manifest、offline/freshness、Android/iOS application identity compatibility、update lifecycle の contract を追加 |
+| MCP protocol endpoint/interface | `capability.mcp` | `capability.runtime` + implementation evidence（および contract evolution） | executable protocol-proof enforcement を伴う machine-readable MCP transport / operation contract と定性的 guidance |
+| MCP Apps extension UI | `capability.mcp-apps` | `capability.mcp`、したがって `capability.runtime` + implementation evidence（および contract evolution） | protocol/browser/end-to-end proof enforcement を伴う Apps extension contract と定性的 guidance |
+| installable な Progressive Web App として network loss、freshness、mobile application icon、update behavior を意図的に定義する | `capability.pwa` (`website` または `webapp`) | implementation evidence（および contract evolution） | artifact-neutral な Web App Manifest、offline/freshness、Android/iOS application identity compatibility、update lifecycle contract |
 | 独立して到達可能な non-browser service | `capability.service` | `capability.runtime` + implementation evidence（および contract evolution） | machine-readable service operation contract と executable-proof enforcement |
-| application runtime によって提供される standalone browser-facing interface | `capability.web-interface` | `capability.runtime` + implementation evidence（および contract evolution） | browser/executable proof-strength enforcement を伴う machine-readable external endpoint contract と、定性的な security / failure-isolation guidance |
+| application runtime によって提供される standalone browser-facing interface | `capability.web-interface` | `capability.runtime` + implementation evidence（および contract evolution） | browser/executable proof-strength enforcement を伴う machine-readable external endpoint contract |
 
-browser-facing artifact であることだけでは、`capability.runtime` や `capability.web-interface` は必要になりません。たとえば static/CDN Webapp は optional component なしで `webapp` recipe を使用できます。runtime-bound capability は、product が実際にその挙動を公開するときだけ追加します。
+browser-facing artifact であることだけでは `capability.runtime`、`capability.web-interface`、`capability.pwa` は必要になりません。statically generated Website は optional component なしで `website` recipe を使えます。CDN-hosted stateful SPA も runtime component なしで `webapp` recipe を使えます。runtime-bound capability や PWA capability は product が実際にその挙動を公開するときだけ追加します。
 
-lifecycle component は product workflow に応じて選択します。`skill` recipe は各 lifecycle level を独立して公開します。`webapp` recipe は contract evolution と implementation evidence を baseline に含み、`lifecycle.release-bundle` を top-level の release choice として公開します。recipe が公開している必要な lifecycle behavior のうち最上位のものを選択すれば、その prerequisite は自動解決されます。
+lifecycle component は product workflow に応じて選択します。`skill` recipe は各 lifecycle level を独立して公開します。`website` と `webapp` recipe は contract evolution と implementation evidence を baseline に含み、`lifecycle.release-bundle` を top-level release choice として公開します。
 
 | 必要なもの | Include | Dependency closure |
 | --- | --- | --- |
 | versioned contract evolution と migration | `lifecycle.contract-evolution` (`skill`) | contract evolution のみ |
-| implementation boundary、proof、authoritative command、release gate | `lifecycle.implementation-evidence` (`skill`; Webapp baseline) | implementation evidence -> contract evolution |
+| implementation boundary、proof、authoritative command、release gate | `lifecycle.implementation-evidence` (`skill`; Website/Webapp baseline) | implementation evidence -> contract evolution |
 | product-owned fixed-argv release execution と candidate verification | `lifecycle.release-execution` (`skill`) | release execution -> implementation evidence -> contract evolution |
 | revision-bound release evidence production | `lifecycle.release-evidence` (`skill`) | release evidence -> release execution -> implementation evidence -> contract evolution |
-| deterministic release bundle と one-command release orchestration | `lifecycle.release-bundle` (`skill` または `webapp`) | release bundle -> release evidence -> release execution -> implementation evidence -> contract evolution |
+| deterministic release bundle と one-command release orchestration | `lifecycle.release-bundle` (`skill`、`website`、`webapp`) | release bundle -> release evidence -> release execution -> implementation evidence -> contract evolution |
 
-したがって最小の static Webapp は空の include list を使用し、browser contract と implementation-evidence / contract-evolution support を受け取りますが、release execution / evidence / bundle material は含みません。
+最小 Website は空の include list を使用し、`foundation.web`、Website contract、implementation-evidence / contract-evolution support を受け取りますが、PWA/runtime/release material は含みません。
+
+```json
+{
+  "schema_version": 1,
+  "recipe": "website",
+  "components": {"include": [], "exclude": []},
+  "parameters": {}
+}
+```
+
+最小 Web application も空の include list を使いますが、shared Web foundation に加えて Webapp-private な application route、surface、UI state を受け取ります。
 
 ```json
 {
@@ -50,7 +66,21 @@ lifecycle component は product workflow に応じて選択します。`skill` r
 }
 ```
 
-release-ready Webapp は top-level の release component だけを選択します。
+PWA Website は artifact identity を変えず PWA を明示的に選択します。
+
+```json
+{
+  "schema_version": 1,
+  "recipe": "website",
+  "components": {
+    "include": ["capability.pwa"],
+    "exclude": []
+  },
+  "parameters": {}
+}
+```
+
+完全な Composition release lifecycle を使う Webapp は top-level release component だけを選択します。release readiness は component selection 自体ではなく、その後に得られる evidence と gate によって成立します。
 
 ```json
 {
@@ -64,12 +94,12 @@ release-ready Webapp は top-level の release component だけを選択しま�
 }
 ```
 
-Composition release lifecycle を使用しない runtime-backed Webapp では、runtime を独立して選択できます。
+Composition release lifecycle を使用しない runtime-backed Website/Webapp は runtime を独立して選択できます。例:
 
 ```json
 {
   "schema_version": 1,
-  "recipe": "webapp",
+  "recipe": "website",
   "components": {
     "include": ["capability.runtime"],
     "exclude": []
@@ -98,9 +128,9 @@ MCP Apps UI を公開し、完全な release workflow を使用する Skill で�
 
 v3 が推移的に選択していた完全な release lifecycle を repository で維持する場合、v4 の upgrade configuration で `lifecycle.release-bundle` を明示的に include する必要があります。release execution / evidence / bundle behavior が不要なら include せず、apply 前に upgrade plan を確認してください。
 
-v3 の release contract file は `seed` material だったため、release lifecycle を deselect する upgrade でも、Composer は consumer-owned bytes を自動削除せず保存します。apply 後に保存されている `contracts/release-execution.json`、`contracts/release-evidence.json`、`contracts/release-bundle.json` は、v4 baseline では登録済み contract ではありません。contract registry は意図的に closed なので、consumer がこれらを `contracts/` の外（たとえば `release-history/`）へ archive するか、履歴として不要であることを確認して削除するまで validation は失敗します。この cleanup は consumer-owned です。upgrade apply の後に cleanup を行い、その後 `validate` を再実行してください。
+v3 の release contract file は `seed` material だったため、release lifecycle を deselect する upgrade でも Composer は consumer-owned bytes を自動削除せず保存します。apply 後に保存されている `contracts/release-execution.json`、`contracts/release-evidence.json`、`contracts/release-bundle.json` は v4 baseline では登録済み contract ではありません。contract registry は closed なので、consumer がこれらを `contracts/` 外へ archive するか削除するまで validation は失敗します。この cleanup は consumer-owned です。
 
-repository に同名の lifecycle file が残っているだけで release validator が選択されることはありません。selection authority は `.template-composition/lock.json` の resolved component set です。上記 cleanup が必要なのは closed な contract-document inventory のためであり、release-validator dispatch のためではありません。
+repository に同名の lifecycle file が残っているだけで release validator が選択されることはありません。selection authority は `.template-composition/lock.json` の resolved component set です。
 
 `apply` の前に `plan` を使い、正確に解決された component closure と materialized file action を確認してください。直接選択可能な component の machine-readable source of truth は recipe descriptor です。
 
@@ -117,17 +147,16 @@ Production catalog validation は次を保証します。
 - 登録された各 contract document / schema / migration を1つの component が所有すること。
 - `contracts/manifest.json` に対する generated owner が一意であること。
 - 解決済み `contract_registrations` から manifest が deterministic に render されること。
-- composition lock では解決された各 component に file-ownership witness が必要なため、解決可能なすべての production component が少なくとも1つの materialized file を所有すること。
-- material destination が portable で、単一 owner を持つこと。
-- production Skill composition と Webapp composition の materialized validation が成功すること。
+- 解決可能なすべての production component が少なくとも1つの materialized file を所有すること。
+- material destination が portable で単一 owner を持つこと。
+- production Skill、Website、Webapp composition の materialized validation が成功すること。
 
 catalog は source authority であり、consumer material でも execution-hook registry でもありません。
 
 Composer はこの閉じた source graph を検証し、1つの正確で clean な Git revision に対して recipe と consumer configuration を解決し、initial materialization が成功した後に得られた component / file closure を `.template-composition/lock.json` に書き込みます。Generated material は allowlist に含まれる declarative generator ID を通じてのみ dispatch されます。
 
-unmanaged target では、initial composition は managed-state transition を推測せず、既存の composition lock がある場合は拒否します。既存の managed repository では代わりに明示的な operation を使います。`update` は lock schema v2 に記録された normalized intent を維持したまま descendant の Composition source revision へ進み、`upgrade` は recipe、component selection、parameter、component version などを変更するための明示的な新しい configuration を受け取ります。どちらの operation も汎用 merge engine ではありません。local で変更された `managed` / `generated` material や、owner / ownership-mode transition は上書きや推測を行わず fail closed します。
-
+unmanaged target では initial composition は managed-state transition を推測せず、既存の composition lock がある場合は拒否します。既存の managed repository では `update` が normalized intent を維持して descendant revision へ進み、`upgrade` が recipe/component/parameter/version の明示的変更を受け取ります。どちらも汎用 merge engine ではなく、local 変更された `managed` / `generated` material や ownership transition は fail closed します。
 
 ### コンポーネントロールと直接選択
 
-recipe は1つの artifact を選択し、optional な capability または lifecycle component を公開します。`foundation` role の component は artifact component の依存関係です。自動的に解決され、recipe option には現れず、consumer が直接 include する target でもありません。四つの role によるメンタルモデルは [Composition concepts](../../docs/guides/composition-concepts.md) を、canonical terminology は provider glossary を参照してください。
+recipe は1つの artifact を選択し、optional な capability または lifecycle component を公開します。`foundation` role の component は artifact component の依存関係です。自動解決され、recipe option には現れず、consumer が直接 include する target でもありません。四つの role のメンタルモデルは [Composition concepts](../docs/guides/composition-concepts.md) を参照してください。

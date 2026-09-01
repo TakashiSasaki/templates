@@ -14,7 +14,8 @@
       "term": "Artifact component",
       "localized_labels": {"ja": {"term": "アーティファクトコンポーネント"}},
       "origin": "repository",
-      "definition": "A composition component that defines the identity-specific semantics of the produced artifact, such as an Agent Skill or Web application, while reusable capabilities and lifecycle concerns remain separate authorities.",
+      "definition": "A composition component that defines the identity-specific semantics of the produced artifact, such as an Agent Skill, Website, or Web application, while reusable capabilities and lifecycle concerns remain separate authorities.",
+      "repository_usage": "Website and Web application are sibling artifact identities in the current production catalog. Both may require the shared foundation.web baseline, but content/document orientation versus interactive application tasks determines artifact identity rather than static/dynamic rendering, runtime, or PWA selection.",
       "related_terms": ["templates-composition-component", "templates-artifact-contract"]
     },
     {
@@ -22,7 +23,7 @@
       "term": "Capability component",
       "localized_labels": {"ja": {"term": "ケイパビリティコンポーネント"}},
       "origin": "repository",
-      "definition": "An artifact-neutral composition component that adds an optional application capability such as an implementation runtime, packaged CLI, MCP interface, MCP Apps extension, standalone browser interface, or headless service.",
+      "definition": "An artifact-neutral composition component that adds an optional product capability such as an implementation runtime, packaged CLI, MCP interface, MCP Apps extension, standalone browser interface, or headless service.",
       "related_terms": ["templates-composition-component", "templates-implementation-runtime", "templates-runtime-decision-record", "external-mcp-model-context-protocol"]
     },
     {
@@ -128,7 +129,8 @@
       "aliases": ["Runtime decision record"],
       "localized_labels": {"ja": {"term": "実装ランタイム決定記録", "aliases": ["ランタイム決定記録"]}},
       "origin": "repository",
-      "definition": "The consumer-owned RUNTIME.md decision record materialized by capability.runtime. It records the selected implementation runtime, dependency workflow, exact commands, protocol selections, environment, distribution, and deployment lifecycle without belonging specifically to Skill or Webapp semantics.",
+      "definition": "The consumer-owned RUNTIME.md decision record materialized by capability.runtime. It records the selected implementation runtime, dependency workflow, exact commands, protocol selections, environment, distribution, and deployment lifecycle without belonging specifically to Skill, Website, or Webapp semantics.",
+      "repository_usage": "Runtime is an optional artifact-neutral capability. A Website may have a maintained server runtime and a Webapp may be statically hosted; runtime selection therefore must not be used to classify Website versus Web application product identity.",
       "related_terms": ["templates-implementation-runtime", "templates-composition-capability-component"]
     },
     {
