@@ -10,10 +10,21 @@ ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "translations" / "manifest.json"
 CANONICAL = ROOT / "docs" / "index.md"
 TRANSLATION = ROOT / "translations" / "ja" / "docs" / "index.md"
+TRANSLATION_ROOT = ROOT / "translations" / "ja"
 LINK_TARGET = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
 HEADING = re.compile(r"^(#{1,6})\s+", re.MULTILINE)
 GUIDED_LINK = re.compile(r"^- \[[^\]]+\]\(.+\)[ \t]+[-–—][ \t]+\S.+$")
 JA_NOTICE = "> **参考訳（非正本）:**"
+
+
+def canonical_target_identity(source: Path, target: str, *, translated: bool) -> str:
+    resolved = (source.parent / target).resolve()
+    if translated:
+        try:
+            return resolved.relative_to(TRANSLATION_ROOT).as_posix()
+        except ValueError:
+            pass
+    return resolved.relative_to(ROOT).as_posix()
 
 
 class GuidedIndexTranslationTests(unittest.TestCase):
@@ -41,8 +52,14 @@ class GuidedIndexTranslationTests(unittest.TestCase):
             [len(match.group(1)) for match in HEADING.finditer(canonical)],
         )
         self.assertEqual(
-            LINK_TARGET.findall(translation),
-            LINK_TARGET.findall(canonical),
+            [
+                canonical_target_identity(TRANSLATION, target, translated=True)
+                for target in LINK_TARGET.findall(translation)
+            ],
+            [
+                canonical_target_identity(CANONICAL, target, translated=False)
+                for target in LINK_TARGET.findall(canonical)
+            ],
         )
 
     def test_guided_translation_lines_use_overlay_shape(self) -> None:
