@@ -78,16 +78,16 @@ git init
 
 通常利用では CPython 3.11、3.12、3.13、3.14 のいずれかが必要です。[Composition の利用方法](../consumer-guide.md#install-and-run-the-composition-skill) の immutable installer procedure に従い、Project Docs の外へ skill を install します。
 
-現在公開されている skill の stable runtime manifest は `website` recipe より古いため、この walkthrough では CI-green immutable Website-capable Composition revision `379073f376ce1de80948abd2e92d5560b573e7e6` を明示的に選択します。この revision には Website recipe と step 14 で説明する optional component set が含まれます。installed runner は immutable full-SHA override を support しています。この walkthrough の **すべて** の runner invocation で同じ revision を使ってください。省略すると consumer lock ではなく、より古い stable runtime-manifest revision に戻ります。
+現在公開されている skill の stable runtime manifest は `website` recipe より古いため、この walkthrough では CI-green immutable Website-capable Composition revision `ca8b8bc9091c6c199224cd9b66c9a59229f1b6ac` を明示的に選択します。この revision には Website recipe と step 14 で説明する optional component set が含まれます。installed runner は immutable full-SHA override を support しています。この walkthrough の **すべて** の runner invocation で同じ revision を使ってください。省略すると consumer lock ではなく、より古い stable runtime-manifest revision に戻ります。
 
 ```sh
 python /absolute/path/to/agent-skills/composition/scripts/run.py \
   --repository /absolute/path/to/project-docs \
-  --revision 379073f376ce1de80948abd2e92d5560b573e7e6 \
+  --revision ca8b8bc9091c6c199224cd9b66c9a59229f1b6ac \
   doctor
 ```
 
-`READY` は selected revision の local bootstrap prerequisite が利用可能という意味であり、Composition validation や後続 network/package availability の証明ではありません。続行前に doctor output の selected toolchain が `379073f376ce1de80948abd2e92d5560b573e7e6` であることを確認します。
+`READY` は selected revision の local bootstrap prerequisite が利用可能という意味であり、Composition validation や後続 network/package availability の証明ではありません。続行前に doctor output の selected toolchain が `ca8b8bc9091c6c199224cd9b66c9a59229f1b6ac` であることを確認します。
 
 ## 3. `composition.json` を作る
 
@@ -114,7 +114,7 @@ Project Docs は content/document-oriented なので `website` を選択しま�
 ```sh
 python /absolute/path/to/agent-skills/composition/scripts/run.py \
   --repository /absolute/path/to/project-docs \
-  --revision 379073f376ce1de80948abd2e92d5560b573e7e6 \
+  --revision ca8b8bc9091c6c199224cd9b66c9a59229f1b6ac \
   inspect
 ```
 
@@ -123,7 +123,7 @@ fresh directory では `state: "unmanaged"` が期待値です。
 ```sh
 python /absolute/path/to/agent-skills/composition/scripts/run.py \
   --repository /absolute/path/to/project-docs \
-  --revision 379073f376ce1de80948abd2e92d5560b573e7e6 \
+  --revision ca8b8bc9091c6c199224cd9b66c9a59229f1b6ac \
   plan --config /absolute/path/to/project-docs/composition.json
 ```
 
@@ -132,7 +132,7 @@ Initial planning は read-only です。apply 前に resolved closure が `artif
 ```sh
 python /absolute/path/to/agent-skills/composition/scripts/run.py \
   --repository /absolute/path/to/project-docs \
-  --revision 379073f376ce1de80948abd2e92d5560b573e7e6 \
+  --revision ca8b8bc9091c6c199224cd9b66c9a59229f1b6ac \
   apply --config /absolute/path/to/project-docs/composition.json
 ```
 
@@ -141,7 +141,7 @@ python /absolute/path/to/agent-skills/composition/scripts/run.py \
 ```sh
 python /absolute/path/to/agent-skills/composition/scripts/run.py \
   --repository /absolute/path/to/project-docs \
-  --revision 379073f376ce1de80948abd2e92d5560b573e7e6 \
+  --revision ca8b8bc9091c6c199224cd9b66c9a59229f1b6ac \
   validate
 ```
 
@@ -249,7 +249,7 @@ Website contracts と implementation evidence を truthful な `planning` mode �
 ```sh
 python /absolute/path/to/agent-skills/composition/scripts/run.py \
   --repository /absolute/path/to/project-docs \
-  --revision 379073f376ce1de80948abd2e92d5560b573e7e6 \
+  --revision ca8b8bc9091c6c199224cd9b66c9a59229f1b6ac \
   validate
 ```
 
@@ -297,7 +297,7 @@ implementation boundary と実 proof command が存在してから `contracts/im
 ```sh
 python /absolute/path/to/agent-skills/composition/scripts/run.py \
   --repository /absolute/path/to/project-docs \
-  --revision 379073f376ce1de80948abd2e92d5560b573e7e6 \
+  --revision ca8b8bc9091c6c199224cd9b66c9a59229f1b6ac \
   validate
 ```
 
@@ -310,7 +310,7 @@ product-mode validation 成功後、`lifecycle.next_actions` の product checkpo
 ```sh
 python /absolute/path/to/agent-skills/composition/scripts/run.py \
   --repository /absolute/path/to/project-docs \
-  --revision 379073f376ce1de80948abd2e92d5560b573e7e6 \
+  --revision ca8b8bc9091c6c199224cd9b66c9a59229f1b6ac \
   validate
 ```
 
@@ -318,7 +318,7 @@ python /absolute/path/to/agent-skills/composition/scripts/run.py \
 
 ## 14. Optional PWA/runtime/service/Web-interface/release-bundle behavior は optional のまま
 
-immutable revision `379073f376ce1de80948abd2e92d5560b573e7e6` の `website` recipe は次だけを optional selection として公開します。
+immutable revision `ca8b8bc9091c6c199224cd9b66c9a59229f1b6ac` の `website` recipe は次だけを optional selection として公開します。
 
 - `capability.pwa`
 - `capability.runtime`
@@ -347,7 +347,7 @@ required browser proof が deferred なら `not-ready` を生成または構成�
 Project Docs がこの walkthrough で complete なのは次がすべて true の場合です。
 
 - recipe は `website` のままで、closure は `artifact.website-core` + transitive `foundation.web` を含み Webapp-private artifact contract を含まない
-- すべての `scripts/run.py` invocation が immutable Website-capable revision `379073f376ce1de80948abd2e92d5560b573e7e6` を使用した
+- すべての `scripts/run.py` invocation が immutable Website-capable revision `ca8b8bc9091c6c199224cd9b66c9a59229f1b6ac` を使用した
 - routes/site structure/metadata/discovery/viewport/browser identity が実装済み Website を記述し、seed placeholder ではなく `siteName: "Project Docs"` になっている
 - actual page/content/navigation と `favicon.svg` など宣言済み browser-identity asset が consumer-owned implementation に存在する
 - implementation 前に validated planning checkpoint があり、product checkpoint が transition を閉じている
