@@ -46,26 +46,52 @@ def test_agent_policy_skill_owns_one_trusted_review_bootstrap_path() -> None:
     assert "only repository-facing bootstrap authority" in bootstrap
     assert "before `pr-review` executes" in bootstrap
     assert "must not perform pull-request review analysis" in bootstrap
-    assert "installed immutable `agent-policy` Skill" in bootstrap
     assert "No alternate bootstrap loader" in bootstrap
     assert "repository-policy-root override" in bootstrap
     assert "procedure/toolchain override" in bootstrap
     assert "future alternate authority path requires" in bootstrap
     assert "The proposed head is never an authority input to bootstrap" in bootstrap
     assert (
-        "python scripts/run.py --repository <trusted-base-snapshot> check --config <config-path>"
-        in bootstrap
-    )
+        "python scripts/run.py --repository <trusted-base-snapshot> check "
+        "--config <config-path>"
+    ) in bootstrap
     assert "select the managed runtime from that snapshot's `.agent-policy.lock`" in bootstrap
     assert "Require the trusted configuration to enable `pr-review`" in bootstrap
     assert ".agents/skills/pr-review/SKILL.md" in bootstrap
-    assert "regular non-symlink files" in bootstrap
-    assert "verified generated-output set" in bootstrap
     assert "lock-selected full-SHA toolchain revision" in bootstrap
     assert "Hand only those verified generated Skill bytes" in bootstrap
     assert "immutable bootstrap evidence record" in bootstrap
     assert "If stable repository identity changes, fail closed" in bootstrap
-    assert "return to this bootstrap" in bootstrap
+    assert "return to this already authenticated bootstrap" in bootstrap
+
+
+def test_agent_policy_bootstrap_requires_external_installation_authentication() -> None:
+    bootstrap = AGENT_POLICY_SKILL.read_text(encoding="utf-8")
+
+    assert "### Installed bootstrap authentication precondition" in bootstrap
+    assert "does **not** authenticate the Skill-source bytes" in bootstrap
+    assert "deployment-managed installation attestation" in bootstrap
+    assert "outside both the installed Skill tree and the repository under review" in bootstrap
+    assert "full-SHA installer revision" in bootstrap
+    assert "immutable Skill-source revision" in bootstrap
+    assert "SHA-256 digests for **every installed Skill file**" in bootstrap
+    assert "--attestation <path> --installer-revision <trusted-installer-sha>" in bootstrap
+    assert "--verify-only" in bootstrap
+    assert "authenticate the installer script itself" in bootstrap
+    assert "Never substitute `runtime-manifest.json`" in bootstrap
+    assert "authenticated bootstrap installer and Skill-source revisions" in bootstrap
+    assert "installation-attestation digest" in bootstrap
+
+
+def test_agent_policy_bootstrap_rejects_symlinked_generated_skill_paths() -> None:
+    bootstrap = AGENT_POLICY_SKILL.read_text(encoding="utf-8")
+
+    assert "Resolve `.agents/skills/pr-review/SKILL.md`" in bootstrap
+    assert "remain inside the generated `pr-review` tree" in bootstrap
+    assert "without parent traversal or reserved-namespace entry" in bootstrap
+    assert "every existing path component" in bootstrap
+    assert "non-symlink" in bootstrap
+    assert "final path to be a regular file" in bootstrap
 
 
 def test_pr_review_skill_consumes_bootstrap_evidence_without_self_bootstrapping() -> None:
@@ -73,8 +99,9 @@ def test_pr_review_skill_consumes_bootstrap_evidence_without_self_bootstrapping(
 
     assert "## Trusted bootstrap precondition" in skill
     assert "does **not** select or verify its own executable authority" in skill
-    assert "installed immutable `agent-policy` Skill" in skill
+    assert "deployment-authenticated installed `agent-policy` Skill" in skill
     assert "supports no alternate loader" in skill
+    assert "authenticated bootstrap installer and Skill-source revisions" in skill
     assert "exact trusted base revision" in skill
     assert "verified `pr-review` procedure revision" in skill
     assert "verified Skill-file digests/provenance" in skill
@@ -109,12 +136,13 @@ def test_pr_review_contract_rejects_authority_override_inputs() -> None:
     assert "Trusted procedure/toolchain revision request:" not in prompt
 
 
-def test_pr_review_skill_binds_repository_and_policy_authority_to_bootstrap() -> None:
+def test_pr_review_skill_binds_pr_repository_and_policy_authority_to_bootstrap() -> None:
     skill = (SKILL_ROOT / "SKILL.md").read_text(encoding="utf-8")
 
     assert "repository identity matching bootstrap evidence" in skill
     assert "pull-request identity matching bootstrap evidence" in skill
-    assert "exact current base tip to match bootstrap evidence" in skill
+    assert "Require both the stable repository identity **and pull-request identity**" in skill
+    assert "exact current base tip to match the trusted repository-policy root" in skill
     assert "validated lock identity" in skill
     assert "procedure revision" in skill
     proposed_head_data = (
@@ -173,11 +201,8 @@ def test_canonical_prompt_is_a_thin_non_normative_invocation() -> None:
 
     assert "non-normative invocation template" in prompt
     assert "not a bootstrap contract" in prompt
-    bootstrap_phrase = (
-        "installed immutable `agent-policy` Skill bootstrap establishes "
-        "executable provenance"
-    )
-    assert bootstrap_phrase in prompt
+    assert "Deployment authentication first establishes" in prompt
+    assert "installed `agent-policy` Skill-source provenance" in prompt
     assert "verified `pr-review` Skill is the sole review-execution procedural authority" in prompt
     assert "Semantic review projection: `<repository-relative-semantic-output-path>`" in prompt
     assert "GitHub adapter projection: `<repository-relative-github-adapter-output-path>`" in prompt
@@ -237,21 +262,22 @@ def test_pr_review_skill_requires_one_unique_merge_base() -> None:
     assert "unique merge-base→head surface" in skill
 
 
-def test_pr_review_skill_rechecks_repository_base_head_and_authority_until_stable() -> None:
+def test_pr_review_skill_rechecks_pr_repository_base_head_until_stable() -> None:
     skill = (SKILL_ROOT / "SKILL.md").read_text(encoding="utf-8")
 
     assert "Immediately before serialization, enter a stability loop" in skill
-    assert "Re-resolve the stable repository identity" in skill
-    assert "Require the repository identity to remain the one bound by bootstrap evidence" in skill
+    assert "Re-resolve the **pull-request identity**, stable repository identity" in skill
+    assert "pull-request identity and repository identity" in skill
+    assert "identities bound by bootstrap evidence" in skill
     assert "ancestor set to still contain exactly one revision" in skill
-    assert "If repository identity changes, fail closed" in skill
-    assert "return control to the installed immutable `agent-policy` bootstrap" in skill
+    assert "If pull-request identity or repository identity changes, fail closed" in skill
+    assert "deployment-authenticated installed `agent-policy` bootstrap" in skill
     assert "replacement exact base becomes the new active trusted repository-policy root" in skill
     assert "old Skill must not continue" in skill
     assert "recompute the unique merge-base→head changed surface" in skill
     stable = (
         "immediately pre-serialization observation reproduces the fully analyzed "
-        "repository identity, base, head, unique merge-base, and current "
-        "bootstrap/procedure identity"
+        "pull-request identity, repository identity, base, head, unique merge-base, "
+        "and current bootstrap/procedure identity"
     )
     assert stable in skill
