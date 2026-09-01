@@ -70,7 +70,7 @@ The context is the semantic authority boundary. A renderer does not select, add,
 
 `github-review-json-v1` is an additive renderer available to `.agent-policy.yml` configuration schema version 2 for a GitHub-oriented blocking-review transport. The configuration schema version and the adapter response schema are independent: this adapter currently emits JSON with `schema_version: 1`.
 
-Unlike `policy-context-md`, the GitHub renderer does **not** reproduce the semantic rule bodies. It identifies the same configured review context and adds only the output protocol: review completeness fields, GitHub event mapping, `path`/`line`/`LEFT`/`RIGHT` inline anchors, numeric confidence serialization, and the version-1 JSON response shape. These adapter requirements are not shared review semantics and must not be copied into `policy/review/*.md` or into the automated-review prompt.
+Unlike `policy-context-md`, the GitHub renderer does **not** reproduce the semantic rule bodies. It identifies the same configured review context and adds only the output protocol: review completeness fields, GitHub event mapping, `path`/`line`/`LEFT`/`RIGHT` inline anchors, numeric confidence serialization, and the version-1 JSON response shape. These adapter requirements are not shared review semantics and must not be copied into `policy/review/*.md` or into an automated-review invocation prompt.
 
 A repository that needs the GitHub JSON adapter should normally generate both a provider-neutral semantic projection and the adapter from the same review context:
 
@@ -88,9 +88,19 @@ outputs:
     renderer: github-review-json-v1
 ```
 
-The semantic projection answers what review rules apply. The adapter answers only how an already-established semantic result is serialized for GitHub. Selecting the same named context binds both projections to the same policy selection without turning the adapter into a second policy copy.
+The semantic projection answers what review rules apply. The adapter answers only how an already-established semantic result is serialized for GitHub. Selecting the same named context binds both generated projections to the same policy selection without turning the adapter into a second policy copy.
 
-Codex, Gemini, Antigravity, or another engine may consume these generated documents; engine invocation details remain outside the semantic policy. A generated `pr-review` Skill may orchestrate evidence collection and refer to the configured semantic and adapter projections, but the Skill likewise must not redefine their contents. Other provider-specific event names, APIs, or serialization contracts require their own renderer or external adapter rather than changes to the review-rule modules.
+### Automated-review invocation binding
+
+`skills.enabled` intentionally remains a flat set of generated Skills; schema version 2 does not infer a Skill-to-context association. The `pr-review` Skill therefore does not hard-code a context name or choose arbitrarily among multiple review outputs.
+
+Its invocation receives the repository-relative path of the semantic review projection and the repository-relative path of the platform adapter projection. At the trusted policy root, the Skill reads `.agent-policy.yml`, requires both configured outputs to be enabled, requires their configured paths to match the supplied paths exactly, and requires both outputs to reference the same context. Missing, duplicate, disabled, or inconsistent bindings fail closed instead of falling back to naming conventions.
+
+For pull-request review, the default trusted repository-policy root is the exact PR base revision captured at review start. A caller may explicitly provide another immutable trusted policy revision when repository policy authorizes it. Proposed-head changes to `.agent-policy.yml`, policy files, generated review instructions, or adapter configuration are therefore reviewed content rather than instructions allowed to alter the policy used for that same review.
+
+This explicit invocation binding avoids a schema transition while preserving deterministic context selection. Introducing a machine-declared Skill-to-output binding into `.agent-policy.yml` would change the configuration trust contract and requires a separate architecture decision.
+
+Codex, Gemini, Antigravity, or another engine may consume these generated documents; engine invocation details remain outside the semantic policy. The generated `pr-review` Skill is the sole procedural authority for evidence collection and application of the bound projections. A retained canonical prompt is only a thin non-normative invocation template that supplies repository, PR, output paths, and optional trusted revision before directing the agent to the Skill. Other provider-specific event names, APIs, or serialization contracts require their own renderer or external adapter rather than changes to the review-rule modules.
 
 Output paths are repository configuration, not semantic authority. Agent-facing review projections may therefore live outside `.github/`; `.github/` should be reserved for files whose location has GitHub-defined discovery or runtime semantics. Existing consumers may migrate generated output paths only through the normal lock-bound generated-output lifecycle so modified or non-generated files are not silently removed.
 
