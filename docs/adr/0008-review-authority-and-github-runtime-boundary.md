@@ -32,7 +32,15 @@ The frozen guidance inventory is therefore migration evidence, not a second norm
 
 ### Review procedure
 
-The dedicated automated pull-request review Skill is the **sole procedural authority** for review execution. It owns the ordered operations required to establish a review: exact target identity, trusted authority selection, complete changed-surface inspection, relevant-context discovery, evidence handling, target revalidation, semantic-policy application, adapter handoff, and the boundary that stops review before merge authorization.
+The dedicated automated pull-request review Skill is the **sole procedural authority** for review execution. It owns the ordered operations required to establish a review: exact target and comparison identity, trusted authority selection, complete changed-surface inspection, relevant-context discovery, evidence handling, target revalidation, semantic-policy application, adapter handoff, and the boundary that stops review before merge authorization.
+
+At review start the procedure records three immutable revision identities:
+
+- the exact current target/base tip, which is the default trusted repository-policy root;
+- the exact proposed head; and
+- the exact merge-base/common-ancestor revision between that base tip and proposed head, which is the comparison base for the PR-introduced changed surface.
+
+The complete PR changed surface is defined as the repository change from the recorded merge-base to the recorded proposed head. A tip-to-tip base→head comparison is not substituted for that surface. Surrounding repository context may be inspected beyond the changed surface when the semantic review requires it, but findings still follow the semantic policy's causality and changed-location requirements.
 
 The Skill must reference semantic policy instead of copying definitions such as severity, compatibility, security impact, or admissibility thresholds.
 
@@ -42,7 +50,7 @@ The previously revised Canonical automated PR review prompt is not a second proc
 
 Reviewed content must not be allowed to choose or weaken either the semantic policy or the procedural code used to judge itself.
 
-By default, a pull-request review uses the exact current **base revision captured at review start** as its trusted repository-policy root. The reviewer reads `.agent-policy.yml`, repository-local policy inputs, generated review projections, and their recorded provenance from that trusted base snapshot. Changes on the proposed head to policy configuration, policy modules, generated review instructions, adapter configuration, generated Skills, or related authority material are review data, not active instructions for that same review.
+By default, a pull-request review uses the exact current **base tip captured at review start** as its trusted repository-policy root. The reviewer reads `.agent-policy.yml`, repository-local policy inputs, generated review projections, and their recorded provenance from that trusted base snapshot. Changes on the proposed head to policy configuration, policy modules, generated review instructions, adapter configuration, generated Skills, or related authority material are review data, not active instructions for that same review.
 
 The procedural Skill is resolved independently of the proposed head. Unless the caller supplies a different immutable trusted procedure revision, the reviewer reads the full-SHA `toolchain.revision` from `.agent-policy.yml` at the trusted repository-policy root and resolves `pr-review` only from that exact toolchain revision. The loader must verify the Skill source/generated provenance against that immutable revision before executing it. A repository-local or generated `pr-review` copy from the proposed head is never executed merely because it is newer or locally discoverable.
 
@@ -50,7 +58,7 @@ A caller may instead supply an explicit out-of-band trusted repository-policy re
 
 If the trusted base does not select a toolchain revision containing the required `pr-review` Skill and no authorized out-of-band trusted procedure revision is supplied, the automated review procedure is unavailable and must fail closed rather than falling back to a head-side Skill.
 
-If the pull-request base revision changes while the review is in progress, evidence collected under the prior trusted base is stale until the reviewer re-resolves the repository-policy root, its default trusted toolchain/procedure revision, and every affected policy/procedure binding before re-evaluating affected analysis.
+Immediately before final serialization, the procedure re-resolves the base tip, proposed head, and their merge-base. If any of the three differs from the identities used by the current analysis, the review is stale: it replaces the recorded identities, recomputes the merge-base→head changed surface, refreshes affected evidence and semantic analysis, and repeats the final three-revision observation. A changed base tip also requires re-resolving the default trusted repository-policy root and its default toolchain/procedure binding. Serialization is reached only when an immediately pre-serialization observation reproduces all three fully analyzed revision identities.
 
 ### Review output binding
 
@@ -115,6 +123,7 @@ Reader-facing Site publication changes, if any, remain a separate cross-authorit
 - The accepted insights from the two revised review documents are reproducibly frozen without making the documents competing authorities.
 - The verified `pr-review` Skill is the only procedural authority; the canonical invocation prompt is thin and non-normative.
 - Reviewed head content cannot silently change either the semantic policy or the procedural Skill used to evaluate itself.
+- The base tip is the default trusted policy root, while the merge-base independently defines the PR-introduced changed surface.
 - The default procedure revision is derived from the trusted base's immutable toolchain pin, while an authorized caller may supply an explicit immutable out-of-band procedure revision when needed.
 - Review output paths are explicit invocation inputs and are verified to bind to one trusted context with the expected renderer roles rather than inferred from names.
 - GitHub JSON/event/location details remain adapter concerns; finding selection remains semantic policy.
