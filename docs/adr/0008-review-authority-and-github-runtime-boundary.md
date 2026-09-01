@@ -40,7 +40,7 @@ The bootstrap Skill has two distinct immutable identities that must not be colla
 - **Skill-source identity** covers the installed `skills/agent-policy` tree containing the bootstrap algorithm itself.
 - **Runtime identity** covers the toolchain revision and dependency lock selected by `runtime-manifest.json` / the managed repository lock.
 
-Before any bootstrap instruction or executable from the installed Skill is trusted, the hosting/deployment dispatcher must verify the installed Skill tree against a **deployment-managed installation attestation stored outside the installed Skill tree and outside the repository under review**. That attestation must record at least the immutable installer repository/full-SHA revision, immutable Skill-source repository/full-SHA revision, and cryptographic digests for every installed bootstrap-authority file. The attested installer and Skill-source identities must match an independently trusted deployment pin established before the review invocation; neither the pull-request base nor head may select or rewrite that deployment pin. The published `release/skill-installer.json` contract distinguishes installer and Skill-source revisions and may be used when provisioning that deployment pin, but a repository copy encountered during review is not itself sufficient bootstrap authentication evidence.
+Before any bootstrap instruction or executable from the installed Skill is trusted, the hosting/deployment dispatcher must verify the installed Skill tree against a **deployment-managed installation attestation stored outside the installed Skill tree and outside the repository under review**. That attestation must record at least the immutable installer repository/full-SHA revision, immutable Skill-source repository/full-SHA revision, the exact installed root, and a **closed inventory of every installed Skill-tree path and its type**, with a cryptographic digest for every regular file. Verification requires exact path/type inventory equality: missing paths, additional paths, type substitutions, links, or digest mismatches fail closed. The attested installer and Skill-source identities must match an independently trusted deployment pin established before the review invocation; neither the pull-request base nor head may select or rewrite that deployment pin. The published `release/skill-installer.json` contract distinguishes installer and Skill-source revisions and may be used when provisioning that deployment pin, but a repository copy encountered during review is not itself sufficient bootstrap authentication evidence.
 
 `runtime-manifest.json` is then used for its separate runtime-selection responsibility. It does **not** authenticate the Skill-source bytes that contain the bootstrap algorithm. Bootstrap is unavailable unless both the external installation-attestation verification and the applicable runtime identity checks succeed.
 
@@ -48,7 +48,7 @@ The absence of an authority override path is intentional. The current configurat
 
 Before `pr-review` executes, trusted bootstrap must:
 
-1. require successful deployment-side authentication of the installed `agent-policy` Skill-source identity and bytes against the external installation attestation;
+1. require successful deployment-side authentication of the installed `agent-policy` Skill-source identity, exact closed path/type inventory, and file digests against the external installation attestation;
 2. obtain and record the stable repository identity and pull-request identity from the hosting/repository system;
 3. obtain the exact current target/base revision and a repository snapshot proven to represent that repository identity at that exact revision;
 4. use that exact base snapshot as the active trusted repository-policy root;
@@ -59,7 +59,7 @@ Before `pr-review` executes, trusted bootstrap must:
 9. record the lock-selected procedure revision and cryptographic digests/provenance of the verified generated Skill files; and
 10. hand that immutable bootstrap evidence to the verified `pr-review` Skill.
 
-A mutable branch/tag, an unauthenticated installed Skill, a repository-local Skill, or any `agent-policy`/`pr-review` bytes from the proposed head must never participate in bootstrap for that same review. If installed bootstrap provenance cannot be authenticated independently, or if the trusted base does not validly enable and reproduce `pr-review`, automated review under this architecture is unavailable and fails closed.
+A mutable branch/tag, an unauthenticated installed Skill, an **unverified** repository-local Skill, or any `agent-policy`/`pr-review` bytes from the proposed head must never participate in bootstrap for that same review. The sole repository-local procedure bytes permitted by this contract are the trusted-base generated `pr-review` Skill and declared references that passed step 8's path-safety and lock-pinned reproduction checks. If installed bootstrap provenance cannot be authenticated independently, or if the trusted base does not validly enable and reproduce that generated `pr-review`, automated review under this architecture is unavailable and fails closed.
 
 Trusted bootstrap is not a second review procedure. It may establish bootstrap installation identity, repository and pull-request identity, exact base identity, configuration/lock validity, procedure identity, generated Skill provenance, and handoff evidence only. It must not inspect the proposed change for findings, classify CI or review evidence, choose provider events, decide review completeness, or authorize merge.
 
@@ -161,10 +161,11 @@ Reader-facing Site publication remains a separate cross-authority operation.
 - The frozen revised-guidance inputs are reproducible migration evidence without becoming a competing authority.
 - Trust establishment is non-circular: deployment authentication establishes the installed `agent-policy` Skill-source identity before that Skill bootstraps and verifies `pr-review`.
 - Bootstrap Skill-source identity and runtime identity remain distinct; `runtime-manifest.json` cannot substitute for installation provenance.
+- The installed bootstrap attestation is a closed tree inventory: extra/missing paths, path-type changes, links, or file-digest drift invalidate the installation rather than leaving executable additions unauthenticated.
 - There is one current bootstrap path, one trusted repository-policy root, and one lock-selected repository procedure path; undefined override or alternate-loader mechanisms are rejected rather than inferred.
 - Pull-request identity and stable repository identity are both part of start/final review evidence, preventing cross-PR and cross-repository authority/evidence reuse based only on commit identity.
 - Base movement always returns control to authenticated bootstrap and re-establishes all trusted authority from the replacement base.
-- The verified `pr-review` Skill is the only review-execution procedural authority; the invocation prompt remains non-normative.
+- The verified trusted-base generated `pr-review` Skill is the only review-execution procedural authority; other repository-local or proposed-head Skill bytes remain untrusted, and the invocation prompt remains non-normative.
 - Managed lock/configuration disagreement, unsafe or symlinked generated paths, stale generated bytes, ambiguous merge bases, or unavailable procedure authority fail closed.
 - Semantic and adapter projections are explicitly bound, role-checked, and byte-reproduced from the trusted lock-pinned toolchain.
 - GitHub transport requirements remain adapter-only; merge authorization remains pull-request-policy/procedure-only.
