@@ -100,6 +100,24 @@ def test_independent_review_rule_fails_closed_for_missing_or_stale_review() -> N
         assert semantic.lower() in rule.lower()
 
 
+def test_independent_review_rule_requires_demonstrably_complete_analysis() -> None:
+    rule = (POLICY_DIR / "independent-exact-head-review.md").read_text(
+        encoding="utf-8"
+    )
+    required_semantics = (
+        "review object is not by itself evidence that review analysis completed",
+        "analysis required for that review completed",
+        "partial, failed, incomplete, or materially limited",
+        "must not satisfy the independent-review requirement",
+        "records that review as submitted or completed",
+        "cannot establish whether the required analysis completed",
+        "keep merge authorization fail-closed",
+        "absence of blocking findings",
+    )
+    for semantic in required_semantics:
+        assert semantic.lower() in rule.lower()
+
+
 def test_exact_head_ci_rule_rejects_stale_or_unresolved_evidence() -> None:
     rule = (POLICY_DIR / "exact-head-ci-evidence.md").read_text(encoding="utf-8")
     required_semantics = (
