@@ -5,11 +5,11 @@
 
 ## Context
 
-ADR-0005 established one canonical policy authority and requires generated instructions to remain projections rather than competing handwritten authorities. The current review implementation already follows part of that model: shared review semantics live in `policy/review/*.md`, `profiles/review.yml` selects the review-specific modules, and `.agent-policy.yml` composes the `review` context from shared core, security, review, and repository-local policy.
+ADR-0005 established one canonical policy authority and requires generated instructions to remain projections rather than competing handwritten authorities. The current review implementation already follows part of that model: shared review semantics live in `policy/review/*.md`, `profiles/review.yml` selects the review-specific modules, and `.agent-policy.yml` composes review contexts from shared profiles and repository-local policy.
 
 The current GitHub-facing projection, however, combines two different responsibilities. `.github/REVIEW_GUIDELINES.md` is a generated file, but its location makes it appear repository-authoritative even though its semantic content is derived from policy modules. Its renderer also combines semantic rules with a GitHub-specific JSON transport contract. At the same time `.github/workflows/*` contains actual GitHub Actions entry points whose placement under `.github/workflows/` is part of GitHub's discovery contract.
 
-Recent automated-review design work also produced two useful review artifacts: a revised Review Guidelines document and a revised Canonical automated PR review prompt. They contain requirements that should improve the policy toolchain, but treating either document as a new handwritten authority would violate the single-authority model. Their statements must instead be classified by ownership and incorporated into the existing authority graph.
+Recent automated-review design work also produced revised Review Guidelines and a revised Canonical automated PR review prompt. The original conversational documents are not immutable repository inputs, so this migration freezes the complete accepted statement-level baseline in `docs/review-guidance-inputs.md`. Follow-up implementation may classify only that frozen baseline unless a reviewed change explicitly amends it.
 
 ## Decision
 
@@ -20,35 +20,58 @@ Separate automated pull-request review into four responsibility layers:
 3. **Platform adapter** defines provider-specific transport, serialization, event names, and inline-location rules.
 4. **Platform runtime integration** contains files whose path or discovery semantics are imposed by the hosting platform.
 
-No lower layer may redefine the semantics owned by a higher layer.
+No lower layer may redefine the semantics owned by a higher layer, and each layer has exactly one source authority for a given requirement.
 
 ### Semantic review policy
 
-Canonical review semantics remain atomic modules under `policy/review/*.md`, composed with reusable `policy/core/*` and `policy/security/*` modules through `profiles/review.yml` and the named `review` context.
+Canonical review semantics remain atomic modules under `policy/review/*.md`, composed with reusable `policy/core/*` and `policy/security/*` modules through a configured review context.
 
-Insights from the revised Review Guidelines are incorporated statement by statement. Existing canonical rules are reused when they already own the requirement. New modules are created only for genuinely missing, independently applicable semantics. The review corpus remains provider-neutral and must not encode GitHub event names, GitHub line-side vocabulary, model names, or transport serialization.
+The frozen Review Guidelines inputs in `docs/review-guidance-inputs.md` are classified statement by statement. Existing canonical rules are reused when they already own a requirement. New modules are created only for genuinely missing, independently applicable semantics. The review corpus remains provider-neutral and must not encode GitHub event names, GitHub line-side vocabulary, model names, or transport serialization.
 
-The revised Review Guidelines are therefore design input, not a second normative document.
+The frozen guidance inventory is therefore migration evidence, not a second normative policy document.
 
 ### Review procedure
 
-The operational procedure for an automated pull-request reviewer belongs in a dedicated review Skill source. It may prescribe operations such as resolving exact base/head identity, loading the repository-selected review context, inspecting the complete changed surface and relevant repository context, evaluating PR claims as evidence rather than authority, checking current evidence when material, revalidating the reviewed head before emission, and reporting limitations.
+The dedicated automated pull-request review Skill is the **sole procedural authority** for review execution. It owns the ordered operations required to establish a review: exact target identity, trusted policy selection, complete changed-surface inspection, relevant-context discovery, evidence handling, head revalidation, semantic-policy application, adapter handoff, and the boundary that stops review before merge authorization.
 
-The procedure must reference semantic policy instead of copying definitions such as severity, compatibility, security impact, or admissibility thresholds.
+The Skill must reference semantic policy instead of copying definitions such as severity, compatibility, security impact, or admissibility thresholds.
 
-The revised Canonical automated PR review prompt is classified as orchestration input for this layer. It may be retained as a canonical invocation/reference artifact of the review Skill, but it is not semantic policy.
+The previously revised Canonical automated PR review prompt is not a second procedure authority. Its reusable retained form is a thin, explicitly non-normative invocation surface that supplies task parameters and directs the agent to execute the installed `pr-review` Skill. Procedural knowledge extracted from the revised prompt is incorporated into the Skill itself. If the prompt and Skill ever appear to disagree, the Skill governs and the prompt must be regenerated or corrected.
+
+### Trusted policy root
+
+Reviewed content must not be allowed to choose or weaken the policy used to judge itself.
+
+By default, a pull-request review uses the exact current **base revision captured at review start** as its trusted repository-policy root. The reviewer reads `.agent-policy.yml`, repository-local policy inputs, generated review projections, and their recorded provenance from that trusted base snapshot. Changes on the proposed head to policy configuration, policy modules, generated review instructions, adapter configuration, or related authority material are review data, not active instructions for that same review.
+
+An invocation may instead supply an explicit out-of-band trusted policy revision when the repository's review contract authorizes such a root. That revision must be immutable, recorded in the review evidence, and selected by the caller rather than by reviewed head content. There is no implicit head-side rebaseline.
+
+If the pull-request base revision changes while the review is in progress, evidence collected under the prior trusted base is stale until the reviewer re-resolves the authority root and re-evaluates affected analysis.
+
+### Review output binding
+
+Schema version 2 keeps Skill enablement independent from output selection, so a Skill must not guess a context by the literal name `review` or choose arbitrarily among multiple outputs.
+
+The review invocation therefore identifies two explicit repository-relative output paths from the **trusted policy root**:
+
+- the provider-neutral semantic review projection; and
+- the provider/platform adapter projection required for the requested output surface.
+
+Before reviewing, the Skill verifies from the trusted `.agent-policy.yml` that both outputs are enabled, that each configured path matches the supplied path, and that both outputs reference the same context. If the binding is absent, ambiguous, inconsistent, or cannot be validated, the reviewer fails closed or reports the resulting limitation according to the available trusted adapter; it does not infer a context from naming conventions.
+
+This invocation-level binding is sufficient for the current design and does not require a configuration-schema transition. A future machine-declared Skill-to-output binding would be a separate trust-contract change and would require its own architecture decision.
 
 ### Platform adapter
 
 GitHub-specific output requirements remain adapter concerns. These include GitHub review events, JSON response schema, confidence serialization, changed-file path/line anchors, `LEFT`/`RIGHT` side selection, and consistency constraints between analysis status and review event.
 
-A GitHub adapter may consume the same review context as a provider-neutral review projection, but it must not reproduce the semantic rule corpus as an independent copy. Renderer tests must enforce this separation.
+A GitHub adapter is bound to the same semantic context as the provider-neutral review projection, but it must not reproduce the semantic rule corpus as an independent copy. Renderer tests must enforce this separation.
 
 ### Pull-request review versus merge authorization
 
 Automated review and merge gating are separate operational contexts.
 
-The review procedure determines whether changed code contains material, evidence-backed findings under the review policy. Merge-gate policy and procedure determine whether the exact current head is authorized to merge based on CI, independent review, unresolved threads, base freshness, mergeability, and other lifecycle evidence.
+The review procedure determines whether changed code contains material, evidence-backed findings under the trusted review policy. Merge-gate policy and procedure determine whether the exact current head is authorized to merge based on CI, independent review, unresolved threads, base freshness, mergeability, and other lifecycle evidence.
 
 A pending or unavailable CI result is therefore not automatically a code-review defect. A change that weakens, disables, or invalidates required CI can still be a review finding when the changed code itself causes that regression.
 
@@ -74,21 +97,23 @@ The exact output paths are configuration data and may evolve independently of se
 
 Implement the decision in separate reviewed changes:
 
-1. record this authority and runtime-boundary decision;
-2. perform a statement-level gap analysis of the revised Review Guidelines and add only missing atomic review semantics;
-3. add a dedicated automated PR-review Skill and separate the GitHub transport renderer from semantic rule rendering;
+1. record this authority and runtime-boundary decision and freeze the accepted design-input inventory;
+2. perform a statement-level disposition of `docs/review-guidance-inputs.md` and add only genuinely missing atomic review semantics;
+3. add the dedicated automated PR-review Skill as the sole procedural authority, retain only a thin non-normative invocation prompt, and separate the GitHub transport renderer from semantic rule rendering;
 4. promote the resulting reviewed toolchain revision through the existing stable-release process; and
-5. update policy self-hosting configuration to the promoted full SHA, generate the new review projections, and remove the obsolete `.github/REVIEW_GUIDELINES.md` through the canonical generated-output lifecycle.
+5. update policy self-hosting configuration to the promoted full SHA, generate explicitly bound review projections, and remove the obsolete `.github/REVIEW_GUIDELINES.md` through the canonical generated-output lifecycle.
 
 Reader-facing Site publication changes, if any, remain a separate cross-authority publication operation and must not be coupled implicitly to the Policy implementation change.
 
 ## Consequences
 
 - Review semantics remain engine- and provider-neutral.
-- The revised Review Guidelines contribute semantic coverage without becoming a competing authority.
-- The revised Canonical automated PR review prompt becomes procedure/orchestration material rather than policy.
+- The accepted insights from the two revised review documents are reproducibly frozen without making the documents competing authorities.
+- The `pr-review` Skill is the only procedural authority; the canonical invocation prompt is thin and non-normative.
+- Reviewed head content cannot silently change the policy used to evaluate itself.
+- Review output paths are explicit invocation inputs and are verified to bind to one trusted context rather than inferred from names.
 - GitHub JSON/event/location details remain adapter concerns.
 - Automated review cannot silently absorb merge-gate responsibilities.
 - `.github/` becomes a thin GitHub runtime/discovery boundary instead of a generic container for GitHub-related policy documents.
 - Generated review artifacts remain inspectable while retaining explicit provenance and non-authoritative status.
-- The migration can proceed without a configuration-schema version change because schema version 2 already separates contexts from output renderers and supports multiple named outputs.
+- The current migration can proceed without a configuration-schema version change because the missing Skill/output association is supplied and validated as explicit invocation data rather than inferred configuration.
