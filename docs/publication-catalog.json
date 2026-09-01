@@ -100,7 +100,7 @@
     {"source":"components/artifact.webapp-core/files/schemas","destination":"webapp/schemas","optional":false},
     {"source":"components/artifact.website-core/files/contracts","destination":"website/contracts","optional":false},
     {"source":"components/artifact.website-core/files/schemas","destination":"website/schemas","optional":false},
-    {"source":"examples/onboarding/project-docs/implementation-evidence.product.json","destination":"website/examples/project-docs/implementation-evidence.product.json","optional":false},
+    {"source":"examples/onboarding/project-docs/implementation-evidence.product.json","destination":"lifecycle/implementation-evidence/project-docs/implementation-evidence.product.json","optional":false},
     {"source":"components/lifecycle.contract-evolution/files/schemas","destination":"lifecycle/contract-evolution/schemas","optional":false},
     {"source":"components/lifecycle.implementation-evidence/files/contracts","destination":"lifecycle/implementation-evidence/contracts","optional":false},
     {"source":"components/lifecycle.implementation-evidence/files/schemas","destination":"lifecycle/implementation-evidence/schemas","optional":false},
