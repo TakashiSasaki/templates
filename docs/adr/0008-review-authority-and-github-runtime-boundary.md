@@ -32,32 +32,36 @@ The frozen guidance inventory is therefore migration evidence, not a second norm
 
 ### Review procedure
 
-The dedicated automated pull-request review Skill is the **sole procedural authority** for review execution. It owns the ordered operations required to establish a review: exact target identity, trusted policy selection, complete changed-surface inspection, relevant-context discovery, evidence handling, head revalidation, semantic-policy application, adapter handoff, and the boundary that stops review before merge authorization.
+The dedicated automated pull-request review Skill is the **sole procedural authority** for review execution. It owns the ordered operations required to establish a review: exact target identity, trusted authority selection, complete changed-surface inspection, relevant-context discovery, evidence handling, target revalidation, semantic-policy application, adapter handoff, and the boundary that stops review before merge authorization.
 
 The Skill must reference semantic policy instead of copying definitions such as severity, compatibility, security impact, or admissibility thresholds.
 
-The previously revised Canonical automated PR review prompt is not a second procedure authority. Its reusable retained form is a thin, explicitly non-normative invocation surface that supplies task parameters and directs the agent to execute the installed `pr-review` Skill. Procedural knowledge extracted from the revised prompt is incorporated into the Skill itself. If the prompt and Skill ever appear to disagree, the Skill governs and the prompt must be regenerated or corrected.
+The previously revised Canonical automated PR review prompt is not a second procedure authority. Its reusable retained form is a thin, explicitly non-normative invocation surface that supplies task and trust-binding parameters and directs the agent to execute a verified `pr-review` Skill. Procedural knowledge extracted from the revised prompt is incorporated into the Skill itself. If the prompt and Skill ever appear to disagree, the verified Skill governs and the prompt must be regenerated or corrected.
 
-### Trusted policy root
+### Trusted review authority root
 
-Reviewed content must not be allowed to choose or weaken the policy used to judge itself.
+Reviewed content must not be allowed to choose or weaken either the semantic policy or the procedural code used to judge itself.
 
-By default, a pull-request review uses the exact current **base revision captured at review start** as its trusted repository-policy root. The reviewer reads `.agent-policy.yml`, repository-local policy inputs, generated review projections, and their recorded provenance from that trusted base snapshot. Changes on the proposed head to policy configuration, policy modules, generated review instructions, adapter configuration, or related authority material are review data, not active instructions for that same review.
+By default, a pull-request review uses the exact current **base revision captured at review start** as its trusted repository-policy root. The reviewer reads `.agent-policy.yml`, repository-local policy inputs, generated review projections, and their recorded provenance from that trusted base snapshot. Changes on the proposed head to policy configuration, policy modules, generated review instructions, adapter configuration, generated Skills, or related authority material are review data, not active instructions for that same review.
 
-An invocation may instead supply an explicit out-of-band trusted policy revision when the repository's review contract authorizes such a root. That revision must be immutable, recorded in the review evidence, and selected by the caller rather than by reviewed head content. There is no implicit head-side rebaseline.
+The procedural Skill is resolved independently of the proposed head. Unless the caller supplies a different immutable trusted procedure revision, the reviewer reads the full-SHA `toolchain.revision` from `.agent-policy.yml` at the trusted repository-policy root and resolves `pr-review` only from that exact toolchain revision. The loader must verify the Skill source/generated provenance against that immutable revision before executing it. A repository-local or generated `pr-review` copy from the proposed head is never executed merely because it is newer or locally discoverable.
 
-If the pull-request base revision changes while the review is in progress, evidence collected under the prior trusted base is stale until the reviewer re-resolves the authority root and re-evaluates affected analysis.
+A caller may instead supply an explicit out-of-band trusted repository-policy revision, trusted procedure/toolchain revision, or both when the repository's review contract authorizes those roots. Each supplied revision must be immutable, recorded in the review evidence, and selected by the caller rather than by reviewed head content. There is no implicit head-side rebaseline.
+
+If the trusted base does not select a toolchain revision containing the required `pr-review` Skill and no authorized out-of-band trusted procedure revision is supplied, the automated review procedure is unavailable and must fail closed rather than falling back to a head-side Skill.
+
+If the pull-request base revision changes while the review is in progress, evidence collected under the prior trusted base is stale until the reviewer re-resolves the repository-policy root, its default trusted toolchain/procedure revision, and every affected policy/procedure binding before re-evaluating affected analysis.
 
 ### Review output binding
 
 Schema version 2 keeps Skill enablement independent from output selection, so a Skill must not guess a context by the literal name `review` or choose arbitrarily among multiple outputs.
 
-The review invocation therefore identifies two explicit repository-relative output paths from the **trusted policy root**:
+The review invocation therefore identifies two explicit repository-relative output paths from the **trusted repository-policy root**:
 
 - the provider-neutral semantic review projection; and
 - the provider/platform adapter projection required for the requested output surface.
 
-Before reviewing, the Skill verifies from the trusted `.agent-policy.yml` that both outputs are enabled, that each configured path matches the supplied path, and that both outputs reference the same context. If the binding is absent, ambiguous, inconsistent, or cannot be validated, the reviewer fails closed or reports the resulting limitation according to the available trusted adapter; it does not infer a context from naming conventions.
+Before reviewing, the verified Skill checks from the trusted `.agent-policy.yml` that both outputs are enabled, that each configured path matches the supplied path, and that both outputs reference the same context. It also validates each output's renderer role rather than accepting any two same-context outputs. If the binding is absent, ambiguous, inconsistent, unsupported, or cannot be validated, the reviewer fails closed or reports the resulting limitation according to trusted adapter behavior that remains available; it does not infer a context or renderer role from naming conventions.
 
 This invocation-level binding is sufficient for the current design and does not require a configuration-schema transition. A future machine-declared Skill-to-output binding would be a separate trust-contract change and would require its own architecture decision.
 
@@ -65,7 +69,7 @@ This invocation-level binding is sufficient for the current design and does not 
 
 GitHub-specific output requirements remain adapter concerns. These include GitHub review events, JSON response schema, confidence serialization, changed-file path/line anchors, `LEFT`/`RIGHT` side selection, and consistency constraints between analysis status and review event.
 
-A GitHub adapter is bound to the same semantic context as the provider-neutral review projection, but it must not reproduce the semantic rule corpus as an independent copy. Renderer tests must enforce this separation.
+A GitHub adapter is bound to the same semantic context as the provider-neutral review projection, but it must not reproduce the semantic rule corpus as an independent copy. Finding selection and admissibility remain semantic-policy concerns; an adapter serializes the semantic result and must not add a confidence threshold or otherwise filter that result. Renderer tests must enforce this separation.
 
 ### Pull-request review versus merge authorization
 
@@ -73,7 +77,7 @@ Automated review and merge gating are separate operational contexts.
 
 The review procedure determines whether changed code contains material, evidence-backed findings under the trusted review policy. Merge-gate policy and procedure determine whether the exact current head is authorized to merge based on CI, independent review, unresolved threads, base freshness, mergeability, and other lifecycle evidence.
 
-A pending or unavailable CI result is therefore not automatically a code-review defect. A change that weakens, disables, or invalidates required CI can still be a review finding when the changed code itself causes that regression.
+The review procedure collects and revision-binds CI or remote evidence when material, but the selected semantic review policy determines how that evidence affects a finding or limitation. Procedure and adapter layers do not independently classify pending, missing, successful, failed, stale, or inaccessible CI as either a defect or a clean result.
 
 Existing `policy/pull-request/*` and `skills/pr-merge-gate/*` continue to own merge-readiness and merge-authorization semantics and procedure.
 
@@ -99,9 +103,9 @@ Implement the decision in separate reviewed changes:
 
 1. record this authority and runtime-boundary decision and freeze the accepted design-input inventory;
 2. perform a statement-level disposition of `docs/review-guidance-inputs.md` and add only genuinely missing atomic review semantics;
-3. add the dedicated automated PR-review Skill as the sole procedural authority, retain only a thin non-normative invocation prompt, and separate the GitHub transport renderer from semantic rule rendering;
+3. add the dedicated automated PR-review Skill as the sole procedural authority, retain only a thin non-normative invocation prompt, and introduce a transport-only GitHub adapter without silently changing the meaning of an existing combined renderer;
 4. promote the resulting reviewed toolchain revision through the existing stable-release process; and
-5. update policy self-hosting configuration to the promoted full SHA, generate explicitly bound review projections, and remove the obsolete `.github/REVIEW_GUIDELINES.md` through the canonical generated-output lifecycle.
+5. update policy self-hosting configuration to the promoted full SHA, generate explicitly bound review projections and Skill bytes from that trusted toolchain, and remove the obsolete `.github/REVIEW_GUIDELINES.md` through the canonical generated-output lifecycle.
 
 Reader-facing Site publication changes, if any, remain a separate cross-authority publication operation and must not be coupled implicitly to the Policy implementation change.
 
@@ -109,10 +113,11 @@ Reader-facing Site publication changes, if any, remain a separate cross-authorit
 
 - Review semantics remain engine- and provider-neutral.
 - The accepted insights from the two revised review documents are reproducibly frozen without making the documents competing authorities.
-- The `pr-review` Skill is the only procedural authority; the canonical invocation prompt is thin and non-normative.
-- Reviewed head content cannot silently change the policy used to evaluate itself.
-- Review output paths are explicit invocation inputs and are verified to bind to one trusted context rather than inferred from names.
-- GitHub JSON/event/location details remain adapter concerns.
+- The verified `pr-review` Skill is the only procedural authority; the canonical invocation prompt is thin and non-normative.
+- Reviewed head content cannot silently change either the semantic policy or the procedural Skill used to evaluate itself.
+- The default procedure revision is derived from the trusted base's immutable toolchain pin, while an authorized caller may supply an explicit immutable out-of-band procedure revision when needed.
+- Review output paths are explicit invocation inputs and are verified to bind to one trusted context with the expected renderer roles rather than inferred from names.
+- GitHub JSON/event/location details remain adapter concerns; finding selection remains semantic policy.
 - Automated review cannot silently absorb merge-gate responsibilities.
 - `.github/` becomes a thin GitHub runtime/discovery boundary instead of a generic container for GitHub-related policy documents.
 - Generated review artifacts remain inspectable while retaining explicit provenance and non-authoritative status.
