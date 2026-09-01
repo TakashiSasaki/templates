@@ -207,6 +207,49 @@ def require_no_symlink_components(path: Path) -> None:
             break
 
 
+def preflight_attestation_destination(target: Path, attestation_path: Path) -> None:
+    target = target.expanduser().absolute()
+    attestation_path = attestation_path.expanduser().absolute()
+    if attestation_path == target or target in attestation_path.parents:
+        raise ValueError("installation attestation must be outside the installed skill tree")
+
+    parent = attestation_path.parent
+    require_no_symlink_components(parent)
+    parent.mkdir(parents=True, exist_ok=True)
+    require_no_symlink_components(parent)
+    if attestation_path.is_symlink():
+        raise ValueError("installation attestation path must not be a symbolic link")
+    if attestation_path.exists():
+        if not attestation_path.is_file():
+            raise ValueError("installation attestation path must be a regular file")
+        if attestation_path.stat(follow_symlinks=False).st_nlink != 1:
+            raise ValueError("installation attestation path must not be hard linked")
+
+    source_fd, source_name = tempfile.mkstemp(
+        prefix=f".{attestation_path.name}.preflight-source-",
+        dir=parent,
+    )
+    destination_fd, destination_name = tempfile.mkstemp(
+        prefix=f".{attestation_path.name}.preflight-destination-",
+        dir=parent,
+    )
+    source = Path(source_name)
+    destination = Path(destination_name)
+    try:
+        os.close(destination_fd)
+        destination.unlink()
+        with os.fdopen(source_fd, "wb") as output:
+            output.write(b"attestation-preflight\n")
+            output.flush()
+            os.fsync(output.fileno())
+        os.replace(source, destination)
+    finally:
+        if source.exists():
+            source.unlink()
+        if destination.exists():
+            destination.unlink()
+
+
 def hash_regular_file(path: Path, *, remaining_limit: int) -> tuple[str, int]:
     stat = path.stat(follow_symlinks=False)
     if stat.st_nlink != 1:
@@ -296,12 +339,7 @@ def write_installation_attestation(
 ) -> None:
     target = target.expanduser().absolute()
     attestation_path = attestation_path.expanduser().absolute()
-    if attestation_path == target or target in attestation_path.parents:
-        raise ValueError("installation attestation must be outside the installed skill tree")
-    require_no_symlink_components(attestation_path.parent)
-    if attestation_path.is_symlink():
-        raise ValueError("installation attestation path must not be a symbolic link")
-    attestation_path.parent.mkdir(parents=True, exist_ok=True)
+    preflight_attestation_destination(target, attestation_path)
     value = installation_attestation(target, installer_revision=installer_revision)
     rendered = json.dumps(value, indent=2, sort_keys=True) + "\n"
 
@@ -411,6 +449,9 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Verified agent-policy skill installation at {args.target}.")
             return 0
 
+        if args.attestation is not None:
+            require_full_sha(args.installer_revision, "installer revision")
+            preflight_attestation_destination(args.target, args.attestation)
         data = download_archive()
         install_downloaded_skill(
             data,
