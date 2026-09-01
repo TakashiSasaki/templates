@@ -26,7 +26,7 @@
     </div>
     <ul class="portal-cover__signals" role="list">
       <li>具体的な作業から始め、architecture は必要になってから確認します。</li>
-      <li>Website と Web application は browser foundation を共有しますが、sibling product identity のままです。</li>
+      <li>browser product の選択と、その公開 route の背後にある shared Web semantics は Composition が所有します。</li>
       <li>Policy は optional で、Composition とは独立しています。</li>
     </ul>
   </div>
@@ -48,7 +48,7 @@
       <span class="portal-artifact-card__icon"><img src="/images/icon-web.svg" alt=""></span>
       <span class="portal-artifact-card__copy">
         <strong>Website か Web アプリケーションかを選ぶ</strong>
-        <span>content/document と task/state の product identity から browser artifact を分類し、それぞれの product walkthrough へ進みます。</span>
+        <span>Composition の canonical selector に従い、その後で公開済みの Website または Web application walkthrough へ進みます。</span>
       </span>
       <span class="portal-artifact-card__arrow" aria-hidden="true">→</span>
     </a>

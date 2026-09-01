@@ -4,7 +4,7 @@ This file applies to the `site` integration/deployment authority.
 
 ## Authority responsibilities
 
-- `composition` owns canonical Agent Skill and Web application artifact semantics, reusable `capability.*` and `lifecycle.*` components, production recipes/schemas, the deterministic composer, provider-owned `docs/index.md`, publication catalog, and composition terminology.
+- `composition` owns canonical Agent Skill, Website, and Web application artifact semantics, shared Web foundations, reusable `capability.*` and `lifecycle.*` components, production recipes/schemas, the deterministic composer, provider-owned `docs/index.md`, publication catalog, and composition terminology.
 - `policy` owns canonical coding-agent operating policy, the `agent-policy` toolchain, provider-owned `docs/index.md`, publication catalog, and Policy terminology.
 - `site` owns reader information architecture, full-SHA provider locking, publication assembly, integrated glossary generation, repository views, guided navigation, freshness/PWA integration, generated-site validation, provenance, and the only Pages deployment workflow.
 
@@ -20,7 +20,7 @@ Provider histories remain independent. Publication does not merge, rebase, or ch
 6. Update `site-manifest.json`, reader navigation/localization, translations, glossary integration, or Site prose only when the provider public-interface change requires those Site-owned semantic changes.
 7. Run the complete Site build against the exact locked inputs before merging the Site pull request.
 
-The external provider set is exactly `composition` and `policy`. Skill and Web application remain separate reader/artifact concepts but are not separate provider checkouts.
+The external provider set is exactly `composition` and `policy`. Agent Skill, Website, and Web application remain separate reader/artifact concepts but are not separate provider checkouts.
 
 The deterministic cutover tool handles only the mechanical current-revision boundary: `publication-sources.json`, `agent.json`, and `assets/agent.json`. It does not infer reader IA, translation freshness, glossary semantics, or publication-catalog meaning. A failed expected-current check, checkout-identity check, release-descriptor preflight, or projection-target safety check must be corrected rather than bypassed with separate hand edits.
 
@@ -50,10 +50,10 @@ The shared protocol covers only generic JSON/schema/path/document/asset/glossary
 The canonical publications in the integrated navigation are:
 
 - `site` for portal-authored pages and generated repository-tree pages;
-- `composition` for Composition, Agent Skill, application-capability, Webapp, lifecycle, and migration documentation;
+- `composition` for Composition, Agent Skill, Web selection, Website, Web application, reusable capability, lifecycle, and migration documentation;
 - `policy` for coding-agent Policy documentation.
 
-A reader path such as `/skill/` or `/webapp/` is a Site-owned presentation path. It does not establish provider ownership.
+A reader path such as `/skill/`, `/web/`, `/website/`, or `/webapp/` is a Site-owned presentation path. It does not establish provider ownership or redefine Composition semantics.
 
 ## Glossary maintenance
 
@@ -75,7 +75,7 @@ Build-time annotation remains the semantic-linking mechanism. `finalize_glossary
 
 The tool copies Site-owned documentation/assets without following symlinks, augments the temporary publication catalog and manifest, and never modifies canonical `docs/publication-catalog.json` or `site-manifest.json` in place.
 
-The retired Skill/Webapp copyable-template pages are not generated. Consumer repositories are materialized by the Composition composer rather than represented as committed `template/` source subtrees.
+The retired Skill/Website/Webapp copyable-template pages are not generated. Consumer repositories are materialized by the Composition composer rather than represented as committed `template/` source subtrees.
 
 ## Complete repository-tree generation
 

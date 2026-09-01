@@ -12,6 +12,7 @@ from scripts.generate_index_navigation_locales import (
 )
 
 CANONICAL_INDEX = b"# Policy navigation\n"
+OVERVIEW = b"# Overview\n"
 
 
 def blob_sha(data: bytes) -> str:
@@ -20,6 +21,7 @@ def blob_sha(data: bytes) -> str:
 
 
 SHA = blob_sha(CANONICAL_INDEX)
+OVERVIEW_SHA = blob_sha(OVERVIEW)
 
 
 def graph() -> dict[str, object]:
@@ -68,19 +70,29 @@ def graph() -> dict[str, object]:
     }
 
 
-def prepare_roots(base: Path, *, target: str = "overview.md", blob_sha_value: str = SHA) -> dict[str, Path]:
+def prepare_roots(
+    base: Path,
+    *,
+    target: str = "overview.md",
+    blob_sha_value: str = SHA,
+) -> dict[str, Path]:
     roots = {name: base / name for name in ("skill", "policy", "webapp")}
     for root in roots.values():
         root.mkdir()
     policy = roots["policy"]
     (policy / "docs").mkdir()
     (policy / "docs" / "index.md").write_bytes(CANONICAL_INDEX)
+    (policy / "docs" / "overview.md").write_bytes(OVERVIEW)
     (policy / "translations" / "ja" / "docs").mkdir(parents=True)
     (policy / "translations" / "ja" / "docs" / "index.md").write_text(
         "# ポリシーナビゲーション\n\n"
         "> **参考訳（非正本）:** test\n\n"
         "## オリエンテーション\n\n"
         f"* [概要]({target}) - 正本の説明の日本語訳です。\n",
+        encoding="utf-8",
+    )
+    (policy / "translations" / "ja" / "docs" / "overview.md").write_text(
+        "# 概要\n\n> **参考訳（非正本）:** test\n",
         encoding="utf-8",
     )
     manifest = {
@@ -93,7 +105,14 @@ def prepare_roots(base: Path, *, target: str = "overview.md", blob_sha_value: st
                 "translation": "translations/ja/docs/index.md",
                 "canonical_blob_sha": blob_sha_value,
                 "surfaces": ["guided"],
-            }
+            },
+            {
+                "canonical": "docs/overview.md",
+                "language": "ja",
+                "translation": "translations/ja/docs/overview.md",
+                "canonical_blob_sha": OVERVIEW_SHA,
+                "surfaces": ["reader"],
+            },
         ],
     }
     (policy / "translations" / "manifest.json").write_text(
@@ -117,6 +136,36 @@ class IndexNavigationLocaleTests(unittest.TestCase):
             self.assertEqual(overlay["sections"][0]["title"], "オリエンテーション")
             self.assertEqual(overlay["links"][0]["label"], "概要")
             self.assertNotIn("target", overlay["links"][0])
+
+    def test_translated_relative_target_projects_through_manifest(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            roots = prepare_roots(Path(directory), target="overview.md")
+            payload = generate_locale_overlays(graph(), roots)
+            self.assertEqual(payload["locales"][0]["language"], "ja")
+
+    def test_direct_canonical_target_can_use_translation_source_depth(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            roots = prepare_roots(
+                Path(directory),
+                target="../../../docs/overview.md",
+            )
+            payload = generate_locale_overlays(graph(), roots)
+            self.assertEqual(payload["locales"][0]["language"], "ja")
+
+    def test_direct_canonical_directory_target_matches_resolved_index_identity(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            roots = prepare_roots(
+                Path(directory),
+                target="../../../docs/section/",
+            )
+            candidate = graph()
+            policy = candidate["providers"][1]
+            edge = policy["edges"][0]
+            edge["raw_target"] = "section/"
+            edge["kind"] = "index"
+            edge["target"] = "docs/section/index.md"
+            payload = generate_locale_overlays(candidate, roots)
+            self.assertEqual(payload["locales"][0]["language"], "ja")
 
     def test_translation_target_drift_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

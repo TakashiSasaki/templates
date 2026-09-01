@@ -8,15 +8,38 @@ import json
 import sys
 from pathlib import Path, PurePosixPath
 from typing import Any
+from urllib.parse import urlsplit
 
 try:
-    from scripts.generate_index_navigation import parse_index
+    from scripts.generate_index_navigation import (
+        IndexNavigationError,
+        decode_fragment,
+        decode_link_path,
+        decode_markdown_destination,
+        parse_index,
+    )
+    from scripts.translation_link_identity import (
+        TranslationLinkProjectionError,
+        build_translation_projection,
+        project_translation_target,
+    )
     from scripts.translation_manifest import (
         TranslationManifestError,
         load_translation_manifest,
     )
 except ModuleNotFoundError:
-    from generate_index_navigation import parse_index
+    from generate_index_navigation import (
+        IndexNavigationError,
+        decode_fragment,
+        decode_link_path,
+        decode_markdown_destination,
+        parse_index,
+    )
+    from translation_link_identity import (
+        TranslationLinkProjectionError,
+        build_translation_projection,
+        project_translation_target,
+    )
     from translation_manifest import TranslationManifestError, load_translation_manifest
 
 PROVIDER_ORDER = ("skill", "policy", "webapp")
@@ -159,6 +182,86 @@ def parse_provider_roots(values: list[str]) -> dict[str, Path]:
     return roots
 
 
+def translated_repository_identity(
+    *,
+    translated_link: Any,
+    translation: PurePosixPath,
+    canonical: PurePosixPath,
+    projection: dict[PurePosixPath, PurePosixPath],
+) -> tuple[PurePosixPath, str | None] | None:
+    """Resolve a translated local link and project it to canonical provider identity."""
+    target = decode_markdown_destination(
+        translated_link.raw_target,
+        translation.as_posix(),
+        translated_link.line,
+    )
+    fragment_delimiter_present = "#" in target
+    query_delimiter_present = "?" in target.split("#", maxsplit=1)[0]
+    parsed = urlsplit(target)
+    if parsed.scheme or parsed.netloc:
+        return None
+    if query_delimiter_present:
+        raise IndexNavigationLocaleError(
+            f"translated repository link contains a query in "
+            f"{translation}:{translated_link.line}"
+        )
+    fragment = decode_fragment(
+        parsed.fragment,
+        translation.as_posix(),
+        translated_link.line,
+    )
+    resolved_fragment = "" if fragment is None and fragment_delimiter_present else fragment
+    if not parsed.path:
+        return canonical, resolved_fragment
+    normalized, _directory_marker = decode_link_path(
+        parsed.path,
+        translation.as_posix(),
+        translated_link.line,
+    )
+    try:
+        projected = project_translation_target(
+            PurePosixPath(normalized),
+            parsed.path,
+            projection,
+        )
+    except TranslationLinkProjectionError as exc:
+        raise IndexNavigationLocaleError(str(exc)) from exc
+    return projected, resolved_fragment
+
+
+def translated_target_matches_canonical(
+    *,
+    translated_link: Any,
+    canonical_edge: dict[str, Any],
+    translation: PurePosixPath,
+    canonical: PurePosixPath,
+    projection: dict[PurePosixPath, PurePosixPath],
+) -> bool:
+    """Compare target identity rather than source-tree-relative path spelling."""
+    kind = canonical_edge.get("kind")
+    if kind == "external":
+        return translated_link.raw_target == canonical_edge.get("raw_target")
+    try:
+        identity = translated_repository_identity(
+            translated_link=translated_link,
+            translation=translation,
+            canonical=canonical,
+            projection=projection,
+        )
+    except (IndexNavigationError, IndexNavigationLocaleError, ValueError):
+        return False
+    if identity is None:
+        return False
+    target, fragment = identity
+    canonical_target = canonical_edge.get("target")
+    if not isinstance(canonical_target, str):
+        return False
+    path_matches = target.as_posix() == canonical_target
+    if not path_matches and kind == "index":
+        path_matches = (target / "index.md").as_posix() == canonical_target
+    return path_matches and fragment == canonical_edge.get("fragment")
+
+
 def collect_provider_overlays(
     provider: str,
     root: Path,
@@ -174,7 +277,8 @@ def collect_provider_overlays(
             label,
             publication_root=root,
         )
-    except TranslationManifestError as exc:
+        projection = build_translation_projection(manifest.entries)
+    except (TranslationManifestError, TranslationLinkProjectionError) as exc:
         raise IndexNavigationLocaleError(str(exc)) from exc
 
     indexes = graph.get("indexes")
@@ -252,7 +356,13 @@ def collect_provider_overlays(
         for link_index, (translated_link, canonical_edge) in enumerate(
             zip(parsed.links, canonical_edges, strict=True)
         ):
-            if translated_link.raw_target != canonical_edge.get("raw_target"):
+            if not translated_target_matches_canonical(
+                translated_link=translated_link,
+                canonical_edge=canonical_edge,
+                translation=translation,
+                canonical=canonical,
+                projection=projection,
+            ):
                 raise IndexNavigationLocaleError(
                     f"{field} link {link_index} target differs from canonical index"
                 )
@@ -358,8 +468,8 @@ def main() -> int:
             )
         )
     except (IndexNavigationLocaleError, OSError, RuntimeError) as exc:
-        print(f"generate_index_navigation_locales.py: {exc}", file=sys.stderr)
-        return 1
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
     return 0
 
 

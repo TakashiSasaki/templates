@@ -54,11 +54,11 @@ class TranslationPublicationTests(unittest.TestCase):
             "# 概要\n\n"
             "> **参考訳（非正本）:** test\n\n"
             "[translated](details.md)\n"
-            "[fallback](english.md#section)\n"
-            "[asset](assets/example.txt)\n"
-            "![image](assets/example.png)\n"
+            "[fallback](../../../docs/english.md#section)\n"
+            "[asset](../../../docs/assets/example.txt)\n"
+            "![image](../../../docs/assets/example.png)\n"
             "[reference asset][asset-ref]\n"
-            "[asset-ref]: assets/example.txt\n"
+            "[asset-ref]: ../../../docs/assets/example.txt\n"
             "[external](https://example.com/docs.md)\n"
             "```text\n[code](details.md)\n```\n"
         )
@@ -69,8 +69,8 @@ class TranslationPublicationTests(unittest.TestCase):
         nested_translation = (
             "# ネスト\n\n"
             "> **参考訳（非正本）:** test\n\n"
-            "[parent asset](../assets/example.txt)\n"
-            "![parent image](../assets/example.png)\n"
+            "[parent asset](../../../../docs/assets/example.txt)\n"
+            "![parent image](../../../../docs/assets/example.png)\n"
         )
         (root / "translations" / "ja" / "docs" / "overview.md").write_text(
             overview_translation,
@@ -243,6 +243,36 @@ class TranslationPublicationTests(unittest.TestCase):
                 "![parent image](../../../policy/assets/example.png)",
                 nested,
             )
+
+    def test_translation_source_depth_controls_direct_canonical_asset_resolution(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            self.publish(base / "policy", base / "output")
+            overview = (
+                base / "output" / "docs" / "ja" / "policy" / "index.md"
+            ).read_text(encoding="utf-8")
+            self.assertIn("[asset](../../policy/assets/example.txt)", overview)
+
+    def test_unmapped_translation_tree_target_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            root = base / "policy"
+            documents, assets, pages = self.prepare_publication(root)
+            translated = root / "translations" / "ja" / "docs" / "overview.md"
+            translated.write_text(
+                translated.read_text(encoding="utf-8")
+                + "[undeclared](missing.md)\n",
+                encoding="utf-8",
+            )
+            docs_root = base / "output" / "docs"
+            docs_root.mkdir(parents=True)
+            with self.assertRaisesRegex(
+                TranslationPublicationError,
+                "inside the translation tree without a manifest mapping",
+            ):
+                publish_translations(
+                    {"policy": (root, documents, assets)}, pages, docs_root
+                )
 
     def test_stale_translation_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

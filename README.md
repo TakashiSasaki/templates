@@ -2,7 +2,7 @@
 
 This repository provides two reusable authorities for building and maintaining software repositories, plus one integrated documentation site:
 
-- **Composition** helps you choose and materialize Agent Skill or Web application structure, capabilities, lifecycle contracts, and validation.
+- **Composition** helps you choose and materialize Agent Skill, Website, or Web application structure, capabilities, lifecycle contracts, and validation.
 - **Policy** helps you adopt reproducible coding-agent operating rules in a product repository.
 - **Site** publishes the reviewed Composition and Policy documentation together at `https://templates.moukaeritai.work/`.
 
@@ -13,10 +13,12 @@ Choose the path that matches the task you are trying to accomplish:
 | I want to… | Start with |
 |---|---|
 | Bootstrap a coding agent to use this repository from another project | Read the machine-readable [`agent.json`](agent.json), also published at `https://templates.moukaeritai.work/agent.json` |
-| Build or maintain an Agent Skill or Web application repository | [Composition](https://templates.moukaeritai.work/composition/) and its [guided view](https://templates.moukaeritai.work/guided/) |
+| Build or maintain an Agent Skill, Website, or Web application repository | [Composition](https://templates.moukaeritai.work/composition/) and its [guided view](https://templates.moukaeritai.work/guided/) |
+| Choose between a Website and Web application | [Website or Web application?](https://templates.moukaeritai.work/web/) |
 | Understand which runtime, CLI, browser, service, MCP, or lifecycle capability to select | [Capabilities](https://templates.moukaeritai.work/capabilities/) and [Lifecycle](https://templates.moukaeritai.work/lifecycle/) |
 | Add verifiable coding-agent operating rules to a repository | [Policy](https://templates.moukaeritai.work/policy/) |
 | Understand Agent Skill-specific artifact semantics | [Skill](https://templates.moukaeritai.work/skill/) |
+| Follow the Website product walkthrough | [Website](https://templates.moukaeritai.work/website/) |
 | Understand Web application-specific artifact semantics | [Webapp](https://templates.moukaeritai.work/webapp/) |
 | Look up a repository term without leaving the documentation | [Glossary](https://templates.moukaeritai.work/glossary/) |
 | Inspect the exact reviewed provider source behind a page | [Repository trees](https://templates.moukaeritai.work/repository-trees/) or [source files](https://templates.moukaeritai.work/files/) |
@@ -31,7 +33,7 @@ This repository separates three authorities by responsibility:
 
 | Branch | Authority | Start here when you need to |
 |---|---|---|
-| `composition` | Agent Skill and Web application artifact semantics, reusable application capabilities, lifecycle contracts, production recipes/schemas, and the deterministic composer | Define or materialize a Skill/Webapp composition |
+| `composition` | Agent Skill, Website, and Web application artifact semantics, reusable application capabilities, lifecycle contracts, production recipes/schemas, and the deterministic composer | Define or materialize a Skill/Website/Webapp composition |
 | `policy` | Shared coding-agent operating policy and the `agent-policy` selection, validation, rendering, adoption, and release toolchain | Define or apply verifiable agent operating rules |
 | `site` | The integrated documentation portal, reader information architecture, publication validation, repository views, PWA behavior, and the sole Pages deployment route | Read or publish the reviewed authorities together |
 
@@ -54,17 +56,15 @@ In Site publication terminology, `composition` and `policy` are the two external
 **Provider branches**. The `site` branch is the integration and deployment
 authority and is not an external Provider branch.
 
-Skill and Webapp are still distinct artifact identities:
+Agent Skill, Website, and Web application are distinct Composition-owned artifact
+identities. Their detailed contracts and shared Web foundation semantics remain
+canonical on the exact reviewed `composition` revision; Site only maps them into
+reader routes.
 
-- `artifact.skill-core` owns Agent Skill trigger/workflow/resource semantics;
-- `artifact.webapp-core` owns browser-product semantics;
-- `capability.*` owns reusable runtime and public-interface capabilities;
-- `lifecycle.*` owns reusable composition-state, contract-evolution, evidence,
-  and release-handoff concerns.
-
-The reader paths `/skill/` and `/webapp/` therefore remain useful, but both are
-sourced from the same exact reviewed `composition` revision. Source ownership is
-not reconstructed from reader URL grouping.
+The reader paths `/skill/`, `/web/`, `/website/`, and `/webapp/` therefore remain
+useful, but all Composition-owned semantics behind them are sourced from the same
+exact reviewed `composition` revision. Source ownership is not reconstructed from
+reader URL grouping.
 
 ## Publication model
 
@@ -85,7 +85,7 @@ The Site owns:
   Pages deployment.
 
 A public document is identified by `publication:document`, for example
-`composition:skill-contract`, `composition:contract-evolution`, or
+`composition:skill-contract`, `composition:website-webapp-selection`, or
 `policy:overview`.
 
 ## Reader-facing entry points
@@ -96,8 +96,9 @@ The integrated portal exposes:
 - `/schemas/agent-bootstrap.schema.json` — its public JSON Schema;
 - `/composition/` — composition architecture, catalog, and composer;
 - `/skill/` — Agent Skill artifact semantics;
-- `/capabilities/` — runtime, CLI, MCP, MCP Apps, browser, and service
-  capabilities;
+- `/web/` — the Composition-owned Website/Web application selector;
+- `/website/` — Website product walkthrough;
+- `/capabilities/` — Site routing index for published Composition capability documents;
 - `/webapp/` — Web application artifact semantics;
 - `/lifecycle/` — composition-state and product-lifecycle contracts;
 - `/policy/` — coding-agent policy;
@@ -305,8 +306,8 @@ environment to all branches or introduce a second deployment workflow.
 
 ## Retired direct-copy publication path
 
-The Site no longer generates dedicated Skill or Webapp copyable-template trees.
-Those workflows, scripts, and integration tests were tied to the retired
+The Site no longer generates dedicated Skill, Website, or Webapp copyable-template
+trees. Those workflows, scripts, and integration tests were tied to the retired
 monolithic `template/` source model. Source inspection now presents the exact
 Composition tree, while consumer repositories are produced by the composition
 composer.

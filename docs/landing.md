@@ -24,7 +24,7 @@
     </div>
     <ul class="portal-cover__signals" role="list">
       <li>Start with a concrete task; learn the architecture later.</li>
-      <li>Website and Web application share browser foundations but remain sibling product identities.</li>
+      <li>Composition owns browser-product selection and the shared Web semantics behind the public Website and Web application routes.</li>
       <li>Policy is optional and independent from Composition.</li>
     </ul>
   </div>
@@ -46,7 +46,7 @@
       <span class="portal-artifact-card__icon"><img src="images/icon-web.svg" alt=""></span>
       <span class="portal-artifact-card__copy">
         <strong>Choose Website or Web application</strong>
-        <span>Classify the browser product from content/document versus task/state behavior, then continue to the matching product walkthrough.</span>
+        <span>Follow Composition's canonical selector, then continue to the published Website or Web application walkthrough.</span>
       </span>
       <span class="portal-artifact-card__arrow" aria-hidden="true">→</span>
     </a>
