@@ -292,10 +292,25 @@ class HumanFirstWebsiteOnboardingTests(unittest.TestCase):
             (ROOT / "docs" / "publication-catalog.json").read_text(encoding="utf-8")
         )
         assets = {entry["source"]: entry["destination"] for entry in publication["assets"]}
+        product_destination = assets[
+            "examples/onboarding/project-docs/implementation-evidence.product.json"
+        ]
         self.assertEqual(
-            assets["examples/onboarding/project-docs/implementation-evidence.product.json"],
-            "website/examples/project-docs/implementation-evidence.product.json",
+            product_destination,
+            "lifecycle/implementation-evidence/project-docs/implementation-evidence.product.json",
         )
+        schema_destination = assets[
+            "components/lifecycle.implementation-evidence/files/schemas"
+        ]
+        self.assertEqual(schema_destination, "lifecycle/implementation-evidence/schemas")
+        evidence = json.loads(PRODUCT_EVIDENCE_EXAMPLE.read_text(encoding="utf-8"))
+        published_schema = (
+            ROOT / Path(product_destination).parent / evidence["$schema"]
+        ).resolve()
+        expected_published_schema = (
+            ROOT / schema_destination / "implementation-evidence.schema.json"
+        ).resolve()
+        self.assertEqual(published_schema, expected_published_schema)
 
     def test_publication_and_translation_authorities_include_new_reader_paths(self) -> None:
         publication = json.loads(
