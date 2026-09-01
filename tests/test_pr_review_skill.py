@@ -81,6 +81,20 @@ def test_pr_review_skill_binds_its_own_bytes_to_trusted_lock() -> None:
     assert "Never fall back" in skill
 
 
+def test_pr_review_skill_rejects_unsafe_projection_paths_before_loading() -> None:
+    skill = (SKILL_ROOT / "SKILL.md").read_text(encoding="utf-8")
+
+    assert "Validate the active trusted configuration with the schema" in skill
+    assert "Resolve `{{ config_path }}`, `.agent-policy.lock`" in skill
+    assert "repository-relative non-empty paths" in skill
+    assert "without parent traversal" in skill
+    assert "do not enter `.git` or another reserved namespace" in skill
+    assert "contain no symlink component" in skill
+    assert "Reject absolute paths" in skill
+    assert "missing projection files, and non-regular projection files" in skill
+    assert "Do not load bytes through a path until these checks succeed" in skill
+
+
 def test_pr_review_skill_requires_explicit_output_and_renderer_binding() -> None:
     skill = (SKILL_ROOT / "SKILL.md").read_text(encoding="utf-8")
 
