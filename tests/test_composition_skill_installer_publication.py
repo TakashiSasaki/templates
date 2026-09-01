@@ -17,12 +17,16 @@ RELEASE_README = ROOT / "release" / "README.md"
 CONSUMER_GUIDE = ROOT / "docs" / "consumer-guide.md"
 SKILL_WALKTHROUGH = ROOT / "docs" / "guides" / "skill-first-use-walkthrough.md"
 WEBAPP_WALKTHROUGH = ROOT / "docs" / "guides" / "webapp-product-walkthrough.md"
+WEBSITE_WALKTHROUGH = ROOT / "docs" / "guides" / "website-product-walkthrough.md"
 TRANSLATED_CONSUMER_GUIDE = ROOT / "translations" / "ja" / "docs" / "consumer-guide.md"
 TRANSLATED_SKILL_WALKTHROUGH = (
     ROOT / "translations" / "ja" / "docs" / "guides" / "skill-first-use-walkthrough.md"
 )
 TRANSLATED_WEBAPP_WALKTHROUGH = (
     ROOT / "translations" / "ja" / "docs" / "guides" / "webapp-product-walkthrough.md"
+)
+TRANSLATED_WEBSITE_WALKTHROUGH = (
+    ROOT / "translations" / "ja" / "docs" / "guides" / "website-product-walkthrough.md"
 )
 INSTALLER_REVISION = "60bb93751f0163d7c523a06a32c2fefb562ee7e3"
 INSTALLER_SHA256 = "e79e43785f92bbc049619360e0680873504b0f33db1670010d85750786d24b93"
@@ -171,6 +175,14 @@ class CompositionSkillInstallerPublicationTests(unittest.TestCase):
         ):
             with self.subTest(path=path.relative_to(ROOT).as_posix()):
                 self.assert_verified_bootstrap_guidance(path)
+
+    def test_website_walkthroughs_use_stable_website_capable_toolchain(self) -> None:
+        for path in (WEBSITE_WALKTHROUGH, TRANSLATED_WEBSITE_WALKTHROUGH):
+            with self.subTest(path=path.relative_to(ROOT).as_posix()):
+                content = path.read_text(encoding="utf-8")
+                self.assertIn(TOOLCHAIN_REVISION, content)
+                self.assertIn("website", content)
+                self.assertNotIn("  --revision ", content)
 
     def test_consumer_guide_documents_self_contained_validation_cache(self) -> None:
         content = CONSUMER_GUIDE.read_text(encoding="utf-8")
