@@ -47,7 +47,7 @@ Each inline finding must identify the smallest changed location that introduced 
 
 Do not anchor a finding at a downstream symptom when the causal changed line is available. If the causal line cannot be identified in the diff, do not fabricate an inline location.
 
-Each emitted finding must include a JSON numeric `confidence` from `0.0` through `1.0`. Normally omit findings below `0.90`; semantic severity and confidence are independent.
+Each emitted finding must include a JSON numeric `confidence` from `0.0` through `1.0`. Confidence is serialized metadata only: this adapter must serialize every blocking finding supplied by the semantic review result and must not add a confidence threshold or otherwise filter the semantic finding set.
 
 The following fenced block is a documentation-only example of the complete JSON object shape. Emit only a JSON object matching this shape; never emit the opening or closing fence lines:
 
@@ -75,7 +75,7 @@ The following fenced block is a documentation-only example of the complete JSON 
 }
 ```
 
-`schema_version` is fixed at `1`. `severity` is `P0` or `P1`. `side` is `RIGHT` or `LEFT`. `limitations` contains strings describing missing information that affected completeness. `comments` contains only blocking P0/P1 findings and is empty when none exist.
+`schema_version` is fixed at `1`. `severity` is `P0` or `P1`. `side` is `RIGHT` or `LEFT`. `limitations` contains strings describing missing information that affected completeness. `comments` contains every blocking P0/P1 finding supplied by the semantic review result and is empty when the semantic result contains none.
 
 When a finding relies on a repository normative-rule conflict, `rule_references` must contain objects with `path`, `section`, `requirement`, and `conflict`. Otherwise use an empty array.
 
@@ -84,6 +84,6 @@ Before emitting the object, enforce these consistency constraints:
 - non-empty `comments` implies `event: REQUEST_CHANGES`;
 - `event: APPROVE` implies `analysis_status: COMPLETE` and empty `comments`;
 - `PARTIAL` or `FAILED` with no finding implies `event: COMMENT`;
-- each comment has severity `P0` or `P1` and normally confidence at least `0.90`;
+- each comment has severity `P0` or `P1` and a JSON numeric confidence from `0.0` through `1.0`;
 - repository-rule conflicts have non-empty `rule_references`, and other findings use an empty array; and
 - the final output parses as one standard JSON object with no comments, trailing commas, `NaN`, `Infinity`, `undefined`, or unescaped newlines inside JSON strings.
