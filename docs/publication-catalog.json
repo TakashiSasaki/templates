@@ -204,6 +204,12 @@
       "source": "docs/adr/0007-single-agent-policy-skill-runtime-cache.md",
       "optional": false,
       "home": false
+    },
+    {
+      "id": "adr-review-authority-github-runtime-boundary",
+      "source": "docs/adr/0008-review-authority-and-github-runtime-boundary.md",
+      "optional": false,
+      "home": false
     }
   ],
   "assets": [
