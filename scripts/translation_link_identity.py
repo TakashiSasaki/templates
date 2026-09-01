@@ -61,12 +61,18 @@ def project_translation_target(
     raw_path: str,
     projection: Mapping[PurePosixPath, PurePosixPath],
 ) -> PurePosixPath:
-    """Project a resolved translated path to its canonical provider source identity.
+    """Project a translated path to one canonical provider source identity.
 
-    A target inside ``translations/`` is never inferred by mirroring path text. It
-    must be declared by the translation manifest. Targets outside that tree are
-    already canonical provider identities (for example a directly referenced
-    provider asset) and are preserved for the caller's publication mapping.
+    Manifest-declared translations take precedence, including directory links that
+    select a translated ``index.md``. When a relative link stays inside a mirrored
+    ``translations/<language>/`` tree but its target has no translation entry, the
+    mirror prefix is removed to produce a canonical *candidate*. Callers must then
+    validate that candidate against their authoritative published document/asset
+    map or canonical navigation edge. This preserves untranslated canonical links
+    without allowing unknown targets to become authoritative.
+
+    Targets outside the translation tree are already canonical provider identities
+    (for example a directly referenced provider asset) and are preserved.
     """
     mapped = projection.get(resolved)
     if mapped is not None:
@@ -78,8 +84,14 @@ def project_translation_target(
             return mapped_index
 
     if resolved.parts and resolved.parts[0] == "translations":
-        raise TranslationLinkProjectionError(
-            "translation link resolves inside the translation tree without a "
-            f"manifest mapping: {resolved}"
-        )
+        if len(resolved.parts) < 3 or not resolved.parts[1]:
+            raise TranslationLinkProjectionError(
+                f"translation link has no canonical mirror identity: {resolved}"
+            )
+        canonical_parts = resolved.parts[2:]
+        if not canonical_parts:
+            raise TranslationLinkProjectionError(
+                f"translation link has no canonical mirror identity: {resolved}"
+            )
+        return PurePosixPath(*canonical_parts)
     return resolved

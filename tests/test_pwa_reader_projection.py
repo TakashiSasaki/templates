@@ -62,25 +62,35 @@ class PwaReaderProjectionTests(unittest.TestCase):
         self.assertIn("[Website](../website/)", text)
         self.assertIn("[Web application](../webapp/)", text)
         self.assertIn("[Progressive Web App capability](pwa/)", text)
-        self.assertIn("shared `foundation.web` browser baseline", normalized)
-        self.assertIn("Composition source", normalized)
+        self.assertIn("defines public navigation only", normalized)
+        self.assertIn(
+            "Canonical artifact, foundation, capability, runtime, routing, viewport, and evidence semantics remain owned by the `composition` provider",
+            normalized,
+        )
+        self.assertIn("provider-owned [Choose Website or Web application]", normalized)
+        self.assertIn("The Site does not restate those decision rules here", normalized)
         self.assertIn("[Policy PWA usage guide](../policy/pwa/)", text)
-        self.assertIn("not the reusable PWA capability authority", normalized)
+        self.assertIn("it is not the Composition capability document", normalized)
         self.assertNotIn("network-first", text)
         self.assertNotIn("cache-first", text)
         self.assertNotIn("Service Worker is required", text)
 
     def test_japanese_projection_points_to_same_reader_destinations(self) -> None:
         text = JAPANESE_CAPABILITIES.read_text(encoding="utf-8")
+        normalized = " ".join(text.split())
 
         self.assertIn("[Website と Web application の選び方](/web/)", text)
         self.assertIn("[Website](/website/)", text)
         self.assertIn("[Web application](/webapp/)", text)
         self.assertIn("[Progressive Web App capability](/capabilities/pwa/)", text)
-        self.assertIn("shared `foundation.web` browser baseline", text)
-        self.assertIn("Composition の正本", text)
+        self.assertIn("このページが定義するのは public navigation だけです", normalized)
+        self.assertIn(
+            "artifact、foundation、capability、runtime、routing、viewport、evidence の canonical semantics は `composition` provider が所有します",
+            normalized,
+        )
+        self.assertIn("Site はその decision rule をここで再定義しません", normalized)
         self.assertIn("[Policy PWA usage guide](/policy/pwa/)", text)
-        self.assertIn("再利用可能な PWA capability の authority ではありません", text)
+        self.assertIn("Composition capability document ではありません", normalized)
 
 
 if __name__ == "__main__":

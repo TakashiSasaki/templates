@@ -54,6 +54,7 @@ class TranslationPublicationTests(unittest.TestCase):
             "# 概要\n\n"
             "> **参考訳（非正本）:** test\n\n"
             "[translated](details.md)\n"
+            "[canonical fallback](english.md)\n"
             "[fallback](../../../docs/english.md#section)\n"
             "[asset](../../../docs/assets/example.txt)\n"
             "![image](../../../docs/assets/example.png)\n"
@@ -229,6 +230,7 @@ class TranslationPublicationTests(unittest.TestCase):
             )
 
             self.assertIn("[translated](details.md)", overview)
+            self.assertIn("[canonical fallback](../../policy/english.md)", overview)
             self.assertIn("[fallback](../../policy/english.md#section)", overview)
             self.assertIn("[asset](../../policy/assets/example.txt)", overview)
             self.assertIn("![image](../../policy/assets/example.png)", overview)
@@ -268,7 +270,7 @@ class TranslationPublicationTests(unittest.TestCase):
             docs_root.mkdir(parents=True)
             with self.assertRaisesRegex(
                 TranslationPublicationError,
-                "inside the translation tree without a manifest mapping",
+                "does not resolve to a published canonical document or asset",
             ):
                 publish_translations(
                     {"policy": (root, documents, assets)}, pages, docs_root
