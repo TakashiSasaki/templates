@@ -35,7 +35,7 @@ EVIDENCE_SCHEMA = (
     / "schemas"
     / "implementation-evidence.schema.json"
 )
-WEBSITE_REVISION = "379073f376ce1de80948abd2e92d5560b573e7e6"
+WEBSITE_REVISION = "ca8b8bc9091c6c199224cd9b66c9a59229f1b6ac"
 PINNED_WEBSITE_RECIPE_BLOB_SHA = "f22f44ecee7b8e7b5c039be71e818cd5e8bd5840"
 
 
@@ -103,6 +103,7 @@ class HumanFirstWebsiteOnboardingTests(unittest.TestCase):
                 self.assertEqual(command.count("--revision"), 1)
                 self.assertIn(f"--revision {WEBSITE_REVISION}", command)
         self.assertNotIn("--revision 98e38718abef02f4e1ffdd864764b77dcc2d4375", text)
+        self.assertNotIn("--revision 379073f376ce1de80948abd2e92d5560b573e7e6", text)
         self.assertIn(
             f"Confirm the doctor output identifies `{WEBSITE_REVISION}` as the selected toolchain",
             text,
