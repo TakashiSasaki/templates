@@ -1,0 +1,131 @@
+name: Site link diagnostics
+
+on:
+  pull_request:
+    branches:
+      - site
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+jobs:
+  reproduce:
+    if: >-
+      github.repository == 'TakashiSasaki/templates' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    uses: ./.github/workflows/build-pages.yml
+    with:
+      site_ref: ${{ github.event.pull_request.head.sha }}
+
+  report:
+    if: >-
+      always() &&
+      needs.reproduce.result == 'failure' &&
+      github.repository == 'TakashiSasaki/templates' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    needs: reproduce
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Extract generated-site-link failure
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+
+          import json
+          import os
+          from pathlib import Path
+          from urllib.error import HTTPError
+          from urllib.request import Request, urlopen
+
+          token = os.environ["GH_TOKEN"]
+          repository = os.environ["REPOSITORY"]
+          run_id = os.environ["RUN_ID"]
+          pr_number = os.environ["PR_NUMBER"]
+          head_sha = os.environ["HEAD_SHA"]
+          api_root = f"https://api.github.com/repos/{repository}"
+          headers = {
+              "Accept": "application/vnd.github+json",
+              "Authorization": f"Bearer {token}",
+              "X-GitHub-Api-Version": "2022-11-28",
+              "User-Agent": "templates-site-link-diagnostics",
+          }
+
+          def request_json(url: str, *, data: dict[str, str] | None = None) -> dict:
+              payload = None if data is None else json.dumps(data).encode("utf-8")
+              request = Request(url, data=payload, headers=headers)
+              with urlopen(request) as response:
+                  return json.load(response)
+
+          jobs = request_json(
+              f"{api_root}/actions/runs/{run_id}/jobs?per_page=100"
+          ).get("jobs", [])
+          markers = (
+              "Generated site contains invalid local links:",
+              "Site link validation failed:",
+          )
+          excerpts: list[str] = []
+          for job in jobs:
+              if job.get("conclusion") != "failure":
+                  continue
+              job_id = job.get("id")
+              if not isinstance(job_id, int):
+                  continue
+              request = Request(
+                  f"{api_root}/actions/jobs/{job_id}/logs",
+                  headers=headers,
+              )
+              with urlopen(request) as response:
+                  text = response.read().decode("utf-8", errors="replace")
+              lines = text.splitlines()
+              for index, line in enumerate(lines):
+                  if any(marker in line for marker in markers):
+                      excerpt = "\n".join(lines[index : index + 120])
+                      excerpts.append(f"job {job_id} ({job.get('name', 'unknown')}):\n{excerpt}")
+                      break
+
+          diagnostics = "\n\n".join(excerpts)
+          if not diagnostics:
+              diagnostics = (
+                  "No generated-site-link validator marker was found in failed job logs. "
+                  "Inspect the attached workflow artifact for the full failed-job logs."
+              )
+
+          output_root = Path("diagnostics")
+          output_root.mkdir(parents=True, exist_ok=True)
+          (output_root / "site-link-validation.txt").write_text(
+              diagnostics + "\n", encoding="utf-8"
+          )
+
+          safe_diagnostics = diagnostics.replace("```", "` ` `")
+          body = (
+              f"<!-- site-link-diagnostic:{head_sha} -->\n"
+              f"Exact-head generated-site-link diagnostic for `{head_sha}` "
+              f"from workflow run `{run_id}`.\n\n"
+              f"```text\n{safe_diagnostics[:50000]}\n```"
+          )
+          try:
+              request_json(
+                  f"{api_root}/issues/{pr_number}/comments",
+                  data={"body": body},
+              )
+          except HTTPError as exc:
+              print(f"Unable to post diagnostic PR comment: HTTP {exc.code}")
+          PY
+
+      - name: Upload generated-site-link diagnostic
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: site-link-diagnostic-${{ github.run_id }}
+          path: diagnostics
+          if-no-files-found: warn
+          retention-days: 1
