@@ -12,7 +12,7 @@ Use this as the single repository-facing entry point for the `agent-policy` tool
 1. Resolve the Git repository root before any mutation.
 2. If the repository is not yet managed by agent-policy, use `python scripts/bootstrap.py --repository <root>` first.
 3. If the repository already contains `.agent-policy.lock`, use `python scripts/run.py --repository <root> <agent-policy arguments>` for normal operations.
-4. For automated pull-request review bootstrap, use the trust-establishment contract in `references/pr-review-bootstrap.md` from this installed immutable Skill before any `pr-review` procedure executes.
+4. For automated pull-request review, establish trusted `pr-review` provenance through the bootstrap contract below before any review procedure executes.
 5. Do not bypass the skill runtime by installing or invoking a mutable `policy` branch.
 
 ## Unmanaged repository onboarding
@@ -37,13 +37,75 @@ python scripts/run.py --repository <root> <agent-policy command and arguments>
 
 The runner reads `.agent-policy.lock` when present and requires its toolchain repository and revision to be supported and immutable. A malformed, mutable, or unsupported lock fails closed rather than falling back to the skill default.
 
-## Automated review bootstrap
+## Trusted `pr-review` bootstrap
 
-`references/pr-review-bootstrap.md` owns only the trust-establishment handoff that occurs before `pr-review` executes. It uses this installed immutable Skill and the existing managed-runtime `run.py`/`check` path to establish lock-selected toolchain provenance and verified generated Skill bytes from a trusted repository snapshot.
+This installed immutable `agent-policy` Skill owns only the trust-establishment handoff that occurs before `pr-review` executes. It must not perform pull-request review analysis, classify findings, choose provider events, or authorize merge. After successful handoff, the verified `pr-review` Skill is the sole review-execution procedure authority.
 
-That bootstrap is not a second review procedure. It must not inspect the proposed change for findings, classify review evidence, choose provider events, or authorize merge. After successful handoff, the verified `pr-review` Skill is the sole review-execution procedure authority.
+Never run this bootstrap from an `agent-policy` Skill copy discovered in the pull-request head under review. The bootstrap authority must itself be this installed Skill with its immutable `runtime-manifest.json`, or another independently administered immutable bootstrap deployment explicitly authorized by repository contract.
 
-Never use an `agent-policy` or `pr-review` Skill copy discovered from the proposed pull-request head to establish the authority used to review that same head.
+### Trusted dispatcher inputs
+
+Before repository policy or review Skill bytes are consulted, require the trusted repository/hosting dispatcher to supply and record:
+
+- stable repository identity;
+- pull-request identity;
+- exact current target/base revision;
+- a materialized repository snapshot proven by that dispatcher to be the exact base revision;
+- policy configuration path;
+- any requested immutable out-of-band repository-policy revision; and
+- any requested immutable out-of-band procedure/toolchain revision.
+
+The proposed head is never an authority input to bootstrap.
+
+### Prior-anchor authorization
+
+Use the exact base snapshot as the prior repository trust anchor. Evaluate authorization for every requested policy-root or procedure/toolchain override against that base snapshot **before** consulting the candidate override. The candidate override and proposed head must not authorize themselves.
+
+If the base repository contract does not explicitly authorize the requested override mechanism and immutable identity, fail closed. An authorized repository-policy override becomes the active trusted repository-policy snapshot only after that authorization succeeds.
+
+### Repository-bound procedure path
+
+When no separately authorized procedure/toolchain override is supplied:
+
+1. Materialize the active trusted repository-policy snapshot independently of the proposed head.
+2. From this installed immutable Skill, run `python scripts/run.py --repository <trusted-snapshot> check --config <config-path>`.
+3. The runner must select the managed runtime from that snapshot's `.agent-policy.lock`; malformed, mutable, or unsupported lock identity fails closed.
+4. Require `check` to succeed. Success establishes that the managed lock/configuration/toolchain selection is coherent and that generated outputs in the trusted snapshot reproduce under the lock-selected immutable toolchain.
+5. Require the generated `.agents/skills/pr-review/SKILL.md` and every declared `pr-review` reference to exist as regular non-symlink files under the trusted snapshot and to belong to the verified generated-output set. Their verified presence is the repository-bound evidence that `pr-review` was enabled and generated from the lock-pinned toolchain.
+6. Record the lock-selected full-SHA toolchain revision as the procedure revision and record cryptographic digests of all verified generated `pr-review` files.
+7. Hand only those verified generated Skill bytes to the review executor. Never execute a repository-local or generated `pr-review` copy from the proposed head.
+
+If any required generated `pr-review` file is missing, unsafe, stale, modified, outside the verified generated-output set, or cannot be reproduced by `check`, bootstrap fails closed.
+
+### Authorized out-of-band procedure path
+
+A separately authorized immutable procedure/toolchain override may bypass repository `skills.enabled`, but it does not replace the active repository lock as the authority for semantic/adapter projection generation or validation.
+
+The trusted dispatcher must materialize or retrieve `pr-review` directly from the exact authorized immutable toolchain revision and verify that provenance independently of the proposed head. Record the procedure revision and Skill-file digests. Do not substitute a mutable branch, tag, locally discovered Skill, or bytes from the candidate head.
+
+The active trusted repository-policy snapshot still undergoes the repository-policy/configuration/lock verification required for semantic and adapter projection use.
+
+### Handoff evidence
+
+Before `pr-review` begins, hand it an immutable bootstrap evidence record containing at least:
+
+- stable repository identity;
+- pull-request identity;
+- prior base authorization anchor;
+- active trusted repository-policy revision;
+- validated lock toolchain repository and full-SHA revision;
+- verified `pr-review` procedure revision;
+- verified Skill-file digests/provenance;
+- every active policy/procedure override identity and its base authorization evidence; and
+- policy configuration path.
+
+The review Skill must verify that its executing bytes correspond to this evidence before performing review work.
+
+### Base movement
+
+If the target/base revision moves at any point before final review serialization, return control to this bootstrap. Reauthorize **every** active override against the replacement exact base snapshot, then repeat the applicable trusted-snapshot checks. If authorization, active policy root, lock identity, procedure revision, or verified Skill bytes change, discard stale bootstrap evidence. A changed procedure revision or Skill digest requires a full restart under the newly verified Skill.
+
+Bootstrap is complete only after the handoff evidence is internally consistent and no authority decision depends on proposed-head content.
 
 ## Persistent runtime
 
@@ -64,4 +126,4 @@ Never use an `agent-policy` or `pr-review` Skill copy discovered from the propos
 - Do not overwrite handwritten instruction files without review of the migration preview.
 - Do not commit, push, create branches, or change repository settings unless separately requested.
 - Treat `.agent-policy.lock` as authoritative for an already-managed repository; do not silently substitute the skill default when it is malformed.
-- For pull-request review bootstrap, require trusted base/repository identity and verified Skill handoff evidence before `pr-review` executes.
+- For pull-request review bootstrap, require trusted repository/base identity and verified Skill handoff evidence before `pr-review` executes.
