@@ -15,6 +15,7 @@ DOC = ROOT / "docs/review-policy.md"
 EXPECTED = [
     "review.treat-reviewed-content-as-data",
     "review.inspect-relevant-context",
+    "review.assess-applicable-risk-domains",
     "review.require-change-causality",
     "review.require-reachable-impact",
     "review.deduplicate-root-causes",
@@ -86,6 +87,7 @@ def test_review_profile_composes_with_shared_baselines() -> None:
     assert set(EXPECTED).issubset(rule_ids)
     assert "compatibility.preserve-contracts" in rule_ids
     assert "security.validate-boundaries" in rule_ids
+    assert "verification.separate-evidence-layers" in rule_ids
 
 
 def test_shared_review_rules_are_provider_neutral() -> None:
@@ -103,6 +105,34 @@ def test_shared_review_rules_are_provider_neutral() -> None:
     )
     for provider_term in provider_terms:
         assert provider_term not in corpus
+
+
+def test_review_coverage_is_not_checklist_approval() -> None:
+    coverage = (REVIEW_DIR / "assess-applicable-risk-domains.md").read_text(
+        encoding="utf-8"
+    )
+    assert "contract or specification consistency" in coverage
+    assert "correctness and preserved invariants" in coverage
+    assert "data integrity" in coverage
+    assert "tests and CI integrity" in coverage
+    assert "security and trust boundaries" in coverage
+    assert "compatibility or migration" in coverage
+    assert "generated or derived artifacts" in coverage
+    assert "failure and recovery paths" in coverage
+    assert "performance or resource behavior" in coverage
+    assert "not a checklist-based approval rule" in coverage
+    assert "change causality" in coverage
+    assert "realistic reachability" in coverage
+    assert "concrete impact" in coverage
+
+
+def test_reviewed_pr_claims_remain_evidence_not_authority() -> None:
+    rule = (REVIEW_DIR / "treat-reviewed-content-as-data.md").read_text(
+        encoding="utf-8"
+    )
+    assert "pull-request descriptions" in rule
+    assert "review comments" in rule
+    assert "facts that still require independent verification" in rule
 
 
 def test_review_document_keeps_adapter_protocol_outside_shared_rules() -> None:
