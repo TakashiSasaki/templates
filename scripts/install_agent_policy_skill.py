@@ -273,36 +273,50 @@ def hash_regular_file(path: Path, *, remaining_limit: int) -> tuple[str, int]:
     return digest.hexdigest(), consumed
 
 
-def installed_file_digests(target: Path) -> dict[str, str]:
+def installed_tree_inventory(target: Path) -> dict[str, dict[str, str]]:
     target = target.expanduser().absolute()
     require_no_symlink_components(target)
     if not target.is_dir():
         raise RuntimeError(f"installed skill directory is missing: {target}")
 
-    digests: dict[str, str] = {}
+    entries: dict[str, dict[str, str]] = {}
     total_size = 0
     for path in sorted(target.rglob("*"), key=lambda item: item.as_posix()):
         if path.is_symlink():
             raise RuntimeError(f"installed skill contains a symbolic link: {path}")
+        relative = path.relative_to(target).as_posix()
         if path.is_dir():
+            entries[relative] = {"type": "directory"}
             continue
         if not path.is_file():
             raise RuntimeError(f"installed skill contains a non-regular file: {path}")
-        relative = path.relative_to(target).as_posix()
         digest, consumed = hash_regular_file(
             path,
             remaining_limit=SKILL_LIMIT - total_size,
         )
         total_size += consumed
-        digests[relative] = digest
+        entries[relative] = {"type": "file", "sha256": digest}
 
-    missing = {path.as_posix() for path in REQUIRED_SKILL_PATHS} - set(digests)
+    missing = [
+        path.as_posix()
+        for path in REQUIRED_SKILL_PATHS
+        if entries.get(path.as_posix(), {}).get("type") != "file"
+    ]
     if missing:
         rendered = ", ".join(sorted(missing))
         raise RuntimeError(f"installed skill is missing required paths: {rendered}")
-    if not digests:
-        raise RuntimeError("installed skill contains no files")
-    return digests
+    if not entries:
+        raise RuntimeError("installed skill contains no paths")
+    return entries
+
+
+def installed_file_digests(target: Path) -> dict[str, str]:
+    inventory = installed_tree_inventory(target)
+    return {
+        path: entry["sha256"]
+        for path, entry in inventory.items()
+        if entry["type"] == "file"
+    }
 
 
 def installation_attestation(
@@ -326,7 +340,7 @@ def installation_attestation(
         },
         "installation": {
             "root": str(root),
-            "files": installed_file_digests(root),
+            "entries": installed_tree_inventory(root),
         },
     }
 
@@ -389,7 +403,7 @@ def verify_installation_attestation(
     )
     actual = load_installation_attestation(attestation_path)
     if actual != expected:
-        raise RuntimeError("installation attestation does not match installed skill bytes")
+        raise RuntimeError("installation attestation does not match installed skill tree")
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
