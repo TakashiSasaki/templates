@@ -28,50 +28,50 @@
 
 ## Agent Skill artifact
 
-- [Skill ドキュメント索引](../components/artifact.skill-core/files/docs/) — Skill-specific profiles、architecture、responsibility map を説明します。
-- [Skill contract scaffold](../components/artifact.skill-core/files/SKILL.md) — trigger、workflow、resources、routing、output、validation、safety contract を説明します。
+- [Skill ドキュメント索引](../../../components/artifact.skill-core/files/docs/) — Skill-specific profiles、architecture、responsibility map を説明します。
+- [Skill contract scaffold](../../../components/artifact.skill-core/files/SKILL.md) — trigger、workflow、resources、routing、output、validation、safety contract を説明します。
 
 ## Shared Web foundation
 
 - [Website / Web application 判断ガイド](guides/website-webapp-selection.md) — artifact selection と shared Web semantics / artifact-specific semantics の境界を説明します。
-- [Shared browser identity contract](../components/foundation.web/files/contracts/browser-identity.json) — product-neutral browser identity。
-- [Shared routes contract](../components/foundation.web/files/contracts/routes.json) — generalized canonical path、alias、deep-link expectation、navigation accessibility。
-- [Shared viewports contract](../components/foundation.web/files/contracts/viewports.json) — responsive viewport と input-capability expectation。
+- [Shared browser identity contract](../../../components/foundation.web/files/contracts/browser-identity.json) — product-neutral browser identity。
+- [Shared routes contract](../../../components/foundation.web/files/contracts/routes.json) — generalized canonical path、alias、deep-link expectation、navigation accessibility。
+- [Shared viewports contract](../../../components/foundation.web/files/contracts/viewports.json) — responsive viewport と input-capability expectation。
 
 ## Website artifact
 
 - [Website product walkthrough](guides/website-product-walkthrough.md) — concrete content/document-oriented Website の canonical first-use path です。
-- [Website component descriptor](../components/artifact.website-core/component.json) — Website artifact の dependency、contract、validator、material。
-- [Website structure contract](../components/artifact.website-core/files/contracts/site-structure.json) — page inventory、hierarchy、home page、primary navigation、shared-route binding。
-- [Website document metadata contract](../components/artifact.website-core/files/contracts/document-metadata.json) — title、description、language、canonical-path policy、indexability、social-preview intent。
-- [Website discovery contract](../components/artifact.website-core/files/contracts/site-discovery.json) — canonical origin、robots、sitemap、feed discovery semantics。
+- [Website component descriptor](../../../components/artifact.website-core/component.json) — Website artifact の dependency、contract、validator、material。
+- [Website structure contract](../../../components/artifact.website-core/files/contracts/site-structure.json) — page inventory、hierarchy、home page、primary navigation、shared-route binding。
+- [Website document metadata contract](../../../components/artifact.website-core/files/contracts/document-metadata.json) — title、description、language、canonical-path policy、indexability、social-preview intent。
+- [Website discovery contract](../../../components/artifact.website-core/files/contracts/site-discovery.json) — canonical origin、robots、sitemap、feed discovery semantics。
 
 ## Web application artifact
 
 - [Webapp product walkthrough](guides/webapp-product-walkthrough.md) — concrete Web application の canonical first-use path です。
-- [Web application ドキュメント索引](../components/artifact.webapp-core/files/docs/) — shared Web foundation 上の application-specific contract と validation を説明します。
-- [Web application template contract](../components/artifact.webapp-core/files/TEMPLATE.md) — framework-neutral browser application obligations を説明します。
+- [Web application ドキュメント索引](../../../components/artifact.webapp-core/files/docs/) — shared Web foundation 上の application-specific contract と validation を説明します。
+- [Web application template contract](../../../components/artifact.webapp-core/files/TEMPLATE.md) — framework-neutral browser application obligations を説明します。
 
 ## 再利用可能な application capabilities
 
-- [Implementation runtime decision record](../components/capability.runtime/files/RUNTIME.md) — implementation ecosystem、commands、dependencies、environment、distribution、deployment choices を説明します。
-- [Implementation runtime の選択](../components/capability.runtime/files/docs/runtime-selection.md) — implementation ecosystem と dependency workflow を選択する criteria を説明します。
-- [Progressive Web App capability](../components/capability.pwa/files/PWA.md) — Website / Webapp の双方で利用できる artifact-neutral な installability、offline/freshness、application identity、update behavior。
-- [Packaged CLI interface](../components/capability.cli/files/CLI_INTERFACE.md) — caller-visible CLI behavior を説明します。
-- [MCP interface](../components/capability.mcp/files/MCP_INTERFACE.md) — MCP protocol、transports、client roles、semantic equivalence を説明します。
-- [MCP transport guidance](../components/capability.mcp/files/docs/mcp-transports.md) — stdio と Streamable HTTP の guidance を説明します。
-- [MCP Apps extension](../components/capability.mcp-apps/files/MCP_APPS.md) — Host/View bridge、resources、sandbox、fallback contract を説明します。
-- [MCP Apps guidance](../components/capability.mcp-apps/files/docs/mcp-apps.md) — MCP Apps の implementation guidance を説明します。
-- [Standalone browser interface](../components/capability.web-interface/files/WEB_INTERFACE.md) — browser-facing routing、security、health、failure semantics を説明します。
-- [Headless service interface](../components/capability.service/files/SERVICE_INTERFACE.md) — non-browser service behavior、health、security、lifecycle を説明します。
+- [Implementation runtime decision record](../../../components/capability.runtime/files/RUNTIME.md) — implementation ecosystem、commands、dependencies、environment、distribution、deployment choices を説明します。
+- [Implementation runtime の選択](../../../components/capability.runtime/files/docs/runtime-selection.md) — implementation ecosystem と dependency workflow を選択する criteria を説明します。
+- [Progressive Web App capability](../../../components/capability.pwa/files/PWA.md) — Website / Webapp の双方で利用できる artifact-neutral な installability、offline/freshness、application identity、update behavior。
+- [Packaged CLI interface](../../../components/capability.cli/files/CLI_INTERFACE.md) — caller-visible CLI behavior を説明します。
+- [MCP interface](../../../components/capability.mcp/files/MCP_INTERFACE.md) — MCP protocol、transports、client roles、semantic equivalence を説明します。
+- [MCP transport guidance](../../../components/capability.mcp/files/docs/mcp-transports.md) — stdio と Streamable HTTP の guidance を説明します。
+- [MCP Apps extension](../../../components/capability.mcp-apps/files/MCP_APPS.md) — Host/View bridge、resources、sandbox、fallback contract を説明します。
+- [MCP Apps guidance](../../../components/capability.mcp-apps/files/docs/mcp-apps.md) — MCP Apps の implementation guidance を説明します。
+- [Standalone browser interface](../../../components/capability.web-interface/files/WEB_INTERFACE.md) — browser-facing routing、security、health、failure semantics を説明します。
+- [Headless service interface](../../../components/capability.service/files/SERVICE_INTERFACE.md) — non-browser service behavior、health、security、lifecycle を説明します。
 
 ## 再利用可能な lifecycle contracts
 
-- [Composition state](../components/lifecycle.composition-state/files/docs/architecture/composition-state.md) — self-contained resolved-state と material-ownership validation を説明します。
-- [Contract evolution](../components/lifecycle.contract-evolution/files/docs/architecture/contract-evolution.md) — closed contract registry、schema binding、version histories、migrations を説明します。
-- [Implementation evidence](../components/lifecycle.implementation-evidence/files/docs/architecture/implementation-evidence.md) — implementation boundaries、proofs、commands、release gates を説明します。
-- [Release evidence](../components/lifecycle.release-evidence/files/docs/architecture/release-evidence.md) — revision-bound execution provenance と release decisions を説明します。
-- [Release bundle](../components/lifecycle.release-bundle/files/docs/architecture/release-bundle.md) — deterministic digest-closed handoff を説明します。
+- [Composition state](../../../components/lifecycle.composition-state/files/docs/architecture/composition-state.md) — self-contained resolved-state と material-ownership validation を説明します。
+- [Contract evolution](../../../components/lifecycle.contract-evolution/files/docs/architecture/contract-evolution.md) — closed contract registry、schema binding、version histories、migrations を説明します。
+- [Implementation evidence](../../../components/lifecycle.implementation-evidence/files/docs/architecture/implementation-evidence.md) — implementation boundaries、proofs、commands、release gates を説明します。
+- [Release evidence](../../../components/lifecycle.release-evidence/files/docs/architecture/release-evidence.md) — revision-bound execution provenance と release decisions を説明します。
+- [Release bundle](../../../components/lifecycle.release-bundle/files/docs/architecture/release-bundle.md) — deterministic digest-closed handoff を説明します。
 
 ## Historical provenance
 
