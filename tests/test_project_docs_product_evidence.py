@@ -54,6 +54,7 @@ WEBSITE_VALIDATOR = (
 WALKTHROUGH = ROOT / "docs" / "guides" / "website-product-walkthrough.md"
 PRODUCT_EXAMPLE_SOURCE = "examples/onboarding/project-docs/implementation-evidence.product.json"
 PRODUCT_EXAMPLE_DESTINATION = "website/examples/project-docs/implementation-evidence.product.json"
+PRODUCT_EXAMPLE_LINK = f"../../{PRODUCT_EXAMPLE_SOURCE}"
 
 
 def load(path: Path) -> dict:
@@ -195,7 +196,10 @@ class ProjectDocsProductEvidenceTests(unittest.TestCase):
             catalog["assets"],
         )
         text = WALKTHROUGH.read_text(encoding="utf-8")
-        self.assertIn(PRODUCT_EXAMPLE_SOURCE, text)
+        self.assertIn(f"]({PRODUCT_EXAMPLE_LINK})", text)
+        linked_source = (WALKTHROUGH.parent / PRODUCT_EXAMPLE_LINK).resolve()
+        self.assertEqual(linked_source, PRODUCT_EXAMPLE.resolve())
+        self.assertTrue(linked_source.is_file())
 
     def test_walkthrough_explains_the_product_evidence_release_gate_graph(self) -> None:
         text = WALKTHROUGH.read_text(encoding="utf-8")
