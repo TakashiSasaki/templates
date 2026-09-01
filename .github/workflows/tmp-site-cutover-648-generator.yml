@@ -58,3 +58,14 @@ jobs:
               print(f'SHA256:{hashlib.sha256(data).hexdigest()}')
               print(f'===END_GENERATED:{relative}===')
           PY
+
+      - name: Upload exact generated files
+        uses: actions/upload-artifact@v4
+        with:
+          name: site-publication-cutover-648-generated
+          path: |
+            site-root/publication-sources.json
+            site-root/agent.json
+            site-root/assets/agent.json
+          if-no-files-found: error
+          retention-days: 1
