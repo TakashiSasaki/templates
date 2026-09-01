@@ -141,6 +141,31 @@ class WebsiteComposerAcceptanceTests(unittest.TestCase):
                 self.assertIn(required_component, resolved)
             self.assertNotIn("artifact.webapp-core", resolved)
 
+            file_owners = {
+                entry["destination"]: entry["component"] for entry in lock["files"]
+            }
+            for service_material in (
+                "SERVICE_INTERFACE.md",
+                "contracts/service-interface.json",
+                "schemas/service-interface.schema.json",
+                ".template-composition/validators/validate_service_interface.py",
+                "docs/migrations/service-interface-v1-to-v2.md",
+            ):
+                self.assertEqual(
+                    file_owners.get(service_material),
+                    "capability.service",
+                    service_material,
+                )
+            for runtime_material in (
+                "RUNTIME.md",
+                "docs/runtime-selection.md",
+            ):
+                self.assertEqual(
+                    file_owners.get(runtime_material),
+                    "capability.runtime",
+                    runtime_material,
+                )
+
             for required_contract in (
                 "routes.json",
                 "site-structure.json",
@@ -179,6 +204,14 @@ class WebsiteComposerAcceptanceTests(unittest.TestCase):
                 validated.stdout + validated.stderr,
             )
             self.assertEqual(validation["status"], "valid")
+            service_checks = [
+                check
+                for check in validation["checks"]
+                if check.get("id") == "service-interface"
+            ]
+            self.assertEqual(len(service_checks), 1, validation["checks"])
+            self.assertEqual(service_checks[0]["component"], "capability.service")
+            self.assertEqual(service_checks[0]["status"], "passed")
 
     def test_runtime_backed_website_is_an_orthogonal_opt_in(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
