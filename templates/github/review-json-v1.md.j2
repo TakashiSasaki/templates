@@ -33,19 +33,21 @@ Set `analysis_status` to one of:
 
 Map the semantic review result to GitHub `event` as follows:
 
-- one or more valid blocking P0/P1 findings: `REQUEST_CHANGES`;
+- one or more valid blocking P0/P1 findings, whether inline-anchorable or unanchored: `REQUEST_CHANGES`;
 - `COMPLETE` with no blocking finding: `APPROVE`;
 - `PARTIAL` or `FAILED` with no blocking finding: `COMMENT`.
 
-Input incompleteness alone is not a reason to request changes.
+Input incompleteness alone is not a reason to request changes. A `PARTIAL` or `FAILED` result is explicitly incomplete review evidence; submitting it as a GitHub `COMMENT` does not assert review completeness or merge readiness.
 
-Each inline finding must identify the smallest changed location that introduced the root cause:
+For a blocking finding whose smallest causal changed location is representable in the GitHub diff, place it in `comments` and include:
 
 - `path`: repository-root-relative changed file;
 - `line`: changed-file line number;
 - `side`: `RIGHT` for the post-change line or `LEFT` for a deleted pre-change line.
 
-Do not anchor a finding at a downstream symptom when the causal changed line is available. If the causal line cannot be identified in the diff, do not fabricate an inline location.
+Do not anchor a finding at a downstream symptom when the causal changed line is available. If the semantic result establishes a blocking finding but no valid causal GitHub diff location can be represented, do not fabricate an inline location. Place that finding in `unanchored_findings` instead and include `location_reason`, a concise transport-level explanation of why no valid inline anchor exists, such as a deleted binary or another non-textual change.
+
+Every blocking semantic finding must be serialized **exactly once**: either as one item in `comments` when a valid inline causal location exists, or as one item in `unanchored_findings` when it does not. The adapter must never drop a blocker merely because GitHub cannot represent it as an inline comment.
 
 Each emitted finding must include a JSON numeric `confidence` from `0.0` through `1.0`. Confidence is serialized metadata only: this adapter must serialize every blocking finding supplied by the semantic review result and must not add a confidence threshold or otherwise filter the semantic finding set.
 
@@ -71,19 +73,33 @@ The following fenced block is a documentation-only example of the complete JSON 
       "recommended_fix": "Concrete minimal remediation direction.",
       "rule_references": []
     }
+  ],
+  "unanchored_findings": [
+    {
+      "severity": "P1",
+      "title": "Deleted binary contract is invalid",
+      "confidence": 0.98,
+      "location_reason": "The causal changed artifact is a deleted binary and has no representable GitHub diff line.",
+      "failure_scenario": "Concrete trigger, execution path, observed failure, and material impact.",
+      "evidence": "Repository evidence connecting the changed cause to the failure.",
+      "recommended_fix": "Concrete minimal remediation direction.",
+      "rule_references": []
+    }
   ]
 }
 ```
 
-`schema_version` is fixed at `1`. `severity` is `P0` or `P1`. `side` is `RIGHT` or `LEFT`. `limitations` contains strings describing missing information that affected completeness. `comments` contains every blocking P0/P1 finding supplied by the semantic review result and is empty when the semantic result contains none.
+`schema_version` is fixed at `1`. `severity` is `P0` or `P1`. `side` is `RIGHT` or `LEFT`. `limitations` contains strings describing missing information that affected completeness. `comments` contains blocking findings with valid GitHub inline anchors. `unanchored_findings` contains blocking findings that cannot be represented at a valid causal diff line. When the semantic result contains no blocker, both arrays are empty.
 
 When a finding relies on a repository normative-rule conflict, `rule_references` must contain objects with `path`, `section`, `requirement`, and `conflict`. Otherwise use an empty array.
 
 Before emitting the object, enforce these consistency constraints:
 
-- non-empty `comments` implies `event: REQUEST_CHANGES`;
-- `event: APPROVE` implies `analysis_status: COMPLETE` and empty `comments`;
+- a non-empty `comments` or `unanchored_findings` array implies `event: REQUEST_CHANGES`;
+- every semantic blocking finding appears exactly once across the two finding arrays;
+- an item in `comments` has a valid changed-file `path`, `line`, and `side`, while an item in `unanchored_findings` has no fabricated inline anchor and has a non-empty `location_reason`;
+- `event: APPROVE` implies `analysis_status: COMPLETE` and both finding arrays are empty;
 - `PARTIAL` or `FAILED` with no finding implies `event: COMMENT`;
-- each comment has severity `P0` or `P1` and a JSON numeric confidence from `0.0` through `1.0`;
+- each finding has severity `P0` or `P1` and a JSON numeric confidence from `0.0` through `1.0`;
 - repository-rule conflicts have non-empty `rule_references`, and other findings use an empty array; and
 - the final output parses as one standard JSON object with no comments, trailing commas, `NaN`, `Infinity`, `undefined`, or unescaped newlines inside JSON strings.
