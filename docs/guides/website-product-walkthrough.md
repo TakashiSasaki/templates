@@ -305,9 +305,9 @@ Source inspection, successful HTTP fetches, unit tests, or contract declarations
 
 ## 12. Populate product evidence and validate against planning
 
-Only after implementation boundaries and concrete proof harnesses exist should `contracts/implementation-evidence.json` claim `mode: "product"`. For the exact two-page Project Docs baseline, `examples/onboarding/project-docs/implementation-evidence.product.json` is a machine-checked product graph derived from the planning example in step 8.
+Only after implementation boundaries and concrete proof harnesses exist should `contracts/implementation-evidence.json` claim `mode: "product"`. For the exact two-page Project Docs baseline, use the [published Project Docs product evidence example](../../examples/onboarding/project-docs/implementation-evidence.product.json), a machine-checked product graph derived from the planning example in step 8. Copy that JSON to `contracts/implementation-evidence.json`, then tailor its proof harness commands and implementation locators to the consumer repository before making product claims. The publication catalog exposes this JSON as a machine asset, so normal consumers do not need a clone of `TakashiSasaki/templates` to retrieve the graph.
 
-The checked-in product example intentionally keeps every proof `status` as `deferred`. That makes the structural product evidence valid without falsely claiming that a consumer has already executed browser or discovery proof; release-readiness therefore remains `not-ready` until the real proof has run. Before using the example in Project Docs, create the referenced repository proof harnesses (`tests/verify_project_docs_browser.py` and `tests/verify_project_docs_discovery.py`) or replace those command/harness locators with your actual repository proof programs.
+The published product example intentionally keeps every proof `status` as `deferred`. That makes the structural product evidence valid without falsely claiming that a consumer has already executed browser or discovery proof; release-readiness therefore remains `not-ready` until the real proof has run. Before using the example in Project Docs, create the referenced repository proof harnesses (`tests/verify_project_docs_browser.py` and `tests/verify_project_docs_discovery.py`) or replace those command/harness locators with your actual repository proof programs.
 
 Product evidence is a cross-reference graph, not just a list of records:
 
@@ -329,7 +329,7 @@ For each required Website target:
 - give every linked record at least one valid `releaseGateIds` entry and ensure that gate executes all of the record's proof commands; and
 - keep unrelated capability records under their own contract IDs rather than copying them into Website targets.
 
-After the real proof command succeeds, change a proof from `deferred` to `verified` only when its locator, command, description, and expected result truthfully describe the proof that was actually executed. Do not bulk-convert the example's deferred statuses merely to make release-readiness green.
+After the real proof command succeeds, change a proof from `deferred` to `verified` only when its locator, command, description, expected result, and actual observed result truthfully describe the proof that was executed. Keep `expectedResult` claim-specific to the record's target rather than reusing one generic result across unrelated target families; the generic implementation-evidence validator warns on suspiciously broad exact proof reuse. Do not bulk-convert the example's deferred statuses merely to make release-readiness green.
 
 Then rerun product verification and Composition validation against the same exact revision:
 
