@@ -9,7 +9,9 @@ from pathlib import Path
 # importing sibling modules from creating __pycache__ entries inside that tree.
 sys.dont_write_bytecode = True
 
-from runtime import find_repository_root, runtime_command, sanitized_environment
+# This import intentionally follows the bytecode-write guard because runtime.py
+# is inside the deployment-attested Skill tree.
+from runtime import find_repository_root, runtime_command, sanitized_environment  # noqa: E402
 
 
 def parser() -> argparse.ArgumentParser:
