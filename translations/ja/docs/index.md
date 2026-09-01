@@ -75,7 +75,7 @@
 
 ## Historical provenance
 
-- [Composition authority migration](migrations/composition-authority-migration.md) — authority cutover、provider migration、branch retirement、immutable PR provenance の統合 chronology です。
+- [Composition authority migration](../../../docs/migrations/composition-authority-migration.md) — authority cutover、provider migration、branch retirement、immutable PR provenance の統合 chronology です。
 
 ## Machine-readable authorities
 
