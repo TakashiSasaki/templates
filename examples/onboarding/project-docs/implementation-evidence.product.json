@@ -71,10 +71,10 @@
           "id": "browser-identity-proof-positive",
           "status": "deferred",
           "kind": "end-to-end-test",
-          "description": "The browser proof loads Project Docs and observes the declared browser identity asset.",
+          "description": "The browser loads Project Docs with the declared favicon/browser identity.",
           "locator": "tests/verify_project_docs_browser.py",
           "commandId": "project-docs-browser-proof",
-          "expectedResult": "The declared browser-facing behavior is observed in a real browser."
+          "expectedResult": "The browser loads Project Docs with the declared favicon/browser identity."
         }
       ],
       "negativeEvidence": [
@@ -82,10 +82,10 @@
           "id": "browser-identity-proof-negative",
           "status": "deferred",
           "kind": "end-to-end-test",
-          "description": "The browser proof fails when the declared browser identity asset is missing or not used.",
+          "description": "The browser proof fails when the declared favicon/browser identity is missing or not used.",
           "locator": "tests/verify_project_docs_browser.py",
           "commandId": "project-docs-browser-proof",
-          "expectedResult": "The proof fails when the declared browser-facing behavior is intentionally violated."
+          "expectedResult": "The browser proof fails when the declared favicon/browser identity is missing or not used."
         }
       ],
       "releaseGateIds": [
@@ -110,10 +110,10 @@
           "id": "guide-metadata-proof-positive",
           "status": "deferred",
           "kind": "end-to-end-test",
-          "description": "The browser proof loads /guide and observes the declared title and document metadata.",
+          "description": "The /guide document exposes the declared Project Docs title and metadata.",
           "locator": "tests/verify_project_docs_browser.py",
           "commandId": "project-docs-browser-proof",
-          "expectedResult": "The declared browser-facing behavior is observed in a real browser."
+          "expectedResult": "The /guide document exposes the declared Project Docs title and metadata."
         }
       ],
       "negativeEvidence": [
@@ -121,10 +121,10 @@
           "id": "guide-metadata-proof-negative",
           "status": "deferred",
           "kind": "end-to-end-test",
-          "description": "The browser proof fails when /guide exposes stale or missing document metadata.",
+          "description": "The browser proof fails when /guide exposes stale or missing declared metadata.",
           "locator": "tests/verify_project_docs_browser.py",
           "commandId": "project-docs-browser-proof",
-          "expectedResult": "The proof fails when the declared browser-facing behavior is intentionally violated."
+          "expectedResult": "The browser proof fails when /guide exposes stale or missing declared metadata."
         }
       ],
       "releaseGateIds": [
@@ -149,10 +149,10 @@
           "id": "home-metadata-proof-positive",
           "status": "deferred",
           "kind": "end-to-end-test",
-          "description": "The browser proof loads / and observes the declared title and document metadata.",
+          "description": "The home document exposes the declared Project Docs title and metadata.",
           "locator": "tests/verify_project_docs_browser.py",
           "commandId": "project-docs-browser-proof",
-          "expectedResult": "The declared browser-facing behavior is observed in a real browser."
+          "expectedResult": "The home document exposes the declared Project Docs title and metadata."
         }
       ],
       "negativeEvidence": [
@@ -160,10 +160,10 @@
           "id": "home-metadata-proof-negative",
           "status": "deferred",
           "kind": "end-to-end-test",
-          "description": "The browser proof fails when / exposes stale or missing document metadata.",
+          "description": "The browser proof fails when the home document exposes stale or missing declared metadata.",
           "locator": "tests/verify_project_docs_browser.py",
           "commandId": "project-docs-browser-proof",
-          "expectedResult": "The proof fails when the declared browser-facing behavior is intentionally violated."
+          "expectedResult": "The browser proof fails when the home document exposes stale or missing declared metadata."
         }
       ],
       "releaseGateIds": [
@@ -188,10 +188,10 @@
           "id": "guide-page-proof-positive",
           "status": "deferred",
           "kind": "end-to-end-test",
-          "description": "The browser proof reaches /guide, checks the main focus target, and exercises primary navigation.",
+          "description": "The /guide page is reachable, exposes its main focus target, and participates in primary navigation.",
           "locator": "tests/verify_project_docs_browser.py",
           "commandId": "project-docs-browser-proof",
-          "expectedResult": "The declared browser-facing behavior is observed in a real browser."
+          "expectedResult": "The /guide page is reachable, exposes its main focus target, and participates in primary navigation."
         }
       ],
       "negativeEvidence": [
@@ -199,10 +199,10 @@
           "id": "guide-page-proof-negative",
           "status": "deferred",
           "kind": "end-to-end-test",
-          "description": "The browser proof rejects an unreachable /guide route, missing focus target, or broken navigation.",
+          "description": "The browser proof fails when /guide is unreachable, lacks its focus target, or breaks primary navigation.",
           "locator": "tests/verify_project_docs_browser.py",
           "commandId": "project-docs-browser-proof",
-          "expectedResult": "The proof fails when the declared browser-facing behavior is intentionally violated."
+          "expectedResult": "The browser proof fails when /guide is unreachable, lacks its focus target, or breaks primary navigation."
         }
       ],
       "releaseGateIds": [
@@ -227,10 +227,10 @@
           "id": "home-page-proof-positive",
           "status": "deferred",
           "kind": "end-to-end-test",
-          "description": "The browser proof reaches /, checks the main focus target, and exercises primary navigation.",
+          "description": "The home page is reachable, exposes its main focus target, and participates in primary navigation.",
           "locator": "tests/verify_project_docs_browser.py",
           "commandId": "project-docs-browser-proof",
-          "expectedResult": "The declared browser-facing behavior is observed in a real browser."
+          "expectedResult": "The home page is reachable, exposes its main focus target, and participates in primary navigation."
         }
       ],
       "negativeEvidence": [
@@ -238,10 +238,10 @@
           "id": "home-page-proof-negative",
           "status": "deferred",
           "kind": "end-to-end-test",
-          "description": "The browser proof rejects an unreachable home route, missing focus target, or broken navigation.",
+          "description": "The browser proof fails when the home page is unreachable, lacks its focus target, or breaks primary navigation.",
           "locator": "tests/verify_project_docs_browser.py",
           "commandId": "project-docs-browser-proof",
-          "expectedResult": "The proof fails when the declared browser-facing behavior is intentionally violated."
+          "expectedResult": "The browser proof fails when the home page is unreachable, lacks its focus target, or breaks primary navigation."
         }
       ],
       "releaseGateIds": [
@@ -266,10 +266,10 @@
           "id": "keyboard-input-proof-positive",
           "status": "deferred",
           "kind": "accessibility-test",
-          "description": "The accessibility-capable browser proof operates Project Docs primary navigation by keyboard.",
+          "description": "Primary Project Docs navigation is operable with keyboard input.",
           "locator": "tests/verify_project_docs_browser.py",
           "commandId": "project-docs-browser-proof",
-          "expectedResult": "The declared browser-facing behavior is observed in a real browser."
+          "expectedResult": "Primary Project Docs navigation is operable with keyboard input."
         }
       ],
       "negativeEvidence": [
@@ -277,10 +277,10 @@
           "id": "keyboard-input-proof-negative",
           "status": "deferred",
           "kind": "accessibility-test",
-          "description": "The browser proof fails when required navigation cannot be operated with keyboard input.",
+          "description": "The accessibility proof fails when required navigation cannot be operated with keyboard input.",
           "locator": "tests/verify_project_docs_browser.py",
           "commandId": "project-docs-browser-proof",
-          "expectedResult": "The proof fails when the declared browser-facing behavior is intentionally violated."
+          "expectedResult": "The accessibility proof fails when required navigation cannot be operated with keyboard input."
         }
       ],
       "releaseGateIds": [
@@ -305,10 +305,10 @@
           "id": "base-viewport-proof-positive",
           "status": "deferred",
           "kind": "end-to-end-test",
-          "description": "The browser proof renders the baseline viewport without forbidden page-wide horizontal overflow.",
+          "description": "The baseline viewport renders Project Docs without forbidden page-wide horizontal overflow.",
           "locator": "tests/verify_project_docs_browser.py",
           "commandId": "project-docs-browser-proof",
-          "expectedResult": "The declared browser-facing behavior is observed in a real browser."
+          "expectedResult": "The baseline viewport renders Project Docs without forbidden page-wide horizontal overflow."
         }
       ],
       "negativeEvidence": [
@@ -316,10 +316,10 @@
           "id": "base-viewport-proof-negative",
           "status": "deferred",
           "kind": "end-to-end-test",
-          "description": "The browser proof fails when the baseline viewport produces unsupported horizontal overflow.",
+          "description": "The browser proof fails when the baseline viewport produces forbidden page-wide horizontal overflow.",
           "locator": "tests/verify_project_docs_browser.py",
           "commandId": "project-docs-browser-proof",
-          "expectedResult": "The proof fails when the declared browser-facing behavior is intentionally violated."
+          "expectedResult": "The browser proof fails when the baseline viewport produces forbidden page-wide horizontal overflow."
         }
       ],
       "releaseGateIds": [
@@ -344,10 +344,10 @@
           "id": "canonical-origin-proof-positive",
           "status": "deferred",
           "kind": "inspection",
-          "description": "The discovery proof verifies generated canonical references use the declared HTTPS origin.",
+          "description": "Generated canonical references use the declared HTTPS Project Docs origin.",
           "locator": "tests/verify_project_docs_discovery.py",
           "commandId": "project-docs-discovery-proof",
-          "expectedResult": "The generated discovery resource matches the declared Project Docs contract."
+          "expectedResult": "Generated canonical references use the declared HTTPS Project Docs origin."
         }
       ],
       "negativeEvidence": [
@@ -358,7 +358,7 @@
           "description": "The discovery proof fails when generated canonical references drift from the declared origin.",
           "locator": "tests/verify_project_docs_discovery.py",
           "commandId": "project-docs-discovery-proof",
-          "expectedResult": "The proof fails when the generated discovery resource contradicts the declared contract."
+          "expectedResult": "The discovery proof fails when generated canonical references drift from the declared origin."
         }
       ],
       "releaseGateIds": [
@@ -383,10 +383,10 @@
           "id": "robots-proof-positive",
           "status": "deferred",
           "kind": "inspection",
-          "description": "The discovery proof inspects robots.txt against the declared discovery policy.",
+          "description": "robots.txt matches the declared Project Docs discovery policy.",
           "locator": "tests/verify_project_docs_discovery.py",
           "commandId": "project-docs-discovery-proof",
-          "expectedResult": "The generated discovery resource matches the declared Project Docs contract."
+          "expectedResult": "robots.txt matches the declared Project Docs discovery policy."
         }
       ],
       "negativeEvidence": [
@@ -397,7 +397,7 @@
           "description": "The discovery proof fails when robots.txt is missing or contradicts the declared policy.",
           "locator": "tests/verify_project_docs_discovery.py",
           "commandId": "project-docs-discovery-proof",
-          "expectedResult": "The proof fails when the generated discovery resource contradicts the declared contract."
+          "expectedResult": "The discovery proof fails when robots.txt is missing or contradicts the declared policy."
         }
       ],
       "releaseGateIds": [
@@ -422,10 +422,10 @@
           "id": "sitemap-proof-positive",
           "status": "deferred",
           "kind": "inspection",
-          "description": "The discovery proof verifies sitemap.xml contains exactly the declared indexable Project Docs pages.",
+          "description": "sitemap.xml contains exactly the declared indexable Project Docs pages.",
           "locator": "tests/verify_project_docs_discovery.py",
           "commandId": "project-docs-discovery-proof",
-          "expectedResult": "The generated discovery resource matches the declared Project Docs contract."
+          "expectedResult": "sitemap.xml contains exactly the declared indexable Project Docs pages."
         }
       ],
       "negativeEvidence": [
@@ -436,7 +436,7 @@
           "description": "The discovery proof fails when sitemap.xml omits or adds pages relative to the declared indexable inventory.",
           "locator": "tests/verify_project_docs_discovery.py",
           "commandId": "project-docs-discovery-proof",
-          "expectedResult": "The proof fails when the generated discovery resource contradicts the declared contract."
+          "expectedResult": "The discovery proof fails when sitemap.xml omits or adds pages relative to the declared indexable inventory."
         }
       ],
       "releaseGateIds": [
@@ -492,10 +492,6 @@
           "itemId": "base"
         }
       ],
-      "requiredPositiveProofKinds": [
-        "accessibility-test",
-        "end-to-end-test"
-      ],
       "recordIds": [
         "browser-identity-proof",
         "guide-metadata-proof",
@@ -504,6 +500,10 @@
         "home-page-proof",
         "keyboard-input-proof",
         "base-viewport-proof"
+      ],
+      "requiredPositiveProofKinds": [
+        "accessibility-test",
+        "end-to-end-test"
       ]
     },
     {
@@ -529,13 +529,13 @@
           "itemId": "sitemap"
         }
       ],
-      "requiredPositiveProofKinds": [
-        "inspection"
-      ],
       "recordIds": [
         "canonical-origin-proof",
         "robots-proof",
         "sitemap-proof"
+      ],
+      "requiredPositiveProofKinds": [
+        "inspection"
       ]
     }
   ]
