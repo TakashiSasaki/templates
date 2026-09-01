@@ -53,7 +53,7 @@ The distribution deliberately separates three revision roles:
 
 ### Installation provenance for trusted automated review
 
-Normal repository-management use does not require a persistent installation attestation. A deployment that intends to use this installed Skill as the trusted bootstrap authority for automated pull-request review has a stronger requirement: it must preserve independent evidence for the installed Skill-source bytes before those bytes are allowed to select `pr-review`.
+Normal repository-management use does not require a persistent installation attestation. A deployment that intends to use this installed Skill as the trusted bootstrap authority for automated pull-request review has a stronger requirement: it must preserve independent evidence for the complete installed Skill-source tree before those bytes are allowed to select `pr-review`.
 
 Such a deployment executes the remote installer from an independently pinned full-SHA URL and supplies that same trusted installer revision together with a deployment-managed attestation path outside the installed Skill tree:
 
@@ -63,9 +63,11 @@ python <pinned-installer.py> /path/to/agent-policy \
   --attestation /protected/deployment-state/agent-policy-installation.json
 ```
 
-The installer writes a deterministic record binding the installer repository/full SHA, embedded Skill-source repository/full SHA, exact installed root, and SHA-256 digest of every installed Skill file. The attestation is not review authority merely because it exists; the deployment must keep it under an independently trusted/protected state boundary and must already trust the installer SHA used to create or verify it.
+The installer writes a deterministic record binding the installer repository/full SHA, embedded Skill-source repository/full SHA, exact installed root, and a **closed path/type inventory of the complete installed Skill tree**, with a SHA-256 digest for every regular file. Verification recomputes the whole tree and requires exact equality. Added or missing files/directories, file↔directory substitutions, symbolic/hard links, or changed bytes therefore invalidate the installation; an unattested import-shadowing file cannot be tolerated merely because the originally attested files are unchanged.
 
-Before automated-review bootstrap, the deployment re-fetches or otherwise authenticates the same exact-SHA installer script and verifies the installed bytes without reinstalling:
+The attestation is not review authority merely because it exists. The deployment must keep it under an independently trusted/protected state boundary and must already trust the installer SHA used to create or verify it. The installer preflights the attestation destination before downloading or replacing the Skill, so a structurally invalid or non-writable protected-state destination fails before the Skill installation is mutated.
+
+Before automated-review bootstrap, the deployment re-fetches or otherwise authenticates the same exact-SHA installer script and verifies the installed tree without reinstalling:
 
 ```text
 python <pinned-installer.py> /path/to/agent-policy \
@@ -74,7 +76,7 @@ python <pinned-installer.py> /path/to/agent-policy \
   --verify-only
 ```
 
-A missing, mismatched, symlinked, or tampered installation fails this verification. `runtime-manifest.json` remains a separate runtime-selection contract and cannot substitute for Skill-source installation provenance.
+Verification is read-only with respect to the installed Skill and does not download or install runtime material. It uses streaming SHA-256 and enforces the Skill distribution size limit while recomputing the closed tree inventory. A missing, mismatched, linked, oversized, or otherwise tampered installation fails this verification. `runtime-manifest.json` remains a separate runtime-selection contract and cannot substitute for Skill-source installation provenance.
 
 ## Installation during repository development
 
