@@ -76,7 +76,7 @@ git init
 
 ## 2. Prerequisite を確認して Composition を install する
 
-通常利用では CPython 3.11、3.12、3.13、3.14 のいずれかが必要です。[Composition の利用方法](../consumer-guide.md#install-and-run-the-composition-skill) の immutable installer procedure に従い、Project Docs の外へ skill を install します。
+通常利用では CPython 3.11、3.12、3.13、3.14 のいずれかが必要です。[Composition の利用方法](../consumer-guide.md#composition-skill-install) の immutable installer procedure に従い、Project Docs の外へ skill を install します。
 
 現在公開されている skill の stable runtime manifest は `website` recipe より古いため、この walkthrough では CI-green immutable Website-capable Composition revision `ca8b8bc9091c6c199224cd9b66c9a59229f1b6ac` を明示的に選択します。この revision には Website recipe と step 14 で説明する optional component set が含まれます。installed runner は immutable full-SHA override を support しています。この walkthrough の **すべて** の runner invocation で同じ revision を使ってください。省略すると consumer lock ではなく、より古い stable runtime-manifest revision に戻ります。
 
@@ -290,7 +290,7 @@ source inspection、HTTP fetch success、unit test、contract declaration だけ
 
 ## 12. Product evidence を記録して planning に対して validate する
 
-implementation boundary と具体的な proof harness が存在してから `contracts/implementation-evidence.json` を `mode: "product"` にします。step 7 の exact two-page Project Docs baseline では、英語正本の step 12 にある **published Project Docs product evidence example** から machine-checked JSON を取得し、`contracts/implementation-evidence.json` にコピーしてから consumer repository の実際の proof harness command と implementation locator に合わせて調整します。この JSON は publication catalog の machine asset として公開されるため、通常 consumer が `TakashiSasaki/templates` を clone する必要はありません。provider source path は `examples/onboarding/project-docs/implementation-evidence.product.json` です。
+implementation boundary と具体的な proof harness が存在してから `contracts/implementation-evidence.json` を `mode: "product"` にします。step 7 の exact two-page Project Docs baseline では、[published Project Docs product evidence example](../../../../examples/onboarding/project-docs/implementation-evidence.product.json) から machine-checked JSON を取得し、`contracts/implementation-evidence.json` にコピーしてから consumer repository の実際の proof harness command と implementation locator に合わせて調整します。この JSON は publication catalog の machine asset として公開されるため、通常 consumer が `TakashiSasaki/templates` を clone する必要はありません。provider source path は `examples/onboarding/project-docs/implementation-evidence.product.json` です。
 
 published product example はすべての proof `status` を意図的に `deferred` のままにしています。これにより consumer がまだ browser/discovery proof を実行していないのに verified と偽ることなく structural product evidence を validate できます。したがって実 proof が完了するまで release-readiness は `not-ready` のままです。Project Docs で例を使う前に、参照される repository proof harness `tests/verify_project_docs_browser.py` と `tests/verify_project_docs_discovery.py` を作成するか、`commands` と harness locator を実際の proof program に置換します。
 
