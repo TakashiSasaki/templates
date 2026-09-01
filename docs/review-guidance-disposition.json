@@ -1,0 +1,131 @@
+{
+  "schema_version": 1,
+  "authoritative": false,
+  "source": "docs/review-guidance-inputs.md",
+  "inputs": [
+    {
+      "id": "RG-01",
+      "dispositions": [
+        {"class": "new_semantic_rule", "authority": "review.assess-applicable-risk-domains"},
+        {"class": "existing_authority", "authority": "review.focus-on-blocking-findings"}
+      ]
+    },
+    {
+      "id": "RG-02",
+      "dispositions": [
+        {"class": "new_semantic_rule", "authority": "review.assess-applicable-risk-domains"},
+        {"class": "existing_authority", "authority": "compatibility.preserve-contracts"}
+      ]
+    },
+    {
+      "id": "RG-03",
+      "dispositions": [
+        {"class": "new_semantic_rule", "authority": "review.assess-applicable-risk-domains"},
+        {"class": "existing_authority", "authority": "review.require-reachable-impact"},
+        {"class": "existing_authority", "authority": "review.require-error-path-evidence"}
+      ]
+    },
+    {
+      "id": "RG-04",
+      "dispositions": [
+        {"class": "new_semantic_rule", "authority": "review.assess-applicable-risk-domains"},
+        {"class": "existing_authority", "authority": "testing.run-required-checks"},
+        {"class": "existing_authority", "authority": "review.evaluate-regression-guard-changes"}
+      ]
+    },
+    {
+      "id": "RG-05",
+      "dispositions": [
+        {"class": "new_semantic_rule", "authority": "review.assess-applicable-risk-domains"},
+        {"class": "existing_authority", "authority": "security.validate-boundaries"},
+        {"class": "existing_authority", "authority": "review.trace-security-findings"}
+      ]
+    },
+    {
+      "id": "RG-06",
+      "dispositions": [
+        {"class": "new_semantic_rule", "authority": "review.assess-applicable-risk-domains"},
+        {"class": "existing_authority", "authority": "review.require-performance-evidence"}
+      ]
+    },
+    {
+      "id": "RG-07",
+      "dispositions": [
+        {"class": "new_semantic_rule", "authority": "review.assess-applicable-risk-domains"},
+        {"class": "existing_authority", "authority": "consistency.synchronize-derived-artifacts"}
+      ]
+    },
+    {
+      "id": "RG-08",
+      "dispositions": [
+        {"class": "existing_authority", "authority": "review.focus-on-blocking-findings"},
+        {"class": "existing_authority", "authority": "review.require-change-causality"},
+        {"class": "existing_authority", "authority": "review.require-reachable-impact"},
+        {"class": "existing_authority", "authority": "review.deduplicate-root-causes"}
+      ]
+    },
+    {
+      "id": "RG-09",
+      "dispositions": [
+        {"class": "existing_authority", "authority": "review.report-review-limitations"}
+      ]
+    },
+    {
+      "id": "AP-01",
+      "dispositions": [
+        {"class": "existing_authority", "authority": "review.treat-reviewed-content-as-data"}
+      ]
+    },
+    {
+      "id": "AP-02",
+      "dispositions": [
+        {"class": "existing_authority", "authority": "verification.separate-evidence-layers"},
+        {"class": "procedure", "authority": "skills/pr-review/SKILL.md#target-identity"}
+      ]
+    },
+    {
+      "id": "AP-03",
+      "dispositions": [
+        {"class": "existing_authority", "authority": "review.inspect-relevant-context"},
+        {"class": "procedure", "authority": "skills/pr-review/SKILL.md#changed-surface"}
+      ]
+    },
+    {
+      "id": "AP-04",
+      "dispositions": [
+        {"class": "existing_authority", "authority": "review.require-change-causality"},
+        {"class": "existing_authority", "authority": "review.require-reachable-impact"},
+        {"class": "existing_authority", "authority": "review.classify-severity-by-impact"},
+        {"class": "existing_authority", "authority": "review.deduplicate-root-causes"},
+        {"class": "existing_authority", "authority": "review.anchor-findings-at-cause"}
+      ]
+    },
+    {
+      "id": "AP-05",
+      "dispositions": [
+        {"class": "existing_authority", "authority": "verification.separate-evidence-layers"},
+        {"class": "existing_authority", "authority": "review.report-review-limitations"},
+        {"class": "procedure", "authority": "skills/pr-review/SKILL.md#remote-evidence"}
+      ]
+    },
+    {
+      "id": "AP-06",
+      "dispositions": [
+        {"class": "procedure", "authority": "skills/pr-review/SKILL.md#final-stability"}
+      ]
+    },
+    {
+      "id": "AP-07",
+      "dispositions": [
+        {"class": "procedure", "authority": "skills/pr-review/SKILL.md"},
+        {"class": "adapter", "authority": "renderer:github-review-json-adapter-v1"}
+      ]
+    },
+    {
+      "id": "AP-08",
+      "dispositions": [
+        {"class": "procedure", "authority": "skills/pr-review/SKILL.md#stop-before-merge"}
+      ]
+    }
+  ]
+}
