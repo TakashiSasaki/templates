@@ -6,7 +6,7 @@
 
 ## Composition が初めてなら worked example から始める
 
-この repository を使って初めて Web application を作る場合は、以下の contracts を最初から読み解くところから始めないでください。別 product repository から [Webapp product walkthrough](https://templates.moukaeritai.work/composition/use/webapp-product-walkthrough/) を順に進めます。prerequisites と Composition install から始まり、`composition.json` を作成し、`inspect -> plan -> apply -> validate` を実行し、生成後にどの file を編集できるかを具体的に確認した後、product implementation と evidence まで進みます。
+この repository を使って初めて Web application を作る場合は、以下の contracts を最初から読み解くところから始めないでください。別 product repository から [Webapp product walkthrough](https://templates.moukaeritai.work/webapp/product-walkthrough/) を順に進めます。prerequisites と Composition install から始まり、`composition.json` を作成し、`inspect -> plan -> apply -> validate` を実行し、生成後にどの file を編集できるかを具体的に確認した後、product implementation と evidence まで進みます。
 
 walkthrough の最初の milestone は **valid な Composition scaffold** であり、完成した Web application ではありません。product implementation と product verification は引き続き consumer の責任です。
 
