@@ -3,6 +3,7 @@ from __future__ import annotations
 import contextlib
 import importlib.util
 import io
+import json
 import subprocess
 import sys
 import tarfile
@@ -13,6 +14,7 @@ from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "install_composition_skill.py"
+RELEASE_DESCRIPTOR = ROOT / "release" / "composition-installer.json"
 
 
 def load_module(name: str, path: Path):
@@ -86,8 +88,14 @@ class BytesResponse:
 
 
 class CompositionRemoteSkillInstallerTests(unittest.TestCase):
-    def test_remote_installer_pins_review_candidate_revision(self) -> None:
-        expected = "8defa866d088de7f8c29bc3a5443dc2df69983dc"
+    def test_remote_installer_pins_published_skill_source_revision(self) -> None:
+        descriptor = json.loads(RELEASE_DESCRIPTOR.read_text(encoding="utf-8"))
+        skill_source = descriptor.get("skill_source")
+        self.assertIsInstance(skill_source, dict)
+        assert isinstance(skill_source, dict)
+        expected = skill_source.get("revision")
+        self.assertIsInstance(expected, str)
+        assert isinstance(expected, str)
         self.assertEqual(installer.TOOLCHAIN_REPOSITORY, "TakashiSasaki/templates")
         self.assertEqual(installer.SKILL_SOURCE_REVISION, expected)
         self.assertIsNotNone(installer.FULL_SHA.fullmatch(installer.SKILL_SOURCE_REVISION))

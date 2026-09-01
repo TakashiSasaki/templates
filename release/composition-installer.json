@@ -3,17 +3,17 @@
   "channel": "stable",
   "installer": {
     "repository": "TakashiSasaki/templates",
-    "revision": "5a3cfb200ed68d87da1a8e128b61b40401820347",
+    "revision": "60bb93751f0163d7c523a06a32c2fefb562ee7e3",
     "path": "scripts/install_composition_skill.py",
-    "sha256": "114c3375f4edef8aa64f42ab3beeaae246fdf8b960f6eb09868648e6a62cd1ab"
+    "sha256": "e79e43785f92bbc049619360e0680873504b0f33db1670010d85750786d24b93"
   },
   "skill_source": {
     "repository": "TakashiSasaki/templates",
-    "revision": "8defa866d088de7f8c29bc3a5443dc2df69983dc",
+    "revision": "3e1c093a173c406e9fea2ea761e1aa1f0cf32038",
     "path": "skills/composition"
   },
   "toolchain": {
     "repository": "TakashiSasaki/templates",
-    "revision": "199f25731170a6e25d25aa759fa6edc038623f58"
+    "revision": "b4581b58301b1f2736fce86dfcd56d7ddb98bff0"
   }
 }

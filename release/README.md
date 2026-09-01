@@ -4,13 +4,15 @@ This directory records the immutable publication identities for the installable 
 
 The stable publication deliberately separates three full-SHA identities:
 
-- **installer script revision** `5a3cfb200ed68d87da1a8e128b61b40401820347` — the remotely executed stdlib-only bootstrap script;
-- **skill source revision** `8defa866d088de7f8c29bc3a5443dc2df69983dc` — the `skills/composition/` tree downloaded and atomically installed by that bootstrap script; and
-- **stable Composition toolchain revision** `199f25731170a6e25d25aa759fa6edc038623f58` — the exact Composer source selected by the installed skill's `runtime-manifest.json`.
+- **installer script revision** `60bb93751f0163d7c523a06a32c2fefb562ee7e3` — the remotely executed stdlib-only bootstrap script;
+- **skill source revision** `3e1c093a173c406e9fea2ea761e1aa1f0cf32038` — the `skills/composition/` tree downloaded and atomically installed by that bootstrap script; and
+- **stable Composition toolchain revision** `b4581b58301b1f2736fce86dfcd56d7ddb98bff0` — the exact Composer source selected by the installed skill's `runtime-manifest.json`.
 
-The published installer bytes are additionally pinned by SHA-256: `114c3375f4edef8aa64f42ab3beeaae246fdf8b960f6eb09868648e6a62cd1ab`.
+The published installer bytes are additionally pinned by SHA-256: `e79e43785f92bbc049619360e0680873504b0f33db1670010d85750786d24b93`.
 
 `composition-installer.json` is the machine-readable authority for these identities and the installer digest. `scripts/verify_composition_skill_installer_release.py` verifies the descriptor against repository history, the pinned installer bytes, the complete runnable Skill distribution, the complete snapshot-aware toolchain surface, the runtime-lock digest, and strict ancestry between the three immutable revisions.
+
+The stable toolchain now includes every first-class recipe published by this Composition authority, including `skill`, `website`, and `webapp`. Stable consumers therefore use the normal runner path for all three product identities; a Website does not require a walkthrough-specific revision override.
 
 This skill-source release includes the read-only `doctor` command. For normal consumers, doctor reports CPython support, the selected immutable revision, Git as not required, ephemeral full-SHA source acquisition, and persistent validated runtime-cache readiness without acquiring source/runtime state from the network. `doctor` is diagnostic only and does not replace Composition validation or guarantee later GitHub/package-source availability.
 
@@ -33,8 +35,8 @@ import sys
 import tempfile
 import urllib.request
 
-url = "https://raw.githubusercontent.com/TakashiSasaki/templates/5a3cfb200ed68d87da1a8e128b61b40401820347/scripts/install_composition_skill.py"
-expected = "114c3375f4edef8aa64f42ab3beeaae246fdf8b960f6eb09868648e6a62cd1ab"
+url = "https://raw.githubusercontent.com/TakashiSasaki/templates/60bb93751f0163d7c523a06a32c2fefb562ee7e3/scripts/install_composition_skill.py"
+expected = "e79e43785f92bbc049619360e0680873504b0f33db1670010d85750786d24b93"
 data = urllib.request.urlopen(url, timeout=30).read()
 actual = hashlib.sha256(data).hexdigest()
 if actual != expected:
