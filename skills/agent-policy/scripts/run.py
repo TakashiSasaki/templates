@@ -5,6 +5,10 @@ import subprocess
 import sys
 from pathlib import Path
 
+# The installed Skill tree can be deployment-attested trust material. Prevent
+# importing sibling modules from creating __pycache__ entries inside that tree.
+sys.dont_write_bytecode = True
+
 from runtime import find_repository_root, runtime_command, sanitized_environment
 
 
