@@ -137,7 +137,7 @@ def test_v2_renders_github_review_json_adapter_without_semantic_rule_bodies(
     assert "review.require-change-causality" in semantic
     assert "security.validate-boundaries" in semantic
 
-    assert "renderer: github-review-json-v1" in adapter
+    assert "renderer: github-review-json-adapter-v1" in adapter
     assert "does not contain or redefine semantic review policy" in adapter
     assert "Policy context: `review`" in adapter
     assert "project.review-only" not in adapter
