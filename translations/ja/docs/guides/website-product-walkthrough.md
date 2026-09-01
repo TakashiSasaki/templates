@@ -290,9 +290,9 @@ source inspection、HTTP fetch success、unit test、contract declaration だけ
 
 ## 12. Product evidence を記録して planning に対して validate する
 
-implementation boundary と具体的な proof harness が存在してから `contracts/implementation-evidence.json` を `mode: "product"` にします。step 7 の exact two-page Project Docs baseline では、`examples/onboarding/project-docs/implementation-evidence.product.json` が step 8 の planning example から導出した machine-checked product graph です。
+implementation boundary と具体的な proof harness が存在してから `contracts/implementation-evidence.json` を `mode: "product"` にします。step 7 の exact two-page Project Docs baseline では、英語正本の step 12 にある **published Project Docs product evidence example** から machine-checked JSON を取得し、`contracts/implementation-evidence.json` にコピーしてから consumer repository の実際の proof harness command と implementation locator に合わせて調整します。この JSON は publication catalog の machine asset として公開されるため、通常 consumer が `TakashiSasaki/templates` を clone する必要はありません。provider source path は `examples/onboarding/project-docs/implementation-evidence.product.json` です。
 
-checked-in product example はすべての proof `status` を意図的に `deferred` のままにしています。これにより consumer がまだ browser/discovery proof を実行していないのに verified と偽ることなく structural product evidence を validate できます。したがって実 proof が完了するまで release-readiness は `not-ready` のままです。Project Docs で例を使う前に、参照される repository proof harness `tests/verify_project_docs_browser.py` と `tests/verify_project_docs_discovery.py` を作成するか、`commands` と harness locator を実際の proof program に置換します。
+published product example はすべての proof `status` を意図的に `deferred` のままにしています。これにより consumer がまだ browser/discovery proof を実行していないのに verified と偽ることなく structural product evidence を validate できます。したがって実 proof が完了するまで release-readiness は `not-ready` のままです。Project Docs で例を使う前に、参照される repository proof harness `tests/verify_project_docs_browser.py` と `tests/verify_project_docs_discovery.py` を作成するか、`commands` と harness locator を実際の proof program に置換します。
 
 Product evidence は単なる record list ではなく cross-reference graph です。
 
@@ -307,7 +307,7 @@ Project Docs example では browser-sensitive record はすべて `project-docs-
 
 各 required Website target について、current record は1つだけにし、すべての record をその target を所有する stable requirement から link します。必要な positive/negative browser-backed evidence を記録し、browser-level proof の authoritative command は execution capability `browser` を宣言します。各 linked record は有効な `releaseGateIds` を少なくとも1つ持ち、その gate が record の全 proof command を実行しなければなりません。unrelated capability record を Website target に複製しません。
 
-実 proof command が成功した後だけ、proof の locator、command、description、expected result が実際に実行した proof を truthful に表す場合に `deferred` から `verified` へ変更します。release-readiness を green にする目的で example の deferred status を一括変換してはいけません。
+実 proof command が成功した後だけ、proof の locator、command、description、expected result、actual observed result が実際に実行した proof を truthful に表す場合に `deferred` から `verified` へ変更します。`expectedResult` は unrelated target family 間で generic な同一文を再利用せず、record target ごとの claim-specific な内容にします。generic implementation-evidence validator は suspiciously broad な exact proof reuse を warning として報告します。release-readiness を green にする目的で example の deferred status を一括変換してはいけません。
 
 ```sh
 python /absolute/path/to/agent-skills/composition/scripts/run.py \
