@@ -31,27 +31,37 @@ The frozen inputs in `docs/review-guidance-inputs.md` are migration evidence, no
 
 ### Trusted procedure bootstrap
 
-An unverified `pr-review` Skill must never select or authenticate its own executable authority.
+An unverified `pr-review` Skill must never select or authenticate its own executable authority, and an unauthenticated installed `agent-policy` Skill must not be assumed trustworthy merely because it is outside the pull-request head.
 
-For the current architecture there is **exactly one repository-facing bootstrap path**: the installed immutable `agent-policy` Skill runtime/loader. Its own runtime identity is pinned outside the pull-request head by its immutable runtime manifest. No repository-policy-root override, procedure/toolchain override, alternate loader, or other out-of-band review-authority path is part of this contract.
+For the current architecture there is **exactly one repository-facing bootstrap path**: an installed `agent-policy` Skill runtime/loader whose installation identity has already been authenticated by the deployment. No repository-policy-root override, procedure/toolchain override, alternate loader, or other out-of-band review-authority path is part of this repository contract.
 
-The absence of an override path is intentional. The current configuration schema contains no canonical machine-readable contract for authorizing one. Any future alternate bootstrap authority or out-of-band policy/procedure selection requires a separate architecture decision and a validated machine contract before it can be used. Until then, attempts to substitute another authority fail closed.
+The bootstrap Skill has two distinct immutable identities that must not be collapsed:
+
+- **Skill-source identity** covers the installed `skills/agent-policy` tree containing the bootstrap algorithm itself.
+- **Runtime identity** covers the toolchain revision and dependency lock selected by `runtime-manifest.json` / the managed repository lock.
+
+Before any bootstrap instruction or executable from the installed Skill is trusted, the hosting/deployment dispatcher must verify the installed Skill tree against a **deployment-managed installation attestation stored outside the installed Skill tree and outside the repository under review**. That attestation must record at least the immutable installer repository/full-SHA revision, immutable Skill-source repository/full-SHA revision, and cryptographic digests for every installed bootstrap-authority file. The attested installer and Skill-source identities must match an independently trusted deployment pin established before the review invocation; neither the pull-request base nor head may select or rewrite that deployment pin. The published `release/skill-installer.json` contract distinguishes installer and Skill-source revisions and may be used when provisioning that deployment pin, but a repository copy encountered during review is not itself sufficient bootstrap authentication evidence.
+
+`runtime-manifest.json` is then used for its separate runtime-selection responsibility. It does **not** authenticate the Skill-source bytes that contain the bootstrap algorithm. Bootstrap is unavailable unless both the external installation-attestation verification and the applicable runtime identity checks succeed.
+
+The absence of an authority override path is intentional. The current configuration schema contains no canonical machine-readable contract for authorizing one. Any future alternate bootstrap authority or out-of-band policy/procedure selection requires a separate architecture decision and a validated machine contract before it can be used. Until then, attempts to substitute another authority fail closed.
 
 Before `pr-review` executes, trusted bootstrap must:
 
-1. obtain and record the stable repository identity and pull-request identity from the hosting/repository system;
-2. obtain the exact current target/base revision and a repository snapshot proven to represent that repository identity at that exact revision;
-3. use that exact base snapshot as the active trusted repository-policy root;
-4. run the installed immutable `agent-policy` runtime against that trusted snapshot and require its managed configuration/lock checks to succeed;
-5. treat `.agent-policy.lock` as the authoritative managed toolchain pin and require its repository/full-SHA identity to agree with `.agent-policy.yml`;
-6. require the trusted base configuration to enable `pr-review` through `skills.enabled`;
-7. require the generated `.agents/skills/pr-review/SKILL.md` and every declared reference to be regular non-symlink generated outputs reproduced by the lock-pinned immutable toolchain;
-8. record the lock-selected procedure revision and cryptographic digests/provenance of the verified generated Skill files; and
-9. hand that immutable bootstrap evidence to the verified `pr-review` Skill.
+1. require successful deployment-side authentication of the installed `agent-policy` Skill-source identity and bytes against the external installation attestation;
+2. obtain and record the stable repository identity and pull-request identity from the hosting/repository system;
+3. obtain the exact current target/base revision and a repository snapshot proven to represent that repository identity at that exact revision;
+4. use that exact base snapshot as the active trusted repository-policy root;
+5. run the authenticated installed `agent-policy` runtime against that trusted snapshot and require its managed configuration/lock checks to succeed;
+6. treat `.agent-policy.lock` as the authoritative managed toolchain pin and require its repository/full-SHA identity to agree with `.agent-policy.yml`;
+7. require the trusted base configuration to enable `pr-review` through `skills.enabled`;
+8. require `.agents/skills/pr-review/SKILL.md` and every declared `pr-review` reference to resolve lexically inside the trusted repository root, remain inside the generated `pr-review` tree, contain no parent traversal or reserved namespace, have **no symlink component at any path level**, and end in regular non-symlink files reproduced by the lock-pinned immutable toolchain;
+9. record the lock-selected procedure revision and cryptographic digests/provenance of the verified generated Skill files; and
+10. hand that immutable bootstrap evidence to the verified `pr-review` Skill.
 
-A mutable branch/tag, a repository-local Skill, or any `agent-policy`/`pr-review` bytes from the proposed head must never participate in bootstrap for that same review. If the trusted base does not validly enable and reproduce `pr-review`, automated review under this architecture is unavailable and fails closed.
+A mutable branch/tag, an unauthenticated installed Skill, a repository-local Skill, or any `agent-policy`/`pr-review` bytes from the proposed head must never participate in bootstrap for that same review. If installed bootstrap provenance cannot be authenticated independently, or if the trusted base does not validly enable and reproduce `pr-review`, automated review under this architecture is unavailable and fails closed.
 
-Trusted bootstrap is not a second review procedure. It may establish repository identity, exact base identity, configuration/lock validity, procedure identity, generated Skill provenance, and handoff evidence only. It must not inspect the proposed change for findings, classify CI or review evidence, choose provider events, decide review completeness, or authorize merge.
+Trusted bootstrap is not a second review procedure. It may establish bootstrap installation identity, repository and pull-request identity, exact base identity, configuration/lock validity, procedure identity, generated Skill provenance, and handoff evidence only. It must not inspect the proposed change for findings, classify CI or review evidence, choose provider events, decide review completeness, or authorize merge.
 
 ### Review procedure
 
@@ -60,6 +70,7 @@ After trusted bootstrap hands control to verified immutable `pr-review` bytes, t
 At review start the procedure records and verifies:
 
 - stable repository identity matching bootstrap evidence;
+- pull-request identity matching bootstrap evidence;
 - exact current target/base revision matching the trusted repository-policy root;
 - exact proposed head revision; and
 - the complete set of best common ancestors between base and head.
@@ -70,7 +81,7 @@ The procedure inspects the complete changed surface plus enough callers, callees
 
 The Skill references semantic policy rather than copying severity, compatibility, security-impact, confidence, or finding-admissibility definitions.
 
-The retained canonical automated-review prompt is only a thin non-normative invocation surface. It supplies repository/PR identity and output-binding inputs and directs trusted bootstrap to the verified Skill. It is neither bootstrap authority nor review procedure. If it conflicts with bootstrap or the verified Skill, bootstrap governs executable provenance and the Skill governs review execution.
+The retained canonical automated-review prompt is only a thin non-normative invocation surface. It supplies repository/PR identity and output-binding inputs and directs the already authenticated trusted bootstrap to the verified Skill. It is neither bootstrap authority nor review procedure. If it conflicts with bootstrap or the verified Skill, bootstrap governs executable provenance and the Skill governs review execution.
 
 ### Trusted review authority root
 
@@ -78,14 +89,15 @@ The exact current base snapshot established by trusted bootstrap is the **only a
 
 The trusted base must contain valid `.agent-policy.yml` and `.agent-policy.lock`. The lock is authoritative for the managed runtime pin; missing or malformed lock state, configuration/lock disagreement, invalid full-SHA identity, input/output digest failure, stale generated outputs, or inability to reproduce required outputs fails closed.
 
-Immediately before final serialization, the procedure re-resolves stable repository identity, base, head, and the complete best-common-ancestor set.
+Immediately before final serialization, the procedure re-resolves pull-request identity, stable repository identity, base, head, and the complete best-common-ancestor set from the hosting/repository system.
 
+- If pull-request identity differs from bootstrap evidence, fail closed. PR-specific evidence or output destinations must never be reused for another pull request merely because base/head commits happen to match.
 - If repository identity differs from bootstrap evidence, fail closed. Authority established for one repository must never be carried into another repository or fork merely because commits match.
-- If the base revision changes, stop the current review and return to the installed immutable bootstrap. The replacement exact base becomes the new trusted repository-policy root. Configuration, lock, `skills.enabled`, generated Skill provenance, output bindings, and generated projections must all be re-established from that base before review continues. If procedure revision or Skill bytes change, restart under the newly verified Skill.
-- If only head or unique merge base changes while repository identity and base remain stable, recompute the changed surface and refresh all affected evidence and semantic analysis.
+- If the base revision changes, stop the current review and return to the authenticated installed bootstrap. The replacement exact base becomes the new trusted repository-policy root. Configuration, lock, `skills.enabled`, generated Skill provenance, output bindings, and generated projections must all be re-established from that base before review continues. If procedure revision or Skill bytes change, restart under the newly verified Skill.
+- If only head or unique merge base changes while pull-request identity, repository identity, and base remain stable, recompute the changed surface and refresh all affected evidence and semantic analysis.
 - If the histories become unrelated or have multiple best merge bases, fail closed.
 
-Serialization is allowed only when an immediately pre-serialization observation reproduces the fully analyzed repository identity, base, head, unique merge base, and bootstrap/procedure identity.
+Serialization is allowed only when an immediately pre-serialization observation reproduces the fully analyzed pull-request identity, repository identity, base, head, unique merge base, authenticated bootstrap identity, and verified procedure identity.
 
 ### Review output binding
 
@@ -98,7 +110,7 @@ The invocation supplies two explicit repository-relative output paths from the t
 
 Before use, the verified Skill requires both configured outputs to be enabled, their paths to match the supplied paths exactly, both to reference the same context, the semantic output renderer to be exactly `policy-context-md`, and the adapter renderer to be a supported adapter-only renderer such as `github-review-json-adapter-v1`.
 
-Configuration, lock, and projection paths must be repository-relative, root-confined, outside `.git` and reserved namespaces, and free of symlink components. Missing, unsafe, duplicate, disabled, role-swapped, unsupported, or otherwise ambiguous bindings fail closed.
+Configuration, lock, generated Skill/reference, and projection paths must be repository-relative, root-confined, outside `.git` and reserved namespaces, and free of symlink components. Missing, unsafe, duplicate, disabled, role-swapped, unsupported, or otherwise ambiguous bindings fail closed.
 
 Checked-in generated projections are not trusted from metadata alone. Their lock input/output digests must match and deterministic check/regeneration with the **toolchain revision pinned by the trusted base lock** must reproduce the semantic and adapter projections byte for byte. Stale, manually altered, unverifiable, or non-reproducible projection bytes fail closed.
 
@@ -136,7 +148,7 @@ Implement the decision in separate reviewed changes:
 
 1. record this architecture decision and freeze the accepted input inventory;
 2. classify every frozen input and add only genuinely missing atomic semantic review rules;
-3. extend the installed immutable `agent-policy` Skill with the single trusted `pr-review` bootstrap handoff, add `pr-review` as the sole review-execution procedure, retain only a thin non-normative invocation prompt, and introduce a transport-only GitHub adapter without changing the meaning of the transitional combined renderer;
+3. extend the stable Skill-installer/distribution contract to produce an independently verifiable installation attestation outside the installed Skill tree, extend the authenticated installed `agent-policy` Skill with the single trusted `pr-review` bootstrap handoff, add `pr-review` as the sole review-execution procedure, retain only a thin non-normative invocation prompt, and introduce a transport-only GitHub adapter without changing the meaning of the transitional combined renderer;
 4. harden merge-gate evidence so incomplete review analysis cannot satisfy independent-review requirements;
 5. harden stable-promotion verification for the new bootstrap/review/adapter capability and promote the reviewed toolchain revision; and
 6. update Policy self-hosting to the promoted full SHA, enable `pr-review`, generate bound and lock-verified review projections/Skill bytes, and remove obsolete `.github/REVIEW_GUIDELINES.md` through the canonical generator.
@@ -147,12 +159,13 @@ Reader-facing Site publication remains a separate cross-authority operation.
 
 - Review semantics remain engine- and provider-neutral.
 - The frozen revised-guidance inputs are reproducible migration evidence without becoming a competing authority.
-- Trust establishment is non-circular: installed immutable `agent-policy` bootstrap verifies `pr-review` before `pr-review` executes.
+- Trust establishment is non-circular: deployment authentication establishes the installed `agent-policy` Skill-source identity before that Skill bootstraps and verifies `pr-review`.
+- Bootstrap Skill-source identity and runtime identity remain distinct; `runtime-manifest.json` cannot substitute for installation provenance.
 - There is one current bootstrap path, one trusted repository-policy root, and one lock-selected repository procedure path; undefined override or alternate-loader mechanisms are rejected rather than inferred.
-- Stable repository identity is part of review evidence, preventing cross-repository/fork authority reuse based only on commit identity.
-- Base movement always returns control to bootstrap and re-establishes all trusted authority from the replacement base.
+- Pull-request identity and stable repository identity are both part of start/final review evidence, preventing cross-PR and cross-repository authority/evidence reuse based only on commit identity.
+- Base movement always returns control to authenticated bootstrap and re-establishes all trusted authority from the replacement base.
 - The verified `pr-review` Skill is the only review-execution procedural authority; the invocation prompt remains non-normative.
-- Managed lock/configuration disagreement, unsafe paths, stale generated bytes, ambiguous merge bases, or unavailable procedure authority fail closed.
+- Managed lock/configuration disagreement, unsafe or symlinked generated paths, stale generated bytes, ambiguous merge bases, or unavailable procedure authority fail closed.
 - Semantic and adapter projections are explicitly bound, role-checked, and byte-reproduced from the trusted lock-pinned toolchain.
 - GitHub transport requirements remain adapter-only; merge authorization remains pull-request-policy/procedure-only.
 - `.github/` remains a thin platform runtime/discovery boundary rather than a policy namespace.
