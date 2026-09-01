@@ -25,6 +25,10 @@ from scripts.translation_coverage import (
     build_reader_coverage,
     write_coverage,
 )
+from scripts.translation_fragment_reconciliation import (
+    TranslationFragmentReconciliationError,
+    reconcile_translation_fragments,
+)
 from scripts.translation_link_selection import rewrite_current_localized_links
 from scripts.translation_reader_metadata import exclude_translation_from_search
 
@@ -92,6 +96,12 @@ def main() -> int:
             docs_root,
             skip_stale=True,
         )
+        reconciled_fragment_count = reconcile_translation_fragments(
+            publications,
+            included_pages,
+            records,
+            docs_root,
+        )
         localized_link_count = rewrite_current_localized_links(records, docs_root)
         for record in records:
             exclude_translation_from_search(
@@ -111,6 +121,7 @@ def main() -> int:
             coverage,
         )
         print(f"translations published: {len(records)}")
+        print(f"canonical translation fragments reconciled: {reconciled_fragment_count}")
         print(f"localized reader links selected: {localized_link_count}")
         print(
             "reader navigation locales: "
@@ -126,6 +137,7 @@ def main() -> int:
         OSError,
         ReaderNavigationLocaleError,
         TranslationCoverageError,
+        TranslationFragmentReconciliationError,
         translation_publisher.TranslationPublicationError,
         RuntimeError,
     ) as exc:
