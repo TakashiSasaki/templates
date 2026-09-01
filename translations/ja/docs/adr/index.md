@@ -9,7 +9,6 @@
 * [ADR-0005: 単一のポリシー権威](0005-single-policy-authority.md) - 単一の正本ポリシー権威を確立し、生成された指示をその権威の投影として扱います。
 * [ADR-0006: コピー可能アーティファクトのポリシー導入](0006-copyable-artifact-policy-adoption.md) - コピー可能なテンプレートアーティファクトが、メンテナー専用リポジトリポリシーを取り込まずに共有ポリシーへオプトインする方法を定義します。
 * [ADR-0007: 単一 agent-policy Skill と永続 runtime cache](0007-single-agent-policy-skill-runtime-cache.md) - adoption 前後で同じ immutable な repository-facing Skill を使い、検証済み full-SHA runtime を再利用します。
-* [ADR-0008: レビュー権威と GitHub runtime 境界](0008-review-authority-and-github-runtime-boundary.md) - semantic review policy、review procedure、platform adapter、merge authorization、GitHub の path-based runtime integration を分離します。
 
 ## 置き換え済みの決定
 
