@@ -7,6 +7,7 @@
 * [ADR-0005: Single policy authority](0005-single-policy-authority.md) - Establishes one canonical policy authority and treats generated instructions as projections of that authority.
 * [ADR-0006: Copyable artifact policy adoption](0006-copyable-artifact-policy-adoption.md) - Defines how copyable template artifacts opt into shared policy without importing maintainer-only repository policy.
 * [ADR-0007: Single agent-policy skill with persistent runtime cache](0007-single-agent-policy-skill-runtime-cache.md) - Uses one immutable repository-facing skill before and after adoption and reuses validated full-SHA runtimes.
+* [ADR-0008: Review authority and GitHub runtime boundary](0008-review-authority-and-github-runtime-boundary.md) - Separates semantic review policy, review procedure, platform adapters, merge authorization, and GitHub path-based runtime integration.
 
 ## Superseded decisions
 
