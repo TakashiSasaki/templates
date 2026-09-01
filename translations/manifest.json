@@ -27,7 +27,7 @@
       "canonical": "components/artifact.webapp-core/files/README.md",
       "language": "ja",
       "translation": "translations/ja/components/artifact.webapp-core/files/README.md",
-      "canonical_blob_sha": "2eb43c39cd503013454a41c2ca90694d8481fa3b",
+      "canonical_blob_sha": "251024c10a126960a218593f53b5500f017a2ef0",
       "surfaces": ["reader"]
     },
     {
