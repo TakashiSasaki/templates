@@ -63,11 +63,16 @@ outputs:
     path: AGENTS.md
     context: coding
     renderer: agents-md
-  review:
+  review-guidelines:
     enabled: true
-    path: .github/REVIEW_GUIDELINES.md
+    path: .agents/review/REVIEW_GUIDELINES.md
     context: review
     renderer: policy-context-md
+  review-github-json:
+    enabled: true
+    path: .agents/review/GITHUB_REVIEW_JSON_V1.md
+    context: review
+    renderer: github-review-json-v1
 skills:
   enabled: []
 """,
@@ -83,7 +88,7 @@ def test_v2_renders_distinct_policy_contexts(tmp_path: Path) -> None:
     assert check.run(tmp_path, ".agent-policy.yml") == []
 
     agents = (tmp_path / "AGENTS.md").read_text(encoding="utf-8")
-    review = (tmp_path / ".github/REVIEW_GUIDELINES.md").read_text(
+    review = (tmp_path / ".agents/review/REVIEW_GUIDELINES.md").read_text(
         encoding="utf-8"
     )
 
@@ -106,38 +111,41 @@ def test_v2_renders_distinct_policy_contexts(tmp_path: Path) -> None:
     }
     assert set(lock["outputs"]) == {
         "AGENTS.md",
-        ".github/REVIEW_GUIDELINES.md",
+        ".agents/review/REVIEW_GUIDELINES.md",
+        ".agents/review/GITHUB_REVIEW_JSON_V1.md",
     }
 
 
-def test_v2_renders_github_review_json_adapter(tmp_path: Path) -> None:
+def test_v2_renders_github_review_json_as_adapter_only(tmp_path: Path) -> None:
     _write_v2_repository(tmp_path)
-    config_path = tmp_path / ".agent-policy.yml"
-    config_path.write_text(
-        config_path.read_text(encoding="utf-8").replace(
-            "renderer: policy-context-md",
-            "renderer: github-review-json-v1",
-        ),
-        encoding="utf-8",
-    )
 
     assert validate.run(tmp_path, ".agent-policy.yml") == []
     assert render.run(tmp_path, ".agent-policy.yml") == []
     assert check.run(tmp_path, ".agent-policy.yml") == []
 
-    review = (tmp_path / ".github/REVIEW_GUIDELINES.md").read_text(
+    semantic = (tmp_path / ".agents/review/REVIEW_GUIDELINES.md").read_text(
         encoding="utf-8"
     )
-    assert "renderer: github-review-json-v1" in review
-    assert "project.review-only" in review
-    assert "project.coding-only" not in review
-    assert "review.require-change-causality" in review
-    assert "security.validate-boundaries" in review
-    assert '"analysis_status": "COMPLETE"' in review
-    assert '"event": "REQUEST_CHANGES"' in review
-    assert '"side": "RIGHT"' in review
-    assert '"schema_version": 1' in review
-    assert "exactly one standard JSON object" in review
+    adapter = (tmp_path / ".agents/review/GITHUB_REVIEW_JSON_V1.md").read_text(
+        encoding="utf-8"
+    )
+
+    assert "renderer: policy-context-md" in semantic
+    assert "project.review-only" in semantic
+    assert "review.require-change-causality" in semantic
+    assert "security.validate-boundaries" in semantic
+
+    assert "renderer: github-review-json-v1" in adapter
+    assert "does not contain or redefine semantic review policy" in adapter
+    assert "Policy context: `review`" in adapter
+    assert "project.review-only" not in adapter
+    assert "review.require-change-causality" not in adapter
+    assert "security.validate-boundaries" not in adapter
+    assert '"analysis_status": "COMPLETE"' in adapter
+    assert '"event": "REQUEST_CHANGES"' in adapter
+    assert '"side": "RIGHT"' in adapter
+    assert '"schema_version": 1' in adapter
+    assert "exactly one standard JSON object" in adapter
 
 
 def test_v2_rejects_unknown_output_context(tmp_path: Path) -> None:
@@ -145,8 +153,9 @@ def test_v2_rejects_unknown_output_context(tmp_path: Path) -> None:
     config_path = tmp_path / ".agent-policy.yml"
     config_path.write_text(
         config_path.read_text(encoding="utf-8").replace(
-            "context: review",
-            "context: missing",
+            "context: review\n    renderer: policy-context-md",
+            "context: missing\n    renderer: policy-context-md",
+            1,
         ),
         encoding="utf-8",
     )
@@ -154,6 +163,6 @@ def test_v2_rejects_unknown_output_context(tmp_path: Path) -> None:
     diagnostics = validate.run(tmp_path, ".agent-policy.yml")
     assert any(
         item.code == "UNKNOWN_CONTEXT"
-        and item.path == "outputs.review.context"
+        and item.path == "outputs.review-guidelines.context"
         for item in diagnostics
     )
