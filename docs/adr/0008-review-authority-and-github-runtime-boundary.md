@@ -13,14 +13,15 @@ Recent automated-review design work also produced revised Review Guidelines and 
 
 ## Decision
 
-Separate automated pull-request review into four responsibility layers:
+Separate automated pull-request review into five responsibility layers:
 
 1. **Semantic review policy** defines reviewer-independent obligations and admissibility requirements for findings.
-2. **Review procedure** defines the operational sequence used to gather evidence and apply the selected review context.
-3. **Platform adapter** defines provider-specific transport, serialization, event names, and inline-location rules.
-4. **Platform runtime integration** contains files whose path or discovery semantics are imposed by the hosting platform.
+2. **Trusted procedure bootstrap** establishes which immutable review Skill is authorized to execute without consulting proposed-head bytes.
+3. **Review procedure** defines the operational sequence used by that verified Skill to gather evidence and apply the selected review context.
+4. **Platform adapter** defines provider-specific transport, serialization, event names, and inline-location rules.
+5. **Platform runtime integration** contains files whose path or discovery semantics are imposed by the hosting platform.
 
-No lower layer may redefine the semantics owned by a higher layer, and each layer has exactly one source authority for a given requirement.
+No lower layer may redefine the semantics owned by a higher layer, and each layer has exactly one source authority for a given requirement. Trusted procedure bootstrap is deliberately narrower than review procedure: it may establish repository identity, prior trust anchor, immutable runtime/procedure identity, and fail-closed handoff, but it must not perform review analysis or redefine review semantics.
 
 ### Semantic review policy
 
@@ -30,13 +31,35 @@ The frozen Review Guidelines inputs in `docs/review-guidance-inputs.md` are clas
 
 The frozen guidance inventory is therefore migration evidence, not a second normative policy document.
 
+### Trusted procedure bootstrap
+
+An unverified `pr-review` Skill must never participate in selecting or verifying its own authority. Before any review procedure executes, a trusted loader/dispatcher establishes the procedure identity and hands control to verified immutable Skill bytes.
+
+The canonical repository-facing bootstrap authority is the existing immutable `agent-policy` Skill runtime/loader contract. Its executable bootstrap implementation is distributed outside the reviewed pull-request head, pins its own toolchain/runtime identity through an immutable runtime manifest or an explicitly authorized immutable bootstrap revision, treats a managed repository lock as authoritative for the repository-selected toolchain, and fails closed rather than executing a mutable branch or a repository-local Skill discovered from the proposed head. A deployment may use an independently administered equivalent loader only when the repository contract explicitly authorizes that bootstrap authority; the proposed head and the candidate policy/procedure override may not authorize it.
+
+The bootstrap performs only these trust-establishment responsibilities before handing control to `pr-review`:
+
+1. establish and record the stable repository identity supplied by the hosting/repository system, together with the exact current target/base tip, before selecting any policy or procedure override;
+2. use that exact base snapshot as the prior repository trust anchor for authorization of any requested out-of-band repository-policy or procedure/toolchain override;
+3. select the active trusted repository-policy root only after that prior-anchor authorization succeeds;
+4. validate the active root's managed configuration/lock trust state sufficiently to determine its authoritative full-SHA toolchain pin and repository Skill enablement;
+5. when no separately authorized immutable procedure override exists, require the active trusted configuration to enable `pr-review` and resolve its procedure revision from the validated authoritative lock pin;
+6. when a separately authorized immutable procedure override exists, use only that immutable revision for `pr-review` procedure bytes while retaining the active repository lock as the toolchain authority for repository-policy projection validation;
+7. obtain `pr-review` only from the selected immutable procedure revision and verify its provenance before execution; and
+8. hand the recorded repository identity, prior authorization anchor, active policy root, validated lock/config identities, selected procedure revision, and any authorized overrides to the verified Skill as bootstrap evidence.
+
+The loader must never execute or delegate authority selection to a `pr-review` copy from the proposed head, a mutable branch/tag, or an unverified local generated Skill. If bootstrap cannot establish an authorized immutable procedure identity and provenance, automated review is unavailable and fails closed before review analysis begins.
+
+This bootstrap contract does not make the loader a second review procedure. It cannot decide changed-surface semantics, finding admissibility, severity, CI interpretation, review completeness, adapter events, or merge authorization. Those responsibilities remain with the verified review Skill, semantic policy, adapter, and merge-gate authorities respectively.
+
 ### Review procedure
 
-The dedicated automated pull-request review Skill is the **sole procedural authority** for review execution. It owns the ordered operations required to establish a review: exact target and comparison identity, trusted authority selection, complete changed-surface inspection, relevant-context discovery, evidence handling, target revalidation, semantic-policy application, adapter handoff, and the boundary that stops review before merge authorization.
+After trusted bootstrap hands control to verified immutable `pr-review` bytes, that Skill is the **sole procedural authority for review execution**. It owns the ordered review operations: exact target and comparison identity, complete changed-surface inspection, relevant-context discovery, evidence handling, target revalidation, semantic-policy application, adapter handoff, and the boundary that stops review before merge authorization. It consumes bootstrap evidence but does not retroactively select or authenticate itself.
 
-At review start the procedure records:
+At review start the procedure records and verifies against bootstrap evidence:
 
-- the exact current target/base tip, which is the default trusted repository-policy root;
+- the stable repository identity for the repository being reviewed;
+- the exact current target/base tip, which is the default trusted repository-policy root unless an authorized override was selected;
 - the exact proposed head; and
 - the complete set of best common ancestors between that base tip and proposed head.
 
@@ -46,25 +69,29 @@ The complete PR changed surface is defined as the repository change from that un
 
 The Skill must reference semantic policy instead of copying definitions such as severity, compatibility, security impact, or admissibility thresholds.
 
-The previously revised Canonical automated PR review prompt is not a second procedure authority. Its reusable retained form is a thin, explicitly non-normative invocation surface that supplies task and trust-binding parameters and directs the agent to execute a verified `pr-review` Skill. Procedural knowledge extracted from the revised prompt is incorporated into the Skill itself. If the prompt and Skill ever appear to disagree, the verified Skill governs and the prompt must be regenerated or corrected.
+The previously revised Canonical automated PR review prompt is not a second procedure authority. Its reusable retained form is a thin, explicitly non-normative invocation surface that supplies task and trust-binding parameters and directs the trusted bootstrap to load a verified `pr-review` Skill. Procedural knowledge extracted from the revised prompt is incorporated into the Skill itself. If the prompt and verified Skill ever appear to disagree, the verified Skill governs and the prompt must be regenerated or corrected.
 
 ### Trusted review authority root
 
-Reviewed content must not be allowed to choose or weaken either the semantic policy or the procedural code used to judge itself.
+Reviewed content must not be allowed to choose or weaken either the semantic policy, bootstrap authority, or procedural code used to judge itself.
 
-The exact current **base tip captured before selecting any override** is the default prior trust anchor for the review. By default it is also the active trusted repository-policy root. A caller may request an immutable out-of-band repository-policy root or procedure/toolchain revision only when that override mechanism is explicitly authorized by this prior trust anchor. The candidate override revision must never authorize itself, and proposed-head content must never authorize an override. If the prior base does not authorize the requested override mechanism, the review fails closed rather than consulting the candidate override for permission. A future independently administered trust-anchor mechanism would require its own explicit repository contract; it is not inferred here.
+The exact current **base tip captured before selecting any override** is the default prior repository trust anchor for the review. By default it is also the active trusted repository-policy root. A caller may request an immutable out-of-band repository-policy root or procedure/toolchain revision only when that override mechanism and requested identity are explicitly authorized by this prior trust anchor. The candidate override revision must never authorize itself, and proposed-head content must never authorize an override. If the prior base does not authorize the requested override mechanism or identity, bootstrap fails closed rather than consulting the candidate override for permission. A future independently administered trust-anchor mechanism would require its own explicit repository contract; it is not inferred here.
 
 When an authorized repository-policy override is selected, that immutable revision becomes the active trusted repository-policy root. The reviewer reads `.agent-policy.yml`, `.agent-policy.lock`, repository-local policy inputs, generated review projections, and their recorded provenance only from that active trusted snapshot. Changes on the proposed head to policy configuration, lock state, policy modules, generated review instructions, adapter configuration, generated Skills, or related authority material are review data, not active instructions for that same review.
 
-For a repository-bound review, the active trusted root must contain a valid `.agent-policy.yml` and `.agent-policy.lock`. The lock is the authoritative managed-runtime pin: its `toolchain.repository` and full-SHA `toolchain.revision` must be valid and must agree exactly with the corresponding configuration values. A missing or malformed lock, a configuration/lock disagreement, an input-digest mismatch, or other lock-integrity failure causes the review procedure to fail closed rather than selecting the configuration pin independently.
+For a repository-bound review, the active trusted root must contain a valid `.agent-policy.yml` and `.agent-policy.lock`. The lock is the authoritative managed-runtime pin: its `toolchain.repository` and full-SHA `toolchain.revision` must be valid and must agree exactly with the corresponding configuration values. A missing or malformed lock, a configuration/lock disagreement, an input-digest mismatch, or other lock-integrity failure causes bootstrap/review to fail closed rather than selecting the configuration pin independently.
 
-The procedural Skill is resolved independently of the proposed head. Unless the caller supplies a separately authorized immutable trusted procedure/toolchain revision, the reviewer derives the procedure revision from the **active trusted repository-policy root's validated lock pin**, not from the original base snapshot and not from `.agent-policy.yml` alone. The active trusted configuration must also list `pr-review` in `skills.enabled`; a toolchain merely containing that Skill does not authorize its execution. The loader resolves `pr-review` only from the validated full-SHA toolchain revision and verifies the Skill source/generated provenance against that immutable revision before executing it. A repository-local or generated `pr-review` copy from the proposed head is never executed merely because it is newer or locally discoverable.
+The procedural Skill is resolved independently of the proposed head. Unless the prior trust anchor authorizes a separately supplied immutable trusted procedure/toolchain revision, bootstrap derives the procedure revision from the **active trusted repository-policy root's validated lock pin**, not from `.agent-policy.yml` alone. The active trusted configuration must also list `pr-review` in `skills.enabled`; a toolchain merely containing that Skill does not authorize its execution. Bootstrap resolves `pr-review` only from the validated full-SHA procedure revision and verifies Skill provenance against that immutable revision before executing it. A repository-local or generated `pr-review` copy from the proposed head is never executed merely because it is newer or locally discoverable.
 
-An explicitly authorized out-of-band trusted procedure/toolchain revision is a separate procedure-selection authority supplied by the caller after authorization has been established from the prior base trust anchor. Such an override may be used even when the active repository configuration does not enable `pr-review`. The override revision must be immutable, recorded in the review evidence, and selected independently of reviewed head content. An authorized repository-policy-root override without a separate procedure override does **not** bypass repository procedure selection: default procedure availability and pinning are evaluated against that selected active repository-policy root.
+An explicitly authorized out-of-band trusted procedure/toolchain revision is a separate procedure-selection authority supplied by the caller after authorization has been established from the prior base trust anchor. Such an override may be used even when the active repository configuration does not enable `pr-review`. The override revision must be immutable, recorded in bootstrap/review evidence, and selected independently of reviewed head content. An authorized repository-policy-root override without a separate procedure override does **not** bypass repository procedure selection: default procedure availability and pinning are evaluated against that selected active repository-policy root.
 
-If the active trusted repository-policy root does not validly select and enable a toolchain revision containing `pr-review`, and no authorized out-of-band trusted procedure revision is supplied, the automated review procedure is unavailable and must fail closed rather than falling back to a head-side Skill.
+If the active trusted repository-policy root does not validly select and enable a toolchain revision containing `pr-review`, and no authorized out-of-band trusted procedure revision is supplied, automated review is unavailable and must fail closed rather than falling back to a head-side Skill.
 
-Immediately before final serialization, the procedure re-resolves the base tip, proposed head, and complete set of best common ancestors. The set must still contain exactly one merge-base. If the base, head, unique merge-base, or merge-base cardinality differs from the identities used by the current analysis, the review is stale: it replaces the recorded target/comparison identities, recomputes the merge-base→head changed surface, refreshes affected evidence and semantic analysis, and repeats the final observation. When the repository-policy root is the default base tip, a changed base requires re-establishing the trust bootstrap from the new base, including configuration/lock integrity, Skill enablement, procedure pin, output bindings, and generated projections. If that bootstrap resolves a procedure revision different from the Skill currently executing, the current run must stop and the review must restart under the newly verified Skill before any further analysis or serialization. The old Skill cannot hand-wave or emulate requirements owned by the new procedure revision. An explicit out-of-band repository-policy root remains fixed unless the caller explicitly replaces it, but target/comparison identities and affected evidence must still be refreshed. Serialization is reached only when an immediately pre-serialization observation reproduces the fully analyzed base, head, and unique merge-base identities.
+Immediately before final serialization, the procedure re-resolves the stable repository identity, base tip, proposed head, and complete set of best common ancestors. Repository identity must still refer to the same repository contract used by bootstrap; commit identity alone is insufficient across forks or repositories. The ancestor set must still contain exactly one merge-base.
+
+If the base tip changes, every active out-of-band repository-policy or procedure override must be **reauthorized against the replacement exact base snapshot before review continues**, even when the override revision itself would otherwise remain fixed. If the new base does not authorize the same override mechanism and immutable identity, the current review fails closed or restarts using authority newly selected under the replacement base; the old authorization cannot be carried forward. When this rebootstrap selects a procedure revision different from the Skill currently executing, the current run stops and the review restarts under the newly verified Skill before any further analysis or serialization. The old Skill cannot emulate requirements owned by the new procedure revision.
+
+After any repository identity, base, head, unique merge-base, merge-base cardinality, policy-root authorization, or procedure identity change, the review is stale. It replaces the recorded identities, recomputes the unique merge-base→head changed surface, refreshes affected evidence and semantic analysis, and repeats the final observation. An explicit out-of-band repository-policy root may remain the selected root only while each replacement base reauthorizes it. Serialization is reached only when an immediately pre-serialization observation reproduces the fully analyzed repository identity, base, head, unique merge-base, active policy-root authorization, and verified procedure identity.
 
 ### Review output binding
 
@@ -91,11 +118,11 @@ A GitHub adapter is bound to the same semantic context as the provider-neutral r
 
 Automated review and merge gating are separate operational contexts.
 
-The review procedure determines whether changed code contains material, evidence-backed findings under the trusted review policy. Merge-gate policy and procedure determine whether the exact current head is authorized to merge based on CI, independent review, unresolved threads, base freshness, mergeability, and other lifecycle evidence.
+The review procedure determines whether changed code contains material, evidence-backed findings under the trusted review policy. Merge-gate policy and procedure determine whether the exact current head is authorized to merge based on CI, independently completed review analysis, unresolved threads, base freshness, mergeability, and other lifecycle evidence.
 
 The review procedure collects and revision-binds CI or remote evidence when material, but the selected semantic review policy determines how that evidence affects a finding or limitation. Procedure and adapter layers do not independently classify pending, missing, successful, failed, stale, or inaccessible CI as either a defect or a clean result.
 
-Existing `policy/pull-request/*` and `skills/pr-merge-gate/*` continue to own merge-readiness and merge-authorization semantics and procedure.
+Existing `policy/pull-request/*` and `skills/pr-merge-gate/*` continue to own merge-readiness and merge-authorization semantics and procedure. In particular, a provider-recorded review object is not automatically proof that required independent review analysis completed; merge-gate evidence must establish completion under the applicable review contract.
 
 ### `.github/` runtime boundary
 
@@ -119,9 +146,10 @@ Implement the decision in separate reviewed changes:
 
 1. record this authority and runtime-boundary decision and freeze the accepted design-input inventory;
 2. perform a statement-level disposition of `docs/review-guidance-inputs.md` and add only genuinely missing atomic review semantics;
-3. add the dedicated automated PR-review Skill as the sole procedural authority, retain only a thin non-normative invocation prompt, and introduce a transport-only GitHub adapter without silently changing the meaning of an existing combined renderer;
-4. promote the resulting reviewed toolchain revision through the existing stable-release process; and
-5. update policy self-hosting configuration to the promoted full SHA, enable the trusted `pr-review` Skill, generate explicitly bound and lock-verified review projections and Skill bytes from that trusted toolchain, and remove the obsolete `.github/REVIEW_GUIDELINES.md` through the canonical generated-output lifecycle.
+3. extend the immutable agent-policy Skill runtime/loader with the minimal trusted `pr-review` bootstrap handoff, add the dedicated automated PR-review Skill as the sole review-execution procedure authority, retain only a thin non-normative invocation prompt, and introduce a transport-only GitHub adapter without silently changing the meaning of an existing combined renderer;
+4. harden merge-gate evidence so incomplete review analysis cannot satisfy the independent-review requirement;
+5. harden stable-promotion verification for the newly declared review/bootstrap capability and promote the resulting reviewed toolchain revision through the existing stable-release process; and
+6. update policy self-hosting configuration to the promoted full SHA, enable `pr-review`, generate explicitly bound and lock-verified review projections and Skill bytes from that trusted toolchain, and remove the obsolete `.github/REVIEW_GUIDELINES.md` through the canonical generated-output lifecycle.
 
 Reader-facing Site publication changes, if any, remain a separate cross-authority publication operation and must not be coupled implicitly to the Policy implementation change.
 
@@ -129,9 +157,11 @@ Reader-facing Site publication changes, if any, remain a separate cross-authorit
 
 - Review semantics remain engine- and provider-neutral.
 - The accepted insights from the two revised review documents are reproducibly frozen without making the documents competing authorities.
-- The verified `pr-review` Skill is the only procedural authority; the canonical invocation prompt is thin and non-normative.
-- Reviewed head content cannot silently change either the semantic policy or the procedural Skill used to evaluate itself.
-- Override authorization is anchored in the exact prior base snapshot rather than the candidate override or reviewed head.
+- The immutable agent-policy runtime/loader establishes trusted procedure provenance before `pr-review` executes; an unverified review Skill never verifies itself.
+- The verified `pr-review` Skill is the only review-execution procedural authority; the canonical invocation prompt is thin and non-normative.
+- Reviewed head content cannot silently change bootstrap authority, semantic policy, or the procedural Skill used to evaluate itself.
+- Repository identity is part of review evidence together with exact revision identities, preventing cross-repository/fork ambiguity from commit identity alone.
+- Override authorization is anchored in the exact prior base snapshot rather than the candidate override or reviewed head, and every active override is reauthorized after base movement.
 - The base tip is the default trusted policy root, while one verified unique merge-base independently defines the PR-introduced changed surface; ambiguous merge-base histories fail closed.
 - The default procedure revision is derived from the active trusted root's authoritative lock and requires repository enablement; an authorized caller may instead supply an explicit immutable out-of-band procedure revision.
 - A base-driven procedure change causes a full restart under the newly verified Skill rather than allowing stale procedural authority to continue.
@@ -139,7 +169,7 @@ Reader-facing Site publication changes, if any, remain a separate cross-authorit
 - Review output paths are explicit invocation inputs and are verified to bind to one trusted context with the expected renderer roles and reproducible bytes rather than inferred from names.
 - Projection generation/verification always uses the active trusted lock's toolchain revision even when a separate procedure override is in force.
 - GitHub JSON/event/location details remain adapter concerns; finding selection remains semantic policy.
-- Automated review cannot silently absorb merge-gate responsibilities.
+- Automated review cannot silently absorb merge-gate responsibilities, and an incomplete submitted review cannot silently satisfy merge authorization.
 - `.github/` becomes a thin GitHub runtime/discovery boundary instead of a generic container for GitHub-related policy documents.
 - Generated review artifacts remain inspectable while retaining explicit provenance and non-authoritative status.
 - The current migration can proceed without a configuration-schema version change because the missing Skill/output association is supplied and validated as explicit invocation data rather than inferred configuration.
