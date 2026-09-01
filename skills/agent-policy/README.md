@@ -51,6 +51,31 @@ The distribution deliberately separates three revision roles:
 - the **skill source revision** is embedded by that installer and identifies the downloaded skill tree; and
 - the **stable runtime revision** is the independent full SHA in `runtime-manifest.json` used to execute the canonical CLI.
 
+### Installation provenance for trusted automated review
+
+Normal repository-management use does not require a persistent installation attestation. A deployment that intends to use this installed Skill as the trusted bootstrap authority for automated pull-request review has a stronger requirement: it must preserve independent evidence for the installed Skill-source bytes before those bytes are allowed to select `pr-review`.
+
+Such a deployment executes the remote installer from an independently pinned full-SHA URL and supplies that same trusted installer revision together with a deployment-managed attestation path outside the installed Skill tree:
+
+```text
+python <pinned-installer.py> /path/to/agent-policy \
+  --installer-revision <pinned-installer-full-sha> \
+  --attestation /protected/deployment-state/agent-policy-installation.json
+```
+
+The installer writes a deterministic record binding the installer repository/full SHA, embedded Skill-source repository/full SHA, exact installed root, and SHA-256 digest of every installed Skill file. The attestation is not review authority merely because it exists; the deployment must keep it under an independently trusted/protected state boundary and must already trust the installer SHA used to create or verify it.
+
+Before automated-review bootstrap, the deployment re-fetches or otherwise authenticates the same exact-SHA installer script and verifies the installed bytes without reinstalling:
+
+```text
+python <pinned-installer.py> /path/to/agent-policy \
+  --installer-revision <pinned-installer-full-sha> \
+  --attestation /protected/deployment-state/agent-policy-installation.json \
+  --verify-only
+```
+
+A missing, mismatched, symlinked, or tampered installation fails this verification. `runtime-manifest.json` remains a separate runtime-selection contract and cannot substitute for Skill-source installation provenance.
+
 ## Installation during repository development
 
 A reviewed checkout can install the skill tree from that checkout:
@@ -61,4 +86,4 @@ python skills/agent-policy/scripts/install.py /path/to/agent-skills/agent-policy
 
 Use `--replace` only when the existing destination is already an `agent-policy` skill installation.
 
-This local-checkout path is intended for repository development and review. It installs the checkout's current `skills/agent-policy/` subtree and therefore is not necessarily byte-for-byte identical to the currently published remote distribution unless the checkout matches the skill-source revision recorded by the publication descriptor.
+This local-checkout path is intended for repository development and review. It installs the checkout's current `skills/agent-policy/` subtree and therefore is not necessarily byte-for-byte identical to the currently published remote distribution unless the checkout matches the skill-source revision recorded by the publication descriptor. A local-checkout installation is not eligible as trusted automated-review bootstrap merely because its runtime manifest is valid; it needs the independently authenticated deployment installation provenance described above.
