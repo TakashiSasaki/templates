@@ -7,6 +7,8 @@ from agent_policy.renderer import render_skill
 ROOT = Path(__file__).resolve().parents[1]
 SKILL_ROOT = ROOT / "skills/pr-review"
 AGENT_POLICY_SKILL = ROOT / "skills/agent-policy/SKILL.md"
+AGENT_POLICY_RUN = ROOT / "skills/agent-policy/scripts/run.py"
+AGENT_POLICY_BOOTSTRAP = ROOT / "skills/agent-policy/scripts/bootstrap.py"
 
 
 def test_pr_review_skill_layout_and_config_path_rendering() -> None:
@@ -52,7 +54,7 @@ def test_agent_policy_skill_owns_one_trusted_review_bootstrap_path() -> None:
     assert "future alternate authority path requires" in bootstrap
     assert "The proposed head is never an authority input to bootstrap" in bootstrap
     assert (
-        "python scripts/run.py --repository <trusted-base-snapshot> check "
+        "python -B scripts/run.py --repository <trusted-base-snapshot> check "
         "--config <config-path>"
     ) in bootstrap
     assert "select the managed runtime from that snapshot's `.agent-policy.lock`" in bootstrap
@@ -84,6 +86,22 @@ def test_agent_policy_bootstrap_requires_external_installation_authentication() 
     assert "Never substitute `runtime-manifest.json`" in bootstrap
     assert "authenticated bootstrap installer and Skill-source revisions" in bootstrap
     assert "installation-attestation digest" in bootstrap
+
+
+def test_agent_policy_bootstrap_execution_cannot_mutate_attested_tree() -> None:
+    bootstrap = AGENT_POLICY_SKILL.read_text(encoding="utf-8")
+    run_source = AGENT_POLICY_RUN.read_text(encoding="utf-8")
+    bootstrap_source = AGENT_POLICY_BOOTSTRAP.read_text(encoding="utf-8")
+
+    assert "immutable trust material" in bootstrap
+    assert "must not create `__pycache__`" in bootstrap
+    assert "sys.dont_write_bytecode" in bootstrap
+    assert "python -B" in bootstrap
+    assert "Runtime/cache state belongs outside the attested Skill root" in bootstrap
+
+    for source in (run_source, bootstrap_source):
+        assert "sys.dont_write_bytecode = True" in source
+        assert source.index("sys.dont_write_bytecode = True") < source.index("from runtime import")
 
 
 def test_agent_policy_bootstrap_allows_only_verified_base_generated_review_skill() -> None:
@@ -195,7 +213,7 @@ def test_pr_review_skill_requires_explicit_output_and_renderer_binding() -> None
     assert "do not guess from names" in skill
 
 
-def test_pr_review_skill_verifies_projection_bytes_before_use() -> None:
+def test_pr_review_skill_verifies_and_pins_projection_bytes_for_serialization() -> None:
     skill = (SKILL_ROOT / "SKILL.md").read_text(encoding="utf-8")
 
     assert "Verify the bound semantic and adapter projections before consuming them" in skill
@@ -205,6 +223,21 @@ def test_pr_review_skill_verifies_projection_bytes_before_use() -> None:
     assert "byte-for-byte identical" in skill
     assert "A stale, manually altered, unverifiable, or non-reproducible projection" in skill
     assert "a lock digest alone is not proof" in skill
+    assert "Bind the exact verified semantic and adapter bytes to this review run" in skill
+    assert "immutable in-memory/content-addressed copies" in skill
+    assert "reverify the source bytes immediately before every later consumption" in skill
+    assert "Do not silently reopen mutable projection paths after verification" in skill
+    assert "exact run-bound platform adapter bytes" in skill
+
+
+def test_pr_review_skill_discards_semantic_result_after_base_change() -> None:
+    skill = (SKILL_ROOT / "SKILL.md").read_text(encoding="utf-8")
+
+    assert "If the base tip changes" in skill
+    assert "Discard **all** review evidence classifications, semantic analysis" in skill
+    assert "candidate serialized result produced under the old trusted root" in skill
+    assert "execute the complete review procedure again from step 1" in skill
+    assert "mandatory even when bootstrap returns the same verified procedure revision" in skill
 
 
 def test_canonical_prompt_is_a_thin_non_normative_invocation() -> None:
@@ -291,6 +324,7 @@ def test_pr_review_skill_rechecks_pr_repository_base_head_until_stable() -> None
     stable = (
         "immediately pre-serialization observation reproduces the fully analyzed "
         "pull-request identity, repository identity, base, head, unique merge-base, "
-        "and current bootstrap/procedure identity"
+        "current bootstrap/procedure identity, and exact semantic/adapter projection "
+        "identities used by the analysis"
     )
     assert stable in skill
