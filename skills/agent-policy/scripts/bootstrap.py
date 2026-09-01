@@ -9,6 +9,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+# The installed Skill tree can be deployment-attested trust material. Prevent
+# importing sibling modules from creating __pycache__ entries inside that tree.
+sys.dont_write_bytecode = True
+
 from runtime import (
     cli_command,
     ensure_runtime,
