@@ -74,13 +74,26 @@ def test_agent_policy_bootstrap_requires_external_installation_authentication() 
     assert "outside both the installed Skill tree and the repository under review" in bootstrap
     assert "full-SHA installer revision" in bootstrap
     assert "immutable Skill-source revision" in bootstrap
-    assert "SHA-256 digests for **every installed Skill file**" in bootstrap
+    assert "closed path/type inventory for the complete installed Skill tree" in bootstrap
+    assert "SHA-256 for every regular file" in bootstrap
+    assert "Verification requires exact inventory equality" in bootstrap
+    assert "additional files or directories" in bootstrap
     assert "--attestation <path> --installer-revision <trusted-installer-sha>" in bootstrap
     assert "--verify-only" in bootstrap
     assert "authenticate the installer script itself" in bootstrap
     assert "Never substitute `runtime-manifest.json`" in bootstrap
     assert "authenticated bootstrap installer and Skill-source revisions" in bootstrap
     assert "installation-attestation digest" in bootstrap
+
+
+def test_agent_policy_bootstrap_allows_only_verified_base_generated_review_skill() -> None:
+    bootstrap = AGENT_POLICY_SKILL.read_text(encoding="utf-8")
+
+    assert "sole repository-local review-procedure bytes permitted" in bootstrap
+    assert "trusted-base generated `pr-review` Skill and declared references" in bootstrap
+    assert "passed steps 6-8" in bootstrap
+    assert "another unverified repository-local Skill" in bootstrap
+    assert "any `agent-policy`/`pr-review` bytes from the proposed head" in bootstrap
 
 
 def test_agent_policy_bootstrap_rejects_symlinked_generated_skill_paths() -> None:
