@@ -19,7 +19,7 @@
 9. **Checkpoint planning** — implementation 開始前に planning state を validate し、machine-projected planning checkpoint action を実行する。
 10. **Implement content and presentation** — consumer-owned HTML/CSS/assets と宣言済み browser identity asset を実装する。
 11. **Run product and browser proof** — content と browser-sensitive Website target を real browser-backed evidence で証明する。
-12. **Populate and validate product evidence** — proof command と record を接続し、truthful な場合だけ `product` mode に切り替え、保存された planning baseline に対して validate する。
+12. **Populate and validate product evidence** — proof command、release gate、record、stable requirement を接続し、truthful な場合だけ `product` mode に切り替え、保存された planning baseline に対して validate する。
 13. **Checkpoint product** — machine-projected product checkpoint action を実行し、閉じた lifecycle transition を再 validate する。
 14. **Optional capabilities** — product が実際に support または必要とするときだけ PWA/runtime/service/interface/release-bundle behavior を追加する。
 15. **Evaluate release readiness** — machine-projected `check-release-readiness` action を実行する。required browser proof が deferred なら結果は `not-ready` になる。
@@ -290,9 +290,24 @@ source inspection、HTTP fetch success、unit test、contract declaration だけ
 
 ## 12. Product evidence を記録して planning に対して validate する
 
-implementation boundary と実 proof command が存在してから `contracts/implementation-evidence.json` を `mode: "product"` にします。
+implementation boundary と具体的な proof harness が存在してから `contracts/implementation-evidence.json` を `mode: "product"` にします。step 7 の exact two-page Project Docs baseline では、`examples/onboarding/project-docs/implementation-evidence.product.json` が step 8 の planning example から導出した machine-checked product graph です。
 
-各 required Website target について、current record は1つ、browser-sensitive record は requirement から link、必要な positive/negative browser-backed evidence を記録し、browser-level proof の authoritative command は execution capability `browser` を宣言します。unrelated capability record を Website target に複製しません。
+checked-in product example はすべての proof `status` を意図的に `deferred` のままにしています。これにより consumer がまだ browser/discovery proof を実行していないのに verified と偽ることなく structural product evidence を validate できます。したがって実 proof が完了するまで release-readiness は `not-ready` のままです。Project Docs で例を使う前に、参照される repository proof harness `tests/verify_project_docs_browser.py` と `tests/verify_project_docs_discovery.py` を作成するか、`commands` と harness locator を実際の proof program に置換します。
+
+Product evidence は単なる record list ではなく cross-reference graph です。
+
+1. `commands` は executable proof harness と execution capability を宣言する。negative evidence に使う command は `supportsNegativePath: true` を宣言する。
+2. 各 `releaseGates[].commandIds` は gate が実際に実行する proof command を列挙する。
+3. 各 record の positive/negative proof は `commandId` でその proof を生成した command を参照する。
+4. 各 record の `releaseGateIds` は、その record が使う **すべて** の proof command を `commandIds` に含む selected gate を少なくとも1つ参照する。
+5. planning の stable requirement は同じ `id`、`targets`、`requiredPositiveProofKinds` を維持し、planning 時に空だった `recordIds` を、その target を正確に cover する product record に置換する。
+6. unused command または release gate を evidence document に残さない。product validation は unknown reference だけでなく unused graph node も拒否する。
+
+Project Docs example では browser-sensitive record はすべて `project-docs-browser-proof` を参照し `project-docs-browser-gate` を選択します。discovery record は `project-docs-discovery-proof` を参照し `project-docs-discovery-gate` を選択します。browser gate の `commandIds` は browser proof command を含み、discovery gate の `commandIds` は discovery proof command を含みます。これにより evidence が参照する command が、その record が選択した release gate の実行対象であることを保証します。
+
+各 required Website target について、current record は1つだけにし、すべての record をその target を所有する stable requirement から link します。必要な positive/negative browser-backed evidence を記録し、browser-level proof の authoritative command は execution capability `browser` を宣言します。各 linked record は有効な `releaseGateIds` を少なくとも1つ持ち、その gate が record の全 proof command を実行しなければなりません。unrelated capability record を Website target に複製しません。
+
+実 proof command が成功した後だけ、proof の locator、command、description、expected result が実際に実行した proof を truthful に表す場合に `deferred` から `verified` へ変更します。release-readiness を green にする目的で example の deferred status を一括変換してはいけません。
 
 ```sh
 python /absolute/path/to/agent-skills/composition/scripts/run.py \
@@ -301,7 +316,7 @@ python /absolute/path/to/agent-skills/composition/scripts/run.py \
   validate
 ```
 
-Product-mode validation は step 9 の validated planning checkpoint を要求し、stable requirement と required proof kind が planning baseline と一致することを確認します。
+Product-mode validation は step 9 の validated planning checkpoint を要求し、stable requirement と required proof kind が planning baseline と一致することを確認します。また missing release gate、unknown command/gate reference、selected release gate が実行しない proof command、unused command/gate を fail closed で拒否します。
 
 ## 13. Mandatory product checkpoint を作って再 validate する
 
@@ -352,7 +367,7 @@ Project Docs がこの walkthrough で complete なのは次がすべて true �
 - actual page/content/navigation と `favicon.svg` など宣言済み browser-identity asset が consumer-owned implementation に存在する
 - implementation 前に validated planning checkpoint があり、product checkpoint が transition を閉じている
 - required product check と real browser-backed positive/negative evidence が完了している
-- implementation evidence は truthful な `product` mode で、browser-sensitive record が requirement-linked である
+- implementation evidence は truthful な `product` mode で、すべての Website record が requirement-linked、すべての linked record が release gate を選択し、すべての proof command がその selected gate から実行される
 - product checkpoint 後の Composition validation が成功する
 - machine-projected `check-release-readiness` action を実際に実行し structured result を記録している
 - required deferred proof が silently waived されず `release_readiness` を `not-ready` に保つ
