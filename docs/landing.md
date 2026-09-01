@@ -16,7 +16,7 @@
     </p>
     <div class="portal-cover__actions">
       <a class="portal-cover__button portal-cover__button--primary" href="web/">
-        Choose Website or Web application <span aria-hidden="true">→</span>
+        Website or Web application <span aria-hidden="true">→</span>
       </a>
       <a class="portal-cover__button portal-cover__button--secondary" href="composition/use/skill-first-use-walkthrough/">
         Create an Agent Skill <span aria-hidden="true">→</span>
@@ -24,7 +24,7 @@
     </div>
     <ul class="portal-cover__signals" role="list">
       <li>Start with a concrete task; learn the architecture later.</li>
-      <li>Composition owns browser-product selection and the shared Web semantics behind the public Website and Web application routes.</li>
+      <li>Composition owns browser-product selection and shared Web semantics.</li>
       <li>Policy is optional and independent from Composition.</li>
     </ul>
   </div>
