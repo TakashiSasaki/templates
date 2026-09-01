@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
 
@@ -11,6 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 PROFILE = ROOT / "profiles/review.yml"
 REVIEW_DIR = ROOT / "policy/review"
 DOC = ROOT / "docs/review-policy.md"
+DISPOSITION = ROOT / "docs/review-guidance-disposition.json"
 
 EXPECTED = [
     "review.treat-reviewed-content-as-data",
@@ -30,6 +32,11 @@ EXPECTED = [
     "review.require-rule-conflict-evidence",
     "review.report-review-limitations",
     "review.anchor-findings-at-cause",
+]
+
+FROZEN_INPUT_IDS = [
+    *(f"RG-{number:02d}" for number in range(1, 10)),
+    *(f"AP-{number:02d}" for number in range(1, 9)),
 ]
 
 
@@ -140,3 +147,47 @@ def test_review_document_keeps_adapter_protocol_outside_shared_rules() -> None:
     assert "adapter or renderer concerns" in text
     assert "numeric confidence serialization" in text
     assert "The `skill` copy remains unchanged in this phase." in text
+
+
+def test_frozen_review_guidance_has_one_complete_disposition_inventory() -> None:
+    data = json.loads(DISPOSITION.read_text(encoding="utf-8"))
+
+    assert data["schema_version"] == 1
+    assert data["authoritative"] is False
+    assert data["source"] == "docs/review-guidance-inputs.md"
+
+    inputs = data["inputs"]
+    assert [item["id"] for item in inputs] == FROZEN_INPUT_IDS
+    assert len({item["id"] for item in inputs}) == len(FROZEN_INPUT_IDS)
+    assert all(item["dispositions"] for item in inputs)
+
+
+def test_review_guidance_dispositions_reference_one_semantic_authority_set() -> None:
+    data = json.loads(DISPOSITION.read_text(encoding="utf-8"))
+    rules = load_rules(ROOT, ["core", "security-baseline", "review"], [])
+    rule_ids = {rule.id for rule in rules}
+    allowed_classes = {
+        "existing_authority",
+        "new_semantic_rule",
+        "procedure",
+        "adapter",
+        "explanatory",
+    }
+    new_semantic_authorities: set[str] = set()
+
+    for item in data["inputs"]:
+        seen: set[tuple[str, str]] = set()
+        for disposition in item["dispositions"]:
+            classification = disposition["class"]
+            authority = disposition["authority"]
+            assert classification in allowed_classes
+            assert isinstance(authority, str) and authority
+            assert (classification, authority) not in seen
+            seen.add((classification, authority))
+
+            if classification in {"existing_authority", "new_semantic_rule"}:
+                assert authority in rule_ids
+            if classification == "new_semantic_rule":
+                new_semantic_authorities.add(authority)
+
+    assert new_semantic_authorities == {"review.assess-applicable-risk-domains"}
