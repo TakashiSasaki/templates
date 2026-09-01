@@ -53,6 +53,20 @@ def test_pr_review_skill_uses_a_trusted_base_policy_root_by_default() -> None:
     assert "out-of-band repository-policy root remains fixed" in skill
 
 
+def test_pr_review_override_authorization_uses_the_prior_base_anchor() -> None:
+    skill = (SKILL_ROOT / "SKILL.md").read_text(encoding="utf-8")
+    prompt = (
+        SKILL_ROOT / "references/canonical-github-pr-review-prompt.md"
+    ).read_text(encoding="utf-8")
+
+    assert "before selecting any override" in skill
+    assert "prior trust anchor for override authorization" in skill
+    assert "Never consult the candidate override revision or proposed head" in skill
+    assert "prior base does not authorize the requested override mechanism" in skill
+    assert "prior snapshot as the override-authorization anchor" in prompt
+    assert "candidate override revision or proposed head" in prompt
+
+
 def test_pr_review_skill_binds_its_own_bytes_to_trusted_lock() -> None:
     skill = (SKILL_ROOT / "SKILL.md").read_text(encoding="utf-8")
 
@@ -88,6 +102,8 @@ def test_pr_review_skill_verifies_projection_bytes_before_use() -> None:
     assert "Verify the bound semantic and adapter projections before consuming them" in skill
     assert "matching input and output digests" in skill
     assert "deterministic check/regeneration" in skill
+    assert "toolchain revision pinned by that active trusted lock" in skill
+    assert "procedure/toolchain override governs only the `pr-review` Skill bytes" in skill
     assert "byte-for-byte identical" in skill
     assert "A stale, manually altered, unverifiable, or non-reproducible projection" in skill
     assert "a lock digest alone is not proof" in skill
@@ -170,6 +186,7 @@ def test_pr_review_skill_rechecks_base_head_and_merge_base_until_stable() -> Non
     assert "histories become unrelated or have multiple best merge bases" in skill
     assert "recompute the unique merge-base→head changed surface" in skill
     assert "stop this run and restart from the bootstrap step" in skill
+    assert "old Skill must not continue" in skill
     stable = (
         "immediately pre-serialization observation still matches the fully "
         "analyzed base, head, and unique merge-base identities"
