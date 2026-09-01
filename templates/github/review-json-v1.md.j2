@@ -1,0 +1,89 @@
+<!--
+agent-policy-generated: true
+configuration: {{ config.relative_path }}
+context: {{ context_name }}
+renderer: github-review-json-v1
+DO NOT EDIT DIRECTLY
+-->
+
+# GitHub blocking-review JSON adapter
+
+This document is a GitHub transport adapter only. It does not contain or redefine semantic review policy. Apply the provider-neutral review-policy output rendered from the same `{{ context_name }}` context before using this adapter. If that semantic input is unavailable, do not infer its rules from this adapter or treat the absence as a clean review.
+
+## Adapter identity
+
+- Semantic configuration: `{{ config.relative_path }}`
+- Policy context: `{{ context_name }}`
+- Pinned shared toolchain: `{{ config.data.toolchain.repository }}@{{ config.data.toolchain.revision }}`
+{% if project_policy_files %}- Repository policy inputs selected by the context:
+{% for path in project_policy_files %}  - `{{ path }}`
+{% endfor %}{% endif %}
+
+This adapter may serialize only a result already established under the semantic review context above. It must not add, remove, weaken, or override semantic review rules.
+
+## Adapter contract
+
+Return exactly one standard JSON object. Do not wrap it in Markdown fences and do not emit prose before or after it. Any fenced JSON block later in this document is documentation-only and its fence lines must not appear in the emitted review output.
+
+Set `analysis_status` to one of:
+
+- `COMPLETE` when the semantic review policy, required diff, and relevant context were available and analyzed for the exact reviewed head;
+- `PARTIAL` when material semantic input, diff material, or context required for a complete review was unavailable; or
+- `FAILED` when no usable diff or semantic review input was available, or the review input could not be analyzed.
+
+Map the semantic review result to GitHub `event` as follows:
+
+- one or more valid blocking P0/P1 findings: `REQUEST_CHANGES`;
+- `COMPLETE` with no blocking finding: `APPROVE`;
+- `PARTIAL` or `FAILED` with no blocking finding: `COMMENT`.
+
+Input incompleteness alone is not a reason to request changes.
+
+Each inline finding must identify the smallest changed location that introduced the root cause:
+
+- `path`: repository-root-relative changed file;
+- `line`: changed-file line number;
+- `side`: `RIGHT` for the post-change line or `LEFT` for a deleted pre-change line.
+
+Do not anchor a finding at a downstream symptom when the causal changed line is available. If the causal line cannot be identified in the diff, do not fabricate an inline location.
+
+Each emitted finding must include a JSON numeric `confidence` from `0.0` through `1.0`. Normally omit findings below `0.90`; semantic severity and confidence are independent.
+
+The following fenced block is a documentation-only example of the complete JSON object shape. Emit only a JSON object matching this shape; never emit the opening or closing fence lines:
+
+```json
+{
+  "schema_version": 1,
+  "analysis_status": "COMPLETE",
+  "summary": "Concise overall review result.",
+  "event": "REQUEST_CHANGES",
+  "limitations": [],
+  "comments": [
+    {
+      "severity": "P1",
+      "title": "Short non-imperative finding title",
+      "confidence": 0.96,
+      "path": "src/example.py",
+      "line": 15,
+      "side": "RIGHT",
+      "failure_scenario": "Concrete trigger, execution path, observed failure, and material impact.",
+      "evidence": "Repository evidence connecting the changed cause to the failure.",
+      "recommended_fix": "Concrete minimal remediation direction.",
+      "rule_references": []
+    }
+  ]
+}
+```
+
+`schema_version` is fixed at `1`. `severity` is `P0` or `P1`. `side` is `RIGHT` or `LEFT`. `limitations` contains strings describing missing information that affected completeness. `comments` contains only blocking P0/P1 findings and is empty when none exist.
+
+When a finding relies on a repository normative-rule conflict, `rule_references` must contain objects with `path`, `section`, `requirement`, and `conflict`. Otherwise use an empty array.
+
+Before emitting the object, enforce these consistency constraints:
+
+- non-empty `comments` implies `event: REQUEST_CHANGES`;
+- `event: APPROVE` implies `analysis_status: COMPLETE` and empty `comments`;
+- `PARTIAL` or `FAILED` with no finding implies `event: COMMENT`;
+- each comment has severity `P0` or `P1` and normally confidence at least `0.90`;
+- repository-rule conflicts have non-empty `rule_references`, and other findings use an empty array; and
+- the final output parses as one standard JSON object with no comments, trailing commas, `NaN`, `Infinity`, `undefined`, or unescaped newlines inside JSON strings.
