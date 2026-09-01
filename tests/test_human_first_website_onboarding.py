@@ -201,7 +201,8 @@ class HumanFirstWebsiteOnboardingTests(unittest.TestCase):
             "Source inspection, successful HTTP fetches, unit tests, or contract declarations alone are **not** browser-backed proof",
             "mark it deferred and keep release readiness `NOT READY`",
             "execution capabilities include `browser`",
-            "browser-sensitive records from at least one requirement",
+            "link every record from the stable requirement that owns its declared target",
+            "every linked record at least one valid `releaseGateIds` entry",
             "`lifecycle.next_actions`",
             "`next_action_command.argv`",
         ):
