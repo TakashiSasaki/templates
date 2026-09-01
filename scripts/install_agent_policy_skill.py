@@ -2,7 +2,10 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import io
+import json
+import os
 import re
 import subprocess
 import sys
@@ -13,7 +16,9 @@ from pathlib import Path, PurePosixPath
 from typing import BinaryIO, Protocol
 
 TOOLCHAIN_REPOSITORY = "TakashiSasaki/templates"
+INSTALLER_PATH = "scripts/install_agent_policy_skill.py"
 SKILL_SOURCE_REVISION = "499dc8699e3dcd9f460d603718bdf2266c45e7ca"
+SKILL_SOURCE_PATH = "skills/agent-policy"
 FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
 ARCHIVE_LIMIT = 16 * 1024 * 1024
 SKILL_LIMIT = 8 * 1024 * 1024
@@ -185,10 +190,143 @@ def install_downloaded_skill(
         subprocess.run(command, check=True)
 
 
+def require_full_sha(value: str, label: str) -> str:
+    if FULL_SHA.fullmatch(value) is None:
+        raise ValueError(f"{label} must be a full lowercase commit SHA")
+    return value
+
+
+def require_no_symlink_components(path: Path) -> None:
+    absolute = path.expanduser().absolute()
+    current = Path(absolute.anchor)
+    for part in absolute.parts[1:]:
+        current = current / part
+        if current.is_symlink():
+            raise RuntimeError(f"path contains a symbolic-link component: {current}")
+        if not current.exists():
+            break
+
+
+def installed_file_digests(target: Path) -> dict[str, str]:
+    target = target.expanduser().absolute()
+    require_no_symlink_components(target)
+    if not target.is_dir():
+        raise RuntimeError(f"installed skill directory is missing: {target}")
+
+    digests: dict[str, str] = {}
+    for path in sorted(target.rglob("*"), key=lambda item: item.as_posix()):
+        if path.is_symlink():
+            raise RuntimeError(f"installed skill contains a symbolic link: {path}")
+        if path.is_dir():
+            continue
+        if not path.is_file():
+            raise RuntimeError(f"installed skill contains a non-regular file: {path}")
+        relative = path.relative_to(target).as_posix()
+        digests[relative] = hashlib.sha256(path.read_bytes()).hexdigest()
+
+    missing = {path.as_posix() for path in REQUIRED_SKILL_PATHS} - set(digests)
+    if missing:
+        rendered = ", ".join(sorted(missing))
+        raise RuntimeError(f"installed skill is missing required paths: {rendered}")
+    if not digests:
+        raise RuntimeError("installed skill contains no files")
+    return digests
+
+
+def installation_attestation(
+    target: Path,
+    *,
+    installer_revision: str,
+) -> dict[str, object]:
+    installer_revision = require_full_sha(installer_revision, "installer revision")
+    root = target.expanduser().absolute()
+    return {
+        "schema_version": 1,
+        "installer": {
+            "repository": TOOLCHAIN_REPOSITORY,
+            "revision": installer_revision,
+            "path": INSTALLER_PATH,
+        },
+        "skill_source": {
+            "repository": TOOLCHAIN_REPOSITORY,
+            "revision": SKILL_SOURCE_REVISION,
+            "path": SKILL_SOURCE_PATH,
+        },
+        "installation": {
+            "root": str(root),
+            "files": installed_file_digests(root),
+        },
+    }
+
+
+def write_installation_attestation(
+    target: Path,
+    attestation_path: Path,
+    *,
+    installer_revision: str,
+) -> None:
+    target = target.expanduser().absolute()
+    attestation_path = attestation_path.expanduser().absolute()
+    if attestation_path == target or target in attestation_path.parents:
+        raise ValueError("installation attestation must be outside the installed skill tree")
+    require_no_symlink_components(attestation_path.parent)
+    if attestation_path.is_symlink():
+        raise ValueError("installation attestation path must not be a symbolic link")
+    attestation_path.parent.mkdir(parents=True, exist_ok=True)
+    value = installation_attestation(target, installer_revision=installer_revision)
+    rendered = json.dumps(value, indent=2, sort_keys=True) + "\n"
+
+    fd, temporary_name = tempfile.mkstemp(
+        prefix=f".{attestation_path.name}.",
+        suffix=".tmp",
+        dir=attestation_path.parent,
+        text=True,
+    )
+    temporary = Path(temporary_name)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as output:
+            output.write(rendered)
+            output.flush()
+            os.fsync(output.fileno())
+        os.replace(temporary, attestation_path)
+    finally:
+        if temporary.exists():
+            temporary.unlink()
+
+
+def load_installation_attestation(path: Path) -> dict[str, object]:
+    path = path.expanduser().absolute()
+    require_no_symlink_components(path)
+    if not path.is_file():
+        raise RuntimeError(f"installation attestation is missing: {path}")
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise RuntimeError("installation attestation is invalid JSON") from exc
+    if not isinstance(value, dict):
+        raise RuntimeError("installation attestation must be a JSON object")
+    return value
+
+
+def verify_installation_attestation(
+    target: Path,
+    attestation_path: Path,
+    *,
+    installer_revision: str,
+) -> None:
+    expected = installation_attestation(
+        target,
+        installer_revision=require_full_sha(installer_revision, "installer revision"),
+    )
+    actual = load_installation_attestation(attestation_path)
+    if actual != expected:
+        raise RuntimeError("installation attestation does not match installed skill bytes")
+
+
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Install the immutable agent-policy skill distribution from "
+            "Install or verify the immutable agent-policy skill distribution from "
             f"{TOOLCHAIN_REPOSITORY}@{SKILL_SOURCE_REVISION}."
         )
     )
@@ -198,18 +336,62 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="Replace an existing installation only when its skill identity matches.",
     )
-    return parser.parse_args(argv)
+    parser.add_argument(
+        "--attestation",
+        type=Path,
+        help=(
+            "Deployment-managed path outside the skill tree for the installation "
+            "attestation."
+        ),
+    )
+    parser.add_argument(
+        "--installer-revision",
+        help=(
+            "Full SHA of this installer script as independently pinned by the "
+            "deployment. Required with --attestation or --verify-only."
+        ),
+    )
+    parser.add_argument(
+        "--verify-only",
+        action="store_true",
+        help="Verify an existing installation against --attestation without installing.",
+    )
+    args = parser.parse_args(argv)
+    if args.verify_only and args.replace:
+        parser.error("--verify-only cannot be combined with --replace")
+    if args.verify_only and args.attestation is None:
+        parser.error("--verify-only requires --attestation")
+    if (args.attestation is None) != (args.installer_revision is None):
+        parser.error("--attestation and --installer-revision must be supplied together")
+    if args.verify_only and args.installer_revision is None:
+        parser.error("--verify-only requires --installer-revision")
+    return args
 
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     try:
+        if args.verify_only:
+            verify_installation_attestation(
+                args.target,
+                args.attestation,
+                installer_revision=args.installer_revision,
+            )
+            print(f"Verified agent-policy skill installation at {args.target}.")
+            return 0
+
         data = download_archive()
         install_downloaded_skill(
             data,
             args.target.expanduser().absolute(),
             replace=args.replace,
         )
+        if args.attestation is not None:
+            write_installation_attestation(
+                args.target,
+                args.attestation,
+                installer_revision=args.installer_revision,
+            )
     except (OSError, RuntimeError, subprocess.CalledProcessError, ValueError) as exc:
         print(f"agent-policy remote installer error: {exc}", file=sys.stderr)
         return 1
