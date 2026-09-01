@@ -58,6 +58,8 @@ class WebsiteArtifactTests(unittest.TestCase):
         root = Path(temp.name)
         evidence_document = (
             {
+                "$schema": "../schemas/implementation-evidence.schema.json",
+                "schemaVersion": 6,
                 "mode": evidence_mode,
                 "commands": [],
                 "releaseGates": [],
