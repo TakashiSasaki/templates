@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 import io
 import json
+import os
 import subprocess
 import sys
 import tarfile
@@ -258,6 +259,30 @@ def test_installed_skill_digest_rejects_symlink_path_components(
 
     with pytest.raises(RuntimeError, match="symbolic-link component"):
         installer.installed_file_digests(alias / "agent-policy")
+
+
+def test_installed_skill_digest_rejects_hard_links(tmp_path: Path) -> None:
+    target = tmp_path / "agent-policy"
+    materialize_skill(target)
+    outside = tmp_path / "outside.txt"
+    outside.write_text("linked\n", encoding="utf-8")
+    os.link(outside, target / "linked.txt")
+
+    with pytest.raises(RuntimeError, match="hard-linked file"):
+        installer.installed_file_digests(target)
+
+
+def test_installed_skill_digest_enforces_distribution_size_limit(
+    tmp_path: Path,
+) -> None:
+    target = tmp_path / "agent-policy"
+    materialize_skill(target)
+    oversized = target / "oversized.bin"
+    with oversized.open("wb") as output:
+        output.truncate(installer.SKILL_LIMIT + 1)
+
+    with pytest.raises(RuntimeError, match="exceeds the size limit"):
+        installer.installed_file_digests(target)
 
 
 def test_attestation_requires_full_installer_revision(tmp_path: Path) -> None:
