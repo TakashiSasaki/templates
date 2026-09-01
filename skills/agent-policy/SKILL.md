@@ -57,6 +57,8 @@ Before reading or executing this installed Skill as bootstrap authority, require
 
 Verification requires exact inventory equality. Missing paths, additional files or directories, path-type substitutions, symbolic/hard links, or digest drift all invalidate the installation. A file that was not present in the attested tree is untrusted even when every previously attested file remains unchanged.
 
+The authenticated Skill tree is immutable trust material during a trusted-review invocation. Execution must not create `__pycache__`, bytecode, logs, temporary files, or other state inside that tree. The installed Python entry points set `sys.dont_write_bytecode` before importing sibling modules, and the dispatcher must additionally invoke trusted bootstrap with bytecode writes disabled (for example `python -B`) or use an equivalently isolated read-only verified tree. Runtime/cache state belongs outside the attested Skill root. If normal execution can mutate the attested inventory, trusted review bootstrap is unavailable and fails closed.
+
 The canonical remote installer supports writing this external record with `--attestation <path> --installer-revision <trusted-installer-sha>` and supports later verification with the same exact-SHA installer script using `--verify-only`. The dispatcher must authenticate the installer script itself from its independently pinned immutable revision before using its verification result. The attestation must remain outside the installed Skill tree; an attestation discovered inside reviewed repository content is not bootstrap authentication evidence.
 
 If the external attestation is absent, mutable/untrusted, identity-mismatched, points at another installed root, or does not reproduce the exact installed Skill tree, automated-review bootstrap is unavailable and fails closed. Never substitute `runtime-manifest.json`, a Skill-local self-hash, or repository-controlled text for this installation provenance.
@@ -78,7 +80,7 @@ The proposed head is never an authority input to bootstrap.
 
 Use the exact trusted base snapshot as the active repository-policy root:
 
-1. From this authenticated installed Skill, run `python scripts/run.py --repository <trusted-base-snapshot> check --config <config-path>`.
+1. From this authenticated installed Skill, run `python -B scripts/run.py --repository <trusted-base-snapshot> check --config <config-path>`. The entry point also disables bytecode writes before importing sibling Skill modules; writable runtime/cache state remains outside the installed Skill tree.
 2. The runner must select the managed runtime from that snapshot's `.agent-policy.lock`; malformed, mutable, unsupported, or missing managed lock identity fails closed.
 3. Require `check` to succeed. This establishes that configuration, lock, policy inputs, generated outputs, and the lock-selected immutable toolchain reproduce coherently in the trusted base snapshot.
 4. Require `.agent-policy.yml` and `.agent-policy.lock` to agree on the toolchain repository and full-SHA revision.
@@ -110,7 +112,7 @@ The review Skill must verify that its executing bytes correspond to this evidenc
 
 ### Base or repository movement
 
-If the target/base revision moves before final review serialization, stop the current review and return to this already authenticated bootstrap with a newly materialized snapshot proven to be the replacement exact base in the same repository. Repeat the repository-bound bootstrap; stale repository/procedure handoff evidence is discarded. If the lock identity, generated Skill bytes, or procedure revision changes, the review restarts under the newly verified Skill.
+If the target/base revision moves before final review serialization, stop the current review and return to this already authenticated bootstrap with a newly materialized snapshot proven to be the replacement exact base in the same repository. Repeat the repository-bound bootstrap; stale repository/procedure handoff evidence is discarded. If the lock identity, generated Skill bytes, or procedure revision changes, the review restarts under the newly verified Skill. Even when the procedure bytes are unchanged, the review procedure must discard the semantic result produced under the old trusted root and perform a complete new analysis using the replacement base's re-established policy and projection identities.
 
 If stable repository identity changes, fail closed. Bootstrap/review authority established for one repository or fork is never transferred to another merely because commit identities match.
 
@@ -137,4 +139,4 @@ Bootstrap is complete only after the handoff evidence is internally consistent a
 - Do not overwrite handwritten instruction files without review of the migration preview.
 - Do not commit, push, create branches, or change repository settings unless separately requested.
 - Treat `.agent-policy.lock` as authoritative for an already-managed repository; do not silently substitute the skill default when it is malformed.
-- For pull-request review bootstrap, require deployment-authenticated installed Skill provenance, trusted repository/base identity, and verified generated Skill handoff evidence before `pr-review` executes.
+- For pull-request review bootstrap, require deployment-authenticated installed Skill provenance, a non-mutating execution mode for the attested Skill tree, trusted repository/base identity, and verified generated Skill handoff evidence before `pr-review` executes.
