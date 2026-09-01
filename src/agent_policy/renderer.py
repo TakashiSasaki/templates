@@ -73,6 +73,24 @@ def render_github_review_json(
     context_name: str,
     project_policy_files: Iterable[str],
 ) -> str:
+    """Render the transitional combined semantic + GitHub transport document."""
+    template = environment().get_template("github-review-json-v1.md.j2")
+    return template.render(
+        config=config,
+        rules=list(rules),
+        context_name=context_name,
+        project_policy_files=list(project_policy_files),
+    )
+
+
+def render_github_review_json_adapter(
+    config: Config,
+    rules: Iterable[Rule],
+    *,
+    context_name: str,
+    project_policy_files: Iterable[str],
+) -> str:
+    """Render the GitHub transport-only adapter paired with policy-context-md."""
     template = environment().get_template("github/review-json-v1.md.j2")
     return template.render(
         config=config,
@@ -106,6 +124,13 @@ def render_output(
         )
     if renderer == "github-review-json-v1":
         return render_github_review_json(
+            config,
+            rules,
+            context_name=context_name,
+            project_policy_files=project_policy_files,
+        )
+    if renderer == "github-review-json-adapter-v1":
+        return render_github_review_json_adapter(
             config,
             rules,
             context_name=context_name,
