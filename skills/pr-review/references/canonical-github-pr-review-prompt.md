@@ -12,6 +12,7 @@ Pull request: `<pull-request-number>`
 Policy configuration: `{{ config_path }}`
 Semantic review projection: `<repository-relative-semantic-output-path>`
 GitHub adapter projection: `<repository-relative-github-adapter-output-path>`
+Adapter renderer: `github-review-json-adapter-v1`
 Trusted policy revision: `<optional-full-commit-sha; omit to use the exact current PR base revision>`
 
 Invoke the installed `pr-review` Skill with these inputs and follow that Skill exactly. Do not infer missing output bindings from context names, do not use proposed-head policy material as the trusted authority for the same review, and do not reconstruct review semantics or GitHub transport rules from this invocation template.
