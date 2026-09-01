@@ -13,7 +13,9 @@ from typing import Any
 # importing sibling modules from creating __pycache__ entries inside that tree.
 sys.dont_write_bytecode = True
 
-from runtime import (
+# This import intentionally follows the bytecode-write guard because runtime.py
+# is inside the deployment-attested Skill tree.
+from runtime import (  # noqa: E402
     cli_command,
     ensure_runtime,
     load_manifest,
