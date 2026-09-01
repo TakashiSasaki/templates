@@ -76,18 +76,18 @@ The directory is the product repository. Git is normal product tooling; it is no
 
 Normal Composition consumption requires CPython 3.11, 3.12, 3.13, or 3.14. Follow the immutable installer procedure in [Using Composition](../consumer-guide.md#install-and-run-the-composition-skill), installing the skill outside Project Docs.
 
-The currently published skill's stable runtime manifest predates the `website` recipe. This walkthrough therefore selects CI-green immutable Website-capable Composition revision `379073f376ce1de80948abd2e92d5560b573e7e6` explicitly. That revision contains the Website recipe and the complete optional component set described in step 14. The installed runner supports this immutable full-SHA override. Use this same revision for **every** runner invocation in this walkthrough; omitting it would fall back to the older stable runtime-manifest revision rather than to the consumer lock.
+The currently published skill's stable runtime manifest predates the `website` recipe. This walkthrough therefore selects CI-green immutable Website-capable Composition revision `ca8b8bc9091c6c199224cd9b66c9a59229f1b6ac` explicitly. That revision contains the Website recipe and the complete optional component set described in step 14. The installed runner supports this immutable full-SHA override. Use this same revision for **every** runner invocation in this walkthrough; omitting it would fall back to the older stable runtime-manifest revision rather than to the consumer lock.
 
 Run the read-only doctor against that exact revision:
 
 ```sh
 python /absolute/path/to/agent-skills/composition/scripts/run.py \
   --repository /absolute/path/to/project-docs \
-  --revision 379073f376ce1de80948abd2e92d5560b573e7e6 \
+  --revision ca8b8bc9091c6c199224cd9b66c9a59229f1b6ac \
   doctor
 ```
 
-`READY` means local bootstrap prerequisites are usable for the selected revision. It is not Composition validation and does not prove later network/package availability. Confirm the doctor output identifies `379073f376ce1de80948abd2e92d5560b573e7e6` as the selected toolchain before proceeding.
+`READY` means local bootstrap prerequisites are usable for the selected revision. It is not Composition validation and does not prove later network/package availability. Confirm the doctor output identifies `ca8b8bc9091c6c199224cd9b66c9a59229f1b6ac` as the selected toolchain before proceeding.
 
 ## 3. Create `composition.json`
 
@@ -118,7 +118,7 @@ Inspect first:
 ```sh
 python /absolute/path/to/agent-skills/composition/scripts/run.py \
   --repository /absolute/path/to/project-docs \
-  --revision 379073f376ce1de80948abd2e92d5560b573e7e6 \
+  --revision ca8b8bc9091c6c199224cd9b66c9a59229f1b6ac \
   inspect
 ```
 
@@ -129,7 +129,7 @@ Plan with an absolute config path:
 ```sh
 python /absolute/path/to/agent-skills/composition/scripts/run.py \
   --repository /absolute/path/to/project-docs \
-  --revision 379073f376ce1de80948abd2e92d5560b573e7e6 \
+  --revision ca8b8bc9091c6c199224cd9b66c9a59229f1b6ac \
   plan --config /absolute/path/to/project-docs/composition.json
 ```
 
@@ -145,7 +145,7 @@ Review every action and require an empty `conflicts` list. Then apply the same i
 ```sh
 python /absolute/path/to/agent-skills/composition/scripts/run.py \
   --repository /absolute/path/to/project-docs \
-  --revision 379073f376ce1de80948abd2e92d5560b573e7e6 \
+  --revision ca8b8bc9091c6c199224cd9b66c9a59229f1b6ac \
   apply --config /absolute/path/to/project-docs/composition.json
 ```
 
@@ -154,7 +154,7 @@ python /absolute/path/to/agent-skills/composition/scripts/run.py \
 ```sh
 python /absolute/path/to/agent-skills/composition/scripts/run.py \
   --repository /absolute/path/to/project-docs \
-  --revision 379073f376ce1de80948abd2e92d5560b573e7e6 \
+  --revision ca8b8bc9091c6c199224cd9b66c9a59229f1b6ac \
   validate
 ```
 
@@ -264,7 +264,7 @@ After the Website contracts and implementation evidence are in truthful `plannin
 ```sh
 python /absolute/path/to/agent-skills/composition/scripts/run.py \
   --repository /absolute/path/to/project-docs \
-  --revision 379073f376ce1de80948abd2e92d5560b573e7e6 \
+  --revision ca8b8bc9091c6c199224cd9b66c9a59229f1b6ac \
   validate
 ```
 
@@ -320,7 +320,7 @@ Then rerun product verification and Composition validation against the same exac
 ```sh
 python /absolute/path/to/agent-skills/composition/scripts/run.py \
   --repository /absolute/path/to/project-docs \
-  --revision 379073f376ce1de80948abd2e92d5560b573e7e6 \
+  --revision ca8b8bc9091c6c199224cd9b66c9a59229f1b6ac \
   validate
 ```
 
@@ -335,7 +335,7 @@ After the product checkpoint succeeds, run Composition validation once more:
 ```sh
 python /absolute/path/to/agent-skills/composition/scripts/run.py \
   --repository /absolute/path/to/project-docs \
-  --revision 379073f376ce1de80948abd2e92d5560b573e7e6 \
+  --revision ca8b8bc9091c6c199224cd9b66c9a59229f1b6ac \
   validate
 ```
 
@@ -343,7 +343,7 @@ This final validation checks the closed planning-to-product lifecycle state. A p
 
 ## 14. Optional PWA, runtime, service, Web-interface, and release-bundle behavior remains optional
 
-At immutable revision `379073f376ce1de80948abd2e92d5560b573e7e6`, the `website` recipe exposes exactly these optional selections:
+At immutable revision `ca8b8bc9091c6c199224cd9b66c9a59229f1b6ac`, the `website` recipe exposes exactly these optional selections:
 
 - `capability.pwa`;
 - `capability.runtime`;
@@ -376,7 +376,7 @@ Required deferred browser proof must therefore produce or contribute to a `not-r
 Project Docs is complete for this walkthrough when all of the following are true:
 
 - the recipe remains `website` and the resolved closure contains `artifact.website-core` + transitive `foundation.web` without Webapp-private artifact contracts;
-- every `scripts/run.py` invocation used immutable Website-capable revision `379073f376ce1de80948abd2e92d5560b573e7e6` rather than silently falling back to the older published stable toolchain;
+- every `scripts/run.py` invocation used immutable Website-capable revision `ca8b8bc9091c6c199224cd9b66c9a59229f1b6ac` rather than silently falling back to the older published stable toolchain;
 - routes, site structure, metadata, discovery, viewport, and browser-identity contracts describe the implemented Website, including `siteName: "Project Docs"` rather than the seeded placeholder;
 - the actual pages/content/navigation and any declared browser-identity asset such as `favicon.svg` exist in consumer-owned implementation files;
 - a validated planning checkpoint exists from before product implementation and the final product checkpoint closes that transition;
