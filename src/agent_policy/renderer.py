@@ -73,7 +73,7 @@ def render_github_review_json(
     context_name: str,
     project_policy_files: Iterable[str],
 ) -> str:
-    template = environment().get_template("github-review-json-v1.md.j2")
+    template = environment().get_template("github/review-json-v1.md.j2")
     return template.render(
         config=config,
         rules=list(rules),
