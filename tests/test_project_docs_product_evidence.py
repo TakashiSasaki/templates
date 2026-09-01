@@ -53,7 +53,9 @@ WEBSITE_VALIDATOR = (
 )
 WALKTHROUGH = ROOT / "docs" / "guides" / "website-product-walkthrough.md"
 PRODUCT_EXAMPLE_SOURCE = "examples/onboarding/project-docs/implementation-evidence.product.json"
-PRODUCT_EXAMPLE_DESTINATION = "website/examples/project-docs/implementation-evidence.product.json"
+PRODUCT_EXAMPLE_DESTINATION = (
+    "lifecycle/implementation-evidence/project-docs/implementation-evidence.product.json"
+)
 PRODUCT_EXAMPLE_LINK = f"../../{PRODUCT_EXAMPLE_SOURCE}"
 
 
