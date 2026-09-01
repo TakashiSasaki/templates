@@ -170,7 +170,7 @@ def test_install_downloaded_skill_delegates_to_atomic_local_installer(
     assert observed["check"] is True
 
 
-def test_installation_attestation_binds_source_root_and_all_files(
+def test_installation_attestation_binds_closed_path_type_inventory(
     tmp_path: Path,
 ) -> None:
     target = tmp_path / "installed" / "agent-policy"
@@ -197,12 +197,17 @@ def test_installation_attestation_binds_source_root_and_all_files(
         "path": "skills/agent-policy",
     }
     assert value["installation"]["root"] == str(target.absolute())
-    assert set(value["installation"]["files"]) == {
+    entries = value["installation"]["entries"]
+    assert set(entries) == {
         "README.md",
         "SKILL.md",
         "runtime-manifest.json",
+        "scripts",
         "scripts/install.py",
     }
+    assert entries["scripts"] == {"type": "directory"}
+    assert entries["SKILL.md"]["type"] == "file"
+    assert len(entries["SKILL.md"]["sha256"]) == 64
     installer.verify_installation_attestation(
         target,
         attestation,
@@ -226,7 +231,30 @@ def test_installation_attestation_detects_installed_skill_tampering(
 
     (target / "SKILL.md").write_text("modified\n", encoding="utf-8")
 
-    with pytest.raises(RuntimeError, match="does not match installed skill bytes"):
+    with pytest.raises(RuntimeError, match="does not match installed skill tree"):
+        installer.verify_installation_attestation(
+            target,
+            attestation,
+            installer_revision=installer_revision,
+        )
+
+
+def test_installation_attestation_rejects_added_paths(tmp_path: Path) -> None:
+    target = tmp_path / "installed" / "agent-policy"
+    target.parent.mkdir(parents=True)
+    materialize_skill(target)
+    attestation = tmp_path / "trust" / "agent-policy-installation.json"
+    installer_revision = "a" * 40
+    installer.write_installation_attestation(
+        target,
+        attestation,
+        installer_revision=installer_revision,
+    )
+
+    (target / "scripts" / "json.py").write_text("raise SystemExit(99)\n", encoding="utf-8")
+    (target / "extra-empty-directory").mkdir()
+
+    with pytest.raises(RuntimeError, match="does not match installed skill tree"):
         installer.verify_installation_attestation(
             target,
             attestation,
