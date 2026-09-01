@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 PROJECT_DOCS = ROOT / "examples" / "onboarding" / "project-docs"
 PLANNING_EXAMPLE = PROJECT_DOCS / "implementation-evidence.planning.json"
 PRODUCT_EXAMPLE = PROJECT_DOCS / "implementation-evidence.product.json"
+PUBLICATION_CATALOG = ROOT / "docs" / "publication-catalog.json"
 EVIDENCE_SCHEMA = (
     ROOT
     / "components"
@@ -51,6 +52,8 @@ WEBSITE_VALIDATOR = (
     / "validate_website_evidence.py"
 )
 WALKTHROUGH = ROOT / "docs" / "guides" / "website-product-walkthrough.md"
+PRODUCT_EXAMPLE_SOURCE = "examples/onboarding/project-docs/implementation-evidence.product.json"
+PRODUCT_EXAMPLE_DESTINATION = "website/examples/project-docs/implementation-evidence.product.json"
 
 
 def load(path: Path) -> dict:
@@ -141,6 +144,7 @@ class ProjectDocsProductEvidenceTests(unittest.TestCase):
         root = self.materialize(product)
         generic = self.run_generic(root)
         self.assertEqual(generic.returncode, 0, generic.stdout + generic.stderr)
+        self.assertNotIn("WARNING: broad implementation-evidence proof reuse", generic.stdout)
         website = self.run_website(root)
         self.assertEqual(website.returncode, 0, website.stdout + website.stderr)
 
@@ -151,6 +155,7 @@ class ProjectDocsProductEvidenceTests(unittest.TestCase):
         payload = json.loads(result.stdout)
         self.assertEqual(payload["release_readiness"], "not-ready")
         self.assertTrue(payload["deferred_proofs"])
+        self.assertEqual(payload.get("warnings", []), [])
         self.assertTrue(
             all(
                 proof["status"] == "deferred"
@@ -178,6 +183,19 @@ class ProjectDocsProductEvidenceTests(unittest.TestCase):
             "proof command project-docs-browser-proof is not executed by a selected release gate",
             result.stderr,
         )
+
+    def test_product_example_is_published_for_normal_consumers(self) -> None:
+        catalog = load(PUBLICATION_CATALOG)
+        self.assertIn(
+            {
+                "source": PRODUCT_EXAMPLE_SOURCE,
+                "destination": PRODUCT_EXAMPLE_DESTINATION,
+                "optional": False,
+            },
+            catalog["assets"],
+        )
+        text = WALKTHROUGH.read_text(encoding="utf-8")
+        self.assertIn(PRODUCT_EXAMPLE_SOURCE, text)
 
     def test_walkthrough_explains_the_product_evidence_release_gate_graph(self) -> None:
         text = WALKTHROUGH.read_text(encoding="utf-8")
