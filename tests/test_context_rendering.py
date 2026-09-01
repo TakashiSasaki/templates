@@ -147,6 +147,10 @@ def test_v2_renders_github_review_json_adapter_without_semantic_rule_bodies(
     assert '"event": "REQUEST_CHANGES"' in adapter
     assert '"side": "RIGHT"' in adapter
     assert '"schema_version": 1' in adapter
+    assert '"unanchored_findings": [' in adapter
+    assert '"location_reason"' in adapter
+    assert "every semantic blocking finding appears exactly once" in adapter
+    assert "must never drop a blocker" in adapter
     assert "exactly one standard JSON object" in adapter
     assert "must serialize every blocking finding supplied by the semantic review result" in adapter
     assert "must not add a confidence threshold" in adapter
