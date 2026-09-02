@@ -249,6 +249,17 @@ def _verify_bundle_tree(bundle: Path, expected: dict[str, bytes]) -> None:
         )
 
 
+def _write_bundle_tree(root: Path, expected: dict[str, bytes]) -> None:
+    for relative, content in expected.items():
+        output = root.joinpath(*PurePosixPath(relative).parts)
+        output.parent.mkdir(parents=True, exist_ok=True)
+        _require_no_symlink_components(output.parent)
+        with output.open("xb") as stream:
+            stream.write(content)
+            stream.flush()
+            os.fsync(stream.fileno())
+
+
 def materialize(
     repository_root: Path,
     config_path: str | Path,
@@ -272,22 +283,19 @@ def materialize(
         staging = Path(
             tempfile.mkdtemp(prefix=f".{target.name}.staging-", dir=target.parent)
         )
-        finalized = False
         try:
-            for relative, content in expected.items():
-                output = staging.joinpath(*PurePosixPath(relative).parts)
-                output.parent.mkdir(parents=True, exist_ok=True)
-                with output.open("xb") as stream:
-                    stream.write(content)
-                    stream.flush()
-                    os.fsync(stream.fileno())
+            _write_bundle_tree(staging, expected)
             _verify_bundle_tree(staging, expected)
-            os.replace(staging, target)
-            finalized = True
+            try:
+                target.mkdir()
+            except FileExistsError as exc:
+                raise ValueError(
+                    "review authority bundle destination must not already exist"
+                ) from exc
+            _write_bundle_tree(target, expected)
             _verify_bundle_tree(target, expected)
         finally:
-            if not finalized and staging.exists():
-                shutil.rmtree(staging, ignore_errors=True)
+            shutil.rmtree(staging, ignore_errors=True)
     except (OSError, ValueError) as exc:
         return [Diagnostic("error", "REVIEW_BUNDLE", str(exc))]
 

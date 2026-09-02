@@ -1,3 +1,8 @@
+<!--
+agent-policy-generated: true
+source-skill: pr-review
+DO NOT EDIT DIRECTLY
+-->
 ---
 name: pr-review
 description: Perform a provider-neutral, identity-bound pull-request review from deployment-frozen procedure and semantic-policy authority.

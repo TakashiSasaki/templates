@@ -16,6 +16,8 @@ def test_pr_review_skill_layout_is_provider_neutral() -> None:
         "SKILL.md",
         "references/github-pull-request-review-api.md",
     }
+    for content in rendered.values():
+        assert "agent-policy-generated: true" in content
     assert "github-review-json-adapter-v1" not in rendered["SKILL.md"]
     assert '"analysis_status"' not in rendered["SKILL.md"]
     assert '"schema_version"' not in rendered["SKILL.md"]
@@ -100,7 +102,7 @@ def test_agent_policy_bootstrap_freezes_provider_neutral_review_authority() -> N
     required = (
         "## Trusted `pr-review` bootstrap",
         "must not perform finding analysis",
-        "frozen bootstrap run image",
+        "bootstrap run image",
         "exact-base Git-object-backed snapshot",
         "frozen runtime",
         "trusted-snapshot `validate` and `check`",

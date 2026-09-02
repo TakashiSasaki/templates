@@ -129,6 +129,29 @@ def test_review_bundle_verification_fails_closed_on_inventory_drift(tmp_path: Pa
     assert "inventory" in diagnostics[0].message
 
 
+def test_review_bundle_materialize_never_clobbers_existing_destination(
+    tmp_path: Path,
+) -> None:
+    repository = tmp_path / "trusted-base"
+    _write_repository(repository)
+    bundle = tmp_path / "review-bundle"
+    bundle.mkdir()
+    sentinel = bundle / "sentinel.txt"
+    sentinel.write_text("keep\n", encoding="utf-8")
+
+    diagnostics = review_bundle.materialize(
+        repository,
+        ".agent-policy.yml",
+        bundle,
+        SEMANTIC_OUTPUT,
+    )
+
+    assert _has_error(diagnostics)
+    assert "must not already exist" in diagnostics[0].message
+    assert sentinel.read_text(encoding="utf-8") == "keep\n"
+    assert set(path.name for path in bundle.iterdir()) == {"sentinel.txt"}
+
+
 def test_review_bundle_rejects_destination_overlap_in_both_directions(tmp_path: Path) -> None:
     repository = tmp_path / "trusted-base"
     _write_repository(repository)

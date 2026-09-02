@@ -1,3 +1,8 @@
+<!--
+agent-policy-generated: true
+source-skill: pr-review
+DO NOT EDIT DIRECTLY
+-->
 # GitHub pull-request review API reference
 
 This is a **non-normative provider integration reference** for GitHub. It does not define `pr-review` semantics, review completion, merge authorization, or a required result representation. The current GitHub API or connected-tool contract is authoritative for the actual request shape at submission time.
