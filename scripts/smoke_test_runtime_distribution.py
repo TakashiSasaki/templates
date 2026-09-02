@@ -10,6 +10,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 RUNTIME_LOCK = ROOT / "requirements-runtime.lock"
 VERIFY_SCRIPT = ROOT / "scripts" / "verify_runtime_environment.py"
+VERIFY_SKILL_DATA_SCRIPT = ROOT / "scripts" / "verify_runtime_skill_data.py"
 
 
 def environment(source: Mapping[str, str] | None = None) -> dict[str, str]:
@@ -78,6 +79,7 @@ def main() -> int:
             )
             run([str(python), "-I", "-m", "pip", "check"], env=env)
             run([str(python), "-I", str(VERIFY_SCRIPT)], env=env)
+            run([str(python), "-I", str(VERIFY_SKILL_DATA_SCRIPT)], env=env)
             run([str(agent_policy_executable(venv)), "--help"], env=env)
     except subprocess.CalledProcessError as exc:
         print(
