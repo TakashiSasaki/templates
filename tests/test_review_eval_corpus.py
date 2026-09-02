@@ -3,6 +3,8 @@ from __future__ import annotations
 import copy
 import json
 import re
+import subprocess
+import sys
 from pathlib import Path
 
 from jsonschema import Draft202012Validator
@@ -13,6 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 EVAL_ROOT = ROOT / "review-evals"
 SCHEMA_PATH = EVAL_ROOT / "review-eval-case.schema.json"
 CASE_ROOT = EVAL_ROOT / "cases"
+COVERAGE_SCRIPT = ROOT / "scripts" / "review_eval_coverage.py"
 EXPECTED_RISK_DOMAINS = {
     "identity-and-authority",
     "namespace-and-indirection",
@@ -41,6 +44,17 @@ def load_cases() -> list[tuple[Path, dict[str, object]]]:
         (path, json.loads(path.read_text(encoding="utf-8")))
         for path in sorted(CASE_ROOT.rglob("*.json"))
     ]
+
+
+def coverage_json() -> dict[str, object]:
+    result = subprocess.run(
+        [sys.executable, str(COVERAGE_SCRIPT), "--format", "json"],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return json.loads(result.stdout)
 
 
 def test_review_eval_schema_and_cases_are_valid() -> None:
@@ -110,6 +124,8 @@ def test_review_eval_case_ids_are_unique_and_non_authoritative() -> None:
     assert "non-authoritative empirical and synthetic evaluation material" in readme
     assert "does not define semantic policy" in readme
     assert "Normal CI does **not** invoke a language model" in readme
+    assert "coverage_observations" in readme
+    assert "not acceptance failures" in readme
 
 
 def test_review_eval_corpus_covers_all_procedure_risk_domains() -> None:
@@ -145,6 +161,54 @@ def test_empirical_review_eval_regression_anchors_are_preserved() -> None:
         if case["kind"] == "empirical"
     }
     assert EXPECTED_EMPIRICAL_CASE_IDS <= empirical_ids
+
+
+def test_review_eval_coverage_matrix_matches_the_current_corpus() -> None:
+    matrix = coverage_json()
+    rows = matrix["domains"]
+    cases = load_cases()
+
+    assert matrix["schema_version"] == 1
+    assert matrix["case_count"] == len(cases)
+    assert {row["domain"] for row in rows} == EXPECTED_RISK_DOMAINS  # type: ignore[index]
+
+    for row in rows:  # type: ignore[assignment]
+        kinds = row["kinds"]
+        dispositions = row["dispositions"]
+        observations = row["coverage_observations"]
+
+        assert row["total"] == len(row["case_ids"])
+        assert row["total"] == sum(kinds.values())
+        assert row["total"] == sum(dispositions.values())
+        assert row["total"] >= 1
+        assert ("no-empirical" in observations) == (kinds["empirical"] == 0)
+        assert ("no-semantic-transposition" in observations) == (
+            kinds["semantic-transposition"] == 0
+        )
+        assert ("no-control" in observations) == (kinds["control"] == 0)
+        assert ("no-blocking-finding" in observations) == (
+            dispositions["blocking-finding"] == 0
+        )
+        assert ("no-completed-no-blocking-finding" in observations) == (
+            dispositions["completed-no-blocking-finding"] == 0
+        )
+        assert ("no-incomplete-review" in observations) == (
+            dispositions["incomplete-review"] == 0
+        )
+
+
+def test_review_eval_coverage_matrix_markdown_is_renderable() -> None:
+    result = subprocess.run(
+        [sys.executable, str(COVERAGE_SCRIPT), "--format", "markdown"],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    assert "| Risk domain | Total | Empirical | Transposition | Control |" in result.stdout
+    for domain in EXPECTED_RISK_DOMAINS:
+        assert f"| {domain} |" in result.stdout
 
 
 def test_empirical_review_eval_cases_have_identity_bound_provenance_when_available() -> None:
