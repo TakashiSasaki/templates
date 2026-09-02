@@ -18,6 +18,7 @@
 - Add a schema-validated stable release descriptor, two-step full-SHA promotion model, and CI synchronization verification across runtime manifest, schemas, locks, adoption state, and consumer workflows.
 - Define full-SHA policy-toolkit readiness, audit evidence, and Pages ownership boundaries.
 - Add the `github-review-json-v1` configuration-schema-v2 renderer for GitHub-oriented blocking-review JSON output.
+- Replace that transitional GitHub result renderer with provider-neutral review semantic projection plus the generated `pr-review` procedure, then remove the zero-consumer legacy renderer/template surface.
 - Add the optional `pull-request` profile for target-branch freshness and review-thread closure before merge.
 - Document Policy profile selection, composition, and the complete branch-owned profile catalog for first-time readers.
 - Add an exact runtime-only dependency lock, clean consumer-style installation verifier, and Ubuntu/Windows Python 3.11–3.14 runtime-distribution matrix for `agent-policy`.
