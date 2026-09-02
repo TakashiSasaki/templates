@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "id": "validation-use-rebinding",
+  "kind": "semantic-transposition",
+  "title": "Validated resource is rebound before use",
+  "authority": "non-authoritative-evaluation",
+  "risk_domains": [
+    "namespace-and-indirection",
+    "concurrency-and-temporal-consistency",
+    "identity-and-authority"
+  ],
+  "scenario": {
+    "observed_change": "An operation validates that a logical resource belongs to an allowed scope, releases the validation context, and later resolves the same logical identifier again before performing a privileged mutation.",
+    "controlled_inputs": [
+      "logical resource identifier",
+      "indirection or binding chosen by another actor"
+    ],
+    "mutable_state": [
+      "mapping from logical identifier to effective resource"
+    ],
+    "authority_boundaries": [
+      "allowed resource scope versus resources outside that scope"
+    ],
+    "operation_model": [
+      "resolve and validate logical identifier",
+      "mutable interval permits rebinding",
+      "resolve identifier again",
+      "perform privileged mutation on newly effective resource"
+    ]
+  },
+  "required_invariants": [
+    {
+      "rule_id": "safety.bind-validated-state-to-operation",
+      "requirement": "The safety decision must remain bound to the same effective target through the operation that relies on it."
+    }
+  ],
+  "expected_review": {
+    "disposition": "blocking-finding",
+    "must_investigate": [
+      "whether validation and use resolve the same stable effective identity",
+      "which actor can mutate the binding during the decision-to-use interval"
+    ],
+    "must_identify": [
+      "re-resolution after a mutable interval can make the operation act on a resource that was never validated"
+    ],
+    "must_not_claim": [
+      "safe containment solely because the original logical identifier passed validation"
+    ]
+  }
+}
