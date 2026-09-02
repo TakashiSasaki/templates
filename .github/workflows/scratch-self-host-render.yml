@@ -1,0 +1,50 @@
+name: Scratch self-host render
+
+on:
+  push:
+    branches:
+      - scratch/self-host-render
+
+permissions:
+  contents: read
+
+jobs:
+  render:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out scratch candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Render with exact trusted-review stable runtime
+        uses: TakashiSasaki/templates@8600bc014b4381c3531eedb3bd832d9ac09a500e
+        with:
+          command: render
+          config: .agent-policy.yml
+
+      - name: Emit generated snapshot
+        shell: bash
+        run: |
+          python - <<'PY'
+          import base64
+          from pathlib import Path
+
+          paths = [
+              ".agent-policy.lock",
+              "AGENTS.md",
+              ".review-authority/review-policy.md",
+              ".agents/skills/pr-review/SKILL.md",
+              ".agents/skills/pr-review/references/github-pull-request-review-api.md",
+          ]
+          for relative in paths:
+              data = Path(relative).read_bytes()
+              encoded = base64.b64encode(data).decode("ascii")
+              print(f"SNAPSHOT_BEGIN {relative}")
+              for index in range(0, len(encoded), 120):
+                  print(encoded[index:index + 120])
+              print(f"SNAPSHOT_END {relative}")
+          print(
+              "OBSOLETE_REVIEW_GUIDELINES_EXISTS "
+              + str(Path(".github/REVIEW_GUIDELINES.md").exists()).lower()
+          )
+          PY
