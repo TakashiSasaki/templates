@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from agent_policy.renderer import render_skill
@@ -7,6 +8,19 @@ from agent_policy.renderer import render_skill
 ROOT = Path(__file__).resolve().parents[1]
 SKILL_ROOT = ROOT / "skills/pr-review"
 AGENT_POLICY_SKILL = ROOT / "skills/agent-policy/SKILL.md"
+RISK_DOMAIN_REFERENCES = {
+    "references/risk-domains/index.md",
+    "references/risk-domains/identity-and-authority.md",
+    "references/risk-domains/namespace-and-indirection.md",
+    "references/risk-domains/state-mutation-and-recovery.md",
+    "references/risk-domains/concurrency-and-temporal-consistency.md",
+    "references/risk-domains/privileged-execution.md",
+    "references/risk-domains/persistence-and-integrity.md",
+    "references/risk-domains/external-interaction.md",
+    "references/risk-domains/resource-behavior.md",
+    "references/risk-domains/build-provenance-and-ci.md",
+    "references/risk-domains/consumer-and-execution-paths.md",
+}
 
 
 def test_pr_review_skill_layout_is_provider_neutral() -> None:
@@ -15,13 +29,40 @@ def test_pr_review_skill_layout_is_provider_neutral() -> None:
     assert set(rendered) == {
         "SKILL.md",
         "references/github-pull-request-review-api.md",
-    }
+    } | RISK_DOMAIN_REFERENCES
     for content in rendered.values():
         assert "agent-policy-generated: true" in content
     assert "github-review-json-adapter-v1" not in rendered["SKILL.md"]
     assert '"analysis_status"' not in rendered["SKILL.md"]
     assert '"schema_version"' not in rendered["SKILL.md"]
     assert '"unanchored_findings"' not in rendered["SKILL.md"]
+
+
+def test_risk_domain_references_are_procedure_support_not_semantic_authority() -> None:
+    rendered = render_skill("pr-review", config_path="config/agent-policy.yml")
+
+    technology_specific_terms = (
+        "python",
+        "javascript",
+        "rust",
+        "github",
+        "posix",
+        "windows",
+        "os.replace",
+        "path.resolve",
+        "symlink",
+    )
+    for path in RISK_DOMAIN_REFERENCES:
+        content = rendered[path].casefold()
+        preamble = content.split("\n## ", 1)[0]
+        assert "provider-neutral procedure-support reference" in preamble
+        assert re.search(
+            r"semantic[^.\n]*(?:authorit|defines|decides)",
+            preamble,
+        )
+        for term in technology_specific_terms:
+            pattern = rf"(?<![a-z0-9_]){re.escape(term)}(?![a-z0-9_])"
+            assert re.search(pattern, content) is None
 
 
 def test_pr_review_is_sole_identity_bound_procedure_authority() -> None:

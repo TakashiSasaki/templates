@@ -105,9 +105,13 @@ Perform the analysis as distinct reasoning passes. These passes do not create se
 
 Use the Observed change model, not topic labels from the pull-request description, to decide which semantic risk domains are materially applicable. Consider the actual operations, state transitions, authority changes, consumer relationships, failure boundaries, and resource behavior exposed by the change. Maintain an explicit applicability disposition so that a domain is either examined or deliberately found not material; do not infer a clean review from the absence of immediately visible findings.
 
+When one or more risk domains are material, consult the retained `references/risk-domains/index.md` from the frozen procedure bundle and only the domain references applicable to the Observed change. Those references are provider-neutral procedure-support material for candidate discovery and falsification. They cannot add semantic requirements, severity rules, review-completion criteria, or provider output requirements, and they cannot promote a candidate seed to a finding. Do not reopen mutable or proposed-head copies of the references.
+
 #### 10.2 Generate defect candidates broadly
 
 For each materially applicable risk domain, generate plausible defect hypotheses before deciding that the implementation is sound. A **candidate** is an investigation target, not a finding and not review authority. Candidate generation may be broad and may include boundary states, alternate inputs, failure paths, concurrent changes, indirection or rebinding, partial execution, stale state, downstream consumer mismatch, or another realistic way the claimed invariant could fail.
+
+Use candidate seeds from an applicable frozen risk-domain reference to broaden discovery when useful, but treat each seed as a hypothesis that must survive the same repository-specific falsification and semantic finding gates as any other candidate. Do not execute every reference mechanically as an approval checklist.
 
 For safety-, trust-, identity-, mutation-, concurrency-, lifecycle-, or provenance-sensitive behavior, actively try to construct a concrete counterexample of the form: under state or input **X**, mechanism or check **Y** can still succeed or be bypassed while required invariant **Z** is violated. A successful review does not require such a defect to exist; it requires a serious attempt to falsify the relevant invariant rather than stopping at architectural or implementation summary.
 

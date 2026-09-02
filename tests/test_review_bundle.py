@@ -20,6 +20,19 @@ order: 1000
 Apply this local rule during review.
 """
 SEMANTIC_OUTPUT = ".review-authority/review-policy.md"
+RISK_DOMAIN_BUNDLE_FILES = {
+    "procedure/references/risk-domains/index.md",
+    "procedure/references/risk-domains/identity-and-authority.md",
+    "procedure/references/risk-domains/namespace-and-indirection.md",
+    "procedure/references/risk-domains/state-mutation-and-recovery.md",
+    "procedure/references/risk-domains/concurrency-and-temporal-consistency.md",
+    "procedure/references/risk-domains/privileged-execution.md",
+    "procedure/references/risk-domains/persistence-and-integrity.md",
+    "procedure/references/risk-domains/external-interaction.md",
+    "procedure/references/risk-domains/resource-behavior.md",
+    "procedure/references/risk-domains/build-provenance-and-ci.md",
+    "procedure/references/risk-domains/consumer-and-execution-paths.md",
+}
 
 
 def _write_repository(repository: Path) -> None:
@@ -85,7 +98,7 @@ def test_review_bundle_materializes_only_procedure_and_semantic_authority(
         "procedure/SKILL.md",
         "procedure/references/github-pull-request-review-api.md",
         "semantic/review-policy.md",
-    }
+    } | RISK_DOMAIN_BUNDLE_FILES
 
     manifest = json.loads((bundle / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["bundle_format"] == 1
