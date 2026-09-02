@@ -77,11 +77,16 @@ def test_adapter_keeps_provider_mechanics_outside_atomic_policy() -> None:
         "check-run",
         "check-suite",
         "CI_DISCOVERY_MIN_OBSERVATION_MINUTES = 10",
-        "@hermes review",
     )
     for term in adapter_terms:
         assert term in adapter
         assert term not in policy_corpus
+
+
+def test_adapter_does_not_embed_transient_reviewer_triggers() -> None:
+    text = SKILL.read_text(encoding="utf-8").lower()
+    assert "@hermes review" not in text
+    assert "hermes agent" not in text
 
 
 def test_adapter_ci_discovery_is_fail_closed_and_read_only() -> None:
@@ -160,7 +165,6 @@ def test_adapter_requires_exact_head_review_and_guarded_merge() -> None:
             "a request, pending review, empty review list, or absence of findings "
             "is not completed review evidence"
         ),
-        "include the literal string `@hermes review`",
         "current pr head equals the exact accepted head",
         "never omit `expected_head_sha`",
         "do not retry blindly",

@@ -143,7 +143,7 @@ Once exact-head CI evidence is accepted, reuse it while the exact head and the c
 
 Apply `pull-request.require-independent-exact-head-review`.
 
-Request review for the exact current head if no completed independent review for that head exists. The request must name the exact SHA. When Hermes Agent is the selected reviewer in this repository, include the literal string `@hermes review` in the pull-request comment.
+Request review for the exact current head if no completed independent review for that head exists. The request must name the exact SHA. Reviewer selection and any reviewer-specific invocation syntax are repository- or execution-environment concerns and are not defined by this shared adapter.
 
 A request, pending review, empty review list, or absence of findings is not completed review evidence. If the head changes after review, mark the prior review stale and request a fresh review for the new exact head.
 
