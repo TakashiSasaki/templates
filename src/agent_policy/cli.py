@@ -9,6 +9,7 @@ from .commands import check as check_command
 from .commands import init as init_command
 from .commands import onboard as onboard_command
 from .commands import render as render_command
+from .commands import review_bundle as review_bundle_command
 from .commands import validate as validate_command
 from .diagnostics import print_diagnostics
 from .identity import immutable_toolchain_reference, resolve_toolchain_revision
@@ -102,6 +103,21 @@ def parser() -> argparse.ArgumentParser:
     finalize.add_argument("--state", default=adopt_command.DEFAULT_STATE_PATH)
     finalize.add_argument("--backup-path", default=adopt_command.DEFAULT_BACKUP_PATH)
     finalize.add_argument("--apply", action="store_true")
+
+    # Internal trusted-review artifact handoff. This command does not establish
+    # OS/deployment immutability; the dispatcher freezes the candidate between
+    # materialize and verify.
+    review_bundle = sub.add_parser("review-bundle", help=argparse.SUPPRESS)
+    review_bundle_sub = review_bundle.add_subparsers(
+        dest="review_bundle_command",
+        required=True,
+    )
+    bundle_materialize = review_bundle_sub.add_parser("materialize")
+    bundle_materialize.add_argument("--config", default=".agent-policy.yml")
+    bundle_materialize.add_argument("--destination", type=Path, required=True)
+    bundle_verify = review_bundle_sub.add_parser("verify")
+    bundle_verify.add_argument("--config", default=".agent-policy.yml")
+    bundle_verify.add_argument("--bundle", type=Path, required=True)
     return root
 
 
@@ -130,6 +146,19 @@ def main(argv: list[str] | None = None) -> int:
         diagnostics = render_command.run(repository_root, args.config)
     elif args.command == "check":
         diagnostics = check_command.run(repository_root, args.config)
+    elif args.command == "review-bundle":
+        if args.review_bundle_command == "materialize":
+            diagnostics = review_bundle_command.materialize(
+                repository_root,
+                args.config,
+                args.destination,
+            )
+        else:
+            diagnostics = review_bundle_command.verify(
+                repository_root,
+                args.config,
+                args.bundle,
+            )
     elif args.command == "adopt":
         if args.adopt_command == "inspect":
             diagnostics = adopt_command.inspect_run(
