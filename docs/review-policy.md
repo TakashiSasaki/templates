@@ -20,6 +20,21 @@ The profile therefore owns review semantics such as:
 
 These rules do not duplicate artifact contracts. For example, `compatibility.preserve-contracts` remains the shared authority for preserving externally observable contracts; the review profile defines how a reviewer must establish and report a compatibility defect rather than creating a separate review-only definition of compatibility.
 
+## Current automated-review authority boundary
+
+The current automated pull-request review architecture separates semantic authority, procedural authority, generated consumer projections, and provider integration rather than combining them in one review document.
+
+- `policy/core/*.md`, `policy/security/*.md`, `policy/review/*.md`, and applicable repository-local policy are the semantic authority for what counts as a safe or blocking change.
+- `profiles/review.yml` selects the review-specific semantic modules; the review context composes them with the shared core and security baselines.
+- `.review-authority/review-policy.md` is the generated provider-neutral semantic projection consumed by this repository's self-hosted review configuration. It is generated material, not a second semantic source.
+- `skills/pr-review/SKILL.md` is the current provider-neutral procedural authority for automated pull-request review. It owns exact repository/PR/base/head/merge-base establishment, changed-surface analysis, CI evidence collection, semantic-policy application, limitation preservation, live-identity refresh, drift invalidation, and the identity-bound completion handoff.
+- declared `pr-review` references are frozen with the procedure bundle. A reference may support procedure execution only to the extent the Skill assigns it that role; it must not silently redefine semantic review rules. The current `github-pull-request-review-api.md` reference is explicitly non-normative provider integration material.
+- provider API request shape, provider event names, result serialization, and later submission/display behavior remain outside semantic review authority. They must preserve the meaning and identity binding established by the completed provider-neutral review rather than creating a competing review contract.
+
+The repository's current self-host configuration enables `pr-review` and renders the review context through `policy-context-md`. Generated copies under `.agents/skills/pr-review/` and `.review-authority/` are derived outputs selected by the pinned toolchain and must not be edited as independent authorities.
+
+This boundary also governs future review material. Investigation techniques, risk-domain playbooks, examples, and empirical evaluation cases may make review execution more effective, but they must either remain non-authoritative evidence/evaluation material or be explicitly assigned a procedural role by `pr-review`; they must not duplicate or override semantic policy.
+
 ## Coverage is not checklist approval
 
 Revised automated-review guidance identified a gap between finding admissibility and review coverage. The existing profile strongly constrains when a blocking finding is valid, but a reviewer also needs an explicit obligation to consider the risk domains actually exposed by the change before reporting a clean result.
@@ -39,15 +54,15 @@ Other guidance was already owned elsewhere and is deliberately reused instead of
 - trust-boundary validation remains `security.validate-boundaries` together with `review.trace-security-findings`; and
 - concrete data or operational impact remains part of `review.require-reachable-impact`.
 
-Operational requirements such as resolving the exact pull-request base and head, refreshing identities before review completion, retrieving current CI evidence, and preserving review limitations belong to the provider-neutral review procedure rather than new semantic modules. Concrete GitHub request fields or event names belong to integration behavior/reference material, not to semantic policy or the review procedure. ADR-0008 records the immutable review trust machinery; ADR-0009 is the current authority for the review-result representation boundary.
+Operational requirements such as resolving the exact pull-request base and head, refreshing identities before review completion, retrieving current CI evidence, and preserving review limitations belong to the provider-neutral `pr-review` procedure rather than new semantic modules. Concrete GitHub request fields or event names belong to integration behavior/reference material, not to semantic policy or the review procedure. ADR-0008 records the immutable review trust machinery; ADR-0009 is the current authority for the review-result representation boundary.
 
 ## Statement-level disposition of the revised guidance
 
-`docs/review-guidance-disposition.json` is the machine-readable, non-authoritative disposition record for the frozen migration inputs `RG-01` through `RG-09` and `AP-01` through `AP-08`. It records whether each statement is already owned by canonical policy, contributes to the single new semantic rule in this change, belongs to the planned review procedure, or is useful only as provider integration material.
+`docs/review-guidance-disposition.json` is the machine-readable, non-authoritative disposition record for the frozen migration inputs `RG-01` through `RG-09` and `AP-01` through `AP-08`. It records how each statement was classified during the migration to shared review semantics: already owned by canonical policy, contributing to the one new semantic rule introduced by that migration, assigned to the review procedure, or retained only as provider integration material.
 
-The disposition record is deliberately not another review policy source. Tests require every frozen input ID to appear exactly once, every semantic authority reference to resolve to a composed canonical rule, and the set of newly introduced semantic authorities to be exactly `{review.assess-applicable-risk-domains}`. Multiple frozen statements may therefore map to the same canonical rule without creating duplicate authority.
+The disposition record is deliberately historical evidence, not another review policy source and not a live architecture inventory. Tests require every frozen input ID to appear exactly once, every semantic authority reference to resolve to a composed canonical rule, and the semantic rule introduced by that migration to remain exactly `{review.assess-applicable-risk-domains}`. Multiple frozen statements may therefore map to the same canonical rule without creating duplicate authority.
 
-Procedure entries identify downstream responsibilities planned for `skills/pr-review/SKILL.md`. The frozen taxonomy's `adapter` disposition class identifies provider-specific transport material. Under ADR-0009, AP-07's adapter-side entry points only to a non-normative GitHub integration reference; that classification does not turn the reference into semantic policy or review-procedure authority. Provider request shape remains governed by the provider API/tool contract.
+Entries classified as `procedure` identify responsibilities that are now realized by the current `skills/pr-review/SKILL.md`; they are not promises of a future procedure. The frozen taxonomy's `adapter` class is retained only to preserve the original statement-level classification. Under ADR-0009, AP-07's adapter-side entry points to the explicitly non-normative GitHub integration reference; that historical class does not create an adapter authority, semantic rule, review-result schema, or second review procedure. Provider request shape remains governed by the provider API/tool contract.
 
 ## What does not belong here
 
@@ -87,4 +102,4 @@ The semantic source sections in the frozen Skill document map to shared rules as
 | Confidence | semantic high-confidence requirement in `review.focus-on-blocking-findings`; numeric serialization is integration-only |
 | JSON output and examples | non-normative provider integration material only |
 
-The `skill` copy remains unchanged in this phase. It is removed or regenerated only after the shared review policy can be selected and rendered through a pinned stable toolchain revision.
+The frozen source document and disposition record remain migration/history evidence. Current automated-review execution uses the single semantic authority selected by the review context together with the generated, provider-neutral `pr-review` procedure from the pinned toolchain; provider-specific integration remains outside that authority chain.
