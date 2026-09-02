@@ -34,12 +34,15 @@ def expected_probe() -> dict[str, object]:
         "check": [],
         "materialize": ["REVIEW_BUNDLE_MATERIALIZED"],
         "verify": ["REVIEW_BUNDLE_VERIFIED"],
-        "files": [
-            "manifest.json",
-            "procedure/SKILL.md",
-            "procedure/references/github-pull-request-review-api.md",
-            "semantic/review-policy.md",
-        ],
+        "files": sorted(
+            [
+                "manifest.json",
+                "procedure/SKILL.md",
+                "procedure/references/github-pull-request-review-api.md",
+                *verifier.RISK_DOMAIN_BUNDLE_PATHS,
+                "semantic/review-policy.md",
+            ]
+        ),
         "manifest_bundle_format": 1,
         "manifest_has_adapter": False,
         "manifest_has_result_fields": False,
@@ -59,6 +62,7 @@ def test_candidate_verifier_closes_required_trusted_review_surface() -> None:
         "skills/agent-policy/scripts/runtime_image.py",
         "skills/pr-review/SKILL.md",
         "skills/pr-review/references/github-pull-request-review-api.md",
+        *verifier.RISK_DOMAIN_REFERENCE_PATHS,
         "src/agent_policy/commands/review_bundle.py",
         "templates/policy-context.md.j2",
     }
