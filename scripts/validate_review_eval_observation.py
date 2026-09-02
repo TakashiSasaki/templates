@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from jsonschema import Draft202012Validator
+from jsonschema.exceptions import SchemaError
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CASE_SCHEMA = ROOT / "review-evals" / "review-eval-case.schema.json"
@@ -30,6 +31,13 @@ def _load_json(path: Path) -> dict[str, Any]:
 def _validate_schema(
     instance: dict[str, Any], schema: dict[str, Any], label: str
 ) -> None:
+    try:
+        Draft202012Validator.check_schema(schema)
+    except SchemaError as exc:
+        raise ObservationValidationError(
+            f"{label} schema invalid: {exc.message}"
+        ) from exc
+
     validator = Draft202012Validator(schema)
     errors = sorted(validator.iter_errors(instance), key=lambda item: list(item.path))
     if errors:
