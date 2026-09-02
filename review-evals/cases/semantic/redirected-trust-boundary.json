@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "id": "redirected-trust-boundary",
+  "kind": "semantic-transposition",
+  "title": "Validated destination redirects to a different authority",
+  "authority": "non-authoritative-evaluation",
+  "risk_domains": ["external-interaction", "identity-and-authority", "namespace-and-indirection"],
+  "scenario": {
+    "observed_change": "An operation validates an intended external destination, but follows a later redirect or resolution step without reapplying the destination authority rule to the effective endpoint.",
+    "controlled_inputs": ["initial destination", "redirect or resolution target"],
+    "mutable_state": ["effective external destination"],
+    "authority_boundaries": ["approved external authority versus other reachable authorities"],
+    "operation_model": ["validate intended destination", "follow redirect or alternate resolution", "send authenticated or privileged request", "effective authority receives the request"]
+  },
+  "required_invariants": [
+    {"rule_id": "safety.bind-validated-state-to-operation", "requirement": "Destination validation must apply to the effective destination used by the request."},
+    {"rule_id": "security.validate-boundaries", "requirement": "External trust boundaries must be validated before privileged external interaction."}
+  ],
+  "expected_review": {
+    "disposition": "blocking-finding",
+    "must_investigate": ["effective destination after redirects/resolution", "credential or authority propagation", "destination revalidation"],
+    "must_identify": ["the operation can cross from an approved destination to an unapproved effective authority after validation"],
+    "must_not_claim": ["safe external interaction solely because the initial destination was approved"]
+  }
+}
