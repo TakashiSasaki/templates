@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import json
 import re
 from pathlib import Path
@@ -44,6 +45,34 @@ def test_review_eval_schema_and_cases_are_valid() -> None:
         errors = sorted(validator.iter_errors(case), key=lambda item: list(item.path))
         assert not errors, f"{path}: {[error.message for error in errors]}"
         assert path.stem == case["id"]
+
+
+def test_review_eval_schema_binds_empirical_head_identity() -> None:
+    schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+    validator = Draft202012Validator(schema)
+    exact = next(
+        case
+        for _, case in load_cases()
+        if case["kind"] == "empirical"
+        and case["provenance"]["head_binding"] == "exact"  # type: ignore[index]
+    )
+
+    exact_with_null_head = copy.deepcopy(exact)
+    exact_with_null_head["provenance"]["reviewed_head"] = None  # type: ignore[index]
+    assert list(validator.iter_errors(exact_with_null_head))
+
+    exact_without_head = copy.deepcopy(exact)
+    exact_without_head["provenance"].pop("reviewed_head")  # type: ignore[union-attr]
+    assert list(validator.iter_errors(exact_without_head))
+
+    unbound_with_exact_head = copy.deepcopy(exact)
+    unbound_with_exact_head["provenance"]["head_binding"] = "not-established"  # type: ignore[index]
+    assert list(validator.iter_errors(unbound_with_exact_head))
+
+    valid_unbound = copy.deepcopy(exact)
+    valid_unbound["provenance"]["head_binding"] = "not-established"  # type: ignore[index]
+    valid_unbound["provenance"]["reviewed_head"] = None  # type: ignore[index]
+    assert not list(validator.iter_errors(valid_unbound))
 
 
 def test_review_eval_case_ids_are_unique_and_non_authoritative() -> None:
