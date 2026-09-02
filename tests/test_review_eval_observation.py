@@ -187,7 +187,9 @@ def test_observation_validator_rejects_impossible_unsupported_count(
 def test_schema_can_record_false_completion_instead_of_censoring_it() -> None:
     schema = json.loads(OBSERVATION_SCHEMA.read_text(encoding="utf-8"))
     validator = Draft202012Validator(schema)
-    control_path = next(CASE_ROOT.glob("control/*.json"))
+    control_path = next(
+        path for path in _case_paths() if path.parent.name == "control"
+    )
     observation = _observation_for(control_path)
     observation["observations"]["substantive_analysis_completed"] = False  # type: ignore[index]
     observation["observations"]["task_substitution_observed"] = True  # type: ignore[index]
