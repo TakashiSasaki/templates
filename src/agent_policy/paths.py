@@ -26,6 +26,24 @@ def find_repository_root(start: Path | None = None) -> Path:
     raise FileNotFoundError("No Git repository root found")
 
 
+def find_trusted_snapshot_root(start: Path | None) -> Path:
+    if start is None:
+        raise FileNotFoundError("Trusted review snapshot mode requires --repository")
+    root = start.expanduser().absolute()
+    if root.is_symlink() or not root.is_dir():
+        raise FileNotFoundError("Trusted review snapshot root must be a regular directory")
+    if (root / ".git").exists() or (root / ".git").is_symlink():
+        raise ValueError("Trusted review snapshot root must not contain .git metadata")
+    current = Path(root.anchor)
+    for part in root.parts[1:]:
+        current = current / part
+        if current.is_symlink():
+            raise ValueError(
+                f"Trusted review snapshot path contains a symbolic-link component: {current}"
+            )
+    return root
+
+
 def _normalized_lexical_relative(root: Path, relative: str | Path) -> Path:
     raw = Path(relative)
     if raw.is_absolute():
