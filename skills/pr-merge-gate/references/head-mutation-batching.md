@@ -48,4 +48,4 @@ Neither procedure changes finding severity or merge authorization. A verified ma
 
 ## Closure
 
-Mutation batching is an efficiency discipline, not acceptance evidence. Do not report a batch as successful until the resulting candidate head has reacquired every exact-head gate invalidated by the mutation and the normal merge-gate workflow reaches its required state.
+Mutation batching is an efficiency discipline, not acceptance evidence. Do not report a batch as successful until the workflow reacquires every exact-head gate invalidated by the mutation and the normal merge-gate workflow reaches its required state.
