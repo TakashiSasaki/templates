@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "id": "stable-resource-binding-control",
+  "id": "stable-resource-binding",
   "kind": "control",
   "title": "Stable effective identity prevents validation-use rebinding",
   "authority": "non-authoritative-evaluation",
