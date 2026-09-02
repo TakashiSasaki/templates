@@ -1,6 +1,6 @@
 # Contributing
 
-Canonical repository-maintainer operating policy is declared by `.agent-policy.yml` and the files under `repository-policy/`; generated `AGENTS.md` and `.github/REVIEW_GUIDELINES.md` are projections of that authority.
+Canonical repository-maintainer operating policy is declared by `.agent-policy.yml` and the files under `repository-policy/`; generated `AGENTS.md` and `.review-authority/review-policy.md` are context projections of that authority, and `.agents/skills/pr-review/` is the generated provider-neutral review procedure.
 
 For architecture-sensitive changes, follow `repository-policy/architecture-decisions.md`. In particular, that canonical rule governs changes to the policy schema, rule merge or override semantics, lock-file format, and the repository-facing skill/runtime trust model.
 

@@ -40,7 +40,7 @@ This orphan branch is the development source for application-type-independent co
 
 The Python package and command are named `agent-policy`.
 
-Repository-maintainer operating authority for this branch is declared by `.agent-policy.yml` and the files under `repository-policy/`. Generated `AGENTS.md` and `.github/REVIEW_GUIDELINES.md` are projections of that authority. Other maintained documents may define toolkit contracts, release/readiness states, or explain the current implementation, but this README does not independently override the canonical operating rules.
+Repository-maintainer operating authority for this branch is declared by `.agent-policy.yml` and the files under `repository-policy/`. Generated `AGENTS.md` and `.review-authority/review-policy.md` are context projections of that authority; `.agents/skills/pr-review/` is the generated provider-neutral review procedure. Other maintained documents may define toolkit contracts, release/readiness states, or explain the current implementation, but this README does not independently override the canonical operating rules.
 
 Policy and Composition may coexist in one consumer repository without a direct runtime dependency. Policy owns `.agent-policy.yml`, `.agent-policy.lock`, and `.agent-policy/**`; Composition owns `.template-composition/**`. The canonical cross-authority boundary, including ordinary-path ownership handoffs such as a consumer-owned `AGENTS.md`, is the Site-owned [Policy–Composition coexistence contract](https://templates.moukaeritai.work/coexistence/).
 
@@ -154,7 +154,7 @@ The maintained branch provides:
 - the single cached `agent-policy` skill under `skills/agent-policy/`;
 - an immutable full-SHA remote installer publication descriptor;
 - a schema-validated stable release descriptor and full-SHA synchronization verifier;
-- context-aware coding and review rendering, including the GitHub review JSON adapter;
+- context-aware coding and review semantic rendering plus the provider-neutral `pr-review` procedure;
 - a `policy`-scoped strict documentation build with no Pages artifact upload, Pages write authority, or deployment job; and
 - the reviewed toolkit-completion contract and audit record in `docs/policy-readiness.md` and `docs/policy-readiness-audit.md`.
 
