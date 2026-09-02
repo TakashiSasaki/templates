@@ -54,7 +54,12 @@ def test_repository_self_hosting_outputs_match_recorded_lock() -> None:
     lock = load_yaml(LOCK_PATH)
     outputs = lock["outputs"]
     assert isinstance(outputs, dict)
-    assert set(outputs) == {"AGENTS.md", ".github/REVIEW_GUIDELINES.md"}
+    assert set(outputs) == {
+        "AGENTS.md",
+        ".review-authority/review-policy.md",
+        ".agents/skills/pr-review/SKILL.md",
+        ".agents/skills/pr-review/references/github-pull-request-review-api.md",
+    }
 
     for relative, metadata in outputs.items():
         assert isinstance(relative, str)
@@ -63,6 +68,8 @@ def test_repository_self_hosting_outputs_match_recorded_lock() -> None:
         assert isinstance(expected, str)
         actual = hashlib.sha256((ROOT / relative).read_bytes()).hexdigest()
         assert actual == expected, relative
+
+    assert not (ROOT / ".github" / "REVIEW_GUIDELINES.md").exists()
 
 
 def test_repository_self_hosting_workflow_checks_with_consumer_pin() -> None:
@@ -108,19 +115,21 @@ def test_repository_policy_is_not_part_of_shared_profiles() -> None:
         ), profile_path.name
 
 
-def test_generated_outputs_have_distinct_coding_and_review_adapters() -> None:
+def test_generated_outputs_use_provider_neutral_review_authority() -> None:
     config = load_yaml(CONFIG_PATH)
     outputs = config["outputs"]
 
+    assert set(outputs) == {"agents", "review-authority"}
     assert outputs["agents"] == {
         "enabled": True,
         "path": "AGENTS.md",
         "context": "coding",
         "renderer": "agents-md",
     }
-    assert outputs["review"] == {
+    assert outputs["review-authority"] == {
         "enabled": True,
-        "path": ".github/REVIEW_GUIDELINES.md",
+        "path": ".review-authority/review-policy.md",
         "context": "review",
-        "renderer": "github-review-json-v1",
+        "renderer": "policy-context-md",
     }
+    assert config["skills"] == {"enabled": ["pr-review"]}
