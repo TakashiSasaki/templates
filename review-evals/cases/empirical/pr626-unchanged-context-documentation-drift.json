@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "id": "pr626-unchanged-context-documentation-drift",
+  "kind": "empirical",
+  "title": "A documentation synchronization change leaves contradictory unchanged sibling documents",
+  "authority": "non-authoritative-evaluation",
+  "risk_domains": [
+    "consumer-and-execution-paths"
+  ],
+  "scenario": {
+    "observed_change": "A documentation synchronization pull request updates one architecture document and adds a focused guard for that document, while unchanged sibling architecture documents in the same relevant context retain obsolete statements that contradict the current implementation and the updated document.",
+    "controlled_inputs": [
+      "the changed architecture document and its focused documentation guard",
+      "unchanged sibling architecture documents relevant to the same synchronization goal",
+      "the current executable implementation and validator behavior those documents describe"
+    ],
+    "mutable_state": [
+      "the reader-visible architecture contract distributed across the relevant documents",
+      "the effective scope of regression guards for documentation drift"
+    ],
+    "authority_boundaries": [
+      "the changed document versus unchanged sibling normative and consumer context",
+      "executable behavior authority versus documentation that communicates that behavior"
+    ],
+    "operation_model": [
+      "update one architecture document to match current executable behavior",
+      "run a focused documentation guard that covers the changed document",
+      "leave relevant sibling architecture documents unchanged",
+      "readers can still encounter stale contradictory contract statements outside the diff"
+    ]
+  },
+  "required_invariants": [
+    {
+      "rule_id": "review.inspect-relevant-context",
+      "requirement": "A reviewer must inspect the changed material together with relevant unchanged normative and consumer context needed to establish whether the stated synchronization goal is actually complete."
+    }
+  ],
+  "expected_review": {
+    "disposition": "blocking-finding",
+    "must_investigate": [
+      "the changed document, relevant unchanged sibling documents, and the executable behavior they collectively describe",
+      "whether the regression guard covers the full documentation context required by the synchronization goal",
+      "whether any relevant unchanged document retains wording that contradicts the synchronized current behavior"
+    ],
+    "must_identify": [
+      "the documentation synchronization is incomplete because relevant unchanged sibling documents retain stale contradictory semantics"
+    ],
+    "must_not_claim": [
+      "that the synchronization goal is complete merely because the changed document matches the implementation and its focused test passes",
+      "a clean review without inspecting relevant unchanged sibling context needed to establish the stated documentation goal"
+    ]
+  },
+  "provenance": {
+    "repository": "TakashiSasaki/templates",
+    "pull_request": 626,
+    "source_type": "pull-request-review",
+    "source_id": "PRR_kwDOTm6ous8AAAABLXPIkA",
+    "reviewed_head": "958b6017a0cedfd0fe5a848c45cd86fdba2953d9",
+    "head_binding": "exact",
+    "note": "The historical exact-head review expanded beyond the changed document and focused guard to relevant unchanged sibling architecture documents and found stale contradictory passages. This case isolates the changed-files-only context failure mechanism rather than the reviewer or provider identity."
+  }
+}
