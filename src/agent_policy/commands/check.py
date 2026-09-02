@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import shutil
+import stat
 import tempfile
 from pathlib import Path
 
@@ -32,12 +33,28 @@ def _is_stale(left: Path, right: Path) -> bool:
     )
 
 
+def _make_staging_writable(root: Path) -> None:
+    paths = [root, *root.rglob("*")]
+    for path in paths:
+        if path.is_symlink():
+            continue
+        mode = path.stat(follow_symlinks=False).st_mode
+        if path.is_dir():
+            path.chmod(mode | stat.S_IWUSR | stat.S_IXUSR)
+        elif path.is_file():
+            path.chmod(mode | stat.S_IWUSR)
+
+
 def run(repository_root: Path, config_path: str) -> list[Diagnostic]:
     try:
         previous_outputs = _locked_outputs(repository_root)
         with tempfile.TemporaryDirectory(prefix="agent-policy-check-") as temporary:
             staged = Path(temporary) / "repo"
             shutil.copytree(repository_root, staged, ignore=shutil.ignore_patterns(".git"))
+            # A trusted authority snapshot may deliberately be frozen read-only.
+            # Rendering happens only in this disposable copy, so restore owner
+            # writability without mutating the reviewed snapshot itself.
+            _make_staging_writable(staged)
             diagnostics = render_run(staged, config_path)
             if diagnostics:
                 return diagnostics

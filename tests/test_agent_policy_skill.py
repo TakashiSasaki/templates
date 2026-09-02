@@ -73,8 +73,10 @@ def test_single_skill_layout_and_release_pin() -> None:
         "runtime-manifest.json",
         "scripts/bootstrap.py",
         "scripts/install.py",
+        "scripts/review_base.py",
         "scripts/run.py",
         "scripts/runtime.py",
+        "scripts/runtime_image.py",
         "scripts/uninstall.py",
     }
     actual = {
