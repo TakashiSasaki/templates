@@ -59,6 +59,17 @@ def test_repository_self_hosting_outputs_match_recorded_lock() -> None:
         ".review-authority/review-policy.md",
         ".agents/skills/pr-review/SKILL.md",
         ".agents/skills/pr-review/references/github-pull-request-review-api.md",
+        ".agents/skills/pr-review/references/risk-domains/build-provenance-and-ci.md",
+        ".agents/skills/pr-review/references/risk-domains/concurrency-and-temporal-consistency.md",
+        ".agents/skills/pr-review/references/risk-domains/consumer-and-execution-paths.md",
+        ".agents/skills/pr-review/references/risk-domains/external-interaction.md",
+        ".agents/skills/pr-review/references/risk-domains/identity-and-authority.md",
+        ".agents/skills/pr-review/references/risk-domains/index.md",
+        ".agents/skills/pr-review/references/risk-domains/namespace-and-indirection.md",
+        ".agents/skills/pr-review/references/risk-domains/persistence-and-integrity.md",
+        ".agents/skills/pr-review/references/risk-domains/privileged-execution.md",
+        ".agents/skills/pr-review/references/risk-domains/resource-behavior.md",
+        ".agents/skills/pr-review/references/risk-domains/state-mutation-and-recovery.md",
     }
 
     for relative, metadata in outputs.items():

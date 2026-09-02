@@ -1,10 +1,10 @@
 lock_version: 1
 toolchain:
   repository: TakashiSasaki/templates
-  revision: 8600bc014b4381c3531eedb3bd832d9ac09a500e
+  revision: 40cf11bb87d0dcdb1ef64c0fcae548b108cfc226
 inputs:
   .agent-policy.yml:
-    sha256: bda2ea2e102fc46a749cdd4c63b648fe794fe19fe43796afbff27e03cbaa259c
+    sha256: 662162674088d45fc43e0d923d67aed4dbbc9ba695975ae9375c6ed737765902
   repository-policy/architecture-decisions.md:
     sha256: 6377845c99329c58f0d26134dfa3cf91236d3d8ade4c317920bfdc13f77a0ff1
   repository-policy/authority-boundary.md:
@@ -21,10 +21,32 @@ inputs:
     sha256: eb45d47fafa2e406dabb2536a818e206acede23f229eda19e8fdaa37d8445542
 outputs:
   .agents/skills/pr-review/SKILL.md:
-    sha256: 8ac7399632e2cde0907c0640505c2ac62e7f7a84b8c280ee1e19cbd45bc98215
+    sha256: ed44e1db3549e41342ced28b50fbd37189bef0e43e783c309300432e5df979f1
   .agents/skills/pr-review/references/github-pull-request-review-api.md:
     sha256: b20d9612813d41a6f7ceaf6a51a3475f1fb42b6ca197beddb3a5feb18c9a623b
+  .agents/skills/pr-review/references/risk-domains/build-provenance-and-ci.md:
+    sha256: 20826956a6ef31965fdee2db3420edf288c73b6058127750bffc18ab610f600b
+  .agents/skills/pr-review/references/risk-domains/concurrency-and-temporal-consistency.md:
+    sha256: aca40811cf69061419ec1d4c34411c941c756b73d720701a511a12248168b34a
+  .agents/skills/pr-review/references/risk-domains/consumer-and-execution-paths.md:
+    sha256: 5e30c205c328d714e7aaec46a01dd2e2967d334f86e6cb4e69de0fdc2fd8256c
+  .agents/skills/pr-review/references/risk-domains/external-interaction.md:
+    sha256: 71ad7b1004292ab7fcc2c470d6cb0f448c5d453d7a5312f24e90459bff200413
+  .agents/skills/pr-review/references/risk-domains/identity-and-authority.md:
+    sha256: 26ca485459ecfcb32307c633d3fd262e9f8159d94257c3da769bedfd2e5cf7e6
+  .agents/skills/pr-review/references/risk-domains/index.md:
+    sha256: aee703224bac2f903a0cf7c08e8b45b51e185badeab434593a8debf8df4ecb35
+  .agents/skills/pr-review/references/risk-domains/namespace-and-indirection.md:
+    sha256: 4cedc41e9d7c6dcf9b5891eee44a2a0f9b942d82ca88d34b354c5f50d91bf1e5
+  .agents/skills/pr-review/references/risk-domains/persistence-and-integrity.md:
+    sha256: 8a889526da9707d9cbce715bbe371680e8baa8288b9fd00055323de4dab0e19c
+  .agents/skills/pr-review/references/risk-domains/privileged-execution.md:
+    sha256: f78f265fa4300cac2175b513850c8b095082c5a38b2719a8ce9c7f7cd6bc111b
+  .agents/skills/pr-review/references/risk-domains/resource-behavior.md:
+    sha256: c233257c3772b6dc79a9f09fceccc80e8aa20cdd872ded75c5d0db3c762f8d17
+  .agents/skills/pr-review/references/risk-domains/state-mutation-and-recovery.md:
+    sha256: 0cd5b71178b43da5128f4d2e1bfab8f3df5d71439531a9010f351c4ed1468f44
   .review-authority/review-policy.md:
-    sha256: 2adae0c2c4b6d096a4649262f90574502b64c2c6ad9c0a2b0264d87e258bab0f
+    sha256: 07084b3cf028162ff6c6dd4759abe1cc67a022b575d65237cb687f362a0b3e20
   AGENTS.md:
-    sha256: eb3e1f603d9f002c0493bde6668fca83d3586552917bf21506af209808b029f9
+    sha256: 618f5d09d8b150eb7324c39356212a70dcd4b3eded6fe0afe1827d8d8807eed0
