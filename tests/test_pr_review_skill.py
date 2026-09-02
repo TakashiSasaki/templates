@@ -54,8 +54,12 @@ def test_risk_domain_references_are_procedure_support_not_semantic_authority() -
     )
     for path in RISK_DOMAIN_REFERENCES:
         content = rendered[path].casefold()
-        assert "provider-neutral procedure-support reference" in content
-        assert "semantic" in content
+        preamble = content.split("\n## ", 1)[0]
+        assert "provider-neutral procedure-support reference" in preamble
+        assert re.search(
+            r"semantic[^.\n]*(?:authorit|defines|decides)",
+            preamble,
+        )
         for term in technology_specific_terms:
             pattern = rf"(?<![a-z0-9_]){re.escape(term)}(?![a-z0-9_])"
             assert re.search(pattern, content) is None
