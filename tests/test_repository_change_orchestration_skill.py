@@ -53,6 +53,15 @@ def test_orchestration_skill_covers_round_trip_and_evidence_churn_controls() -> 
         assert invariant in text
 
 
+def test_guarded_writes_do_not_replace_required_commit_boundary_revalidation() -> None:
+    skill = SKILL.read_text(encoding="utf-8").lower()
+    rationale = RATIONALE.read_text(encoding="utf-8").lower()
+
+    assert "including any required commit-boundary revalidation" in skill
+    assert "whose omission does not remove a required authority check" in skill
+    assert "do not replace semantic checks or required commit-boundary revalidation" in rationale
+
+
 def test_orchestration_skill_keeps_provider_and_reviewer_triggers_out_of_shared_procedure() -> None:
     text = SKILL.read_text(encoding="utf-8").lower()
     for provider_specific in (
