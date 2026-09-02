@@ -13,15 +13,15 @@ skillはmutableな`policy`ブランチ先端を実行しません。`runtime-man
 remote installでは、installer script自体をfull SHAで固定したURLから実行します。
 
 ```bash
-python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/202c4e7a66584244accf2000e86525409b1ca806/scripts/install_agent_policy_skill.py', timeout=30).read())" /path/to/agent-skills/agent-policy
+python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/40faf658ecbcb2060a406828fc5e1e1a7a6b8c21/scripts/install_agent_policy_skill.py', timeout=30).read())" /path/to/agent-skills/agent-policy
 ```
 
 既存の `agent-policy` skillを置換する場合だけ `--replace` を追加します。
 
 配布では3種類のrevisionを明確に分離します。
 
-- **installer script revision** `202c4e7a66584244accf2000e86525409b1ca806`: remoteで実行するbootstrap scriptを固定します。
-- **skill source revision** `499dc8699e3dcd9f460d603718bdf2266c45e7ca`: installerが取得する `skills/agent-policy/` subtreeを固定します。
+- **installer script revision** `40faf658ecbcb2060a406828fc5e1e1a7a6b8c21`: remoteで実行するbootstrap scriptを固定します。
+- **skill source revision** `3542920603eccae7f56cea56d735707ddb983203`: installerが取得する `skills/agent-policy/` subtreeを固定します。
 - **stable runtime revision**: `runtime-manifest.json` 内の独立したfull SHAで、install後にcanonical CLIを実行するruntimeを固定します。
 
 `release/skill-installer.json` は最初の2つのidentityを公開します。commandもremote installerもmutableな `policy` branch、tag、短縮SHAを実行しません。
