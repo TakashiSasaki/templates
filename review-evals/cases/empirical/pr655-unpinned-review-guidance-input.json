@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "id": "pr655-unpinned-review-guidance-input",
+  "kind": "empirical",
+  "title": "A required migration input has no immutable identity",
+  "authority": "non-authoritative-evaluation",
+  "risk_domains": ["identity-and-authority", "build-provenance-and-ci"],
+  "scenario": {
+    "observed_change": "An architecture requires later implementation to incorporate statement-level requirements from external review-guidance documents, but those documents are not stored at an immutable repository path, pinned revision, digest, or embedded inventory. Different follow-up implementations can therefore select different document versions while claiming to implement the same accepted baseline.",
+    "controlled_inputs": [
+      "version of the external guidance selected by a follow-up implementation",
+      "migration mapping from guidance statements into repository authority layers"
+    ],
+    "mutable_state": [
+      "effective statement-level migration baseline"
+    ],
+    "authority_boundaries": [
+      "historical design discussion versus repository-frozen migration input",
+      "explanatory reference to an external document versus reproducible normative migration baseline"
+    ],
+    "operation_model": [
+      "architecture names an external guidance artifact as required migration input",
+      "follow-up implementation later resolves whichever version is available or remembered",
+      "different implementations classify different statements into policy or procedure",
+      "the accepted semantic baseline changes without an explicit reviewed repository change"
+    ]
+  },
+  "required_invariants": [
+    {
+      "rule_id": "review.identify-applicable-normative-rules",
+      "requirement": "A statement used as a basis for review or policy migration must have determinable authority, current identity, and applicable scope rather than being selected from an ambiguous historical or explanatory source."
+    }
+  ],
+  "expected_review": {
+    "disposition": "blocking-finding",
+    "must_investigate": [
+      "whether every required migration input has an immutable repository identity or frozen content inventory",
+      "whether follow-up implementations can select different versions without changing reviewed repository authority",
+      "whether the external guidance is evidence, explanation, or an actual migration baseline"
+    ],
+    "must_identify": [
+      "the required migration baseline is not reproducible because the referenced guidance has no immutable identity or frozen statement inventory"
+    ],
+    "must_not_claim": [
+      "deterministic migration merely because the architecture names the external guidance documents descriptively"
+    ]
+  },
+  "provenance": {
+    "repository": "TakashiSasaki/templates",
+    "pull_request": 655,
+    "source_type": "review-thread-comment",
+    "source_id": "PRRC_kwDOTm6ous7oy5dE",
+    "reviewed_head": null,
+    "head_binding": "not-established",
+    "note": "The historical thread found that required review-guidance migration inputs were referenced without repository-frozen identities, allowing later work to silently choose different conversational/document variants. The thread evidence available through the current connector does not expose an exact reviewed-head binding for this comment."
+  }
+}

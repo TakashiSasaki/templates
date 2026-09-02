@@ -25,6 +25,15 @@ EXPECTED_RISK_DOMAINS = {
     "build-provenance-and-ci",
     "consumer-and-execution-paths",
 }
+EXPECTED_EMPIRICAL_CASE_IDS = {
+    "pr597-generated-skill-classification-mismatch",
+    "pr631-test-discovery-gap",
+    "pr648-provider-failure-false-completion",
+    "pr655-reviewed-head-selects-review-authority",
+    "pr655-unpinned-review-guidance-input",
+    "pr660-attestation-overwrite",
+    "pr660-external-file-symlink",
+}
 
 
 def load_cases() -> list[tuple[Path, dict[str, object]]]:
@@ -121,12 +130,21 @@ def test_review_eval_corpus_has_empirical_transposition_and_negative_controls() 
         for _, case in cases
     ]
 
-    assert kinds.count("empirical") >= 3
+    assert kinds.count("empirical") >= 7
     assert kinds.count("semantic-transposition") >= 5
     assert kinds.count("control") >= 2
     assert "blocking-finding" in dispositions
     assert "completed-no-blocking-finding" in dispositions
     assert "incomplete-review" in dispositions
+
+
+def test_empirical_review_eval_regression_anchors_are_preserved() -> None:
+    empirical_ids = {
+        case["id"]
+        for _, case in load_cases()
+        if case["kind"] == "empirical"
+    }
+    assert EXPECTED_EMPIRICAL_CASE_IDS <= empirical_ids
 
 
 def test_empirical_review_eval_cases_have_identity_bound_provenance_when_available() -> None:
