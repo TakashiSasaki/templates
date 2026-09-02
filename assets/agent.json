@@ -13,7 +13,7 @@
     },
     "policy": {
       "role": "coding-agent-operating-policy",
-      "publication_revision": "01185ae329c689ab25f7664eaef6eecb084aaff4",
+      "publication_revision": "f035f3422dcb2c4e00a1ab5e43d103795ea080ce",
       "overview_document_id": "policy:overview",
       "publication_catalog_path": "docs/publication-catalog.json",
       "relationship_to_composition": "independent-optional"
