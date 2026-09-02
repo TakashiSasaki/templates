@@ -161,7 +161,18 @@ def test_review_document_keeps_representation_outside_review_authority() -> None
         "does not require one JSON object, JSON-only output, or exact response-field names"
         in text
     )
-    assert "The `skill` copy remains unchanged in this phase." in text
+    assert (
+        "`skills/pr-review/SKILL.md` is the current provider-neutral procedural authority"
+        in text
+    )
+    assert "current self-host configuration enables `pr-review`" in text
+    assert "historical evidence, not another review policy source" in text
+    for stale in (
+        "belongs to the planned review procedure",
+        "responsibilities planned for `skills/pr-review/SKILL.md`",
+        "The `skill` copy remains unchanged in this phase.",
+    ):
+        assert stale not in text
 
 
 def test_review_representation_boundary_preserves_trust_without_adapter_identity() -> None:
