@@ -40,7 +40,7 @@ Once the evidence is sufficient, assign exactly one primary disposition to the r
    - The suggestion is not caused by the proposed change, is outside the accepted PR scope, or is an optional improvement without merge-relevant impact under current authority.
    - Record it as non-blocking and out of scope for the current repair. Create separate follow-up work only when useful; do not expand the current PR merely to satisfy an unrelated suggestion.
 
-The primary disposition describes the remediation reason, not severity. Do not use `reviewer-misunderstanding`, `documentation-ambiguity`, or `unrelated-suggestion` to downgrade a verified reachable defect. Likewise, do not label an unsupported hypothesis `actual-defect` merely because a reviewer used blocking language.
+The primary disposition describes the remediation reason and does not override severity or finding validity. Do not use `reviewer-misunderstanding`, `documentation-ambiguity`, or `unrelated-suggestion` to downgrade a verified reachable defect. Likewise, do not label an unsupported hypothesis `actual-defect` merely because a reviewer used blocking language.
 
 ## Record the disposition
 
