@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -51,7 +52,7 @@ def _require_valid_indices(
     indices = observation["observations"][field]
     if indices != sorted(indices):
         raise ObservationValidationError(f"{field}: indices must be sorted")
-    invalid = [index for index in indices if index >= len(source)]
+    invalid = [index for index in indices if index < 0 or index >= len(source)]
     if invalid:
         raise ObservationValidationError(
             f"{field}: indices outside frozen case range: {invalid}"
@@ -130,7 +131,7 @@ def main() -> int:
             args.observation_schema,
         )
     except (ObservationValidationError, OSError, UnicodeError, json.JSONDecodeError) as exc:
-        print(f"review evaluation observation invalid: {exc}")
+        print(f"review evaluation observation invalid: {exc}", file=sys.stderr)
         return 1
 
     print("review evaluation observation valid")
