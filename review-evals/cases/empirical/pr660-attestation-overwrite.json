@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "id": "pr660-attestation-overwrite",
+  "kind": "empirical",
+  "title": "Trust evidence can be silently replaced at an existing destination",
+  "authority": "non-authoritative-evaluation",
+  "risk_domains": [
+    "state-mutation-and-recovery",
+    "identity-and-authority",
+    "concurrency-and-temporal-consistency"
+  ],
+  "scenario": {
+    "observed_change": "Attestation publication permits an existing destination and later replaces it, so a previously established external trust artifact can be silently clobbered or raced by another creator.",
+    "controlled_inputs": [
+      "requested attestation destination",
+      "writable parent namespace"
+    ],
+    "mutable_state": [
+      "existence and identity of the destination entry",
+      "bytes of the previously established trust artifact"
+    ],
+    "authority_boundaries": [
+      "new operation-owned trust evidence versus pre-existing external trust evidence",
+      "preflight observation versus publication-time namespace state"
+    ],
+    "operation_model": [
+      "preflight destination",
+      "prepare a new attestation",
+      "publish by replacement at the requested name",
+      "subsequent verification trusts the replacement"
+    ]
+  },
+  "required_invariants": [
+    {
+      "rule_id": "safety.bind-validated-state-to-operation",
+      "requirement": "A destination-state decision must remain valid through publication and must not silently act on a different or concurrently created effective target."
+    },
+    {
+      "rule_id": "safety.limit-rollback-to-owned-changes",
+      "requirement": "The operation must distinguish its owned state from pre-existing or concurrently created state rather than overwrite or remove the latter without authorization."
+    }
+  ],
+  "expected_review": {
+    "disposition": "blocking-finding",
+    "must_investigate": [
+      "existing-destination behavior",
+      "publication atomicity and no-clobber semantics",
+      "concurrent creation between preflight and publication"
+    ],
+    "must_identify": [
+      "replacement publication can destroy previously established trust evidence and make later verification trust newly substituted bytes"
+    ],
+    "must_not_claim": [
+      "safe trust-root publication merely because the existing file itself is read-only"
+    ]
+  },
+  "provenance": {
+    "repository": "TakashiSasaki/templates",
+    "pull_request": 660,
+    "source_type": "review-thread-comment",
+    "source_id": "PRRC_kwDOTm6ous7pFc53",
+    "reviewed_head": "2be2d291fa771e13f85b7995603c307c7b960479",
+    "head_binding": "exact",
+    "note": "GitHub Copilot review identified that the attestation destination could overwrite an arbitrary existing external file via replacement publication; the repair changed the artifact to create-once/no-clobber publication."
+  }
+}

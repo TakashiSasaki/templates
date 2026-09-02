@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "id": "rollback-ownership-escape",
+  "kind": "semantic-transposition",
+  "title": "Failure cleanup removes state the operation did not create",
+  "authority": "non-authoritative-evaluation",
+  "risk_domains": ["state-mutation-and-recovery", "concurrency-and-temporal-consistency"],
+  "scenario": {
+    "observed_change": "A multi-step mutation records only destination names, then on a later failure deletes those destinations without proving that the current entries are still the ones created by this operation.",
+    "controlled_inputs": ["destination names", "failure timing", "concurrent replacement of a created entry"],
+    "mutable_state": ["identity and ownership of destination entries"],
+    "authority_boundaries": ["operation-owned state versus pre-existing or concurrently replaced state"],
+    "operation_model": ["create operation-owned entry", "another actor replaces or rebinds that entry", "later step fails", "rollback deletes the current entry by name"]
+  },
+  "required_invariants": [
+    {"rule_id": "safety.limit-rollback-to-owned-changes", "requirement": "Rollback must remove only state that can still be established as owned by the failed operation."}
+  ],
+  "expected_review": {
+    "disposition": "blocking-finding",
+    "must_investigate": ["how rollback identifies owned state", "whether ownership survives replacement/rebinding", "failure interleavings"],
+    "must_identify": ["name-only cleanup can delete state that no longer belongs to the operation"],
+    "must_not_claim": ["safe rollback merely because the operation originally created an entry with the same name"]
+  }
+}

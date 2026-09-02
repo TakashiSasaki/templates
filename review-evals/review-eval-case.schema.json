@@ -1,0 +1,190 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://templates.moukaeritai.work/schemas/review-eval-case.schema.json",
+  "title": "Reviewer evaluation case",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "id",
+    "kind",
+    "title",
+    "authority",
+    "risk_domains",
+    "scenario",
+    "required_invariants",
+    "expected_review"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    },
+    "kind": {
+      "enum": ["empirical", "semantic-transposition", "control"]
+    },
+    "title": {"type": "string", "minLength": 1},
+    "authority": {"const": "non-authoritative-evaluation"},
+    "risk_domains": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "identity-and-authority",
+          "namespace-and-indirection",
+          "state-mutation-and-recovery",
+          "concurrency-and-temporal-consistency",
+          "privileged-execution",
+          "persistence-and-integrity",
+          "external-interaction",
+          "resource-behavior",
+          "build-provenance-and-ci",
+          "consumer-and-execution-paths"
+        ]
+      }
+    },
+    "scenario": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "observed_change",
+        "controlled_inputs",
+        "mutable_state",
+        "authority_boundaries",
+        "operation_model"
+      ],
+      "properties": {
+        "observed_change": {"type": "string", "minLength": 1},
+        "controlled_inputs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "mutable_state": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "authority_boundaries": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "operation_model": {
+          "type": "array",
+          "minItems": 2,
+          "items": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "required_invariants": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["rule_id", "requirement"],
+        "properties": {
+          "rule_id": {"type": "string", "minLength": 1},
+          "requirement": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "expected_review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "disposition",
+        "must_investigate",
+        "must_identify",
+        "must_not_claim"
+      ],
+      "properties": {
+        "disposition": {
+          "enum": [
+            "blocking-finding",
+            "completed-no-blocking-finding",
+            "incomplete-review"
+          ]
+        },
+        "must_investigate": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "must_identify": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "must_not_claim": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repository",
+        "pull_request",
+        "source_type",
+        "source_id",
+        "head_binding"
+      ],
+      "properties": {
+        "repository": {"const": "TakashiSasaki/templates"},
+        "pull_request": {"type": "integer", "minimum": 1},
+        "source_type": {
+          "enum": ["pull-request-review", "review-thread-comment"]
+        },
+        "source_id": {"type": "string", "minLength": 1},
+        "reviewed_head": {
+          "type": ["string", "null"],
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "head_binding": {
+          "enum": ["exact", "not-established"]
+        },
+        "note": {"type": "string", "minLength": 1}
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {"head_binding": {"const": "exact"}},
+            "required": ["head_binding"]
+          },
+          "then": {
+            "required": ["reviewed_head"],
+            "properties": {
+              "reviewed_head": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{40}$"
+              }
+            }
+          },
+          "else": {
+            "required": ["reviewed_head"],
+            "properties": {
+              "reviewed_head": {"type": "null"}
+            }
+          }
+        }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {"kind": {"const": "empirical"}},
+        "required": ["kind"]
+      },
+      "then": {"required": ["provenance"]},
+      "else": {"not": {"required": ["provenance"]}}
+    }
+  ]
+}

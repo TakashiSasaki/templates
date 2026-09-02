@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "id": "consumer-contract-mismatch",
+  "kind": "semantic-transposition",
+  "title": "Producer-local success hides an incompatible downstream consumer path",
+  "authority": "non-authoritative-evaluation",
+  "risk_domains": ["consumer-and-execution-paths", "persistence-and-integrity"],
+  "scenario": {
+    "observed_change": "A producer changes a serialized or generated representation and validates the producer output locally, while a realistic unchanged consumer still interprets the old shape or fallback semantics.",
+    "controlled_inputs": ["new producer output", "consumer input representing the changed shape"],
+    "mutable_state": ["published/generated representation consumed downstream"],
+    "authority_boundaries": ["producer-local representation versus consumer-visible contract"],
+    "operation_model": ["produce new representation", "producer-local validation passes", "publish or pass representation downstream", "unchanged consumer interprets it using incompatible semantics"]
+  },
+  "required_invariants": [
+    {"rule_id": "compatibility.preserve-contracts", "requirement": "Externally observable contracts must remain compatible unless an intentional migration changes the contract authority."}
+  ],
+  "expected_review": {
+    "disposition": "blocking-finding",
+    "must_investigate": ["actual downstream consumer path", "consumer interpretation/fallback behavior", "whether producer tests cover the consumed representation"],
+    "must_identify": ["producer-local validity does not preserve the actual consumer-visible contract"],
+    "must_not_claim": ["compatibility solely because the producer validates its own output"]
+  }
+}

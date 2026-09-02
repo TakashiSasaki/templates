@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "id": "resource-amplification",
+  "kind": "semantic-transposition",
+  "title": "Small controlled input triggers unbounded fan-out and retained work",
+  "authority": "non-authoritative-evaluation",
+  "risk_domains": ["resource-behavior", "external-interaction"],
+  "scenario": {
+    "observed_change": "A newly accepted input can recursively or repeatedly schedule external work, with retries retaining intermediate state and no effective fan-out, depth, or lifetime bound.",
+    "controlled_inputs": ["initial work item", "relationships that produce additional work", "failure/retry responses"],
+    "mutable_state": ["queued work", "retained intermediate state", "retry count"],
+    "authority_boundaries": ["caller-controlled input versus service resource budget"],
+    "operation_model": ["accept one work item", "expand it into additional work", "retain state for pending work", "failures retry and expand again"]
+  },
+  "required_invariants": [
+    {"rule_id": "review.require-performance-evidence", "requirement": "A material performance/resource finding must be grounded in a realistic reachable resource consequence rather than speculation."}
+  ],
+  "expected_review": {
+    "disposition": "blocking-finding",
+    "must_investigate": ["fan-out/depth bounds", "retry multiplication", "resource lifetime and cleanup", "who controls growth"],
+    "must_identify": ["reachable input can amplify work or retained state without a material bound"],
+    "must_not_claim": ["harmless performance concern without analyzing reachable resource growth"]
+  }
+}

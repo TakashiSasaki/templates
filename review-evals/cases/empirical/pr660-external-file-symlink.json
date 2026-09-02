@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "id": "pr660-external-file-symlink",
+  "kind": "empirical",
+  "title": "File indirection escapes a closed runtime trust root",
+  "authority": "non-authoritative-evaluation",
+  "risk_domains": [
+    "namespace-and-indirection",
+    "identity-and-authority",
+    "build-provenance-and-ci"
+  ],
+  "scenario": {
+    "observed_change": "Runtime-image normalization accepts file indirection that may resolve outside the attested runtime root, allowing external bytes to enter an image intended to have a closed trusted inventory.",
+    "controlled_inputs": [
+      "runtime-cache file entries",
+      "file indirection targets outside the runtime root"
+    ],
+    "mutable_state": [
+      "effective target of an indirect file entry",
+      "external file bytes"
+    ],
+    "authority_boundaries": [
+      "attested runtime root versus external filesystem content",
+      "logical in-root file name versus effective resolved file"
+    ],
+    "operation_model": [
+      "walk logical runtime-cache entries",
+      "accept an indirect file entry as part of normalization",
+      "resolve/read the effective target outside the runtime root",
+      "copy external bytes into the normalized trusted image"
+    ]
+  },
+  "required_invariants": [
+    {
+      "rule_id": "safety.bind-validated-state-to-operation",
+      "requirement": "Containment and trusted identity must apply to the effective resource used by the operation after indirection, not only to the original logical path."
+    },
+    {
+      "rule_id": "security.validate-boundaries",
+      "requirement": "Lower-trust external bytes must not cross into a privileged/trusted artifact without the required validation boundary."
+    }
+  ],
+  "expected_review": {
+    "disposition": "blocking-finding",
+    "must_investigate": [
+      "effective target after file indirection",
+      "whether containment is enforced on the resolved resource",
+      "whether any external-file exception is narrowly identity-bound"
+    ],
+    "must_identify": [
+      "closed-root trust can be bypassed when a logical in-root entry resolves to arbitrary external bytes"
+    ],
+    "must_not_claim": [
+      "closed trusted inventory solely because the logical entry name is inside the runtime root"
+    ]
+  },
+  "provenance": {
+    "repository": "TakashiSasaki/templates",
+    "pull_request": 660,
+    "source_type": "review-thread-comment",
+    "source_id": "PRRC_kwDOTm6ous7pFc5R",
+    "reviewed_head": "2be2d291fa771e13f85b7995603c307c7b960479",
+    "head_binding": "exact",
+    "note": "GitHub Copilot review identified that file indirection could resolve outside the runtime cache root and import arbitrary external bytes into the normalized trusted image."
+  }
+}

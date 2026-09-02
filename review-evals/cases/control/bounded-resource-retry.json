@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "id": "bounded-resource-retry",
+  "kind": "control",
+  "title": "Bounded retry and cleanup prevent resource amplification",
+  "authority": "non-authoritative-evaluation",
+  "risk_domains": ["resource-behavior", "external-interaction"],
+  "scenario": {
+    "observed_change": "An external operation retries transient failures, but retries have a fixed maximum, each retry replaces rather than accumulates pending state, cancellation releases retained resources, and fan-out is capped independently of input size.",
+    "controlled_inputs": ["initial request", "transient failure responses"],
+    "mutable_state": ["retry counter", "single pending-operation state"],
+    "authority_boundaries": ["caller-controlled failures versus bounded service resource budget"],
+    "operation_model": ["start one bounded operation", "transient failure increments a capped retry counter", "old attempt state is released", "success/cancellation/final failure releases remaining state"]
+  },
+  "required_invariants": [
+    {"rule_id": "review.require-performance-evidence", "requirement": "Performance/resource findings require realistic evidence of material reachable impact."}
+  ],
+  "expected_review": {
+    "disposition": "completed-no-blocking-finding",
+    "must_investigate": ["retry cap", "fan-out bound", "resource cleanup on cancellation/final failure"],
+    "must_identify": ["resource growth remains bounded under the stated retry and cleanup semantics"],
+    "must_not_claim": ["unbounded resource amplification after the concrete bounds and cleanup path are established"]
+  }
+}

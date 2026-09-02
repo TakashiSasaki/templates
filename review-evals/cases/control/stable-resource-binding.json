@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "id": "stable-resource-binding",
+  "kind": "control",
+  "title": "Stable effective identity prevents validation-use rebinding",
+  "authority": "non-authoritative-evaluation",
+  "risk_domains": ["namespace-and-indirection", "concurrency-and-temporal-consistency"],
+  "scenario": {
+    "observed_change": "An operation resolves a logical resource once to a stable effective identity, validates authority on that identity, and performs the dependent operation through the same protected identity without re-resolving mutable namespace state.",
+    "controlled_inputs": ["logical resource identifier"],
+    "mutable_state": ["namespace mapping may change after the stable identity is acquired"],
+    "authority_boundaries": ["allowed effective resource identity versus later namespace aliases"],
+    "operation_model": ["acquire stable effective identity", "validate authority on that identity", "namespace may change independently", "operate through the same stable identity"]
+  },
+  "required_invariants": [
+    {"rule_id": "safety.bind-validated-state-to-operation", "requirement": "The validated effective target must remain the target actually used by the operation."}
+  ],
+  "expected_review": {
+    "disposition": "completed-no-blocking-finding",
+    "must_investigate": ["whether the operation re-resolves mutable namespace state", "whether validation and use share the same stable identity"],
+    "must_identify": ["the stable identity preserves validation-to-use binding despite later namespace mutation"],
+    "must_not_claim": ["a rebinding defect after evidence establishes that no re-resolution occurs"]
+  }
+}
