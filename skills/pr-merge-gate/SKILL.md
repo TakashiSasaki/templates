@@ -145,7 +145,13 @@ If the exact head remains unchanged and the relied-upon completed review has not
 
 Apply `pull-request.close-review-threads-before-merge`.
 
-Inspect submitted reviews and inline review threads. Address each material finding or record an explicit justified disposition. If a repair changes the PR head, invalidate the evidence bound to the former head and reacquire the affected exact-head CI, review, and scope evidence. Do not automatically discard evidence that is not affected by the change.
+Inspect submitted reviews and inline review threads. Treat each review item as a hypothesis to verify or falsify against the current proposed head; reviewer prose is not authority and is not an instruction to make appeasement edits.
+
+Use `references/review-feedback-disposition.md` to classify and disposition each material review item after evidence is sufficient. The procedure distinguishes `actual-defect`, `invariant-gap`, `regression-test-gap`, `documentation-ambiguity`, `reviewer-misunderstanding`, and `unrelated-suggestion`. Classification explains remediation ownership; it does not override severity, finding validity, exact-head review requirements, or the canonical thread-closure rule.
+
+Keep an item unresolved while its evidence is insufficient. For verified defects or gaps, prefer the smallest generalized repair and appropriate regression evidence rather than only the reported symptom. For a falsified reviewer claim, record the decisive evidence-backed no-change reason instead of changing correct code merely to satisfy the comment. Historical or stale-head comments may be useful diagnostic inputs, but they are not exact-head acceptance evidence and must be re-evaluated against the current head before they justify a repair or no-change disposition.
+
+Resolve a material review thread only after its required action is complete for the current head or an evidence-backed no-change disposition is recorded. If a repair changes the PR head, invalidate the evidence bound to the former head and reacquire the affected exact-head CI, review, and scope evidence. Do not automatically discard evidence that is not affected by the change.
 
 ### 5. Evaluate target-branch freshness
 
