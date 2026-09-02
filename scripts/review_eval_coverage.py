@@ -78,7 +78,8 @@ def build_coverage_matrix(cases: list[dict[str, Any]]) -> dict[str, Any]:
 
 def render_markdown(matrix: dict[str, Any]) -> str:
     lines = [
-        "| Risk domain | Total | Empirical | Transposition | Control | Blocking | Clean | Incomplete | Coverage observations |",
+        "| Risk domain | Total | Empirical | Transposition | Control | "
+        "Blocking | Clean | Incomplete | Coverage observations |",
         "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
     ]
     for row in matrix["domains"]:
@@ -104,7 +105,10 @@ def render_markdown(matrix: dict[str, Any]) -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Summarize reviewer-evaluation corpus coverage without creating an acceptance gate."
+        description=(
+            "Summarize reviewer-evaluation corpus coverage without creating an "
+            "acceptance gate."
+        )
     )
     parser.add_argument("--cases", type=Path, default=DEFAULT_CASE_ROOT)
     parser.add_argument("--format", choices=("json", "markdown"), default="markdown")
