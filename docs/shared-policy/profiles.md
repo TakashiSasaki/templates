@@ -93,7 +93,7 @@ The files in `profiles/` are the executable source of truth for the available pr
 <!-- PROFILE: core -->
 ### `core`
 
-Use for the baseline semantics expected in ordinary repository changes: change scope and contract reasoning, acceptance evidence, regression safety, testing, generated artifacts, compatibility, destructive actions, transaction ownership, and truthful reporting.
+Use for the baseline semantics expected in ordinary repository changes: change scope and contract reasoning, acceptance evidence, regression safety, testing, generated artifacts, compatibility, destructive actions, binding validated state to the effective operation, transaction ownership, and truthful reporting.
 
 Included modules:
 
@@ -107,6 +107,7 @@ Included modules:
 - `policy/core/generated-artifacts.md`
 - `policy/core/compatibility.md`
 - `policy/core/destructive-actions.md`
+- `policy/core/validation-operation-binding.md`
 - `policy/core/transaction-ownership.md`
 - `policy/core/truthful-reporting.md`
 

@@ -9,5 +9,6 @@ policy_files:
   - policy/core/generated-artifacts.md
   - policy/core/compatibility.md
   - policy/core/destructive-actions.md
+  - policy/core/validation-operation-binding.md
   - policy/core/transaction-ownership.md
   - policy/core/truthful-reporting.md
