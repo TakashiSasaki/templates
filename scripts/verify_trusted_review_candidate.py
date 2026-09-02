@@ -21,6 +21,23 @@ FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
 EXACT_REQUIREMENT = re.compile(
     r"^[A-Za-z0-9][A-Za-z0-9_.-]*==[A-Za-z0-9][A-Za-z0-9_.+!-]*$"
 )
+RISK_DOMAIN_REFERENCE_PATHS = (
+    "skills/pr-review/references/risk-domains/index.md",
+    "skills/pr-review/references/risk-domains/identity-and-authority.md",
+    "skills/pr-review/references/risk-domains/namespace-and-indirection.md",
+    "skills/pr-review/references/risk-domains/state-mutation-and-recovery.md",
+    "skills/pr-review/references/risk-domains/concurrency-and-temporal-consistency.md",
+    "skills/pr-review/references/risk-domains/privileged-execution.md",
+    "skills/pr-review/references/risk-domains/persistence-and-integrity.md",
+    "skills/pr-review/references/risk-domains/external-interaction.md",
+    "skills/pr-review/references/risk-domains/resource-behavior.md",
+    "skills/pr-review/references/risk-domains/build-provenance-and-ci.md",
+    "skills/pr-review/references/risk-domains/consumer-and-execution-paths.md",
+)
+RISK_DOMAIN_BUNDLE_PATHS = tuple(
+    "procedure/" + path.removeprefix("skills/pr-review/")
+    for path in RISK_DOMAIN_REFERENCE_PATHS
+)
 TRUSTED_REVIEW_REQUIRED_PATHS = (
     "skills/agent-policy/SKILL.md",
     "skills/agent-policy/scripts/review_base.py",
@@ -28,6 +45,7 @@ TRUSTED_REVIEW_REQUIRED_PATHS = (
     "skills/agent-policy/scripts/runtime_image.py",
     "skills/pr-review/SKILL.md",
     "skills/pr-review/references/github-pull-request-review-api.md",
+    *RISK_DOMAIN_REFERENCE_PATHS,
     "src/agent_policy/commands/review_bundle.py",
     "templates/policy-context.md.j2",
 )
@@ -291,6 +309,12 @@ def verify_candidate_tree_contract(tree: Path) -> None:
         raise ValueError("Trusted review candidate procedure is not provider-neutral")
     if "Stop before merge authorization" not in procedure:
         raise ValueError("Trusted review candidate procedure does not stop before merge")
+    if "references/risk-domains/index.md" not in procedure:
+        raise ValueError("Trusted review candidate procedure does not bind risk-domain references")
+
+    risk_index = (tree / RISK_DOMAIN_REFERENCE_PATHS[0]).read_text(encoding="utf-8")
+    if "provider-neutral procedure-support reference" not in risk_index:
+        raise ValueError("Risk-domain index does not preserve its procedure-support boundary")
 
     reference = (
         tree / "skills/pr-review/references/github-pull-request-review-api.md"
@@ -324,12 +348,15 @@ def verify_probe(probe: dict[str, Any]) -> None:
         "check": [],
         "materialize": ["REVIEW_BUNDLE_MATERIALIZED"],
         "verify": ["REVIEW_BUNDLE_VERIFIED"],
-        "files": [
-            "manifest.json",
-            "procedure/SKILL.md",
-            "procedure/references/github-pull-request-review-api.md",
-            "semantic/review-policy.md",
-        ],
+        "files": sorted(
+            [
+                "manifest.json",
+                "procedure/SKILL.md",
+                "procedure/references/github-pull-request-review-api.md",
+                *RISK_DOMAIN_BUNDLE_PATHS,
+                "semantic/review-policy.md",
+            ]
+        ),
         "manifest_bundle_format": 1,
         "manifest_has_adapter": False,
         "manifest_has_result_fields": False,
