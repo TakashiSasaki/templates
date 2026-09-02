@@ -1,7 +1,7 @@
 schema_version: 2
 toolchain:
   repository: TakashiSasaki/templates
-  revision: 40cf11bb87d0dcdb1ef64c0fcae548b108cfc226
+  revision: 8a956f044b1a5e07590eb90e3306227c82452280
 contexts:
   coding:
     profiles:
@@ -45,3 +45,4 @@ outputs:
 skills:
   enabled:
     - pr-review
+    - orchestrate-repository-change
