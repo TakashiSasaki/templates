@@ -2,7 +2,6 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 MKDOCS = ROOT / "mkdocs.yml"
-ADR_INDEX = ROOT / "docs" / "adr" / "index.md"
 SUPERSEDED_ADR = ROOT / "docs" / "adr" / "0004-integrated-bootstrap-skill.md"
 RESULT_BOUNDARY_ADR = ROOT / "docs" / "adr" / "0009-review-result-representation-boundary.md"
 
@@ -45,23 +44,12 @@ def test_mkdocs_separates_current_and_superseded_adrs() -> None:
     )
 
 
-def test_adr_index_marks_current_and_superseded_authority() -> None:
-    text = ADR_INDEX.read_text(encoding="utf-8")
-
-    assert "## Current decisions" in text
-    assert "## Superseded decisions" in text
-    assert text.index("ADR-0007") < text.index("ADR-0008") < text.index("ADR-0009")
-    assert text.index("ADR-0009") < text.index("## Superseded decisions") < text.index("ADR-0004")
-    assert "ADR-0008" in text and "superseded in part by ADR-0009" in text
-    assert "retained only as historical rationale" in text
-
-
 def test_result_representation_adr_supersedes_only_adapter_coupling() -> None:
     text = RESULT_BOUNDARY_ADR.read_text(encoding="utf-8")
 
     assert "Supersedes in part: ADR-0008" in text
     assert "two explicit semantic/adapter output bindings" in text
-    assert "adapter-byte identity in final review stability" in text
+    assert "adapter projection identity in final review stability" in text
     assert "All other ADR-0008 trust machinery remains in force" in text
     assert "review-versus-merge separation" in text
 

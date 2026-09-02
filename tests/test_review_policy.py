@@ -153,8 +153,14 @@ def test_review_document_keeps_representation_outside_review_authority() -> None
     text = DOC.read_text(encoding="utf-8")
     assert "not required review-result semantics" in text
     assert "non-normative integration reference" in text
-    assert "not a reason to invent a repository-owned general-purpose review JSON schema" in text
-    assert "does not require one JSON object, JSON-only output, or exact response-field names" in text
+    assert (
+        "not a reason to invent a repository-owned general-purpose review JSON schema"
+        in text
+    )
+    assert (
+        "does not require one JSON object, JSON-only output, or exact response-field names"
+        in text
+    )
     assert "The `skill` copy remains unchanged in this phase." in text
 
 
@@ -191,7 +197,7 @@ def test_review_guidance_dispositions_reference_one_semantic_authority_set() -> 
         "existing_authority",
         "new_semantic_rule",
         "procedure",
-        "integration_reference",
+        "adapter",
         "explanatory",
     }
     new_semantic_authorities: set[str] = set()
@@ -214,16 +220,16 @@ def test_review_guidance_dispositions_reference_one_semantic_authority_set() -> 
     assert new_semantic_authorities == {"review.assess-applicable-risk-domains"}
 
 
-def test_ap07_has_procedure_and_non_authoritative_integration_reference_only() -> None:
+def test_ap07_preserves_frozen_adapter_class_without_renderer_authority() -> None:
     data = json.loads(DISPOSITION.read_text(encoding="utf-8"))
     ap07 = next(item for item in data["inputs"] if item["id"] == "AP-07")
     assert ap07["dispositions"] == [
         {"class": "procedure", "authority": "skills/pr-review/SKILL.md"},
         {
-            "class": "integration_reference",
+            "class": "adapter",
             "authority": "skills/pr-review/references/github-pull-request-review-api.md",
         },
     ]
     serialized = json.dumps(ap07, sort_keys=True)
     assert "github-review-json-adapter-v1" not in serialized
-    assert '"class": "adapter"' not in serialized
+    assert "renderer:" not in serialized

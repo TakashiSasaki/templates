@@ -43,11 +43,11 @@ Operational requirements such as resolving the exact pull-request base and head,
 
 ## Statement-level disposition of the revised guidance
 
-`docs/review-guidance-disposition.json` is the machine-readable, non-authoritative disposition record for the frozen migration inputs `RG-01` through `RG-09` and `AP-01` through `AP-08`. It records whether each statement is already owned by canonical policy, contributes to the single new semantic rule in this change, belongs to the planned review procedure, or is useful only as non-authoritative integration reference material.
+`docs/review-guidance-disposition.json` is the machine-readable, non-authoritative disposition record for the frozen migration inputs `RG-01` through `RG-09` and `AP-01` through `AP-08`. It records whether each statement is already owned by canonical policy, contributes to the single new semantic rule in this change, belongs to the planned review procedure, or is useful only as provider integration material.
 
 The disposition record is deliberately not another review policy source. Tests require every frozen input ID to appear exactly once, every semantic authority reference to resolve to a composed canonical rule, and the set of newly introduced semantic authorities to be exactly `{review.assess-applicable-risk-domains}`. Multiple frozen statements may therefore map to the same canonical rule without creating duplicate authority.
 
-Procedure entries identify downstream responsibilities planned for `skills/pr-review/SKILL.md`. Integration-reference entries identify provider-specific material that may help an executing integration but do not create review authority. Those requirements become procedural only where the provider-neutral `pr-review` Skill says so; provider request shape remains governed by the provider API/tool contract.
+Procedure entries identify downstream responsibilities planned for `skills/pr-review/SKILL.md`. The frozen taxonomy's `adapter` disposition class identifies provider-specific transport material. Under ADR-0009, AP-07's adapter-side entry points only to a non-normative GitHub integration reference; that classification does not turn the reference into semantic policy or review-procedure authority. Provider request shape remains governed by the provider API/tool contract.
 
 ## What does not belong here
 
