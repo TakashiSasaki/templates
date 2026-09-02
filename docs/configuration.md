@@ -53,6 +53,7 @@ outputs:
     renderer: policy-context-md
 skills:
   enabled:
+    - validate-agent-policy
     - pr-review
 ```
 
