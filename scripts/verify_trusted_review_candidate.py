@@ -149,7 +149,9 @@ skills:
                 ),
                 "semantic_has_local_rule": "project.candidate-review" in semantic,
                 "semantic_has_shared_review": "review.require-change-causality" in semantic,
-                "procedure_has_identity_refresh": "Final identity refresh" in procedure,
+                "procedure_has_identity_refresh": (
+                    "Refresh all live identities immediately before completion" in procedure
+                ),
                 "procedure_stops_before_merge": "Stop before merge authorization" in procedure,
             },
             sort_keys=True,
