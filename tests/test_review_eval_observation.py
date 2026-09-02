@@ -167,7 +167,14 @@ def test_observation_validator_rejects_unsorted_indices(tmp_path: Path) -> None:
 def test_observation_validator_rejects_impossible_unsupported_count(
     tmp_path: Path,
 ) -> None:
-    case_path = _case_paths()[0]
+    case_path = next(
+        path
+        for path in _case_paths()
+        if json.loads(path.read_text(encoding="utf-8"))["expected_review"][
+            "disposition"
+        ]
+        == "blocking-finding"
+    )
     observation = _observation_for(case_path)
     observation["observations"]["reported_finding_count"] = 1  # type: ignore[index]
     observation["observations"]["unsupported_finding_count"] = 2  # type: ignore[index]
