@@ -5,7 +5,6 @@
   "title": "A documentation synchronization change leaves contradictory unchanged sibling documents",
   "authority": "non-authoritative-evaluation",
   "risk_domains": [
-    "identity-and-authority",
     "consumer-and-execution-paths"
   ],
   "scenario": {

@@ -5,7 +5,7 @@
   "title": "A specialized readiness verdict bypasses canonical semantic validation",
   "authority": "non-authoritative-evaluation",
   "risk_domains": [
-    "identity-and-authority",
+    "build-provenance-and-ci",
     "consumer-and-execution-paths"
   ],
   "scenario": {
