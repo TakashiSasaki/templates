@@ -1,0 +1,178 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://templates.moukaeritai.work/schemas/review-eval-observation.schema.json",
+  "title": "Reviewer evaluation observation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "authority",
+    "case",
+    "run",
+    "observations"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "authority": {"const": "non-authoritative-evaluation-observation"},
+    "case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "sha256"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "run": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "run_id",
+        "trial_index",
+        "procedure_bundle_identity",
+        "semantic_policy_identity",
+        "fixture_identity",
+        "evaluated_reviewer_configuration_identity",
+        "execution_evidence_identity",
+        "evaluator_identity"
+      ],
+      "properties": {
+        "run_id": {"type": "string", "minLength": 1},
+        "trial_index": {"type": "integer", "minimum": 1},
+        "procedure_bundle_identity": {"type": "string", "minLength": 1},
+        "semantic_policy_identity": {"type": "string", "minLength": 1},
+        "fixture_identity": {"type": "string", "minLength": 1},
+        "evaluated_reviewer_configuration_identity": {
+          "type": "string",
+          "minLength": 1
+        },
+        "execution_evidence_identity": {"type": "string", "minLength": 1},
+        "evaluator_identity": {"type": "string", "minLength": 1},
+        "external_tooling_identity": {"type": "string", "minLength": 1}
+      }
+    },
+    "observations": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evaluation_completed",
+        "reported_disposition",
+        "substantive_analysis_completed",
+        "task_substitution_observed",
+        "risk_domain_indices_dispositioned",
+        "candidate_generation_observed",
+        "candidate_falsification_observed",
+        "must_investigate_indices_observed",
+        "must_identify_indices_observed",
+        "must_not_claim_indices_violated",
+        "reported_finding_count",
+        "unsupported_finding_count",
+        "limitations_preserved"
+      ],
+      "properties": {
+        "evaluation_completed": {"type": "boolean"},
+        "reported_disposition": {
+          "enum": [
+            "blocking-finding",
+            "completed-no-blocking-finding",
+            "incomplete-review",
+            "not-reported"
+          ]
+        },
+        "substantive_analysis_completed": {"type": "boolean"},
+        "task_substitution_observed": {"type": "boolean"},
+        "risk_domain_indices_dispositioned": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "integer", "minimum": 0}
+        },
+        "candidate_generation_observed": {"type": "boolean"},
+        "candidate_falsification_observed": {"type": "boolean"},
+        "must_investigate_indices_observed": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "integer", "minimum": 0}
+        },
+        "must_identify_indices_observed": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "integer", "minimum": 0}
+        },
+        "must_not_claim_indices_violated": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "integer", "minimum": 0}
+        },
+        "reported_finding_count": {
+          "type": ["integer", "null"],
+          "minimum": 0
+        },
+        "unsupported_finding_count": {
+          "type": ["integer", "null"],
+          "minimum": 0
+        },
+        "limitations_preserved": {"type": "boolean"},
+        "notes": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1}
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "reported_disposition": {"const": "not-reported"}
+            },
+            "required": ["reported_disposition"]
+          },
+          "then": {
+            "properties": {
+              "reported_finding_count": {"type": "null"},
+              "unsupported_finding_count": {"type": "null"}
+            }
+          },
+          "else": {
+            "properties": {
+              "reported_finding_count": {"type": "integer", "minimum": 0},
+              "unsupported_finding_count": {"type": "integer", "minimum": 0}
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "reported_disposition": {
+                "const": "completed-no-blocking-finding"
+              }
+            },
+            "required": ["reported_disposition"]
+          },
+          "then": {
+            "properties": {
+              "reported_finding_count": {"const": 0}
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "reported_disposition": {"const": "blocking-finding"}
+            },
+            "required": ["reported_disposition"]
+          },
+          "then": {
+            "properties": {
+              "reported_finding_count": {"type": "integer", "minimum": 1}
+            }
+          }
+        }
+      ]
+    }
+  }
+}
