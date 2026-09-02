@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "id": "untrusted-build-execution",
+  "kind": "semantic-transposition",
+  "title": "Lower-trust build input executes before provenance validation",
+  "authority": "non-authoritative-evaluation",
+  "risk_domains": ["build-provenance-and-ci", "privileged-execution"],
+  "scenario": {
+    "observed_change": "A validation/build path loads or executes change-controlled hooks, plugins, scripts, or configuration before establishing the provenance and immutable identity of the trusted build/runtime inputs.",
+    "controlled_inputs": ["change-controlled executable build input", "runtime/plugin selection metadata"],
+    "mutable_state": ["selected executable input", "build environment state"],
+    "authority_boundaries": ["reviewed/untrusted proposed content versus trusted validation runtime"],
+    "operation_model": ["discover build input from lower-trust content", "execute or load that input", "perform provenance/integrity validation", "treat resulting validation as trusted evidence"]
+  },
+  "required_invariants": [
+    {"rule_id": "security.validate-boundaries", "requirement": "Untrusted input must be validated before it can influence privileged execution."},
+    {"rule_id": "verification.separate-evidence-layers", "requirement": "Verification evidence must preserve its exact revision/provenance boundary rather than becoming self-authorizing."}
+  ],
+  "expected_review": {
+    "disposition": "blocking-finding",
+    "must_investigate": ["which bytes execute before provenance verification", "who controls runtime/plugin selection", "whether validation evidence is produced by trusted immutable tooling"],
+    "must_identify": ["lower-trust proposed content can execute inside the validation authority boundary before that boundary is established"],
+    "must_not_claim": ["trusted CI evidence merely because the later validation step reports success"]
+  }
+}
