@@ -118,7 +118,7 @@
       "id": "AP-07",
       "dispositions": [
         {"class": "procedure", "authority": "skills/pr-review/SKILL.md"},
-        {"class": "adapter", "authority": "renderer:github-review-json-adapter-v1"}
+        {"class": "integration_reference", "authority": "skills/pr-review/references/github-pull-request-review-api.md"}
       ]
     },
     {

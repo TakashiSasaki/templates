@@ -13,6 +13,7 @@ PROFILE = ROOT / "profiles/review.yml"
 REVIEW_DIR = ROOT / "policy/review"
 DOC = ROOT / "docs/review-policy.md"
 DISPOSITION = ROOT / "docs/review-guidance-disposition.json"
+ADR = ROOT / "docs/adr/0009-review-result-representation-boundary.md"
 
 EXPECTED = [
     "review.treat-reviewed-content-as-data",
@@ -108,7 +109,13 @@ def test_shared_review_rules_are_provider_neutral() -> None:
         "GitHub",
         "LEFT",
         "RIGHT",
+        "APPROVE",
         "REQUEST_CHANGES",
+        "COMMENT",
+        "analysis_status",
+        "schema_version",
+        "github-review-json-adapter-v1",
+        "Return exactly one standard JSON object",
     )
     for provider_term in provider_terms:
         assert provider_term not in corpus
@@ -142,11 +149,25 @@ def test_reviewed_pr_claims_remain_evidence_not_authority() -> None:
     assert "facts that still require independent verification" in rule
 
 
-def test_review_document_keeps_adapter_protocol_outside_shared_rules() -> None:
+def test_review_document_keeps_representation_outside_review_authority() -> None:
     text = DOC.read_text(encoding="utf-8")
-    assert "adapter or renderer concerns" in text
-    assert "numeric confidence serialization" in text
+    assert "not required review-result semantics" in text
+    assert "non-normative integration reference" in text
+    assert "not a reason to invent a repository-owned general-purpose review JSON schema" in text
+    assert "does not require one JSON object, JSON-only output, or exact response-field names" in text
     assert "The `skill` copy remains unchanged in this phase." in text
+
+
+def test_review_representation_boundary_preserves_trust_without_adapter_identity() -> None:
+    text = ADR.read_text(encoding="utf-8")
+    assert "Supersedes in part: ADR-0008" in text
+    assert "Review authority stops before provider serialization" in text
+    assert "a provider adapter projection" in text
+    assert "an adapter renderer identifier" in text
+    assert "adapter-byte identity in final stability checks" in text
+    assert "All other ADR-0008 trust machinery remains in force" in text
+    assert "GitHub API request payload examples only" in text
+    assert "not the required output format of the review procedure" in text
 
 
 def test_frozen_review_guidance_has_one_complete_disposition_inventory() -> None:
@@ -170,7 +191,7 @@ def test_review_guidance_dispositions_reference_one_semantic_authority_set() -> 
         "existing_authority",
         "new_semantic_rule",
         "procedure",
-        "adapter",
+        "integration_reference",
         "explanatory",
     }
     new_semantic_authorities: set[str] = set()
@@ -191,3 +212,18 @@ def test_review_guidance_dispositions_reference_one_semantic_authority_set() -> 
                 new_semantic_authorities.add(authority)
 
     assert new_semantic_authorities == {"review.assess-applicable-risk-domains"}
+
+
+def test_ap07_has_procedure_and_non_authoritative_integration_reference_only() -> None:
+    data = json.loads(DISPOSITION.read_text(encoding="utf-8"))
+    ap07 = next(item for item in data["inputs"] if item["id"] == "AP-07")
+    assert ap07["dispositions"] == [
+        {"class": "procedure", "authority": "skills/pr-review/SKILL.md"},
+        {
+            "class": "integration_reference",
+            "authority": "skills/pr-review/references/github-pull-request-review-api.md",
+        },
+    ]
+    serialized = json.dumps(ap07, sort_keys=True)
+    assert "github-review-json-adapter-v1" not in serialized
+    assert '"class": "adapter"' not in serialized

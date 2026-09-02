@@ -39,29 +39,32 @@ Other guidance was already owned elsewhere and is deliberately reused instead of
 - trust-boundary validation remains `security.validate-boundaries` together with `review.trace-security-findings`; and
 - concrete data or operational impact remains part of `review.require-reachable-impact`.
 
-Operational requirements such as resolving the exact pull-request base and head, refreshing the head before emitting a review, retrieving current CI evidence, and serializing a GitHub review belong to review procedure or adapter layers rather than new semantic modules. ADR-0008 records that boundary.
+Operational requirements such as resolving the exact pull-request base and head, refreshing identities before review completion, retrieving current CI evidence, and preserving review limitations belong to the provider-neutral review procedure rather than new semantic modules. Concrete GitHub request fields or event names belong to integration behavior/reference material, not to semantic policy or the review procedure. ADR-0008 records the immutable review trust machinery; ADR-0009 is the current authority for the review-result representation boundary.
 
 ## Statement-level disposition of the revised guidance
 
-`docs/review-guidance-disposition.json` is the machine-readable, non-authoritative disposition record for the frozen migration inputs `RG-01` through `RG-09` and `AP-01` through `AP-08`. It records whether each statement is already owned by canonical policy, contributes to the single new semantic rule in this change, belongs to the planned review procedure, or belongs to the planned adapter.
+`docs/review-guidance-disposition.json` is the machine-readable, non-authoritative disposition record for the frozen migration inputs `RG-01` through `RG-09` and `AP-01` through `AP-08`. It records whether each statement is already owned by canonical policy, contributes to the single new semantic rule in this change, belongs to the planned review procedure, or is useful only as non-authoritative integration reference material.
 
 The disposition record is deliberately not another review policy source. Tests require every frozen input ID to appear exactly once, every semantic authority reference to resolve to a composed canonical rule, and the set of newly introduced semantic authorities to be exactly `{review.assess-applicable-risk-domains}`. Multiple frozen statements may therefore map to the same canonical rule without creating duplicate authority.
 
-Procedure and adapter entries identify the downstream owner planned by ADR-0008; they do not make the disposition file procedural or transport authority. Those requirements become executable only in the dedicated reviewed follow-up that supplies `pr-review` and the adapter.
+Procedure entries identify downstream responsibilities planned for `skills/pr-review/SKILL.md`. Integration-reference entries identify provider-specific material that may help an executing integration but do not create review authority. Those requirements become procedural only where the provider-neutral `pr-review` Skill says so; provider request shape remains governed by the provider API/tool contract.
 
 ## What does not belong here
 
 The frozen Skill review document also contains an output and integration protocol. Those requirements are deliberately not copied into `policy/review/`:
 
-- the literal `APPROVE`, `REQUEST_CHANGES`, and `COMMENT` event names;
+- the literal `APPROVE`, `REQUEST_CHANGES`, and `COMMENT` GitHub event names;
 - the `COMPLETE`, `PARTIAL`, and `FAILED` serialization values;
 - JSON-only output and its field schema;
+- fields such as `schema_version`, `analysis_status`, `comments`, or `unanchored_findings`;
 - GitHub diff-side values such as `LEFT` and `RIGHT`;
 - exact JSON examples and field names;
-- numeric confidence serialization or thresholds required by one reviewer integration; and
+- numeric confidence serialization required by one reviewer integration; and
 - any Antigravity-, Codex-, Gemini-, or provider-specific invocation behavior.
 
-Those are adapter or renderer concerns. A later change will separate provider-neutral review rendering from the GitHub transport renderer so one shared semantic review profile can support integration-specific review instructions without making the integration format part of the policy authority.
+These are not required review-result semantics. GitHub-specific request concepts may be documented in a non-normative integration reference such as `skills/pr-review/references/github-pull-request-review-api.md`, and an executing integration may map an established review result to the current GitHub API. Such a reference or mapping is not semantic policy, not `pr-review` procedure authority, and not a reason to invent a repository-owned general-purpose review JSON schema.
+
+The provider-neutral review procedure may report findings, limitations, and whether its analysis completed in a natural representation suitable for the executing environment. It must preserve their meaning but does not require one JSON object, JSON-only output, or exact response-field names.
 
 ## Extraction map
 
@@ -79,9 +82,9 @@ The semantic source sections in the frozen Skill document map to shared rules as
 | Performance and resource use | `review.require-performance-evidence` |
 | Test evaluation | `review.evaluate-regression-guard-changes` |
 | Repository documentation and rule inspection | `review.identify-applicable-normative-rules`, `review.resolve-rule-conflicts-explicitly`, `review.require-rule-conflict-evidence` |
-| Review completion | `review.report-review-limitations` plus adapter serialization |
-| Comment location | `review.anchor-findings-at-cause` plus GitHub adapter line-side serialization |
-| Confidence | semantic high-confidence requirement in `review.focus-on-blocking-findings`; numeric serialization remains adapter-owned |
-| JSON output and examples | adapter-owned only |
+| Review completion | `review.report-review-limitations` plus provider-neutral procedure completion |
+| Comment location | `review.anchor-findings-at-cause`; provider-specific line serialization is integration-only |
+| Confidence | semantic high-confidence requirement in `review.focus-on-blocking-findings`; numeric serialization is integration-only |
+| JSON output and examples | non-normative provider integration material only |
 
 The `skill` copy remains unchanged in this phase. It is removed or regenerated only after the shared review policy can be selected and rendered through a pinned stable toolchain revision.
