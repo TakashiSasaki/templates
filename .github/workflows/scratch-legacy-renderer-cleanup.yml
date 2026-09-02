@@ -1,0 +1,179 @@
+name: Scratch legacy renderer cleanup
+
+on:
+  push:
+    branches:
+      - scratch/legacy-renderer-cleanup
+    paths:
+      - .github/workflows/scratch-legacy-renderer-cleanup.yml
+
+permissions:
+  contents: write
+
+jobs:
+  transform:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Apply fail-closed cleanup transformation
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              target = Path(path)
+              text = target.read_text(encoding="utf-8")
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{path}: expected exactly one replacement target, found {count}")
+              target.write_text(text.replace(old, new), encoding="utf-8")
+
+          replace_once(
+              "src/agent_policy/renderer.py",
+              '''def render_github_review_json(
+              config: Config,
+              rules: Iterable[Rule],
+              *,
+              context_name: str,
+              project_policy_files: Iterable[str],
+          ) -> str:
+              template = environment().get_template("github-review-json-v1.md.j2")
+              return template.render(
+                  config=config,
+                  rules=list(rules),
+                  context_name=context_name,
+                  project_policy_files=list(project_policy_files),
+              )
+
+
+          ''',
+              "",
+          )
+          replace_once(
+              "src/agent_policy/renderer.py",
+              '''    if renderer == "github-review-json-v1":
+                  return render_github_review_json(
+                      config,
+                      rules,
+                      context_name=context_name,
+                      project_policy_files=project_policy_files,
+                  )
+          ''',
+              "",
+          )
+
+          replace_once(
+              "schemas/agent-policy.schema.json",
+              '''              "agents-md",
+              "policy-context-md",
+              "github-review-json-v1"
+          ''',
+              '''              "agents-md",
+              "policy-context-md"
+          ''',
+          )
+
+          replace_once(
+              "tests/test_context_rendering.py",
+              '''def test_v2_renders_github_review_json_adapter(tmp_path: Path) -> None:
+              _write_v2_repository(tmp_path)
+              config_path = tmp_path / ".agent-policy.yml"
+              config_path.write_text(
+                  config_path.read_text(encoding="utf-8").replace(
+                      "renderer: policy-context-md",
+                      "renderer: github-review-json-v1",
+                  ),
+                  encoding="utf-8",
+              )
+
+              assert validate.run(tmp_path, ".agent-policy.yml") == []
+              assert render.run(tmp_path, ".agent-policy.yml") == []
+              assert check.run(tmp_path, ".agent-policy.yml") == []
+
+              review = (tmp_path / ".github/REVIEW_GUIDELINES.md").read_text(
+                  encoding="utf-8"
+              )
+              assert "renderer: github-review-json-v1" in review
+              assert "project.review-only" in review
+              assert "project.coding-only" not in review
+              assert "review.require-change-causality" in review
+              assert "security.validate-boundaries" in review
+              assert '"analysis_status": "COMPLETE"' in review
+              assert '"event": "REQUEST_CHANGES"' in review
+              assert '"side": "RIGHT"' in review
+              assert '"schema_version": 1' in review
+              assert "exactly one standard JSON object" in review
+
+
+          ''',
+              '''def test_v2_rejects_retired_github_review_json_renderer(tmp_path: Path) -> None:
+              _write_v2_repository(tmp_path)
+              config_path = tmp_path / ".agent-policy.yml"
+              config_path.write_text(
+                  config_path.read_text(encoding="utf-8").replace(
+                      "renderer: policy-context-md",
+                      "renderer: github-review-json-v1",
+                  ),
+                  encoding="utf-8",
+              )
+
+              diagnostics = validate.run(tmp_path, ".agent-policy.yml")
+              assert any(
+                  item.code == "SCHEMA" and item.path == "outputs.review.renderer"
+                  for item in diagnostics
+              )
+
+
+          ''',
+          )
+
+          replace_once(
+              "docs/configuration.md",
+              '''`github-review-json-v1` is an additive renderer available to `.agent-policy.yml` configuration schema version 2 for a GitHub-oriented blocking-review transport. The configuration schema version and the adapter response schema are independent: this adapter currently emits JSON with `schema_version: 1`. It renders exactly the same semantic rules selected by the referenced context, then adds only the output protocol: review completeness fields, GitHub event mapping, `path`/`line`/`LEFT`/`RIGHT` inline anchors, numeric confidence serialization, and the version-1 JSON response shape. These adapter requirements are not shared review semantics and must not be copied into `policy/review/*.md`.
+
+          A repository that needs the GitHub JSON adapter can select it without changing its semantic review context:
+
+          ```yaml
+          outputs:
+            review:
+              enabled: true
+              path: .github/REVIEW_GUIDELINES.md
+              context: review
+              renderer: github-review-json-v1
+          ```
+
+          Codex, Gemini, Antigravity, or another engine may consume the generated adapter document; engine invocation details remain outside the semantic policy. Other provider-specific event names, APIs, or serialization contracts require their own renderer or external adapter rather than changes to the review-rule modules.
+
+          ''',
+              '''Provider-specific response schemas, event names, and serialization contracts are intentionally outside this configuration contract. Integrations may serialize a completed provider-neutral review result for a concrete provider, but repositories must not select a provider-specific review-result renderer as policy authority.
+
+          ''',
+          )
+
+          template = Path("templates/github-review-json-v1.md.j2")
+          if not template.is_file():
+              raise SystemExit("legacy renderer template is missing before cleanup")
+          template.unlink()
+          PY
+
+      - name: Record transformed source files
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A -- \
+            src/agent_policy/renderer.py \
+            schemas/agent-policy.schema.json \
+            templates/github-review-json-v1.md.j2 \
+            tests/test_context_rendering.py \
+            docs/configuration.md
+          git diff --cached --check
+          git diff --cached --quiet && {
+            echo "Cleanup produced no source changes."
+            exit 1
+          }
+          git commit -m "Remove obsolete GitHub review JSON renderer"
+          git push origin HEAD:scratch/legacy-renderer-cleanup
