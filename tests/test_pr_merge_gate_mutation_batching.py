@@ -41,7 +41,10 @@ def test_mutation_batching_is_efficiency_procedure_not_acceptance_authority() ->
         "do not wait an arbitrary amount of time for hypothetical future findings",
         "coherence is more important than minimizing commit count",
         "immediate-mutation exceptions",
-        "request or collect new exact-head ci/review evidence only after the coherent replacement candidate is ready",
+        (
+            "request or collect new exact-head ci/review evidence only after the "
+            "coherent replacement candidate is ready"
+        ),
         "mutation batching is an efficiency discipline, not acceptance evidence",
     ):
         assert invariant in text
