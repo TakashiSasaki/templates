@@ -55,11 +55,15 @@ It does **not** require:
 
 The provider-neutral semantic projection remains immutable review authority for the run. The procedure must consume the exact verified semantic authority selected from the frozen base and must re-establish that authority when base movement invalidates the run.
 
-### Final stability is checked before review completion, not before a mandated serialization
+### Final stability is preserved through the output handoff
 
 ADR-0008's identity-stability requirement remains. Immediately before the review procedure completes, it re-resolves stable repository identity, pull-request identity, current base commit/tree, proposed head, and the complete best-common-ancestor set and verifies that they still match the state actually analyzed under the applicable movement rules.
 
-Base movement invalidates the trusted-base authority root and requires trusted bootstrap and review analysis to be re-established. Relevant head or merge-base movement invalidates affected evidence and analysis. None of these rules depends on a provider adapter projection or a particular serialization step.
+The procedure's completed result is valid only for that verified identity set. Its completion handoff must therefore bind the stable repository identity, pull-request identity, base commit/tree, proposed head, unique merge base, and the applicable frozen trusted-base/bootstrap/runtime/procedure/semantic-authority identities. This **identity-bound completion handoff** is validity evidence for the review result; it does not prescribe a provider response schema or serialization format.
+
+If the final output is emitted atomically with that final identity observation, no second serialization-specific contract is required. If an integration submits, displays, or otherwise emits the result later, it must re-resolve the live repository, pull-request, base, head, and best-common-ancestor identities **immediately before final output** and require them to match the completed handoff, or use an equivalent atomic checked handoff that makes intervening movement impossible. A mismatch makes the result stale: the integration must not present it as a current exact-head review and must return to the procedure or trusted bootstrap according to the applicable movement rule.
+
+Base movement invalidates the trusted-base authority root and requires trusted bootstrap and review analysis to be re-established. Relevant head or merge-base movement invalidates affected evidence and analysis. These validity rules do not make provider request serialization review authority and do not require a provider adapter projection or particular wire format.
 
 ### Review and merge authorization remain separate
 
@@ -97,4 +101,5 @@ Implementation should proceed in narrow stages:
 - `pr-review` has one procedural responsibility and does not become a serializer specification.
 - GitHub integration remains practical because provider request examples and field semantics can be documented close to the Skill as non-normative reference material.
 - Trusted-review attestation becomes smaller: provider-neutral authority bytes are immutable, while provider request serialization is outside the authority closure.
+- A completed review remains valid only for its identity-bound handoff; later output must revalidate that identity without turning provider serialization into review authority.
 - A future machine consumer that genuinely requires structured review results must justify its own representation contract rather than inheriting a transitional GitHub JSON format by default.
