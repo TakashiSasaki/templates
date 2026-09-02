@@ -86,7 +86,7 @@ If a binding is uncertain, resolve that uncertainty before relying on the eviden
 
 When the provider or execution surface supports compare-and-swap, expected revision, ETag, immutable-head, version, generation, or equivalent write preconditions, use them to close races at mutation time.
 
-A guarded write does not eliminate earlier semantic validation or live-state checks required by repository authority. It can eliminate an otherwise redundant last-second read whose only purpose was to detect exactly the race covered by the write precondition.
+A guarded write does not eliminate semantic validation or live-state revalidation required by repository authority, including any required commit-boundary revalidation. It can eliminate only an additional read whose sole purpose is to detect the same race already covered by the write precondition and whose omission does not remove a required authority check.
 
 If a guarded write is rejected, do not retry blindly. Refresh the state relevant to the rejection, determine which prior assumptions or evidence were invalidated, and continue from that point.
 
