@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "id": "concurrent-target-collision",
+  "kind": "semantic-transposition",
+  "title": "Two actors pass an empty-target precondition and collide",
+  "authority": "non-authoritative-evaluation",
+  "risk_domains": ["concurrency-and-temporal-consistency", "state-mutation-and-recovery"],
+  "scenario": {
+    "observed_change": "A create operation checks that a destination is absent and later publishes new state at that destination without an atomic no-clobber or version guard.",
+    "controlled_inputs": ["destination identity", "timing of a concurrent creator"],
+    "mutable_state": ["destination existence and ownership"],
+    "authority_boundaries": ["operation-owned new state versus concurrently created state"],
+    "operation_model": ["observe destination absent", "concurrent actor creates destination", "publish new state by replacement", "concurrent state is lost"]
+  },
+  "required_invariants": [
+    {"rule_id": "safety.bind-validated-state-to-operation", "requirement": "The absence precondition must remain valid through publication or publication must fail safely on collision."},
+    {"rule_id": "safety.limit-rollback-to-owned-changes", "requirement": "The operation must not overwrite state created by another actor without authorization."}
+  ],
+  "expected_review": {
+    "disposition": "blocking-finding",
+    "must_investigate": ["atomicity of publication", "concurrent creator capabilities", "collision behavior"],
+    "must_identify": ["a check-then-replace sequence can destroy concurrently created state"],
+    "must_not_claim": ["safe creation merely because the destination was absent during preflight"]
+  }
+}
