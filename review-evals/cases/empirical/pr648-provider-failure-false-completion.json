@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "id": "pr648-provider-failure-false-completion",
+  "kind": "empirical",
+  "title": "Provider failure reported as a clean completed review",
+  "authority": "non-authoritative-evaluation",
+  "risk_domains": ["build-provenance-and-ci"],
+  "scenario": {
+    "observed_change": "A review integration records a review as completed with no issues while the embedded reviewer result says the model API failed after retries and produced no substantive analysis.",
+    "controlled_inputs": [
+      "provider/model availability",
+      "integration mapping from execution result to submitted review text"
+    ],
+    "mutable_state": [
+      "review execution status",
+      "provider availability"
+    ],
+    "authority_boundaries": [
+      "review execution evidence versus provider-recorded review object",
+      "substantive review completion versus wrapper status text"
+    ],
+    "operation_model": [
+      "request independent review",
+      "provider call fails before substantive analysis",
+      "integration formats the failed execution",
+      "GitHub review object is submitted with clean-completion wording"
+    ]
+  },
+  "required_invariants": [
+    {
+      "rule_id": "pull-request.require-independent-exact-head-review",
+      "requirement": "A provider-recorded review object or absence of findings is not evidence that required independent analysis completed."
+    }
+  ],
+  "expected_review": {
+    "disposition": "incomplete-review",
+    "must_investigate": [
+      "whether substantive review analysis executed successfully",
+      "whether the review result is bound to an exact proposed head"
+    ],
+    "must_identify": [
+      "provider execution failure prevents clean review completion"
+    ],
+    "must_not_claim": [
+      "completed review with no blocking findings",
+      "merge-ready independent review evidence"
+    ]
+  },
+  "provenance": {
+    "repository": "TakashiSasaki/templates",
+    "pull_request": 648,
+    "source_type": "pull-request-review",
+    "source_id": "PRR_kwDOTm6ous8AAAABLiaMcA",
+    "reviewed_head": null,
+    "head_binding": "not-established",
+    "note": "The historical review body labels the review complete/no-issues but states that the model API failed after three retries; the record itself does not establish an exact reviewed head."
+  }
+}
