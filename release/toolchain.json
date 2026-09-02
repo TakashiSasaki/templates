@@ -3,7 +3,7 @@
   "channel": "stable",
   "toolchain": {
     "repository": "TakashiSasaki/templates",
-    "revision": "8600bc014b4381c3531eedb3bd832d9ac09a500e"
+    "revision": "40cf11bb87d0dcdb1ef64c0fcae548b108cfc226"
   },
   "contracts": {
     "agent_policy_schema": 2,
