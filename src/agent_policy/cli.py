@@ -9,6 +9,7 @@ from .commands import check as check_command
 from .commands import init as init_command
 from .commands import onboard as onboard_command
 from .commands import render as render_command
+from .commands import review_bundle as review_bundle_command
 from .commands import validate as validate_command
 from .diagnostics import print_diagnostics
 from .identity import immutable_toolchain_reference, resolve_toolchain_revision
@@ -35,6 +36,18 @@ def parser() -> argparse.ArgumentParser:
     for name in ["validate", "render", "check"]:
         item = sub.add_parser(name)
         item.add_argument("--config", default=".agent-policy.yml")
+
+    review_bundle = sub.add_parser("review-bundle", help=argparse.SUPPRESS)
+    review_bundle.add_argument("--config", default=".agent-policy.yml")
+    review_bundle.add_argument("--semantic-output", required=True)
+    review_bundle_sub = review_bundle.add_subparsers(
+        dest="review_bundle_command",
+        required=True,
+    )
+    review_bundle_materialize = review_bundle_sub.add_parser("materialize")
+    review_bundle_materialize.add_argument("--destination", required=True, type=Path)
+    review_bundle_verify = review_bundle_sub.add_parser("verify")
+    review_bundle_verify.add_argument("--bundle", required=True, type=Path)
 
     # Internal primitive retained for the pinned bootstrap trust seed and direct
     # tests. New onboarding documentation and bootstrap UX expose only adopt.
@@ -112,9 +125,19 @@ def parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = parser().parse_args(argv)
-    if args.trusted_review_snapshot and args.command not in {"validate", "check"}:
+    if args.trusted_review_snapshot and args.command not in {
+        "validate",
+        "check",
+        "review-bundle",
+    }:
         print(
             "ERROR REPOSITORY: trusted review snapshot mode is read-only",
+            file=sys.stderr,
+        )
+        return 2
+    if args.command == "review-bundle" and not args.trusted_review_snapshot:
+        print(
+            "ERROR REPOSITORY: review-bundle requires trusted review snapshot mode",
             file=sys.stderr,
         )
         return 2
@@ -144,6 +167,21 @@ def main(argv: list[str] | None = None) -> int:
         diagnostics = render_command.run(repository_root, args.config)
     elif args.command == "check":
         diagnostics = check_command.run(repository_root, args.config)
+    elif args.command == "review-bundle":
+        if args.review_bundle_command == "materialize":
+            diagnostics = review_bundle_command.materialize(
+                repository_root,
+                args.config,
+                args.destination,
+                args.semantic_output,
+            )
+        else:
+            diagnostics = review_bundle_command.verify(
+                repository_root,
+                args.config,
+                args.bundle,
+                args.semantic_output,
+            )
     elif args.command == "adopt":
         if args.adopt_command == "inspect":
             diagnostics = adopt_command.inspect_run(
