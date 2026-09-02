@@ -35,7 +35,7 @@ def test_validation_operation_binding_is_mandatory_shared_semantics() -> None:
     assert rule.severity == "mandatory"
     assert rule.overridable is False
 
-    text = RULE.read_text(encoding="utf-8")
+    text = RULE.read_text(encoding="utf-8").casefold()
     for requirement in (
         "same effective target",
         "normalization",
@@ -45,13 +45,13 @@ def test_validation_operation_binding_is_mandatory_shared_semantics() -> None:
         "rebinding",
         "concurrent mutation",
         "protected commit or use boundary",
-        "Fail closed",
+        "fail closed",
     ):
-        assert requirement in text
+        assert requirement.casefold() in text
 
 
 def test_validation_operation_binding_remains_technology_neutral() -> None:
-    text = RULE.read_text(encoding="utf-8")
+    text = RULE.read_text(encoding="utf-8").casefold()
 
     technology_specific_terms = (
         "Python",
@@ -65,4 +65,4 @@ def test_validation_operation_binding_remains_technology_neutral() -> None:
         "symlink",
     )
     for term in technology_specific_terms:
-        assert term not in text
+        assert term.casefold() not in text
