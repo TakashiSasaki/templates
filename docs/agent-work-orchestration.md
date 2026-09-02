@@ -63,9 +63,9 @@ Selective invalidation is valid only when the unchanged bindings are actually kn
 
 ## Guarded mutations
 
-Provider write preconditions such as compare-and-swap revisions, expected heads, ETags, versions, or generations can close races at the mutation boundary. This may remove the need for a redundant read immediately before the write when that read exists only to detect the same race.
+Provider write preconditions such as compare-and-swap revisions, expected heads, ETags, versions, or generations can close races at the mutation boundary. This can remove an additional race-detection read only when repository authority does not separately require that read or an equivalent commit-boundary live-state revalidation.
 
-Guarded writes do not replace semantic checks. A rejected precondition is an invalidation signal that requires targeted state refresh rather than a blind retry.
+Guarded writes do not replace semantic checks or required commit-boundary revalidation. A rejected precondition is an invalidation signal that requires targeted state refresh rather than a blind retry.
 
 ## Diagnostic metrics
 
