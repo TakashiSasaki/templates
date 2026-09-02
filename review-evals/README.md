@@ -26,12 +26,14 @@ Normal CI does **not** invoke a language model or declare a model/provider accep
 
 ## Coverage observability
 
-Use the deterministic coverage reporter to inspect how the current corpus is distributed across risk domains, case kinds, and expected review dispositions:
+Use the deterministic coverage reporter to inspect how the current corpus is distributed across the risk-domain vocabulary declared by the evaluation-case schema, case kinds, and expected review dispositions:
 
 ```console
 python scripts/review_eval_coverage.py --format markdown
 python scripts/review_eval_coverage.py --format json
 ```
+
+The reporter reads the risk-domain vocabulary from `review-eval-case.schema.json` rather than maintaining a second list. CI also checks that this evaluation vocabulary matches the current provider-neutral risk-domain reference inventory used by the review procedure.
 
 The report distinguishes empirical history, semantic transpositions, controls, blocking cases, clean controls, and incomplete-review cases. It also emits `coverage_observations` such as `no-empirical`, `no-control`, or `no-incomplete-review` for dimensions that currently have no case in a risk domain.
 

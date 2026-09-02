@@ -9,18 +9,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CASE_ROOT = ROOT / "review-evals" / "cases"
-RISK_DOMAINS = (
-    "identity-and-authority",
-    "namespace-and-indirection",
-    "state-mutation-and-recovery",
-    "concurrency-and-temporal-consistency",
-    "privileged-execution",
-    "persistence-and-integrity",
-    "external-interaction",
-    "resource-behavior",
-    "build-provenance-and-ci",
-    "consumer-and-execution-paths",
-)
+DEFAULT_SCHEMA_PATH = ROOT / "review-evals" / "review-eval-case.schema.json"
 CASE_KINDS = ("empirical", "semantic-transposition", "control")
 DISPOSITIONS = (
     "blocking-finding",
@@ -36,9 +25,24 @@ def load_cases(case_root: Path) -> list[dict[str, Any]]:
     ]
 
 
-def build_coverage_matrix(cases: list[dict[str, Any]]) -> dict[str, Any]:
+def load_risk_domains(schema_path: Path) -> tuple[str, ...]:
+    schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    values = schema["properties"]["risk_domains"]["items"]["enum"]
+    if (
+        not isinstance(values, list)
+        or not values
+        or not all(isinstance(value, str) and value for value in values)
+        or len(values) != len(set(values))
+    ):
+        raise ValueError("review-eval case schema has an invalid risk-domain enum")
+    return tuple(values)
+
+
+def build_coverage_matrix(
+    cases: list[dict[str, Any]], risk_domains: tuple[str, ...]
+) -> dict[str, Any]:
     rows: list[dict[str, Any]] = []
-    for domain in RISK_DOMAINS:
+    for domain in risk_domains:
         domain_cases = [case for case in cases if domain in case["risk_domains"]]
         kinds = Counter(case["kind"] for case in domain_cases)
         dispositions = Counter(
@@ -111,10 +115,14 @@ def main() -> int:
         )
     )
     parser.add_argument("--cases", type=Path, default=DEFAULT_CASE_ROOT)
+    parser.add_argument("--schema", type=Path, default=DEFAULT_SCHEMA_PATH)
     parser.add_argument("--format", choices=("json", "markdown"), default="markdown")
     args = parser.parse_args()
 
-    matrix = build_coverage_matrix(load_cases(args.cases))
+    matrix = build_coverage_matrix(
+        load_cases(args.cases),
+        load_risk_domains(args.schema),
+    )
     if args.format == "json":
         print(json.dumps(matrix, indent=2, sort_keys=True))
     else:

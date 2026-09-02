@@ -16,18 +16,7 @@ EVAL_ROOT = ROOT / "review-evals"
 SCHEMA_PATH = EVAL_ROOT / "review-eval-case.schema.json"
 CASE_ROOT = EVAL_ROOT / "cases"
 COVERAGE_SCRIPT = ROOT / "scripts" / "review_eval_coverage.py"
-EXPECTED_RISK_DOMAINS = {
-    "identity-and-authority",
-    "namespace-and-indirection",
-    "state-mutation-and-recovery",
-    "concurrency-and-temporal-consistency",
-    "privileged-execution",
-    "persistence-and-integrity",
-    "external-interaction",
-    "resource-behavior",
-    "build-provenance-and-ci",
-    "consumer-and-execution-paths",
-}
+RISK_REFERENCE_ROOT = ROOT / "skills" / "pr-review" / "references" / "risk-domains"
 EXPECTED_EMPIRICAL_CASE_IDS = {
     "pr597-generated-skill-classification-mismatch",
     "pr631-test-discovery-gap",
@@ -44,6 +33,15 @@ def load_cases() -> list[tuple[Path, dict[str, object]]]:
         (path, json.loads(path.read_text(encoding="utf-8")))
         for path in sorted(CASE_ROOT.rglob("*.json"))
     ]
+
+
+def schema_risk_domains() -> set[str]:
+    schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+    values = schema["properties"]["risk_domains"]["items"]["enum"]
+    assert isinstance(values, list) and values
+    assert all(isinstance(value, str) and value for value in values)
+    assert len(values) == len(set(values))
+    return set(values)
 
 
 def coverage_json() -> dict[str, object]:
@@ -128,14 +126,24 @@ def test_review_eval_case_ids_are_unique_and_non_authoritative() -> None:
     assert "not acceptance failures" in readme
 
 
-def test_review_eval_corpus_covers_all_procedure_risk_domains() -> None:
+def test_review_eval_schema_tracks_procedure_risk_domain_inventory() -> None:
+    schema_domains = schema_risk_domains()
+    reference_domains = {
+        path.stem
+        for path in RISK_REFERENCE_ROOT.glob("*.md")
+        if path.name != "index.md"
+    }
+    assert schema_domains == reference_domains
+
+
+def test_review_eval_corpus_covers_all_declared_risk_domains() -> None:
     cases = load_cases()
     covered = {
         domain
         for _, case in cases
         for domain in case["risk_domains"]  # type: ignore[union-attr]
     }
-    assert covered == EXPECTED_RISK_DOMAINS
+    assert covered == schema_risk_domains()
 
 
 def test_review_eval_corpus_has_empirical_transposition_and_negative_controls() -> None:
@@ -170,7 +178,7 @@ def test_review_eval_coverage_matrix_matches_the_current_corpus() -> None:
 
     assert matrix["schema_version"] == 1
     assert matrix["case_count"] == len(cases)
-    assert {row["domain"] for row in rows} == EXPECTED_RISK_DOMAINS  # type: ignore[index]
+    assert {row["domain"] for row in rows} == schema_risk_domains()  # type: ignore[index]
 
     for row in rows:  # type: ignore[assignment]
         kinds = row["kinds"]
@@ -207,7 +215,7 @@ def test_review_eval_coverage_matrix_markdown_is_renderable() -> None:
     )
 
     assert "| Risk domain | Total | Empirical | Transposition | Control |" in result.stdout
-    for domain in EXPECTED_RISK_DOMAINS:
+    for domain in schema_risk_domains():
         assert f"| {domain} |" in result.stdout
 
 
