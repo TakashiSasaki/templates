@@ -36,14 +36,69 @@ def test_pr_review_is_sole_identity_bound_procedure_authority() -> None:
         "exactly one commit",
         "unique-merge-base-to-head changed surface",
         "current exact-head CI",
-        "provider-neutral semantic review policy",
-        "Preserve limitations and incomplete evidence",
-        "Form the conceptual review conclusion",
+        "provider-neutral semantic review-policy bytes",
+        "Preserve limitations, execution failures, and incomplete analysis",
+        "Form the conceptual review conclusion only after completion is established",
         "Refresh all live identities immediately before completion",
         "Invalidate evidence on drift",
         "identity-bound completion handoff",
         "Do not merge the pull request",
         "separate merge-gate procedure",
+    )
+    for text in required:
+        assert text in skill
+
+
+def test_pr_review_models_observed_behavior_before_change_authored_claims() -> None:
+    skill = (SKILL_ROOT / "SKILL.md").read_text(encoding="utf-8")
+
+    assert "independent observed-change model" in skill
+    assert "Before using pull-request descriptions" in skill
+    assert "Observed" in skill
+    assert "Claimed" in skill
+    assert "Required" in skill
+    assert "Use Claimed information as hypotheses or evidence" in skill
+    assert "stated design intent from silently defining the review search space" in skill
+
+
+def test_pr_review_separates_candidate_discovery_from_finding_acceptance() -> None:
+    skill = (SKILL_ROOT / "SKILL.md").read_text(encoding="utf-8")
+
+    required = (
+        "Generate defect candidates broadly",
+        "A **candidate** is an investigation target, not a finding",
+        "construct a concrete counterexample",
+        "state or input **X**",
+        "required invariant **Z**",
+        "Aggressively falsify each candidate before promoting it",
+        "existing guard already prevents the scenario",
+        "Discard candidates that are falsified, unreachable, outside change causality",
+        "Promote only verified candidates to findings",
+    )
+    for text in required:
+        assert text in skill
+
+
+def test_pr_review_traces_real_consumers_without_contaminating_changed_surface() -> None:
+    skill = (SKILL_ROOT / "SKILL.md").read_text(encoding="utf-8")
+
+    assert "Trace realistic consumers and execution paths" in skill
+    assert "at least one realistic downstream path" in skill
+    assert "what is actually consumed and executed" in skill
+    assert "unchanged consumer files are context rather than part of the changed surface" in skill
+
+
+def test_pr_review_requires_substantive_completion_not_merely_output() -> None:
+    skill = (SKILL_ROOT / "SKILL.md").read_text(encoding="utf-8")
+
+    required = (
+        "transient coverage and completion working state",
+        "not a repository-owned review-result schema",
+        "prevent an unperformed analysis from being mistaken for a zero-finding analysis",
+        "Producing text is not proof that a review completed",
+        "delegation status, or work progress does not satisfy the required analysis passes",
+        "Finding count is not completion evidence",
+        "If substantive review work did not complete, use the third form",
     )
     for text in required:
         assert text in skill
@@ -80,6 +135,7 @@ def test_pr_review_drift_rules_preserve_authority_boundaries() -> None:
     assert "invalidate the entire trusted authority closure and all analysis" in skill
     assert "Head movement:" in skill
     assert "invalidate the changed surface and every finding" in skill
+    assert "candidate, falsification result, coverage/completion disposition" in skill
     assert "Merge-base movement or loss of uniqueness:" in skill
     assert "return to the authenticated bootstrap" in skill
     assert "completion handoff" in skill
@@ -93,6 +149,7 @@ def test_pr_review_delegates_ci_classification_to_semantic_policy() -> None:
     assert "Collect current exact-head CI and validation evidence" in skill
     assert "Do **not** define the semantic meaning of those states here" in skill
     assert "Pass the observations to the bound semantic review policy for classification" in skill
+    assert "Green CI is evidence, not proof" in skill
     assert "Do not convert incomplete analysis into a successful review" in skill
 
 
