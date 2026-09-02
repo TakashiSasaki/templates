@@ -260,6 +260,26 @@ def _write_bundle_tree(root: Path, expected: dict[str, bytes]) -> None:
             os.fsync(stream.fileno())
 
 
+def _cleanup_owned_partial_bundle(
+    target: Path,
+    *,
+    directory_identity: tuple[int, int],
+) -> None:
+    try:
+        current = target.stat(follow_symlinks=False)
+    except FileNotFoundError:
+        return
+    if target.is_symlink() or not target.is_dir():
+        raise ValueError(
+            "refusing to clean a partial review authority bundle whose path type changed"
+        )
+    if (current.st_dev, current.st_ino) != directory_identity:
+        raise ValueError(
+            "refusing to clean a partial review authority bundle whose directory identity changed"
+        )
+    shutil.rmtree(target)
+
+
 def materialize(
     repository_root: Path,
     config_path: str | Path,
@@ -292,8 +312,17 @@ def materialize(
                 raise ValueError(
                     "review authority bundle destination must not already exist"
                 ) from exc
-            _write_bundle_tree(target, expected)
-            _verify_bundle_tree(target, expected)
+            target_stat = target.stat(follow_symlinks=False)
+            target_identity = (target_stat.st_dev, target_stat.st_ino)
+            try:
+                _write_bundle_tree(target, expected)
+                _verify_bundle_tree(target, expected)
+            except (OSError, ValueError):
+                _cleanup_owned_partial_bundle(
+                    target,
+                    directory_identity=target_identity,
+                )
+                raise
         finally:
             shutil.rmtree(staging, ignore_errors=True)
     except (OSError, ValueError) as exc:

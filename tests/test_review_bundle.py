@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from agent_policy import cli
 from agent_policy.commands import render, review_bundle
 
@@ -150,6 +152,46 @@ def test_review_bundle_materialize_never_clobbers_existing_destination(
     assert "must not already exist" in diagnostics[0].message
     assert sentinel.read_text(encoding="utf-8") == "keep\n"
     assert set(path.name for path in bundle.iterdir()) == {"sentinel.txt"}
+
+
+def test_review_bundle_materialize_cleans_owned_partial_destination_for_retry(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repository = tmp_path / "trusted-base"
+    _write_repository(repository)
+    bundle = tmp_path / "review-bundle"
+    original_write = review_bundle._write_bundle_tree
+    calls = 0
+
+    def fail_during_publication(root: Path, expected: dict[str, bytes]) -> None:
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            (root / "manifest.json").write_bytes(b"partial")
+            raise OSError("simulated publication failure")
+        original_write(root, expected)
+
+    monkeypatch.setattr(review_bundle, "_write_bundle_tree", fail_during_publication)
+    diagnostics = review_bundle.materialize(
+        repository,
+        ".agent-policy.yml",
+        bundle,
+        SEMANTIC_OUTPUT,
+    )
+
+    assert _has_error(diagnostics)
+    assert "simulated publication failure" in diagnostics[0].message
+    assert not bundle.exists()
+
+    monkeypatch.setattr(review_bundle, "_write_bundle_tree", original_write)
+    retry = review_bundle.materialize(
+        repository,
+        ".agent-policy.yml",
+        bundle,
+        SEMANTIC_OUTPUT,
+    )
+    assert not _has_error(retry)
 
 
 def test_review_bundle_rejects_destination_overlap_in_both_directions(tmp_path: Path) -> None:
