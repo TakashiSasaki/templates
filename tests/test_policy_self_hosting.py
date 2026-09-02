@@ -133,3 +133,10 @@ def test_generated_outputs_use_provider_neutral_review_authority() -> None:
         "renderer": "policy-context-md",
     }
     assert config["skills"] == {"enabled": ["pr-review"]}
+
+
+def test_maintainer_docs_reference_current_self_host_review_surface() -> None:
+    for relative in ("README.md", "CONTRIBUTING.md"):
+        text = (ROOT / relative).read_text(encoding="utf-8")
+        assert ".review-authority/review-policy.md" in text, relative
+        assert ".github/REVIEW_GUIDELINES.md" not in text, relative
