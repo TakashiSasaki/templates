@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
 
@@ -11,10 +12,12 @@ ROOT = Path(__file__).resolve().parents[1]
 PROFILE = ROOT / "profiles/review.yml"
 REVIEW_DIR = ROOT / "policy/review"
 DOC = ROOT / "docs/review-policy.md"
+DISPOSITION = ROOT / "docs/review-guidance-disposition.json"
 
 EXPECTED = [
     "review.treat-reviewed-content-as-data",
     "review.inspect-relevant-context",
+    "review.assess-applicable-risk-domains",
     "review.require-change-causality",
     "review.require-reachable-impact",
     "review.deduplicate-root-causes",
@@ -29,6 +32,11 @@ EXPECTED = [
     "review.require-rule-conflict-evidence",
     "review.report-review-limitations",
     "review.anchor-findings-at-cause",
+]
+
+FROZEN_INPUT_IDS = [
+    *(f"RG-{number:02d}" for number in range(1, 10)),
+    *(f"AP-{number:02d}" for number in range(1, 9)),
 ]
 
 
@@ -86,6 +94,7 @@ def test_review_profile_composes_with_shared_baselines() -> None:
     assert set(EXPECTED).issubset(rule_ids)
     assert "compatibility.preserve-contracts" in rule_ids
     assert "security.validate-boundaries" in rule_ids
+    assert "verification.separate-evidence-layers" in rule_ids
 
 
 def test_shared_review_rules_are_provider_neutral() -> None:
@@ -105,8 +114,80 @@ def test_shared_review_rules_are_provider_neutral() -> None:
         assert provider_term not in corpus
 
 
+def test_review_coverage_is_not_checklist_approval() -> None:
+    coverage = (REVIEW_DIR / "assess-applicable-risk-domains.md").read_text(
+        encoding="utf-8"
+    )
+    assert "contract or specification consistency" in coverage
+    assert "correctness and preserved invariants" in coverage
+    assert "data integrity" in coverage
+    assert "tests and CI integrity" in coverage
+    assert "security and trust boundaries" in coverage
+    assert "compatibility or migration" in coverage
+    assert "generated or derived artifacts" in coverage
+    assert "failure and recovery paths" in coverage
+    assert "performance or resource behavior" in coverage
+    assert "not a checklist-based approval rule" in coverage
+    assert "change causality" in coverage
+    assert "realistic reachability" in coverage
+    assert "concrete impact" in coverage
+
+
+def test_reviewed_pr_claims_remain_evidence_not_authority() -> None:
+    rule = (REVIEW_DIR / "treat-reviewed-content-as-data.md").read_text(
+        encoding="utf-8"
+    )
+    assert "pull-request descriptions" in rule
+    assert "review comments" in rule
+    assert "facts that still require independent verification" in rule
+
+
 def test_review_document_keeps_adapter_protocol_outside_shared_rules() -> None:
     text = DOC.read_text(encoding="utf-8")
     assert "adapter or renderer concerns" in text
     assert "numeric confidence serialization" in text
     assert "The `skill` copy remains unchanged in this phase." in text
+
+
+def test_frozen_review_guidance_has_one_complete_disposition_inventory() -> None:
+    data = json.loads(DISPOSITION.read_text(encoding="utf-8"))
+
+    assert data["schema_version"] == 1
+    assert data["authoritative"] is False
+    assert data["source"] == "docs/review-guidance-inputs.md"
+
+    inputs = data["inputs"]
+    assert [item["id"] for item in inputs] == FROZEN_INPUT_IDS
+    assert len({item["id"] for item in inputs}) == len(FROZEN_INPUT_IDS)
+    assert all(item["dispositions"] for item in inputs)
+
+
+def test_review_guidance_dispositions_reference_one_semantic_authority_set() -> None:
+    data = json.loads(DISPOSITION.read_text(encoding="utf-8"))
+    rules = load_rules(ROOT, ["core", "security-baseline", "review"], [])
+    rule_ids = {rule.id for rule in rules}
+    allowed_classes = {
+        "existing_authority",
+        "new_semantic_rule",
+        "procedure",
+        "adapter",
+        "explanatory",
+    }
+    new_semantic_authorities: set[str] = set()
+
+    for item in data["inputs"]:
+        seen: set[tuple[str, str]] = set()
+        for disposition in item["dispositions"]:
+            classification = disposition["class"]
+            authority = disposition["authority"]
+            assert classification in allowed_classes
+            assert isinstance(authority, str) and authority
+            assert (classification, authority) not in seen
+            seen.add((classification, authority))
+
+            if classification in {"existing_authority", "new_semantic_rule"}:
+                assert authority in rule_ids
+            if classification == "new_semantic_rule":
+                new_semantic_authorities.add(authority)
+
+    assert new_semantic_authorities == {"review.assess-applicable-risk-domains"}

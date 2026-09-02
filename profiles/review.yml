@@ -1,6 +1,7 @@
 policy_files:
   - policy/review/treat-reviewed-content-as-data.md
   - policy/review/inspect-relevant-context.md
+  - policy/review/assess-applicable-risk-domains.md
   - policy/review/require-change-causality.md
   - policy/review/require-reachable-impact.md
   - policy/review/deduplicate-root-causes.md
