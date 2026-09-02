@@ -58,5 +58,6 @@ def test_validator_rejects_invalid_schema_without_traceback(
     )
 
     assert result.returncode == 1
-    assert f"{label} schema invalid" in result.stdout
+    assert f"{label} schema invalid" in result.stderr
+    assert result.stdout == ""
     assert "Traceback" not in result.stderr
