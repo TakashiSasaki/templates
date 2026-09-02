@@ -75,6 +75,21 @@ def test_review_eval_schema_binds_empirical_head_identity() -> None:
     assert not list(validator.iter_errors(valid_unbound))
 
 
+def test_review_eval_schema_requires_nonempty_minimum_truth_arrays() -> None:
+    schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+    validator = Draft202012Validator(schema)
+    case = copy.deepcopy(load_cases()[0][1])
+
+    for field in ("controlled_inputs", "mutable_state", "authority_boundaries"):
+        invalid = copy.deepcopy(case)
+        invalid["scenario"][field] = []  # type: ignore[index]
+        assert list(validator.iter_errors(invalid)), field
+
+    invalid = copy.deepcopy(case)
+    invalid["expected_review"]["must_identify"] = []  # type: ignore[index]
+    assert list(validator.iter_errors(invalid)), "must_identify"
+
+
 def test_review_eval_case_ids_are_unique_and_non_authoritative() -> None:
     cases = load_cases()
     ids = [case["id"] for _, case in cases]
