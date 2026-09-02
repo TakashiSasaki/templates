@@ -5,6 +5,7 @@ import json
 import re
 import shlex
 from collections.abc import Iterable
+from pathlib import PurePath
 
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
@@ -97,6 +98,10 @@ def render_consumer_workflow(toolchain_revision: str) -> str:
     return template.render(revision=toolchain["revision"])
 
 
+def _portable_skill_relative_path(path: PurePath, root: PurePath) -> str:
+    return path.relative_to(root).as_posix()
+
+
 def render_skill(
     skill_name: str,
     *,
@@ -117,7 +122,7 @@ def render_skill(
     result: dict[str, str] = {}
     for path in sorted(skill_root.rglob("*")):
         if path.is_file():
-            relative = str(path.relative_to(skill_root))
+            relative = _portable_skill_relative_path(path, skill_root)
             content = path.read_text(encoding="utf-8")
             for token, value in replacements.items():
                 content = content.replace(token, value)

@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 
+from agent_policy.renderer import _portable_skill_relative_path
 from scripts.verify_runtime_skill_data import (
     compare_skill_inventories,
     generated_skill_inventory,
@@ -18,6 +19,17 @@ def test_source_generated_skill_inventory_contains_orchestration_skill() -> None
     assert "SKILL.md" in inventory["orchestrate-repository-change"]
     assert "agent-policy" not in inventory
     assert "pr-merge-gate" not in inventory
+
+
+def test_skill_relative_paths_are_posix_on_all_supported_hosts() -> None:
+    assert _portable_skill_relative_path(
+        PurePosixPath("/skill/references/api.md"),
+        PurePosixPath("/skill"),
+    ) == "references/api.md"
+    assert _portable_skill_relative_path(
+        PureWindowsPath("C:/skill/references/api.md"),
+        PureWindowsPath("C:/skill"),
+    ) == "references/api.md"
 
 
 def test_skill_inventory_comparison_fails_closed_on_missing_and_unexpected_data() -> None:

@@ -43,11 +43,17 @@ def compare_skill_inventories(
 
     missing_skills = sorted(set(expected) - set(actual))
     if missing_skills:
-        errors.append("installed generated Skills missing from package data: " + ", ".join(missing_skills))
+        errors.append(
+            "installed generated Skills missing from package data: "
+            + ", ".join(missing_skills)
+        )
 
     unexpected_skills = sorted(set(actual) - set(expected))
     if unexpected_skills:
-        errors.append("installed package data contains unexpected generated Skills: " + ", ".join(unexpected_skills))
+        errors.append(
+            "installed package data contains unexpected generated Skills: "
+            + ", ".join(unexpected_skills)
+        )
 
     for skill_name in sorted(set(expected) & set(actual)):
         expected_files = set(expected[skill_name])
