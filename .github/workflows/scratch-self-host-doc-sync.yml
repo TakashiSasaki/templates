@@ -1,0 +1,71 @@
+name: Scratch self-host doc sync
+
+on:
+  push:
+    branches:
+      - scratch/self-host-doc-sync
+    paths:
+      - .github/workflows/scratch-self-host-doc-sync.yml
+
+permissions:
+  contents: write
+
+jobs:
+  transform:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Synchronize maintainer documentation
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              target = Path(path)
+              text = target.read_text(encoding="utf-8")
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{path}: expected one replacement target, found {count}")
+              target.write_text(text.replace(old, new), encoding="utf-8")
+
+          replace_once(
+              "README.md",
+              "Repository-maintainer operating authority for this branch is declared by `.agent-policy.yml` and the files under `repository-policy/`. Generated `AGENTS.md` and `.github/REVIEW_GUIDELINES.md` are projections of that authority. Other maintained documents may define toolkit contracts, release/readiness states, or explain the current implementation, but this README does not independently override the canonical operating rules.",
+              "Repository-maintainer operating authority for this branch is declared by `.agent-policy.yml` and the files under `repository-policy/`. Generated `AGENTS.md` and `.review-authority/review-policy.md` are context projections of that authority; `.agents/skills/pr-review/` is the generated operational review procedure selected by `.agent-policy.yml`. Other maintained documents may define toolkit contracts, release/readiness states, or explain the current implementation, but this README does not independently override the canonical operating rules.",
+          )
+          replace_once(
+              "README.md",
+              "- context-aware coding and review rendering, including the GitHub review JSON adapter;",
+              "- context-aware coding and provider-neutral review rendering with a generated `pr-review` operational procedure;",
+          )
+          replace_once(
+              "CONTRIBUTING.md",
+              "Canonical repository-maintainer operating policy is declared by `.agent-policy.yml` and the files under `repository-policy/`; generated `AGENTS.md` and `.github/REVIEW_GUIDELINES.md` are projections of that authority.",
+              "Canonical repository-maintainer operating policy is declared by `.agent-policy.yml` and the files under `repository-policy/`; generated `AGENTS.md` and `.review-authority/review-policy.md` are context projections of that authority, and `.agents/skills/pr-review/` is the generated operational review procedure.",
+          )
+
+          test_path = Path("tests/test_policy_self_hosting.py")
+          tests = test_path.read_text(encoding="utf-8")
+          marker = "def test_maintainer_docs_reference_current_self_host_review_surface() -> None:"
+          if marker in tests:
+              raise SystemExit("maintainer-doc regression already exists")
+          tests += '''\n\ndef test_maintainer_docs_reference_current_self_host_review_surface() -> None:\n    for relative in ("README.md", "CONTRIBUTING.md"):\n        text = (ROOT / relative).read_text(encoding="utf-8")\n        assert ".review-authority/review-policy.md" in text, relative\n        assert ".github/REVIEW_GUIDELINES.md" not in text, relative\n'''
+          test_path.write_text(tests, encoding="utf-8")
+          PY
+
+      - name: Record synchronized files
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- README.md CONTRIBUTING.md tests/test_policy_self_hosting.py
+          git diff --cached --check
+          git diff --cached --quiet && {
+            echo "Documentation synchronization produced no changes."
+            exit 1
+          }
+          git commit -m "Synchronize self-host review documentation"
+          git push origin HEAD:scratch/self-host-doc-sync
