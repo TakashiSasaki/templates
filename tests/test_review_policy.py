@@ -176,7 +176,7 @@ def test_review_document_describes_current_self_hosted_authority_layers() -> Non
         "skills/pr-review/SKILL.md",
         ".review-authority/review-policy.md",
         ".agents/skills/pr-review/",
-        "sole procedural authority",
+        "Sole procedural authority",
         "Evaluation evidence is non-authoritative",
         "Current consumers receive the semantic projection and generated `pr-review` procedure",
     )
