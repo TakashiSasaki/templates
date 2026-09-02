@@ -1,7 +1,7 @@
 schema_version: 2
 toolchain:
   repository: TakashiSasaki/templates
-  revision: b12b190cff4a9f5fa9f9ba76cc3425c479b67b87
+  revision: 8600bc014b4381c3531eedb3bd832d9ac09a500e
 contexts:
   coding:
     profiles:
@@ -37,10 +37,11 @@ outputs:
     path: AGENTS.md
     context: coding
     renderer: agents-md
-  review:
+  review-authority:
     enabled: true
-    path: .github/REVIEW_GUIDELINES.md
+    path: .review-authority/review-policy.md
     context: review
-    renderer: github-review-json-v1
+    renderer: policy-context-md
 skills:
-  enabled: []
+  enabled:
+    - pr-review
