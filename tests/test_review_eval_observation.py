@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import copy
 import hashlib
+import importlib.util
 import json
 import subprocess
 import sys
 from pathlib import Path
 
+import pytest
 from jsonschema import Draft202012Validator
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -91,6 +93,14 @@ def _run_validator(
     )
 
 
+def _load_validator_module():
+    spec = importlib.util.spec_from_file_location("review_eval_observation_validator", VALIDATOR)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 def test_review_eval_observation_schema_is_valid_and_non_authoritative() -> None:
     schema = json.loads(OBSERVATION_SCHEMA.read_text(encoding="utf-8"))
     Draft202012Validator.check_schema(schema)
@@ -122,7 +132,8 @@ def test_observation_validator_rejects_wrong_case_identity(tmp_path: Path) -> No
 
     result = _run_validator(tmp_path, case_path, observation)
     assert result.returncode == 1
-    assert "case.id does not match frozen case" in result.stdout
+    assert "case.id does not match frozen case" in result.stderr
+    assert result.stdout == ""
 
 
 def test_observation_validator_rejects_wrong_case_digest(tmp_path: Path) -> None:
@@ -132,7 +143,8 @@ def test_observation_validator_rejects_wrong_case_digest(tmp_path: Path) -> None
 
     result = _run_validator(tmp_path, case_path, observation)
     assert result.returncode == 1
-    assert "case.sha256 does not match frozen case bytes" in result.stdout
+    assert "case.sha256 does not match frozen case bytes" in result.stderr
+    assert result.stdout == ""
 
 
 def test_observation_validator_rejects_case_relative_index_overflow(
@@ -147,7 +159,19 @@ def test_observation_validator_rejects_case_relative_index_overflow(
 
     result = _run_validator(tmp_path, case_path, observation)
     assert result.returncode == 1
-    assert "indices outside frozen case range" in result.stdout
+    assert "indices outside frozen case range" in result.stderr
+    assert result.stdout == ""
+
+
+def test_index_guard_rejects_negative_indices_independent_of_schema() -> None:
+    validator_module = _load_validator_module()
+    observation = {"observations": {"indices": [-1]}}
+
+    with pytest.raises(
+        validator_module.ObservationValidationError,
+        match="indices outside frozen case range",
+    ):
+        validator_module._require_valid_indices(observation, "indices", ["only-item"])
 
 
 def test_observation_validator_rejects_unsorted_indices(tmp_path: Path) -> None:
@@ -161,7 +185,8 @@ def test_observation_validator_rejects_unsorted_indices(tmp_path: Path) -> None:
 
     result = _run_validator(tmp_path, case_path, observation)
     assert result.returncode == 1
-    assert "indices must be sorted" in result.stdout
+    assert "indices must be sorted" in result.stderr
+    assert result.stdout == ""
 
 
 def test_observation_validator_rejects_impossible_unsupported_count(
@@ -181,7 +206,8 @@ def test_observation_validator_rejects_impossible_unsupported_count(
 
     result = _run_validator(tmp_path, case_path, observation)
     assert result.returncode == 1
-    assert "cannot exceed reported_finding_count" in result.stdout
+    assert "cannot exceed reported_finding_count" in result.stderr
+    assert result.stdout == ""
 
 
 def test_schema_can_record_false_completion_instead_of_censoring_it() -> None:
