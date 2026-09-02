@@ -7,7 +7,6 @@ import io
 import json
 import os
 import re
-import shutil
 import subprocess
 import sys
 import tarfile
@@ -392,203 +391,26 @@ def load_installation_attestation(path: Path) -> dict[str, object]:
     return value
 
 
-def validated_attestation_entries(
-    target: Path,
-    attestation_path: Path,
-    *,
-    installer_revision: str,
-) -> dict[str, dict[str, str]]:
-    target = target.expanduser().absolute()
-    installer_revision = require_full_sha(installer_revision, "installer revision")
-    actual = load_installation_attestation(attestation_path)
-    if set(actual) != {"schema_version", "installer", "skill_source", "installation"}:
-        raise RuntimeError("installation attestation has unexpected top-level fields")
-    if actual.get("schema_version") != 1:
-        raise RuntimeError("installation attestation schema version is unsupported")
-    if actual.get("installer") != {
-        "repository": TOOLCHAIN_REPOSITORY,
-        "revision": installer_revision,
-        "path": INSTALLER_PATH,
-    }:
-        raise RuntimeError("installation attestation installer identity does not match")
-    if actual.get("skill_source") != {
-        "repository": TOOLCHAIN_REPOSITORY,
-        "revision": SKILL_SOURCE_REVISION,
-        "path": SKILL_SOURCE_PATH,
-    }:
-        raise RuntimeError("installation attestation skill-source identity does not match")
-    installation = actual.get("installation")
-    if not isinstance(installation, dict) or set(installation) != {"root", "entries"}:
-        raise RuntimeError("installation attestation installation record is invalid")
-    if installation.get("root") != str(target):
-        raise RuntimeError("installation attestation root does not match installed skill")
-    entries = installation.get("entries")
-    if not isinstance(entries, dict) or not entries:
-        raise RuntimeError("installation attestation entries are invalid")
-
-    result: dict[str, dict[str, str]] = {}
-    for relative, metadata in entries.items():
-        if not isinstance(relative, str) or not relative:
-            raise RuntimeError("installation attestation path is invalid")
-        pure = PurePosixPath(relative)
-        if (
-            pure.is_absolute()
-            or pure.as_posix() != relative
-            or any(part in {"", ".", ".."} or "\\" in part or ":" in part for part in pure.parts)
-        ):
-            raise RuntimeError(f"installation attestation path is unsafe: {relative}")
-        if not isinstance(metadata, dict):
-            raise RuntimeError(f"installation attestation entry is invalid: {relative}")
-        if metadata == {"type": "directory"}:
-            result[relative] = {"type": "directory"}
-            continue
-        digest = metadata.get("sha256")
-        if (
-            set(metadata) != {"type", "sha256"}
-            or metadata.get("type") != "file"
-            or not isinstance(digest, str)
-            or len(digest) != 64
-            or any(character not in "0123456789abcdef" for character in digest)
-        ):
-            raise RuntimeError(f"installation attestation entry is invalid: {relative}")
-        result[relative] = {"type": "file", "sha256": digest}
-    return dict(sorted(result.items()))
-
-
 def verify_installation_attestation(
     target: Path,
     attestation_path: Path,
     *,
     installer_revision: str,
 ) -> None:
-    expected_entries = validated_attestation_entries(
+    expected = installation_attestation(
         target,
-        attestation_path,
-        installer_revision=installer_revision,
+        installer_revision=require_full_sha(installer_revision, "installer revision"),
     )
-    if installed_tree_inventory(target) != expected_entries:
+    actual = load_installation_attestation(attestation_path)
+    if actual != expected:
         raise RuntimeError("installation attestation does not match installed skill tree")
-
-
-def verify_run_image(
-    target: Path,
-    run_image: Path,
-    attestation_path: Path,
-    *,
-    installer_revision: str,
-) -> None:
-    expected_entries = validated_attestation_entries(
-        target,
-        attestation_path,
-        installer_revision=installer_revision,
-    )
-    if installed_tree_inventory(run_image) != expected_entries:
-        raise RuntimeError("review-run bootstrap image does not match installation attestation")
-
-
-def _copy_attested_file(
-    source: Path,
-    destination: Path,
-    *,
-    expected_digest: str,
-    remaining_limit: int,
-) -> int:
-    if source.is_symlink() or not source.is_file():
-        raise RuntimeError(f"attested source file is not regular: {source}")
-    stat = source.stat(follow_symlinks=False)
-    if stat.st_nlink != 1:
-        raise RuntimeError(f"attested source file is hard linked: {source}")
-    if stat.st_size < 0 or stat.st_size > remaining_limit:
-        raise RuntimeError("installed skill exceeds the size limit")
-
-    digest = hashlib.sha256()
-    consumed = 0
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    with source.open("rb") as input_file, destination.open("xb") as output_file:
-        while True:
-            chunk = input_file.read(min(64 * 1024, remaining_limit - consumed + 1))
-            if not chunk:
-                break
-            consumed += len(chunk)
-            if consumed > remaining_limit:
-                raise RuntimeError("installed skill exceeds the size limit")
-            digest.update(chunk)
-            output_file.write(chunk)
-        output_file.flush()
-        os.fsync(output_file.fileno())
-    if consumed != stat.st_size or digest.hexdigest() != expected_digest:
-        raise RuntimeError(f"attested source file changed while copying: {source}")
-    return consumed
-
-
-def materialize_run_image(
-    target: Path,
-    run_image: Path,
-    attestation_path: Path,
-    *,
-    installer_revision: str,
-) -> None:
-    target = target.expanduser().absolute()
-    run_image = run_image.expanduser().absolute()
-    attestation_path = attestation_path.expanduser().absolute()
-    verify_installation_attestation(
-        target,
-        attestation_path,
-        installer_revision=installer_revision,
-    )
-    entries = validated_attestation_entries(
-        target,
-        attestation_path,
-        installer_revision=installer_revision,
-    )
-
-    if run_image == target or target in run_image.parents or run_image in target.parents:
-        raise ValueError("review-run bootstrap image must be outside the installed skill tree")
-    if run_image.exists() or run_image.is_symlink():
-        raise ValueError("review-run bootstrap image destination must not already exist")
-    parent = run_image.parent
-    require_no_symlink_components(parent)
-    parent.mkdir(parents=True, exist_ok=True)
-    require_no_symlink_components(parent)
-
-    staging = Path(
-        tempfile.mkdtemp(prefix=f".{run_image.name}.staging-", dir=parent)
-    )
-    finalized = False
-    try:
-        total_size = 0
-        directories = [
-            relative for relative, metadata in entries.items() if metadata["type"] == "directory"
-        ]
-        for relative in sorted(directories, key=lambda value: (len(PurePosixPath(value).parts), value)):
-            staging.joinpath(*PurePosixPath(relative).parts).mkdir(parents=True, exist_ok=True)
-        for relative, metadata in entries.items():
-            if metadata["type"] != "file":
-                continue
-            source = target.joinpath(*PurePosixPath(relative).parts)
-            destination = staging.joinpath(*PurePosixPath(relative).parts)
-            total_size += _copy_attested_file(
-                source,
-                destination,
-                expected_digest=metadata["sha256"],
-                remaining_limit=SKILL_LIMIT - total_size,
-            )
-        if installed_tree_inventory(staging) != entries:
-            raise RuntimeError("staged review-run bootstrap image does not match attestation")
-        os.replace(staging, run_image)
-        finalized = True
-        if installed_tree_inventory(run_image) != entries:
-            raise RuntimeError("finalized review-run bootstrap image does not match attestation")
-    finally:
-        if not finalized and staging.exists():
-            shutil.rmtree(staging)
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Install, verify, or materialize the immutable agent-policy skill "
-            f"distribution from {TOOLCHAIN_REPOSITORY}@{SKILL_SOURCE_REVISION}."
+            "Install or verify the immutable agent-policy skill distribution from "
+            f"{TOOLCHAIN_REPOSITORY}@{SKILL_SOURCE_REVISION}."
         )
     )
     parser.add_argument("target", type=Path, help="Destination agent-policy skill directory")
@@ -609,41 +431,23 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--installer-revision",
         help=(
             "Full SHA of this installer script as independently pinned by the "
-            "deployment. Required with attestation verification/materialization."
+            "deployment. Required with --attestation or --verify-only."
         ),
     )
-    operation = parser.add_mutually_exclusive_group()
-    operation.add_argument(
+    parser.add_argument(
         "--verify-only",
         action="store_true",
         help="Verify an existing installation against --attestation without installing.",
     )
-    operation.add_argument(
-        "--materialize-run-image",
-        type=Path,
-        help=(
-            "Verify the installation, then atomically materialize and post-copy verify "
-            "a deployment-managed bootstrap run-image candidate."
-        ),
-    )
-    operation.add_argument(
-        "--verify-run-image",
-        type=Path,
-        help=(
-            "Verify a deployment-protected bootstrap run image against the external "
-            "installation attestation."
-        ),
-    )
     args = parser.parse_args(argv)
-    if (args.verify_only or args.materialize_run_image or args.verify_run_image) and args.replace:
-        parser.error("verification/materialization operations cannot be combined with --replace")
-    needs_attestation = bool(
-        args.verify_only or args.materialize_run_image is not None or args.verify_run_image is not None
-    )
-    if needs_attestation and args.attestation is None:
-        parser.error("verification/materialization operations require --attestation")
+    if args.verify_only and args.replace:
+        parser.error("--verify-only cannot be combined with --replace")
+    if args.verify_only and args.attestation is None:
+        parser.error("--verify-only requires --attestation")
     if (args.attestation is None) != (args.installer_revision is None):
         parser.error("--attestation and --installer-revision must be supplied together")
+    if args.verify_only and args.installer_revision is None:
+        parser.error("--verify-only requires --installer-revision")
     return args
 
 
@@ -658,31 +462,9 @@ def main(argv: list[str] | None = None) -> int:
             )
             print(f"Verified agent-policy skill installation at {args.target}.")
             return 0
-        if args.materialize_run_image is not None:
-            materialize_run_image(
-                args.target,
-                args.materialize_run_image,
-                args.attestation,
-                installer_revision=args.installer_revision,
-            )
-            print(
-                "Materialized and post-copy verified agent-policy bootstrap run image at "
-                f"{args.materialize_run_image}. The deployment must now enforce its "
-                "read-only/immutable trust boundary before execution and then run "
-                "--verify-run-image."
-            )
-            return 0
-        if args.verify_run_image is not None:
-            verify_run_image(
-                args.target,
-                args.verify_run_image,
-                args.attestation,
-                installer_revision=args.installer_revision,
-            )
-            print(f"Verified protected agent-policy bootstrap run image at {args.verify_run_image}.")
-            return 0
 
         if args.attestation is not None:
+            require_full_sha(args.installer_revision, "installer revision")
             preflight_attestation_destination(args.target, args.attestation)
         data = download_archive()
         install_downloaded_skill(
