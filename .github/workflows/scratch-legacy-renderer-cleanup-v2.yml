@@ -1,0 +1,117 @@
+name: Scratch legacy renderer cleanup v2
+
+on:
+  push:
+    branches:
+      - scratch/legacy-renderer-cleanup
+    paths:
+      - .github/workflows/scratch-legacy-renderer-cleanup-v2.yml
+
+permissions:
+  contents: write
+
+jobs:
+  transform:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Apply fail-closed cleanup transformation
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              target = Path(path)
+              text = target.read_text(encoding="utf-8")
+              if text.count(old) != 1:
+                  raise SystemExit(f"{path}: replacement target count={text.count(old)}")
+              target.write_text(text.replace(old, new), encoding="utf-8")
+
+          renderer_path = Path("src/agent_policy/renderer.py")
+          renderer = renderer_path.read_text(encoding="utf-8")
+          start = renderer.index("\ndef render_github_review_json(")
+          end = renderer.index("\ndef render_output(", start)
+          renderer = renderer[:start] + "\n" + renderer[end:]
+          legacy_dispatch = '''    if renderer == "github-review-json-v1":
+              return render_github_review_json(
+                  config,
+                  rules,
+                  context_name=context_name,
+                  project_policy_files=project_policy_files,
+              )
+          '''
+          if renderer.count(legacy_dispatch) != 1:
+              raise SystemExit("renderer.py: legacy dispatch not uniquely identified")
+          renderer_path.write_text(renderer.replace(legacy_dispatch, ""), encoding="utf-8")
+
+          replace_once(
+              "schemas/agent-policy.schema.json",
+              '"agents-md",\n              "policy-context-md",\n              "github-review-json-v1"',
+              '"agents-md",\n              "policy-context-md"',
+          )
+
+          test_path = Path("tests/test_context_rendering.py")
+          tests = test_path.read_text(encoding="utf-8")
+          start = tests.index("def test_v2_renders_github_review_json_adapter")
+          end = tests.index("def test_v2_rejects_unknown_output_context", start)
+          replacement = '''def test_v2_rejects_retired_github_review_json_renderer(tmp_path: Path) -> None:
+              _write_v2_repository(tmp_path)
+              config_path = tmp_path / ".agent-policy.yml"
+              config_path.write_text(
+                  config_path.read_text(encoding="utf-8").replace(
+                      "renderer: policy-context-md",
+                      "renderer: github-review-json-v1",
+                  ),
+                  encoding="utf-8",
+              )
+
+              diagnostics = validate.run(tmp_path, ".agent-policy.yml")
+              assert any(
+                  item.code == "SCHEMA" and item.path == "outputs.review.renderer"
+                  for item in diagnostics
+              )
+
+
+          '''
+          test_path.write_text(tests[:start] + replacement + tests[end:], encoding="utf-8")
+
+          docs_path = Path("docs/configuration.md")
+          docs = docs_path.read_text(encoding="utf-8")
+          start = docs.index("`github-review-json-v1` is an additive renderer")
+          end = docs.index("All configured repository-local policy inputs", start)
+          replacement = (
+              "Provider-specific response schemas, event names, and serialization contracts "
+              "are intentionally outside this configuration contract. Integrations may "
+              "serialize a completed provider-neutral review result for a concrete provider, "
+              "but repositories must not select a provider-specific review-result renderer "
+              "as policy authority.\n\n"
+          )
+          docs_path.write_text(docs[:start] + replacement + docs[end:], encoding="utf-8")
+
+          template = Path("templates/github-review-json-v1.md.j2")
+          if not template.is_file():
+              raise SystemExit("legacy renderer template is missing before cleanup")
+          template.unlink()
+          PY
+
+      - name: Record transformed source files
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A -- \
+            src/agent_policy/renderer.py \
+            schemas/agent-policy.schema.json \
+            templates/github-review-json-v1.md.j2 \
+            tests/test_context_rendering.py \
+            docs/configuration.md
+          git diff --cached --check
+          git diff --cached --quiet && {
+            echo "Cleanup produced no source changes."
+            exit 1
+          }
+          git commit -m "Remove obsolete GitHub review JSON renderer"
+          git push origin HEAD:scratch/legacy-renderer-cleanup
