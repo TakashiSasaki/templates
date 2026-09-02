@@ -46,36 +46,23 @@ outputs:
     path: AGENTS.md
     context: coding
     renderer: agents-md
-  review:
+  review-authority:
     enabled: true
-    path: .github/REVIEW_GUIDELINES.md
+    path: .review-authority/review-policy.md
     context: review
     renderer: policy-context-md
 skills:
   enabled:
-    - validate-agent-policy
+    - pr-review
 ```
 
 The context is the semantic authority boundary. A renderer does not select, add, remove, or override policy rules; it only presents the rules selected by its referenced context.
 
 `init` and `adopt prepare` also emit schema version 2. For their single-context configuration they use an explicit `default` context and bind the `agents` output to that context through the `agents-md` renderer. The `default` name is ordinary schema-v2 context data, not a compatibility projection of an older schema.
 
-`agents-md` preserves the established repository-agent instruction surface. `policy-context-md` produces a provider-neutral context document for uses such as pull-request review.
+`agents-md` preserves the established repository-agent instruction surface. `policy-context-md` produces a provider-neutral semantic context document for uses such as pull-request review. Provider execution, API serialization, and review submission are procedures outside renderer authority; for pull-request review, managed repositories can generate the provider-neutral `pr-review` Skill while keeping provider API references non-normative.
 
-`github-review-json-v1` is an additive renderer available to `.agent-policy.yml` configuration schema version 2 for a GitHub-oriented blocking-review transport. The configuration schema version and the adapter response schema are independent: this adapter currently emits JSON with `schema_version: 1`. It renders exactly the same semantic rules selected by the referenced context, then adds only the output protocol: review completeness fields, GitHub event mapping, `path`/`line`/`LEFT`/`RIGHT` inline anchors, numeric confidence serialization, and the version-1 JSON response shape. These adapter requirements are not shared review semantics and must not be copied into `policy/review/*.md`.
-
-A repository that needs the GitHub JSON adapter can select it without changing its semantic review context:
-
-```yaml
-outputs:
-  review:
-    enabled: true
-    path: .github/REVIEW_GUIDELINES.md
-    context: review
-    renderer: github-review-json-v1
-```
-
-Codex, Gemini, Antigravity, or another engine may consume the generated adapter document; engine invocation details remain outside the semantic policy. Other provider-specific event names, APIs, or serialization contracts require their own renderer or external adapter rather than changes to the review-rule modules.
+The current schema intentionally has no review-result JSON renderer. Provider-specific event names, API requests, inline-anchor formats, or serialization contracts must not become semantic review policy or a second generated review-procedure authority.
 
 All configured repository-local policy inputs are included in the generated lock. Each output, however, is rendered only from the profiles and repository-local policy files belonging to its referenced context. Output paths must be unique and must not overwrite configuration, policy input, or reserved generated-state paths.
 
