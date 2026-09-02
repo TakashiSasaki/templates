@@ -23,6 +23,12 @@ def immutable_revision_argument(value: str) -> str:
         raise argparse.ArgumentTypeError(str(exc)) from exc
 
 
+def _add_review_bundle_bindings(item: argparse.ArgumentParser) -> None:
+    item.add_argument("--semantic-output", required=True)
+    item.add_argument("--adapter-output", required=True)
+    item.add_argument("--adapter-renderer", required=True)
+
+
 def parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(prog="agent-policy")
     root.add_argument("--repository", type=Path, default=None)
@@ -120,9 +126,11 @@ def parser() -> argparse.ArgumentParser:
     bundle_materialize = review_bundle_sub.add_parser("materialize")
     bundle_materialize.add_argument("--config", default=".agent-policy.yml")
     bundle_materialize.add_argument("--destination", type=Path, required=True)
+    _add_review_bundle_bindings(bundle_materialize)
     bundle_verify = review_bundle_sub.add_parser("verify")
     bundle_verify.add_argument("--config", default=".agent-policy.yml")
     bundle_verify.add_argument("--bundle", type=Path, required=True)
+    _add_review_bundle_bindings(bundle_verify)
     return root
 
 
@@ -170,12 +178,18 @@ def main(argv: list[str] | None = None) -> int:
                 repository_root,
                 args.config,
                 args.destination,
+                args.semantic_output,
+                args.adapter_output,
+                args.adapter_renderer,
             )
         else:
             diagnostics = review_bundle_command.verify(
                 repository_root,
                 args.config,
                 args.bundle,
+                args.semantic_output,
+                args.adapter_output,
+                args.adapter_renderer,
             )
     elif args.command == "adopt":
         if args.adopt_command == "inspect":
