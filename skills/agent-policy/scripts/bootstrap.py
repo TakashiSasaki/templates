@@ -9,7 +9,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from runtime import (
+# The installed Skill tree can be deployment-attested trust material. Prevent
+# importing sibling modules from creating __pycache__ entries inside that tree.
+sys.dont_write_bytecode = True
+
+# This import intentionally follows the bytecode-write guard because runtime.py
+# is inside the deployment-attested Skill tree.
+from runtime import (  # noqa: E402
     cli_command,
     ensure_runtime,
     load_manifest,
