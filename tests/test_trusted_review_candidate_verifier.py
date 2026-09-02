@@ -96,7 +96,10 @@ def test_candidate_revision_resolution_requires_one_full_sha(
     assert verifier.resolve_candidate_revision("candidate") == revision
 
 
-def test_candidate_verifier_does_not_treat_publication_as_verification() -> None:
+def test_candidate_verifier_does_not_treat_publication_as_verification(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     release = json.loads((ROOT / "release/toolchain.json").read_text(encoding="utf-8"))
     installer = json.loads(
         (ROOT / "release/skill-installer.json").read_text(encoding="utf-8")
@@ -107,7 +110,12 @@ def test_candidate_verifier_does_not_treat_publication_as_verification() -> None
 
     assert release["toolchain"] == runtime["toolchain"]
     assert installer["skill_source"]["revision"] != ""
-    source = SCRIPT.read_text(encoding="utf-8")
-    assert "Stable publication is intentionally unchanged" in source
-    assert "a later Skill source must embed a runtime-manifest pinning this candidate" in source
-    assert "a later installer publication must pin that Skill source" in source
+
+    revision = "a" * 40
+    monkeypatch.setattr(verifier, "verify_candidate", lambda _git_ref: revision)
+    assert verifier.main(["--git-ref", "candidate"]) == 0
+    output = capsys.readouterr().out
+    assert f"Trusted review runtime candidate verified at {revision}." in output
+    assert "Stable publication is intentionally unchanged" in output
+    assert "a later Skill source must embed a runtime-manifest pinning this candidate" in output
+    assert "a later installer publication must pin that Skill source" in output
