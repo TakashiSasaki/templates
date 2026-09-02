@@ -73,6 +73,9 @@ jobs:
       - name: Verify stable release synchronization
         run: env -u PIP_REQUIREMENT -u PIP_CONSTRAINT -u PIP_BUILD_CONSTRAINT -u PIP_REQUIRE_HASHES -u PIP_DRY_RUN -u PIP_NO_BINARY -u PIP_ONLY_BINARY -u PIP_PLATFORM -u PIP_PYTHON_VERSION -u PIP_IMPLEMENTATION -u PIP_ABI -u PIP_UPLOADED_PRIOR_TO -u PIP_INDEX_URL -u PIP_EXTRA_INDEX_URL -u PIP_NO_INDEX -u PIP_FIND_LINKS -u PIP_TARGET -u PIP_PREFIX -u PIP_ROOT -u PIP_USER -u PIP_PYTHON -u PIP_CACHE_DIR -u PIP_NO_CACHE_DIR -u PIP_QUIET -u PIP_EDITABLE -u PIP_GROUP -u PIP_REQUIREMENTS_FROM_SCRIPT -u PIP_REPORT -u PIP_CONFIG_SETTINGS -u PIP_IGNORE_REQUIRES_PYTHON -u PIP_LOG .venv/bin/python scripts/verify-release-state.py --git-ref refs/remotes/origin/policy-source
 
+      - name: Verify trusted review promotion candidate
+        run: env -u PIP_REQUIREMENT -u PIP_CONSTRAINT -u PIP_BUILD_CONSTRAINT -u PIP_REQUIRE_HASHES -u PIP_DRY_RUN -u PIP_NO_BINARY -u PIP_ONLY_BINARY -u PIP_PLATFORM -u PIP_PYTHON_VERSION -u PIP_IMPLEMENTATION -u PIP_ABI -u PIP_UPLOADED_PRIOR_TO -u PIP_INDEX_URL -u PIP_EXTRA_INDEX_URL -u PIP_NO_INDEX -u PIP_FIND_LINKS -u PIP_TARGET -u PIP_PREFIX -u PIP_ROOT -u PIP_USER -u PIP_PYTHON -u PIP_CACHE_DIR -u PIP_NO_CACHE_DIR -u PIP_QUIET -u PIP_EDITABLE -u PIP_GROUP -u PIP_REQUIREMENTS_FROM_SCRIPT -u PIP_REPORT -u PIP_CONFIG_SETTINGS -u PIP_IGNORE_REQUIRES_PYTHON -u PIP_LOG .venv/bin/python scripts/verify_trusted_review_candidate.py --git-ref refs/remotes/origin/policy-source
+
       - name: Verify skill installer publication
         run: .venv/bin/python scripts/verify_skill_installer_release.py --git-ref refs/remotes/origin/policy-source
 
