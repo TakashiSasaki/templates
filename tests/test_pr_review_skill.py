@@ -36,7 +36,7 @@ def test_pr_review_is_sole_identity_bound_procedure_authority() -> None:
         "exactly one commit",
         "unique-merge-base-to-head changed surface",
         "current exact-head CI",
-        "provider-neutral semantic review policy",
+        "provider-neutral semantic review-policy bytes",
         "Preserve limitations, execution failures, and incomplete analysis",
         "Form the conceptual review conclusion only after completion is established",
         "Refresh all live identities immediately before completion",
