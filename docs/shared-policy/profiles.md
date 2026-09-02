@@ -31,7 +31,7 @@ The policy context is the semantic authority boundary. A renderer presents the r
 
 ## What profiles are not
 
-Profiles are additive rule-selection bundles. They are not mutually exclusive operating modes, renderer choices, agent skills, provider integrations, or substitutes for repository-local policy. Selecting `review`, for example, adds shared review semantics to a context; it does not by itself create a review output or choose the GitHub review renderer.
+Profiles are additive rule-selection bundles. They are not mutually exclusive operating modes, renderer choices, agent skills, provider integrations, or substitutes for repository-local policy. Selecting `review`, for example, adds shared review semantics to a context; it does not by itself create a review output or choose a provider integration.
 
 Profile list order is not a precedence mechanism. The loader expands each selected profile into shared rule modules and the resulting rules are ordered by rule metadata. Selecting profiles that introduce the same shared rule ID is rejected rather than silently choosing one copy.
 
@@ -77,12 +77,14 @@ outputs:
     path: AGENTS.md
     context: coding
     renderer: agents-md
-  review:
+  review-authority:
     enabled: true
-    path: .github/REVIEW_GUIDELINES.md
+    path: .review-authority/review-policy.md
     context: review
-    renderer: github-review-json-v1
+    renderer: policy-context-md
 ```
+
+When automated pull-request review is required, enable the provider-neutral `pr-review` Skill separately under `skills.enabled`. Provider API serialization and submission remain integration concerns outside profile selection and semantic renderer authority.
 
 ## Available profiles
 
@@ -141,7 +143,7 @@ Included modules:
 
 Use when the context evaluates changes and reports blocking findings. It defines provider-neutral review semantics such as evidence requirements, relevant risk-domain coverage, causality, reachability, severity, security tracing, error-path and performance evidence, regression-guard evaluation, normative-rule handling, and finding placement.
 
-The profile does not define GitHub event names or JSON serialization. Those are renderer or adapter concerns. See [Shared review policy](../review-policy.md) for the detailed semantic model.
+The profile does not define GitHub event names or JSON serialization. Those are provider-integration concerns outside profile selection and semantic renderer authority. See [Shared review policy](../review-policy.md) for the detailed semantic model.
 
 Included modules:
 

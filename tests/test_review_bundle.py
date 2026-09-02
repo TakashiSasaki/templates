@@ -241,7 +241,9 @@ def test_review_bundle_requires_pr_review_enabled_in_trusted_config(tmp_path: Pa
     assert "does not enable pr-review" in diagnostics[0].message
 
 
-def test_review_bundle_rejects_provider_specific_semantic_renderer(tmp_path: Path) -> None:
+def test_review_bundle_config_rejects_retired_provider_specific_renderer(
+    tmp_path: Path,
+) -> None:
     repository = tmp_path / "trusted-base"
     _write_repository(repository)
     config = repository / ".agent-policy.yml"
@@ -252,17 +254,15 @@ def test_review_bundle_rejects_provider_specific_semantic_renderer(tmp_path: Pat
         ),
         encoding="utf-8",
     )
-    assert render.run(repository, ".agent-policy.yml") == []
 
-    diagnostics = review_bundle.materialize(
-        repository,
-        ".agent-policy.yml",
-        tmp_path / "bundle",
-        SEMANTIC_OUTPUT,
-    )
+    diagnostics = render.run(repository, ".agent-policy.yml")
 
     assert _has_error(diagnostics)
-    assert "must use policy-context-md" in diagnostics[0].message
+    assert any(
+        getattr(item, "code", None) == "SCHEMA"
+        and getattr(item, "path", None) == "outputs.review-authority.renderer"
+        for item in diagnostics
+    )
 
 
 def test_review_bundle_direct_api_rejects_mutable_checkout(tmp_path: Path) -> None:
