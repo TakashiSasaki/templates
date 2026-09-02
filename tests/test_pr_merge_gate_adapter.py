@@ -13,6 +13,7 @@ from agent_policy.renderer import NON_GENERATED_SKILLS, render_skill
 ROOT = Path(__file__).resolve().parents[1]
 SKILL = ROOT / "skills" / "pr-merge-gate" / "SKILL.md"
 PROFILE = ROOT / "profiles" / "pull-request.yml"
+FEEDBACK_REFERENCE = SKILL.parent / "references" / "review-feedback-disposition.md"
 
 
 def _profile_rule_ids() -> list[str]:
@@ -163,6 +164,47 @@ def test_adapter_requires_exact_head_review_and_guarded_merge() -> None:
         "current pr head equals the exact accepted head",
         "never omit `expected_head_sha`",
         "do not retry blindly",
+    ):
+        assert invariant in text
+
+
+def test_adapter_uses_review_feedback_disposition_procedure() -> None:
+    skill = SKILL.read_text(encoding="utf-8")
+    reference = FEEDBACK_REFERENCE.read_text(encoding="utf-8")
+
+    assert "references/review-feedback-disposition.md" in skill
+    assert "Treat each review item as a hypothesis to verify or falsify" in skill
+    assert "Classification explains remediation ownership" in skill
+    assert "Keep an item unresolved while its evidence is insufficient" in skill
+    assert "evidence-backed no-change reason" in skill
+
+    categories = (
+        "actual-defect",
+        "invariant-gap",
+        "regression-test-gap",
+        "documentation-ambiguity",
+        "reviewer-misunderstanding",
+        "unrelated-suggestion",
+    )
+    for category in categories:
+        assert f"`{category}`" in skill
+        assert f"`{category}`" in reference
+
+
+def test_feedback_disposition_reference_preserves_authority_and_head_binding() -> None:
+    text = FEEDBACK_REFERENCE.read_text(encoding="utf-8").lower()
+    for invariant in (
+        "does not create semantic review policy",
+        "reviewer text as a defect hypothesis, not as authority",
+        "keep the item unresolved",
+        "historical or stale-head review comments may be useful diagnostic inputs",
+        "they are not exact-head acceptance evidence",
+        "smallest generalized root cause",
+        "make no appeasement edit",
+        "does not override severity",
+        "the exact proposed head against which the claim was verified or falsified",
+        "reacquire only the evidence invalidated by that change",
+        "thread resolution is bookkeeping evidence of disposition",
     ):
         assert invariant in text
 
