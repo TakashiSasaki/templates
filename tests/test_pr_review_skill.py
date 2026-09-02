@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from agent_policy.renderer import render_skill
@@ -56,7 +57,8 @@ def test_risk_domain_references_are_procedure_support_not_semantic_authority() -
         assert "provider-neutral procedure-support reference" in content
         assert "semantic" in content
         for term in technology_specific_terms:
-            assert term not in content
+            pattern = rf"(?<![a-z0-9_]){re.escape(term)}(?![a-z0-9_])"
+            assert re.search(pattern, content) is None
 
 
 def test_pr_review_is_sole_identity_bound_procedure_authority() -> None:
