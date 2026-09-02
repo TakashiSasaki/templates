@@ -54,6 +54,8 @@ nav:
               - ADR-0005 Single policy authority: adr/0005-single-policy-authority.md
               - ADR-0006 Copyable artifact policy adoption: adr/0006-copyable-artifact-policy-adoption.md
               - ADR-0007 Single agent-policy skill runtime cache: adr/0007-single-agent-policy-skill-runtime-cache.md
+              - ADR-0008 Review authority and GitHub runtime boundary: adr/0008-review-authority-and-github-runtime-boundary.md
+              - ADR-0009 Review-result representation boundary: adr/0009-review-result-representation-boundary.md
           - Superseded decisions:
               - ADR-0004 Integrated bootstrap skill (superseded): adr/0004-integrated-bootstrap-skill.md
 
