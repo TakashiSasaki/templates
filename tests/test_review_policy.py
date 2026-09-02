@@ -161,7 +161,45 @@ def test_review_document_keeps_representation_outside_review_authority() -> None
         "does not require one JSON object, JSON-only output, or exact response-field names"
         in text
     )
-    assert "The `skill` copy remains unchanged in this phase." in text
+
+
+def test_review_document_describes_current_self_hosted_authority_layers() -> None:
+    text = DOC.read_text(encoding="utf-8")
+
+    required = (
+        "## Current review authority layers",
+        "Semantic policy",
+        "Provider-neutral review procedure",
+        "Procedure references",
+        "Empirical evaluation material",
+        "Provider integration",
+        "skills/pr-review/SKILL.md",
+        ".review-authority/review-policy.md",
+        ".agents/skills/pr-review/",
+        "Sole procedural authority",
+        "Evaluation evidence is non-authoritative",
+        "Current consumers receive the semantic projection and generated `pr-review` procedure",
+    )
+    for phrase in required:
+        assert phrase in text
+
+    stale_migration_claims = (
+        "belongs to the planned review procedure",
+        "downstream responsibilities planned for `skills/pr-review/SKILL.md`",
+        "The `skill` copy remains unchanged in this phase.",
+        "It is removed or regenerated only after the shared review policy can be selected",
+    )
+    for phrase in stale_migration_claims:
+        assert phrase not in text
+
+
+def test_review_document_keeps_multiple_passes_under_single_semantic_authority() -> None:
+    text = DOC.read_text(encoding="utf-8")
+
+    assert "Different analysis passes may inspect those perspectives" in text
+    assert "overlapping policy authority would reintroduce ambiguity" in text
+    assert "a provider-neutral method for discovering or falsifying defect candidates" in text
+    assert "must not silently become universal semantic authority" in text
 
 
 def test_review_representation_boundary_preserves_trust_without_adapter_identity() -> None:
