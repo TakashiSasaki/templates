@@ -2,6 +2,9 @@
 
 - Status: Accepted
 - Date: 2026-09-02
+- Superseded in part by: ADR-0009
+
+> Partial supersession. ADR-0009 is the current authority for review-result representation, including dual semantic/adapter output binding, mandatory adapter renderer/projection identity, and serialization-defined final stability. The trust and provenance machinery remains current. Read ADR-0009 before implementing review output binding or final review completion.
 
 ## Context
 
