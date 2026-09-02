@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "id": "pr631-test-discovery-gap",
+  "kind": "empirical",
+  "title": "A regression test exists but the repository CI runner never discovers it",
+  "authority": "non-authoritative-evaluation",
+  "risk_domains": ["build-provenance-and-ci", "consumer-and-execution-paths"],
+  "scenario": {
+    "observed_change": "A pull request adds a regression-test file using a test form accepted by one local test framework, while the repository's actual CI entrypoint discovers only a different test form. The file looks like coverage in the diff but is silently absent from the executed CI suite.",
+    "controlled_inputs": [
+      "new regression-test file",
+      "repository CI test-discovery entrypoint and discovery rules"
+    ],
+    "mutable_state": [
+      "effective set of tests executed for the proposed revision"
+    ],
+    "authority_boundaries": [
+      "test source presence versus executed verification evidence",
+      "local framework discoverability versus repository CI discoverability"
+    ],
+    "operation_model": [
+      "add a regression-test file",
+      "repository CI invokes its canonical test-discovery runner",
+      "the runner ignores the new test form without failing discovery",
+      "CI can remain green while the intended regression assertion never executes"
+    ]
+  },
+  "required_invariants": [
+    {
+      "rule_id": "testing.run-required-checks",
+      "requirement": "Verification evidence must establish that required checks actually execute coverage for the changed behavior; merely adding a test source file is not execution evidence."
+    }
+  ],
+  "expected_review": {
+    "disposition": "blocking-finding",
+    "must_investigate": [
+      "the repository's actual CI test entrypoint",
+      "the discovery semantics used by that entrypoint",
+      "whether the new test is present in the executed test inventory rather than only runnable through another local framework"
+    ],
+    "must_identify": [
+      "the new regression test is silently excluded from the repository's real CI discovery path"
+    ],
+    "must_not_claim": [
+      "regression coverage merely because a test file exists or can be executed by a different local test runner"
+    ]
+  },
+  "provenance": {
+    "repository": "TakashiSasaki/templates",
+    "pull_request": 631,
+    "source_type": "pull-request-review",
+    "source_id": "PRR_kwDOTm6ous8AAAABLXpb7w",
+    "reviewed_head": null,
+    "head_binding": "not-established",
+    "note": "The historical review traced the added test into the repository's sharded test runner and found that its standalone test form was not discovered. The review object available through the current evidence surface does not itself establish an exact reviewed-head identity."
+  }
+}
