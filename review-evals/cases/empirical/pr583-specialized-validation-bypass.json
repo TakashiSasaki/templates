@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "id": "pr583-specialized-validation-bypass",
+  "kind": "empirical",
+  "title": "A specialized readiness verdict bypasses canonical semantic validation",
+  "authority": "non-authoritative-evaluation",
+  "risk_domains": [
+    "identity-and-authority",
+    "consumer-and-execution-paths"
+  ],
+  "scenario": {
+    "observed_change": "A specialized machine-readable release-readiness path evaluates readiness-specific conditions but omits canonical semantic validation that enforces release-gate and proof-command invariants, allowing an input to satisfy the specialized checks while remaining semantically invalid.",
+    "controlled_inputs": [
+      "product evidence that satisfies the specialized readiness-specific conditions",
+      "the canonical semantic validator and its release-gate and proof-command invariants",
+      "the specialized readiness action and its machine-readable acceptance result"
+    ],
+    "mutable_state": [
+      "the machine-reported release-readiness state",
+      "the set of semantic validation failures considered before that readiness state is emitted"
+    ],
+    "authority_boundaries": [
+      "a specialized readiness projection or action versus the canonical semantic validator",
+      "a machine-readable acceptance verdict versus the underlying semantic acceptance invariants"
+    ],
+    "operation_model": [
+      "construct evidence whose readiness-specific records appear verified",
+      "make release-gate or proof-command linkage semantically invalid so the canonical validator rejects the same evidence",
+      "invoke the specialized release-readiness path",
+      "the specialized path omits the canonical checks and can report a ready result even though canonical validation fails"
+    ]
+  },
+  "required_invariants": [
+    {
+      "rule_id": "review.inspect-relevant-context",
+      "requirement": "A reviewer must trace a specialized acceptance or readiness path into the canonical validation and downstream execution context needed to establish that it cannot bypass required semantic invariants."
+    }
+  ],
+  "expected_review": {
+    "disposition": "blocking-finding",
+    "must_investigate": [
+      "the execution path taken by specialized readiness mode compared with the canonical semantic validation path",
+      "semantic invariants enforced by canonical validation but omitted from the specialized path",
+      "an adversarial input that the specialized path accepts while canonical validation rejects"
+    ],
+    "must_identify": [
+      "the specialized readiness path can emit an accepted or ready verdict for evidence that fails canonical semantic validation because required validation is bypassed"
+    ],
+    "must_not_claim": [
+      "that readiness-specific checks are sufficient without comparing the specialized path with the canonical semantic validator",
+      "a clean review based only on output-schema correctness or happy-path tests while the semantic-validation bypass remains reachable"
+    ]
+  },
+  "provenance": {
+    "repository": "TakashiSasaki/templates",
+    "pull_request": 583,
+    "source_type": "pull-request-review",
+    "source_id": "PRR_kwDOTm6ous8AAAABLONLNQ",
+    "reviewed_head": "5625772256369cddf019d9014862bd7c0c34ef02",
+    "head_binding": "exact",
+    "note": "The historical exact-head review found that the specialized release-readiness path could return ready while the canonical validator rejected the same evidence. This case isolates that semantic-validation bypass mechanism from other malformed-input findings in the same review."
+  }
+}
