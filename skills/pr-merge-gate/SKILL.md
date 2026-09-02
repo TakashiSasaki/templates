@@ -88,6 +88,14 @@ Never transition directly from a missing review, unresolved CI discovery, stale 
 
 The state model is an authorization model, not a polling schedule. Do not repeat a successful observation merely for conservatism. Do not add an extra review cycle, waiting period, repeated live-state read, or redundant evidence collection as a new mandatory gate unless current repository authority requires it or a concrete invalidation signal makes existing evidence unusable.
 
+## Candidate-head mutation discipline
+
+Use `references/head-mutation-batching.md` when CI or independent review is in flight and new findings or self-audit results may require head-changing repairs. Keep the current candidate SHA stable while read-only investigation determines the currently known actionable set, then apply compatible justified repairs as one coherent mutation batch rather than repeatedly invalidating exact-head evidence with avoidable one-finding-at-a-time churn.
+
+A known material defect blocks merge immediately even while its repair is being prepared; stable-head batching never makes a defective candidate acceptable. Do not wait an arbitrary interval for hypothetical future findings, broaden scope to fill a batch, or delay a ready repair when delay creates a concrete operational or safety risk. Coherence and timely remediation take priority over minimizing commit count.
+
+After a mutation batch creates a new candidate head, invalidate and reacquire only the evidence actually bound to the former SHA. Do not request new exact-head CI or review for intentionally partial intermediate heads when the remaining known compatible repairs can be completed before presenting the next candidate.
+
 ## Workflow
 
 ### 1. Audit the effective scope
