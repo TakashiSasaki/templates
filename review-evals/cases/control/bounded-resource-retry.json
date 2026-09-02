@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "id": "bounded-resource-retry-control",
+  "id": "bounded-resource-retry",
   "kind": "control",
   "title": "Bounded retry and cleanup prevent resource amplification",
   "authority": "non-authoritative-evaluation",
