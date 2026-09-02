@@ -12,7 +12,7 @@ from .commands import render as render_command
 from .commands import validate as validate_command
 from .diagnostics import print_diagnostics
 from .identity import immutable_toolchain_reference, resolve_toolchain_revision
-from .paths import find_repository_root
+from .paths import find_repository_root, find_trusted_snapshot_root
 
 
 def immutable_revision_argument(value: str) -> str:
@@ -26,6 +26,11 @@ def parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(prog="agent-policy")
     root.add_argument("--repository", type=Path, default=None)
     root.add_argument("--format", choices=["text", "json"], default="text")
+    root.add_argument(
+        "--trusted-review-snapshot",
+        action="store_true",
+        help=argparse.SUPPRESS,
+    )
     sub = root.add_subparsers(dest="command", required=True)
     for name in ["validate", "render", "check"]:
         item = sub.add_parser(name)
@@ -107,8 +112,17 @@ def parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = parser().parse_args(argv)
+    if args.trusted_review_snapshot and args.command not in {"validate", "check"}:
+        print(
+            "ERROR REPOSITORY: trusted review snapshot mode is read-only",
+            file=sys.stderr,
+        )
+        return 2
     try:
-        repository_root = find_repository_root(args.repository)
+        if args.trusted_review_snapshot:
+            repository_root = find_trusted_snapshot_root(args.repository)
+        else:
+            repository_root = find_repository_root(args.repository)
     except Exception as exc:
         print(f"ERROR REPOSITORY: {exc}", file=sys.stderr)
         return 2
