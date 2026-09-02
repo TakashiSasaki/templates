@@ -57,6 +57,7 @@ def test_repository_self_hosting_outputs_match_recorded_lock() -> None:
     assert set(outputs) == {
         "AGENTS.md",
         ".review-authority/review-policy.md",
+        ".agents/skills/orchestrate-repository-change/SKILL.md",
         ".agents/skills/pr-review/SKILL.md",
         ".agents/skills/pr-review/references/github-pull-request-review-api.md",
         ".agents/skills/pr-review/references/risk-domains/build-provenance-and-ci.md",
@@ -143,4 +144,6 @@ def test_generated_outputs_use_provider_neutral_review_authority() -> None:
         "context": "review",
         "renderer": "policy-context-md",
     }
-    assert config["skills"] == {"enabled": ["pr-review"]}
+    assert config["skills"] == {
+        "enabled": ["pr-review", "orchestrate-repository-change"]
+    }
