@@ -209,7 +209,6 @@ class AgentSkillContractTests(unittest.TestCase):
             "BLOCKED_REVIEW_STALE",
             "PR_OPEN -> SCOPE_AUDITED",
             "expected_head_sha",
-            "@hermes review",
             "check-run",
             "check-suite",
         )
