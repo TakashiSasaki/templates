@@ -68,6 +68,7 @@
       "title": "Web",
       "children": [
         {"title": "Choose Website or Web application", "publication": "composition", "document": "website-webapp-selection", "destination": "web/index.md"},
+        {"title": "URL and path design guidance", "publication": "composition", "document": "web-url-path-design-guidance", "destination": "web/url-path-design-guidance.md"},
         {
           "title": "Shared route migrations",
           "children": [
