@@ -29,6 +29,21 @@ The route contract represents the canonical path portion of a Web URL. Query and
 fragment components have different roles and are not part of the `path` field in
 the shared routes contract.
 
+## Current normative representation boundary
+
+The current `routes` contract at schema version 4 accepts `/` or an absolute
+non-root path composed of slash-delimited ASCII letters, digits, `.`, `_`, `~`,
+and `-`, while excluding path segments that are exactly `.` or `..`. Non-root
+paths end in a segment rather than a trailing slash. Query syntax, fragment
+syntax, percent escapes, and literal non-ASCII characters are outside the current
+`path` representation.
+
+Those facts are conformance rules from the registered schema, not preferences
+created by this document. A product that needs a broader path representation,
+such as literal internationalized segments or a different canonical trailing-
+slash model, needs an explicit route-contract evolution rather than a guidance
+exception.
+
 ## Design preferences
 
 ### Prefer stable public identifiers
@@ -51,9 +66,9 @@ corresponding redirect or equivalent behavior.
 ### Prefer readable and predictable segments
 
 Prefer lowercase path segments where that choice is compatible with the product's
-language and identifiers. Lowercase reduces avoidable case variation across
-case-sensitive and case-insensitive tooling, but uppercase characters remain
-valid under the current shared route schema.
+identifiers. Lowercase reduces avoidable case variation across case-sensitive and
+case-insensitive tooling, but uppercase ASCII characters remain valid under the
+current shared route schema.
 
 For multi-word Latin-script segments, prefer hyphens when a separator improves
 readability. For example, `/account-settings` is generally clearer than
@@ -85,16 +100,6 @@ Use fragments for an in-document anchor or client-local location when the server
 route identity remains the same. Do not copy query or fragment syntax into the
 shared route `path` field; the current route schema intentionally models only the
 path component.
-
-### Choose one trailing-slash convention per product
-
-Choose a consistent canonical trailing-slash convention that fits the selected
-runtime and deployment environment. Do not assume `/reports` and `/reports/` are
-equivalent unless the product's runtime, aliases, or redirect behavior explicitly
-make them equivalent.
-
-Consistency is more important here than a repository-wide preference for either
-form, so this guidance does not select one universal trailing-slash rule.
 
 ### Avoid implementation details in public paths
 
@@ -135,17 +140,8 @@ context.
 
 The shared route contract already models accessibility metadata separately from
 the path. Preserve that separation rather than deriving display text mechanically
-from a slug.
-
-### Support the product's language and audience deliberately
-
-Do not infer an ASCII-only requirement from the lowercase and hyphen preferences
-above. URI syntax and browser processing can represent internationalized content,
-and a product may reasonably choose non-ASCII path segments for its audience.
-
-Prefer a representation that remains readable, predictable, linkable, and
-well-supported by the product's chosen runtime, deployment environment, and
-maintenance tooling.
+from a slug. Products can localize display labels independently of the current
+route-path character repertoire.
 
 ## Guidance versus conformance examples
 
@@ -158,11 +154,16 @@ normative route validity.
 | `/Account_Settings.HTML` | Discouraged by case, separator, and implementation-detail guidance | Valid |
 | `relative/path` | Not evaluated as an alternative style because it is not an absolute route path | Invalid |
 | `/a/../b` | Avoid parent traversal in a public identifier | Invalid |
+| `/reports/` | Trailing-slash style is not a guidance exception to the current representation | Invalid |
+| `/café` | Internationalized literal path requires contract evolution under the current representation | Invalid |
 
 The second row is deliberate: a validator that rejects
 `/Account_Settings.HTML` solely because it departs from this document would turn
 guidance into an undeclared normative requirement. That would violate the
 repository authority model.
+
+The final two rows illustrate the opposite direction. Guidance cannot waive a
+constraint that the owning normative route contract already imposes.
 
 ## Change discipline
 
