@@ -230,3 +230,28 @@ def test_adapter_separates_merge_from_post_merge_readiness() -> None:
         ),
     ):
         assert invariant in text
+
+
+def test_adapter_supports_strategy_neutral_human_handoff_and_stacked_coverage() -> None:
+    text = SKILL.read_text(encoding="utf-8").lower()
+    for invariant in (
+        "serial-pr",
+        "stacked-pr",
+        "agent-review-and-merge",
+        "human-handoff",
+        "handoff_ready",
+        "does not request review",
+        "does not authorize or execute a merge",
+        "ordered stack",
+        "integration base",
+        "each member exact head",
+        "cumulative scope",
+        "review contract",
+        "reviewer independence",
+        "review completion state",
+        "material limitations",
+        "tip pr review event",
+        "do not mechanically mark every unaffected item stale",
+        "applicability is unknown",
+    ):
+        assert invariant in text

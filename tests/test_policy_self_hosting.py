@@ -58,6 +58,10 @@ def test_repository_self_hosting_outputs_match_recorded_lock() -> None:
         "AGENTS.md",
         ".review-authority/review-policy.md",
         ".agents/skills/orchestrate-repository-change/SKILL.md",
+        ".agents/skills/orchestrate-repository-change/references/human-handoff.md",
+        ".agents/skills/orchestrate-repository-change/references/pr-workflow-selection.md",
+        ".agents/skills/orchestrate-repository-change/references/serial-pr-workflow.md",
+        ".agents/skills/orchestrate-repository-change/references/stacked-pr-workflow.md",
         ".agents/skills/pr-review/SKILL.md",
         ".agents/skills/pr-review/references/github-pull-request-review-api.md",
         ".agents/skills/pr-review/references/risk-domains/build-provenance-and-ci.md",
@@ -147,3 +151,18 @@ def test_generated_outputs_use_provider_neutral_review_authority() -> None:
     assert config["skills"] == {
         "enabled": ["pr-review", "orchestrate-repository-change"]
     }
+
+
+def test_self_host_projection_contains_workflow_source_and_pin() -> None:
+    config = load_yaml(CONFIG_PATH)
+    revision = config["toolchain"]["revision"]
+    assert isinstance(revision, str)
+    agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+    workflow = SELF_HOST_WORKFLOW_PATH.read_text(encoding="utf-8")
+    skill = (
+        ROOT / ".agents/skills/orchestrate-repository-change/SKILL.md"
+    ).read_text(encoding="utf-8")
+    assert revision in agents
+    assert revision in workflow
+    assert "strategy-neutral workflow dispatcher" in skill.lower()
+    assert "references/stacked-pr-workflow.md" in skill
