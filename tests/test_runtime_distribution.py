@@ -146,11 +146,17 @@ def test_runtime_workflow_final_gate_enforces_skip_and_success_semantics() -> No
     validate = document["jobs"]["validate"]
 
     assert validate["if"] == "${{ always() }}"
-    assert validate["needs"] == ["classify_runtime", "clean-install"]
+    assert validate["needs"] == [
+        "classify_runtime",
+        "clean-install",
+        "skill-source-candidate",
+    ]
     run = validate["steps"][0]["run"]
     assert 'test "$CLASSIFIER_RESULT" = success' in run
     assert 'test "$CLEAN_INSTALL_RESULT" = success' in run
+    assert 'test "$SKILL_SOURCE_RESULT" = success' in run
     assert 'test "$CLEAN_INSTALL_RESULT" = skipped' in run
+    assert 'test "$SKILL_SOURCE_RESULT" = skipped' in run
     assert "invalid runtime compatibility classification" in run
 
 
