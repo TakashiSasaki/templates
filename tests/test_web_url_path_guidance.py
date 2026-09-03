@@ -100,7 +100,7 @@ class WebUrlPathGuidanceTests(unittest.TestCase):
         self.assertIn("Composition-owned advisory guidance", prose)
         self.assertIn("A route may depart from this guidance without", prose)
         self.assertIn("This is a style preference, not a route-validity rule", prose)
-        self.assertIsNone(RFC_REQUIREMENT_KEYWORD.search(guidance))
+        self.assertIsNone(RFC_REQUIREMENT_KEYWORD.search(prose))
 
     def test_guidance_deviation_remains_normatively_valid(self) -> None:
         self.assertEqual([], validation_errors("/Account_Settings.HTML"))
