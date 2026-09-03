@@ -1,10 +1,10 @@
 # TakashiSasaki/templates
 
-This repository provides two reusable authorities for building and maintaining software repositories, plus one integrated documentation site:
+This repository provides two reusable provider authorities for building and maintaining software repositories, plus one Site authority for repository integration and publication:
 
 - **Composition** helps you choose and materialize Agent Skill, Website, or Web application structure, capabilities, lifecycle contracts, and validation.
 - **Policy** helps you adopt reproducible coding-agent operating rules in a product repository.
-- **Site** publishes the reviewed Composition and Policy documentation together at `https://templates.moukaeritai.work/`.
+- **Site** integrates reviewed Composition and Policy revisions and publishes their human- and machine-facing projections at `https://templates.moukaeritai.work/`.
 
 ## Start here
 
@@ -35,26 +35,31 @@ This repository separates three authorities by responsibility:
 |---|---|---|
 | `composition` | Agent Skill, Website, and Web application artifact semantics, reusable application capabilities, lifecycle contracts, production recipes/schemas, and the deterministic composer | Define or materialize a Skill/Website/Webapp composition |
 | `policy` | Shared coding-agent operating policy and the `agent-policy` selection, validation, rendering, adoption, and release toolchain | Define or apply verifiable agent operating rules |
-| `site` | The integrated documentation portal, reader information architecture, publication validation, repository views, PWA behavior, and the sole Pages deployment route | Read or publish the reviewed authorities together |
+| `site` | Repository integration and publication authority: reviewed provider selection, integrated documentation portal, reader information architecture, cross-authority integration validation, projection parity, PWA behavior, and the sole Pages deployment route | Integrate or publish the reviewed authorities together without redefining provider semantics |
 
 `composition` is an orphan branch with its own history. `policy` and `site` remain
 independent authorities. The Site does not merge provider histories; it selects
 reviewed full-commit revisions and assembles their declared publication
-boundaries.
+boundaries. Site is not a parent or super-authority above Composition or Policy,
+and provider-specific semantics remain owned by their provider.
 
 The public portal is `https://templates.moukaeritai.work/`. The custom domain is
 served from the domain root, not from the retired `/templates/` project path.
 
-Normative publication rules are in [`PUBLISHING.md`](PUBLISHING.md). Canonical
-terminology integration is defined by [`GLOSSARY.md`](GLOSSARY.md). Runtime
-freshness and PWA cache/fallback invariants are defined by
-[`FRESHNESS.md`](FRESHNESS.md).
+Repository-wide authority ownership and the distinction between normative
+requirements, guidance, evidence, projections, examples, and explanations are
+defined by [`docs/authority-model.md`](docs/authority-model.md). Normative
+publication rules are in [`PUBLISHING.md`](PUBLISHING.md). Canonical terminology
+integration is defined by [`GLOSSARY.md`](GLOSSARY.md). Runtime freshness and PWA
+cache/fallback invariants are defined by [`FRESHNESS.md`](FRESHNESS.md).
 
 ## Authority model
 
 In Site publication terminology, `composition` and `policy` are the two external
-**Provider branches**. The `site` branch is the integration and deployment
-authority and is not an external Provider branch.
+**Provider branches**. The `site` branch is the repository integration and
+publication authority and is not an external Provider branch. Its deployment
+responsibility is part of that publication authority, not a higher-order right to
+change provider semantics.
 
 Agent Skill, Website, and Web application are distinct Composition-owned artifact
 identities. Their detailed contracts and shared Web foundation semantics remain
@@ -77,6 +82,8 @@ The Site owns:
 - global reader navigation and generated destinations in `site-manifest.json`;
 - full-SHA external-provider locks in `publication-sources.json`;
 - assembly of `site`, `composition`, and `policy` publication inputs;
+- cross-authority integration semantics that satisfy the Site ownership test in
+  `docs/authority-model.md`;
 - integrated glossary generation with provider/path/revision provenance;
 - repository-tree views for Composition and Policy;
 - the static source browser for Site, Composition, and Policy;
