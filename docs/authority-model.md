@@ -173,23 +173,27 @@ evidence or projection a new source of semantics.
 
 `agent.json` remains the machine bootstrap surface. Its Site role token
 `publication-integration`, the `consumer_repository_mutation: false` boundary,
-and the Site-owned Policy–Composition coexistence contract are stable machine
-anchors for this model.
+and its Site-owned integration contract registry are stable machine anchors for
+this model.
 
-The discovery chain for the repository-wide model is:
+The repository-wide model is directly discoverable as:
 
 ```text
 agent.json
-  -> integration_contracts.policy_composition_coexistence
-  -> docs/policy-composition-coexistence.md
+  -> integration_contracts.authority_model
   -> docs/authority-model.md
 ```
 
-The bootstrap schema does not need a new semantic-classification system for this
-foundation. A future schema revision is warranted only if a machine consumer
-needs to make an automated decision that cannot be made safely from the existing
-authority role, non-mutation boundary, integration-contract reference, and this
-canonical prose contract.
+The Policy–Composition coexistence contract remains a separate Site-owned entry
+because it governs one concrete cross-provider boundary rather than the general
+repository-wide semantic vocabulary.
+
+Schema version 5 adds only this direct canonical repository path. It does not
+introduce a semantic-classification system, universal document metadata, or a
+requirement to classify existing repository material. A future schema expansion
+is warranted only if a machine consumer needs to make an automated decision that
+cannot be made safely from the authority role, non-mutation boundary, direct
+contract path, and canonical prose.
 
 ## Change rule
 
