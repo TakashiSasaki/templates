@@ -110,6 +110,7 @@ Included modules:
 - `policy/core/validation-operation-binding.md`
 - `policy/core/transaction-ownership.md`
 - `policy/core/truthful-reporting.md`
+- `policy/core/repository-change-completion.md`
 
 <!-- PROFILE: security-baseline -->
 ### `security-baseline`
@@ -128,6 +129,7 @@ Use when the context owns pull-request lifecycle work. This profile is operation
 
 Included modules:
 
+- `policy/pull-request/stacked-review-coverage.md`
 - `policy/pull-request/target-branch-head-freshness.md`
 - `policy/pull-request/independent-exact-head-review.md`
 - `policy/pull-request/review-thread-closure.md`

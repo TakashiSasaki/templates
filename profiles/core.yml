@@ -12,3 +12,4 @@ policy_files:
   - policy/core/validation-operation-binding.md
   - policy/core/transaction-ownership.md
   - policy/core/truthful-reporting.md
+  - policy/core/repository-change-completion.md
