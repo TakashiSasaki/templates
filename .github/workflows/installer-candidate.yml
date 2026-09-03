@@ -1,0 +1,62 @@
+name: Policy installer candidate
+
+on:
+  pull_request:
+    branches:
+      - policy
+    types:
+      - opened
+      - synchronize
+      - reopened
+    paths:
+      - scripts/install_agent_policy_skill.py
+      - scripts/smoke_test_agent_policy_installer_candidate.py
+      - scripts/smoke_test_agent_policy_skill_source.py
+      - tests/test_installer_candidate_smoke.py
+      - .github/workflows/installer-candidate.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: policy-installer-candidate-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  installer-candidate:
+    name: installer / ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-24.04
+          - windows-2022
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    env:
+      CANDIDATE_REVISION: ${{ github.event.pull_request.head.sha }}
+      PYTHONHOME: ""
+      PYTHONPATH: ""
+      PYTHONUSERBASE: ""
+      PYTHONNOUSERSITE: "1"
+      PIP_PYTHON: ""
+      PIP_CACHE_DIR: ""
+      PIP_NO_CACHE_DIR: ""
+      PIP_QUIET: ""
+      PIP_LOG: ""
+    steps:
+      - name: Check out exact installer candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.CANDIDATE_REVISION }}
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12"
+
+      - name: Verify exact remote installer candidate
+        run: >-
+          python -I scripts/smoke_test_agent_policy_installer_candidate.py
+          --installer-revision "${{ env.CANDIDATE_REVISION }}"
