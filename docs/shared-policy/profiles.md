@@ -130,7 +130,7 @@ Use when the context owns pull-request lifecycle work. This profile is operation
 Included modules:
 
 - `policy/pull-request/stacked-review-coverage.md`
-- `policy/pull-request/target-branch-head-freshness.md
+- `policy/pull-request/target-branch-head-freshness.md`
 - `policy/pull-request/independent-exact-head-review.md`
 - `policy/pull-request/review-thread-closure.md`
 - `policy/pull-request/exact-head-ci-evidence.md`
