@@ -50,7 +50,7 @@ class AuthorityModelTests(unittest.TestCase):
         self.assertIn("`SHOULD` must not be reduced to a casual recommendation", model)
         self.assertIn("Advisory material should avoid capitalized RFC keywords", model)
 
-    def test_machine_discovery_chain_reaches_authority_model_without_schema_churn(self) -> None:
+    def test_machine_discovery_reaches_authority_model_directly(self) -> None:
         agent = json.loads((ROOT / "agent.json").read_text(encoding="utf-8"))
         catalog = json.loads(
             (ROOT / "docs" / "publication-catalog.json").read_text(encoding="utf-8")
@@ -62,11 +62,21 @@ class AuthorityModelTests(unittest.TestCase):
         self.assertEqual(site["role"], "publication-integration")
         self.assertIs(site["consumer_repository_mutation"], False)
 
-        contract = agent["integration_contracts"]["policy_composition_coexistence"]
-        self.assertEqual(contract["owner"], "site")
-        self.assertEqual(contract["document_id"], "site:policy-composition-coexistence")
+        authority_model = agent["integration_contracts"]["authority_model"]
+        self.assertEqual(authority_model["owner"], "site")
+        self.assertEqual(authority_model["repository_path"], "docs/authority-model.md")
+        self.assertTrue((ROOT / authority_model["repository_path"]).is_file())
 
-        document_id = contract["document_id"].split(":", 1)[1]
+        coexistence_contract = agent["integration_contracts"][
+            "policy_composition_coexistence"
+        ]
+        self.assertEqual(coexistence_contract["owner"], "site")
+        self.assertEqual(
+            coexistence_contract["document_id"],
+            "site:policy-composition-coexistence",
+        )
+
+        document_id = coexistence_contract["document_id"].split(":", 1)[1]
         catalog_by_id = {entry["id"]: entry for entry in catalog["documents"]}
         self.assertEqual(
             catalog_by_id[document_id]["source"],
@@ -74,7 +84,7 @@ class AuthorityModelTests(unittest.TestCase):
         )
         self.assertIn("docs/authority-model.md", coexistence)
         self.assertIn(
-            "agent.json\n  -> integration_contracts.policy_composition_coexistence",
+            "agent.json\n  -> integration_contracts.authority_model",
             model,
         )
 
