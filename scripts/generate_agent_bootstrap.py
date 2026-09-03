@@ -59,6 +59,8 @@ import urllib.request
 
 url, skill_target = sys.argv[1:3]
 data = urllib.request.urlopen(url, timeout=30).read()
+if not data:
+    raise SystemExit("Policy installer download was empty")
 sys.argv = [url, skill_target]
 exec(compile(data, url, "exec"))
 """
