@@ -110,6 +110,7 @@ Included modules:
 - `policy/core/validation-operation-binding.md`
 - `policy/core/transaction-ownership.md`
 - `policy/core/truthful-reporting.md`
+- `policy/core/repository-change-completion.md`
 
 <!-- PROFILE: security-baseline -->
 ### `security-baseline`
