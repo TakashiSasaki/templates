@@ -23,6 +23,7 @@ PUBLICATION_CATALOG_PATH = "docs/publication-catalog.json"
 COMPOSITION_OVERVIEW_DOCUMENT_ID = "composition:overview"
 POLICY_OVERVIEW_DOCUMENT_ID = "policy:overview"
 SITE_OVERVIEW_DOCUMENT_ID = "site:portal-home"
+AUTHORITY_MODEL_PATH = "docs/authority-model.md"
 COEXISTENCE_DOCUMENT_ID = "site:policy-composition-coexistence"
 COEXISTENCE_URL = "https://templates.moukaeritai.work/coexistence/"
 COMPOSITION_RELEASE_PATH = "release/composition-installer.json"
@@ -159,7 +160,7 @@ def validate_composition_release_descriptor(path: Path) -> dict[str, Any]:
         raise AgentBootstrapError(
             "Composition installer.path is not the canonical installer path"
         )
-    require_sha256(installer["sha256"], "Composition installer.sha256")
+    require_sha256(installer["sha256"], "Composition installer.sha256256")
     if skill["path"] != "skills/composition":
         raise AgentBootstrapError(
             "Composition skill_source.path is not the canonical Skill path"
@@ -229,7 +230,7 @@ def build_manifest(
     policy_skill = policy["skill_source"]
     return {
         "$schema": SCHEMA_URL,
-        "schema_version": 4,
+        "schema_version": 5,
         "repository": REPOSITORY,
         "canonical_url": CANONICAL_URL,
         "purpose": "Discover authorities and compose new or existing software repositories",
@@ -273,11 +274,15 @@ def build_manifest(
             },
         },
         "integration_contracts": {
+            "authority_model": {
+                "owner": "site",
+                "repository_path": AUTHORITY_MODEL_PATH,
+            },
             "policy_composition_coexistence": {
                 "owner": "site",
                 "document_id": COEXISTENCE_DOCUMENT_ID,
                 "canonical_url": COEXISTENCE_URL,
-            }
+            },
         },
         "composition": {
             "publication_revision": sources["composition"],
