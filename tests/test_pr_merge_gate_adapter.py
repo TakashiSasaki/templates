@@ -181,7 +181,8 @@ def test_adapter_keeps_missing_evidence_fail_closed_and_handoff_separate() -> No
     assert "review_evidence_pending" in text
     assert "blocked_review_missing" in text
     assert "human handoff does not establish review evidence" in text
-    assert "do not transition to `merge_allowed`" in text
+    assert "do not transition to `review_evidence_established`" in text
+    assert "`merge_allowed`" in text
 
 
 def test_adapter_preserves_serial_acquisition_without_making_it_gate_state() -> None:
@@ -195,7 +196,7 @@ def test_adapter_requires_exact_head_review_and_guarded_merge() -> None:
     text = SKILL.read_text(encoding="utf-8").lower()
     for invariant in (
         "request review for the exact current head",
-        "the request must name the exact sha",
+        "must name the exact sha",
         (
             "a request, pending review, empty review list, or absence of findings "
             "is not completed review evidence"
