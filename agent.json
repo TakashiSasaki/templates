@@ -1,6 +1,6 @@
 {
   "$schema": "https://templates.moukaeritai.work/schemas/agent-bootstrap.schema.json",
-  "schema_version": 4,
+  "schema_version": 5,
   "repository": "TakashiSasaki/templates",
   "canonical_url": "https://templates.moukaeritai.work/agent.json",
   "purpose": "Discover authorities and compose new or existing software repositories",
@@ -47,6 +47,10 @@
     }
   },
   "integration_contracts": {
+    "authority_model": {
+      "owner": "site",
+      "repository_path": "docs/authority-model.md"
+    },
     "policy_composition_coexistence": {
       "owner": "site",
       "document_id": "site:policy-composition-coexistence",

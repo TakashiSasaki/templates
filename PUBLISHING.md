@@ -14,10 +14,12 @@ reviewed revisions of two external Provider branches:
 - `policy` — canonical coding-agent operating policy and the agent-policy
   toolchain.
 
-`site` owns integration and deployment. It is not an external Provider branch.
-The portal may group Composition material under reader-oriented paths such as
-`/skill/`, `/web/`, `/website/`, `/webapp/`, `/capabilities/`, and `/lifecycle/`;
-those paths do not create separate source ownership.
+`site` is the repository integration and publication authority. Pages deployment
+is part of that publication authority. Site is not an external Provider branch
+and is not a parent or super-authority above Composition or Policy. The portal may
+group Composition material under reader-oriented paths such as `/skill/`,
+`/web/`, `/website/`, `/webapp/`, `/capabilities/`, and `/lifecycle/`; those paths
+do not create separate source ownership.
 
 The publication system must be explicit, reproducible, reviewable, and safe
 against accidental branch-wide disclosure.
@@ -40,6 +42,8 @@ The `site` branch owns:
 - cross-provider titles, grouping, ordering, and generated destinations;
 - reviewed full-SHA source locks in `publication-sources.json`;
 - integrated assembly and strict static-site generation;
+- cross-authority integration semantics that satisfy the Site ownership test in
+  `docs/authority-model.md`;
 - integrated glossary generation;
 - repository trees, bounded inline previews, and the static source browser for
   exact build inputs;
@@ -50,6 +54,20 @@ The `site` branch owns:
 A document is globally identified by `publication:document`, for example
 `composition:skill-contract`, `composition:website-webapp-selection`,
 `composition:contract-evolution`, or `policy:overview`.
+
+## Repository-wide authority semantics
+
+`docs/authority-model.md` is the canonical Site-owned normative contract for
+repository-wide authority ownership and semantic roles. It defines the Site
+ownership test and distinguishes normative authority, normative requirements,
+guidance, evidence, projections, examples, and explanations without classifying
+material by file format alone.
+
+This publication policy applies that model to publication and integration. It
+must not be used to promote provider-specific guidance into a requirement, make a
+projection into a new semantic source, or transfer Composition/Policy semantics
+to Site. Provider-specific rules remain owned by the provider even when Site
+publishes, validates, translates, or projects them.
 
 ## Human and machine projection parity
 
@@ -72,8 +90,10 @@ The projections must converge on the same:
 The Site may explain, organize, route, translate, visualize, and integrate
 provider-owned material. Site-owned reader prose must not silently redefine
 Composition or Policy semantics. Site may own genuinely cross-provider semantics,
-such as the Policy–Composition coexistence contract, because no individual
-provider can unilaterally own that integration boundary.
+such as the Policy–Composition coexistence contract, only when the rule satisfies
+the ownership test in `docs/authority-model.md`: it governs integration or
+interaction between independent authorities and cannot correctly be owned by
+either provider independently.
 
 The machine-facing projection must expose enough authority metadata for a coding
 agent to discover those boundaries without being forced through the deployed
@@ -252,6 +272,8 @@ Before a Site cutover is considered complete:
 - machine authority discovery projects the exact locked Composition and Policy
   revisions, distinct authority roles, Policy's independent/optional relationship,
   Site's non-mutating integration role, and the canonical coexistence contract;
+- human and machine authority descriptions are consistent with
+  `docs/authority-model.md` and do not make Site a provider super-authority;
 - every catalog document is mapped exactly once by `site-manifest.json`;
 - the Composition glossary parses through the actual Site YAML loader;
 - repository trees/browser/guided navigation use the new provider set;

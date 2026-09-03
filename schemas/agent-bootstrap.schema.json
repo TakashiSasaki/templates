@@ -40,7 +40,7 @@
   },
   "properties": {
     "$schema": {"const": "https://templates.moukaeritai.work/schemas/agent-bootstrap.schema.json"},
-    "schema_version": {"const": 4},
+    "schema_version": {"const": 5},
     "repository": {"const": "TakashiSasaki/templates"},
     "canonical_url": {"const": "https://templates.moukaeritai.work/agent.json"},
     "purpose": {"const": "Discover authorities and compose new or existing software repositories"},
@@ -144,8 +144,17 @@
     "integration_contracts": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["policy_composition_coexistence"],
+      "required": ["authority_model", "policy_composition_coexistence"],
       "properties": {
+        "authority_model": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["owner", "repository_path"],
+          "properties": {
+            "owner": {"const": "site"},
+            "repository_path": {"const": "docs/authority-model.md"}
+          }
+        },
         "policy_composition_coexistence": {
           "type": "object",
           "additionalProperties": false,

@@ -8,13 +8,15 @@
 
 この契約は integration boundary です。Policy の意味論を Composition に移したり、Composition の意味論を Policy に移したりするものではありません。
 
+repository 全体の authority ownership、semantic role の定義、Site ownership test、normative requirement と guidance の区別は `docs/authority-model.md` で定義します。この coexistence contract はそのモデルを Policy–Composition boundary に適用するものであり、repository 全体のモデルをここで再定義するものではありません。
+
 ## Authority matrix
 
 | Authority | 所有するもの | 所有しないもの |
 | --- | --- | --- |
 | `policy` | application type に依存しない coding-agent operating semantics、`agent-policy` toolchain、Policy の adoption / render / validate / check behavior、Policy configuration、lock、runtime selection、cache、release identity | artifact semantics、Composition component selection、Composition material ownership、Composer update / upgrade / recovery |
 | `composition` | `artifact.*`、`capability.*`、`lifecycle.*` semantics、recipe と schema、deterministic resolution / materialization、Composition lock、ownership、update / upgrade、recovery | coding-agent operating policy、Policy profile、Policy runtime / release、Policy configuration / lock state の解釈 |
-| `site` | publication protocol、reviewed provider revision selection、reader-facing information architecture、cross-provider integration validation、Pages / PWA publication | Policy semantics、Composition semantics、consumer repository state の変更 |
+| `site` | この boundary における repository integration / publication semantics、reviewed provider revision selection、reader-facing information architecture、cross-provider integration validation、Pages / PWA publication | Policy semantics、Composition semantics、consumer repository state の変更、provider-specific consumer management |
 
 ## 独立した adoption state
 
@@ -168,7 +170,7 @@ small domain-specific primitives -> local implementation when that preserves ind
 
 Site は `publication-sources.json` に記録された、レビュー済みの正確な Policy / Composition revision で coexistence を検証します。integration validation は reserved-path collision、既知の ownership handoff、stale cross-provider reference、両方の system を使う代表的 repository を確認できます。
 
-Site はこの boundary では observer / integrator です。Policy / Composition semantics の authority にはならず、test fixture の外でどちらかの provider の代わりに consumer adoption、composition、update、render、recovery、migration を実行しません。
+Site はこの boundary における repository integration / publication authority であり、provider consumer state に対しては observer / integrator のままです。Policy / Composition semantics の authority にはならず、test fixture の外でどちらかの provider の代わりに consumer adoption、composition、update、render、recovery、migration を実行しません。
 
 ## 変更規則
 

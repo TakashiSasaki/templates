@@ -6,13 +6,15 @@
 
 The contract is an integration boundary. It does not transfer Policy semantics to Composition or Composition semantics to Policy.
 
+Repository-wide authority ownership, semantic-role definitions, the Site ownership test, and the distinction between normative requirements and guidance are defined in `docs/authority-model.md`. This coexistence contract applies that model to the Policy–Composition boundary; it does not redefine the repository-wide model here.
+
 ## Authority matrix
 
 | Authority | Owns | Does not own |
 | --- | --- | --- |
 | `policy` | application-type-independent coding-agent operating semantics; the `agent-policy` toolchain; Policy adoption, render, validate, and check behavior; Policy configuration, lock, runtime selection, cache, and release identity | artifact semantics; Composition component selection; Composition material ownership; Composer update/upgrade/recovery |
 | `composition` | `artifact.*`, `capability.*`, and `lifecycle.*` semantics; recipes and schemas; deterministic resolution/materialization; Composition lock, ownership, update/upgrade, and recovery | coding-agent operating policy; Policy profiles; Policy runtime/release; interpretation of Policy configuration or lock state |
-| `site` | publication protocol; reviewed provider revision selection; reader-facing information architecture; cross-provider integration validation; Pages/PWA publication | Policy semantics; Composition semantics; mutation of consumer repository state |
+| `site` | repository integration and publication semantics at this boundary; reviewed provider revision selection; reader-facing information architecture; cross-provider integration validation; Pages/PWA publication | Policy semantics; Composition semantics; mutation of consumer repository state; provider-specific consumer management |
 
 ## Independent adoption states
 
@@ -166,7 +168,7 @@ small domain-specific primitives -> local implementation when that preserves ind
 
 Site validates coexistence at exact reviewed Policy and Composition revisions recorded in `publication-sources.json`. Integration validation may check reserved-path collisions, known ownership handoffs, stale cross-provider references, and representative repositories using both systems.
 
-Site is an observer/integrator at this boundary. It does not become the authority for Policy or Composition semantics, and it does not perform consumer adoption, composition, update, render, recovery, or migration on behalf of either provider outside test fixtures.
+Site is the repository integration and publication authority at this boundary and remains an observer/integrator with respect to provider consumer state. It does not become the authority for Policy or Composition semantics, and it does not perform consumer adoption, composition, update, render, recovery, or migration on behalf of either provider outside test fixtures.
 
 ## Change rule
 
