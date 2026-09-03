@@ -15,6 +15,10 @@ GUIDANCE = FOUNDATION / "files" / "docs" / "url-path-design-guidance.md"
 ROUTES_SCHEMA = FOUNDATION / "files" / "schemas" / "routes.schema.json"
 PUBLICATION_CATALOG = ROOT / "docs" / "publication-catalog.json"
 DOCS_INDEX = ROOT / "docs" / "index.md"
+RFC_REQUIREMENT_KEYWORD = re.compile(
+    r"\b(?:MUST(?: NOT)?|REQUIRED|SHALL(?: NOT)?|SHOULD(?: NOT)?|"
+    r"RECOMMENDED|NOT RECOMMENDED|MAY|OPTIONAL)\b"
+)
 
 
 def load_json(path: Path) -> dict:
@@ -96,7 +100,7 @@ class WebUrlPathGuidanceTests(unittest.TestCase):
         self.assertIn("Composition-owned advisory guidance", prose)
         self.assertIn("A route may depart from this guidance without", prose)
         self.assertIn("This is a style preference, not a route-validity rule", prose)
-        self.assertIsNone(re.search(r"\b(?:MUST|SHOULD|MAY)\b", guidance))
+        self.assertIsNone(RFC_REQUIREMENT_KEYWORD.search(guidance))
 
     def test_guidance_deviation_remains_normatively_valid(self) -> None:
         self.assertEqual([], validation_errors("/Account_Settings.HTML"))
