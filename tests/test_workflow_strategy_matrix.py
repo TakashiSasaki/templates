@@ -10,6 +10,13 @@ SELECTION = (
     / "references"
     / "pr-workflow-selection.md"
 )
+SERIAL = (
+    ROOT
+    / "skills"
+    / "orchestrate-repository-change"
+    / "references"
+    / "serial-pr-workflow.md"
+)
 
 
 def _strategy_matrix() -> dict[tuple[str, str], tuple[str, str, str]]:
@@ -46,14 +53,19 @@ def test_strategy_matrix_covers_exactly_the_two_by_two_product() -> None:
 
 
 def test_strategy_matrix_encodes_expected_behavior_for_all_four_combinations() -> None:
+    serial_construction = (
+        "implement and validate one member, then open its pull request without "
+        "review acquisition"
+    )
     assert _strategy_matrix() == {
         ("serial-pr", "agent-review-and-merge"): (
-            "implement and validate one member at a time",
+            serial_construction,
             "establish completed independent exact-head review for the member",
             "guarded merge, then begin the next member",
         ),
         ("serial-pr", "human-handoff"): (
-            "implement and validate the current member",
+            "implement and validate the current member, then open its pull request "
+            "without review acquisition",
             "do not initiate a new review request",
             "stop at HANDOFF_READY; leave the member open and unmerged",
         ),
@@ -70,6 +82,23 @@ def test_strategy_matrix_encodes_expected_behavior_for_all_four_combinations() -
             "stop at HANDOFF_READY; leave the whole stack open and unmerged",
         ),
     }
+
+
+def test_serial_procedure_materializes_pr_before_completion_branch() -> None:
+    text = SERIAL.read_text(encoding="utf-8").lower()
+    create_marker = "create or ensure an open pull request for the exact validated member"
+    completion_marker = "then apply the selected completion strategy"
+    assert create_marker in text
+    assert "without initiating review acquisition" in text
+    assert "non-review-triggering state such as draft" in text
+    assert text.index(create_marker) < text.index(completion_marker)
+
+
+def test_serial_handoff_preserves_preexisting_completed_review_state() -> None:
+    text = SERIAL.read_text(encoding="utf-8").lower()
+    assert "report the observed review state truthfully" in text
+    assert "when no applicable pre-existing evidence establishes another state" in text
+    assert "preserve review_complete" in text
 
 
 def test_stacked_tip_only_approval_differs_from_individual_exact_head_review() -> None:

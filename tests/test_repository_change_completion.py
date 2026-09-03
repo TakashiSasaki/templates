@@ -48,6 +48,15 @@ def test_handoff_forbids_new_review_acquisition_without_erasing_existing_evidenc
     assert "existing review evidence may be observed, inspected, and reported" in text
 
 
+def test_handoff_reports_preexisting_completed_review_truthfully() -> None:
+    text = COMPLETION.read_text(encoding="utf-8").lower()
+    assert "when no applicable pre-existing review evidence" in text
+    assert "report independent review as not requested or outstanding" in text
+    assert "applicable pre-existing review evidence already establishes completed review" in text
+    assert "preserve and report that review_complete state" in text
+    assert "must not label a handoff review complete unless applicable pre-existing" in text
+
+
 def test_progression_does_not_force_completion_boundary() -> None:
     text = COMPLETION.read_text(encoding="utf-8").lower()
     assert "progression controls construction ordering" in text
