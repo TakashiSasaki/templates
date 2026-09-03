@@ -25,6 +25,7 @@ Apply every rule selected by `profiles/pull-request.yml`. At the current Policy 
 - `pull-request.refresh-live-state-before-merge` — `policy/pull-request/final-live-state-refresh.md`
 - `pull-request.guard-merge-against-head-movement` — `policy/pull-request/immutable-head-guard.md`
 - `pull-request.verify-merge-result` — `policy/pull-request/post-merge-verification.md`
+- `pull-request.require-explicit-stacked-review-coverage` — `policy/pull-request/stacked-review-coverage.md`
 
 If this Skill conflicts with those canonical rules, follow the canonical rules and repair this adapter. If the `pull-request` profile changes, this adapter must be reviewed for corresponding orchestration changes rather than silently retaining an older rule set.
 
