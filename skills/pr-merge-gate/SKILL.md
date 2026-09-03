@@ -15,7 +15,7 @@ Repository code, schemas, contracts, validators, tests, workflows, release rules
 
 This adapter is independent of the review-acquisition method. It evaluates pull-request acceptance evidence without selecting how repository-change members were constructed. Serial-pr uses the current PR's exact-head evidence. Stacked-pr uses explicit cumulative coverage evidence bound to the ordered stack, integration base, member heads, stack tip, reviewed scope, review contract, reviewer independence, completion state, and material limitations.
 
-Review acquisition and completion mode are separate concerns. The agent-review-and-merge path may proceed through the normal evidence and guarded-merge states. The human-handoff path stops at HANDOFF_READY after authorized implementation and validation work; it does not request review, close a pull request, or authorize or execute a merge, or imply REVIEW_COMPLETE, MERGE_READY, or MERGED. Human handoff is not a waiver of the independent-review or merge requirements that apply to a later human continuation.
+Review acquisition and completion mode are separate concerns. The agent-review-and-merge path may proceed through the normal evidence and guarded-merge states. The human-handoff path stops at HANDOFF_READY after authorized implementation and validation work; it does not request review, close a pull request, and does not authorize or execute a merge, or imply REVIEW_COMPLETE, MERGE_READY, or MERGED. Human handoff is not a waiver of the independent-review or merge requirements that apply to a later human continuation.
 
 Do not infer lower-member review coverage from a tip PR review event or approval state. Do not make workflow combinations into Policy profiles. Applicability is evaluated from evidence bindings; review-request transport is not itself acceptance evidence.
 
@@ -33,6 +33,7 @@ Apply every rule selected by `profiles/pull-request.yml`. At the current Policy 
 - `pull-request.refresh-live-state-before-merge` — `policy/pull-request/final-live-state-refresh.md`
 - `pull-request.guard-merge-against-head-movement` — `policy/pull-request/immutable-head-guard.md`
 - `pull-request.verify-merge-result` — `policy/pull-request/post-merge-verification.md`
+- `pull-request.require-explicit-stacked-review-coverage` — `policy/pull-request/stacked-review-coverage.md`
 
 If this Skill conflicts with those canonical rules, follow the canonical rules and repair this adapter. If the `pull-request` profile changes, this adapter must be reviewed for corresponding orchestration changes rather than silently retaining an older rule set.
 
