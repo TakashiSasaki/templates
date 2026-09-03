@@ -34,6 +34,7 @@
 ## Shared Web foundation
 
 - [Website / Web application 判断ガイド](guides/website-webapp-selection.md) — artifact selection と shared Web semantics / artifact-specific semantics の境界を説明します。
+- [Web URL / path design guidance](../../../components/foundation.web/files/docs/url-path-design-guidance.md) — route conformance を変更せず、naming、persistence、hierarchy、query/fragment、implementation independence を扱う advisory guidance です。
 - [Shared browser identity contract](../../../components/foundation.web/files/contracts/browser-identity.json) — product-neutral browser identity。
 - [Shared routes contract](../../../components/foundation.web/files/contracts/routes.json) — generalized canonical path、alias、deep-link expectation、navigation accessibility。
 - [Shared viewports contract](../../../components/foundation.web/files/contracts/viewports.json) — responsive viewport と input-capability expectation。
