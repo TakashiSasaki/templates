@@ -84,3 +84,20 @@ A high or low value is not inherently correct. Interpretation depends on risk, a
 `audit-frozen-change` remains the bounded read-only audit procedure for a frozen implementation or artifact. `pr-merge-gate` remains the GitHub-facing pull-request acceptance and merge adapter. `orchestrate-repository-change` covers the broader implementation lifecycle around those specialized procedures and does not replace their acceptance semantics.
 
 If empirical use shows that a particular efficiency discipline is required for correctness across multiple consumers, that invariant can later be considered for promotion into atomic policy. Procedure guidance should not be promoted merely because it usually saves time.
+
+## Selectable workflow guidance
+
+The following is guidance for choosing an execution strategy; it is not a new acceptance gate or an operating-mode profile.
+
+Progression and completion are separate choices:
+
+| Dimension | Options | Selection authority |
+| --- | --- | --- |
+| Progression | serial-pr, stacked-pr | explicit task, repository policy, declared default, then permitted agent choice |
+| Completion | agent-review-and-merge, human-handoff | explicit task, repository policy, declared default, then permitted agent choice |
+
+Serial pull requests are often easier when each member must be independently reviewed and merged before later work can safely depend on it. Stacked pull requests are often useful when a coherent multi-part change can be reviewed cumulatively or when construction should continue during review latency. Neither strategy is universally preferable; scope, dependency topology, review contract, CI behavior, and human operating preference determine the choice.
+
+A human handoff can be selected with either progression strategy. It means that implementation and the authorized validation work are complete while independent review and merge authorization remain outstanding. It does not waive review requirements, create approval, or imply merge readiness.
+
+The dispatcher applies explicit task instruction before repository-local policy, repository-declared defaults, and any agent choice that is explicitly permitted. A profile remains a shared normative rule-selection bundle; it does not encode serial or stacked progression, completion mode, agent provider, or Skill selection.
