@@ -15,7 +15,7 @@ Repository code, schemas, contracts, validators, tests, workflows, release rules
 
 This adapter is independent of the review-acquisition method. It evaluates pull-request acceptance evidence without selecting how repository-change members were constructed. Serial-pr uses the current PR's exact-head evidence. Stacked-pr uses explicit cumulative coverage evidence bound to the ordered stack, integration base, member heads, stack tip, reviewed scope, review contract, reviewer independence, completion state, and material limitations.
 
-Review acquisition and completion mode are separate concerns. The agent-review-and-merge path may proceed through the normal evidence and guarded-merge states. The human-handoff path stops at HANDOFF_READY after authorized implementation and validation work; it does not request review, close a pull request, and does not authorize or execute a merge, or imply REVIEW_COMPLETE, MERGE_READY, or MERGED. Human handoff is not a waiver of the independent-review or merge requirements that apply to a later human continuation.
+Review acquisition and completion mode are separate concerns. The agent-review-and-merge path may proceed through the normal evidence and guarded-merge states. The human-handoff path stops at HANDOFF_READY after authorized implementation and validation work; it does not request review, close a pull request, and does not authorize or execute a merge, or imply REVIEW_COMPLETE, MERGE_READY, or MERGED. Human handoff is not a waiver of the independent-review or merge requirements that apply to a later human continuation. It is not merge-ready.
 
 Do not infer lower-member review coverage from a tip PR review event or approval state. Do not make workflow combinations into Policy profiles. Applicability is evaluated from evidence bindings; review-request transport is not itself acceptance evidence.
 
@@ -107,7 +107,7 @@ After a mutation batch creates a new candidate head, invalidate and reacquire on
 
 ## Stacked merge semantics
 
-For an ordered stack such as A -> B -> C, cumulative review evidence must remain bound to the exact integration base, ordered membership, each member exact head, stack tip, cumulative scope, review contract, independent reviewer, completion state, and limitations. When A is merged and B is retargeted or its base moves, evaluate the changed bindings and remaining applicability. Do not mechanically mark every unaffected item stale, and do not reuse evidence when applicability is unknown. Merge each member only after the applicable evidence and guarded merge conditions for that member are re-established.
+For an ordered stack such as A -> B -> C, cumulative review evidence must remain bound to the exact integration base, ordered membership, each member exact head, stack tip, cumulative scope, review contract, independent reviewer, review completion state, and limitations. When A is merged and B is retargeted or its base moves, evaluate the changed bindings and remaining applicability. Do not mechanically mark every unaffected item stale, and do not reuse evidence when applicability is unknown. Merge each member only after the applicable evidence and guarded merge conditions for that member are re-established.
 
 See references/stacked-review-coverage.md for the provider-neutral evidence-binding procedure. That reference does not replace canonical Policy semantics.
 
