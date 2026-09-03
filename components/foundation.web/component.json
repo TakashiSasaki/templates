@@ -2,7 +2,7 @@
   "schema_version": 1,
   "id": "foundation.web",
   "component_role": "foundation",
-  "version": 1,
+  "version": 2,
   "summary": "Mandatory shared Web baseline: browser identity, generalized routes, viewports, and product-neutral browser navigation semantics.",
   "requires": [],
   "conflicts": [],
