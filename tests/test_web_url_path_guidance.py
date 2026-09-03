@@ -21,6 +21,10 @@ def load_json(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def normalized_prose(text: str) -> str:
+    return " ".join(text.split())
+
+
 def route_document(path: str) -> dict:
     return {
         "$schema": "../schemas/routes.schema.json",
@@ -88,9 +92,10 @@ class WebUrlPathGuidanceTests(unittest.TestCase):
 
     def test_advisory_wording_does_not_use_normative_rfc_keywords(self) -> None:
         guidance = GUIDANCE.read_text(encoding="utf-8")
-        self.assertIn("Composition-owned advisory guidance", guidance)
-        self.assertIn("A route may depart from this guidance without", guidance)
-        self.assertIn("This is a style preference, not a route-validity rule", guidance)
+        prose = normalized_prose(guidance)
+        self.assertIn("Composition-owned advisory guidance", prose)
+        self.assertIn("A route may depart from this guidance without", prose)
+        self.assertIn("This is a style preference, not a route-validity rule", prose)
         self.assertIsNone(re.search(r"\b(?:MUST|SHOULD|MAY)\b", guidance))
 
     def test_guidance_deviation_remains_normatively_valid(self) -> None:
