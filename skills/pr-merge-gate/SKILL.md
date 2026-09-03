@@ -11,6 +11,14 @@ Provide the GitHub-facing orchestration adapter for the canonical `pull-request`
 
 Repository code, schemas, contracts, validators, tests, workflows, release rules, and repository-local policy remain authoritative for task-specific semantic acceptance.
 
+## Workflow strategy and completion boundary
+
+This adapter is independent of the review-acquisition method. It evaluates pull-request acceptance evidence without selecting how repository-change members were constructed. Serial-pr uses the current PR's exact-head evidence. Stacked-pr uses explicit cumulative coverage evidence bound to the ordered stack, integration base, member heads, stack tip, reviewed scope, review contract, reviewer independence, completion state, and material limitations.
+
+Review acquisition and completion mode are separate concerns. The agent-review-and-merge path may proceed through the normal evidence and guarded-merge states. The human-handoff path stops at HANDOFF_READY after authorized implementation and validation work; it does not request review, close a pull request, and does not authorize or execute a merge, or imply REVIEW_COMPLETE, MERGE_READY, or MERGED. Human handoff is not a waiver of the independent-review or merge requirements that apply to a later human continuation. It is not merge-ready.
+
+Do not infer lower-member review coverage from a tip PR review event or approval state. A tip-only review is insufficient to establish lower-member coverage. Do not make workflow combinations into Policy profiles. Applicability is evaluated from evidence bindings; review-request transport is not itself acceptance evidence.
+
 ## Canonical policy rules
 
 Apply every rule selected by `profiles/pull-request.yml`. At the current Policy revision the canonical rule IDs are:
@@ -70,7 +78,9 @@ Do not discard the whole snapshot merely because one binding changes. Mark only 
 
 The adapter success path is:
 
-`PR_OPEN -> SCOPE_AUDITED -> CI_DISCOVERED -> CI_GREEN -> REVIEW_REQUESTED -> REVIEW_COMPLETED -> FINDINGS_CLEARED -> FINAL_STATE_REFRESHED -> MERGE_ALLOWED`
+`PR_OPEN -> SCOPE_AUDITED -> CI_DISCOVERED -> CI_GREEN -> REVIEW_EVIDENCE_PENDING -> REVIEW_EVIDENCE_ESTABLISHED -> FINDINGS_CLEARED -> FINAL_STATE_REFRESHED -> MERGE_ALLOWED`
+
+`REVIEW_EVIDENCE_PENDING` means that the gate has not yet established valid independent review evidence for the exact merge candidate. `REVIEW_EVIDENCE_ESTABLISHED` means that such evidence has been positively identified and its bindings are valid. The evidence may come from the selected review-acquisition procedure: serial exact-head review or explicit cumulative stacked coverage. Issuing a review request is not an acceptance state and is not evidence by itself.
 
 Use explicit blocked or transient states rather than collapsing uncertainty into success:
 
@@ -96,6 +106,12 @@ Use `references/head-mutation-batching.md` when CI or independent review is in f
 A known material defect blocks merge immediately even while its repair is being prepared; stable-head batching never makes a defective candidate acceptable. Do not wait an arbitrary interval for hypothetical future findings, broaden scope to fill a batch, or delay a ready repair when delay creates a concrete operational or safety risk. Coherence and timely remediation take priority over minimizing commit count.
 
 After a mutation batch creates a new candidate head, invalidate and reacquire only the evidence actually bound to the former SHA. Do not request new exact-head CI or review for intentionally partial intermediate heads when the remaining known compatible repairs can be completed before presenting the next candidate.
+
+## Stacked merge semantics
+
+For an ordered stack such as A -> B -> C, cumulative review evidence must remain bound to the exact integration base, ordered membership, each member exact head, stack tip, cumulative scope, review contract, independent reviewer, review completion state, and limitations. When A is merged and B is retargeted or its base moves, evaluate the changed bindings and remaining applicability. Do not mechanically mark every unaffected item stale, and do not reuse evidence when applicability is unknown. Merge each member only after the applicable evidence and guarded merge conditions for that member are re-established.
+
+See references/stacked-review-coverage.md for the provider-neutral evidence-binding procedure. That reference does not replace canonical Policy semantics.
 
 ## Workflow
 
@@ -140,13 +156,17 @@ Enter `CI_DISCOVERED` only when applicable exact-head checks are positively iden
 
 Once exact-head CI evidence is accepted, reuse it while the exact head and the conditions that determine check applicability remain unchanged. Do not rerun CI discovery or re-fetch workflow definitions solely to make an already valid result feel newer.
 
-### 3. Require independent exact-head review
+### 3. Establish independent review evidence
 
-Apply `pull-request.require-independent-exact-head-review`.
+Apply `pull-request.require-independent-exact-head-review` and, when the candidate is a stacked tip, `pull-request.require-explicit-stacked-review-coverage`.
 
-Request review for the exact current head if no completed independent review for that head exists. The request must name the exact SHA. Reviewer selection and any reviewer-specific invocation syntax are repository- or execution-environment concerns and are not defined by this shared adapter.
+Ask the evidence question: **Is there valid independent review evidence covering this exact merge candidate?** The gate evaluates evidence, not the transport by which review was acquired.
 
-A request, pending review, empty review list, or absence of findings is not completed review evidence. If the head changes after review, mark the prior review stale and request a fresh review for the new exact head.
+For a serial candidate, valid evidence is a completed independent review bound to the exact current PR head and applicable review contract. For a stacked candidate, valid evidence is explicit cumulative coverage bound to the ordered stack, integration base, every member exact head, stack tip, cumulative reviewed scope, review contract, reviewer independence, completion state, and material limitations. A tip-only review or approval event does not establish lower-member coverage.
+
+If valid evidence is absent, enter `REVIEW_EVIDENCE_PENDING` or `BLOCKED_REVIEW_MISSING`; do not transition to `REVIEW_EVIDENCE_ESTABLISHED` or `MERGE_ALLOWED`. A request, pending review, empty review list, or absence of findings is not completed review evidence. Human handoff does not establish review evidence.
+
+Review acquisition belongs to the selected workflow procedure. When serial-pr acquisition is selected and no completed independent exact-head review exists, that procedure may request review for the exact current head and must name the exact SHA. If the head changes after review, the prior review is stale and acquisition must address the new exact head. Reviewer selection and reviewer-specific invocation syntax are repository- or execution-environment concerns and are not defined by this shared adapter.
 
 If the exact head remains unchanged and the relied-upon completed review has not been invalidated by current review state, do not request another independent review merely for conservatism.
 

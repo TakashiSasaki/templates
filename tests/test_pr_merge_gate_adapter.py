@@ -156,11 +156,47 @@ def test_adapter_final_refresh_is_invalidation_driven() -> None:
         assert invariant in text
 
 
+
+def test_adapter_success_path_is_review_evidence_oriented() -> None:
+    text = SKILL.read_text(encoding="utf-8")
+    assert "CI_GREEN -> REVIEW_EVIDENCE_PENDING -> REVIEW_EVIDENCE_ESTABLISHED" in text
+    assert "CI_GREEN -> REVIEW_EVIDENCE_PENDING -> REVIEW_REQUESTED" not in text
+    assert "REVIEW_REQUESTED -> REVIEW_COMPLETED" not in text
+    assert "Issuing a review request is not an acceptance state" in text
+
+
+def test_adapter_accepts_evidence_independently_of_acquisition_transport() -> None:
+    text = SKILL.read_text(encoding="utf-8").lower()
+    for phrase in (
+        "the gate evaluates evidence, not the transport",
+        "completed independent review bound to the exact current pr head",
+        "explicit cumulative coverage bound to the ordered stack",
+        "review-request transport is not itself acceptance evidence",
+    ):
+        assert phrase in text
+
+
+def test_adapter_keeps_missing_evidence_fail_closed_and_handoff_separate() -> None:
+    text = SKILL.read_text(encoding="utf-8").lower()
+    assert "review_evidence_pending" in text
+    assert "blocked_review_missing" in text
+    assert "human handoff does not establish review evidence" in text
+    assert "do not transition to `review_evidence_established`" in text
+    assert "`merge_allowed`" in text
+
+
+def test_adapter_preserves_serial_acquisition_without_making_it_gate_state() -> None:
+    text = SKILL.read_text(encoding="utf-8").lower()
+    assert "when serial-pr acquisition is selected" in text
+    assert "may request review for the exact current head" in text
+    assert "must name the exact sha" in text
+    assert "request_requested" not in text
+
 def test_adapter_requires_exact_head_review_and_guarded_merge() -> None:
     text = SKILL.read_text(encoding="utf-8").lower()
     for invariant in (
         "request review for the exact current head",
-        "the request must name the exact sha",
+        "must name the exact sha",
         (
             "a request, pending review, empty review list, or absence of findings "
             "is not completed review evidence"
@@ -228,5 +264,30 @@ def test_adapter_separates_merge_from_post_merge_readiness() -> None:
             "treat release, publication, deployment, and other post-merge readiness "
             "as separate boundaries"
         ),
+    ):
+        assert invariant in text
+
+
+def test_adapter_supports_strategy_neutral_human_handoff_and_stacked_coverage() -> None:
+    text = SKILL.read_text(encoding="utf-8").lower()
+    for invariant in (
+        "serial-pr",
+        "stacked-pr",
+        "agent-review-and-merge",
+        "human-handoff",
+        "handoff_ready",
+        "does not request review",
+        "does not authorize or execute a merge",
+        "ordered stack",
+        "integration base",
+        "each member exact head",
+        "cumulative scope",
+        "review contract",
+        "reviewer independence",
+        "review completion state",
+        "material limitations",
+        "tip pr review event",
+        "do not mechanically mark every unaffected item stale",
+        "applicability is unknown",
     ):
         assert invariant in text
