@@ -181,7 +181,7 @@ def test_adapter_keeps_missing_evidence_fail_closed_and_handoff_separate() -> No
     assert "review_evidence_pending" in text
     assert "blocked_review_missing" in text
     assert "human handoff does not establish review evidence" in text
-    assert "do not transition to merge_allowed" in text
+    assert "do not transition to `merge_allowed`" in text
 
 
 def test_adapter_preserves_serial_acquisition_without_making_it_gate_state() -> None:
