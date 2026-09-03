@@ -59,8 +59,9 @@ Establish before editing:
 4. target reviewed full 40-character lowercase provider SHA;
 5. an exact provider checkout whose `HEAD` is that target SHA;
 6. an exact Composition checkout whose `HEAD` is the prospective Composition publication revision;
-7. provider diff from the current lock to the target;
-8. current Site PR/base state if a cutover PR already exists.
+7. an exact Policy checkout whose `HEAD` is the prospective Policy publication revision;
+8. provider diff from the current lock to the target;
+9. current Site PR/base state if a cutover PR already exists.
 
 Do not infer the target SHA from a branch name when a merged/reviewed commit identity is available.
 
@@ -77,14 +78,14 @@ Do not infer the target SHA from a branch name when a merged/reviewed commit ide
    - provider `docs/index.md` when guided navigation semantics changed;
    - canonical walkthrough/entry documents whose reader routing may matter.
 4. Classify the cutover using the decision points below.
-5. Prepare the exact provider checkout and exact prospective Composition checkout. Run `scripts/advance_publication_source.py` with the provider, target SHA, expected current lock SHA, Site root, provider checkout, and Composition checkout. The tool must verify both checkout identities, preflight the prospective source lock and Composition release descriptor, render both agent projections deterministically, update the projections first, and replace the authoritative `publication-sources.json` last.
+5. Prepare the exact target-provider checkout plus exact prospective Composition and Policy checkouts. Run `scripts/advance_publication_source.py` with the provider, target SHA, expected current lock SHA, Site root, provider checkout, `--composition-root`, and `--policy-root`. The tool must verify all required checkout identities, preflight the prospective source lock and both provider release descriptors, render both agent projections deterministically, update the projections first, and replace the authoritative `publication-sources.json` last.
 6. Make only the additional Site-owned semantic changes justified by the classification. The deterministic advance tool does not decide or rewrite `site-manifest.json`, reader navigation locales, translation content or freshness metadata, glossary content, or reader prose.
 7. Update focused regression expectations only when they intentionally bind the changed publication identity or reader route. Do not mechanically replace old SHAs in unrelated historical evidence.
 8. Run the current Site validation path against the exact locks.
 9. Inspect generated provenance and representative assembled outputs to prove the target revision, not a mutable or fallback revision, was consumed.
 10. Hand Site-specific PR acceptance to `.agents/skills/site-pr-exact-head-acceptance/SKILL.md`, then final review/merge authorization to `.agents/skills/pr-merge-gate/SKILL.md`.
 
-The advance tool uses `--expected-current` as a compare-and-swap guard. If the source lock moved, an exact checkout does not match its required revision, a projection target is unsafe, or the prospective Composition release descriptor is invalid, the operation must fail before the authoritative source lock is advanced. Do not bypass that failure by manually editing the lock.
+The advance tool uses `--expected-current` as a compare-and-swap guard. If the source lock moved, any required exact checkout does not match its prospective revision, a projection target is unsafe, or either prospective provider release descriptor is invalid, the operation must fail before the authoritative source lock is advanced. Do not bypass that failure by manually editing the lock.
 
 ## Decision points
 
@@ -139,7 +140,7 @@ Never weaken a failing publication or link contract merely to make the target re
 Classify failures before editing again:
 
 - **Provider contract failure** — target provider catalog/content is invalid. Fix on the provider authority, not Site.
-- **Cutover preflight failure** — expected-current, exact checkout identity, prospective source lock, Composition release descriptor, or projection-target safety is invalid. Correct the input or checkout; do not bypass the deterministic mutation path.
+- **Cutover preflight failure** — expected-current, exact checkout identity, prospective source lock, Composition or Policy release descriptor, or projection-target safety is invalid. Correct the input or checkout; do not bypass the deterministic mutation path.
 - **Site mapping failure** — Site manifest/routing no longer maps a valid provider public interface. Fix Site-owned mapping.
 - **Translation/glossary integration failure** — determine whether the changed input is provider-owned or Site-owned before changing files.
 - **Provenance/source-lock failure** — fail closed; do not accept branch fallback or ambiguous revision resolution.
