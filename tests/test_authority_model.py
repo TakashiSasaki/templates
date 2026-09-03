@@ -17,8 +17,17 @@ class AuthorityModelTests(unittest.TestCase):
 
         required = "Site is the repository integration and publication authority"
         self.assertIn(required, model)
-        self.assertIn("repository integration and publication authority", readme)
-        self.assertIn("repository integration and publication authority", publishing)
+
+        normalized_readme = " ".join(readme.split()).lower()
+        normalized_publishing = " ".join(publishing.split()).lower()
+        self.assertIn(
+            "repository integration and publication authority",
+            normalized_readme,
+        )
+        self.assertIn(
+            "repository integration and publication authority",
+            normalized_publishing,
+        )
 
         self.assertIn("not a\nparent, override, or super-authority", model)
         self.assertIn("provider-specific semantics remain owned by their provider", model)
