@@ -143,7 +143,7 @@
       "{python}",
       "-I",
       "-c",
-      "import sys\nimport urllib.request\n\nurl, skill_target = sys.argv[1:3]\ndata = urllib.request.urlopen(url, timeout=30).read()\nsys.argv = [url, skill_target]\nexec(compile(data, url, \"exec\"))\n",
+      "import sys\nimport urllib.request\n\nurl, skill_target = sys.argv[1:3]\ndata = urllib.request.urlopen(url, timeout=30).read()\nif not data:\n    raise SystemExit(\"Policy installer download was empty\")\nsys.argv = [url, skill_target]\nexec(compile(data, url, \"exec\"))\n",
       "{installer_url}",
       "{skill_target}"
     ],
