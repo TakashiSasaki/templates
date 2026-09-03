@@ -95,8 +95,13 @@ def test_candidate_smoke_binds_remote_source_to_stable_runtime(
             "<!-- source-skill: orchestrate-repository-change -->\n",
             encoding="utf-8",
         )
+        lock_text = (
+            "toolchain:\n"
+            "  repository: TakashiSasaki/templates\n"
+            f"  revision: {stable['revision']}\n"
+        )
         (repository / ".agent-policy.lock").write_text(
-            f"toolchain:\n  repository: TakashiSasaki/templates\n  revision: {stable['revision']}\n",
+            lock_text,
             encoding="utf-8",
         )
         return subprocess.CompletedProcess(command, 0, "", "")
