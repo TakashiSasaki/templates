@@ -160,7 +160,7 @@ def validate_composition_release_descriptor(path: Path) -> dict[str, Any]:
         raise AgentBootstrapError(
             "Composition installer.path is not the canonical installer path"
         )
-    require_sha256(installer["sha256"], "Composition installer.sha256256")
+    require_sha256(installer["sha256"], "Composition installer.sha256")
     if skill["path"] != "skills/composition":
         raise AgentBootstrapError(
             "Composition skill_source.path is not the canonical Skill path"
