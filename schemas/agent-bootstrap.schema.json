@@ -23,7 +23,20 @@
   ],
   "$defs": {
     "full_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
-    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "managed_runner_argv": {
+      "type": "array",
+      "prefixItems": [
+        {"const": "{python}"},
+        {"const": "{skill_target}/scripts/run.py"},
+        {"const": "--repository"},
+        {"const": "{repository}"},
+        {"const": "{command}"}
+      ],
+      "items": false,
+      "minItems": 5,
+      "maxItems": 5
+    }
   },
   "properties": {
     "$schema": {"const": "https://templates.moukaeritai.work/schemas/agent-bootstrap.schema.json"},
@@ -328,15 +341,7 @@
       "additionalProperties": false,
       "required": ["runner_argv", "diagnose", "provenance", "inspect_before_mutation", "plan_before_apply", "validate_after_apply"],
       "properties": {
-        "runner_argv": {
-          "type": "array",
-          "prefixItems": [
-            {"const": "{python}"}, {"const": "{skill_target}/scripts/run.py"}, {"const": "--repository"}, {"const": "{repository}"}, {"const": "{command}"}
-          ],
-          "items": false,
-          "minItems": 5,
-          "maxItems": 5
-        },
+        "runner_argv": {"$ref": "#/$defs/managed_runner_argv"},
         "diagnose": {"const": "doctor"},
         "provenance": {"const": "provenance"},
         "inspect_before_mutation": {"const": "inspect"},
@@ -347,7 +352,18 @@
     "policy_workflow": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["unmanaged_inspect_argv", "unmanaged_apply_argv", "managed_runner_argv", "inspect_before_mutation", "apply_requires_reviewed_dry_run", "managed_verification_commands"],
+      "required": [
+        "unmanaged_inspect_argv",
+        "unmanaged_apply_argv",
+        "unmanaged_apply_with_primary_instructions_argv",
+        "primary_instructions_selection_source",
+        "unmanaged_apply_outcomes",
+        "migration_finalization",
+        "managed_runner_argv",
+        "inspect_before_mutation",
+        "apply_requires_reviewed_dry_run",
+        "managed_verification_commands"
+      ],
       "properties": {
         "unmanaged_inspect_argv": {
           "type": "array",
@@ -367,15 +383,53 @@
           "minItems": 5,
           "maxItems": 5
         },
-        "managed_runner_argv": {
+        "unmanaged_apply_with_primary_instructions_argv": {
           "type": "array",
           "prefixItems": [
-            {"const": "{python}"}, {"const": "{skill_target}/scripts/run.py"}, {"const": "--repository"}, {"const": "{repository}"}, {"const": "{command}"}
+            {"const": "{python}"}, {"const": "{skill_target}/scripts/bootstrap.py"}, {"const": "--repository"}, {"const": "{repository}"},
+            {"const": "--primary-instructions"}, {"const": "{primary_instructions}"}, {"const": "--apply"}
           ],
           "items": false,
-          "minItems": 5,
-          "maxItems": 5
+          "minItems": 7,
+          "maxItems": 7
         },
+        "primary_instructions_selection_source": {"const": "unmanaged-inspect-output"},
+        "unmanaged_apply_outcomes": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["fresh", "migration"],
+          "properties": {
+            "fresh": {"const": "managed-and-validated"},
+            "migration": {"const": "prepared-and-previewed-finalization-pending"}
+          }
+        },
+        "migration_finalization": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["automatic", "requires_separate_explicit_instruction", "finalize_argv", "post_finalize_verification_commands"],
+          "properties": {
+            "automatic": {"const": false},
+            "requires_separate_explicit_instruction": {"const": true},
+            "finalize_argv": {
+              "type": "array",
+              "prefixItems": [
+                {"const": "{python}"}, {"const": "{skill_target}/scripts/run.py"}, {"const": "--repository"}, {"const": "{repository}"},
+                {"const": "adopt"}, {"const": "finalize"}, {"const": "--apply"}
+              ],
+              "items": false,
+              "minItems": 7,
+              "maxItems": 7
+            },
+            "post_finalize_verification_commands": {
+              "type": "array",
+              "prefixItems": [{"const": "validate"}, {"const": "check"}],
+              "items": false,
+              "minItems": 2,
+              "maxItems": 2
+            }
+          }
+        },
+        "managed_runner_argv": {"$ref": "#/$defs/managed_runner_argv"},
         "inspect_before_mutation": {"const": true},
         "apply_requires_reviewed_dry_run": {"const": true},
         "managed_verification_commands": {

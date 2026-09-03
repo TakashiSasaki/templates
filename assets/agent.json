@@ -183,6 +183,37 @@
       "{repository}",
       "--apply"
     ],
+    "unmanaged_apply_with_primary_instructions_argv": [
+      "{python}",
+      "{skill_target}/scripts/bootstrap.py",
+      "--repository",
+      "{repository}",
+      "--primary-instructions",
+      "{primary_instructions}",
+      "--apply"
+    ],
+    "primary_instructions_selection_source": "unmanaged-inspect-output",
+    "unmanaged_apply_outcomes": {
+      "fresh": "managed-and-validated",
+      "migration": "prepared-and-previewed-finalization-pending"
+    },
+    "migration_finalization": {
+      "automatic": false,
+      "requires_separate_explicit_instruction": true,
+      "finalize_argv": [
+        "{python}",
+        "{skill_target}/scripts/run.py",
+        "--repository",
+        "{repository}",
+        "adopt",
+        "finalize",
+        "--apply"
+      ],
+      "post_finalize_verification_commands": [
+        "validate",
+        "check"
+      ]
+    },
     "managed_runner_argv": [
       "{python}",
       "{skill_target}/scripts/run.py",

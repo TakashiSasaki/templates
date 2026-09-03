@@ -95,12 +95,7 @@ def read_json_object(path: Path, label: str) -> dict[str, Any]:
     return value
 
 
-def require_object(
-    value: Any,
-    *,
-    label: str,
-    fields: set[str],
-) -> dict[str, Any]:
+def require_object(value: Any, *, label: str, fields: set[str]) -> dict[str, Any]:
     if not isinstance(value, dict) or set(value) != fields:
         raise AgentBootstrapError(
             f"{label} must contain exactly: {', '.join(sorted(fields))}"
@@ -135,7 +130,6 @@ def validate_composition_release_descriptor(path: Path) -> dict[str, Any]:
         raise AgentBootstrapError("Composition installer release schema_version must be 1")
     if value["channel"] != "stable":
         raise AgentBootstrapError("Composition installer release channel must be stable")
-
     installer = require_object(
         value["installer"],
         label="Composition installer",
@@ -151,7 +145,6 @@ def validate_composition_release_descriptor(path: Path) -> dict[str, Any]:
         label="Composition toolchain",
         fields={"repository", "revision"},
     )
-
     for entry, label in (
         (installer, "Composition installer"),
         (skill, "Composition skill_source"),
@@ -160,7 +153,6 @@ def validate_composition_release_descriptor(path: Path) -> dict[str, Any]:
         if entry["repository"] != REPOSITORY:
             raise AgentBootstrapError(f"{label}.repository must be {REPOSITORY}")
         require_full_sha(entry["revision"], f"{label}.revision")
-
     if installer["path"] != "scripts/install_composition_skill.py":
         raise AgentBootstrapError(
             "Composition installer.path is not the canonical installer path"
@@ -182,7 +174,6 @@ def validate_policy_release_descriptor(path: Path) -> dict[str, Any]:
     )
     if type(value["schema_version"]) is not int or value["schema_version"] != 1:
         raise AgentBootstrapError("Policy installer release schema_version must be 1")
-
     installer = require_object(
         value["installer"],
         label="Policy installer",
@@ -200,7 +191,6 @@ def validate_policy_release_descriptor(path: Path) -> dict[str, Any]:
         if entry["repository"] != REPOSITORY:
             raise AgentBootstrapError(f"{label}.repository must be {REPOSITORY}")
         require_full_sha(entry["revision"], f"{label}.revision")
-
     if installer["path"] != "scripts/install_agent_policy_skill.py":
         raise AgentBootstrapError(
             "Policy installer.path is not the canonical installer path"
@@ -228,16 +218,13 @@ def build_manifest(
         sources = resolve_sources(source_lock, {})
     except SourceLockError as exc:
         raise AgentBootstrapError(str(exc)) from exc
-
     composition = validate_composition_release_descriptor(composition_release)
     policy = validate_policy_release_descriptor(policy_release)
-
     composition_installer = composition["installer"]
     composition_skill = composition["skill_source"]
     composition_toolchain = composition["toolchain"]
     policy_installer = policy["installer"]
     policy_skill = policy["skill_source"]
-
     return {
         "$schema": SCHEMA_URL,
         "schema_version": 4,
@@ -384,9 +371,7 @@ def build_manifest(
                 "{installer_url}",
                 "{skill_target}",
             ],
-            "argument_bindings": {
-                "{installer_url}": "policy.installer.url",
-            },
+            "argument_bindings": {"{installer_url}": "policy.installer.url"},
             "caller_inputs": ["{python}", "{skill_target}"],
         },
         "composition_workflow": {
@@ -417,6 +402,34 @@ def build_manifest(
                 "{repository}",
                 "--apply",
             ],
+            "unmanaged_apply_with_primary_instructions_argv": [
+                "{python}",
+                "{skill_target}/scripts/bootstrap.py",
+                "--repository",
+                "{repository}",
+                "--primary-instructions",
+                "{primary_instructions}",
+                "--apply",
+            ],
+            "primary_instructions_selection_source": "unmanaged-inspect-output",
+            "unmanaged_apply_outcomes": {
+                "fresh": "managed-and-validated",
+                "migration": "prepared-and-previewed-finalization-pending",
+            },
+            "migration_finalization": {
+                "automatic": False,
+                "requires_separate_explicit_instruction": True,
+                "finalize_argv": [
+                    "{python}",
+                    "{skill_target}/scripts/run.py",
+                    "--repository",
+                    "{repository}",
+                    "adopt",
+                    "finalize",
+                    "--apply",
+                ],
+                "post_finalize_verification_commands": ["validate", "check"],
+            },
             "managed_runner_argv": [
                 "{python}",
                 "{skill_target}/scripts/run.py",
@@ -469,7 +482,6 @@ def verify_site_projections(
         expected,
         "published agent manifest",
     )
-
     schema = site_root / "schemas/agent-bootstrap.schema.json"
     published_schema = site_root / "assets/schemas/agent-bootstrap.schema.json"
     if schema.is_symlink() or not schema.is_file():
@@ -497,13 +509,11 @@ def write_site_projections(
             policy_root / POLICY_RELEASE_PATH,
         )
     )
-    targets = (site_root / "agent.json", site_root / "assets/agent.json")
-    for target in targets:
+    for target in (site_root / "agent.json", site_root / "assets/agent.json"):
         if target.is_symlink():
             raise AgentBootstrapError(f"projection target must not be a symlink: {target}")
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(payload)
-
     schema = site_root / "schemas/agent-bootstrap.schema.json"
     if schema.is_symlink() or not schema.is_file():
         raise AgentBootstrapError(f"agent bootstrap schema must be a regular file: {schema}")
