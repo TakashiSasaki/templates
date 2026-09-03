@@ -14,6 +14,34 @@ Use this skill for implementation work that spans repository inspection, one or 
 
 Repository code, schemas, validators, tests, workflows, release rules, project policy, and explicit task requirements remain authoritative. If any instruction below conflicts with those sources, follow the authoritative requirement rather than optimizing for fewer calls or fewer revisions.
 
+## Strategy-neutral workflow dispatcher
+
+This Skill is a strategy-neutral dispatcher for repository-change execution. It connects canonical normative acceptance requirements to a selected progression strategy and a selected completion strategy; it does not replace the policy, contract, schema, validator, CI, review, or merge authorities that establish those requirements.
+
+Keep the two selections independent:
+
+- progression: serial-pr or stacked-pr;
+- completion: agent-review-and-merge or human-handoff.
+
+Select each dimension in this order:
+
+1. explicit task instruction;
+2. applicable repository-local policy;
+3. repository-declared default;
+4. agent selection only when the preceding authorities explicitly permit it.
+
+Do not infer a workflow selection from a policy profile, agent provider, or enabled Skill. Policy profiles select shared normative rules; they are not operating-mode profiles. Do not create profiles for serial-pr, stacked-pr, human-handoff, agent providers, or other workflow combinations merely to encode this selection.
+
+When serial-pr is selected, use the serial procedure: implement a coherent member, validate it, obtain required CI and independent review, remediate verified findings, complete the applicable merge gate, merge the member, and then begin the next member.
+
+When stacked-pr is selected, use the stacked procedure: implement and validate member 1, create its PR, implement and validate member 2 on member 1, create its dependent PR, continue for later members, then qualify the cumulative stack under the selected completion strategy. Review latency does not block construction of later members, but a known material defect must not be deliberately propagated into them.
+
+When agent-review-and-merge is selected, review and merge completion remain separate acceptance boundaries and require the applicable exact-head or cumulative evidence and guarded merge procedure.
+
+When human-handoff is selected, stop at HANDOFF_READY after the authorized implementation and validation work. Do not request automated review, merge, close the PR, create a no-op commit to trigger automation, or mutate solely to obtain approval. Report implementation and validation accurately, report review as not requested or outstanding, report merge authorization as not established, and leave the PR open and unmerged. Human handoff is a normal completion boundary, not a review waiver or merge authorization.
+
+Use the focused procedures in references/pr-workflow-selection.md, references/serial-pr-workflow.md, references/stacked-pr-workflow.md, and references/human-handoff.md for the selected path.
+
 ## 1. Establish the minimum sufficient snapshot
 
 Before mutating, identify the facts that determine the next safe action:

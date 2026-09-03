@@ -16,7 +16,13 @@ def test_orchestration_skill_is_generated_and_renderable() -> None:
     assert SKILL_NAME not in NON_GENERATED_SKILLS
 
     rendered = render_skill(SKILL_NAME)
-    assert set(rendered) == {"SKILL.md"}
+    assert set(rendered) == {
+        "SKILL.md",
+        "references/pr-workflow-selection.md",
+        "references/serial-pr-workflow.md",
+        "references/stacked-pr-workflow.md",
+        "references/human-handoff.md",
+    }
     assert GENERATED_MARKER in rendered["SKILL.md"]
     assert "name: orchestrate-repository-change" in rendered["SKILL.md"]
 
@@ -88,3 +94,22 @@ def test_orchestration_rationale_keeps_metrics_diagnostic_only() -> None:
     assert "procedure guidance should not be promoted merely because it usually saves time" in text
     assert "`audit-frozen-change` remains" in text
     assert "`pr-merge-gate` remains" in text
+
+
+def test_orchestration_skill_selects_progression_and_completion_independently() -> None:
+    text = SKILL.read_text(encoding="utf-8").lower()
+    for invariant in (
+        "strategy-neutral dispatcher",
+        "progression: serial-pr or stacked-pr",
+        "completion: agent-review-and-merge or human-handoff",
+        "explicit task instruction",
+        "applicable repository-local policy",
+        "repository-declared default",
+        "agent selection only when",
+        "policy profiles select shared normative rules",
+        "do not create profiles for serial-pr",
+        "review latency does not block construction",
+        "handoff_ready",
+        "leave the pr open and unmerged",
+    ):
+        assert invariant in text
