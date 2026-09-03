@@ -78,7 +78,9 @@ Do not discard the whole snapshot merely because one binding changes. Mark only 
 
 The adapter success path is:
 
-`PR_OPEN -> SCOPE_AUDITED -> CI_DISCOVERED -> CI_GREEN -> REVIEW_REQUESTED -> REVIEW_COMPLETED -> FINDINGS_CLEARED -> FINAL_STATE_REFRESHED -> MERGE_ALLOWED`
+`PR_OPEN -> SCOPE_AUDITED -> CI_DISCOVERED -> CI_GREEN -> REVIEW_EVIDENCE_PENDING -> REVIEW_EVIDENCE_ESTABLISHED -> FINDINGS_CLEARED -> FINAL_STATE_REFRESHED -> MERGE_ALLOWED`
+
+`REVIEW_EVIDENCE_PENDING` means that the gate has not yet established valid independent review evidence for the exact merge candidate. `REVIEW_EVIDENCE_ESTABLISHED` means that such evidence has been positively identified and its bindings are valid. The evidence may come from the selected review-acquisition procedure: serial exact-head review or explicit cumulative stacked coverage. Issuing a review request is not an acceptance state and is not evidence by itself.
 
 Use explicit blocked or transient states rather than collapsing uncertainty into success:
 
@@ -154,13 +156,17 @@ Enter `CI_DISCOVERED` only when applicable exact-head checks are positively iden
 
 Once exact-head CI evidence is accepted, reuse it while the exact head and the conditions that determine check applicability remain unchanged. Do not rerun CI discovery or re-fetch workflow definitions solely to make an already valid result feel newer.
 
-### 3. Require independent exact-head review
+### 3. Establish independent review evidence
 
-Apply `pull-request.require-independent-exact-head-review`.
+Apply `pull-request.require-independent-exact-head-review` and, when the candidate is a stacked tip, `pull-request.require-explicit-stacked-review-coverage`.
 
-Request review for the exact current head if no completed independent review for that head exists. The request must name the exact SHA. Reviewer selection and any reviewer-specific invocation syntax are repository- or execution-environment concerns and are not defined by this shared adapter.
+Ask the evidence question: **Is there valid independent review evidence covering this exact merge candidate?** The gate evaluates evidence, not the transport by which review was acquired.
 
-A request, pending review, empty review list, or absence of findings is not completed review evidence. If the head changes after review, mark the prior review stale and request a fresh review for the new exact head.
+For a serial candidate, valid evidence is a completed independent review bound to the exact current PR head and applicable review contract. For a stacked candidate, valid evidence is explicit cumulative coverage bound to the ordered stack, integration base, every member exact head, stack tip, cumulative reviewed scope, review contract, reviewer independence, completion state, and material limitations. A tip-only review or approval event does not establish lower-member coverage.
+
+If valid evidence is absent, enter `REVIEW_EVIDENCE_PENDING` or `BLOCKED_REVIEW_MISSING`; do not transition to `REVIEW_EVIDENCE_ESTABLISHED` or `MERGE_ALLOWED`. A request, pending review, empty review list, or absence of findings is not completed review evidence. Human handoff does not establish review evidence.
+
+Review acquisition belongs to the selected workflow procedure. When serial-pr acquisition is selected and no completed independent exact-head review exists, that procedure may request review for the exact current head and must name the exact SHA. If the head changes after review, the prior review is stale and acquisition must address the new exact head. Reviewer selection and reviewer-specific invocation syntax are repository- or execution-environment concerns and are not defined by this shared adapter.
 
 If the exact head remains unchanged and the relied-upon completed review has not been invalidated by current review state, do not request another independent review merely for conservatism.
 
