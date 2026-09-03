@@ -17,7 +17,7 @@ This adapter is independent of the review-acquisition method. It evaluates pull-
 
 Review acquisition and completion mode are separate concerns. The agent-review-and-merge path may proceed through the normal evidence and guarded-merge states. The human-handoff path stops at HANDOFF_READY after authorized implementation and validation work; it does not request review, close a pull request, and does not authorize or execute a merge, or imply REVIEW_COMPLETE, MERGE_READY, or MERGED. Human handoff is not a waiver of the independent-review or merge requirements that apply to a later human continuation. It is not merge-ready.
 
-Do not infer lower-member review coverage from a tip PR review event or approval state. Do not make workflow combinations into Policy profiles. Applicability is evaluated from evidence bindings; review-request transport is not itself acceptance evidence.
+Do not infer lower-member review coverage from a tip PR review event or approval state. A tip-only review is insufficient to establish lower-member coverage. Do not make workflow combinations into Policy profiles. Applicability is evaluated from evidence bindings; review-request transport is not itself acceptance evidence.
 
 ## Canonical policy rules
 
