@@ -17,19 +17,28 @@ INSTALLER_PATH = ROOT / "scripts/install_agent_policy_skill.py"
 RELEASE_PATH = ROOT / "release/toolchain.json"
 FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
 SKILL_NAME = "orchestrate-repository-change"
+LOCK_VERSION = "1"
 
 
-def load_installer() -> ModuleType:
-    spec = importlib.util.spec_from_file_location(
-        "skill_source_candidate_installer",
-        INSTALLER_PATH,
-    )
+def load_module(path: Path, name: str) -> ModuleType:
+    spec = importlib.util.spec_from_file_location(name, path)
     if spec is None or spec.loader is None:
-        raise RuntimeError("unable to load remote skill installer module")
+        raise RuntimeError(f"unable to load module from {path}")
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     return module
+
+
+def load_installer() -> ModuleType:
+    return load_module(INSTALLER_PATH, "skill_source_candidate_installer")
+
+
+def load_installed_runtime(installed: Path) -> ModuleType:
+    return load_module(
+        installed / "scripts" / "runtime.py",
+        "skill_source_candidate_runtime",
+    )
 
 
 def load_object(path: Path) -> dict[str, object]:
@@ -69,6 +78,87 @@ def consumer_configuration(toolchain: object) -> dict[str, object]:
     }
 
 
+def lock_version(path: Path) -> str:
+    found: str | None = None
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        stripped = raw.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        indent = len(raw) - len(raw.lstrip(" "))
+        if indent != 0 or ":" not in stripped:
+            continue
+        key, raw_value = stripped.split(":", 1)
+        if key != "lock_version":
+            continue
+        if found is not None:
+            raise RuntimeError("candidate skill lock contains duplicate lock_version")
+        value = raw_value.strip()
+        if not value or value[0] in {'\"', "'"} or value[-1:] in {'\"', "'"}:
+            raise RuntimeError("candidate skill lock_version must be a plain scalar")
+        found = value
+    if found is None:
+        raise RuntimeError("candidate skill lock is missing lock_version")
+    return found
+
+
+def verify_generated_lock(
+    lock: Path,
+    installed: Path,
+    stable_toolchain: object,
+) -> None:
+    if not isinstance(stable_toolchain, dict):
+        raise RuntimeError("stable release toolchain must be an object")
+    if lock_version(lock) != LOCK_VERSION:
+        raise RuntimeError("candidate skill lock schema version is unsupported")
+
+    runtime = load_installed_runtime(installed)
+    try:
+        repository, revision = runtime.lock_toolchain(lock)
+    except (OSError, ValueError) as exc:
+        raise RuntimeError(f"candidate skill lock toolchain is invalid: {exc}") from exc
+
+    lock_toolchain = {
+        "repository": repository,
+        "revision": revision,
+    }
+    if lock_toolchain != stable_toolchain:
+        raise RuntimeError(
+            "candidate skill lock does not bind the complete stable toolchain identity"
+        )
+
+
+def run_installed(
+    installed: Path,
+    repository: Path,
+    environment: dict[str, str],
+    command: str,
+) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [
+            sys.executable,
+            str(installed / "scripts" / "run.py"),
+            "--repository",
+            str(repository),
+            command,
+        ],
+        cwd=repository,
+        env=environment,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+
+def require_success(result: subprocess.CompletedProcess[str], operation: str) -> None:
+    if result.returncode == 0:
+        return
+    detail = (result.stderr or result.stdout).strip()
+    raise RuntimeError(
+        f"candidate skill failed to {operation} through the installed stable runtime"
+        + (f": {detail}" if detail else "")
+    )
+
+
 def run_candidate(revision: str) -> None:
     revision = require_revision(revision)
     release = load_object(RELEASE_PATH)
@@ -99,26 +189,10 @@ def run_candidate(revision: str) -> None:
 
         environment = os.environ.copy()
         environment["AGENT_POLICY_RUNTIME_CACHE"] = str(root / "runtime-cache")
-        result = subprocess.run(
-            [
-                sys.executable,
-                str(installed / "scripts" / "run.py"),
-                "--repository",
-                str(repository),
-                "render",
-            ],
-            cwd=repository,
-            env=environment,
-            check=False,
-            capture_output=True,
-            text=True,
+        require_success(
+            run_installed(installed, repository, environment, "render"),
+            "render",
         )
-        if result.returncode != 0:
-            detail = (result.stderr or result.stdout).strip()
-            raise RuntimeError(
-                "candidate skill failed to render through the installed stable runtime"
-                + (f": {detail}" if detail else "")
-            )
 
         generated = repository / ".agents" / "skills" / SKILL_NAME / "SKILL.md"
         if not generated.is_file():
@@ -130,12 +204,12 @@ def run_candidate(revision: str) -> None:
         lock = repository / ".agent-policy.lock"
         if not lock.is_file():
             raise RuntimeError("candidate skill render did not materialize a lock file")
-        lock_text = lock.read_text(encoding="utf-8")
-        if not isinstance(stable_toolchain, dict):
-            raise RuntimeError("stable release toolchain must be an object")
-        stable_revision = stable_toolchain.get("revision")
-        if not isinstance(stable_revision, str) or stable_revision not in lock_text:
-            raise RuntimeError("candidate skill lock does not bind the stable runtime revision")
+        verify_generated_lock(lock, installed, stable_toolchain)
+
+        require_success(
+            run_installed(installed, repository, environment, "check"),
+            "check the rendered consumer",
+        )
 
 
 def parse_args() -> argparse.Namespace:
