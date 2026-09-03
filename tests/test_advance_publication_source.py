@@ -25,7 +25,7 @@ def run_git(root: Path, *args: str) -> str:
     return completed.stdout.strip()
 
 
-def write_release(root: Path, marker: str, *, valid: bool = True) -> None:
+def write_composition_release(root: Path, marker: str, *, valid: bool = True) -> None:
     release = root / "release" / "composition-installer.json"
     release.parent.mkdir(parents=True, exist_ok=True)
     if not valid:
@@ -53,6 +53,28 @@ def write_release(root: Path, marker: str, *, valid: bool = True) -> None:
     release.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
 
 
+def write_policy_release(root: Path, marker: str, *, valid: bool = True) -> None:
+    release = root / "release" / "skill-installer.json"
+    release.parent.mkdir(parents=True, exist_ok=True)
+    if not valid:
+        release.write_text('{"schema_version": 999}\n', encoding="utf-8")
+        return
+    value = {
+        "schema_version": 1,
+        "installer": {
+            "repository": REPOSITORY,
+            "revision": marker * 40,
+            "path": "scripts/install_agent_policy_skill.py",
+        },
+        "skill_source": {
+            "repository": REPOSITORY,
+            "revision": chr(ord(marker) + 1) * 40,
+            "path": "skills/agent-policy",
+        },
+    }
+    release.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
+
+
 def init_repository(root: Path) -> None:
     root.mkdir(parents=True, exist_ok=True)
     subprocess.run(["git", "init", "-q", str(root)], check=True)
@@ -66,22 +88,29 @@ def commit_all(root: Path, message: str) -> str:
     return run_git(root, "rev-parse", "HEAD")
 
 
-def init_composition(root: Path, *, invalid_target_release: bool = False) -> tuple[str, str]:
+def init_composition(
+    root: Path,
+    *,
+    invalid_target_release: bool = False,
+) -> tuple[str, str]:
     init_repository(root)
-    write_release(root, "a")
+    write_composition_release(root, "a")
     first = commit_all(root, "first composition release")
-    write_release(root, "d", valid=not invalid_target_release)
+    write_composition_release(root, "d", valid=not invalid_target_release)
     second = commit_all(root, "second composition release")
     return first, second
 
 
-def init_policy(root: Path) -> tuple[str, str]:
+def init_policy(
+    root: Path,
+    *,
+    invalid_target_release: bool = False,
+) -> tuple[str, str]:
     init_repository(root)
-    marker = root / "policy.txt"
-    marker.write_text("one\n", encoding="utf-8")
-    first = commit_all(root, "first policy")
-    marker.write_text("two\n", encoding="utf-8")
-    second = commit_all(root, "second policy")
+    write_policy_release(root, "1")
+    first = commit_all(root, "first policy release")
+    write_policy_release(root, "3", valid=not invalid_target_release)
+    second = commit_all(root, "second policy release")
     return first, second
 
 
@@ -123,6 +152,7 @@ class AdvancePublicationSourceTests(unittest.TestCase):
             site_root = root / "site"
             current_composition, target_composition = init_composition(composition_root)
             current_policy, _ = init_policy(policy_root)
+            run_git(policy_root, "checkout", "-q", "--detach", current_policy)
             write_site(site_root, current_composition, current_policy)
 
             plan = advance_publication(
@@ -130,6 +160,7 @@ class AdvancePublicationSourceTests(unittest.TestCase):
                 provider="composition",
                 provider_root=composition_root,
                 composition_root=composition_root,
+                policy_root=policy_root,
                 target_revision=target_composition,
                 expected_current=current_composition,
             )
@@ -149,10 +180,15 @@ class AdvancePublicationSourceTests(unittest.TestCase):
                 manifest["authorities"]["composition"]["publication_revision"],
                 target_composition,
             )
+            self.assertEqual(
+                manifest["authorities"]["policy"]["publication_revision"],
+                current_policy,
+            )
             self.assertEqual(manifest["composition"]["installer"]["revision"], "d" * 40)
+            self.assertEqual(manifest["policy"]["installer"]["revision"], "1" * 40)
             self.assertEqual(plan.revisions["composition"], target_composition)
 
-    def test_policy_advance_preserves_composition_and_updates_machine_projection(self) -> None:
+    def test_policy_advance_preserves_composition_and_updates_policy_bootstrap_projection(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             composition_root = root / "composition"
@@ -168,6 +204,7 @@ class AdvancePublicationSourceTests(unittest.TestCase):
                 provider="policy",
                 provider_root=policy_root,
                 composition_root=composition_root,
+                policy_root=policy_root,
                 target_revision=target_policy,
                 expected_current=current_policy,
             )
@@ -187,6 +224,8 @@ class AdvancePublicationSourceTests(unittest.TestCase):
                 manifest["authorities"]["composition"]["publication_revision"],
                 current_composition,
             )
+            self.assertEqual(manifest["policy"]["installer"]["revision"], "3" * 40)
+            self.assertEqual(manifest["policy"]["skill"]["revision"], "4" * 40)
 
     def test_policy_advance_rejects_mismatched_composition_checkout_before_mutation(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -209,8 +248,37 @@ class AdvancePublicationSourceTests(unittest.TestCase):
                     provider="policy",
                     provider_root=policy_root,
                     composition_root=composition_root,
+                    policy_root=policy_root,
                     target_revision=target_policy,
                     expected_current=current_policy,
+                )
+
+            self.assertEqual(snapshot_site(site_root), before)
+
+    def test_composition_advance_rejects_mismatched_policy_checkout_before_mutation(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            composition_root = root / "composition"
+            policy_root = root / "policy"
+            site_root = root / "site"
+            current_composition, target_composition = init_composition(composition_root)
+            current_policy, target_policy = init_policy(policy_root)
+            write_site(site_root, current_composition, current_policy)
+            self.assertEqual(run_git(policy_root, "rev-parse", "HEAD"), target_policy)
+            before = snapshot_site(site_root)
+
+            with self.assertRaisesRegex(
+                PublicationAdvanceError,
+                "Policy checkout HEAD .* does not match prospective",
+            ):
+                advance_publication(
+                    site_root=site_root,
+                    provider="composition",
+                    provider_root=composition_root,
+                    composition_root=composition_root,
+                    policy_root=policy_root,
+                    target_revision=target_composition,
+                    expected_current=current_composition,
                 )
 
             self.assertEqual(snapshot_site(site_root), before)
@@ -223,6 +291,7 @@ class AdvancePublicationSourceTests(unittest.TestCase):
             site_root = root / "site"
             current_composition, target_composition = init_composition(composition_root)
             current_policy, _ = init_policy(policy_root)
+            run_git(policy_root, "checkout", "-q", "--detach", current_policy)
             write_site(site_root, current_composition, current_policy)
             before = snapshot_site(site_root)
 
@@ -232,6 +301,7 @@ class AdvancePublicationSourceTests(unittest.TestCase):
                     provider="composition",
                     provider_root=composition_root,
                     composition_root=composition_root,
+                    policy_root=policy_root,
                     target_revision=target_composition,
                     expected_current="0" * 40,
                 )
@@ -246,6 +316,7 @@ class AdvancePublicationSourceTests(unittest.TestCase):
             site_root = root / "site"
             current_composition, target_composition = init_composition(composition_root)
             current_policy, _ = init_policy(policy_root)
+            run_git(policy_root, "checkout", "-q", "--detach", current_policy)
             write_site(site_root, current_composition, current_policy)
             run_git(composition_root, "checkout", "-q", "--detach", current_composition)
             before = snapshot_site(site_root)
@@ -256,6 +327,7 @@ class AdvancePublicationSourceTests(unittest.TestCase):
                     provider="composition",
                     provider_root=composition_root,
                     composition_root=composition_root,
+                    policy_root=policy_root,
                     target_revision=target_composition,
                     expected_current=current_composition,
                 )
@@ -279,6 +351,7 @@ class AdvancePublicationSourceTests(unittest.TestCase):
                     provider="composition",
                     provider_root=composition_root,
                     composition_root=composition_root,
+                    policy_root=policy_root,
                     target_revision="composition",
                     expected_current=current_composition,
                 )
@@ -296,6 +369,7 @@ class AdvancePublicationSourceTests(unittest.TestCase):
                 invalid_target_release=True,
             )
             current_policy, _ = init_policy(policy_root)
+            run_git(policy_root, "checkout", "-q", "--detach", current_policy)
             write_site(site_root, current_composition, current_policy)
             before = snapshot_site(site_root)
 
@@ -305,8 +379,37 @@ class AdvancePublicationSourceTests(unittest.TestCase):
                     provider="composition",
                     provider_root=composition_root,
                     composition_root=composition_root,
+                    policy_root=policy_root,
                     target_revision=target_composition,
                     expected_current=current_composition,
+                )
+
+            self.assertEqual(snapshot_site(site_root), before)
+
+    def test_invalid_target_policy_release_fails_before_any_mutation(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            composition_root = root / "composition"
+            policy_root = root / "policy"
+            site_root = root / "site"
+            current_composition, _ = init_composition(composition_root)
+            run_git(composition_root, "checkout", "-q", "--detach", current_composition)
+            current_policy, target_policy = init_policy(
+                policy_root,
+                invalid_target_release=True,
+            )
+            write_site(site_root, current_composition, current_policy)
+            before = snapshot_site(site_root)
+
+            with self.assertRaisesRegex(PublicationAdvanceError, "preflight"):
+                advance_publication(
+                    site_root=site_root,
+                    provider="policy",
+                    provider_root=policy_root,
+                    composition_root=composition_root,
+                    policy_root=policy_root,
+                    target_revision=target_policy,
+                    expected_current=current_policy,
                 )
 
             self.assertEqual(snapshot_site(site_root), before)
@@ -319,6 +422,7 @@ class AdvancePublicationSourceTests(unittest.TestCase):
             site_root = root / "site"
             current_composition, target_composition = init_composition(composition_root)
             current_policy, _ = init_policy(policy_root)
+            run_git(policy_root, "checkout", "-q", "--detach", current_policy)
             write_site(site_root, current_composition, current_policy)
             published = site_root / "assets" / "agent.json"
             published.unlink()
@@ -332,6 +436,7 @@ class AdvancePublicationSourceTests(unittest.TestCase):
                     provider="composition",
                     provider_root=composition_root,
                     composition_root=composition_root,
+                    policy_root=policy_root,
                     target_revision=target_composition,
                     expected_current=current_composition,
                 )

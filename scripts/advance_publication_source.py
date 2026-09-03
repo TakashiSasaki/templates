@@ -17,6 +17,8 @@ if __package__ in (None, ""):
 
 from scripts.generate_agent_bootstrap import (
     AgentBootstrapError,
+    COMPOSITION_RELEASE_PATH,
+    POLICY_RELEASE_PATH,
     build_manifest,
     render_manifest,
     verify_projection,
@@ -28,8 +30,6 @@ from scripts.resolve_publication_sources import (
     render_source_lock,
     resolve_sources,
 )
-
-COMPOSITION_RELEASE_PATH = "release/composition-installer.json"
 
 
 class PublicationAdvanceError(RuntimeError):
@@ -103,6 +103,7 @@ def plan_advance(
     provider: str,
     provider_root: Path,
     composition_root: Path,
+    policy_root: Path,
     target_revision: str,
     expected_current: str,
 ) -> AdvancePlan:
@@ -117,6 +118,7 @@ def plan_advance(
         site_root = site_root.resolve(strict=True)
         provider_root = provider_root.resolve(strict=True)
         composition_root = composition_root.resolve(strict=True)
+        policy_root = policy_root.resolve(strict=True)
     except OSError as exc:
         raise PublicationAdvanceError(f"unable to resolve cutover input: {exc}") from exc
 
@@ -146,6 +148,7 @@ def plan_advance(
 
     revisions = dict(current)
     revisions[provider] = target_revision
+
     composition_revision = revisions["composition"]
     composition_head = git_head(composition_root, "Composition checkout")
     if composition_head != composition_revision:
@@ -154,30 +157,50 @@ def plan_advance(
             f"publication revision {composition_revision}"
         )
 
+    policy_revision = revisions["policy"]
+    policy_head = git_head(policy_root, "Policy checkout")
+    if policy_head != policy_revision:
+        raise PublicationAdvanceError(
+            f"Policy checkout HEAD {policy_head} does not match prospective "
+            f"publication revision {policy_revision}"
+        )
+
     try:
         lock_bytes = render_source_lock(revisions)
     except SourceLockError as exc:
         raise PublicationAdvanceError(str(exc)) from exc
-    release_bytes = git_file(
+    composition_release_bytes = git_file(
         composition_root,
         composition_revision,
         COMPOSITION_RELEASE_PATH,
         "Composition installer release descriptor",
+    )
+    policy_release_bytes = git_file(
+        policy_root,
+        policy_revision,
+        POLICY_RELEASE_PATH,
+        "Policy installer release descriptor",
     )
 
     try:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             prospective_lock = root / "publication-sources.json"
-            prospective_release = root / "composition-installer.json"
+            prospective_composition_release = root / "composition-installer.json"
+            prospective_policy_release = root / "policy-installer.json"
             prospective_lock.write_bytes(lock_bytes)
-            prospective_release.write_bytes(release_bytes)
+            prospective_composition_release.write_bytes(composition_release_bytes)
+            prospective_policy_release.write_bytes(policy_release_bytes)
             if resolve_sources(prospective_lock, {}) != revisions:
                 raise PublicationAdvanceError(
                     "prospective publication source lock did not round-trip deterministically"
                 )
             manifest_bytes = render_manifest(
-                build_manifest(prospective_lock, prospective_release)
+                build_manifest(
+                    prospective_lock,
+                    prospective_composition_release,
+                    prospective_policy_release,
+                )
             )
     except (OSError, SourceLockError, AgentBootstrapError) as exc:
         raise PublicationAdvanceError(f"unable to preflight publication advance: {exc}") from exc
@@ -267,6 +290,7 @@ def advance_publication(
     provider: str,
     provider_root: Path,
     composition_root: Path,
+    policy_root: Path,
     target_revision: str,
     expected_current: str,
 ) -> AdvancePlan:
@@ -275,6 +299,7 @@ def advance_publication(
         provider=provider,
         provider_root=provider_root,
         composition_root=composition_root,
+        policy_root=policy_root,
         target_revision=target_revision,
         expected_current=expected_current,
     )
@@ -289,6 +314,7 @@ def main() -> int:
     parser.add_argument("--provider", choices=PUBLICATION_NAMES, required=True)
     parser.add_argument("--provider-root", type=Path, required=True)
     parser.add_argument("--composition-root", type=Path, required=True)
+    parser.add_argument("--policy-root", type=Path, required=True)
     parser.add_argument("--target", required=True)
     parser.add_argument("--expected-current", required=True)
     args = parser.parse_args()
@@ -299,6 +325,7 @@ def main() -> int:
             provider=args.provider,
             provider_root=args.provider_root,
             composition_root=args.composition_root,
+            policy_root=args.policy_root,
             target_revision=args.target,
             expected_current=args.expected_current,
         )

@@ -21,6 +21,7 @@ class AdvancePublicationSourceGuardTests(unittest.TestCase):
                 provider="webapp",
                 provider_root=Path("does-not-exist"),
                 composition_root=Path("does-not-exist"),
+                policy_root=Path("does-not-exist"),
                 target_revision="1" * 40,
                 expected_current="2" * 40,
             )
