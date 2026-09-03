@@ -12,6 +12,7 @@ PROFILE = ROOT / "profiles/pull-request.yml"
 POLICY_DIR = ROOT / "policy/pull-request"
 
 EXPECTED = [
+    "pull-request.require-explicit-stacked-review-coverage",
     "pull-request.verify-target-branch-head-freshness",
     "pull-request.require-independent-exact-head-review",
     "pull-request.close-review-threads-before-merge",
@@ -256,3 +257,30 @@ def test_pull_request_rules_are_provider_and_actor_neutral() -> None:
     )
     for term in implementation_terms:
         assert term not in corpus
+
+
+def test_stacked_review_coverage_is_explicit_and_fail_closed() -> None:
+    rule = (POLICY_DIR / "stacked-review-coverage.md").read_text(
+        encoding="utf-8"
+    ).lower()
+    required_semantics = (
+        "integration base exact sha",
+        "ordered stack membership",
+        "each member exact head sha",
+        "stack tip exact sha",
+        "cumulative reviewed scope",
+        "review contract",
+        "reviewer independence",
+        "review completion state",
+        "material limitations",
+        "tip-only review",
+        "must not infer",
+        "member exact head changes",
+        "stack ordering changes",
+        "integration base changes",
+        "cumulative scope changes",
+        "review contract changes",
+        "fail closed",
+    )
+    for semantic in required_semantics:
+        assert semantic in rule

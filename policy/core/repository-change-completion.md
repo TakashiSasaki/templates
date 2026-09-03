@@ -1,0 +1,13 @@
+---
+id: changes.separate-task-review-merge-state
+severity: mandatory
+overridable: false
+order: 510
+---
+# Separate task completion from review and merge authorization
+
+Repository-change work must distinguish implementation task completion, validation completion, independent review, review completion, merge authorization, and the merged result. Completing implementation or validation does not establish that review was requested, review was completed, or merge authorization exists.
+
+A repository-change task may declare human-handoff as its completion boundary. Human handoff is valid completion when the agent has completed the authorized implementation and validation work, reports independent review as not requested or outstanding, reports merge authorization as not established, and leaves every pull request open and unmerged.
+
+Human handoff is not a review waiver, does not remove acceptance requirements for a later review or merge, and does not authorize a merge. Reports must not label a handoff review complete, merge ready, or merged. Use explicit state labels such as IMPLEMENTATION_COMPLETE, VALIDATION_COMPLETE, REVIEW_NOT_REQUESTED, REVIEW_PENDING, REVIEW_COMPLETE, HANDOFF_READY, MERGE_READY, and MERGED only when the corresponding state is established.
