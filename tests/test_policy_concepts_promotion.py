@@ -6,7 +6,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-POLICY_MERGE_SHA = "f035f3422dcb2c4e00a1ab5e43d103795ea080ce"
+POLICY_MERGE_SHA = "462cd0dbd0802d960f6eb01b8a34c5b0cd6520b7"
 TITLE = "Policy concepts for first-time readers"
 
 
