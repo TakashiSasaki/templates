@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import unittest
@@ -27,6 +28,12 @@ def canonical_target_identity(source: Path, target: str, *, translated: bool) ->
     return resolved.relative_to(ROOT).as_posix()
 
 
+def git_blob_sha(path: Path) -> str:
+    content = path.read_bytes()
+    header = f"blob {len(content)}\0".encode("ascii")
+    return hashlib.sha1(header + content).hexdigest()
+
+
 class GuidedIndexTranslationTests(unittest.TestCase):
     def test_documentation_index_is_reader_and_guided_overlay(self) -> None:
         manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
@@ -37,10 +44,7 @@ class GuidedIndexTranslationTests(unittest.TestCase):
         )
 
         self.assertEqual(entry["translation"], "translations/ja/docs/index.md")
-        self.assertEqual(
-            entry["canonical_blob_sha"],
-            "2ccf418f0639ff3029de19bdd0faf7198d78eb71",
-        )
+        self.assertEqual(entry["canonical_blob_sha"], git_blob_sha(CANONICAL))
         self.assertEqual(entry["surfaces"], ["reader", "guided"])
 
     def test_guided_translation_preserves_canonical_structure_and_targets(self) -> None:
