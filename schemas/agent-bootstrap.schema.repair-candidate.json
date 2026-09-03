@@ -1,0 +1,445 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://templates.moukaeritai.work/schemas/agent-bootstrap.schema.json",
+  "title": "TakashiSasaki/templates coding-agent bootstrap manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schema_version",
+    "repository",
+    "canonical_url",
+    "purpose",
+    "authorities",
+    "task_routing",
+    "integration_contracts",
+    "composition",
+    "policy",
+    "requirements",
+    "composition_bootstrap",
+    "policy_bootstrap",
+    "composition_workflow",
+    "policy_workflow"
+  ],
+  "$defs": {
+    "full_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "managed_runner_argv": {
+      "type": "array",
+      "prefixItems": [
+        {"const": "{python}"},
+        {"const": "{skill_target}/scripts/run.py"},
+        {"const": "--repository"},
+        {"const": "{repository}"},
+        {"const": "{command}"}
+      ],
+      "items": false,
+      "minItems": 5,
+      "maxItems": 5
+    }
+  },
+  "properties": {
+    "$schema": {"const": "https://templates.moukaeritai.work/schemas/agent-bootstrap.schema.json"},
+    "schema_version": {"const": 4},
+    "repository": {"const": "TakashiSasaki/templates"},
+    "canonical_url": {"const": "https://templates.moukaeritai.work/agent.json"},
+    "purpose": {"const": "Discover authorities and compose new or existing software repositories"},
+    "authorities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["composition", "policy", "site"],
+      "properties": {
+        "composition": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["role", "publication_revision", "overview_document_id", "publication_catalog_path"],
+          "properties": {
+            "role": {"const": "artifact-capability-lifecycle-semantics"},
+            "publication_revision": {"$ref": "#/$defs/full_sha"},
+            "overview_document_id": {"const": "composition:overview"},
+            "publication_catalog_path": {"const": "docs/publication-catalog.json"}
+          }
+        },
+        "policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["role", "publication_revision", "overview_document_id", "publication_catalog_path", "relationship_to_composition"],
+          "properties": {
+            "role": {"const": "coding-agent-operating-policy"},
+            "publication_revision": {"$ref": "#/$defs/full_sha"},
+            "overview_document_id": {"const": "policy:overview"},
+            "publication_catalog_path": {"const": "docs/publication-catalog.json"},
+            "relationship_to_composition": {"const": "independent-optional"}
+          }
+        },
+        "site": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["role", "overview_document_id", "consumer_repository_mutation"],
+          "properties": {
+            "role": {"const": "publication-integration"},
+            "overview_document_id": {"const": "site:portal-home"},
+            "consumer_repository_mutation": {"const": false}
+          }
+        }
+      }
+    },
+    "task_routing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["composition", "policy", "combined"],
+      "properties": {
+        "composition": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["required_when"],
+          "properties": {
+            "required_when": {
+              "type": "array",
+              "prefixItems": [
+                {"const": "select-or-materialize-artifact-structure"},
+                {"const": "select-capabilities-or-lifecycle"}
+              ],
+              "items": false,
+              "minItems": 2,
+              "maxItems": 2
+            }
+          }
+        },
+        "policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["required_when"],
+          "properties": {
+            "required_when": {
+              "type": "array",
+              "prefixItems": [
+                {"const": "task-explicitly-requires-coding-agent-operating-policy"},
+                {"const": "repository-needs-coding-agent-operating-rules"}
+              ],
+              "items": false,
+              "minItems": 2,
+              "maxItems": 2
+            }
+          }
+        },
+        "combined": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["required_when", "authority_order", "providers_remain_independent"],
+          "properties": {
+            "required_when": {"const": "both-provider-conditions-apply"},
+            "authority_order": {
+              "type": "array",
+              "prefixItems": [{"const": "composition"}, {"const": "policy"}],
+              "items": false,
+              "minItems": 2,
+              "maxItems": 2
+            },
+            "providers_remain_independent": {"const": true}
+          }
+        }
+      }
+    },
+    "integration_contracts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_composition_coexistence"],
+      "properties": {
+        "policy_composition_coexistence": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["owner", "document_id", "canonical_url"],
+          "properties": {
+            "owner": {"const": "site"},
+            "document_id": {"const": "site:policy-composition-coexistence"},
+            "canonical_url": {"const": "https://templates.moukaeritai.work/coexistence/"}
+          }
+        }
+      }
+    },
+    "composition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["publication_revision", "installer", "skill", "toolchain"],
+      "properties": {
+        "publication_revision": {"$ref": "#/$defs/full_sha"},
+        "installer": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["repository", "revision", "path", "sha256", "url"],
+          "properties": {
+            "repository": {"const": "TakashiSasaki/templates"},
+            "revision": {"$ref": "#/$defs/full_sha"},
+            "path": {"const": "scripts/install_composition_skill.py"},
+            "sha256": {"$ref": "#/$defs/sha256"},
+            "url": {"type": "string", "pattern": "^https://raw\\.githubusercontent\\.com/TakashiSasaki/templates/[0-9a-f]{40}/scripts/install_composition_skill\\.py$"}
+          }
+        },
+        "skill": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name", "repository", "revision", "path", "entrypoint", "instructions_url"],
+          "properties": {
+            "name": {"const": "composition"},
+            "repository": {"const": "TakashiSasaki/templates"},
+            "revision": {"$ref": "#/$defs/full_sha"},
+            "path": {"const": "skills/composition"},
+            "entrypoint": {"const": "scripts/run.py"},
+            "instructions_url": {"type": "string", "pattern": "^https://raw\\.githubusercontent\\.com/TakashiSasaki/templates/[0-9a-f]{40}/skills/composition/SKILL\\.md$"}
+          }
+        },
+        "toolchain": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["repository", "revision"],
+          "properties": {
+            "repository": {"const": "TakashiSasaki/templates"},
+            "revision": {"$ref": "#/$defs/full_sha"}
+          }
+        }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["publication_revision", "installer", "skill"],
+      "properties": {
+        "publication_revision": {"$ref": "#/$defs/full_sha"},
+        "installer": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["repository", "revision", "path", "url"],
+          "properties": {
+            "repository": {"const": "TakashiSasaki/templates"},
+            "revision": {"$ref": "#/$defs/full_sha"},
+            "path": {"const": "scripts/install_agent_policy_skill.py"},
+            "url": {"type": "string", "pattern": "^https://raw\\.githubusercontent\\.com/TakashiSasaki/templates/[0-9a-f]{40}/scripts/install_agent_policy_skill\\.py$"}
+          }
+        },
+        "skill": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name", "repository", "revision", "path", "unmanaged_entrypoint", "managed_entrypoint", "instructions_url"],
+          "properties": {
+            "name": {"const": "agent-policy"},
+            "repository": {"const": "TakashiSasaki/templates"},
+            "revision": {"$ref": "#/$defs/full_sha"},
+            "path": {"const": "skills/agent-policy"},
+            "unmanaged_entrypoint": {"const": "scripts/bootstrap.py"},
+            "managed_entrypoint": {"const": "scripts/run.py"},
+            "instructions_url": {"type": "string", "pattern": "^https://raw\\.githubusercontent\\.com/TakashiSasaki/templates/[0-9a-f]{40}/skills/agent-policy/SKILL\\.md$"}
+          }
+        }
+      }
+    },
+    "requirements": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["python", "https", "policy"],
+      "properties": {
+        "python": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["minimum", "maximum"],
+          "properties": {
+            "minimum": {"const": "3.11"},
+            "maximum": {"const": "3.14"}
+          }
+        },
+        "https": {"const": true},
+        "policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["git"],
+          "properties": {"git": {"const": true}}
+        }
+      }
+    },
+    "composition_bootstrap": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["download", "verify", "execute", "installation_modes", "canonical_operation", "reimplementation_policy", "verified_installer_argv", "argument_bindings", "caller_inputs"],
+      "properties": {
+        "download": {"const": "https"},
+        "verify": {"const": "sha256-before-execute"},
+        "execute": {"const": "python-isolated"},
+        "installation_modes": {
+          "type": "array",
+          "prefixItems": [{"const": "persistent"}, {"const": "transient"}],
+          "items": false,
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "canonical_operation": {"const": "execute-verified-installer-argv"},
+        "reimplementation_policy": {"const": "do-not-reimplement"},
+        "verified_installer_argv": {
+          "type": "array",
+          "prefixItems": [
+            {"const": "{python}"}, {"const": "-I"}, {"const": "-c"}, {"type": "string", "minLength": 1},
+            {"const": "{installer_url}"}, {"const": "{installer_sha256}"}, {"const": "{installer_file}"}, {"const": "{skill_target}"}
+          ],
+          "items": false,
+          "minItems": 8,
+          "maxItems": 8
+        },
+        "argument_bindings": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["{installer_url}", "{installer_sha256}"],
+          "properties": {
+            "{installer_url}": {"const": "composition.installer.url"},
+            "{installer_sha256}": {"const": "composition.installer.sha256"}
+          }
+        },
+        "caller_inputs": {
+          "type": "array",
+          "prefixItems": [{"const": "{python}"}, {"const": "{installer_file}"}, {"const": "{skill_target}"}],
+          "items": false,
+          "minItems": 3,
+          "maxItems": 3
+        }
+      }
+    },
+    "policy_bootstrap": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["download", "verify", "execute", "canonical_operation", "reimplementation_policy", "immutable_installer_argv", "argument_bindings", "caller_inputs"],
+      "properties": {
+        "download": {"const": "https"},
+        "verify": {"const": "immutable-full-sha-url"},
+        "execute": {"const": "python-isolated"},
+        "canonical_operation": {"const": "execute-immutable-installer-argv"},
+        "reimplementation_policy": {"const": "do-not-reimplement"},
+        "immutable_installer_argv": {
+          "type": "array",
+          "prefixItems": [
+            {"const": "{python}"}, {"const": "-I"}, {"const": "-c"}, {"type": "string", "minLength": 1},
+            {"const": "{installer_url}"}, {"const": "{skill_target}"}
+          ],
+          "items": false,
+          "minItems": 6,
+          "maxItems": 6
+        },
+        "argument_bindings": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["{installer_url}"],
+          "properties": {"{installer_url}": {"const": "policy.installer.url"}}
+        },
+        "caller_inputs": {
+          "type": "array",
+          "prefixItems": [{"const": "{python}"}, {"const": "{skill_target}"}],
+          "items": false,
+          "minItems": 2,
+          "maxItems": 2
+        }
+      }
+    },
+    "composition_workflow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["runner_argv", "diagnose", "provenance", "inspect_before_mutation", "plan_before_apply", "validate_after_apply"],
+      "properties": {
+        "runner_argv": {"$ref": "#/$defs/managed_runner_argv"},
+        "diagnose": {"const": "doctor"},
+        "provenance": {"const": "provenance"},
+        "inspect_before_mutation": {"const": "inspect"},
+        "plan_before_apply": {"const": true},
+        "validate_after_apply": {"const": true}
+      }
+    },
+    "policy_workflow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "unmanaged_inspect_argv",
+        "unmanaged_apply_argv",
+        "unmanaged_apply_with_primary_instructions_argv",
+        "primary_instructions_selection_source",
+        "unmanaged_apply_outcomes",
+        "migration_finalization",
+        "managed_runner_argv",
+        "inspect_before_mutation",
+        "apply_requires_reviewed_dry_run",
+        "managed_verification_commands"
+      ],
+      "properties": {
+        "unmanaged_inspect_argv": {
+          "type": "array",
+          "prefixItems": [
+            {"const": "{python}"}, {"const": "{skill_target}/scripts/bootstrap.py"}, {"const": "--repository"}, {"const": "{repository}"}
+          ],
+          "items": false,
+          "minItems": 4,
+          "maxItems": 4
+        },
+        "unmanaged_apply_argv": {
+          "type": "array",
+          "prefixItems": [
+            {"const": "{python}"}, {"const": "{skill_target}/scripts/bootstrap.py"}, {"const": "--repository"}, {"const": "{repository}"}, {"const": "--apply"}
+          ],
+          "items": false,
+          "minItems": 5,
+          "maxItems": 5
+        },
+        "unmanaged_apply_with_primary_instructions_argv": {
+          "type": "array",
+          "prefixItems": [
+            {"const": "{python}"}, {"const": "{skill_target}/scripts/bootstrap.py"}, {"const": "--repository"}, {"const": "{repository}"},
+            {"const": "--primary-instructions"}, {"const": "{primary_instructions}"}, {"const": "--apply"}
+          ],
+          "items": false,
+          "minItems": 7,
+          "maxItems": 7
+        },
+        "primary_instructions_selection_source": {"const": "unmanaged-inspect-output"},
+        "unmanaged_apply_outcomes": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["fresh", "migration"],
+          "properties": {
+            "fresh": {"const": "managed-and-validated"},
+            "migration": {"const": "prepared-and-previewed-finalization-pending"}
+          }
+        },
+        "migration_finalization": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["automatic", "requires_separate_explicit_instruction", "finalize_argv", "post_finalize_verification_commands"],
+          "properties": {
+            "automatic": {"const": false},
+            "requires_separate_explicit_instruction": {"const": true},
+            "finalize_argv": {
+              "type": "array",
+              "prefixItems": [
+                {"const": "{python}"}, {"const": "{skill_target}/scripts/run.py"}, {"const": "--repository"}, {"const": "{repository}"},
+                {"const": "adopt"}, {"const": "finalize"}, {"const": "--apply"}
+              ],
+              "items": false,
+              "minItems": 7,
+              "maxItems": 7
+            },
+            "post_finalize_verification_commands": {
+              "type": "array",
+              "prefixItems": [{"const": "validate"}, {"const": "check"}],
+              "items": false,
+              "minItems": 2,
+              "maxItems": 2
+            }
+          }
+        },
+        "managed_runner_argv": {"$ref": "#/$defs/managed_runner_argv"},
+        "inspect_before_mutation": {"const": true},
+        "apply_requires_reviewed_dry_run": {"const": true},
+        "managed_verification_commands": {
+          "type": "array",
+          "prefixItems": [{"const": "render"}, {"const": "validate"}, {"const": "check"}],
+          "items": false,
+          "minItems": 3,
+          "maxItems": 3
+        }
+      }
+    }
+  }
+}
