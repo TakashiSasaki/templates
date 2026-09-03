@@ -41,6 +41,11 @@ def route_document(path: str) -> dict:
     }
 
 
+def validation_errors(path: str) -> list:
+    schema = load_json(ROUTES_SCHEMA)
+    return list(Draft202012Validator(schema).iter_errors(route_document(path)))
+
+
 class WebUrlPathGuidanceTests(unittest.TestCase):
     def test_guidance_is_managed_material_but_not_a_contract(self) -> None:
         component = load_json(COMPONENT)
@@ -89,17 +94,12 @@ class WebUrlPathGuidanceTests(unittest.TestCase):
         self.assertIsNone(re.search(r"\b(?:MUST|SHOULD|MAY)\b", guidance))
 
     def test_guidance_deviation_remains_normatively_valid(self) -> None:
-        schema = load_json(ROUTES_SCHEMA)
-        validator = Draft202012Validator(schema)
-        errors = list(validator.iter_errors(route_document("/Account_Settings.HTML")))
-        self.assertEqual([], errors)
+        self.assertEqual([], validation_errors("/Account_Settings.HTML"))
 
-    def test_normative_path_violation_still_fails(self) -> None:
-        schema = load_json(ROUTES_SCHEMA)
-        validator = Draft202012Validator(schema)
-        errors = list(validator.iter_errors(route_document("relative/path")))
-        self.assertTrue(errors)
-        self.assertTrue(any("does not match" in error.message for error in errors))
+    def test_guidance_cannot_waive_normative_representation_rules(self) -> None:
+        for path in ("relative/path", "/a/../b", "/reports/", "/café"):
+            with self.subTest(path=path):
+                self.assertTrue(validation_errors(path))
 
 
 if __name__ == "__main__":
