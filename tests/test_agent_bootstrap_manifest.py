@@ -93,7 +93,7 @@ class AgentBootstrapManifestTests(unittest.TestCase):
             )
 
         self.assertEqual(manifest["$schema"], bootstrap.SCHEMA_URL)
-        self.assertEqual(manifest["schema_version"], 4)
+        self.assertEqual(manifest["schema_version"], 5)
         self.assertEqual(
             manifest["authorities"]["composition"],
             {
@@ -134,6 +134,13 @@ class AgentBootstrapManifestTests(unittest.TestCase):
         )
         self.assertTrue(
             manifest["task_routing"]["combined"]["providers_remain_independent"]
+        )
+        self.assertEqual(
+            manifest["integration_contracts"]["authority_model"],
+            {
+                "owner": "site",
+                "repository_path": bootstrap.AUTHORITY_MODEL_PATH,
+            },
         )
         self.assertEqual(
             manifest["integration_contracts"]["policy_composition_coexistence"],
@@ -431,6 +438,13 @@ class AgentBootstrapManifestTests(unittest.TestCase):
             sources["policy"],
         )
         self.assertEqual(
+            manifest["integration_contracts"]["authority_model"],
+            {
+                "owner": "site",
+                "repository_path": bootstrap.AUTHORITY_MODEL_PATH,
+            },
+        )
+        self.assertEqual(
             manifest["integration_contracts"]["policy_composition_coexistence"][
                 "document_id"
             ],
@@ -473,10 +487,11 @@ class AgentBootstrapManifestTests(unittest.TestCase):
 
         self.assertEqual(manifest["$schema"], schema_value["$id"])
         self.assertEqual(manifest["canonical_url"], bootstrap.CANONICAL_URL)
-        self.assertEqual(manifest["schema_version"], 4)
+        self.assertEqual(manifest["schema_version"], 5)
         for required in (
             "authorities",
             "task_routing",
+            "integration_contracts",
             "composition",
             "policy",
             "composition_bootstrap",
@@ -485,6 +500,10 @@ class AgentBootstrapManifestTests(unittest.TestCase):
             "policy_workflow",
         ):
             self.assertIn(required, schema_value["required"])
+        self.assertEqual(
+            schema_value["properties"]["integration_contracts"]["required"],
+            ["authority_model", "policy_composition_coexistence"],
+        )
         self.assertIn(
             "instructions_url",
             schema_value["properties"]["composition"]["properties"]["skill"]["required"],
