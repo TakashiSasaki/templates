@@ -35,6 +35,22 @@ def test_merge_gate_reports_handoff_without_claiming_merge_readiness() -> None:
         assert phrase in text
 
 
+
+def test_merge_gate_does_not_require_review_request_transport() -> None:
+    text = GATE.read_text(encoding="utf-8")
+    assert "CI_GREEN -> REVIEW_EVIDENCE_PENDING -> REVIEW_EVIDENCE_ESTABLISHED" in text
+    assert "CI_GREEN -> REVIEW_EVIDENCE_PENDING -> REVIEW_REQUESTED" not in text
+    assert "Issuing a review request is not an acceptance state" in text
+    assert "The gate evaluates evidence, not the transport" in text
+
+
+def test_stacked_and_serial_evidence_sources_are_distinct() -> None:
+    text = GATE.read_text(encoding="utf-8").lower()
+    assert "for a serial candidate, valid evidence is a completed independent review" in text
+    assert "for a stacked candidate, valid evidence is explicit cumulative coverage" in text
+    assert "a tip-only review or approval event does not establish lower-member coverage" in text
+    assert "human handoff does not establish review evidence" in text
+
 def test_generated_orchestration_projection_contains_all_procedures() -> None:
     skill = (
         ROOT / ".agents/skills/orchestrate-repository-change/SKILL.md"
