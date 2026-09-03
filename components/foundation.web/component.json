@@ -110,6 +110,11 @@
       "source": "files/docs/migrations/routes-v3-to-v4.md",
       "destination": "docs/migrations/routes-v3-to-v4.md",
       "ownership": "managed"
+    },
+    {
+      "source": "files/docs/url-path-design-guidance.md",
+      "destination": "docs/url-path-design-guidance.md",
+      "ownership": "managed"
     }
   ]
 }
