@@ -32,6 +32,7 @@
 ## Shared Web foundation
 
 - [Website or Web application decision guide](guides/website-webapp-selection.md) — artifact selection and the boundary between shared Web semantics and artifact-specific semantics.
+- [Web URL and path design guidance](../components/foundation.web/files/docs/url-path-design-guidance.md) — advisory naming, persistence, hierarchy, query/fragment, and implementation-independence guidance that does not change route conformance.
 - [Shared browser identity contract](../components/foundation.web/files/contracts/browser-identity.json) — product-neutral browser identity.
 - [Shared routes contract](../components/foundation.web/files/contracts/routes.json) — generalized canonical paths, aliases, deep-link expectations, and navigation accessibility.
 - [Shared viewports contract](../components/foundation.web/files/contracts/viewports.json) — responsive viewport and input-capability expectations.

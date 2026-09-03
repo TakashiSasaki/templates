@@ -2,7 +2,7 @@
   "schema_version": 1,
   "id": "foundation.web",
   "component_role": "foundation",
-  "version": 1,
+  "version": 2,
   "summary": "Mandatory shared Web baseline: browser identity, generalized routes, viewports, and product-neutral browser navigation semantics.",
   "requires": [],
   "conflicts": [],
@@ -109,6 +109,11 @@
     {
       "source": "files/docs/migrations/routes-v3-to-v4.md",
       "destination": "docs/migrations/routes-v3-to-v4.md",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/docs/url-path-design-guidance.md",
+      "destination": "docs/url-path-design-guidance.md",
       "ownership": "managed"
     }
   ]
