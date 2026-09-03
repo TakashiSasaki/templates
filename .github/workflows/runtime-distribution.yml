@@ -95,12 +95,54 @@ jobs:
       - name: Install and verify runtime distribution in a clean environment
         run: python -I scripts/smoke_test_runtime_distribution.py
 
+  skill-source-candidate:
+    name: skill source / ${{ matrix.os }}
+    needs:
+      - classify_runtime
+    if: ${{ always() && !cancelled() && needs.classify_runtime.result == 'success' && needs.classify_runtime.outputs.required == 'true' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-24.04
+          - windows-2022
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    env:
+      CANDIDATE_REVISION: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+      PYTHONHOME: ""
+      PYTHONPATH: ""
+      PYTHONUSERBASE: ""
+      PYTHONNOUSERSITE: "1"
+      PIP_PYTHON: ""
+      PIP_CACHE_DIR: ""
+      PIP_NO_CACHE_DIR: ""
+      PIP_QUIET: ""
+      PIP_LOG: ""
+    steps:
+      - name: Check out exact skill-source candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.CANDIDATE_REVISION }}
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12"
+
+      - name: Verify remote skill-source candidate through stable runtime
+        run: >-
+          python -I scripts/smoke_test_agent_policy_skill_source.py
+          --revision "${{ env.CANDIDATE_REVISION }}"
+
   validate:
     name: runtime distribution validate
     if: ${{ always() }}
     needs:
       - classify_runtime
       - clean-install
+      - skill-source-candidate
     runs-on: ubuntu-24.04
     timeout-minutes: 2
     steps:
@@ -109,14 +151,17 @@ jobs:
           CLASSIFIER_RESULT: ${{ needs.classify_runtime.result }}
           RUNTIME_REQUIRED: ${{ needs.classify_runtime.outputs.required }}
           CLEAN_INSTALL_RESULT: ${{ needs.clean-install.result }}
+          SKILL_SOURCE_RESULT: ${{ needs.skill-source-candidate.result }}
         run: |
           test "$CLASSIFIER_RESULT" = success
           case "$RUNTIME_REQUIRED" in
             true)
               test "$CLEAN_INSTALL_RESULT" = success
+              test "$SKILL_SOURCE_RESULT" = success
               ;;
             false)
               test "$CLEAN_INSTALL_RESULT" = skipped
+              test "$SKILL_SOURCE_RESULT" = skipped
               ;;
             *)
               echo "invalid runtime compatibility classification: $RUNTIME_REQUIRED" >&2
