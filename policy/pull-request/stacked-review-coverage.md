@@ -6,7 +6,7 @@ order: 955
 ---
 # Bind cumulative review evidence to an ordered pull-request stack
 
-When a completed review is claimed to cover multiple members of a stacked pull-request topology, acceptance evidence must bind to the exact integration base commit and tree, the ordered stack membership, each member's exact head SHA, the stack tip exact SHA, the cumulative reviewed scope, the review contract, reviewer independence, the review completion state, and material limitations.
+When a completed review is claimed to cover multiple members of a stacked pull-request topology, acceptance evidence must bind to the integration base exact SHA and tree, the ordered stack membership, each member's exact head SHA, the stack tip exact SHA, the cumulative reviewed scope, the review contract, reviewer independence, the review completion state, and material limitations.
 
 A review event, approval state, or tip-only review must not establish acceptance coverage for lower stack members by inference. Each covered member must be identifiable from explicit cumulative coverage evidence. Missing, ambiguous, or provider-only coverage is incomplete evidence and keeps merge authorization fail-closed.
 
