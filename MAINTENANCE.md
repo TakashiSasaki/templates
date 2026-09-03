@@ -1,12 +1,12 @@
 # Documentation Site maintenance
 
-This file applies to the `site` integration/deployment authority.
+This file applies to `site`, the repository integration and publication authority. Repository-wide authority ownership and semantic-role rules are defined in `docs/authority-model.md`.
 
 ## Authority responsibilities
 
 - `composition` owns canonical Agent Skill, Website, and Web application artifact semantics, shared Web foundations, reusable `capability.*` and `lifecycle.*` components, production recipes/schemas, the deterministic composer, provider-owned `docs/index.md`, publication catalog, and composition terminology.
 - `policy` owns canonical coding-agent operating policy, the `agent-policy` toolchain, provider-owned `docs/index.md`, publication catalog, and Policy terminology.
-- `site` owns reader information architecture, full-SHA provider locking, publication assembly, integrated glossary generation, repository views, guided navigation, freshness/PWA integration, generated-site validation, provenance, and the only Pages deployment workflow.
+- `site` owns repository integration and publication semantics, reader information architecture, full-SHA provider locking, publication assembly, integrated glossary generation, repository views, guided navigation, freshness/PWA integration, generated-site validation, provenance, cross-authority integration validation, and the only Pages deployment workflow. It does not own provider-specific Composition or Policy semantics or provider consumer mutation.
 
 Provider histories remain independent. Publication does not merge, rebase, or cherry-pick those histories. The Site checks out exactly the revisions locked in `publication-sources.json`.
 
