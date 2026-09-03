@@ -9,33 +9,45 @@ AUTHORITY_MODEL = ROOT / "docs" / "authority-model.md"
 COEXISTENCE = ROOT / "docs" / "policy-composition-coexistence.md"
 
 
+def normalized_prose(text: str) -> str:
+    return " ".join(text.split())
+
+
 class AuthorityModelTests(unittest.TestCase):
     def test_site_role_and_provider_independence_are_consistent(self) -> None:
         model = AUTHORITY_MODEL.read_text(encoding="utf-8")
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         publishing = (ROOT / "PUBLISHING.md").read_text(encoding="utf-8")
 
+        normalized_model = normalized_prose(model)
+        normalized_readme = normalized_prose(readme)
+        normalized_publishing = normalized_prose(publishing)
+
         required = "Site is the repository integration and publication authority"
-        self.assertIn(required, model)
-
-        normalized_readme = " ".join(readme.split()).lower()
-        normalized_publishing = " ".join(publishing.split()).lower()
+        self.assertIn(required, normalized_model)
         self.assertIn(
             "repository integration and publication authority",
-            normalized_readme,
+            normalized_readme.lower(),
         )
         self.assertIn(
             "repository integration and publication authority",
-            normalized_publishing,
+            normalized_publishing.lower(),
         )
 
-        self.assertIn("not a\nparent, override, or super-authority", model)
-        self.assertIn("provider-specific semantics remain owned by their provider", model)
-        self.assertIn("must not become a third umbrella management\nplane", model)
-        self.assertIn("Site is not a parent or super-authority", readme)
+        self.assertIn("not a parent, override, or super-authority", normalized_model)
+        self.assertIn(
+            "provider-specific semantics remain owned by their provider",
+            normalized_model.lower(),
+        )
+        self.assertIn(
+            "must not become a third umbrella management plane",
+            normalized_model,
+        )
+        self.assertIn("site is not a parent or super-authority", normalized_readme.lower())
 
     def test_semantic_roles_do_not_infer_normativity_from_format(self) -> None:
         model = AUTHORITY_MODEL.read_text(encoding="utf-8")
+        normalized_model = normalized_prose(model)
 
         for heading in (
             "### Normative authority",
@@ -49,12 +61,12 @@ class AuthorityModelTests(unittest.TestCase):
             self.assertIn(heading, model)
 
         self.assertIn(
-            "determined by its owning authority and declared\nfunction, not by file format",
-            model,
+            "determined by its owning authority and declared function, not by file format",
+            normalized_model,
         )
         self.assertIn(
-            "Guidance may cause a conformance failure only when the same rule is separately\ndefined by the owning authority as a normative requirement",
-            model,
+            "Guidance may cause a conformance failure only when the same rule is separately defined by the owning authority as a normative requirement",
+            normalized_model,
         )
         self.assertIn("`SHOULD` must not be reduced to a casual recommendation", model)
         self.assertIn("Advisory material should avoid capitalized RFC keywords", model)
