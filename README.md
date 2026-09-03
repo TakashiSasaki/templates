@@ -111,15 +111,24 @@ Machine-readable component descriptors, recipes, schemas, contracts, and other
 assets are supporting material. Primary navigation continues to prioritize
 explanatory Markdown.
 
-## Canonical bootstrap operation
+## Canonical bootstrap operations
 
-After reading `agent.json`, execute the complete `bootstrap.verified_installer_argv`
-array exactly, resolving only its documented placeholders and argument bindings.
-The array is the Site-owned canonical executable bootstrap operation. Do not
-reconstruct it from `composition.installer`, `skill`, or `toolchain` fields,
-and do not independently reimplement its download, hash, write, or execute
-steps. The `canonical_operation` and `reimplementation_policy` fields are
-machine-readable reminders of this contract.
+After reading `agent.json`, first use `task_routing` to determine which independent
+authorities the task requires. Provider independence does not make an authority
+optional when the task itself requires that authority.
+
+For Composition, execute the complete
+`composition_bootstrap.verified_installer_argv` array exactly, resolving only its
+documented placeholders and argument bindings. For Policy, execute the complete
+`policy_bootstrap.immutable_installer_argv` array exactly, then use
+`policy_workflow.unmanaged_inspect_argv` before any Policy adoption mutation.
+When both routing conditions apply, follow `task_routing.combined.authority_order`
+and keep the two providers' state and validation independent.
+
+Do not reconstruct either bootstrap operation from installer or Skill metadata,
+and do not independently reimplement the declared download or execute steps. The
+`canonical_operation` and `reimplementation_policy` fields are machine-readable
+reminders of this contract.
 
 
 ## Source locking and provenance
