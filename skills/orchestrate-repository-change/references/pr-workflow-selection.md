@@ -19,4 +19,15 @@ Resolve each value by the following precedence:
 
 A profile is a shared normative rule-selection bundle. It is not a workflow mode. Do not create one profile for every combination of progression, completion, provider, or Skill selection.
 
-The selected progression controls how implementation members are constructed. The selected completion controls where the agent stops and what evidence it may report. Implementation completion, validation completion, review completion, merge authorization, and merged state remain distinct.
+The selected progression controls how implementation members are constructed. The selected completion controls where the agent stops and what evidence it may report. Completion takes precedence over progression when deciding whether the agent initiates review acquisition or performs a merge. Implementation completion, validation completion, review completion, merge authorization, and merged state remain distinct.
+
+## Strategy matrix
+
+| Progression | Completion | Construction | Review acquisition | Merge boundary |
+| --- | --- | --- | --- | --- |
+| serial-pr | agent-review-and-merge | implement and validate one member at a time | establish completed independent exact-head review for the member | guarded merge, then begin the next member |
+| serial-pr | human-handoff | implement and validate the current member | do not initiate a new review request | stop at HANDOFF_READY; leave the member open and unmerged |
+| stacked-pr | agent-review-and-merge | construct and validate dependent members without review latency blocking construction | establish individual independent exact-head review per member, or explicit cumulative stack coverage satisfying canonical bindings | guarded bottom-up merge after applicability evaluation |
+| stacked-pr | human-handoff | construct and validate the ordered stack | do not initiate a new review request | stop at HANDOFF_READY; leave the whole stack open and unmerged |
+
+Cumulative review is an optional evidence-coverage mechanism for a stack, not a property of stacked progression. A stacked member may instead rely on its own completed independent exact-head review. A tip-only review or approval event is not cumulative coverage for lower members.

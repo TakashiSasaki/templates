@@ -23,7 +23,7 @@ def test_merge_gate_reports_handoff_without_claiming_merge_readiness() -> None:
     for phrase in (
         "human-handoff",
         "handoff_ready",
-        "does not request review",
+        "does not initiate a new review request",
         "does not authorize or execute a merge",
         "not a waiver",
         "not merge-ready",
@@ -35,7 +35,6 @@ def test_merge_gate_reports_handoff_without_claiming_merge_readiness() -> None:
         assert phrase in text
 
 
-
 def test_merge_gate_does_not_require_review_request_transport() -> None:
     text = GATE.read_text(encoding="utf-8")
     assert "CI_GREEN -> REVIEW_EVIDENCE_PENDING -> REVIEW_EVIDENCE_ESTABLISHED" in text
@@ -44,12 +43,22 @@ def test_merge_gate_does_not_require_review_request_transport() -> None:
     assert "The gate evaluates evidence, not the transport" in text
 
 
-def test_stacked_and_serial_evidence_sources_are_distinct() -> None:
+def test_stacked_progression_accepts_individual_or_cumulative_review_evidence() -> None:
     text = GATE.read_text(encoding="utf-8").lower()
-    assert "for a serial candidate, valid evidence is a completed independent review" in text
-    assert "for a stacked candidate, valid evidence is explicit cumulative coverage" in text
-    assert "a tip-only review or approval event does not establish lower-member coverage" in text
-    assert "human handoff does not establish review evidence" in text
+    assert "including a member constructed under stacked-pr progression" in text
+    assert "completed independent review bound to that member's exact current head" in text
+    assert "when one completed review is claimed to cover multiple stacked members" in text
+    assert "valid cumulative evidence must additionally bind" in text
+    assert "stacked progression does not require cumulative review" in text
+    assert "a tip-only review or approval event does not establish lower-member cumulative coverage" in text
+
+
+def test_review_acquisition_depends_on_completion_not_progression() -> None:
+    text = GATE.read_text(encoding="utf-8").lower()
+    assert "review acquisition belongs to the selected completion procedure, not to serial or stacked progression" in text
+    assert "under agent-review-and-merge" in text
+    assert "under human-handoff, do not initiate a new review request" in text
+
 
 def test_generated_orchestration_projection_contains_all_procedures() -> None:
     skill = (

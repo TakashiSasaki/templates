@@ -37,3 +37,19 @@ def test_completion_semantics_do_not_turn_handoff_into_merge_acceptance() -> Non
     text = COMPLETION.read_text(encoding="utf-8").lower()
     assert "does not authorize a merge" in text
     assert "does not remove acceptance requirements" in text
+
+
+def test_handoff_forbids_new_review_acquisition_without_erasing_existing_evidence() -> None:
+    text = COMPLETION.read_text(encoding="utf-8").lower()
+    assert "must not initiate a new review request" in text
+    assert "reviewer assignment" in text
+    assert "provider invocation" in text
+    assert "any other review-request mechanism" in text
+    assert "existing review evidence may be observed, inspected, and reported" in text
+
+
+def test_progression_does_not_force_completion_boundary() -> None:
+    text = COMPLETION.read_text(encoding="utf-8").lower()
+    assert "progression controls construction ordering" in text
+    assert "completion controls the agent's stopping boundary" in text
+    assert "must not by itself force review acquisition or merge completion" in text
