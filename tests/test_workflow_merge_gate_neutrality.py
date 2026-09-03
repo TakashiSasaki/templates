@@ -50,12 +50,18 @@ def test_stacked_progression_accepts_individual_or_cumulative_review_evidence() 
     assert "when one completed review is claimed to cover multiple stacked members" in text
     assert "valid cumulative evidence must additionally bind" in text
     assert "stacked progression does not require cumulative review" in text
-    assert "a tip-only review or approval event does not establish lower-member cumulative coverage" in text
+    assert (
+        "a tip-only review or approval event does not establish lower-member "
+        "cumulative coverage"
+    ) in text
 
 
 def test_review_acquisition_depends_on_completion_not_progression() -> None:
     text = GATE.read_text(encoding="utf-8").lower()
-    assert "review acquisition belongs to the selected completion procedure, not to serial or stacked progression" in text
+    assert (
+        "review acquisition belongs to the selected completion procedure, not to "
+        "serial or stacked progression"
+    ) in text
     assert "under agent-review-and-merge" in text
     assert "under human-handoff, do not initiate a new review request" in text
 

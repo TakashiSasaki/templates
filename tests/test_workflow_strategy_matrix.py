@@ -24,7 +24,7 @@ def _strategy_matrix() -> dict[tuple[str, str], tuple[str, str, str]]:
         "Review acquisition",
         "Merge boundary",
     ]
-    assert set(separator.replace("|", "").replace("-", "").replace(" ", "")) == set()
+    assert not separator.replace("|", "").replace("-", "").replace(" ", "")
 
     matrix: dict[tuple[str, str], tuple[str, str, str]] = {}
     for row in data:
@@ -58,8 +58,10 @@ def test_strategy_matrix_encodes_expected_behavior_for_all_four_combinations() -
             "stop at HANDOFF_READY; leave the member open and unmerged",
         ),
         ("stacked-pr", "agent-review-and-merge"): (
-            "construct and validate dependent members without review latency blocking construction",
-            "establish individual independent exact-head review per member, or explicit cumulative stack coverage satisfying canonical bindings",
+            "construct and validate dependent members without review latency "
+            "blocking construction",
+            "establish individual independent exact-head review per member, or "
+            "explicit cumulative stack coverage satisfying canonical bindings",
             "guarded bottom-up merge after applicability evaluation",
         ),
         ("stacked-pr", "human-handoff"): (
@@ -70,7 +72,13 @@ def test_strategy_matrix_encodes_expected_behavior_for_all_four_combinations() -
     }
 
 
-def test_stacked_tip_only_approval_is_not_confused_with_individual_exact_head_review() -> None:
+def test_stacked_tip_only_approval_differs_from_individual_exact_head_review() -> None:
     text = SELECTION.read_text(encoding="utf-8").lower()
-    assert "a stacked member may instead rely on its own completed independent exact-head review" in text
-    assert "a tip-only review or approval event is not cumulative coverage for lower members" in text
+    assert (
+        "a stacked member may instead rely on its own completed independent "
+        "exact-head review"
+    ) in text
+    assert (
+        "a tip-only review or approval event is not cumulative coverage for lower "
+        "members"
+    ) in text

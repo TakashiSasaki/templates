@@ -179,7 +179,10 @@ def test_adapter_requires_explicit_bindings_only_for_cumulative_stack_claims() -
     assert "ordered stack" in text
     assert "integration base" in text
     assert "every covered member exact head" in text
-    assert "tip-only review or approval event does not establish lower-member cumulative coverage" in text
+    assert (
+        "tip-only review or approval event does not establish lower-member "
+        "cumulative coverage"
+    ) in text
 
 
 def test_adapter_keeps_missing_evidence_fail_closed_and_handoff_separate() -> None:
@@ -193,7 +196,10 @@ def test_adapter_keeps_missing_evidence_fail_closed_and_handoff_separate() -> No
 
 def test_adapter_review_acquisition_is_completion_driven_not_progression_driven() -> None:
     text = SKILL.read_text(encoding="utf-8").lower()
-    assert "review acquisition belongs to the selected completion procedure, not to serial or stacked progression" in text
+    assert (
+        "review acquisition belongs to the selected completion procedure, not to "
+        "serial or stacked progression"
+    ) in text
     assert "under agent-review-and-merge" in text
     assert "under human-handoff, do not initiate a new review request" in text
     assert "when serial-pr acquisition is selected" not in text
