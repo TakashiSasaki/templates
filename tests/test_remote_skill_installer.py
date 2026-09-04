@@ -73,11 +73,11 @@ def test_remote_installer_pins_the_policy_owned_skill_revision() -> None:
     assert installer.SKILL_SOURCE_PATH == "skills/agent-policy"
     assert (
         installer.SKILL_SOURCE_REVISION
-        == "a7b260ccc361ad8cd1bab94803a9b355c640fe7e"
+        == "344aaf0b140e3c066363297012bb866efbc106e4"
     )
     assert installer.FULL_SHA.fullmatch(installer.SKILL_SOURCE_REVISION)
     assert installer.archive_url().endswith(
-        "/tar.gz/a7b260ccc361ad8cd1bab94803a9b355c640fe7e"
+        "/tar.gz/344aaf0b140e3c066363297012bb866efbc106e4"
     )
 
 
