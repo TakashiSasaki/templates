@@ -73,6 +73,7 @@
     {"source":"catalog/catalog.json","destination":"catalog/catalog.json","optional":false},
     {"source":"recipes","destination":"recipes","optional":false},
     {"source":"release/composition-installer.json","destination":"release/composition-installer.json","optional":false},
+    {"source":"generated/composition-playground-v1.json.gz","destination":"playground/composition-playground-v1.json.gz","optional":false},
     {"source":"schemas/catalog.schema.json","destination":"schemas/catalog.schema.json","optional":false},
     {"source":"schemas/component.schema.json","destination":"schemas/component.schema.json","optional":false},
     {"source":"schemas/composition-config.schema.json","destination":"schemas/composition-config.schema.json","optional":false},
