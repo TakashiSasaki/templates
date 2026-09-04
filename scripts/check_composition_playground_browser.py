@@ -63,11 +63,32 @@ def prepare_harness(root: Path) -> None:
     if not static_assets_match:
         raise PlaygroundBrowserError("Service Worker static asset inventory is unavailable")
     shutil.copyfile(SERVICE_WORKER, root / "service-worker.js")
+    locale_payload = {
+        "schema_version": 1,
+        "canonical_language": "en",
+        "locales": [{
+            "language": "en",
+            "pwa_freshness": {
+                field: field.replace("_", " ") for field in (
+                    "saved_copy",
+                    "checking",
+                    "unverified",
+                    "update_available",
+                    "published_changed",
+                    "reload",
+                    "offline_unavailable",
+                )
+            },
+        }],
+    }
     for asset in json.loads(static_assets_match.group(1)):
         target = root / asset.lstrip("/")
         target.parent.mkdir(parents=True, exist_ok=True)
         if not target.exists():
-            target.write_text("", encoding="utf-8")
+            target.write_text(
+                json.dumps(locale_payload) if asset == "/site-chrome-locales.json" else "",
+                encoding="utf-8",
+            )
     raw_fixture = FIXTURE.read_bytes()
     (root / "composition" / "playground" / "composition-playground-v1.json.gz").write_bytes(
         gzip.compress(raw_fixture, compresslevel=9, mtime=0)
