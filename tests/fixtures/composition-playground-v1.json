@@ -9,8 +9,16 @@
   "scope": {
     "mode": "initial",
     "target": "empty",
+    "configuration_schema_version": 1,
     "components_exclude": [],
     "parameters": {}
+  },
+  "provenance_reason_bits": {
+    "recipe_artifact": 1,
+    "recipe_required": 2,
+    "recipe_default": 4,
+    "explicit_include": 8,
+    "dependency": 16
   },
   "recipes": [
     {
@@ -20,7 +28,13 @@
       "default_components": [],
       "optional_components": ["capability.cli", "lifecycle.composition-state"],
       "case_count": 4,
-      "source_path": "recipes/skill.json"
+      "source_path": "recipes/skill.json",
+      "cases": [
+        {"valid": true, "error": null, "outcome_id": 0, "selection_reason_masks": [1]},
+        {"valid": true, "error": null, "outcome_id": 1, "selection_reason_masks": [1, 8]},
+        {"valid": true, "error": null, "outcome_id": 2, "selection_reason_masks": [1, 8]},
+        {"valid": true, "error": null, "outcome_id": 3, "selection_reason_masks": [1, 8, 8]}
+      ]
     }
   ],
   "components": [
@@ -60,69 +74,35 @@
   ],
   "contracts": [],
   "materials": [],
-  "cases": [
+  "outcomes": [
     {
-      "key": "skill:0",
-      "recipe": "skill",
-      "include_mask": 0,
-      "explicit_includes": [],
-      "configuration": {"schema_version": 1, "recipe": "skill", "components": {"include": [], "exclude": []}, "parameters": {}},
-      "valid": true,
-      "error": null,
+      "index": 0,
       "resolved_components": ["artifact.skill"],
-      "selection_provenance": [{"component": "artifact.skill", "reasons": [{"kind": "recipe-artifact"}]}],
+      "dependency_edges": [],
       "contract_ids": [],
       "material_ids": [],
       "initial_plan": {"action_counts": {"create": 1}, "conflict_count": 0}
     },
     {
-      "key": "skill:1",
-      "recipe": "skill",
-      "include_mask": 1,
-      "explicit_includes": ["capability.cli"],
-      "configuration": {"schema_version": 1, "recipe": "skill", "components": {"include": ["capability.cli"], "exclude": []}, "parameters": {}},
-      "valid": true,
-      "error": null,
+      "index": 1,
       "resolved_components": ["artifact.skill", "capability.cli"],
-      "selection_provenance": [
-        {"component": "artifact.skill", "reasons": [{"kind": "recipe-artifact"}]},
-        {"component": "capability.cli", "reasons": [{"kind": "explicit-include"}]}
-      ],
+      "dependency_edges": [],
       "contract_ids": [],
       "material_ids": [],
       "initial_plan": {"action_counts": {"create": 2}, "conflict_count": 0}
     },
     {
-      "key": "skill:2",
-      "recipe": "skill",
-      "include_mask": 2,
-      "explicit_includes": ["lifecycle.composition-state"],
-      "configuration": {"schema_version": 1, "recipe": "skill", "components": {"include": ["lifecycle.composition-state"], "exclude": []}, "parameters": {}},
-      "valid": true,
-      "error": null,
+      "index": 2,
       "resolved_components": ["artifact.skill", "lifecycle.composition-state"],
-      "selection_provenance": [
-        {"component": "artifact.skill", "reasons": [{"kind": "recipe-artifact"}]},
-        {"component": "lifecycle.composition-state", "reasons": [{"kind": "explicit-include"}]}
-      ],
+      "dependency_edges": [],
       "contract_ids": [],
       "material_ids": [],
       "initial_plan": {"action_counts": {"create": 2}, "conflict_count": 0}
     },
     {
-      "key": "skill:3",
-      "recipe": "skill",
-      "include_mask": 3,
-      "explicit_includes": ["capability.cli", "lifecycle.composition-state"],
-      "configuration": {"schema_version": 1, "recipe": "skill", "components": {"include": ["capability.cli", "lifecycle.composition-state"], "exclude": []}, "parameters": {}},
-      "valid": true,
-      "error": null,
+      "index": 3,
       "resolved_components": ["artifact.skill", "capability.cli", "lifecycle.composition-state"],
-      "selection_provenance": [
-        {"component": "artifact.skill", "reasons": [{"kind": "recipe-artifact"}]},
-        {"component": "capability.cli", "reasons": [{"kind": "explicit-include"}]},
-        {"component": "lifecycle.composition-state", "reasons": [{"kind": "explicit-include"}]}
-      ],
+      "dependency_edges": [],
       "contract_ids": [],
       "material_ids": [],
       "initial_plan": {"action_counts": {"create": 3}, "conflict_count": 0}
