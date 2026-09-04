@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 from pathlib import Path
@@ -91,6 +92,13 @@ def _require_full_sha(name: str, value: str) -> str:
             f"{name} must be a lowercase full 40-character SHA: {value!r}"
         )
     return value
+
+
+def runtime_lock_evidence(root: Path = ROOT) -> dict[str, str | bool]:
+    lock = root / "requirements-runtime.lock"
+    if not lock.is_file():
+        return {"available": False, "status": "runtime lock digest unavailable / awaiting"}
+    return {"available": True, "sha256": hashlib.sha256(lock.read_bytes()).hexdigest()}
 
 
 def current_identities(root: Path = ROOT) -> dict[str, str]:
@@ -275,6 +283,7 @@ def build_plan(
         "requested": requested,
         "changed": changed,
         "fresh_materialized": fresh,
+        "runtime_lock": runtime_lock_evidence(root),
         "stale_stages": stale,
         "awaiting_immutable_identity_materialization": awaiting,
         "stages": stages,
