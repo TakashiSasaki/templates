@@ -44,6 +44,13 @@ SEMANTIC_PATHS = (
     "scripts/composer_core_impl.py",
     "scripts/generate_composition_playground.py",
 )
+PROVENANCE_REASON_BITS = {
+    "recipe_artifact": 1,
+    "recipe_required": 2,
+    "recipe_default": 4,
+    "explicit_include": 8,
+    "dependency": 16,
+}
 
 
 def _git(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
@@ -114,15 +121,25 @@ def case_key(
     optional_components: Sequence[str],
 ) -> tuple[str, int, list[str]]:
     """Return the stable lookup key without performing Composition resolution."""
-    if not isinstance(recipe_id, str) or not re.fullmatch(r"[a-z][a-z0-9]*(?:-[a-z0-9]+)*", recipe_id):
-        raise CompositionError("INVALID_RECIPE", f"unsafe recipe id for Playground lookup: {recipe_id!r}")
+    if not isinstance(recipe_id, str) or not re.fullmatch(
+        r"[a-z][a-z0-9]*(?:-[a-z0-9]+)*", recipe_id
+    ):
+        raise CompositionError(
+            "INVALID_RECIPE", f"unsafe recipe id for Playground lookup: {recipe_id!r}"
+        )
     if any(not isinstance(item, str) for item in includes):
-        raise CompositionError("INVALID_COMPONENT", "Playground includes must be component id strings")
+        raise CompositionError(
+            "INVALID_COMPONENT", "Playground includes must be component id strings"
+        )
     if len(includes) != len(set(includes)):
-        raise CompositionError("DUPLICATE_COMPONENT", "Playground includes contain duplicate components")
+        raise CompositionError(
+            "DUPLICATE_COMPONENT", "Playground includes contain duplicate components"
+        )
     ordered = sorted(optional_components)
     if len(ordered) != len(set(ordered)):
-        raise CompositionError("INVALID_RECIPE", f"recipe {recipe_id} exposes duplicate optional components")
+        raise CompositionError(
+            "INVALID_RECIPE", f"recipe {recipe_id} exposes duplicate optional components"
+        )
     index = {component_id: position for position, component_id in enumerate(ordered)}
     unknown = sorted(set(includes) - set(ordered))
     if unknown:
@@ -135,7 +152,42 @@ def case_key(
     return f"{recipe_id}:{mask:x}", mask, normalized
 
 
-def _contract_inventory(state: Any) -> tuple[list[dict[str, Any]], dict[str, list[int]]]:
+def explicit_includes_for_mask(
+    optional_components: Sequence[str], mask: int
+) -> list[str]:
+    """Decode one v1 case-table index into its canonical explicit includes."""
+    if not isinstance(mask, int) or isinstance(mask, bool) or mask < 0:
+        raise CompositionError("INVALID_INCLUDE_MASK", f"invalid include mask: {mask!r}")
+    ordered = sorted(optional_components)
+    if len(ordered) != len(set(ordered)):
+        raise CompositionError("INVALID_RECIPE", "optional components contain duplicates")
+    if mask >= 1 << len(ordered):
+        raise CompositionError(
+            "INVALID_INCLUDE_MASK",
+            f"include mask {mask} exceeds the recipe optional-component domain",
+        )
+    return [
+        component_id
+        for position, component_id in enumerate(ordered)
+        if mask & (1 << position)
+    ]
+
+
+def canonical_configuration(recipe_id: str, includes: Sequence[str]) -> dict[str, Any]:
+    """Return the canonical v1 consumer configuration represented by one case."""
+    value = {
+        "schema_version": 1,
+        "recipe": recipe_id,
+        "components": {"include": list(includes), "exclude": []},
+        "parameters": {},
+    }
+    normalized = normalize_intent(value)
+    return {"schema_version": 1, **normalized}
+
+
+def _contract_inventory(
+    state: Any,
+) -> tuple[list[dict[str, Any]], dict[str, list[int]]]:
     rows: list[tuple[str, dict[str, Any]]] = []
     seen_ids: set[str] = set()
     seen_documents: set[str] = set()
@@ -167,7 +219,9 @@ def _contract_inventory(state: Any) -> tuple[list[dict[str, Any]], dict[str, lis
             rows.append((component_id, registration))
     rows.sort(key=lambda item: (item[1]["id"], item[0]))
     contracts: list[dict[str, Any]] = []
-    by_component: dict[str, list[int]] = {component_id: [] for component_id in state.components}
+    by_component: dict[str, list[int]] = {
+        component_id: [] for component_id in state.components
+    }
     for index, (component_id, registration) in enumerate(rows):
         contracts.append(
             {
@@ -184,46 +238,45 @@ def _contract_inventory(state: Any) -> tuple[list[dict[str, Any]], dict[str, lis
     return contracts, by_component
 
 
-def _selection_provenance(
-    state: Any,
+def _dependency_edges(state: Any, resolved: Sequence[str]) -> list[list[int]]:
+    positions = {component_id: index for index, component_id in enumerate(resolved)}
+    edges: list[list[int]] = []
+    for parent_id in resolved:
+        parent_index = positions[parent_id]
+        for dependency_id in sorted(state.components[parent_id]["requires"]):
+            if dependency_id in positions:
+                edges.append([parent_index, positions[dependency_id]])
+    return sorted(edges)
+
+
+def _selection_reason_masks(
     recipe: dict[str, Any],
     explicit_includes: Sequence[str],
     resolved: Sequence[str],
-) -> list[dict[str, Any]]:
-    selected = set(resolved)
+    dependency_edges: Sequence[Sequence[int]],
+) -> list[int]:
     explicit = set(explicit_includes)
-    rows: list[dict[str, Any]] = []
-    for component_id in sorted(resolved):
-        reasons: list[dict[str, str]] = []
+    dependency_targets = {edge[1] for edge in dependency_edges}
+    masks: list[int] = []
+    for index, component_id in enumerate(resolved):
+        mask = 0
         if component_id == recipe["artifact"]:
-            reasons.append({"kind": "recipe-artifact"})
+            mask |= PROVENANCE_REASON_BITS["recipe_artifact"]
         if component_id in recipe["required_components"]:
-            reasons.append({"kind": "recipe-required"})
+            mask |= PROVENANCE_REASON_BITS["recipe_required"]
         if component_id in recipe["default_components"]:
-            reasons.append({"kind": "recipe-default"})
+            mask |= PROVENANCE_REASON_BITS["recipe_default"]
         if component_id in explicit:
-            reasons.append({"kind": "explicit-include"})
-        for parent in sorted(selected):
-            if component_id in state.components[parent]["requires"]:
-                reasons.append({"kind": "dependency", "from_component": parent})
-        if not reasons:
+            mask |= PROVENANCE_REASON_BITS["explicit_include"]
+        if index in dependency_targets:
+            mask |= PROVENANCE_REASON_BITS["dependency"]
+        if mask == 0:
             raise CompositionError(
                 "UNEXPLAINED_PLAYGROUND_SELECTION",
                 f"canonical resolved component has no projection provenance: {component_id}",
             )
-        rows.append({"component": component_id, "reasons": reasons})
-    return rows
-
-
-def _configuration(recipe_id: str, includes: Sequence[str]) -> dict[str, Any]:
-    value = {
-        "schema_version": 1,
-        "recipe": recipe_id,
-        "components": {"include": list(includes), "exclude": []},
-        "parameters": {},
-    }
-    normalized = normalize_intent(value)
-    return {"schema_version": 1, **normalized}
+        masks.append(mask)
+    return masks
 
 
 def _validate_projection(projection: dict[str, Any]) -> None:
@@ -243,7 +296,6 @@ def build_projection(*, source_revision: str | None = None) -> dict[str, Any]:
     bound_revision = projection_source_revision(state.revision, source_revision)
     contracts, contract_ids_by_component = _contract_inventory(state)
 
-    recipes: list[dict[str, Any]] = []
     components: list[dict[str, Any]] = []
     for component_id in sorted(state.components):
         descriptor = state.components[component_id]
@@ -261,13 +313,96 @@ def build_projection(*, source_revision: str | None = None) -> dict[str, Any]:
             }
         )
 
-    material_cache: dict[tuple[str, ...], tuple[list[tuple[str, str, str, str]], dict[str, Any]]] = {}
+    outcome_by_closure: dict[tuple[str, ...], dict[str, Any]] = {}
     all_material_keys: set[tuple[str, str, str, str]] = set()
-    cases: list[dict[str, Any]] = []
+    recipes: list[dict[str, Any]] = []
 
     for recipe_id in sorted(state.recipes):
         recipe = state.recipes[recipe_id]
         optionals = sorted(recipe["optional_components"])
+        case_count = 1 << len(optionals)
+        cases: list[dict[str, Any]] = []
+        for mask in range(case_count):
+            includes = explicit_includes_for_mask(optionals, mask)
+            key, normalized_mask, normalized_includes = case_key(
+                recipe_id, includes, optionals
+            )
+            if normalized_mask != mask or normalized_includes != includes:
+                raise CompositionError(
+                    "NON_CANONICAL_PLAYGROUND_CASE",
+                    f"case table position does not normalize canonically: {key}",
+                )
+            config = canonical_configuration(recipe_id, includes)
+            try:
+                canonical_recipe, resolved = resolve_configuration(state, config)
+                closure_key = tuple(resolved)
+                outcome = outcome_by_closure.get(closure_key)
+                if outcome is None:
+                    material_rows = build_materials(state, resolved)
+                    with tempfile.TemporaryDirectory(
+                        prefix="composition-playground-empty-"
+                    ) as directory:
+                        actions, conflicts = plan_target(Path(directory), material_rows)
+                    if conflicts:
+                        raise CompositionError(
+                            "PLAYGROUND_EMPTY_TARGET_CONFLICT",
+                            "; ".join(conflicts),
+                        )
+                    material_keys = [
+                        (
+                            material.component,
+                            material.destination,
+                            material.ownership,
+                            sha256_bytes(material.data),
+                        )
+                        for material in material_rows
+                    ]
+                    all_material_keys.update(material_keys)
+                    dependency_edges = _dependency_edges(state, resolved)
+                    outcome = {
+                        "resolved_components": list(resolved),
+                        "dependency_edges": dependency_edges,
+                        "contract_ids": sorted(
+                            contract_id
+                            for component_id in resolved
+                            for contract_id in contract_ids_by_component[component_id]
+                        ),
+                        "_material_keys": material_keys,
+                        "initial_plan": {
+                            "action_counts": dict(
+                                sorted(
+                                    Counter(
+                                        action["action"] for action in actions
+                                    ).items()
+                                )
+                            ),
+                            "conflict_count": 0,
+                        },
+                    }
+                    outcome_by_closure[closure_key] = outcome
+                reason_masks = _selection_reason_masks(
+                    canonical_recipe,
+                    includes,
+                    resolved,
+                    outcome["dependency_edges"],
+                )
+                cases.append(
+                    {
+                        "valid": True,
+                        "error": None,
+                        "outcome_id": closure_key,
+                        "selection_reason_masks": reason_masks,
+                    }
+                )
+            except CompositionError as exc:
+                cases.append(
+                    {
+                        "valid": False,
+                        "error": {"code": exc.code, "message": exc.message},
+                        "outcome_id": None,
+                        "selection_reason_masks": [],
+                    }
+                )
         recipes.append(
             {
                 "id": recipe_id,
@@ -275,77 +410,18 @@ def build_projection(*, source_revision: str | None = None) -> dict[str, Any]:
                 "required_components": sorted(recipe["required_components"]),
                 "default_components": sorted(recipe["default_components"]),
                 "optional_components": optionals,
-                "case_count": 1 << len(optionals),
+                "case_count": case_count,
                 "source_path": f"recipes/{recipe_id}.json",
+                "cases": cases,
             }
         )
-        for mask in range(1 << len(optionals)):
-            raw_includes = [component_id for position, component_id in enumerate(optionals) if mask & (1 << position)]
-            key, normalized_mask, includes = case_key(recipe_id, raw_includes, optionals)
-            config = _configuration(recipe_id, includes)
-            resolved: list[str] = []
-            provenance: list[dict[str, Any]] = []
-            case_contract_ids: list[int] = []
-            material_keys: list[tuple[str, str, str, str]] = []
-            initial_plan: dict[str, Any] | None = None
-            error: dict[str, str] | None = None
-            try:
-                canonical_recipe, resolved = resolve_configuration(state, config)
-                provenance = _selection_provenance(state, canonical_recipe, includes, resolved)
-                case_contract_ids = sorted(
-                    contract_id
-                    for component_id in resolved
-                    for contract_id in contract_ids_by_component[component_id]
-                )
-                closure_key = tuple(resolved)
-                cached = material_cache.get(closure_key)
-                if cached is None:
-                    materials = build_materials(state, resolved)
-                    with tempfile.TemporaryDirectory(prefix="composition-playground-empty-") as directory:
-                        actions, conflicts = plan_target(Path(directory), materials)
-                    if conflicts:
-                        raise CompositionError(
-                            "PLAYGROUND_EMPTY_TARGET_CONFLICT",
-                            "; ".join(conflicts),
-                        )
-                    action_counts = dict(sorted(Counter(action["action"] for action in actions).items()))
-                    material_keys_for_closure = [
-                        (
-                            material.component,
-                            material.destination,
-                            material.ownership,
-                            sha256_bytes(material.data),
-                        )
-                        for material in materials
-                    ]
-                    cached = (
-                        material_keys_for_closure,
-                        {"action_counts": action_counts, "conflict_count": 0},
-                    )
-                    material_cache[closure_key] = cached
-                material_keys, initial_plan = cached
-                all_material_keys.update(material_keys)
-            except CompositionError as exc:
-                error = {"code": exc.code, "message": exc.message}
-            cases.append(
-                {
-                    "key": key,
-                    "recipe": recipe_id,
-                    "include_mask": normalized_mask,
-                    "explicit_includes": includes,
-                    "configuration": config,
-                    "valid": error is None,
-                    "error": error,
-                    "resolved_components": resolved,
-                    "selection_provenance": provenance,
-                    "contract_ids": case_contract_ids,
-                    "_material_keys": material_keys,
-                    "initial_plan": initial_plan,
-                }
-            )
 
-    ordered_material_keys = sorted(all_material_keys, key=lambda item: (item[1], item[0], item[2], item[3]))
-    material_index = {key: index for index, key in enumerate(ordered_material_keys)}
+    ordered_material_keys = sorted(
+        all_material_keys, key=lambda item: (item[1], item[0], item[2], item[3])
+    )
+    material_index = {
+        key: index for index, key in enumerate(ordered_material_keys)
+    }
     materials = [
         {
             "index": index,
@@ -356,8 +432,31 @@ def build_projection(*, source_revision: str | None = None) -> dict[str, Any]:
         }
         for index, key in enumerate(ordered_material_keys)
     ]
-    for case in cases:
-        case["material_ids"] = sorted(material_index[key] for key in case.pop("_material_keys"))
+
+    ordered_closures = sorted(outcome_by_closure)
+    outcome_index = {
+        closure: index for index, closure in enumerate(ordered_closures)
+    }
+    outcomes: list[dict[str, Any]] = []
+    for index, closure in enumerate(ordered_closures):
+        source = outcome_by_closure[closure]
+        outcomes.append(
+            {
+                "index": index,
+                "resolved_components": source["resolved_components"],
+                "dependency_edges": source["dependency_edges"],
+                "contract_ids": source["contract_ids"],
+                "material_ids": sorted(
+                    material_index[key] for key in source["_material_keys"]
+                ),
+                "initial_plan": source["initial_plan"],
+            }
+        )
+    for recipe in recipes:
+        for case in recipe["cases"]:
+            closure = case["outcome_id"]
+            if closure is not None:
+                case["outcome_id"] = outcome_index[closure]
 
     projection = {
         "schema_version": 1,
@@ -370,43 +469,66 @@ def build_projection(*, source_revision: str | None = None) -> dict[str, Any]:
         "scope": {
             "mode": "initial",
             "target": "empty",
+            "configuration_schema_version": 1,
             "components_exclude": [],
             "parameters": {},
         },
+        "provenance_reason_bits": dict(PROVENANCE_REASON_BITS),
         "recipes": recipes,
         "components": components,
         "contracts": contracts,
         "materials": materials,
-        "cases": cases,
+        "outcomes": outcomes,
     }
     _validate_projection(projection)
     return projection
 
 
 def render_projection(projection: dict[str, Any]) -> bytes:
-    return (json.dumps(projection, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n").encode("utf-8")
+    return (
+        json.dumps(
+            projection,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        + "\n"
+    ).encode("utf-8")
 
 
 def _revision_from_existing(path: Path) -> str:
     try:
         data = path.read_bytes()
     except OSError as exc:
-        raise CompositionError("READ_FAILED", f"cannot read projection {path}: {exc}") from exc
+        raise CompositionError(
+            "READ_FAILED", f"cannot read projection {path}: {exc}"
+        ) from exc
     value = load_json_bytes(data, label=str(path))
     try:
         revision = value["source"]["revision"]
     except (KeyError, TypeError) as exc:
-        raise CompositionError("INVALID_PLAYGROUND_PROJECTION", "projection has no source revision") from exc
+        raise CompositionError(
+            "INVALID_PLAYGROUND_PROJECTION", "projection has no source revision"
+        ) from exc
     if not isinstance(revision, str):
-        raise CompositionError("INVALID_PLAYGROUND_PROJECTION", "projection source revision is not a string")
+        raise CompositionError(
+            "INVALID_PLAYGROUND_PROJECTION",
+            "projection source revision is not a string",
+        )
     return revision
 
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     output = parser.add_mutually_exclusive_group()
-    output.add_argument("--output", type=Path, help="write generated projection to this path")
-    output.add_argument("--check", type=Path, help="fail unless this file is the deterministic current projection")
+    output.add_argument(
+        "--output", type=Path, help="write generated projection to this path"
+    )
+    output.add_argument(
+        "--check",
+        type=Path,
+        help="fail unless this file is the deterministic current projection",
+    )
     parser.add_argument(
         "--source-revision",
         help="bind to a semantically equivalent exact ancestor revision; defaults to HEAD",
@@ -420,12 +542,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         requested_revision = args.source_revision
         if args.check is not None and requested_revision is None:
             requested_revision = _revision_from_existing(args.check)
-        rendered = render_projection(build_projection(source_revision=requested_revision))
+        rendered = render_projection(
+            build_projection(source_revision=requested_revision)
+        )
         if args.check is not None:
             try:
                 existing = args.check.read_bytes()
             except OSError as exc:
-                raise CompositionError("READ_FAILED", f"cannot read projection {args.check}: {exc}") from exc
+                raise CompositionError(
+                    "READ_FAILED", f"cannot read projection {args.check}: {exc}"
+                ) from exc
             if existing != rendered:
                 raise CompositionError(
                     "STALE_PLAYGROUND_PROJECTION",
