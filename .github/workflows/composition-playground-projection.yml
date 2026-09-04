@@ -1,0 +1,67 @@
+name: Composition Playground projection
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+permissions:
+  contents: read
+
+concurrency:
+  group: composition-playground-${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  projection:
+    name: canonical projection
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out exact pull request head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-dev.lock
+
+      - name: Create isolated validation environment
+        run: python -I -m venv --clear .venv
+
+      - name: Install locked validation dependencies
+        run: .venv/bin/python -m pip install --isolated --disable-pip-version-check --no-deps --requirement requirements-dev.lock
+
+      - name: Verify dependency graph
+        run: .venv/bin/python -m pip check
+
+      - name: Run Playground projection regression
+        run: .venv/bin/python -I tests/test_composition_playground_projection.py
+
+      - name: Generate exact-head canonical projection artifact
+        run: .venv/bin/python -I scripts/generate_composition_playground.py --output composition-playground-v1.json
+
+      - name: Record exact-head provenance
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          actual_head="$(git rev-parse HEAD)"
+          test "$actual_head" = "$EXPECTED_HEAD"
+          projection_head="$(python -c 'import json; print(json.load(open("composition-playground-v1.json"))["source"]["revision"])')"
+          test "$projection_head" = "$EXPECTED_HEAD"
+
+      - name: Upload canonical projection artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: composition-playground-v1-${{ github.event.pull_request.head.sha }}
+          path: composition-playground-v1.json
+          if-no-files-found: error
+          retention-days: 7
