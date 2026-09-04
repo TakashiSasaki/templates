@@ -161,7 +161,8 @@ def test_new_skill_with_current_installer_keeps_publication_waiting() -> None:
     assert plan["fresh_materialized"]["I"] is False
     assert plan["awaiting_immutable_identity_materialization"] == ["I"]
     candidate_paths = {
-        surface["path"] for surface in _stage(plan, "S-installer-candidate")["direct_surfaces"]
+        surface["path"]
+        for surface in _stage(plan, "S-installer-candidate")["direct_surfaces"]
     }
     assert set(planner.S_PUBLICATION_SURFACES).isdisjoint(candidate_paths)
 
@@ -178,12 +179,20 @@ def test_verified_skill_and_installer_publish_every_s_and_i_reference_together()
     assert plan["awaiting_immutable_identity_materialization"] == []
     publication = _stage(plan, "I-policy-publication")["direct_surfaces"]
     by_identity = {
-        identity: {record["path"] for record in publication if record["identity"] == identity}
+        identity: {
+            record["path"]
+            for record in publication
+            if record["identity"] == identity
+        }
         for identity in ("S", "I")
     }
     assert by_identity["S"] == set(planner.S_PUBLICATION_SURFACES)
     assert by_identity["I"] == set(planner.DIRECT_SURFACES["I"])
-    descriptor = [record for record in publication if record["path"] == planner.INSTALLER_DESCRIPTOR]
+    descriptor = [
+        record
+        for record in publication
+        if record["path"] == planner.INSTALLER_DESCRIPTOR
+    ]
     assert {record["identity"] for record in descriptor} == {"S", "I"}
     assert all(record["requires_change"] for record in descriptor)
 
@@ -217,7 +226,10 @@ def test_unverified_or_wrongly_bound_downstream_shas_remain_awaiting() -> None:
     wrong_skill = planner.build_plan(
         ROOT,
         skill_source_revision=skill,
-        revision_reader=_verified_reader(skill_source=skill, skill_toolchain="d" * 40),
+        revision_reader=_verified_reader(
+            skill_source=skill,
+            skill_toolchain="d" * 40,
+        ),
     )
     assert wrong_skill["fresh_materialized"]["S"] is False
     assert "requested T" in wrong_skill["verification"]["S"]["reason"]
@@ -225,7 +237,10 @@ def test_unverified_or_wrongly_bound_downstream_shas_remain_awaiting() -> None:
     wrong_installer = planner.build_plan(
         ROOT,
         installer_revision=installer,
-        revision_reader=_verified_reader(installer=installer, installer_skill="e" * 40),
+        revision_reader=_verified_reader(
+            installer=installer,
+            installer_skill="e" * 40,
+        ),
     )
     assert wrong_installer["fresh_materialized"]["I"] is False
     assert "requested S" in wrong_installer["verification"]["I"]["reason"]
@@ -300,7 +315,9 @@ def _copy_identity_inputs(destination: Path) -> None:
         shutil.copy2(ROOT / relative, target)
 
 
-def test_release_descriptors_are_schema_validated_without_string_coercion(tmp_path: Path) -> None:
+def test_release_descriptors_are_schema_validated_without_string_coercion(
+    tmp_path: Path,
+) -> None:
     _copy_identity_inputs(tmp_path)
     toolchain_path = tmp_path / planner.TOOLCHAIN_DESCRIPTOR
     value = json.loads(toolchain_path.read_text())
@@ -323,7 +340,10 @@ def test_release_descriptor_authority_fields_are_validated(tmp_path: Path) -> No
 def test_repository_inputs_reject_symlink_escape(tmp_path: Path) -> None:
     _copy_identity_inputs(tmp_path)
     outside = tmp_path / "outside.json"
-    outside.write_text((tmp_path / planner.TOOLCHAIN_DESCRIPTOR).read_text(), encoding="utf-8")
+    outside.write_text(
+        (tmp_path / planner.TOOLCHAIN_DESCRIPTOR).read_text(),
+        encoding="utf-8",
+    )
     toolchain_path = tmp_path / planner.TOOLCHAIN_DESCRIPTOR
     toolchain_path.unlink()
     toolchain_path.symlink_to(outside)
