@@ -99,7 +99,7 @@
         directDependencies: directDependenciesForComponent(item, componentIndex),
         reasons: reasonsForComponent(projection, item, componentIndex),
         sourcePath: component.source_path,
-        sourceUrl: sourceUrl(projection.sourceRevision, component.source_path)
+        sourceUrl: sourceUrl(projection.semanticRevision, component.source_path)
       });
     });
     return Array.from(groups, ([role, components]) => ({ role, components }));
