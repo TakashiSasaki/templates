@@ -5,8 +5,20 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 POLICY = ROOT / "policy" / "pull-request" / "stacked-review-coverage.md"
 GATE = ROOT / "skills" / "pr-merge-gate" / "references" / "stacked-review-coverage.md"
-STACKED = ROOT / "skills" / "orchestrate-repository-change" / "references" / "stacked-pr-workflow.md"
-HANDOFF = ROOT / "skills" / "orchestrate-repository-change" / "references" / "human-handoff.md"
+STACKED = (
+    ROOT
+    / "skills"
+    / "orchestrate-repository-change"
+    / "references"
+    / "stacked-pr-workflow.md"
+)
+HANDOFF = (
+    ROOT
+    / "skills"
+    / "orchestrate-repository-change"
+    / "references"
+    / "human-handoff.md"
+)
 ORCHESTRATOR = ROOT / "skills" / "orchestrate-repository-change" / "SKILL.md"
 
 
