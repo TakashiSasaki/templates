@@ -1,0 +1,166 @@
+name: Rebuild final corrected workflow installer publication
+
+on:
+  push:
+    branches:
+      - release/workflow-strategy-publication
+
+permissions:
+  contents: write
+
+jobs:
+  rebuild:
+    if: github.repository == 'TakashiSasaki/templates' && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - name: Rebuild publication on final installer candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          START_SHA: ${{ github.sha }}
+          BRANCH: release/workflow-strategy-publication
+          BASE_SHA: bf3db6dcfa3b8c79d5d90a75c1ed277a4b18c9d3
+          OLD_INSTALLER: 709df0be6287723bf3f1bb38ae5f64d8b3bde08e
+          NEW_INSTALLER: bf3db6dcfa3b8c79d5d90a75c1ed277a4b18c9d3
+          OLD_SKILL_SOURCE: a7b260ccc361ad8cd1bab94803a9b355c640fe7e
+          NEW_SKILL_SOURCE: f3347021f6cdc4fcba3faecd01c9ab69ef0e2910
+          OLD_BOOTSTRAP_BLOB: 9fe35b2ed7a37b024d6630686c1b98f87a67c2bd
+          OLD_GETTING_STARTED_BLOB: bbc07d724c13609ad1fe30915a6a483cb2681f70
+        run: |
+          python3 - <<'PY'
+          from __future__ import annotations
+
+          import base64
+          import hashlib
+          import json
+          import os
+          import urllib.parse
+          import urllib.request
+
+          token = os.environ['GH_TOKEN']
+          repository = os.environ['REPOSITORY']
+          start = os.environ['START_SHA']
+          branch = os.environ['BRANCH']
+          base_sha = os.environ['BASE_SHA']
+          old_i = os.environ['OLD_INSTALLER']
+          new_i = os.environ['NEW_INSTALLER']
+          old_s = os.environ['OLD_SKILL_SOURCE']
+          new_s = os.environ['NEW_SKILL_SOURCE']
+          old_bootstrap_blob = os.environ['OLD_BOOTSTRAP_BLOB']
+          old_getting_blob = os.environ['OLD_GETTING_STARTED_BLOB']
+          api = f'https://api.github.com/repos/{repository}'
+
+          def call(method: str, path: str, payload: object | None = None) -> object:
+              data = None if payload is None else json.dumps(payload, separators=(',', ':')).encode('utf-8')
+              request = urllib.request.Request(
+                  api + path,
+                  data=data,
+                  method=method,
+                  headers={
+                      'Accept': 'application/vnd.github+json',
+                      'Authorization': f'Bearer {token}',
+                      'X-GitHub-Api-Version': '2022-11-28',
+                      'User-Agent': 'templates-installer-publication-rebuilder/3',
+                  },
+              )
+              with urllib.request.urlopen(request, timeout=30) as response:
+                  return json.load(response)
+
+          def api_content(path: str) -> str:
+              quoted = urllib.parse.quote(path, safe='/')
+              value = call('GET', f'/contents/{quoted}?ref={base_sha}')
+              if not isinstance(value, dict) or not isinstance(value.get('content'), str):
+                  raise SystemExit(f'unable to read base content: {path}')
+              return base64.b64decode(value['content']).decode('utf-8')
+
+          def create_blob(text: str) -> str:
+              value = call('POST', '/git/blobs', {'content': text, 'encoding': 'utf-8'})
+              if not isinstance(value, dict) or not isinstance(value.get('sha'), str):
+                  raise SystemExit('blob creation failed')
+              return value['sha']
+
+          ref_path = '/git/ref/heads/' + urllib.parse.quote(branch, safe='/')
+          current = call('GET', ref_path)
+          if not isinstance(current, dict) or current.get('object', {}).get('sha') != start:
+              raise SystemExit('branch moved before publication rebuild')
+
+          paths = [
+              'README.md',
+              'docs/bootstrap.md',
+              'docs/getting-started.md',
+              'release/skill-installer.json',
+              'tests/test_skill_installer_publication.py',
+              'translations/ja/docs/bootstrap.md',
+              'translations/ja/docs/getting-started.md',
+          ]
+          entries: list[dict[str, str]] = []
+          generated: dict[str, str] = {}
+          total_i = 0
+          total_s = 0
+          for path in paths:
+              text = api_content(path)
+              count_i = text.count(old_i)
+              count_s = text.count(old_s)
+              total_i += count_i
+              total_s += count_s
+              text = text.replace(old_i, new_i).replace(old_s, new_s)
+              if old_i in text or old_s in text:
+                  raise SystemExit(f'{path}: old publication identity remains')
+              generated[path] = text
+              entries.append({'path': path, 'mode': '100644', 'type': 'blob', 'sha': create_blob(text)})
+          if total_i < 1 or total_s < 1:
+              raise SystemExit(f'published identities not found: I={total_i} S={total_s}')
+
+          def git_blob_sha(text: str) -> str:
+              data = text.encode('utf-8')
+              prefix = f'blob {len(data)}\0'.encode('ascii')
+              return hashlib.sha1(prefix + data).hexdigest()
+
+          bootstrap_blob = git_blob_sha(generated['docs/bootstrap.md'])
+          getting_blob = git_blob_sha(generated['docs/getting-started.md'])
+          manifest = api_content('translations/manifest.json')
+          if manifest.count(old_bootstrap_blob) != 1:
+              raise SystemExit('bootstrap provenance identity is not singular')
+          if manifest.count(old_getting_blob) != 1:
+              raise SystemExit('getting-started provenance identity is not singular')
+          manifest = manifest.replace(old_bootstrap_blob, bootstrap_blob).replace(old_getting_blob, getting_blob)
+          if old_bootstrap_blob in manifest or old_getting_blob in manifest:
+              raise SystemExit('old translation provenance remains')
+          entries.append({
+              'path': 'translations/manifest.json',
+              'mode': '100644',
+              'type': 'blob',
+              'sha': create_blob(manifest),
+          })
+
+          base = call('GET', f'/git/commits/{base_sha}')
+          if not isinstance(base, dict) or not isinstance(base.get('tree'), dict):
+              raise SystemExit('unable to resolve installer base tree')
+          tree = call('POST', '/git/trees', {'base_tree': base['tree']['sha'], 'tree': entries})
+          if not isinstance(tree, dict) or not isinstance(tree.get('sha'), str):
+              raise SystemExit('publication tree creation failed')
+          created = call(
+              'POST',
+              '/git/commits',
+              {
+                  'message': 'Publish final corrected workflow installer chain',
+                  'tree': tree['sha'],
+                  'parents': [start],
+              },
+          )
+          if not isinstance(created, dict) or not isinstance(created.get('sha'), str):
+              raise SystemExit('publication commit creation failed')
+          current = call('GET', ref_path)
+          if not isinstance(current, dict) or current.get('object', {}).get('sha') != start:
+              raise SystemExit('branch moved before guarded publication update')
+          call(
+              'PATCH',
+              '/git/refs/heads/' + urllib.parse.quote(branch, safe='/'),
+              {'sha': created['sha'], 'force': False},
+          )
+          print(f"publication_candidate={created['sha']}")
+          print(f"publication_tree={tree['sha']}")
+          print(f"bootstrap_blob={bootstrap_blob}")
+          print(f"getting_started_blob={getting_blob}")
+          PY
