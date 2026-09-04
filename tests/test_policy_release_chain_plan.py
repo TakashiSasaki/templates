@@ -32,6 +32,7 @@ def test_current_release_chain_inventory_is_complete_and_immutable() -> None:
         "predict_future_commit_sha": False,
         "self_referential_release": False,
         "site_is_policy_super_authority": False,
+        "runtime_lock_digest_required": True,
     }
 
 
@@ -88,3 +89,19 @@ def test_site_projection_is_inventory_only_and_preserves_authority_boundary() ->
     assert site["external_authority"] == "site"
     assert "publication-sources.json" in site["generated_surfaces"]
     assert plan["invariants"]["site_is_policy_super_authority"] is False
+
+
+def test_current_identities_cannot_masquerade_as_fresh_downstream_materialization() -> None:
+    plan = planner.build_plan(ROOT, toolchain_revision="a" * 40, skill_source_revision=planner.current_identities(ROOT)["S"], installer_revision=planner.current_identities(ROOT)["I"])
+    assert plan["fresh_materialized"]["T"] is True
+    assert plan["fresh_materialized"]["S"] is False
+    assert plan["fresh_materialized"]["I"] is False
+    assert plan["awaiting_immutable_identity_materialization"] == ["S", "I"]
+    assert "release/skill-installer.json" not in [s["path"] for s in next(s for s in plan["stages"] if s["name"] == "S-installer-candidate")["direct_surfaces"]]
+
+
+def test_self_host_input_and_generated_review_skill_are_distinct() -> None:
+    stages = {s["name"]: s for s in planner.build_plan(ROOT)["stages"]}
+    assert stages["T-self-host-input"]["input_mutations"] == [".agent-policy.yml"]
+    assert ".agent-policy.lock" in stages["T-self-host-projection"]["generated_surfaces"]
+    assert ".agents/skills/pr-review/" in stages["T-self-host-projection"]["generated_surfaces"]
