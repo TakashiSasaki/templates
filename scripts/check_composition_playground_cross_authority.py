@@ -157,7 +157,7 @@ def assert_desktop_reader_column(page: Any) -> None:
           innerWidth: window.innerWidth,
           clientWidth: document.documentElement.clientWidth,
           scrollWidth: document.documentElement.scrollWidth,
-          readerWidth: document.querySelector('main')?.getBoundingClientRect().width || 0
+          readerWidth: document.querySelector('#composition-playground')?.getBoundingClientRect().width || 0
         })"""
     )
     if metrics["innerWidth"] != 1024 or metrics["clientWidth"] != 1024:
