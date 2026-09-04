@@ -1,6 +1,6 @@
 (function (globalScope, factory) {
   "use strict";
-  const api = factory(globalScope.CompositionPlayground);
+  const api = factory(globalScope, globalScope.CompositionPlayground);
   if (typeof module !== "undefined" && module.exports) {
     module.exports = api;
   }
@@ -13,7 +13,7 @@
       boot();
     }
   }
-})(typeof globalThis !== "undefined" ? globalThis : this, function (core) {
+})(typeof globalThis !== "undefined" ? globalThis : this, function (globalScope, core) {
   "use strict";
 
   const text = Object.freeze({
