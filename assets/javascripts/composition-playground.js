@@ -19,6 +19,13 @@
   const SUPPORTED_SCHEMA_VERSION = 1;
   const PROJECTION_ID = "composition-playground-v1";
   const FULL_SHA = /^[0-9a-f]{40}$/;
+  const EXPECTED_REASON_BITS = Object.freeze({
+    recipe_artifact: 1,
+    recipe_required: 2,
+    recipe_default: 4,
+    explicit_include: 8,
+    dependency: 16
+  });
 
   const labels = Object.freeze({
     loading: "Loading the canonical Composition projection…",
@@ -58,6 +65,12 @@
     return entries;
   }
 
+  function sameReasonBits(value) {
+    return isObject(value) && Object.keys(EXPECTED_REASON_BITS).every(
+      (name) => value[name] === EXPECTED_REASON_BITS[name]
+    ) && Object.keys(value).length === Object.keys(EXPECTED_REASON_BITS).length;
+  }
+
   function validateProjection(raw, options) {
     const expectedRevision = options && options.expectedRevision ? options.expectedRevision : null;
     if (!isObject(raw)) {
@@ -74,31 +87,23 @@
         throw new ProjectionError("SOURCE_REVISION_MISMATCH", "projection source revision does not match the expected Composition revision");
       }
     }
-    if (!isObject(raw.scope) || raw.scope.mode !== "initial" || raw.scope.target !== "empty" || JSON.stringify(raw.scope.components_exclude) !== "[]" || JSON.stringify(raw.scope.parameters) !== "{}") {
+    if (!isObject(raw.scope) || raw.scope.mode !== "initial" || raw.scope.target !== "empty" || raw.scope.configuration_schema_version !== 1 || JSON.stringify(raw.scope.components_exclude) !== "[]" || JSON.stringify(raw.scope.parameters) !== "{}") {
       throw new ProjectionError("UNSUPPORTED_PROJECTION", "projection scope is outside Playground v1");
+    }
+    if (!sameReasonBits(raw.provenance_reason_bits)) {
+      throw new ProjectionError("UNSUPPORTED_PROJECTION", "projection provenance encoding is incompatible with this Site consumer");
     }
 
     const recipes = requireArray(raw.recipes, "recipes");
     const components = requireArray(raw.components, "components");
     const contracts = requireArray(raw.contracts, "contracts");
     const materials = requireArray(raw.materials, "materials");
-    const cases = requireArray(raw.cases, "cases");
+    const outcomes = requireArray(raw.outcomes, "outcomes");
     const recipeById = new Map();
     const componentById = new Map();
-    const caseByKey = new Map();
     const contractById = new Map();
     const materialById = new Map();
-
-    for (const recipe of recipes) {
-      if (!isObject(recipe) || typeof recipe.id !== "string" || recipeById.has(recipe.id)) {
-        throw new ProjectionError("MALFORMED_PROJECTION", "recipe inventory is invalid or duplicated");
-      }
-      requireUniqueStrings(recipe.optional_components, `recipe ${recipe.id} optional_components`);
-      recipeById.set(recipe.id, recipe);
-    }
-    if (recipeById.size === 0) {
-      throw new ProjectionError("MALFORMED_PROJECTION", "projection has no recipes");
-    }
+    const outcomeById = new Map();
 
     for (const component of components) {
       if (!isObject(component) || typeof component.id !== "string" || componentById.has(component.id)) {
@@ -109,58 +114,126 @@
     }
 
     for (const contract of contracts) {
-      if (!isObject(contract) || !Number.isInteger(contract.index) || contractById.has(contract.index)) {
+      if (!isObject(contract) || !Number.isInteger(contract.index) || contract.index < 0 || contractById.has(contract.index)) {
         throw new ProjectionError("MALFORMED_PROJECTION", "contract inventory is invalid or duplicated");
       }
       contractById.set(contract.index, contract);
     }
     for (const material of materials) {
-      if (!isObject(material) || !Number.isInteger(material.index) || materialById.has(material.index)) {
+      if (!isObject(material) || !Number.isInteger(material.index) || material.index < 0 || materialById.has(material.index)) {
         throw new ProjectionError("MALFORMED_PROJECTION", "material inventory is invalid or duplicated");
       }
       materialById.set(material.index, material);
     }
 
-    for (const item of cases) {
-      if (!isObject(item) || typeof item.key !== "string" || caseByKey.has(item.key) || !recipeById.has(item.recipe) || typeof item.valid !== "boolean" || !isObject(item.configuration)) {
-        throw new ProjectionError("MALFORMED_PROJECTION", "case inventory is invalid or duplicated");
+    for (const outcome of outcomes) {
+      if (!isObject(outcome) || !Number.isInteger(outcome.index) || outcome.index < 0 || outcomeById.has(outcome.index)) {
+        throw new ProjectionError("MALFORMED_PROJECTION", "outcome inventory is invalid or duplicated");
       }
-      requireUniqueStrings(item.explicit_includes, `case ${item.key} explicit_includes`);
-      requireUniqueStrings(item.resolved_components, `case ${item.key} resolved_components`);
-      caseByKey.set(item.key, item);
+      const resolved = requireUniqueStrings(outcome.resolved_components, `outcome ${outcome.index} resolved_components`);
+      for (const componentId of resolved) {
+        if (!componentById.has(componentId)) {
+          throw new ProjectionError("MALFORMED_PROJECTION", `outcome ${outcome.index} references an unknown component`);
+        }
+      }
+      for (const edge of requireArray(outcome.dependency_edges, `outcome ${outcome.index} dependency_edges`)) {
+        if (!Array.isArray(edge) || edge.length !== 2 || edge.some((position) => !Number.isInteger(position) || position < 0 || position >= resolved.length)) {
+          throw new ProjectionError("MALFORMED_PROJECTION", `outcome ${outcome.index} has an invalid dependency edge`);
+        }
+      }
+      for (const contractId of requireArray(outcome.contract_ids, `outcome ${outcome.index} contract_ids`)) {
+        if (!contractById.has(contractId)) {
+          throw new ProjectionError("MALFORMED_PROJECTION", `outcome ${outcome.index} references an unknown contract`);
+        }
+      }
+      for (const materialId of requireArray(outcome.material_ids, `outcome ${outcome.index} material_ids`)) {
+        if (!materialById.has(materialId)) {
+          throw new ProjectionError("MALFORMED_PROJECTION", `outcome ${outcome.index} references an unknown material`);
+        }
+      }
+      if (!isObject(outcome.initial_plan) || !isObject(outcome.initial_plan.action_counts) || outcome.initial_plan.conflict_count !== 0) {
+        throw new ProjectionError("MALFORMED_PROJECTION", `outcome ${outcome.index} has an invalid initial plan`);
+      }
+      outcomeById.set(outcome.index, outcome);
+    }
+    if (outcomeById.size === 0) {
+      throw new ProjectionError("MALFORMED_PROJECTION", "projection has no canonical outcomes");
+    }
+
+    for (const recipe of recipes) {
+      if (!isObject(recipe) || typeof recipe.id !== "string" || recipeById.has(recipe.id)) {
+        throw new ProjectionError("MALFORMED_PROJECTION", "recipe inventory is invalid or duplicated");
+      }
+      const optionals = requireUniqueStrings(recipe.optional_components, `recipe ${recipe.id} optional_components`);
+      const cases = requireArray(recipe.cases, `recipe ${recipe.id} cases`);
+      const expectedCaseCount = 2 ** optionals.length;
+      if (!Number.isSafeInteger(expectedCaseCount) || recipe.case_count !== expectedCaseCount || cases.length !== expectedCaseCount) {
+        throw new ProjectionError("MALFORMED_PROJECTION", `recipe ${recipe.id} case table does not cover its optional-component domain`);
+      }
+      for (let mask = 0; mask < cases.length; mask += 1) {
+        const item = cases[mask];
+        if (!isObject(item) || typeof item.valid !== "boolean" || !Array.isArray(item.selection_reason_masks)) {
+          throw new ProjectionError("MALFORMED_PROJECTION", `recipe ${recipe.id} case ${mask} is malformed`);
+        }
+        if (item.valid) {
+          const outcome = outcomeById.get(item.outcome_id);
+          if (item.error !== null || !outcome || item.selection_reason_masks.length !== outcome.resolved_components.length || item.selection_reason_masks.some((reasonMask) => !Number.isInteger(reasonMask) || reasonMask < 1 || reasonMask > 31)) {
+            throw new ProjectionError("MALFORMED_PROJECTION", `recipe ${recipe.id} valid case ${mask} is inconsistent with its outcome`);
+          }
+        } else if (item.outcome_id !== null || !isObject(item.error) || typeof item.error.code !== "string" || item.selection_reason_masks.length !== 0) {
+          throw new ProjectionError("MALFORMED_PROJECTION", `recipe ${recipe.id} invalid case ${mask} is inconsistent`);
+        }
+      }
+      recipeById.set(recipe.id, recipe);
+    }
+    if (recipeById.size === 0) {
+      throw new ProjectionError("MALFORMED_PROJECTION", "projection has no recipes");
     }
 
     return Object.freeze({
       raw,
       sourceRevision: raw.source.revision,
+      scope: raw.scope,
+      reasonBits: raw.provenance_reason_bits,
       recipes,
       components,
       contracts,
       materials,
-      cases,
+      outcomes,
       recipeById,
       componentById,
       contractById,
       materialById,
-      caseByKey
+      outcomeById
     });
   }
 
-  function caseKey(recipe, includes) {
+  function selectionMask(recipe, includes) {
     if (!isObject(recipe) || typeof recipe.id !== "string") {
       throw new ProjectionError("INVALID_SELECTION", "recipe is missing from the projection inventory");
     }
     const optionals = requireUniqueStrings(recipe.optional_components, `recipe ${recipe.id} optional_components`);
     const selected = requireUniqueStrings(Array.from(includes || []), "explicit includes");
     const index = new Map(optionals.map((componentId, position) => [componentId, position]));
-    let mask = 0n;
+    let mask = 0;
     for (const componentId of selected) {
       if (!index.has(componentId)) {
         throw new ProjectionError("INVALID_SELECTION", `component ${componentId} is not exposed by recipe ${recipe.id}`);
       }
-      mask |= 1n << BigInt(index.get(componentId));
+      mask += 2 ** index.get(componentId);
     }
-    return `${recipe.id}:${mask.toString(16)}`;
+    if (!Number.isSafeInteger(mask)) {
+      throw new ProjectionError("INVALID_SELECTION", "selection mask exceeds the supported integer range");
+    }
+    return mask;
+  }
+
+  function caseKey(recipe, includes) {
+    return `${recipe.id}:${selectionMask(recipe, includes).toString(16)}`;
+  }
+
+  function explicitIncludes(recipe, mask) {
+    return recipe.optional_components.filter((_componentId, position) => (mask & (2 ** position)) !== 0);
   }
 
   function parseHash(hash, projection) {
@@ -172,7 +245,7 @@
       throw new ProjectionError("INVALID_SELECTION", `unknown recipe in URL hash: ${recipeId}`);
     }
     const includes = params.getAll("include");
-    caseKey(recipe, includes);
+    selectionMask(recipe, includes);
     return { recipeId, includes: includes.slice().sort() };
   }
 
@@ -185,17 +258,52 @@
     return `#${params.toString()}`;
   }
 
+  function configurationForSelection(projection, recipeId, includes) {
+    const recipe = projection.recipeById.get(recipeId);
+    if (!recipe) {
+      throw new ProjectionError("INVALID_SELECTION", `unknown recipe: ${recipeId}`);
+    }
+    const mask = selectionMask(recipe, includes);
+    const normalizedIncludes = explicitIncludes(recipe, mask);
+    return {
+      schema_version: projection.scope.configuration_schema_version,
+      recipe: recipeId,
+      components: {
+        include: normalizedIncludes,
+        exclude: projection.scope.components_exclude.slice()
+      },
+      parameters: { ...projection.scope.parameters }
+    };
+  }
+
   function lookupCase(projection, recipeId, includes) {
     const recipe = projection.recipeById.get(recipeId);
     if (!recipe) {
       throw new ProjectionError("INVALID_SELECTION", `unknown recipe: ${recipeId}`);
     }
-    const key = caseKey(recipe, includes);
-    const item = projection.caseByKey.get(key);
-    if (!item) {
-      throw new ProjectionError("MALFORMED_PROJECTION", `projection does not contain canonical case ${key}`);
+    const mask = selectionMask(recipe, includes);
+    const compactCase = recipe.cases[mask];
+    if (!compactCase) {
+      throw new ProjectionError("MALFORMED_PROJECTION", `projection does not contain canonical case ${recipeId}:${mask.toString(16)}`);
     }
-    return item;
+    const normalizedIncludes = explicitIncludes(recipe, mask);
+    const outcome = compactCase.valid ? projection.outcomeById.get(compactCase.outcome_id) : null;
+    return Object.freeze({
+      key: `${recipeId}:${mask.toString(16)}`,
+      recipe: recipeId,
+      include_mask: mask,
+      explicit_includes: normalizedIncludes,
+      configuration: configurationForSelection(projection, recipeId, normalizedIncludes),
+      valid: compactCase.valid,
+      error: compactCase.error,
+      outcome_id: compactCase.outcome_id,
+      selection_reason_masks: compactCase.selection_reason_masks.slice(),
+      resolved_components: outcome ? outcome.resolved_components : [],
+      dependency_edges: outcome ? outcome.dependency_edges : [],
+      contract_ids: outcome ? outcome.contract_ids : [],
+      material_ids: outcome ? outcome.material_ids : [],
+      initial_plan: outcome ? outcome.initial_plan : null
+    });
   }
 
   function configurationText(item) {
@@ -356,12 +464,16 @@
 
   return Object.freeze({
     SUPPORTED_SCHEMA_VERSION,
+    EXPECTED_REASON_BITS,
     ProjectionError,
     labels,
     validateProjection,
+    selectionMask,
     caseKey,
+    explicitIncludes,
     parseHash,
     stateHash,
+    configurationForSelection,
     lookupCase,
     configurationText,
     loadProjection,
