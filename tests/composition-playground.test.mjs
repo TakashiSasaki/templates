@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import test from "node:test";
+import { gzipSync } from "node:zlib";
 
 const require = createRequire(import.meta.url);
 const playground = require("../assets/javascripts/composition-playground.js");
@@ -21,6 +22,17 @@ test("supported v1 projection loads compact canonical case tables", async () => 
     "artifact.skill",
     "capability.cli"
   ]);
+});
+
+test("gzip publication transport decodes to the same projection object", async () => {
+  const raw = await fixture();
+  assert.equal(typeof globalThis.DecompressionStream, "function");
+  const compressed = gzipSync(Buffer.from(JSON.stringify(raw), "utf8"));
+  const response = new Response(compressed, { status: 200 });
+  assert.deepEqual(
+    await playground.decodeProjectionResponse(response, "/composition/playground/composition-playground-v1.json.gz"),
+    raw
+  );
 });
 
 test("unsupported schema version fails clearly", async () => {
