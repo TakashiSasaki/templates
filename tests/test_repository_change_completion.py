@@ -47,12 +47,18 @@ def test_completion_semantics_do_not_turn_handoff_into_merge_acceptance() -> Non
     assert "does not remove acceptance requirements" in text
 
 
-def test_handoff_forbids_new_review_acquisition_without_erasing_existing_evidence() -> None:
+def test_handoff_defaults_to_no_acceptance_review_but_allows_one_explicit_audit() -> None:
     text = COMPLETION.read_text(encoding="utf-8").lower()
-    assert "must not initiate a new review request" in text
+    assert "must not initiate a new merge-acceptance review request" in text
+    assert "by default" in text
     assert "reviewer assignment" in text
     assert "provider invocation" in text
     assert "any other review-request mechanism" in text
+    assert "explicit task instruction may authorize one final whole-stack" in text
+    assert "architecture/dependency/completeness audit" in text
+    assert "does not authorize merge" in text
+    assert "does not waive future exact-head review requirements" in text
+    assert "must not create a review-retry loop" in text
     assert "existing review evidence may be observed, inspected, and reported" in text
 
 
