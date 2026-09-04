@@ -1,0 +1,161 @@
+{
+  "schema_version": 1,
+  "projection_id": "composition-playground-v1",
+  "source": {
+    "repository": "TakashiSasaki/templates",
+    "authority": "composition",
+    "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "scope": {
+    "mode": "initial",
+    "target": "empty",
+    "configuration_schema_version": 1,
+    "components_exclude": [],
+    "parameters": {}
+  },
+  "provenance_reason_bits": {
+    "recipe_artifact": 1,
+    "recipe_required": 2,
+    "recipe_default": 4,
+    "explicit_include": 8,
+    "dependency": 16
+  },
+  "recipes": [
+    {
+      "id": "skill",
+      "artifact": "artifact.skill",
+      "required_components": [],
+      "default_components": [],
+      "optional_components": ["capability.cli", "lifecycle.composition-state"],
+      "case_count": 4,
+      "source_path": "recipes/skill.json",
+      "cases": [
+        {"valid": true, "error": null, "outcome_id": 0, "selection_reason_masks": [1]},
+        {"valid": true, "error": null, "outcome_id": 1, "selection_reason_masks": [1, 8, 16]},
+        {"valid": true, "error": null, "outcome_id": 2, "selection_reason_masks": [1, 8]},
+        {"valid": true, "error": null, "outcome_id": 3, "selection_reason_masks": [1, 8, 16, 8]}
+      ]
+    }
+  ],
+  "components": [
+    {
+      "id": "artifact.skill",
+      "role": "artifact",
+      "version": 1,
+      "summary": "Synthetic artifact fixture",
+      "requires": [],
+      "conflicts": [],
+      "contract_ids": [],
+      "material_declarations": [],
+      "source_path": "components/artifact.skill/component.json"
+    },
+    {
+      "id": "capability.cli",
+      "role": "capability",
+      "version": 2,
+      "summary": "Synthetic CLI fixture",
+      "requires": ["foundation.web"],
+      "conflicts": [],
+      "contract_ids": [0],
+      "material_declarations": [],
+      "source_path": "components/capability.cli/component.json"
+    },
+    {
+      "id": "foundation.web",
+      "role": "foundation",
+      "version": 3,
+      "summary": "Synthetic Web foundation fixture",
+      "requires": [],
+      "conflicts": [],
+      "contract_ids": [],
+      "material_declarations": [],
+      "source_path": "components/foundation.web/component.json"
+    },
+    {
+      "id": "lifecycle.composition-state",
+      "role": "lifecycle",
+      "version": 1,
+      "summary": "Synthetic lifecycle fixture",
+      "requires": [],
+      "conflicts": [],
+      "contract_ids": [],
+      "material_declarations": [],
+      "source_path": "components/lifecycle.composition-state/component.json"
+    }
+  ],
+  "contracts": [
+    {
+      "index": 0,
+      "component": "capability.cli",
+      "id": "cli-interface",
+      "document": "CLI_INTERFACE.md",
+      "schema": "schemas/cli-interface.schema.json",
+      "document_schema_version": 2,
+      "purpose": "Define the synthetic CLI interface"
+    }
+  ],
+  "materials": [
+    {
+      "index": 0,
+      "component": "artifact.skill",
+      "destination": "README.md",
+      "ownership": "seed",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "index": 1,
+      "component": "capability.cli",
+      "destination": "CLI_INTERFACE.md",
+      "ownership": "managed",
+      "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+    },
+    {
+      "index": 2,
+      "component": "foundation.web",
+      "destination": "web/routes.json",
+      "ownership": "generated",
+      "sha256": "2222222222222222222222222222222222222222222222222222222222222222"
+    },
+    {
+      "index": 3,
+      "component": "lifecycle.composition-state",
+      "destination": ".template-composition/lock.json",
+      "ownership": "generated",
+      "sha256": "3333333333333333333333333333333333333333333333333333333333333333"
+    }
+  ],
+  "outcomes": [
+    {
+      "index": 0,
+      "resolved_components": ["artifact.skill"],
+      "dependency_edges": [],
+      "contract_ids": [],
+      "material_ids": [0],
+      "initial_plan": {"action_counts": {"create": 1}, "conflict_count": 0}
+    },
+    {
+      "index": 1,
+      "resolved_components": ["artifact.skill", "capability.cli", "foundation.web"],
+      "dependency_edges": [[1, 2]],
+      "contract_ids": [0],
+      "material_ids": [0, 1, 2],
+      "initial_plan": {"action_counts": {"create": 3}, "conflict_count": 0}
+    },
+    {
+      "index": 2,
+      "resolved_components": ["artifact.skill", "lifecycle.composition-state"],
+      "dependency_edges": [],
+      "contract_ids": [],
+      "material_ids": [0, 3],
+      "initial_plan": {"action_counts": {"create": 2}, "conflict_count": 0}
+    },
+    {
+      "index": 3,
+      "resolved_components": ["artifact.skill", "capability.cli", "foundation.web", "lifecycle.composition-state"],
+      "dependency_edges": [[1, 2]],
+      "contract_ids": [0],
+      "material_ids": [0, 1, 2, 3],
+      "initial_plan": {"action_counts": {"create": 4}, "conflict_count": 0}
+    }
+  ]
+}
