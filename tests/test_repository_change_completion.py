@@ -9,6 +9,7 @@ from agent_policy.policy_loader import parse_policy
 ROOT = Path(__file__).resolve().parents[1]
 CORE_PROFILE = ROOT / "profiles" / "core.yml"
 COMPLETION = ROOT / "policy" / "core" / "repository-change-completion.md"
+ORCHESTRATION_GUIDANCE = ROOT / "docs" / "agent-work-orchestration.md"
 HUMAN_HANDOFF = (
     ROOT
     / "skills"
@@ -68,6 +69,15 @@ def test_handoff_ready_does_not_erase_preexisting_completed_review_state() -> No
     text = HUMAN_HANDOFF.read_text(encoding="utf-8").lower()
     assert "handoff_ready does not by itself imply review_complete" in text
     assert "handoff_ready is not review_complete" not in text
+
+
+def test_reader_guidance_preserves_preexisting_completed_review_state() -> None:
+    text = ORCHESTRATION_GUIDANCE.read_text(encoding="utf-8").lower()
+    assert "while independent review and merge authorization remain outstanding" not in text
+    assert "when no applicable pre-existing review evidence" in text
+    assert "independent review is not_requested or outstanding" in text
+    assert "preserve review_complete" in text
+    assert "handoff_ready can coexist with that review state" in text
 
 
 def test_progression_does_not_force_completion_boundary() -> None:
