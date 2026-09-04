@@ -4,7 +4,7 @@ Explore the initial composition that the canonical Composition provider has alre
 
 This page consumes a published projection. It does not resolve dependencies, conflicts, ownership, or materialization rules in the browser.
 
-<div id="composition-playground" class="composition-playground" data-projection-url="/composition/playground/composition-playground-v1.json">
+<div id="composition-playground" class="composition-playground" data-projection-url="/composition/playground/composition-playground-v1.json.gz">
   <p data-playground-status role="status" aria-live="polite">Loading the canonical Composition projection…</p>
   <div data-playground-app hidden>
     <section aria-labelledby="playground-selection-title">
@@ -34,5 +34,7 @@ This page consumes a published projection. It does not resolve dependencies, con
 ## v1 scope
 
 The v1 Playground fixes exclusions to an empty list, parameters to an empty object, mode to initial, and the target repository to empty. Existing-repository, update, and upgrade workflows are outside this page.
+
+The canonical projection is published as deterministic gzip-compressed JSON. Compression is transport only; all Composition semantics and provenance are contained in the decompressed provider projection.
 
 If the canonical projection is not present in the active Composition publication yet, the page remains available and reports that the provider asset is unavailable.
