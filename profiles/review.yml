@@ -15,4 +15,5 @@ policy_files:
   - policy/review/resolve-rule-conflicts-explicitly.md
   - policy/review/require-rule-conflict-evidence.md
   - policy/review/report-review-limitations.md
+  - policy/review/keep-findings-independently-addressable.md
   - policy/review/anchor-findings-at-cause.md
