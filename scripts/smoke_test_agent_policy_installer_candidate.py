@@ -18,7 +18,7 @@ SKILL_SOURCE_SMOKE_PATH = ROOT / "scripts/smoke_test_agent_policy_skill_source.p
 RELEASE_PATH = ROOT / "release/toolchain.json"
 TOOLCHAIN_REPOSITORY = "TakashiSasaki/templates"
 INSTALLER_REPOSITORY_PATH = "scripts/install_agent_policy_skill.py"
-EXPECTED_SKILL_SOURCE_REVISION = "f3347021f6cdc4fcba3faecd01c9ab69ef0e2910"
+EXPECTED_SKILL_SOURCE_REVISION = "a7b260ccc361ad8cd1bab94803a9b355c640fe7e"
 SKILL_SOURCE_PATH = "skills/agent-policy"
 FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
 

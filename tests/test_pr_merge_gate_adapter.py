@@ -208,7 +208,7 @@ def test_adapter_review_acquisition_is_completion_driven_not_progression_driven(
 def test_adapter_requires_exact_head_review_and_guarded_merge() -> None:
     text = SKILL.read_text(encoding="utf-8").lower()
     for invariant in (
-        "exact current head",
+        "initiate review for the exact current head",
         "must name the exact sha",
         (
             "a request, pending review, empty review list, or absence of findings "
