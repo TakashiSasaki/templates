@@ -1,0 +1,104 @@
+name: Rebuild corrected workflow installer candidate
+
+on:
+  push:
+    branches:
+      - release/workflow-strategy-installer
+
+permissions:
+  contents: write
+
+jobs:
+  rebuild:
+    if: github.repository == 'TakashiSasaki/templates' && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - name: Rebuild exact installer candidate on final Skill source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          START_SHA: ${{ github.sha }}
+          BRANCH: release/workflow-strategy-installer
+          BASE_SHA: f3347021f6cdc4fcba3faecd01c9ab69ef0e2910
+          OLD_SKILL_SOURCE: a7b260ccc361ad8cd1bab94803a9b355c640fe7e
+          NEW_SKILL_SOURCE: f3347021f6cdc4fcba3faecd01c9ab69ef0e2910
+        run: |
+          python3 - <<'PY'
+          import base64
+          import json
+          import os
+          import urllib.parse
+          import urllib.request
+
+          token = os.environ['GH_TOKEN']
+          repository = os.environ['REPOSITORY']
+          start = os.environ['START_SHA']
+          branch = os.environ['BRANCH']
+          base_sha = os.environ['BASE_SHA']
+          old = os.environ['OLD_SKILL_SOURCE']
+          new = os.environ['NEW_SKILL_SOURCE']
+          api = f'https://api.github.com/repos/{repository}'
+
+          def call(method, path, payload=None):
+              data = None if payload is None else json.dumps(payload, separators=(',', ':')).encode()
+              req = urllib.request.Request(
+                  api + path,
+                  data=data,
+                  method=method,
+                  headers={
+                      'Accept': 'application/vnd.github+json',
+                      'Authorization': f'Bearer {token}',
+                      'X-GitHub-Api-Version': '2022-11-28',
+                      'User-Agent': 'templates-installer-rebuilder/3',
+                  },
+              )
+              with urllib.request.urlopen(req, timeout=30) as response:
+                  return json.load(response)
+
+          def content(path):
+              quoted = urllib.parse.quote(path, safe='/')
+              value = call('GET', f'/contents/{quoted}?ref={start}')
+              return base64.b64decode(value['content']).decode('utf-8')
+
+          ref_path = '/git/ref/heads/' + urllib.parse.quote(branch, safe='/')
+          current = call('GET', ref_path)['object']['sha']
+          if current != start:
+              raise SystemExit(f'branch moved before rebuild: {current}')
+
+          expected_counts = {
+              'scripts/install_agent_policy_skill.py': 1,
+              'scripts/smoke_test_agent_policy_installer_candidate.py': 1,
+              'tests/test_installer_candidate_smoke.py': 1,
+              'tests/test_remote_skill_installer.py': 2,
+          }
+          entries = []
+          for path, expected_count in expected_counts.items():
+              text = content(path)
+              actual = text.count(old)
+              if actual != expected_count:
+                  raise SystemExit(f'{path}: expected {expected_count} old identities, found {actual}')
+              text = text.replace(old, new)
+              if old in text or text.count(new) < expected_count:
+                  raise SystemExit(f'{path}: replacement verification failed')
+              blob = call('POST', '/git/blobs', {'content': text, 'encoding': 'utf-8'})
+              entries.append({'path': path, 'mode': '100644', 'type': 'blob', 'sha': blob['sha']})
+
+          base = call('GET', f'/git/commits/{base_sha}')
+          tree = call('POST', '/git/trees', {'base_tree': base['tree']['sha'], 'tree': entries})
+          commit = call(
+              'POST',
+              '/git/commits',
+              {
+                  'message': 'Bind installer candidate to final corrected Skill source',
+                  'tree': tree['sha'],
+                  'parents': [start],
+              },
+          )
+          current = call('GET', ref_path)['object']['sha']
+          if current != start:
+              raise SystemExit(f'branch moved before guarded update: {current}')
+          call('PATCH', '/git/refs/heads/' + urllib.parse.quote(branch, safe='/'), {'sha': commit['sha'], 'force': False})
+          print(f"installer_candidate={commit['sha']}")
+          print(f"tree={tree['sha']}")
+          PY
