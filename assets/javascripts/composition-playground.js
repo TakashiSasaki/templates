@@ -248,24 +248,55 @@
         if (!componentById.has(dependency)) throw new ProjectionError("MALFORMED_PROJECTION", `component ${component.id} references an unknown component`);
       }
       for (const id of component.contract_ids) {
-        if (!contractById.has(id)) throw new ProjectionError("MALFORMED_PROJECTION", `component ${component.id} references an unknown contract`);
+        const contract = contractById.get(id);
+        if (!contract) throw new ProjectionError("MALFORMED_PROJECTION", `component ${component.id} references an unknown contract`);
+        if (contract.component !== component.id) {
+          throw new ProjectionError("MALFORMED_PROJECTION", `component ${component.id} advertises a contract owned by ${contract.component}`);
+        }
       }
     }
     for (const contract of contracts) {
-      if (!componentById.has(contract.component)) throw new ProjectionError("MALFORMED_PROJECTION", `contract ${contract.index} references an unknown component`);
+      const owner = componentById.get(contract.component);
+      if (!owner) throw new ProjectionError("MALFORMED_PROJECTION", `contract ${contract.index} references an unknown component`);
+      if (!owner.contract_ids.includes(contract.index)) {
+        throw new ProjectionError("MALFORMED_PROJECTION", `contract ${contract.index} is not registered by its owning component`);
+      }
     }
     for (const material of materials) {
       if (!componentById.has(material.component)) throw new ProjectionError("MALFORMED_PROJECTION", `material ${material.index} references an unknown component`);
     }
     for (const outcome of outcomes) {
+      const resolvedSet = new Set(outcome.resolved_components);
       for (const componentIdValue of outcome.resolved_components) {
         if (!componentById.has(componentIdValue)) throw new ProjectionError("MALFORMED_PROJECTION", `outcome ${outcome.index} references an unknown component`);
       }
-      for (const contractId of outcome.contract_ids) {
-        if (!contractById.has(contractId)) throw new ProjectionError("MALFORMED_PROJECTION", `outcome ${outcome.index} references an unknown contract`);
+      for (const edge of outcome.dependency_edges) {
+        const sourceId = outcome.resolved_components[edge[0]];
+        const targetId = outcome.resolved_components[edge[1]];
+        const source = componentById.get(sourceId);
+        if (!source || !source.requires.includes(targetId)) {
+          throw new ProjectionError("MALFORMED_PROJECTION", `outcome ${outcome.index} dependency edge disagrees with component metadata`);
+        }
       }
+      for (const contractId of outcome.contract_ids) {
+        const contract = contractById.get(contractId);
+        if (!contract) throw new ProjectionError("MALFORMED_PROJECTION", `outcome ${outcome.index} references an unknown contract`);
+        const owner = componentById.get(contract.component);
+        if (!resolvedSet.has(contract.component) || !owner || !owner.contract_ids.includes(contractId)) {
+          throw new ProjectionError("MALFORMED_PROJECTION", `outcome ${outcome.index} has inconsistent contract ownership`);
+        }
+      }
+      const materialDestinations = new Set();
       for (const materialId of outcome.material_ids) {
-        if (!materialById.has(materialId)) throw new ProjectionError("MALFORMED_PROJECTION", `outcome ${outcome.index} references an unknown material`);
+        const material = materialById.get(materialId);
+        if (!material) throw new ProjectionError("MALFORMED_PROJECTION", `outcome ${outcome.index} references an unknown material`);
+        if (!resolvedSet.has(material.component)) {
+          throw new ProjectionError("MALFORMED_PROJECTION", `outcome ${outcome.index} has material owned by an unresolved component`);
+        }
+        if (materialDestinations.has(material.destination)) {
+          throw new ProjectionError("MALFORMED_PROJECTION", `outcome ${outcome.index} has duplicate material destinations`);
+        }
+        materialDestinations.add(material.destination);
       }
     }
 
@@ -279,11 +310,16 @@
       componentIdArray(recipe.default_components, `recipe ${recipe.id}.default_components`);
       const optionals = componentIdArray(recipe.optional_components, `recipe ${recipe.id}.optional_components`);
       relativePath(recipe.source_path, `recipe ${recipe.id}.source_path`);
+      for (const id of [recipe.artifact, ...recipe.required_components, ...recipe.default_components, ...optionals]) {
+        if (!componentById.has(id)) throw new ProjectionError("MALFORMED_PROJECTION", `recipe ${recipe.id} references an unknown component`);
+      }
       const cases = requireArray(recipe.cases, `recipe ${recipe.id} cases`);
       const expectedCaseCount = 2 ** optionals.length;
-      if (!Number.isSafeInteger(recipe.case_count) || recipe.case_count !== expectedCaseCount || cases.length !== expectedCaseCount) {
+      if (!Number.isSafeInteger(expectedCaseCount) || !Number.isSafeInteger(recipe.case_count) || recipe.case_count !== expectedCaseCount || cases.length !== expectedCaseCount) {
         throw new ProjectionError("MALFORMED_PROJECTION", `recipe ${recipe.id} case table does not cover its optional-component domain`);
       }
+      const requiredComponents = new Set(recipe.required_components);
+      const defaultComponents = new Set(recipe.default_components);
       for (let mask = 0; mask < cases.length; mask += 1) {
         const item = cases[mask];
         exactObject(item, `recipe ${recipe.id} case ${mask}`, ["valid", "error", "outcome_id", "selection_reason_masks"]);
@@ -298,13 +334,31 @@
           if (item.error !== null || !outcome || item.selection_reason_masks.length !== outcome.resolved_components.length) {
             throw new ProjectionError("MALFORMED_PROJECTION", `recipe ${recipe.id} valid case ${mask} is inconsistent with its outcome`);
           }
+          const explicitComponents = new Set(optionals.filter((_componentIdValue, position) => (mask & (2 ** position)) !== 0));
+          const resolvedSet = new Set(outcome.resolved_components);
+          for (const expectedComponent of new Set([
+            recipe.artifact,
+            ...recipe.required_components,
+            ...recipe.default_components,
+            ...explicitComponents
+          ])) {
+            if (!resolvedSet.has(expectedComponent)) {
+              throw new ProjectionError("MALFORMED_PROJECTION", `recipe ${recipe.id} case ${mask} omits a directly selected component from its outcome`);
+            }
+          }
           const dependencyTargets = new Set(outcome.dependency_edges.map((edge) => edge[1]));
           item.selection_reason_masks.forEach((reasonMask, componentIndex) => {
-            const hasDependencyReason = (reasonMask & raw.provenance_reason_bits.dependency) !== 0;
-            if (hasDependencyReason !== dependencyTargets.has(componentIndex)) {
+            const componentIdValue = outcome.resolved_components[componentIndex];
+            let expectedMask = 0;
+            if (componentIdValue === recipe.artifact) expectedMask |= raw.provenance_reason_bits.recipe_artifact;
+            if (requiredComponents.has(componentIdValue)) expectedMask |= raw.provenance_reason_bits.recipe_required;
+            if (defaultComponents.has(componentIdValue)) expectedMask |= raw.provenance_reason_bits.recipe_default;
+            if (explicitComponents.has(componentIdValue)) expectedMask |= raw.provenance_reason_bits.explicit_include;
+            if (dependencyTargets.has(componentIndex)) expectedMask |= raw.provenance_reason_bits.dependency;
+            if (reasonMask !== expectedMask) {
               throw new ProjectionError(
                 "MALFORMED_PROJECTION",
-                `recipe ${recipe.id} case ${mask} has inconsistent dependency provenance`
+                `recipe ${recipe.id} case ${mask} has inconsistent selection provenance`
               );
             }
           });
@@ -313,9 +367,6 @@
         } else {
           errorObject(item.error, `recipe ${recipe.id} case ${mask}.error`);
         }
-      }
-      for (const id of [recipe.artifact, ...recipe.required_components, ...recipe.default_components, ...optionals]) {
-        if (!componentById.has(id)) throw new ProjectionError("MALFORMED_PROJECTION", `recipe ${recipe.id} references an unknown component`);
       }
       recipeById.set(recipe.id, recipe);
     }
@@ -357,13 +408,13 @@
     }
     const optionals = requireUniqueStrings(recipe.optional_components, `recipe ${recipe.id} optional_components`);
     const selected = requireUniqueStrings(Array.from(includes || []), "explicit includes");
-    const index = new Map(optionals.map((componentId, position) => [componentId, position]));
+    const index = new Map(optionals.map((componentIdValue, position) => [componentIdValue, position]));
     let mask = 0;
-    for (const componentId of selected) {
-      if (!index.has(componentId)) {
-        throw new ProjectionError("INVALID_SELECTION", `component ${componentId} is not exposed by recipe ${recipe.id}`);
+    for (const componentIdValue of selected) {
+      if (!index.has(componentIdValue)) {
+        throw new ProjectionError("INVALID_SELECTION", `component ${componentIdValue} is not exposed by recipe ${recipe.id}`);
       }
-      mask += 2 ** index.get(componentId);
+      mask += 2 ** index.get(componentIdValue);
     }
     if (!Number.isSafeInteger(mask)) {
       throw new ProjectionError("INVALID_SELECTION", "selection mask exceeds the supported integer range");
@@ -395,8 +446,8 @@
   function stateHash(recipeId, includes) {
     const params = new URLSearchParams();
     params.set("recipe", recipeId);
-    for (const componentId of Array.from(includes || []).slice().sort()) {
-      params.append("include", componentId);
+    for (const componentIdValue of Array.from(includes || []).slice().sort()) {
+      params.append("include", componentIdValue);
     }
     return `#${params.toString()}`;
   }
@@ -476,16 +527,16 @@
     clear(nodes.optionals);
     const recipe = projection.recipeById.get(state.recipeId);
     const selected = new Set(state.includes);
-    for (const componentId of recipe.optional_components) {
+    for (const componentIdValue of recipe.optional_components) {
       const label = document.createElement("label");
       label.className = "composition-playground__option";
       const checkbox = document.createElement("input");
       checkbox.type = "checkbox";
-      checkbox.value = componentId;
-      checkbox.checked = selected.has(componentId);
+      checkbox.value = componentIdValue;
+      checkbox.checked = selected.has(componentIdValue);
       checkbox.addEventListener("change", onChange);
       label.appendChild(checkbox);
-      label.appendChild(document.createTextNode(` ${componentId}`));
+      label.appendChild(document.createTextNode(` ${componentIdValue}`));
       nodes.optionals.appendChild(label);
     }
   }
@@ -501,8 +552,8 @@
     if (item.resolved_components.length === 0) {
       nodes.resolved.appendChild(textNode(document, "li", "No resolved components are available for this invalid case."));
     } else {
-      for (const componentId of item.resolved_components) {
-        nodes.resolved.appendChild(textNode(document, "li", componentId));
+      for (const componentIdValue of item.resolved_components) {
+        nodes.resolved.appendChild(textNode(document, "li", componentIdValue));
       }
     }
     nodes.config.textContent = configurationText(item);
@@ -640,6 +691,8 @@
         loadBuildProvenance(root.dataset.provenanceUrl || "/build-provenance.json")
       ]);
       if (runtimeState !== current || root.isConnected === false) return null;
+      current.error = null;
+      runtimeState.error = null;
       let state = parseHash(scope.location ? scope.location.hash : "", projection);
       let currentCase = null;
 
@@ -699,9 +752,11 @@
       notify({ type: "ready", context: current.context });
       return current.context;
     } catch (error) {
+      if (runtimeState !== current || root.isConnected === false) return null;
       app.hidden = true;
       status.textContent = statusForError(error);
       root.dataset.playgroundError = error instanceof ProjectionError ? error.code : "UNKNOWN";
+      current.context = null;
       current.error = error;
       runtimeState.context = null;
       runtimeState.error = error;
