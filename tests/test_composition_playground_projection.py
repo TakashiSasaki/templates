@@ -19,7 +19,6 @@ from composer_core_impl import (  # noqa: E402
     CompositionError,
     build_materials,
     load_source_state,
-    normalize_intent,
     plan_target,
     resolve_configuration,
     sha256_bytes,
@@ -30,7 +29,9 @@ class CompositionPlaygroundProjectionTests(unittest.TestCase):
     def test_lookup_key_rejects_duplicate_unexposed_and_unsafe_input(self) -> None:
         optionals = ["capability.cli", "lifecycle.composition-state"]
         with self.assertRaisesRegex(CompositionError, "duplicate") as duplicate:
-            playground.case_key("skill", ["capability.cli", "capability.cli"], optionals)
+            playground.case_key(
+                "skill", ["capability.cli", "capability.cli"], optionals
+            )
         self.assertEqual("DUPLICATE_COMPONENT", duplicate.exception.code)
 
         with self.assertRaises(CompositionError) as unexposed:
@@ -41,97 +42,159 @@ class CompositionPlaygroundProjectionTests(unittest.TestCase):
             playground.case_key("../skill", [], optionals)
         self.assertEqual("INVALID_RECIPE", unsafe.exception.code)
 
+        with self.assertRaises(CompositionError) as bad_mask:
+            playground.explicit_includes_for_mask(optionals, 4)
+        self.assertEqual("INVALID_INCLUDE_MASK", bad_mask.exception.code)
+
     def test_projection_matches_canonical_composer_for_every_v1_case(self) -> None:
         state = load_source_state()
         projection = playground.build_projection()
         recipe_by_id = {entry["id"]: entry for entry in projection["recipes"]}
-        component_by_id = {entry["id"]: entry for entry in projection["components"]}
-        material_by_id = {entry["index"]: entry for entry in projection["materials"]}
+        component_by_id = {
+            entry["id"]: entry for entry in projection["components"]
+        }
+        material_by_id = {
+            entry["index"]: entry for entry in projection["materials"]
+        }
+        outcome_by_id = {
+            entry["index"]: entry for entry in projection["outcomes"]
+        }
 
-        expected_case_count = sum(1 << len(recipe["optional_components"]) for recipe in state.recipes.values())
+        expected_case_count = sum(
+            1 << len(recipe["optional_components"])
+            for recipe in state.recipes.values()
+        )
         self.assertEqual(2336, expected_case_count)
-        self.assertEqual(expected_case_count, len(projection["cases"]))
-        self.assertEqual(expected_case_count, sum(recipe["case_count"] for recipe in projection["recipes"]))
-        self.assertEqual(len(projection["cases"]), len({case["key"] for case in projection["cases"]}))
+        self.assertEqual(
+            expected_case_count,
+            sum(len(recipe["cases"]) for recipe in projection["recipes"]),
+        )
+        self.assertEqual(
+            expected_case_count,
+            sum(recipe["case_count"] for recipe in projection["recipes"]),
+        )
         self.assertEqual(state.revision, projection["source"]["revision"])
+        self.assertEqual(
+            playground.PROVENANCE_REASON_BITS,
+            projection["provenance_reason_bits"],
+        )
+        self.assertLess(len(playground.render_projection(projection)), 1_000_000)
 
-        representative_by_recipe: dict[str, dict[str, object]] = {}
-        for case in projection["cases"]:
-            recipe_projection = recipe_by_id[case["recipe"]]
-            key, mask, includes = playground.case_key(
-                case["recipe"],
-                case["explicit_includes"],
-                recipe_projection["optional_components"],
-            )
-            self.assertEqual(key, case["key"])
-            self.assertEqual(mask, case["include_mask"])
-            self.assertEqual(includes, case["explicit_includes"])
+        validated_outcomes: set[int] = set()
+        case_keys: set[str] = set()
+        for recipe_id in sorted(recipe_by_id):
+            recipe_projection = recipe_by_id[recipe_id]
             self.assertEqual(
-                {"schema_version": 1, **normalize_intent(case["configuration"])},
-                case["configuration"],
+                recipe_projection["case_count"], len(recipe_projection["cases"])
             )
+            for mask, case in enumerate(recipe_projection["cases"]):
+                includes = playground.explicit_includes_for_mask(
+                    recipe_projection["optional_components"], mask
+                )
+                key, normalized_mask, normalized_includes = playground.case_key(
+                    recipe_id,
+                    includes,
+                    recipe_projection["optional_components"],
+                )
+                self.assertEqual(mask, normalized_mask)
+                self.assertEqual(includes, normalized_includes)
+                self.assertNotIn(key, case_keys)
+                case_keys.add(key)
 
-            try:
-                canonical_recipe, resolved = resolve_configuration(state, case["configuration"])
-            except CompositionError as exc:
-                self.assertFalse(case["valid"])
-                self.assertIsNotNone(case["error"])
-                self.assertEqual(exc.code, case["error"]["code"])
-                continue
+                configuration = playground.canonical_configuration(
+                    recipe_id, includes
+                )
+                try:
+                    canonical_recipe, resolved = resolve_configuration(
+                        state, configuration
+                    )
+                except CompositionError as exc:
+                    self.assertFalse(case["valid"])
+                    self.assertIsNone(case["outcome_id"])
+                    self.assertEqual([], case["selection_reason_masks"])
+                    self.assertEqual(exc.code, case["error"]["code"])
+                    continue
 
-            self.assertEqual(resolved, case["resolved_components"])
-            provenance = {entry["component"]: entry["reasons"] for entry in case["selection_provenance"]}
-            self.assertEqual(set(resolved), set(provenance))
-            expected_provenance = playground._selection_provenance(
-                state,
-                canonical_recipe,
-                case["explicit_includes"],
-                resolved,
-            )
-            self.assertEqual(expected_provenance, case["selection_provenance"])
+                self.assertTrue(case["valid"])
+                self.assertIsNone(case["error"])
+                outcome = outcome_by_id[case["outcome_id"]]
+                self.assertEqual(resolved, outcome["resolved_components"])
+                expected_edges = playground._dependency_edges(state, resolved)
+                self.assertEqual(expected_edges, outcome["dependency_edges"])
+                self.assertEqual(
+                    playground._selection_reason_masks(
+                        canonical_recipe,
+                        includes,
+                        resolved,
+                        expected_edges,
+                    ),
+                    case["selection_reason_masks"],
+                )
+                expected_contract_ids = sorted(
+                    contract_id
+                    for component_id in resolved
+                    for contract_id in component_by_id[component_id]["contract_ids"]
+                )
+                self.assertEqual(expected_contract_ids, outcome["contract_ids"])
 
-            expected_contract_ids = sorted(
-                contract_id
-                for component_id in resolved
-                for contract_id in component_by_id[component_id]["contract_ids"]
-            )
-            self.assertEqual(expected_contract_ids, case["contract_ids"])
-            if case["valid"] and case["include_mask"] == 0:
-                representative_by_recipe[case["recipe"]] = case
+                outcome_id = outcome["index"]
+                if outcome_id in validated_outcomes:
+                    continue
+                validated_outcomes.add(outcome_id)
+                materials = build_materials(state, resolved)
+                expected_materials = [
+                    {
+                        "component": material.component,
+                        "destination": material.destination,
+                        "ownership": material.ownership,
+                        "sha256": sha256_bytes(material.data),
+                    }
+                    for material in materials
+                ]
+                projected_materials = [
+                    {
+                        field: material_by_id[material_id][field]
+                        for field in (
+                            "component",
+                            "destination",
+                            "ownership",
+                            "sha256",
+                        )
+                    }
+                    for material_id in outcome["material_ids"]
+                ]
+                sort_key = lambda item: (
+                    item["destination"],
+                    item["component"],
+                    item["sha256"],
+                )
+                self.assertEqual(
+                    sorted(expected_materials, key=sort_key),
+                    sorted(projected_materials, key=sort_key),
+                    key,
+                )
+                with tempfile.TemporaryDirectory(
+                    prefix="composition-playground-test-empty-"
+                ) as directory:
+                    actions, conflicts = plan_target(Path(directory), materials)
+                self.assertEqual([], conflicts, key)
+                self.assertEqual(
+                    dict(
+                        sorted(
+                            Counter(
+                                action["action"] for action in actions
+                            ).items()
+                        )
+                    ),
+                    outcome["initial_plan"]["action_counts"],
+                    key,
+                )
+                self.assertEqual(
+                    0, outcome["initial_plan"]["conflict_count"], key
+                )
 
-        self.assertEqual(set(state.recipes), set(representative_by_recipe))
-        for recipe_id, case in representative_by_recipe.items():
-            materials = build_materials(state, case["resolved_components"])
-            expected_materials = [
-                {
-                    "component": material.component,
-                    "destination": material.destination,
-                    "ownership": material.ownership,
-                    "sha256": sha256_bytes(material.data),
-                }
-                for material in materials
-            ]
-            projected_materials = [
-                {
-                    key: material_by_id[material_id][key]
-                    for key in ("component", "destination", "ownership", "sha256")
-                }
-                for material_id in case["material_ids"]
-            ]
-            self.assertEqual(
-                sorted(expected_materials, key=lambda item: (item["destination"], item["component"], item["sha256"])),
-                sorted(projected_materials, key=lambda item: (item["destination"], item["component"], item["sha256"])),
-                recipe_id,
-            )
-            with tempfile.TemporaryDirectory(prefix="composition-playground-test-empty-") as directory:
-                actions, conflicts = plan_target(Path(directory), materials)
-            self.assertEqual([], conflicts, recipe_id)
-            self.assertEqual(
-                dict(sorted(Counter(action["action"] for action in actions).items())),
-                case["initial_plan"]["action_counts"],
-                recipe_id,
-            )
-            self.assertEqual(0, case["initial_plan"]["conflict_count"], recipe_id)
+        self.assertEqual(expected_case_count, len(case_keys))
+        self.assertEqual(len(projection["outcomes"]), len(validated_outcomes))
 
 
 if __name__ == "__main__":
