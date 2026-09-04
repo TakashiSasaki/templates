@@ -18,4 +18,4 @@ At this boundary:
 - report merge performed as NO; and
 - leave every applicable pull request or stack member open and unmerged.
 
-Use HANDOFF_READY only when the handoff report includes exact branch, PR, base, head, stack membership when applicable, validation, CI observations, limitations, and remaining human actions. HANDOFF_READY is not REVIEW_COMPLETE, MERGE_READY, or MERGED.
+Use HANDOFF_READY only when the handoff report includes exact branch, PR, base, head, stack membership when applicable, validation, CI observations, limitations, and remaining human actions. HANDOFF_READY does not by itself imply REVIEW_COMPLETE, MERGE_READY, or MERGED.
