@@ -11,13 +11,5 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: TakashiSasaki/templates@9c702d755ddc42b941a63eafd8f9aee06969517d
         with:
-          command: render
+          command: check
           config: .agent-policy.yml
-      - name: Upload rendered self-host projection
-        uses: actions/upload-artifact@v4
-        with:
-          name: rendered-agent-policy-${{ github.run_id }}
-          path: |
-            AGENTS.md
-            .review-authority/review-policy.md
-            .agent-policy.lock
