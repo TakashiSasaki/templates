@@ -4,7 +4,7 @@ Explore the initial composition that the canonical Composition provider has alre
 
 This page consumes a published projection. It does not resolve dependencies, conflicts, ownership, or materialization rules in the browser.
 
-<div id="composition-playground" class="composition-playground" data-projection-url="/composition/playground/composition-playground-v1.json.gz">
+<div id="composition-playground" class="composition-playground" data-projection-url="/composition/playground/composition-playground-v1.json.gz" data-provenance-url="/build-provenance.json">
   <p data-playground-status role="status" aria-live="polite">Loading the canonical Composition projection…</p>
   <div data-playground-app hidden>
     <section aria-labelledby="playground-selection-title">
@@ -19,7 +19,14 @@ This page consumes a published projection. It does not resolve dependencies, con
     <section aria-labelledby="playground-result-title">
       <h2 id="playground-result-title">Canonical result</h2>
       <p data-playground-validity></p>
-      <p>Composition revision: <code data-playground-revision></code></p>
+      <dl class="composition-playground__provenance">
+        <dt>Semantic source revision</dt>
+        <dd><code data-playground-semantic-revision></code></dd>
+        <dt>Published Composition provider revision</dt>
+        <dd><code data-playground-provider-revision></code></dd>
+        <dt>Projection identity</dt>
+        <dd><code data-playground-projection-id></code></dd>
+      </dl>
       <h3>Resolved components</h3>
       <ul data-playground-resolved></ul>
     </section>
@@ -56,6 +63,8 @@ This page consumes a published projection. It does not resolve dependencies, con
 
 The v1 Playground fixes exclusions to an empty list, parameters to an empty object, mode to initial, and the target repository to empty. Existing-repository, update, and upgrade workflows are outside this page.
 
-The canonical projection is published as deterministic gzip-compressed JSON. Compression is transport only; all Composition semantics and provenance are contained in the decompressed provider projection.
+The canonical projection is published as deterministic gzip-compressed JSON. Compression is transport only; all Composition semantics and semantic provenance are contained in the decompressed provider projection. The displayed **semantic source revision** is the exact Composition revision recorded by that projection. The displayed **published Composition provider revision** comes separately from Site's `/build-provenance.json` and identifies the exact Composition checkout that supplied the asset to this Site build.
 
-If the canonical projection is not present in the active Composition publication yet, the page remains available and reports that the provider asset is unavailable.
+Those two revisions are not required to be equal. A publication-only Composition descendant may publish semantics computed at an equivalent ancestor. Composition publication CI authoritatively verifies that the semantic source revision is an ancestor of the provider revision and that Playground semantic inputs have not changed between them. The browser displays those identities but does not pretend to verify Git ancestry itself.
+
+If either the canonical projection or Site build provenance is unavailable or malformed, the interactive result remains hidden and the page reports the failure. If the active Composition publication does not contain the Playground asset yet, the page itself remains available and reports that the provider asset is unavailable.
