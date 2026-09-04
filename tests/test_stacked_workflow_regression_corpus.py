@@ -61,7 +61,19 @@ def test_case_a_incomplete_cumulative_binding_falls_back_fail_closed_without_loo
 
 def test_case_b_lower_semantic_change_stales_downstream_chain_before_review() -> None:
     planner = _load_planner()
-    plan = planner.build_plan(ROOT, toolchain_revision="a" * 40)
+    candidate = "a" * 40
+
+    def read_candidate(revision: str, path: str) -> bytes | None:
+        if revision == candidate and path == planner.RUNTIME_LOCK:
+            return b"verified lower candidate runtime lock\n"
+        return None
+
+    plan = planner.build_plan(
+        ROOT,
+        toolchain_revision=candidate,
+        revision_reader=read_candidate,
+    )
+    assert plan["fresh_materialized"]["T"] is True
     assert plan["stale_stages"][-3:] == [
         "S-installer-candidate",
         "I-policy-publication",
