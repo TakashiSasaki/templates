@@ -1,0 +1,50 @@
+name: Site Composition Playground
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+permissions:
+  contents: read
+
+concurrency:
+  group: site-composition-playground-${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  consumer:
+    name: projection consumer
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out exact pull request head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: ""
+
+      - name: Run projection consumer regression tests
+        run: node --test tests/composition-playground.test.mjs
+
+      - name: Validate Site integration declarations
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          python -m json.tool docs/publication-catalog.json >/dev/null
+          python -m json.tool site-manifest.json >/dev/null
+          python -m json.tool tests/fixtures/composition-playground-v1.json >/dev/null
+          grep --fixed-strings -- '"document": "composition-playground"' site-manifest.json
+          grep --fixed-strings -- '"id": "composition-playground"' docs/publication-catalog.json
+          grep --fixed-strings -- 'stylesheets/composition-playground.css' zensical.template.toml
+          grep --fixed-strings -- 'javascripts/composition-playground.js' zensical.template.toml
