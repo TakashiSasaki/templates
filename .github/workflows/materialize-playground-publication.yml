@@ -30,9 +30,6 @@ jobs:
           python scripts/generate_composition_playground_publication.py \
             --output generated/composition-playground-v1.json.gz \
             --source-revision 6c1ee765795ff44add2ab284e9e82977d91ef40c
-          python scripts/generate_composition_playground_publication.py \
-            --check generated/composition-playground-v1.json.gz \
-            --source-revision 6c1ee765795ff44add2ab284e9e82977d91ef40c
       - name: Commit binary and remove one-shot workflow
         run: |
           git config user.name 'github-actions[bot]'
