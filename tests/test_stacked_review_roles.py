@@ -5,6 +5,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 POLICY = ROOT / "policy" / "pull-request" / "stacked-review-coverage.md"
 GATE = ROOT / "skills" / "pr-merge-gate" / "references" / "stacked-review-coverage.md"
+MERGE_GATE = ROOT / "skills" / "pr-merge-gate" / "SKILL.md"
+RATIONALE = ROOT / "docs" / "agent-work-orchestration.md"
 STACKED = (
     ROOT
     / "skills"
@@ -73,3 +75,16 @@ def test_human_handoff_keeps_final_audit_separate_from_acceptance_review() -> No
     assert "do not turn it into a retry loop" in orchestrator
     assert "not ordinary per-member merge-acceptance evidence" in selection
     assert "must not create a review-retry loop" in selection
+
+
+def test_non_generated_handoff_consumers_match_canonical_audit_exception() -> None:
+    for text in (_text(MERGE_GATE), _text(RATIONALE)):
+        assert "by default" in text
+        assert "explicit task" in text
+        assert "whole-stack" in text
+        assert "architecture/dependency/completeness audit" in text
+        assert "does not authorize merge" in text
+        assert "review-retry loop" in text
+    merge_gate = _text(MERGE_GATE)
+    assert "not ordinary per-member merge-acceptance evidence" in merge_gate
+    assert "does not turn missing review evidence into acceptance evidence" in merge_gate
