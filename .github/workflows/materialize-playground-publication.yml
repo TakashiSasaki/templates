@@ -18,6 +18,12 @@ jobs:
         with:
           ref: codex/composition-playground-v1-publication
           persist-credentials: true
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: '3.12'
+      - name: Install locked generator dependencies
+        run: python -m pip install --disable-pip-version-check --no-deps --requirement requirements-dev.lock
       - name: Generate deterministic binary publication
         run: |
           python scripts/generate_composition_playground_publication.py \
