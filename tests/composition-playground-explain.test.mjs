@@ -60,12 +60,15 @@ test("contracts, materials, ownership, and initial plan are rendered from projec
   assert.equal(tree.children.get("web").children.get("routes.json").material.component, "foundation.web");
 });
 
-test("dependency provenance without a provider edge fails closed", async () => {
-  const value = await projection();
-  const item = core.lookupCase(value, "skill", ["capability.cli"]);
-  const inconsistent = { ...item, dependency_edges: [] };
+test("dependency provenance without a provider edge fails closed before core exposure", async () => {
+  const base = JSON.parse(await readFile(fixturePath, "utf8"));
+  const projectionValue = core.validateProjection(base);
+  const item = core.lookupCase(projectionValue, "skill", ["capability.cli"]);
+  const inconsistent = JSON.parse(JSON.stringify(base));
+  const outcome = inconsistent.outcomes.find((entry) => entry.index === item.outcome_id);
+  outcome.dependency_edges = [];
   assert.throws(
-    () => explain.reasonsForComponent(value, inconsistent, 2),
+    () => core.validateProjection(inconsistent),
     (error) => error instanceof core.ProjectionError && error.code === "MALFORMED_PROJECTION"
   );
 });
