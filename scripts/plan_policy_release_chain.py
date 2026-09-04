@@ -126,14 +126,20 @@ def _load_json(root: Path, relative: str) -> dict[str, Any]:
     return value
 
 
-def _load_validated_json(root: Path, relative: str, schema_relative: str) -> dict[str, Any]:
+def _load_validated_json(
+    root: Path,
+    relative: str,
+    schema_relative: str,
+) -> dict[str, Any]:
     value = _load_json(root, relative)
     schema = _load_json(root, schema_relative)
     try:
         Draft202012Validator(schema).validate(value)
     except ValidationError as exc:
         location = ".".join(str(part) for part in exc.absolute_path) or "<root>"
-        raise ValueError(f"{relative} failed schema validation at {location}: {exc.message}") from exc
+        raise ValueError(
+            f"{relative} failed schema validation at {location}: {exc.message}"
+        ) from exc
     return value
 
 
@@ -199,7 +205,10 @@ def runtime_lock_evidence(
         if supplied_digest is not None:
             supplied = _require_sha256(supplied_digest)
             if supplied != current["sha256"]:
-                raise ValueError("supplied runtime lock digest does not match the current toolchain lock")
+                raise ValueError(
+                    "supplied runtime lock digest does not match the current "
+                    "toolchain lock"
+                )
         return current
 
     candidate_lock = revision_reader(requested_toolchain, RUNTIME_LOCK)
@@ -216,7 +225,10 @@ def runtime_lock_evidence(
 
     actual = hashlib.sha256(candidate_lock).hexdigest()
     if supplied_digest is not None and _require_sha256(supplied_digest) != actual:
-        raise ValueError("supplied runtime lock digest does not match the requested toolchain revision")
+        raise ValueError(
+            "supplied runtime lock digest does not match the requested "
+            "toolchain revision"
+        )
     return {
         "available": True,
         "verified": True,
@@ -261,7 +273,11 @@ def _surface_inventory(
     return records
 
 
-def _requested_identity(name: str, supplied: str | None, current: dict[str, str]) -> str:
+def _requested_identity(
+    name: str,
+    supplied: str | None,
+    current: dict[str, str],
+) -> str:
     if supplied is None:
         return current[name]
     return _require_full_sha(name, supplied)
@@ -283,12 +299,18 @@ def _verify_skill_source(
         return {"verified": False, "reason": "skill-source runtime manifest is invalid"}
     expected_toolchain = {"repository": REPOSITORY, "revision": toolchain_revision}
     if not isinstance(manifest, dict) or manifest.get("toolchain") != expected_toolchain:
-        return {"verified": False, "reason": "skill-source manifest is not bound to requested T"}
+        return {
+            "verified": False,
+            "reason": "skill-source manifest is not bound to requested T",
+        }
     lock_record = manifest.get("runtime_lock")
     if runtime_lock.get("verified"):
         expected_lock = {"path": RUNTIME_LOCK, "sha256": runtime_lock["sha256"]}
         if lock_record != expected_lock:
-            return {"verified": False, "reason": "skill-source manifest runtime lock does not match T"}
+            return {
+                "verified": False,
+                "reason": "skill-source manifest runtime lock does not match T",
+            }
     return {
         "verified": True,
         "revision": revision,
@@ -298,7 +320,11 @@ def _verify_skill_source(
 
 
 def _extract_assignment(text: str, name: str) -> str | None:
-    match = re.search(rf'^\s*{re.escape(name)}\s*=\s*"([^"]+)"\s*$', text, re.MULTILINE)
+    match = re.search(
+        rf'^\s*{re.escape(name)}\s*=\s*"([^"]+)"\s*$',
+        text,
+        re.MULTILINE,
+    )
     return match.group(1) if match else None
 
 
@@ -323,7 +349,10 @@ def _verify_installer(
     }
     actual = {name: _extract_assignment(script, name) for name in expected}
     if actual != expected:
-        return {"verified": False, "reason": "installer script is not bound to requested S"}
+        return {
+            "verified": False,
+            "reason": "installer script is not bound to requested S",
+        }
     return {
         "verified": True,
         "revision": revision,
@@ -347,7 +376,10 @@ def build_plan(
         "S": _requested_identity("S", skill_source_revision, current),
         "I": _requested_identity("I", installer_revision, current),
     }
-    changed = {name: requested[name] != current[name] for name in ("T", "S", "I")}
+    changed = {
+        name: requested[name] != current[name]
+        for name in ("T", "S", "I")
+    }
     reader = revision_reader or _git_revision_reader(root)
 
     runtime_lock = runtime_lock_evidence(
@@ -365,10 +397,22 @@ def build_plan(
                 "evidence": "runtime-lock-at-requested-revision",
             }
             if changed["T"]
-            else {"verified": True, "revision": current["T"], "evidence": "published-current"}
+            else {
+                "verified": True,
+                "revision": current["T"],
+                "evidence": "published-current",
+            }
         ),
-        "S": {"verified": True, "revision": current["S"], "evidence": "published-current"},
-        "I": {"verified": True, "revision": current["I"], "evidence": "published-current"},
+        "S": {
+            "verified": True,
+            "revision": current["S"],
+            "evidence": "published-current",
+        },
+        "I": {
+            "verified": True,
+            "revision": current["I"],
+            "evidence": "published-current",
+        },
     }
     if changed["S"]:
         verification["S"] = _verify_skill_source(
@@ -416,7 +460,13 @@ def build_plan(
             )
         )
     elif changed["S"]:
-        stale.extend(("S-installer-candidate", "I-policy-publication", "policy-to-site-projection"))
+        stale.extend(
+            (
+                "S-installer-candidate",
+                "I-policy-publication",
+                "policy-to-site-projection",
+            )
+        )
     elif changed["I"]:
         stale.extend(("I-policy-publication", "policy-to-site-projection"))
 
@@ -444,7 +494,10 @@ def build_plan(
         {
             "name": "T-self-host-input",
             "identity": "T",
-            "action": "mutate the human-owned .agent-policy.yml input pin; it is not generated output",
+            "action": (
+                "mutate the human-owned .agent-policy.yml input pin; "
+                "it is not generated output"
+            ),
             "input_mutations": [".agent-policy.yml"],
             "generated_surfaces": [],
             "validation": list(VALIDATION_BY_STAGE["T-self-host-input"]),
@@ -456,14 +509,26 @@ def build_plan(
                 "regenerate projection from the frozen semantic/runtime candidate; "
                 "do not predict a future commit SHA"
             ),
-            "generated_surfaces": list(REGENERATION_SURFACES["T-self-host-projection"]),
-            "validation": list(VALIDATION_BY_STAGE["T-self-host-projection"]),
+            "generated_surfaces": list(
+                REGENERATION_SURFACES["T-self-host-projection"]
+            ),
+            "validation": list(
+                VALIDATION_BY_STAGE["T-self-host-projection"]
+            ),
         },
         {
             "name": "T-promotion",
             "identity": "T",
-            "action": "bind the reviewed stable runtime with its full SHA and verified runtime-lock digest",
-            "direct_surfaces": _surface_inventory(root, "T", current["T"], requested["T"]),
+            "action": (
+                "bind the reviewed stable runtime with its full SHA and "
+                "verified runtime-lock digest"
+            ),
+            "direct_surfaces": _surface_inventory(
+                root,
+                "T",
+                current["T"],
+                requested["T"],
+            ),
             "runtime_lock": runtime_lock,
             "validation": list(VALIDATION_BY_STAGE["T-promotion"]),
         },
@@ -474,27 +539,45 @@ def build_plan(
                 "materialize and verify a separately reviewable Skill-source identity, "
                 "then update only installer-candidate bindings"
             ),
-            "direct_surfaces": _surface_inventory(root, "S", current["S"], requested["S"]),
-            "validation": list(VALIDATION_BY_STAGE["S-installer-candidate"]),
+            "direct_surfaces": _surface_inventory(
+                root,
+                "S",
+                current["S"],
+                requested["S"],
+            ),
+            "validation": list(
+                VALIDATION_BY_STAGE["S-installer-candidate"]
+            ),
         },
         {
             "name": "I-policy-publication",
             "identity": "I",
-            "action": "after a verified installer identity exists, publish immutable I/S together",
+            "action": (
+                "after a verified installer identity exists, publish immutable "
+                "I/S together"
+            ),
             "direct_surfaces": publication_surfaces,
-            "generated_surfaces": list(REGENERATION_SURFACES["I-policy-publication"]),
-            "validation": list(VALIDATION_BY_STAGE["I-policy-publication"]),
+            "generated_surfaces": list(
+                REGENERATION_SURFACES["I-policy-publication"]
+            ),
+            "validation": list(
+                VALIDATION_BY_STAGE["I-policy-publication"]
+            ),
         },
         {
             "name": "policy-to-site-projection",
             "identity": "policy-publication",
             "action": (
-                "after canonical Policy publication changes, refresh Site-owned integration "
-                "without making Site a Policy super-authority"
+                "after canonical Policy publication changes, refresh Site-owned "
+                "integration without making Site a Policy super-authority"
             ),
             "external_authority": "site",
-            "generated_surfaces": list(REGENERATION_SURFACES["policy-to-site-projection"]),
-            "validation": list(VALIDATION_BY_STAGE["policy-to-site-projection"]),
+            "generated_surfaces": list(
+                REGENERATION_SURFACES["policy-to-site-projection"]
+            ),
+            "validation": list(
+                VALIDATION_BY_STAGE["policy-to-site-projection"]
+            ),
         },
     ]
 
@@ -526,14 +609,18 @@ def check_current_inventory(plan: dict[str, Any]) -> list[str]:
         for surface in stage.get("direct_surfaces", []):
             if surface["current_identity_occurrences"] < 1:
                 errors.append(
-                    f"{stage['name']}: current identity not found in declared surface {surface['path']}"
+                    f"{stage['name']}: current identity not found in declared "
+                    f"surface {surface['path']}"
                 )
     return errors
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Plan immutable Policy release identity propagation without mutating repository state."
+        description=(
+            "Plan immutable Policy release identity propagation without "
+            "mutating repository state."
+        )
     )
     parser.add_argument("--toolchain-revision")
     parser.add_argument("--skill-source-revision")
@@ -558,10 +645,22 @@ def main() -> int:
         )
         errors = check_current_inventory(plan) if args.check_current else []
     except (KeyError, OSError, TypeError, ValueError, json.JSONDecodeError) as exc:
-        print(json.dumps({"ok": False, "error": str(exc)}, indent=2, sort_keys=True))
+        print(
+            json.dumps(
+                {"ok": False, "error": str(exc)},
+                indent=2,
+                sort_keys=True,
+            )
+        )
         return 2
 
-    print(json.dumps({"ok": not errors, "errors": errors, "plan": plan}, indent=2, sort_keys=True))
+    print(
+        json.dumps(
+            {"ok": not errors, "errors": errors, "plan": plan},
+            indent=2,
+            sort_keys=True,
+        )
+    )
     return 0 if not errors else 1
 
 
