@@ -2,7 +2,7 @@
 
 This reference is provider-neutral procedure support for `pr-merge-gate`. It does not create semantic review policy, change finding severity, or make an otherwise non-blocking suggestion merge-blocking.
 
-Use it when clearing submitted review findings or review threads under `pull-request.close-review-threads-before-merge`.
+Use it when clearing submitted review findings or review threads under `pull-request.close-review-threads-before-merge`. A material finding remains a review item even when the provider exposes it only in a top-level review body or another non-resolvable surface. For GitHub-specific acquisition and finding-representation guidance, consult `github-review-finding-representation.md`; that reference is non-normative adapter guidance rather than semantic authority.
 
 ## Establish the evidence first
 
@@ -46,11 +46,12 @@ The primary disposition describes the remediation reason and does not override s
 
 For each material review item, preserve enough information to audit closure:
 
-- the review/thread identity or other stable locator;
+- the review/thread identity or other stable locator, including a separately identifiable top-level finding when no thread exists;
 - the exact proposed head against which the claim was verified or falsified;
 - the primary disposition;
 - the decisive evidence or reproduced failure;
 - the action taken, including the repair/guard/documentation change or the explicit no-change reason;
+- the validation evidence establishing the disposition for the current head;
 - any follow-up authority or scope boundary that remains intentionally separate.
 
 Prefer the smallest generalized repair that closes the established root cause. Do not scatter speculative edits across neighboring code or policy just because they are adjacent to the review topic.
@@ -59,6 +60,8 @@ If the repair changes the proposed head, the old exact-head CI and review eviden
 
 ## Closure
 
-Resolve a material review thread only after its disposition and required action are complete for the current head, or after an evidence-backed no-change disposition is recorded. Thread resolution is bookkeeping evidence of disposition; it is not proof that the underlying review claim was correct.
+For a material finding with a resolvable review thread, resolve the thread only after its disposition and required action are complete and validated for the current head, or after an evidence-backed no-change disposition is recorded and validated. Thread resolution is bookkeeping evidence of disposition; it is not proof that the underlying review claim was correct or that remediation was valid.
+
+For a material finding with no resolvable thread, perform the same evidence, disposition, action, and validation work and record finding-level closure evidence on an available surface. The absence of a thread is not evidence that no unresolved finding exists. Do not infer resolution from a code change alone, and do not treat provider UI state as a substitute for validated remediation.
 
 Do not leave a verified defect open merely because it was first reported on an older head. Conversely, do not keep a stale or falsified historical comment merge-blocking solely because it exists.
