@@ -21,12 +21,53 @@ CORE_JS = ROOT / "assets" / "javascripts" / "composition-playground.js"
 EXPLAIN_JS = ROOT / "assets" / "javascripts" / "composition-playground-explain.js"
 CSS = ROOT / "assets" / "stylesheets" / "composition-playground.css"
 SERVICE_WORKER = ROOT / "assets" / "service-worker.js"
+PROJECTION_PATH = "/composition/playground/composition-playground-v1.json.gz"
 SEMANTIC_REVISION = "a" * 40
 PROVIDER_REVISION = "b" * 40
 
 
 class PlaygroundBrowserError(RuntimeError):
     pass
+
+
+class ProjectionRaceController:
+    """Delay exactly one projection response so replacement mounts can overtake it."""
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._mode: str | None = None
+        self._consumed = False
+        self.first_started = threading.Event()
+        self.release_first = threading.Event()
+        self.first_finished = threading.Event()
+
+    def arm(self, mode: str) -> None:
+        if mode not in {"success", "failure"}:
+            raise ValueError(f"unsupported projection race mode: {mode}")
+        with self._lock:
+            self._mode = mode
+            self._consumed = False
+            self.first_started.clear()
+            self.release_first.clear()
+            self.first_finished.clear()
+
+    def before_request(self, path: str) -> str | None:
+        if path.split("?", 1)[0] != PROJECTION_PATH:
+            return None
+        with self._lock:
+            if self._mode is None or self._consumed:
+                return None
+            self._consumed = True
+            mode = self._mode
+            self.first_started.set()
+        if not self.release_first.wait(timeout=15):
+            return "timeout"
+        return mode
+
+    def after_request(self) -> None:
+        with self._lock:
+            self._mode = None
+        self.first_finished.set()
 
 
 def playground_markup() -> str:
@@ -121,6 +162,22 @@ def prepare_harness(root: Path) -> None:
       subscribe(callback) {{ this.subscribers.push(callback); return {{ unsubscribe() {{}} }}; }},
       emit() {{ for (const callback of [...this.subscribers]) callback(); }}
     }};
+    window.__playgroundProjectionFetchStarted = 0;
+    window.__playgroundProjectionFetchSettled = 0;
+    const playgroundNativeFetch = window.fetch.bind(window);
+    window.fetch = (input, init) => {{
+      const url = typeof input === "string" ? input : input?.url || "";
+      const isProjection = url.includes("{PROJECTION_PATH}");
+      if (isProjection) window.__playgroundProjectionFetchStarted += 1;
+      const request = playgroundNativeFetch(input, init);
+      if (isProjection) {{
+        request.then(
+          () => {{ window.__playgroundProjectionFetchSettled += 1; }},
+          () => {{ window.__playgroundProjectionFetchSettled += 1; }}
+        );
+      }}
+      return request;
+    }};
     if ("serviceWorker" in navigator) navigator.serviceWorker.register("/service-worker.js");
   </script>
   <script src="/javascripts/composition-playground.js" defer></script>
@@ -138,7 +195,11 @@ def prepare_harness(root: Path) -> None:
         page_path.write_text(html, encoding="utf-8")
 
 
-def serve(root: Path) -> tuple[ThreadingHTTPServer, threading.Thread, str]:
+def serve(
+    root: Path,
+) -> tuple[ThreadingHTTPServer, threading.Thread, str, ProjectionRaceController]:
+    race = ProjectionRaceController()
+
     class Handler(SimpleHTTPRequestHandler):
         def __init__(self, *args: Any, **kwargs: Any) -> None:
             super().__init__(*args, directory=str(root), **kwargs)
@@ -146,11 +207,36 @@ def serve(root: Path) -> tuple[ThreadingHTTPServer, threading.Thread, str]:
         def log_message(self, format: str, *args: Any) -> None:
             return
 
+        def do_GET(self) -> None:
+            race_mode = race.before_request(self.path)
+            if race_mode is None:
+                super().do_GET()
+                return
+            try:
+                if race_mode == "success":
+                    super().do_GET()
+                elif race_mode == "failure":
+                    body = b"deliberate stale projection failure"
+                    self.send_response(503)
+                    self.send_header("Content-Type", "text/plain; charset=utf-8")
+                    self.send_header("Content-Length", str(len(body)))
+                    self.end_headers()
+                    self.wfile.write(body)
+                else:
+                    body = b"projection race gate timed out"
+                    self.send_response(504)
+                    self.send_header("Content-Type", "text/plain; charset=utf-8")
+                    self.send_header("Content-Length", str(len(body)))
+                    self.end_headers()
+                    self.wfile.write(body)
+            finally:
+                race.after_request()
+
     server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     host, port = server.server_address[:2]
-    return server, thread, f"http://{host}:{port}/"
+    return server, thread, f"http://{host}:{port}/", race
 
 
 def assert_mobile_layout(page: Any) -> None:
@@ -171,7 +257,6 @@ def assert_mobile_layout(page: Any) -> None:
         raise PlaygroundBrowserError(f"Playground did not become visible: {metrics}")
 
 
-
 def assert_desktop_layout(page: Any) -> None:
     metrics = page.evaluate(
         """() => ({
@@ -190,6 +275,121 @@ def assert_desktop_layout(page: Any) -> None:
         raise PlaygroundBrowserError(f"Playground did not become visible at desktop width: {metrics}")
 
 
+def assert_stale_navigation_race(
+    browser: Any,
+    base_url: str,
+    race: ProjectionRaceController,
+    mode: str,
+) -> None:
+    race.arm(mode)
+    context = browser.new_context(
+        viewport={"width": 360, "height": 800},
+        service_workers="block",
+    )
+    page = context.new_page()
+    page_errors: list[str] = []
+    provider_requests: list[str] = []
+    page.on("pageerror", lambda error: page_errors.append(str(error)))
+    page.on(
+        "request",
+        lambda request: provider_requests.append(request.url)
+        if request.url.endswith(PROJECTION_PATH)
+        else None,
+    )
+    try:
+        page.goto(f"{base_url}playground/", wait_until="domcontentloaded")
+        if not race.first_started.wait(timeout=5):
+            raise PlaygroundBrowserError(f"{mode} stale-race request did not reach the delay gate")
+        if page.evaluate("() => window.__playgroundProjectionFetchStarted") != 1:
+            raise PlaygroundBrowserError(f"{mode} stale-race did not start exactly one initial projection load")
+
+        page.evaluate(
+            """markup => {
+              const oldRoot = document.getElementById("composition-playground");
+              if (oldRoot) oldRoot.dataset.raceGeneration = "A";
+              history.pushState({}, "", "/home/");
+              document.body.innerHTML = "<main><p>Home</p></main>";
+              window.document$.emit();
+              history.pushState({}, "", "/playground/");
+              document.body.innerHTML = `<main>${markup}</main>`;
+              const replacement = document.getElementById("composition-playground");
+              replacement.dataset.raceGeneration = "B";
+              window.document$.emit();
+            }""",
+            playground_markup(),
+        )
+        page.wait_for_selector("[data-playground-app]:not([hidden])")
+        page.wait_for_selector("[data-playground-explain]:not([hidden])")
+        if page.evaluate("() => window.__playgroundProjectionFetchStarted") != 2:
+            raise PlaygroundBrowserError(f"{mode} stale-race replacement did not perform one projection load")
+        before_release = page.evaluate(
+            """() => ({
+              generation: document.getElementById('composition-playground')?.dataset.raceGeneration,
+              appHidden: document.querySelector('[data-playground-app]')?.hidden,
+              explainHidden: document.querySelector('[data-playground-explain]')?.hidden,
+              provider: document.querySelector('[data-playground-provider-revision]')?.textContent,
+              semantic: document.querySelector('[data-playground-semantic-revision]')?.textContent
+            })"""
+        )
+        if before_release != {
+            "generation": "B",
+            "appHidden": False,
+            "explainHidden": False,
+            "provider": PROVIDER_REVISION,
+            "semantic": SEMANTIC_REVISION,
+        }:
+            raise PlaygroundBrowserError(f"{mode} replacement mount was not current before stale release: {before_release}")
+
+        race.release_first.set()
+        if not race.first_finished.wait(timeout=5):
+            raise PlaygroundBrowserError(f"{mode} stale-race response did not finish")
+        page.wait_for_function("() => window.__playgroundProjectionFetchSettled >= 2")
+        state = page.evaluate(
+            """async () => {
+              await new Promise((resolve) => setTimeout(resolve, 0));
+              const root = document.getElementById("composition-playground");
+              const context = await window.CompositionPlayground.ensureMounted(document);
+              return {
+                generation: root?.dataset.raceGeneration,
+                appHidden: document.querySelector('[data-playground-app]')?.hidden,
+                explainHidden: document.querySelector('[data-playground-explain]')?.hidden,
+                status: document.querySelector('[data-playground-status]')?.textContent || '',
+                error: root?.dataset.playgroundError || null,
+                sameContextRoot: context?.root === root,
+                provider: context?.provenance?.providerRevision || null,
+                semantic: context?.projection?.semanticRevision || null,
+                subscribers: window.document$.subscribers.length,
+                started: window.__playgroundProjectionFetchStarted,
+                settled: window.__playgroundProjectionFetchSettled
+              };
+            }"""
+        )
+        expected_status = "Canonical Composition projection loaded with exact Site publication provenance."
+        if (
+            state["generation"] != "B"
+            or state["appHidden"]
+            or state["explainHidden"]
+            or state["status"] != expected_status
+            or state["error"] is not None
+            or not state["sameContextRoot"]
+            or state["provider"] != PROVIDER_REVISION
+            or state["semantic"] != SEMANTIC_REVISION
+            or state["subscribers"] != 2
+            or state["started"] != 2
+            or state["settled"] != 2
+        ):
+            raise PlaygroundBrowserError(f"{mode} stale mount mutated replacement state: {state}")
+        if len(provider_requests) != 2:
+            raise PlaygroundBrowserError(
+                f"{mode} stale-race expected one projection request per mount cycle: {provider_requests}"
+            )
+        if page_errors:
+            raise PlaygroundBrowserError(f"{mode} stale-race browser errors: {page_errors}")
+    finally:
+        race.release_first.set()
+        context.close()
+
+
 def run_browser_check() -> None:
     try:
         from playwright.sync_api import sync_playwright
@@ -201,16 +401,22 @@ def run_browser_check() -> None:
     with tempfile.TemporaryDirectory(prefix="composition-playground-browser-") as directory:
         harness = Path(directory)
         prepare_harness(harness)
-        server, thread, base_url = serve(harness)
+        server, thread, base_url, race = serve(harness)
         try:
             with sync_playwright() as playwright:
                 browser = playwright.chromium.launch()
+
+                # Deterministically reproduce both stale-success and stale-failure
+                # continuations while replacement root B is already current.
+                assert_stale_navigation_race(browser, base_url, race, "success")
+                assert_stale_navigation_race(browser, base_url, race, "failure")
+
                 context = browser.new_context(viewport={"width": 360, "height": 800})
                 page = context.new_page()
                 page_errors: list[str] = []
                 provider_requests: list[str] = []
                 page.on("pageerror", lambda error: page_errors.append(str(error)))
-                page.on("request", lambda request: provider_requests.append(request.url) if request.url.endswith("/composition/playground/composition-playground-v1.json.gz") else None)
+                page.on("request", lambda request: provider_requests.append(request.url) if request.url.endswith(PROJECTION_PATH) else None)
                 page.goto(base_url, wait_until="networkidle")
                 page.wait_for_selector("[data-playground-app]:not([hidden])")
                 page.wait_for_selector("[data-playground-explain]:not([hidden])")
@@ -341,6 +547,7 @@ def run_browser_check() -> None:
                 context.close()
                 browser.close()
         finally:
+            race.release_first.set()
             server.shutdown()
             server.server_close()
             thread.join(timeout=5)
