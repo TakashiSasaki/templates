@@ -9,11 +9,12 @@
     "projection_id",
     "source",
     "scope",
+    "provenance_reason_bits",
     "recipes",
     "components",
     "contracts",
     "materials",
-    "cases"
+    "outcomes"
   ],
   "$defs": {
     "componentId": {
@@ -24,40 +25,54 @@
       "type": "string",
       "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.?(?:/|$))[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*$"
     },
-    "configuration": {
+    "case": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["schema_version", "recipe", "components", "parameters"],
+      "required": ["valid", "error", "outcome_id", "selection_reason_masks"],
       "properties": {
-        "schema_version": {"const": 1},
-        "recipe": {"type": "string", "minLength": 1},
-        "components": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["include", "exclude"],
-          "properties": {
-            "include": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/componentId"}},
-            "exclude": {"const": []}
-          }
+        "valid": {"type": "boolean"},
+        "error": {
+          "oneOf": [
+            {"type": "null"},
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["code", "message"],
+              "properties": {
+                "code": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]*$"},
+                "message": {"type": "string", "minLength": 1}
+              }
+            }
+          ]
         },
-        "parameters": {"const": {}}
-      }
-    },
-    "reason": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["kind"],
-      "properties": {
-        "kind": {
-          "enum": ["recipe-artifact", "recipe-required", "recipe-default", "explicit-include", "dependency"]
+        "outcome_id": {
+          "oneOf": [
+            {"type": "null"},
+            {"type": "integer", "minimum": 0}
+          ]
         },
-        "from_component": {"$ref": "#/$defs/componentId"}
+        "selection_reason_masks": {
+          "type": "array",
+          "items": {"type": "integer", "minimum": 1, "maximum": 31}
+        }
       },
       "allOf": [
         {
-          "if": {"properties": {"kind": {"const": "dependency"}}, "required": ["kind"]},
-          "then": {"required": ["from_component"]},
-          "else": {"not": {"required": ["from_component"]}}
+          "if": {"properties": {"valid": {"const": true}}, "required": ["valid"]},
+          "then": {
+            "properties": {
+              "error": {"type": "null"},
+              "outcome_id": {"type": "integer", "minimum": 0},
+              "selection_reason_masks": {"minItems": 1}
+            }
+          },
+          "else": {
+            "properties": {
+              "error": {"type": "object"},
+              "outcome_id": {"type": "null"},
+              "selection_reason_masks": {"const": []}
+            }
+          }
         }
       ]
     }
@@ -78,12 +93,25 @@
     "scope": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["mode", "target", "components_exclude", "parameters"],
+      "required": ["mode", "target", "configuration_schema_version", "components_exclude", "parameters"],
       "properties": {
         "mode": {"const": "initial"},
         "target": {"const": "empty"},
+        "configuration_schema_version": {"const": 1},
         "components_exclude": {"const": []},
         "parameters": {"const": {}}
+      }
+    },
+    "provenance_reason_bits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["recipe_artifact", "recipe_required", "recipe_default", "explicit_include", "dependency"],
+      "properties": {
+        "recipe_artifact": {"const": 1},
+        "recipe_required": {"const": 2},
+        "recipe_default": {"const": 4},
+        "explicit_include": {"const": 8},
+        "dependency": {"const": 16}
       }
     },
     "recipes": {
@@ -92,7 +120,7 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "artifact", "required_components", "default_components", "optional_components", "case_count", "source_path"],
+        "required": ["id", "artifact", "required_components", "default_components", "optional_components", "case_count", "source_path", "cases"],
         "properties": {
           "id": {"type": "string", "minLength": 1},
           "artifact": {"$ref": "#/$defs/componentId"},
@@ -100,7 +128,8 @@
           "default_components": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/componentId"}},
           "optional_components": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/componentId"}},
           "case_count": {"type": "integer", "minimum": 1},
-          "source_path": {"$ref": "#/$defs/relativePath"}
+          "source_path": {"$ref": "#/$defs/relativePath"},
+          "cases": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/case"}}
         }
       }
     },
@@ -156,65 +185,42 @@
         }
       }
     },
-    "cases": {
+    "outcomes": {
       "type": "array",
       "minItems": 1,
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["key", "recipe", "include_mask", "explicit_includes", "configuration", "valid", "error", "resolved_components", "selection_provenance", "contract_ids", "material_ids", "initial_plan"],
+        "required": ["index", "resolved_components", "dependency_edges", "contract_ids", "material_ids", "initial_plan"],
         "properties": {
-          "key": {"type": "string", "pattern": "^[a-z][a-z0-9-]*:[0-9a-f]+$"},
-          "recipe": {"type": "string", "minLength": 1},
-          "include_mask": {"type": "integer", "minimum": 0},
-          "explicit_includes": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/componentId"}},
-          "configuration": {"$ref": "#/$defs/configuration"},
-          "valid": {"type": "boolean"},
-          "error": {
-            "oneOf": [
-              {"type": "null"},
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": ["code", "message"],
-                "properties": {
-                  "code": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]*$"},
-                  "message": {"type": "string", "minLength": 1}
-                }
-              }
-            ]
-          },
-          "resolved_components": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/componentId"}},
-          "selection_provenance": {
+          "index": {"type": "integer", "minimum": 0},
+          "resolved_components": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/componentId"}},
+          "dependency_edges": {
             "type": "array",
+            "uniqueItems": true,
             "items": {
-              "type": "object",
-              "additionalProperties": false,
-              "required": ["component", "reasons"],
-              "properties": {
-                "component": {"$ref": "#/$defs/componentId"},
-                "reasons": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/reason"}}
-              }
+              "type": "array",
+              "prefixItems": [
+                {"type": "integer", "minimum": 0},
+                {"type": "integer", "minimum": 0}
+              ],
+              "minItems": 2,
+              "maxItems": 2
             }
           },
           "contract_ids": {"type": "array", "uniqueItems": true, "items": {"type": "integer", "minimum": 0}},
           "material_ids": {"type": "array", "uniqueItems": true, "items": {"type": "integer", "minimum": 0}},
           "initial_plan": {
-            "oneOf": [
-              {"type": "null"},
-              {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["action_counts", "conflict_count"],
+            "properties": {
+              "action_counts": {
                 "type": "object",
-                "additionalProperties": false,
-                "required": ["action_counts", "conflict_count"],
-                "properties": {
-                  "action_counts": {
-                    "type": "object",
-                    "additionalProperties": {"type": "integer", "minimum": 0}
-                  },
-                  "conflict_count": {"const": 0}
-                }
-              }
-            ]
+                "additionalProperties": {"type": "integer", "minimum": 0}
+              },
+              "conflict_count": {"const": 0}
+            }
           }
         }
       }
