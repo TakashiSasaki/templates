@@ -65,8 +65,9 @@ def test_strategy_matrix_encodes_expected_behavior_for_all_four_combinations() -
         ),
         ("serial-pr", "human-handoff"): (
             "implement and validate the current member, then open its pull request "
-            "without review acquisition",
-            "do not initiate a new review request",
+            "without merge-acceptance review acquisition",
+            "no merge-acceptance review by default; an explicit task may authorize "
+            "one final diagnostic whole-stack audit when a stack exists",
             "stop at HANDOFF_READY; leave the member open and unmerged",
         ),
         ("stacked-pr", "agent-review-and-merge"): (
@@ -78,7 +79,8 @@ def test_strategy_matrix_encodes_expected_behavior_for_all_four_combinations() -
         ),
         ("stacked-pr", "human-handoff"): (
             "construct and validate the ordered stack",
-            "do not initiate a new review request",
+            "no merge-acceptance review by default; an explicit task may authorize "
+            "one final diagnostic whole-stack audit after the complete stack is stable",
             "stop at HANDOFF_READY; leave the whole stack open and unmerged",
         ),
     }
