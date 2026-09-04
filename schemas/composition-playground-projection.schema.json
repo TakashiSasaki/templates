@@ -81,13 +81,18 @@
     "schema_version": {"const": 1},
     "projection_id": {"const": "composition-playground-v1"},
     "source": {
+      "description": "Semantic provenance for the canonical projection. source.revision is the exact Composition semantic source revision used to compute the projected outcomes; it is not the Site-selected publication/provider revision. A publication-only descendant may validly publish the projection after authoritative ancestry and semantic-path equivalence checks.",
       "type": "object",
       "additionalProperties": false,
       "required": ["repository", "authority", "revision"],
       "properties": {
         "repository": {"const": "TakashiSasaki/templates"},
         "authority": {"const": "composition"},
-        "revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"}
+        "revision": {
+          "description": "Exact lowercase full SHA of the Composition semantic source revision. Consumers must not compare this for equality with the publication/provider revision unless an authoritative producer contract explicitly requires equality.",
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        }
       }
     },
     "scope": {
