@@ -75,11 +75,24 @@ test("malformed projection fails closed", async () => {
 
 test("dependency reason masks require matching incoming dependency edges", async () => {
   const raw = await fixture();
-  const projection = playground.validateProjection(raw);
-  const item = playground.lookupCase(projection, "skill", ["capability.cli"]);
+  raw.components.push({
+    id: "foundation.web",
+    role: "foundation",
+    version: 1,
+    summary: "Synthetic foundation",
+    requires: [],
+    conflicts: [],
+    contract_ids: [],
+    material_declarations: [],
+    source_path: "components/foundation.web/component.json"
+  });
+  raw.outcomes[1].resolved_components.push("foundation.web");
+  raw.outcomes[1].dependency_edges = [[1, 2]];
+  raw.recipes[0].cases[1].selection_reason_masks.push(16);
+  playground.validateProjection(raw);
+
   const inconsistent = JSON.parse(JSON.stringify(raw));
-  const outcome = inconsistent.outcomes.find((entry) => entry.index === item.outcome_id);
-  outcome.dependency_edges = [];
+  inconsistent.outcomes[1].dependency_edges = [];
   assert.throws(
     () => playground.validateProjection(inconsistent),
     (error) => error.code === "MALFORMED_PROJECTION"
