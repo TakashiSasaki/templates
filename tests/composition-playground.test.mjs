@@ -11,11 +11,12 @@ async function fixture() {
   return JSON.parse(await readFile(fixturePath, "utf8"));
 }
 
-test("supported v1 projection loads and indexes canonical cases", async () => {
+test("supported v1 projection loads compact canonical case tables", async () => {
   const projection = playground.validateProjection(await fixture());
   assert.equal(projection.sourceRevision, "a".repeat(40));
   assert.equal(projection.recipeById.size, 1);
-  assert.equal(projection.caseByKey.size, 4);
+  assert.equal(projection.outcomeById.size, 4);
+  assert.equal(projection.recipeById.get("skill").cases.length, 4);
   assert.deepEqual(playground.lookupCase(projection, "skill", ["capability.cli"]).resolved_components, [
     "artifact.skill",
     "capability.cli"
@@ -38,6 +39,13 @@ test("malformed projection fails closed", async () => {
     () => playground.validateProjection(raw),
     (error) => error.code === "MALFORMED_PROJECTION"
   );
+
+  const inconsistent = await fixture();
+  inconsistent.recipes[0].cases[1].selection_reason_masks = [1];
+  assert.throws(
+    () => playground.validateProjection(inconsistent),
+    (error) => error.code === "MALFORMED_PROJECTION"
+  );
 });
 
 test("mismatched expected source revision fails closed", async () => {
@@ -51,6 +59,8 @@ test("mismatched expected source revision fails closed", async () => {
 test("selection and lookup key round trip uses projection inventory only", async () => {
   const projection = playground.validateProjection(await fixture());
   const recipe = projection.recipeById.get("skill");
+  assert.equal(playground.selectionMask(recipe, []), 0);
+  assert.equal(playground.selectionMask(recipe, ["capability.cli"]), 1);
   assert.equal(playground.caseKey(recipe, []), "skill:0");
   assert.equal(playground.caseKey(recipe, ["capability.cli"]), "skill:1");
   assert.equal(playground.caseKey(recipe, ["lifecycle.composition-state"]), "skill:2");
@@ -75,13 +85,17 @@ test("URL hash restores recipe and explicit includes and serializes canonically"
   );
 });
 
-test("canonical configuration is serialized from the selected projection case", async () => {
+test("canonical configuration is serialized from projection scope plus selected case", async () => {
   const projection = playground.validateProjection(await fixture());
   const item = playground.lookupCase(projection, "skill", ["capability.cli"]);
   const rendered = playground.configurationText(item);
   assert.deepEqual(JSON.parse(rendered), item.configuration);
-  assert.deepEqual(item.configuration.components.exclude, []);
-  assert.deepEqual(item.configuration.parameters, {});
+  assert.deepEqual(item.configuration, {
+    schema_version: 1,
+    recipe: "skill",
+    components: { include: ["capability.cli"], exclude: [] },
+    parameters: {}
+  });
 });
 
 test("projection availability and compatibility errors map to explicit UI status", () => {
