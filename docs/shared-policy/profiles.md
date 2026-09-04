@@ -144,7 +144,7 @@ Included modules:
 <!-- PROFILE: review -->
 ### `review`
 
-Use when the context evaluates changes and reports blocking findings. It defines provider-neutral review semantics such as evidence requirements, relevant risk-domain coverage, causality, reachability, severity, security tracing, error-path and performance evidence, regression-guard evaluation, normative-rule handling, and finding placement.
+Use when the context evaluates changes and reports blocking findings. It defines provider-neutral review semantics such as evidence requirements, relevant risk-domain coverage, causality, reachability, severity, security tracing, error-path and performance evidence, regression-guard evaluation, normative-rule handling, independently addressable remediation units, and finding placement.
 
 The profile does not define GitHub event names or JSON serialization. Those are provider-integration concerns outside profile selection and semantic renderer authority. See [Shared review policy](../review-policy.md) for the detailed semantic model.
 
@@ -166,6 +166,7 @@ Included modules:
 - `policy/review/resolve-rule-conflicts-explicitly.md`
 - `policy/review/require-rule-conflict-evidence.md`
 - `policy/review/report-review-limitations.md`
+- `policy/review/keep-findings-independently-addressable.md`
 - `policy/review/anchor-findings-at-cause.md`
 
 <!-- PROFILE: external-artifact-intake -->
