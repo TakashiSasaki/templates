@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Regression coverage for the reader document's runtime mount boundary."""
+"""Regression coverage for the reader document's runtime mount and layout boundary."""
 
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 DOCUMENT = ROOT / "docs" / "composition-playground.md"
+STYLESHEET = ROOT / "assets" / "stylesheets" / "composition-playground.css"
 
 
 class CompositionPlaygroundDocumentTests(unittest.TestCase):
@@ -24,6 +25,21 @@ class CompositionPlaygroundDocumentTests(unittest.TestCase):
             heading_slug,
             "composition-playground",
             "the rendered h1 id would shadow the interactive Playground root",
+        )
+
+    def test_playground_grid_tracks_can_shrink_inside_reader_content(self) -> None:
+        css = STYLESHEET.read_text(encoding="utf-8")
+        self.assertRegex(
+            css,
+            r"\.composition-playground\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)",
+        )
+        self.assertRegex(
+            css,
+            r"\.composition-playground \[data-playground-app\]\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)",
+        )
+        self.assertRegex(
+            css,
+            r"\.composition-playground\s*>\s*\*,\s*\.composition-playground \[data-playground-app\]\s*>\s*\*\s*\{[^}]*min-inline-size:\s*0",
         )
 
 
