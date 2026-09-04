@@ -29,7 +29,7 @@ installer = load_script(INSTALLER, "installer_candidate_pin_test")
 
 
 def test_installer_candidate_pins_qualified_skill_source() -> None:
-    expected = "a7b260ccc361ad8cd1bab94803a9b355c640fe7e"
+    expected = "f3347021f6cdc4fcba3faecd01c9ab69ef0e2910"
     assert smoke.EXPECTED_SKILL_SOURCE_REVISION == expected
     assert installer.SKILL_SOURCE_REVISION == expected
 
