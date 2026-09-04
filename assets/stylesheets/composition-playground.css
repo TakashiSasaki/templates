@@ -83,7 +83,7 @@
 
 @media (min-width: 60rem) {
   .composition-playground [data-playground-app] {
-    grid-template-columns: minmax(18rem, 0.9fr) minmax(22rem, 1.1fr);
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
     align-items: start;
   }
 

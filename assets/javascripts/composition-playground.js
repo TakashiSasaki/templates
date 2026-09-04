@@ -6,11 +6,19 @@
   }
   globalScope.CompositionPlayground = api;
   if (globalScope.document) {
-    const boot = () => api.mount(globalScope.document);
+    const boot = () => {
+      void api.ensureMounted(globalScope.document);
+    };
     if (globalScope.document.readyState === "loading") {
       globalScope.document.addEventListener("DOMContentLoaded", boot, { once: true });
     } else {
       boot();
+    }
+    const navigationDocument = globalScope.document$;
+    if (navigationDocument && typeof navigationDocument.subscribe === "function") {
+      navigationDocument.subscribe(() => {
+        void api.ensureMounted(globalScope.document);
+      });
     }
   }
 })(typeof globalThis !== "undefined" ? globalThis : this, function (scope) {
@@ -73,17 +81,81 @@
     ) && Object.keys(value).length === Object.keys(EXPECTED_REASON_BITS).length;
   }
 
-  function validateProjection(raw) {
-    if (!isObject(raw)) {
-      throw new ProjectionError("MALFORMED_PROJECTION", "projection must be an object");
+  function exactObject(value, name, keys) {
+    if (!isObject(value) || Object.keys(value).length !== keys.length || keys.some((key) => !Object.prototype.hasOwnProperty.call(value, key))) {
+      throw new ProjectionError("MALFORMED_PROJECTION", `${name} has an invalid shape`);
     }
+    return value;
+  }
+
+  function nonEmptyString(value, name) {
+    if (typeof value !== "string" || value.length === 0) {
+      throw new ProjectionError("MALFORMED_PROJECTION", `${name} must be a non-empty string`);
+    }
+    return value;
+  }
+
+  function integerAtLeast(value, name, minimum = 0) {
+    if (!Number.isSafeInteger(value) || value < minimum) {
+      throw new ProjectionError("MALFORMED_PROJECTION", `${name} must be an integer >= ${minimum}`);
+    }
+    return value;
+  }
+
+  function relativePath(value, name) {
+    if (typeof value !== "string" || !/^(?!\/)(?!.*(?:^|\/)\.\.?(?:\/|$))[A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_.-]+)*$/.test(value)) {
+      throw new ProjectionError("MALFORMED_PROJECTION", `${name} must be a safe relative path`);
+    }
+    return value;
+  }
+
+  function componentId(value, name) {
+    if (typeof value !== "string" || !/^(foundation|artifact|capability|lifecycle)\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(value)) {
+      throw new ProjectionError("MALFORMED_PROJECTION", `${name} must be a valid component id`);
+    }
+    return value;
+  }
+
+  function componentIdArray(value, name) {
+    const entries = requireUniqueStrings(value, name);
+    entries.forEach((entry) => componentId(entry, name));
+    return entries;
+  }
+
+  function integerArray(value, name) {
+    const entries = requireArray(value, name);
+    if (entries.some((entry) => !Number.isSafeInteger(entry) || entry < 0)) {
+      throw new ProjectionError("MALFORMED_PROJECTION", `${name} must contain non-negative integers`);
+    }
+    if (new Set(entries).size !== entries.length) {
+      throw new ProjectionError("MALFORMED_PROJECTION", `${name} must contain unique integers`);
+    }
+    return entries;
+  }
+
+  function errorObject(value, name) {
+    exactObject(value, name, ["code", "message"]);
+    if (typeof value.code !== "string" || !/^[A-Z][A-Z0-9_]*$/.test(value.code)) {
+      throw new ProjectionError("MALFORMED_PROJECTION", `${name}.code is invalid`);
+    }
+    nonEmptyString(value.message, `${name}.message`);
+    return value;
+  }
+
+  function validateProjection(raw) {
+    exactObject(raw, "projection", [
+      "schema_version", "projection_id", "source", "scope", "provenance_reason_bits",
+      "recipes", "components", "contracts", "materials", "outcomes"
+    ]);
     if (raw.schema_version !== SUPPORTED_SCHEMA_VERSION || raw.projection_id !== PROJECTION_ID) {
       throw new ProjectionError("UNSUPPORTED_PROJECTION", "unsupported Playground projection version");
     }
-    if (!isObject(raw.source) || raw.source.repository !== "TakashiSasaki/templates" || raw.source.authority !== "composition" || !FULL_SHA.test(raw.source.revision || "")) {
+    exactObject(raw.source, "source", ["repository", "authority", "revision"]);
+    if (raw.source.repository !== "TakashiSasaki/templates" || raw.source.authority !== "composition" || !FULL_SHA.test(raw.source.revision || "")) {
       throw new ProjectionError("MALFORMED_PROJECTION", "projection semantic source provenance is invalid");
     }
-    if (!isObject(raw.scope) || raw.scope.mode !== "initial" || raw.scope.target !== "empty" || raw.scope.configuration_schema_version !== 1 || JSON.stringify(raw.scope.components_exclude) !== "[]" || JSON.stringify(raw.scope.parameters) !== "{}") {
+    exactObject(raw.scope, "scope", ["mode", "target", "configuration_schema_version", "components_exclude", "parameters"]);
+    if (raw.scope.mode !== "initial" || raw.scope.target !== "empty" || raw.scope.configuration_schema_version !== 1 || JSON.stringify(raw.scope.components_exclude) !== "[]" || JSON.stringify(raw.scope.parameters) !== "{}") {
       throw new ProjectionError("UNSUPPORTED_PROJECTION", "projection scope is outside Playground v1");
     }
     if (!sameReasonBits(raw.provenance_reason_bits)) {
@@ -95,6 +167,9 @@
     const contracts = requireArray(raw.contracts, "contracts");
     const materials = requireArray(raw.materials, "materials");
     const outcomes = requireArray(raw.outcomes, "outcomes");
+    if (!recipes.length || !components.length || !outcomes.length) {
+      throw new ProjectionError("MALFORMED_PROJECTION", "projection inventories are empty");
+    }
     const recipeById = new Map();
     const componentById = new Map();
     const contractById = new Map();
@@ -102,89 +177,139 @@
     const outcomeById = new Map();
 
     for (const component of components) {
-      if (!isObject(component) || typeof component.id !== "string" || componentById.has(component.id)) {
+      exactObject(component, "component", ["id", "role", "version", "summary", "requires", "conflicts", "contract_ids", "material_declarations", "source_path"]);
+      const id = componentId(component.id, "component.id");
+      if (!["foundation", "artifact", "capability", "lifecycle"].includes(component.role) || componentById.has(id)) {
         throw new ProjectionError("MALFORMED_PROJECTION", "component inventory is invalid or duplicated");
       }
-      requireUniqueStrings(component.requires, `component ${component.id} requires`);
-      componentById.set(component.id, component);
+      integerAtLeast(component.version, `component ${id}.version`, 1);
+      nonEmptyString(component.summary, `component ${id}.summary`);
+      componentIdArray(component.requires, `component ${id}.requires`);
+      componentIdArray(component.conflicts, `component ${id}.conflicts`);
+      integerArray(component.contract_ids, `component ${id}.contract_ids`);
+      if (!Array.isArray(component.material_declarations) || component.material_declarations.some((entry) => !isObject(entry))) {
+        throw new ProjectionError("MALFORMED_PROJECTION", `component ${id}.material_declarations is invalid`);
+      }
+      relativePath(component.source_path, `component ${id}.source_path`);
+      componentById.set(id, component);
     }
 
     for (const contract of contracts) {
-      if (!isObject(contract) || !Number.isInteger(contract.index) || contract.index < 0 || contractById.has(contract.index)) {
-        throw new ProjectionError("MALFORMED_PROJECTION", "contract inventory is invalid or duplicated");
-      }
-      contractById.set(contract.index, contract);
+      exactObject(contract, "contract", ["index", "component", "id", "document", "schema", "document_schema_version", "purpose"]);
+      const index = integerAtLeast(contract.index, "contract.index");
+      if (contractById.has(index)) throw new ProjectionError("MALFORMED_PROJECTION", "contract inventory is invalid or duplicated");
+      componentId(contract.component, `contract ${index}.component`);
+      nonEmptyString(contract.id, `contract ${index}.id`);
+      relativePath(contract.document, `contract ${index}.document`);
+      relativePath(contract.schema, `contract ${index}.schema`);
+      integerAtLeast(contract.document_schema_version, `contract ${index}.document_schema_version`, 1);
+      nonEmptyString(contract.purpose, `contract ${index}.purpose`);
+      contractById.set(index, contract);
     }
+
     for (const material of materials) {
-      if (!isObject(material) || !Number.isInteger(material.index) || material.index < 0 || materialById.has(material.index)) {
-        throw new ProjectionError("MALFORMED_PROJECTION", "material inventory is invalid or duplicated");
+      exactObject(material, "material", ["index", "component", "destination", "ownership", "sha256"]);
+      const index = integerAtLeast(material.index, "material.index");
+      if (materialById.has(index)) throw new ProjectionError("MALFORMED_PROJECTION", "material inventory is invalid or duplicated");
+      componentId(material.component, `material ${index}.component`);
+      relativePath(material.destination, `material ${index}.destination`);
+      if (!["managed", "generated", "seed"].includes(material.ownership) || !/^[0-9a-f]{64}$/.test(material.sha256 || "")) {
+        throw new ProjectionError("MALFORMED_PROJECTION", `material ${index} is invalid`);
       }
-      materialById.set(material.index, material);
+      materialById.set(index, material);
     }
 
     for (const outcome of outcomes) {
-      if (!isObject(outcome) || !Number.isInteger(outcome.index) || outcome.index < 0 || outcomeById.has(outcome.index)) {
-        throw new ProjectionError("MALFORMED_PROJECTION", "outcome inventory is invalid or duplicated");
-      }
-      const resolved = requireUniqueStrings(outcome.resolved_components, `outcome ${outcome.index} resolved_components`);
-      for (const componentId of resolved) {
-        if (!componentById.has(componentId)) {
-          throw new ProjectionError("MALFORMED_PROJECTION", `outcome ${outcome.index} references an unknown component`);
+      exactObject(outcome, "outcome", ["index", "resolved_components", "dependency_edges", "contract_ids", "material_ids", "initial_plan"]);
+      const index = integerAtLeast(outcome.index, "outcome.index");
+      if (outcomeById.has(index)) throw new ProjectionError("MALFORMED_PROJECTION", "outcome inventory is invalid or duplicated");
+      const resolved = componentIdArray(outcome.resolved_components, `outcome ${index}.resolved_components`);
+      const edges = requireArray(outcome.dependency_edges, `outcome ${index}.dependency_edges`);
+      const seenEdges = new Set();
+      for (const edge of edges) {
+        if (!Array.isArray(edge) || edge.length !== 2 || edge.some((position) => !Number.isSafeInteger(position) || position < 0 || position >= resolved.length)) {
+          throw new ProjectionError("MALFORMED_PROJECTION", `outcome ${index} has an invalid dependency edge`);
         }
+        const key = JSON.stringify(edge);
+        if (seenEdges.has(key)) throw new ProjectionError("MALFORMED_PROJECTION", `outcome ${index} has duplicate dependency edges`);
+        seenEdges.add(key);
       }
-      for (const edge of requireArray(outcome.dependency_edges, `outcome ${outcome.index} dependency_edges`)) {
-        if (!Array.isArray(edge) || edge.length !== 2 || edge.some((position) => !Number.isInteger(position) || position < 0 || position >= resolved.length)) {
-          throw new ProjectionError("MALFORMED_PROJECTION", `outcome ${outcome.index} has an invalid dependency edge`);
-        }
+      integerArray(outcome.contract_ids, `outcome ${index}.contract_ids`);
+      integerArray(outcome.material_ids, `outcome ${index}.material_ids`);
+      exactObject(outcome.initial_plan, `outcome ${index}.initial_plan`, ["action_counts", "conflict_count"]);
+      if (!isObject(outcome.initial_plan.action_counts) || Object.entries(outcome.initial_plan.action_counts).some(([action, count]) => !action || !Number.isSafeInteger(count) || count < 0) || outcome.initial_plan.conflict_count !== 0) {
+        throw new ProjectionError("MALFORMED_PROJECTION", `outcome ${index} has an invalid initial plan`);
       }
-      for (const contractId of requireArray(outcome.contract_ids, `outcome ${outcome.index} contract_ids`)) {
-        if (!contractById.has(contractId)) {
-          throw new ProjectionError("MALFORMED_PROJECTION", `outcome ${outcome.index} references an unknown contract`);
-        }
-      }
-      for (const materialId of requireArray(outcome.material_ids, `outcome ${outcome.index} material_ids`)) {
-        if (!materialById.has(materialId)) {
-          throw new ProjectionError("MALFORMED_PROJECTION", `outcome ${outcome.index} references an unknown material`);
-        }
-      }
-      if (!isObject(outcome.initial_plan) || !isObject(outcome.initial_plan.action_counts) || outcome.initial_plan.conflict_count !== 0) {
-        throw new ProjectionError("MALFORMED_PROJECTION", `outcome ${outcome.index} has an invalid initial plan`);
-      }
-      outcomeById.set(outcome.index, outcome);
+      outcomeById.set(index, outcome);
     }
-    if (outcomeById.size === 0) {
-      throw new ProjectionError("MALFORMED_PROJECTION", "projection has no canonical outcomes");
+
+    for (const component of components) {
+      for (const dependency of [...component.requires, ...component.conflicts]) {
+        if (!componentById.has(dependency)) throw new ProjectionError("MALFORMED_PROJECTION", `component ${component.id} references an unknown component`);
+      }
+      for (const id of component.contract_ids) {
+        if (!contractById.has(id)) throw new ProjectionError("MALFORMED_PROJECTION", `component ${component.id} references an unknown contract`);
+      }
+    }
+    for (const contract of contracts) {
+      if (!componentById.has(contract.component)) throw new ProjectionError("MALFORMED_PROJECTION", `contract ${contract.index} references an unknown component`);
+    }
+    for (const material of materials) {
+      if (!componentById.has(material.component)) throw new ProjectionError("MALFORMED_PROJECTION", `material ${material.index} references an unknown component`);
+    }
+    for (const outcome of outcomes) {
+      for (const componentIdValue of outcome.resolved_components) {
+        if (!componentById.has(componentIdValue)) throw new ProjectionError("MALFORMED_PROJECTION", `outcome ${outcome.index} references an unknown component`);
+      }
+      for (const contractId of outcome.contract_ids) {
+        if (!contractById.has(contractId)) throw new ProjectionError("MALFORMED_PROJECTION", `outcome ${outcome.index} references an unknown contract`);
+      }
+      for (const materialId of outcome.material_ids) {
+        if (!materialById.has(materialId)) throw new ProjectionError("MALFORMED_PROJECTION", `outcome ${outcome.index} references an unknown material`);
+      }
     }
 
     for (const recipe of recipes) {
-      if (!isObject(recipe) || typeof recipe.id !== "string" || recipeById.has(recipe.id)) {
+      exactObject(recipe, "recipe", ["id", "artifact", "required_components", "default_components", "optional_components", "case_count", "source_path", "cases"]);
+      if (typeof recipe.id !== "string" || recipe.id.length === 0 || recipeById.has(recipe.id)) {
         throw new ProjectionError("MALFORMED_PROJECTION", "recipe inventory is invalid or duplicated");
       }
-      const optionals = requireUniqueStrings(recipe.optional_components, `recipe ${recipe.id} optional_components`);
+      componentId(recipe.artifact, `recipe ${recipe.id}.artifact`);
+      componentIdArray(recipe.required_components, `recipe ${recipe.id}.required_components`);
+      componentIdArray(recipe.default_components, `recipe ${recipe.id}.default_components`);
+      const optionals = componentIdArray(recipe.optional_components, `recipe ${recipe.id}.optional_components`);
+      relativePath(recipe.source_path, `recipe ${recipe.id}.source_path`);
       const cases = requireArray(recipe.cases, `recipe ${recipe.id} cases`);
       const expectedCaseCount = 2 ** optionals.length;
-      if (!Number.isSafeInteger(expectedCaseCount) || recipe.case_count !== expectedCaseCount || cases.length !== expectedCaseCount) {
+      if (!Number.isSafeInteger(recipe.case_count) || recipe.case_count !== expectedCaseCount || cases.length !== expectedCaseCount) {
         throw new ProjectionError("MALFORMED_PROJECTION", `recipe ${recipe.id} case table does not cover its optional-component domain`);
       }
       for (let mask = 0; mask < cases.length; mask += 1) {
         const item = cases[mask];
-        if (!isObject(item) || typeof item.valid !== "boolean" || !Array.isArray(item.selection_reason_masks)) {
+        exactObject(item, `recipe ${recipe.id} case ${mask}`, ["valid", "error", "outcome_id", "selection_reason_masks"]);
+        if (typeof item.valid !== "boolean" || !Array.isArray(item.selection_reason_masks)) {
           throw new ProjectionError("MALFORMED_PROJECTION", `recipe ${recipe.id} case ${mask} is malformed`);
+        }
+        if (item.selection_reason_masks.some((reasonMask) => !Number.isSafeInteger(reasonMask) || reasonMask < 1 || reasonMask > 31)) {
+          throw new ProjectionError("MALFORMED_PROJECTION", `recipe ${recipe.id} case ${mask} has invalid selection provenance`);
         }
         if (item.valid) {
           const outcome = outcomeById.get(item.outcome_id);
-          if (item.error !== null || !outcome || item.selection_reason_masks.length !== outcome.resolved_components.length || item.selection_reason_masks.some((reasonMask) => !Number.isInteger(reasonMask) || reasonMask < 1 || reasonMask > 31)) {
+          if (item.error !== null || !outcome || item.selection_reason_masks.length !== outcome.resolved_components.length) {
             throw new ProjectionError("MALFORMED_PROJECTION", `recipe ${recipe.id} valid case ${mask} is inconsistent with its outcome`);
           }
-        } else if (item.outcome_id !== null || !isObject(item.error) || typeof item.error.code !== "string" || item.selection_reason_masks.length !== 0) {
+        } else if (item.outcome_id !== null || !isObject(item.error) || item.selection_reason_masks.length !== 0) {
           throw new ProjectionError("MALFORMED_PROJECTION", `recipe ${recipe.id} invalid case ${mask} is inconsistent`);
+        } else {
+          errorObject(item.error, `recipe ${recipe.id} case ${mask}.error`);
         }
+      }
+      for (const id of [recipe.artifact, ...recipe.required_components, ...recipe.default_components, ...optionals]) {
+        if (!componentById.has(id)) throw new ProjectionError("MALFORMED_PROJECTION", `recipe ${recipe.id} references an unknown component`);
       }
       recipeById.set(recipe.id, recipe);
     }
-    if (recipeById.size === 0) {
-      throw new ProjectionError("MALFORMED_PROJECTION", "projection has no recipes");
-    }
+    if (recipeById.size === 0) throw new ProjectionError("MALFORMED_PROJECTION", "projection has no recipes");
 
     return Object.freeze({
       raw,
@@ -432,10 +557,56 @@
     return labels.malformed;
   }
 
-  async function mount(document) {
-    const root = document.getElementById("composition-playground");
-    if (!root || root.dataset.playgroundMounted === "true") return null;
-    root.dataset.playgroundMounted = "true";
+  let runtimeState = {
+    root: null,
+    promise: null,
+    context: null,
+    error: null,
+    listeners: new Set()
+  };
+  let hashListenerBound = false;
+  let activeHashHandler = null;
+
+  function notify(event) {
+    for (const listener of runtimeState.listeners) {
+      try {
+        listener(event);
+      } catch (error) {
+        if (scope.console && typeof scope.console.warn === "function") {
+          scope.console.warn("Composition Playground subscriber failed", error);
+        }
+      }
+    }
+  }
+
+  function subscribe(listener) {
+    if (typeof listener !== "function") throw new TypeError("Composition Playground subscriber must be a function");
+    runtimeState.listeners.add(listener);
+    if (runtimeState.context) {
+      const context = runtimeState.context;
+      Promise.resolve().then(() => {
+        if (runtimeState.context === context) listener({ type: "ready", context });
+      });
+    } else if (runtimeState.error && runtimeState.root) {
+      const root = runtimeState.root;
+      const error = runtimeState.error;
+      Promise.resolve().then(() => {
+        if (runtimeState.root === root && runtimeState.error === error) listener({ type: "error", root, error });
+      });
+    }
+    return () => runtimeState.listeners.delete(listener);
+  }
+
+  function bindHashListener() {
+    if (scope.addEventListener && !hashListenerBound) {
+      scope.addEventListener("hashchange", () => {
+        if (activeHashHandler) activeHashHandler();
+      });
+      hashListenerBound = true;
+    }
+  }
+
+  async function mountRoot(document, root, current) {
     const status = root.querySelector("[data-playground-status]");
     const app = root.querySelector("[data-playground-app]");
     const nodes = {
@@ -450,6 +621,7 @@
       copy: root.querySelector("[data-playground-copy]")
     };
     if (!status || !app || Object.values(nodes).some((node) => !node)) return null;
+    root.dataset.playgroundMounted = "true";
     status.textContent = labels.loading;
 
     try {
@@ -457,17 +629,32 @@
         loadProjection(root.dataset.projectionUrl),
         loadBuildProvenance(root.dataset.provenanceUrl || "/build-provenance.json")
       ]);
+      if (runtimeState !== current || root.isConnected === false) return null;
       let state = parseHash(scope.location ? scope.location.hash : "", projection);
       let currentCase = null;
 
+      const updateContext = () => {
+        currentCase = lookupCase(projection, state.recipeId, state.includes);
+        current.context = Object.freeze({
+          document,
+          root,
+          projection,
+          provenance,
+          state: { recipeId: state.recipeId, includes: state.includes.slice() },
+          currentCase
+        });
+        runtimeState.context = current.context;
+        notify({ type: "selection", context: current.context });
+      };
       const readControlState = () => ({
         recipeId: nodes.recipe.value,
         includes: Array.from(nodes.optionals.querySelectorAll("input[type=checkbox]:checked"), (node) => node.value)
       });
       const apply = (nextState, replaceHash) => {
+        if (runtimeState !== current || root.isConnected === false) return;
         state = nextState;
         renderSelection(document, nodes, projection, state, () => apply(readControlState(), false));
-        currentCase = lookupCase(projection, state.recipeId, state.includes);
+        updateContext();
         renderCase(document, nodes, projection, provenance, currentCase);
         if (scope.history && scope.location) {
           const nextHash = stateHash(state.recipeId, state.includes);
@@ -486,26 +673,62 @@
           status.textContent = labels.copyFailed;
         }
       });
-      if (scope.addEventListener) {
-        scope.addEventListener("hashchange", () => {
-          try {
-            apply(parseHash(scope.location.hash, projection), true);
-          } catch (error) {
-            status.textContent = statusForError(error);
-          }
-        });
-      }
+      activeHashHandler = () => {
+        if (runtimeState !== current || root.isConnected === false) return;
+        try {
+          apply(parseHash(scope.location.hash, projection), true);
+        } catch (error) {
+          status.textContent = statusForError(error);
+        }
+      };
+      bindHashListener();
 
       apply(state, true);
       app.hidden = false;
       status.textContent = "Canonical Composition projection loaded with exact Site publication provenance.";
-      return { projection, provenance, state, currentCase };
+      notify({ type: "ready", context: current.context });
+      return current.context;
     } catch (error) {
       app.hidden = true;
       status.textContent = statusForError(error);
       root.dataset.playgroundError = error instanceof ProjectionError ? error.code : "UNKNOWN";
+      current.error = error;
+      runtimeState.context = null;
+      runtimeState.error = error;
+      notify({ type: "error", root, error });
       return null;
     }
+  }
+
+  function ensureMounted(document) {
+    const root = document && document.getElementById("composition-playground");
+    if (!root) {
+      if (runtimeState.root) {
+        const previousRoot = runtimeState.root;
+        const listeners = runtimeState.listeners;
+        runtimeState = { root: null, promise: null, context: null, error: null, listeners };
+        activeHashHandler = null;
+        notify({ type: "unmounted", root: previousRoot });
+      }
+      return Promise.resolve(null);
+    }
+    if (runtimeState.root === root) return runtimeState.promise || Promise.resolve(runtimeState.context);
+
+    const previousRoot = runtimeState.root;
+    const listeners = runtimeState.listeners;
+    if (previousRoot) {
+      runtimeState = { root: null, promise: null, context: null, error: null, listeners };
+      activeHashHandler = null;
+      notify({ type: "unmounted", root: previousRoot });
+    }
+    const current = { root, promise: null, context: null, error: null, listeners };
+    runtimeState = current;
+    current.promise = mountRoot(document, root, current);
+    return current.promise;
+  }
+
+  function mount(document) {
+    return ensureMounted(document);
   }
 
   return Object.freeze({
@@ -528,6 +751,8 @@
     loadProjection,
     loadBuildProvenance,
     statusForError,
+    ensureMounted,
+    subscribe,
     mount
   });
 });
