@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "source": "Empirical stacked workflow stabilization findings from PRs #706-#710",
+  "cases": [
+    {
+      "id": "A-provider-cannot-establish-cumulative-binding",
+      "condition": "A provider reviews a stack tip but cannot explicitly attest one or more lower-member cumulative coverage bindings.",
+      "expected": [
+        "Do not infer lower-member coverage from the tip-only review.",
+        "Do not loop cumulative review acquisition or clarification merely to recover an optional optimization.",
+        "Keep acceptance fail-closed and use individual independent exact-head review for uncovered members when review acquisition is authorized."
+      ]
+    },
+    {
+      "id": "B-lower-semantic-candidate-changes",
+      "condition": "A lower semantic/runtime candidate changes before downstream immutable identities are finalized.",
+      "expected": [
+        "Mark affected downstream T/S/I/publication preparation stale.",
+        "Regenerate and propagate in one coherent dependency-ordered cycle after the upstream semantic repair is stable.",
+        "Do not deliberately acquire independent review for a knowingly intermediate downstream head."
+      ]
+    },
+    {
+      "id": "C-lower-pr-merge-preserves-reviewed-tree",
+      "condition": "A lower pull request merges and moves an upper member's base while the upper reviewed tree/head remains applicable.",
+      "expected": [
+        "Evaluate the base movement and changed bindings.",
+        "Do not rewrite the upper head solely because the lower member merged.",
+        "Preserve unaffected evidence when its applicability is established."
+      ]
+    },
+    {
+      "id": "D-final-whole-stack-audit",
+      "condition": "The completed implementation stack receives a final whole-stack audit.",
+      "expected": [
+        "Freeze every intended final member head and require all applicable required CI for those exact heads to complete successfully before requesting the audit.",
+        "Inspect dependencies, overlaps or gaps, design consistency, final behavior, tests, and unintended scope.",
+        "Keep the audit distinct from ordinary per-member merge-acceptance evidence.",
+        "Do not infer cumulative lower-member acceptance from a tip-only audit."
+      ]
+    },
+    {
+      "id": "E-immutable-merge-ci-release-safeguards",
+      "condition": "A member or release candidate reaches acceptance/promotion boundaries.",
+      "expected": [
+        "Merge remains guarded by the exact accepted current head.",
+        "CI evidence remains bound to the exact revision that executed.",
+        "T, S, I, remote installation URLs, and release descriptors remain immutable full-SHA and fail-closed."
+      ]
+    }
+  ]
+}
