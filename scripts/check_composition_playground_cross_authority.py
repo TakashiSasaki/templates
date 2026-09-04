@@ -281,6 +281,28 @@ def run_browser_check(
                   return Boolean(await cache.match(url.href));
                 }"""
             )
+            if not page.evaluate(
+                """async () => {
+                  const url = new URL(location.href);
+                  url.hash = "";
+                  const cache = await caches.open("templates-portal-documents-v1");
+                  const cached = await cache.match(url.href);
+                  if (!cached) return false;
+                  const headers = new Headers(cached.headers);
+                  headers.delete("Content-Encoding");
+                  headers.delete("Content-Length");
+                  await cache.put(
+                    url.href,
+                    new Response(await cached.arrayBuffer(), {
+                      status: cached.status,
+                      statusText: cached.statusText,
+                      headers,
+                    })
+                  );
+                  return true;
+                }"""
+            ):
+                raise CrossAuthorityError("Service Worker did not persist cached Playground HTML")
             page.context.set_offline(True)
             page.reload(wait_until="domcontentloaded")
             page.wait_for_function(
