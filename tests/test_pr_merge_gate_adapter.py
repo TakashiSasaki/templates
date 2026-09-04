@@ -87,6 +87,7 @@ def test_adapter_does_not_embed_transient_reviewer_triggers() -> None:
     text = SKILL.read_text(encoding="utf-8").lower()
     assert "@hermes review" not in text
     assert "hermes agent" not in text
+    assert "@codex review" not in text
 
 
 def test_adapter_ci_discovery_is_fail_closed_and_read_only() -> None:
@@ -156,7 +157,6 @@ def test_adapter_final_refresh_is_invalidation_driven() -> None:
         assert invariant in text
 
 
-
 def test_adapter_success_path_is_review_evidence_oriented() -> None:
     text = SKILL.read_text(encoding="utf-8")
     assert "CI_GREEN -> REVIEW_EVIDENCE_PENDING -> REVIEW_EVIDENCE_ESTABLISHED" in text
@@ -165,15 +165,24 @@ def test_adapter_success_path_is_review_evidence_oriented() -> None:
     assert "Issuing a review request is not an acceptance state" in text
 
 
-def test_adapter_accepts_evidence_independently_of_acquisition_transport() -> None:
+def test_adapter_accepts_individual_exact_head_evidence_for_stacked_members() -> None:
     text = SKILL.read_text(encoding="utf-8").lower()
-    for phrase in (
-        "the gate evaluates evidence, not the transport",
-        "completed independent review bound to the exact current pr head",
-        "explicit cumulative coverage bound to the ordered stack",
-        "review-request transport is not itself acceptance evidence",
-    ):
-        assert phrase in text
+    assert "including a member constructed under stacked-pr progression" in text
+    assert "completed independent review bound to that member's exact current head" in text
+    assert "stacked progression does not require cumulative review" in text
+
+
+def test_adapter_requires_explicit_bindings_only_for_cumulative_stack_claims() -> None:
+    text = SKILL.read_text(encoding="utf-8").lower()
+    assert "when one completed review is claimed to cover multiple stacked members" in text
+    assert "valid cumulative evidence must additionally bind" in text
+    assert "ordered stack" in text
+    assert "integration base" in text
+    assert "every covered member exact head" in text
+    assert (
+        "tip-only review or approval event does not establish lower-member "
+        "cumulative coverage"
+    ) in text
 
 
 def test_adapter_keeps_missing_evidence_fail_closed_and_handoff_separate() -> None:
@@ -185,17 +194,21 @@ def test_adapter_keeps_missing_evidence_fail_closed_and_handoff_separate() -> No
     assert "`merge_allowed`" in text
 
 
-def test_adapter_preserves_serial_acquisition_without_making_it_gate_state() -> None:
+def test_adapter_review_acquisition_is_completion_driven_not_progression_driven() -> None:
     text = SKILL.read_text(encoding="utf-8").lower()
-    assert "when serial-pr acquisition is selected" in text
-    assert "may request review for the exact current head" in text
-    assert "must name the exact sha" in text
-    assert "request_requested" not in text
+    assert (
+        "review acquisition belongs to the selected completion procedure, not to "
+        "serial or stacked progression"
+    ) in text
+    assert "under agent-review-and-merge" in text
+    assert "under human-handoff, do not initiate a new review request" in text
+    assert "when serial-pr acquisition is selected" not in text
+
 
 def test_adapter_requires_exact_head_review_and_guarded_merge() -> None:
     text = SKILL.read_text(encoding="utf-8").lower()
     for invariant in (
-        "request review for the exact current head",
+        "initiate review for the exact current head",
         "must name the exact sha",
         (
             "a request, pending review, empty review list, or absence of findings "
@@ -268,7 +281,7 @@ def test_adapter_separates_merge_from_post_merge_readiness() -> None:
         assert invariant in text
 
 
-def test_adapter_supports_strategy_neutral_human_handoff_and_stacked_coverage() -> None:
+def test_adapter_supports_strategy_neutral_handoff_and_optional_stacked_coverage() -> None:
     text = SKILL.read_text(encoding="utf-8").lower()
     for invariant in (
         "serial-pr",
@@ -276,11 +289,11 @@ def test_adapter_supports_strategy_neutral_human_handoff_and_stacked_coverage() 
         "agent-review-and-merge",
         "human-handoff",
         "handoff_ready",
-        "does not request review",
+        "does not initiate a new review request",
         "does not authorize or execute a merge",
         "ordered stack",
         "integration base",
-        "each member exact head",
+        "each covered member exact head",
         "cumulative scope",
         "review contract",
         "reviewer independence",
