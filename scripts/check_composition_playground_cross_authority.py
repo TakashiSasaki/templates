@@ -95,37 +95,52 @@ def assert_no_horizontal_overflow(page: Any) -> None:
     if metrics["innerWidth"] != 360 or metrics["clientWidth"] != 360:
         raise CrossAuthorityError(f"unexpected narrow viewport metrics: {metrics}")
     if metrics["scrollWidth"] > metrics["clientWidth"] + 1:
-        offenders = page.evaluate(
+        diagnostics = page.evaluate(
             """() => {
               const viewport = document.documentElement.clientWidth;
               const root = document.querySelector('#composition-playground');
-              if (!root) return [];
-              return Array.from(root.querySelectorAll('*'))
-                .map((node) => {
-                  const rect = node.getBoundingClientRect();
-                  const style = getComputedStyle(node);
-                  return {
-                    tag: node.tagName,
-                    id: node.id || '',
-                    className: typeof node.className === 'string' ? node.className : '',
-                    left: Math.round(rect.left * 10) / 10,
-                    right: Math.round(rect.right * 10) / 10,
-                    width: Math.round(rect.width * 10) / 10,
-                    clientWidth: node.clientWidth,
-                    scrollWidth: node.scrollWidth,
-                    boxSizing: style.boxSizing,
-                    whiteSpace: style.whiteSpace,
-                    overflowWrap: style.overflowWrap,
-                    text: (node.textContent || '').trim().replace(/\\s+/g, ' ').slice(0, 120)
-                  };
-                })
+              if (!root) return { offenders: [], ancestors: [] };
+              const describe = (node) => {
+                const rect = node.getBoundingClientRect();
+                const style = getComputedStyle(node);
+                return {
+                  tag: node.tagName,
+                  id: node.id || '',
+                  className: typeof node.className === 'string' ? node.className : '',
+                  left: Math.round(rect.left * 10) / 10,
+                  right: Math.round(rect.right * 10) / 10,
+                  width: Math.round(rect.width * 10) / 10,
+                  clientWidth: node.clientWidth,
+                  scrollWidth: node.scrollWidth,
+                  display: style.display,
+                  boxSizing: style.boxSizing,
+                  cssWidth: style.width,
+                  minWidth: style.minWidth,
+                  maxWidth: style.maxWidth,
+                  marginLeft: style.marginLeft,
+                  marginRight: style.marginRight,
+                  paddingLeft: style.paddingLeft,
+                  paddingRight: style.paddingRight,
+                  flex: style.flex,
+                  overflowX: style.overflowX,
+                  whiteSpace: style.whiteSpace,
+                  overflowWrap: style.overflowWrap,
+                  text: (node.textContent || '').trim().replace(/\\s+/g, ' ').slice(0, 120)
+                };
+              };
+              const offenders = Array.from(root.querySelectorAll('*'))
+                .map(describe)
                 .filter((item) => item.right > viewport + 1 || item.left < -1 || item.scrollWidth > item.clientWidth + 1)
                 .sort((left, right) => Math.max(right.right - viewport, right.scrollWidth - right.clientWidth) - Math.max(left.right - viewport, left.scrollWidth - left.clientWidth))
                 .slice(0, 12);
+              const ancestors = [];
+              for (let node = root; node; node = node.parentElement) ancestors.push(describe(node));
+              return { offenders, ancestors };
             }"""
         )
         raise CrossAuthorityError(
-            f"Playground has horizontal overflow at 360px: {metrics}; offenders={offenders}"
+            "Playground has horizontal overflow at 360px: "
+            f"{metrics}; offenders={diagnostics['offenders']}; ancestors={diagnostics['ancestors']}"
         )
 
 
