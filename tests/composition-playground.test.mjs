@@ -73,6 +73,19 @@ test("malformed projection fails closed", async () => {
   );
 });
 
+test("dependency reason masks require matching incoming dependency edges", async () => {
+  const raw = await fixture();
+  const projection = playground.validateProjection(raw);
+  const item = playground.lookupCase(projection, "skill", ["capability.cli"]);
+  const inconsistent = JSON.parse(JSON.stringify(raw));
+  const outcome = inconsistent.outcomes.find((entry) => entry.index === item.outcome_id);
+  outcome.dependency_edges = [];
+  assert.throws(
+    () => playground.validateProjection(inconsistent),
+    (error) => error.code === "MALFORMED_PROJECTION"
+  );
+});
+
 test("semantic source revision and published provider revision are distinct identities", async () => {
   const projection = playground.validateProjection(await fixture());
   const provenance = playground.validateBuildProvenance(buildProvenance());

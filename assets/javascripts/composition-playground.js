@@ -298,6 +298,16 @@
           if (item.error !== null || !outcome || item.selection_reason_masks.length !== outcome.resolved_components.length) {
             throw new ProjectionError("MALFORMED_PROJECTION", `recipe ${recipe.id} valid case ${mask} is inconsistent with its outcome`);
           }
+          const dependencyTargets = new Set(outcome.dependency_edges.map((edge) => edge[1]));
+          item.selection_reason_masks.forEach((reasonMask, componentIndex) => {
+            const hasDependencyReason = (reasonMask & raw.provenance_reason_bits.dependency) !== 0;
+            if (hasDependencyReason !== dependencyTargets.has(componentIndex)) {
+              throw new ProjectionError(
+                "MALFORMED_PROJECTION",
+                `recipe ${recipe.id} case ${mask} has inconsistent dependency provenance`
+              );
+            }
+          });
         } else if (item.outcome_id !== null || !isObject(item.error) || item.selection_reason_masks.length !== 0) {
           throw new ProjectionError("MALFORMED_PROJECTION", `recipe ${recipe.id} invalid case ${mask} is inconsistent`);
         } else {

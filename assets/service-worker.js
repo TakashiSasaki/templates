@@ -24,6 +24,7 @@ const STATIC_ASSETS = [
   "/stylesheets/translation-reader.css",
   "/stylesheets/glossary-inline.css",
   "/stylesheets/freshness-status.css",
+  "/stylesheets/composition-playground.css",
   "/javascripts/repository-tree-viewer.js",
   "/javascripts/repository-browser.js",
   "/javascripts/guided-copy.js",

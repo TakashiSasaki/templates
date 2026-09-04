@@ -24,7 +24,8 @@ class PwaDocumentCacheReviewRegressionTests(unittest.TestCase):
             TEMPLATE.read_text(encoding="utf-8").replace("__GENERATED_NAV__", "[]")
         )
         globally_loaded = {f"/{name}" for name in template["project"]["extra_javascript"]}
-        expected = globally_loaded | {
+        globally_loaded_css = {f"/{name}" for name in template["project"]["extra_css"]}
+        expected = globally_loaded | globally_loaded_css | {
             "/javascripts/glossary-inline.js",
             "/javascripts/guided-copy.js",
             "/javascripts/pwa.js",
