@@ -9,6 +9,7 @@ const explain = require("../assets/javascripts/composition-playground-explain.js
 const fixturePath = new URL("./fixtures/composition-playground-v1-explain.json", import.meta.url);
 const documentPath = new URL("../docs/composition-playground.md", import.meta.url);
 const zensicalPath = new URL("../zensical.template.toml", import.meta.url);
+const workerPath = new URL("../assets/service-worker.js", import.meta.url);
 
 async function projection() {
   const raw = JSON.parse(await readFile(fixturePath, "utf8"));
@@ -72,6 +73,7 @@ test("dependency provenance without a provider edge fails closed", async () => {
 test("reader document and runtime registration expose explainability without changing provider URL", async () => {
   const document = await readFile(documentPath, "utf8");
   const template = await readFile(zensicalPath, "utf8");
+  const worker = await readFile(workerPath, "utf8");
   assert.match(document, /data-projection-url="\/composition\/playground\/composition-playground-v1\.json\.gz"/);
   for (const marker of [
     "data-playground-explain",
@@ -85,4 +87,32 @@ test("reader document and runtime registration expose explainability without cha
   const coreIndex = template.indexOf('"javascripts/composition-playground.js"');
   const explainIndex = template.indexOf('"javascripts/composition-playground-explain.js"');
   assert.ok(coreIndex >= 0 && explainIndex > coreIndex);
+  assert.match(worker, /"\/javascripts\/composition-playground\.js"/);
+  assert.match(worker, /"\/javascripts\/composition-playground-explain\.js"/);
+});
+
+
+test("explainability consumes the core validated shared runtime context", async () => {
+  const source = await readFile(new URL("../assets/javascripts/composition-playground-explain.js", import.meta.url), "utf8");
+  assert.doesNotMatch(source, /loadProjection\(/);
+  assert.match(source, /ensureMounted/);
+  assert.match(source, /subscribe/);
+});
+
+test("core validation rejects malformed explainability-consumed values", async () => {
+  const base = JSON.parse(await readFile(fixturePath, "utf8"));
+  for (const [label, mutate] of [
+    ["component summary", (value) => { value.components[0].summary = null; }],
+    ["contract purpose", (value) => { value.contracts[0].purpose = 4; }],
+    ["material destination", (value) => { value.materials[0].destination = "../escape"; }],
+    ["initial plan count", (value) => { value.outcomes[0].initial_plan.action_counts.create = "1"; }]
+  ]) {
+    const value = JSON.parse(JSON.stringify(base));
+    mutate(value);
+    assert.throws(
+      () => core.validateProjection(value),
+      (error) => error.code === "MALFORMED_PROJECTION",
+      label
+    );
+  }
 });

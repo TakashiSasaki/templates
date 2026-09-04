@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import gzip
 import json
+import re
 import shutil
 import tempfile
 import threading
@@ -19,6 +20,7 @@ FIXTURE = ROOT / "tests" / "fixtures" / "composition-playground-v1-explain.json"
 CORE_JS = ROOT / "assets" / "javascripts" / "composition-playground.js"
 EXPLAIN_JS = ROOT / "assets" / "javascripts" / "composition-playground-explain.js"
 CSS = ROOT / "assets" / "stylesheets" / "composition-playground.css"
+SERVICE_WORKER = ROOT / "assets" / "service-worker.js"
 SEMANTIC_REVISION = "a" * 40
 PROVIDER_REVISION = "b" * 40
 
@@ -56,6 +58,16 @@ def prepare_harness(root: Path) -> None:
     shutil.copyfile(CORE_JS, root / "javascripts" / CORE_JS.name)
     shutil.copyfile(EXPLAIN_JS, root / "javascripts" / EXPLAIN_JS.name)
     shutil.copyfile(CSS, root / "stylesheets" / CSS.name)
+    service_worker_source = SERVICE_WORKER.read_text(encoding="utf-8")
+    static_assets_match = re.search(r"const STATIC_ASSETS = (\[[^;]+\]);", service_worker_source)
+    if not static_assets_match:
+        raise PlaygroundBrowserError("Service Worker static asset inventory is unavailable")
+    shutil.copyfile(SERVICE_WORKER, root / "service-worker.js")
+    for asset in json.loads(static_assets_match.group(1)):
+        target = root / asset.lstrip("/")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if not target.exists():
+            target.write_text("", encoding="utf-8")
     raw_fixture = FIXTURE.read_bytes()
     (root / "composition" / "playground" / "composition-playground-v1.json.gz").write_bytes(
         gzip.compress(raw_fixture, compresslevel=9, mtime=0)
@@ -80,8 +92,16 @@ def prepare_harness(root: Path) -> None:
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Composition Playground acceptance</title>
-  <style>html {{ box-sizing: border-box; }} *, *::before, *::after {{ box-sizing: inherit; }} body {{ margin: 0; padding: 1rem; font: 16px/1.5 sans-serif; }} main {{ max-width: 72rem; margin-inline: auto; }}</style>
+  <style>html {{ box-sizing: border-box; }} *, *::before, *::after {{ box-sizing: inherit; }} body {{ margin: 0; padding: 1rem; font: 16px/1.5 sans-serif; }} main {{ width: 38rem; max-width: calc(100% - 2rem); margin-inline: auto; }}</style>
   <link rel="stylesheet" href="/stylesheets/composition-playground.css">
+  <script>
+    window.document$ = {{
+      subscribers: [],
+      subscribe(callback) {{ this.subscribers.push(callback); return {{ unsubscribe() {{}} }}; }},
+      emit() {{ for (const callback of [...this.subscribers]) callback(); }}
+    }};
+    if ("serviceWorker" in navigator) navigator.serviceWorker.register("/service-worker.js");
+  </script>
   <script src="/javascripts/composition-playground.js" defer></script>
   <script src="/javascripts/composition-playground-explain.js" defer></script>
 </head>
@@ -124,6 +144,25 @@ def assert_mobile_layout(page: Any) -> None:
         raise PlaygroundBrowserError(f"Playground did not become visible: {metrics}")
 
 
+
+def assert_desktop_layout(page: Any) -> None:
+    metrics = page.evaluate(
+        """() => ({
+          innerWidth: window.innerWidth,
+          clientWidth: document.documentElement.clientWidth,
+          scrollWidth: document.documentElement.scrollWidth,
+          readerWidth: document.querySelector('main')?.getBoundingClientRect().width || 0,
+          appHidden: document.querySelector('[data-playground-app]').hidden
+        })"""
+    )
+    if metrics["innerWidth"] != 1024 or metrics["clientWidth"] != 1024:
+        raise PlaygroundBrowserError(f"unexpected desktop viewport metrics: {metrics}")
+    if metrics["readerWidth"] >= 800 or metrics["scrollWidth"] > metrics["clientWidth"] + 1:
+        raise PlaygroundBrowserError(f"Playground desktop reader column overflows: {metrics}")
+    if metrics["appHidden"]:
+        raise PlaygroundBrowserError(f"Playground did not become visible at desktop width: {metrics}")
+
+
 def run_browser_check() -> None:
     try:
         from playwright.sync_api import sync_playwright
@@ -139,11 +178,24 @@ def run_browser_check() -> None:
         try:
             with sync_playwright() as playwright:
                 browser = playwright.chromium.launch()
-                page = browser.new_page(viewport={"width": 360, "height": 800})
+                context = browser.new_context(viewport={"width": 360, "height": 800})
+                page = context.new_page()
                 page_errors: list[str] = []
+                provider_requests: list[str] = []
                 page.on("pageerror", lambda error: page_errors.append(str(error)))
+                page.on("request", lambda request: provider_requests.append(request.url) if request.url.endswith("/composition/playground/composition-playground-v1.json.gz") else None)
                 page.goto(base_url, wait_until="networkidle")
                 page.wait_for_selector("[data-playground-app]:not([hidden])")
+                page.wait_for_selector("[data-playground-explain]:not([hidden])")
+                if len(provider_requests) != 1:
+                    raise PlaygroundBrowserError(f"expected one initial projection request, got {provider_requests}")
+                assert_mobile_layout(page)
+                page.set_viewport_size({"width": 1024, "height": 900})
+                page.reload(wait_until="networkidle")
+                page.wait_for_selector("[data-playground-explain]:not([hidden])")
+                assert_desktop_layout(page)
+                page.set_viewport_size({"width": 360, "height": 800})
+                page.reload(wait_until="networkidle")
                 page.wait_for_selector("[data-playground-explain]:not([hidden])")
                 assert_mobile_layout(page)
 
@@ -197,8 +249,55 @@ def run_browser_check() -> None:
                 if not page.locator('input[type="checkbox"][value="capability.cli"]').is_checked():
                     raise PlaygroundBrowserError("shareable URL hash did not restore the selected component")
                 assert_mobile_layout(page)
+                markup = playground_markup()
+                for _cycle in range(2):
+                    before_requests = len(provider_requests)
+                    page.evaluate(
+                        """markup => {
+                          history.pushState({}, "", "/home/");
+                          document.body.innerHTML = "<main><p>Home</p></main>";
+                          window.document$.emit();
+                          history.pushState({}, "", "/playground/");
+                          document.body.innerHTML = markup;
+                          window.document$.emit();
+                        }""",
+                        markup,
+                    )
+                    page.wait_for_selector("[data-playground-explain]:not([hidden])")
+                    if len(provider_requests) != before_requests + 1:
+                        raise PlaygroundBrowserError(
+                            "instant navigation mounted the projection more than once: "
+                            f"{provider_requests[before_requests:]}"
+                        )
+                    assert_mobile_layout(page)
+                if page.evaluate("() => window.document$.subscribers.length") != 2:
+                    raise PlaygroundBrowserError("instant navigation accumulated duplicate lifecycle subscribers")
+
+                page.evaluate("() => navigator.serviceWorker.ready")
+                page.wait_for_function("() => navigator.serviceWorker.controller !== null")
+                page.reload(wait_until="networkidle")
+                page.wait_for_selector("[data-playground-explain]:not([hidden])")
+                context.set_offline(True)
+                page.reload(wait_until="domcontentloaded")
+                page.wait_for_function(
+                    "() => document.querySelector('[data-playground-status]')?.textContent !== "
+                    "'Loading the canonical Composition projection…'"
+                )
+                offline_metrics = page.evaluate(
+                    """() => ({
+                      appHidden: document.querySelector('[data-playground-app]').hidden,
+                      explainHidden: document.querySelector('[data-playground-explain]').hidden,
+                      status: document.querySelector('[data-playground-status]').textContent
+                    })"""
+                )
+                context.set_offline(False)
+                if not offline_metrics["appHidden"] or not offline_metrics["explainHidden"] or "not available" not in offline_metrics["status"]:
+                    raise PlaygroundBrowserError(
+                        f"offline cached HTML did not execute fail-closed runtime: {offline_metrics}"
+                    )
                 if page_errors:
                     raise PlaygroundBrowserError(f"browser page errors: {page_errors}")
+                context.close()
                 browser.close()
         finally:
             server.shutdown()

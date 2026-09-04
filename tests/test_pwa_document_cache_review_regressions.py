@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import json
 import re
+import tomllib
 import unittest
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
+TEMPLATE = ROOT / "zensical.template.toml"
 
 
 class PwaDocumentCacheReviewRegressionTests(unittest.TestCase):
@@ -18,16 +20,19 @@ class PwaDocumentCacheReviewRegressionTests(unittest.TestCase):
         match = re.search(r"const STATIC_ASSETS = (\[[^;]+\]);", self.worker)
         self.assertIsNotNone(match)
         static_assets = set(json.loads(match.group(1)))
-        for name in (
-            "glossary-inline.js",
-            "guided-copy.js",
-            "pwa.js",
-            "reader-navigation.js",
-            "repository-browser.js",
-            "repository-tree-viewer.js",
-        ):
-            with self.subTest(name=name):
-                self.assertIn(f"/javascripts/{name}", static_assets)
+        template = tomllib.loads(
+            TEMPLATE.read_text(encoding="utf-8").replace("__GENERATED_NAV__", "[]")
+        )
+        globally_loaded = {f"/{name}" for name in template["project"]["extra_javascript"]}
+        expected = globally_loaded | {
+            "/javascripts/glossary-inline.js",
+            "/javascripts/guided-copy.js",
+            "/javascripts/pwa.js",
+            "/javascripts/reader-navigation.js",
+            "/javascripts/repository-browser.js",
+            "/javascripts/repository-tree-viewer.js",
+        }
+        self.assertTrue(expected <= static_assets)
         self.assertIn("/site-chrome-locales.json", static_assets)
 
     def test_document_cache_mutations_use_request_generation_order(self) -> None:

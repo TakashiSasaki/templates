@@ -84,7 +84,7 @@ def serve(root: Path) -> tuple[ThreadingHTTPServer, threading.Thread, str]:
     return server, thread, f"http://{host}:{port}"
 
 
-def assert_no_horizontal_overflow(page: Any) -> None:
+def assert_no_horizontal_overflow(page: Any, expected_width: int = 360) -> None:
     metrics = page.evaluate(
         """() => ({
           innerWidth: window.innerWidth,
@@ -92,7 +92,7 @@ def assert_no_horizontal_overflow(page: Any) -> None:
           scrollWidth: document.documentElement.scrollWidth
         })"""
     )
-    if metrics["innerWidth"] != 360 or metrics["clientWidth"] != 360:
+    if metrics["innerWidth"] != expected_width or metrics["clientWidth"] != expected_width:
         raise CrossAuthorityError(f"unexpected narrow viewport metrics: {metrics}")
     if metrics["scrollWidth"] > metrics["clientWidth"] + 1:
         diagnostics = page.evaluate(
@@ -139,7 +139,7 @@ def assert_no_horizontal_overflow(page: Any) -> None:
             }"""
         )
         raise CrossAuthorityError(
-            "Playground has horizontal overflow at 360px: "
+            f"Playground has horizontal overflow at {expected_width}px: "
             f"{metrics}; offenders={diagnostics['offenders']}; ancestors={diagnostics['ancestors']}"
         )
 
@@ -148,6 +148,22 @@ def assert_text_contains(page: Any, selector: str, expected: str) -> None:
     text = page.locator(selector).text_content() or ""
     if expected not in text:
         raise CrossAuthorityError(f"{selector} is missing {expected!r}: {text[:500]!r}")
+
+
+
+def assert_desktop_reader_column(page: Any) -> None:
+    metrics = page.evaluate(
+        """() => ({
+          innerWidth: window.innerWidth,
+          clientWidth: document.documentElement.clientWidth,
+          scrollWidth: document.documentElement.scrollWidth,
+          readerWidth: document.querySelector('main')?.getBoundingClientRect().width || 0
+        })"""
+    )
+    if metrics["innerWidth"] != 1024 or metrics["clientWidth"] != 1024:
+        raise CrossAuthorityError(f"unexpected desktop viewport metrics: {metrics}")
+    if metrics["readerWidth"] >= 950 or metrics["scrollWidth"] > metrics["clientWidth"] + 1:
+        raise CrossAuthorityError(f"built Site reader column overflows at desktop width: {metrics}")
 
 
 def run_browser_check(
@@ -168,13 +184,17 @@ def run_browser_check(
             browser = playwright.chromium.launch()
             page = browser.new_page(viewport={"width": 360, "height": 800})
             page_errors: list[str] = []
+            provider_requests: list[str] = []
             page.on("pageerror", lambda error: page_errors.append(str(error)))
+            page.on("request", lambda request: provider_requests.append(request.url) if request.url.endswith("/composition/playground/composition-playground-v1.json.gz") else None)
             page.goto(
                 f"{base_url}/playground/#recipe=skill&include=capability.cli",
                 wait_until="networkidle",
             )
             page.wait_for_selector("[data-playground-app]:not([hidden])")
             page.wait_for_selector("[data-playground-explain]:not([hidden])")
+            if len(provider_requests) != 1:
+                raise CrossAuthorityError(f"expected one projection request for one real mount: {provider_requests}")
 
             if page.locator("[data-playground-semantic-revision]").text_content() != expected_semantic_revision:
                 raise CrossAuthorityError("browser did not display the projection semantic source revision")
@@ -222,6 +242,19 @@ def run_browser_check(
                 if expected not in explanation:
                     raise CrossAuthorityError(f"real explainability output is missing {expected!r}")
             assert_no_horizontal_overflow(page)
+            page.set_viewport_size({"width": 1024, "height": 900})
+            page.reload(wait_until="networkidle")
+            page.wait_for_selector("[data-playground-app]:not([hidden])")
+            page.wait_for_selector("[data-playground-explain]:not([hidden])")
+            assert_no_horizontal_overflow(page, expected_width=1024)
+            assert_desktop_reader_column(page)
+            page.set_viewport_size({"width": 959, "height": 900})
+            page.reload(wait_until="networkidle")
+            page.wait_for_selector("[data-playground-app]:not([hidden])")
+            assert_no_horizontal_overflow(page, expected_width=959)
+            page.set_viewport_size({"width": 360, "height": 800})
+            page.reload(wait_until="networkidle")
+            page.wait_for_selector("[data-playground-app]:not([hidden])")
 
             cli = page.locator('input[type="checkbox"][value="capability.cli"]')
             cli.uncheck()
@@ -236,6 +269,28 @@ def run_browser_check(
             if not page.locator('input[type="checkbox"][value="capability.cli"]').is_checked():
                 raise CrossAuthorityError("shareable URL/hash did not round-trip after case changes")
             assert_no_horizontal_overflow(page)
+
+            page.wait_for_function("() => navigator.serviceWorker?.controller !== null")
+            page.reload(wait_until="networkidle")
+            page.wait_for_selector("[data-playground-app]:not([hidden])")
+            page.context.set_offline(True)
+            page.reload(wait_until="domcontentloaded")
+            page.wait_for_function(
+                "() => document.querySelector('[data-playground-status]')?.textContent !== "
+                "'Loading the canonical Composition projection…'"
+            )
+            offline_metrics = page.evaluate(
+                """() => ({
+                  appHidden: document.querySelector('[data-playground-app]').hidden,
+                  explainHidden: document.querySelector('[data-playground-explain]').hidden,
+                  status: document.querySelector('[data-playground-status]').textContent
+                })"""
+            )
+            page.context.set_offline(False)
+            if not offline_metrics["appHidden"] or not offline_metrics["explainHidden"] or "not available" not in offline_metrics["status"]:
+                raise CrossAuthorityError(
+                    f"real built Site offline runtime did not fail closed: {offline_metrics}"
+                )
 
             original_provenance = provenance_path.read_bytes()
             provenance_path.unlink()

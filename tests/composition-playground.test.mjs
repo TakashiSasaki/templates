@@ -153,3 +153,37 @@ test("projection and provenance availability errors map to explicit UI status", 
     /malformed/
   );
 });
+
+test("all Site-consumed explainability fields are validated before exposure", async () => {
+  const base = await fixture();
+  base.contracts = [{
+    index: 0, component: "artifact.skill", id: "artifact-contract",
+    document: "ARTIFACT.md", schema: "schemas/artifact.schema.json",
+    document_schema_version: 1, purpose: "Describe the artifact"
+  }];
+  base.materials = [{
+    index: 0, component: "artifact.skill", destination: "README.md",
+    ownership: "seed", sha256: "0".repeat(64)
+  }];
+  base.outcomes[0].contract_ids = [0];
+  base.outcomes[0].material_ids = [0];
+  assert.doesNotThrow(() => playground.validateProjection(base));
+
+  for (const [label, mutate] of [
+    ["component role", (value) => { value.components[0].role = "unknown"; }],
+    ["component summary", (value) => { value.components[0].summary = 7; }],
+    ["recipe source", (value) => { value.recipes[0].source_path = "../recipe.json"; }],
+    ["contract purpose", (value) => { value.contracts[0].purpose = null; }],
+    ["material destination", (value) => { delete value.materials[0].destination; }],
+    ["material ownership", (value) => { value.materials[0].ownership = "unknown"; }],
+    ["initial plan", (value) => { value.outcomes[0].initial_plan.action_counts.create = "1"; }]
+  ]) {
+    const value = JSON.parse(JSON.stringify(base));
+    mutate(value);
+    assert.throws(
+      () => playground.validateProjection(value),
+      (error) => error.code === "MALFORMED_PROJECTION",
+      label
+    );
+  }
+});

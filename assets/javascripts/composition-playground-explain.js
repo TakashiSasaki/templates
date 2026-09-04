@@ -6,11 +6,19 @@
   }
   globalScope.CompositionPlaygroundExplain = api;
   if (globalScope.document) {
-    const boot = () => api.mount(globalScope.document);
+    const boot = () => {
+      void api.mount(globalScope.document);
+    };
     if (globalScope.document.readyState === "loading") {
       globalScope.document.addEventListener("DOMContentLoaded", boot, { once: true });
     } else {
       boot();
+    }
+    const navigationDocument = globalScope.document$;
+    if (navigationDocument && typeof navigationDocument.subscribe === "function") {
+      navigationDocument.subscribe(() => {
+        void api.mount(globalScope.document);
+      });
     }
   }
 })(typeof globalThis !== "undefined" ? globalThis : this, function (globalScope, core) {
@@ -263,36 +271,45 @@
     explain.hidden = false;
   }
 
+  let coreUnsubscribe;
+
+  function hide(root) {
+    const explain = root && root.querySelector("[data-playground-explain]");
+    if (explain) explain.hidden = true;
+  }
+
+  function renderContext(event) {
+    const context = event.context;
+    const root = event.root || context?.root;
+    if (!root || root !== globalScope.document?.getElementById("composition-playground")) return;
+    if (event.type === "unmounted" || event.type === "error") {
+      hide(root);
+      return;
+    }
+    if (event.type !== "ready" && event.type !== "selection") return;
+    try {
+      render(globalScope.document, root, context.projection, context.currentCase);
+    } catch (error) {
+      hide(root);
+      if (globalScope.console && typeof globalScope.console.warn === "function") {
+        globalScope.console.warn("Composition Playground explainability rendering failed", error);
+      }
+    }
+  }
+
   async function mount(document) {
     const c = requireCore();
-    const root = document.getElementById("composition-playground");
-    if (!root || root.dataset.playgroundExplainMounted === "true") return null;
-    root.dataset.playgroundExplainMounted = "true";
-    try {
-      const projection = await c.loadProjection(root.dataset.projectionUrl);
-      const readControls = () => ({
-        recipeId: root.querySelector("[data-playground-recipe]").value,
-        includes: Array.from(root.querySelectorAll("[data-playground-optionals] input[type=checkbox]:checked"), (node) => node.value)
-      });
-      const renderState = (state) => render(document, root, projection, c.lookupCase(projection, state.recipeId, state.includes));
-      const initial = globalScope.location ? c.parseHash(globalScope.location.hash, projection) : { recipeId: projection.recipes[0].id, includes: [] };
-      renderState(initial);
-      root.addEventListener("change", () => queueMicrotask(() => renderState(readControls())));
-      if (globalScope.addEventListener && globalScope.location) {
-        globalScope.addEventListener("hashchange", () => {
-          try {
-            renderState(c.parseHash(globalScope.location.hash, projection));
-          } catch (_error) {
-            root.querySelector("[data-playground-explain]").hidden = true;
-          }
-        });
-      }
-      return { projection };
-    } catch (_error) {
-      const explain = root.querySelector("[data-playground-explain]");
-      if (explain) explain.hidden = true;
+    if (!coreUnsubscribe) {
+      coreUnsubscribe = c.subscribe(renderContext);
+    }
+    const context = await c.ensureMounted(document);
+    const root = document && document.getElementById("composition-playground");
+    if (!context) {
+      hide(root);
       return null;
     }
+    renderContext({ type: "ready", context });
+    return { projection: context.projection, provenance: context.provenance, context };
   }
 
   return Object.freeze({
