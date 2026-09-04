@@ -9,6 +9,13 @@ from agent_policy.policy_loader import parse_policy
 ROOT = Path(__file__).resolve().parents[1]
 CORE_PROFILE = ROOT / "profiles" / "core.yml"
 COMPLETION = ROOT / "policy" / "core" / "repository-change-completion.md"
+HUMAN_HANDOFF = (
+    ROOT
+    / "skills"
+    / "orchestrate-repository-change"
+    / "references"
+    / "human-handoff.md"
+)
 
 
 def test_completion_semantics_are_selected_by_core_profile() -> None:
@@ -55,6 +62,12 @@ def test_handoff_reports_preexisting_completed_review_truthfully() -> None:
     assert "applicable pre-existing review evidence already establishes completed review" in text
     assert "preserve and report that review_complete state" in text
     assert "must not label a handoff review complete unless applicable pre-existing" in text
+
+
+def test_handoff_ready_does_not_erase_preexisting_completed_review_state() -> None:
+    text = HUMAN_HANDOFF.read_text(encoding="utf-8").lower()
+    assert "handoff_ready does not by itself imply review_complete" in text
+    assert "handoff_ready is not review_complete" not in text
 
 
 def test_progression_does_not_force_completion_boundary() -> None:
