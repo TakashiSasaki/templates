@@ -13,7 +13,7 @@
     },
     "policy": {
       "role": "coding-agent-operating-policy",
-      "publication_revision": "462cd0dbd0802d960f6eb01b8a34c5b0cd6520b7",
+      "publication_revision": "c5a3294809a1066bf59b83f467f1d597f885289a",
       "overview_document_id": "policy:overview",
       "publication_catalog_path": "docs/publication-catalog.json",
       "relationship_to_composition": "independent-optional"
@@ -80,21 +80,21 @@
     }
   },
   "policy": {
-    "publication_revision": "462cd0dbd0802d960f6eb01b8a34c5b0cd6520b7",
+    "publication_revision": "c5a3294809a1066bf59b83f467f1d597f885289a",
     "installer": {
       "repository": "TakashiSasaki/templates",
-      "revision": "709df0be6287723bf3f1bb38ae5f64d8b3bde08e",
+      "revision": "f4457c90854db34c3ce8e1c381f67a4d7d5ea523",
       "path": "scripts/install_agent_policy_skill.py",
-      "url": "https://raw.githubusercontent.com/TakashiSasaki/templates/709df0be6287723bf3f1bb38ae5f64d8b3bde08e/scripts/install_agent_policy_skill.py"
+      "url": "https://raw.githubusercontent.com/TakashiSasaki/templates/f4457c90854db34c3ce8e1c381f67a4d7d5ea523/scripts/install_agent_policy_skill.py"
     },
     "skill": {
       "name": "agent-policy",
       "repository": "TakashiSasaki/templates",
-      "revision": "a7b260ccc361ad8cd1bab94803a9b355c640fe7e",
+      "revision": "344aaf0b140e3c066363297012bb866efbc106e4",
       "path": "skills/agent-policy",
       "unmanaged_entrypoint": "scripts/bootstrap.py",
       "managed_entrypoint": "scripts/run.py",
-      "instructions_url": "https://raw.githubusercontent.com/TakashiSasaki/templates/a7b260ccc361ad8cd1bab94803a9b355c640fe7e/skills/agent-policy/SKILL.md"
+      "instructions_url": "https://raw.githubusercontent.com/TakashiSasaki/templates/344aaf0b140e3c066363297012bb866efbc106e4/skills/agent-policy/SKILL.md"
     }
   },
   "requirements": {
