@@ -1,10 +1,10 @@
 lock_version: 1
 toolchain:
   repository: TakashiSasaki/templates
-  revision: 2d18f495d0494961f8da5ac10dfca332409cd2d8
+  revision: 65a11ecac55c95edf20c1c445fd0c0092b4668cb
 inputs:
   .agent-policy.yml:
-    sha256: a8ba7d467d90bbddc9e4fc6e973c31dc9d1c2935409f42324494904d9fac1705
+    sha256: 535dcd05bc66168c1f084e84cfb45f42df96a96dc75afd22eab2e0d3b6424c50
   repository-policy/architecture-decisions.md:
     sha256: 6377845c99329c58f0d26134dfa3cf91236d3d8ade4c317920bfdc13f77a0ff1
   repository-policy/authority-boundary.md:
@@ -23,7 +23,7 @@ outputs:
   .agents/skills/orchestrate-repository-change/SKILL.md:
     sha256: 75f818487e4a469ec34efbc1f2d48a5188b706f0ad53184c7fa539c433f2eee5
   .agents/skills/orchestrate-repository-change/references/human-handoff.md:
-    sha256: 663bfec760c01083f07c2b23f16b8e0abe4808385f9810f5bab4791f6be2a1a6
+    sha256: 3d4ab1b33fcbdef1edbbfe261096938410f3d925dbf201b24cf11214a582c6d1
   .agents/skills/orchestrate-repository-change/references/pr-workflow-selection.md:
     sha256: 682399f7fd2d4612e23052cf51c2dc21bfd8b12bf223ec42598c42867bf18434
   .agents/skills/orchestrate-repository-change/references/serial-pr-workflow.md:
@@ -57,6 +57,6 @@ outputs:
   .agents/skills/pr-review/references/risk-domains/state-mutation-and-recovery.md:
     sha256: 0cd5b71178b43da5128f4d2e1bfab8f3df5d71439531a9010f351c4ed1468f44
   .review-authority/review-policy.md:
-    sha256: 1a945aab7a7a3b0f05d47db75604c6b53f700bfbf9cf1745640f167c9fde9aef
+    sha256: 56236794f68f7291f8756487ad284c20c0d7dc3c33deac2df22226c608fcb867
   AGENTS.md:
-    sha256: 3ab78429abee0c5bb413ec0a0bc60b521f49e6e32d22f748385f816c65e1e571
+    sha256: 0143c265f368944a42974135173a80a305363036fa0f950eacc7f19d93b6be14
