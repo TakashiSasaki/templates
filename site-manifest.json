@@ -24,6 +24,7 @@
         {"title": "Concepts and terminology", "publication": "composition", "document": "composition-concepts", "destination": "composition/concepts/index.md"},
         {"title": "Evaluate Composition", "publication": "composition", "document": "evaluation-guide", "destination": "composition/evaluate/index.md"},
         {"title": "Use Composition", "publication": "composition", "document": "consumer-guide", "destination": "composition/use/index.md"},
+        {"title": "Composition Playground", "publication": "site", "document": "composition-playground", "destination": "playground/index.md"},
         {"title": "Produce a product release", "publication": "composition", "document": "release-guide", "destination": "composition/release/index.md"},
         {"title": "Composer reference", "publication": "composition", "document": "composer-reference", "destination": "composition/reference/composer.md"},
         {"title": "Documentation index", "publication": "composition", "document": "documentation-index", "destination": "composition/docs/index.md"},
