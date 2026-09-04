@@ -75,7 +75,7 @@ published immutable installer を使います。
 **Run**
 
 ```bash
-python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/23ac7ce36e6e0d11f4a7bc72ab1103d1062f31ae/scripts/install_agent_policy_skill.py', timeout=30).read())" /path/to/agent-skills/agent-policy
+python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/bad638f58c74a12078d4e02bca62151a7bb86dea/scripts/install_agent_policy_skill.py', timeout=30).read())" /path/to/agent-skills/agent-policy
 ```
 
 既存 `agent-policy` skill installation を意図的に置換する場合だけ `--replace` を追加します。
@@ -317,7 +317,7 @@ runner は skill default stable pin より repository `.agent-policy.lock` の f
 
 3つの full-SHA identity は意図的に分離されています。
 
-- **installer script revision** `23ac7ce36e6e0d11f4a7bc72ab1103d1062f31ae` — remotely executed installer。
+- **installer script revision** `bad638f58c74a12078d4e02bca62151a7bb86dea` — remotely executed installer。
 - **skill source revision** `20cdbc720249516e3d30fc93e050391b81eaa6b4` — installed `skills/agent-policy/` subtree。
 - installed `runtime-manifest.json` の **stable runtime revision** — canonical CLI runtime。
 

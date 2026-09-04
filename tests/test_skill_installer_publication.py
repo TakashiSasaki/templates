@@ -17,7 +17,7 @@ SKILL_README = ROOT / "skills/agent-policy/README.md"
 BOOTSTRAP_DOC = ROOT / "docs/bootstrap.md"
 GETTING_STARTED = ROOT / "docs/getting-started.md"
 RELEASE_TRUST = ROOT / "repository-policy/release-trust.md"
-INSTALLER_REVISION = "23ac7ce36e6e0d11f4a7bc72ab1103d1062f31ae"
+INSTALLER_REVISION = "bad638f58c74a12078d4e02bca62151a7bb86dea"
 SKILL_REVISION = "20cdbc720249516e3d30fc93e050391b81eaa6b4"
 RAW_INSTALLER_URL = (
     "https://raw.githubusercontent.com/TakashiSasaki/templates/"
