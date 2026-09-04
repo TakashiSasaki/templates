@@ -283,6 +283,19 @@ def run_browser_check() -> None:
                 page.wait_for_function("() => navigator.serviceWorker.controller !== null")
                 page.reload(wait_until="networkidle")
                 page.wait_for_selector("[data-playground-explain]:not([hidden])")
+                page.evaluate(
+                    """async () => {
+                      const html = "<!doctype html>" + document.documentElement.outerHTML;
+                      const cache = await caches.open("templates-portal-documents-v1");
+                      await cache.put(
+                        new Request("/playground/"),
+                        new Response(html, {
+                          status: 200,
+                          headers: {"content-type": "text/html; charset=utf-8"}
+                        })
+                      );
+                    }"""
+                )
                 context.set_offline(True)
                 page.reload(wait_until="domcontentloaded")
                 page.wait_for_function(
@@ -291,13 +304,14 @@ def run_browser_check() -> None:
                 )
                 offline_metrics = page.evaluate(
                     """() => ({
-                      appHidden: document.querySelector('[data-playground-app]').hidden,
-                      explainHidden: document.querySelector('[data-playground-explain]').hidden,
-                      status: document.querySelector('[data-playground-status]').textContent
+                      hasRoot: Boolean(document.querySelector('#composition-playground')),
+                      appHidden: document.querySelector('[data-playground-app]')?.hidden,
+                      explainHidden: document.querySelector('[data-playground-explain]')?.hidden,
+                      status: document.querySelector('[data-playground-status]')?.textContent || ''
                     })"""
                 )
                 context.set_offline(False)
-                if not offline_metrics["appHidden"] or not offline_metrics["explainHidden"] or "not available" not in offline_metrics["status"]:
+                if not offline_metrics["hasRoot"] or not offline_metrics["appHidden"] or not offline_metrics["explainHidden"] or "not available" not in offline_metrics["status"]:
                     raise PlaygroundBrowserError(
                         f"offline cached HTML did not execute fail-closed runtime: {offline_metrics}"
                     )
