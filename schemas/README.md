@@ -5,10 +5,13 @@ The JSON Schema Draft 2020-12 contracts define the composition source, resolved-
 - `component.schema.json` — foundation/artifact/capability/lifecycle descriptors, materials, dependencies/conflicts, optional `contract_registrations`, and bounded generated-material handler IDs.
 - `recipe.schema.json` — consumer-facing artifact recipes. Recipes select one artifact and may expose capability/lifecycle choices; foundation components are resolved transitively rather than selected directly by consumers.
 - `composition-config.schema.json` — unresolved consumer intent.
+- `composition-playground-projection.schema.json` — the compact Composition-owned Playground v1 projection: production recipe case tables, canonical outcome inventory, provider-generated provenance reason bits and dependency edges, contracts, materials, and empty-target initial-plan summaries.
 - `composition-lock.schema.json` — immutable-source-bound resolved managed state, including normalized consumer intent.
 - `composition-transaction.schema.json` — deterministic interrupted-update/upgrade recovery metadata and mutation preconditions.
 - `catalog.schema.json` — closed production component/recipe inventory.
 - `composition-skill-installer-release.schema.json` — stable release metadata that separates the immutable remote-installer revision, installed skill-source revision, and Composition toolchain revision.
+
+The Playground projection is generated only from canonical Composition resolution/planning APIs. `generated/composition-playground-v1.json.gz` is a deterministic gzip transport for that canonical JSON and is published at `playground/composition-playground-v1.json.gz`. The gzip's embedded `source.revision` is an exact semantically equivalent Composition ancestor; publication CI regenerates the bytes against that revision and rejects the asset if any Playground semantic input has changed since it. The transport does not create a second resolver or move composition semantics into Site.
 
 A contract registration names one component-owned contract document/schema, stable migration slug, current document schema version, complete version history, and purpose. Registration metadata is source-time composition input; it is not copied into a consumer as an independent authority. `lifecycle.contract-evolution` deterministically renders the consumer `contracts/manifest.json` from the resolved registration set.
 
