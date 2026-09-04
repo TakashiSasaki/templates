@@ -273,6 +273,14 @@ def run_browser_check(
             page.wait_for_function("() => navigator.serviceWorker?.controller !== null")
             page.reload(wait_until="networkidle")
             page.wait_for_selector("[data-playground-app]:not([hidden])")
+            page.wait_for_function(
+                """async () => {
+                  const url = new URL(location.href);
+                  url.hash = "";
+                  const cache = await caches.open("templates-portal-documents-v1");
+                  return Boolean(await cache.match(url.href));
+                }"""
+            )
             page.context.set_offline(True)
             page.reload(wait_until="domcontentloaded")
             page.wait_for_function(
@@ -280,14 +288,26 @@ def run_browser_check(
                 "'Loading the canonical Composition projection…'"
             )
             offline_metrics = page.evaluate(
-                """() => ({
-                  appHidden: document.querySelector('[data-playground-app]').hidden,
-                  explainHidden: document.querySelector('[data-playground-explain]').hidden,
-                  status: document.querySelector('[data-playground-status]').textContent
-                })"""
+                """() => {
+                  const root = document.querySelector('#composition-playground');
+                  const app = document.querySelector('[data-playground-app]');
+                  const explain = document.querySelector('[data-playground-explain]');
+                  const status = document.querySelector('[data-playground-status]');
+                  return {
+                    hasRoot: Boolean(root),
+                    appHidden: app?.hidden ?? false,
+                    explainHidden: explain?.hidden ?? false,
+                    status: status?.textContent ?? ''
+                  };
+                }"""
             )
             page.context.set_offline(False)
-            if not offline_metrics["appHidden"] or not offline_metrics["explainHidden"] or "not available" not in offline_metrics["status"]:
+            if (
+                not offline_metrics["hasRoot"]
+                or not offline_metrics["appHidden"]
+                or not offline_metrics["explainHidden"]
+                or "not available" not in offline_metrics["status"]
+            ):
                 raise CrossAuthorityError(
                     f"real built Site offline runtime did not fail closed: {offline_metrics}"
                 )
