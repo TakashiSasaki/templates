@@ -8,7 +8,7 @@ Human handoff is a normal completion boundary after the authorized implementatio
 At this boundary:
 
 - do not initiate merge-acceptance review through reviewer assignment, provider invocation, requested-reviewer state, or any other review-request mechanism by default;
-- an explicit task instruction may authorize one final whole-stack architecture/dependency/completeness audit before handoff; such an audit is not per-member merge evidence unless all canonical cumulative bindings are independently established, and it must not create a review-retry loop or merge authorization;
+- an explicit task instruction may authorize one final whole-stack architecture/dependency/completeness audit before handoff; for a stacked workflow, request that audit only after every member is frozen at its intended final head and all applicable required CI for those exact heads has completed successfully; such an audit is not per-member merge evidence unless all canonical cumulative bindings are independently established, and it must not create a review-retry loop or merge authorization;
 - existing reviews may be observed, inspected, and reported without treating handoff as new acceptance-review acquisition;
 - do not merge or close a pull request;
 - do not create a no-op commit solely to trigger CI or review;
