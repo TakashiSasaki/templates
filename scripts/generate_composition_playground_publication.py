@@ -24,7 +24,14 @@ def compress_projection(data: bytes) -> bytes:
     return bytes(compressed)
 
 
-def source_revision_from_gzip(path: Path) -> str:
+def semantic_revision_from_gzip(path: Path) -> str:
+    """Return the semantic Composition revision embedded in the projection.
+
+    This is intentionally distinct from the provider/publication revision that
+    carries the gzip asset. The canonical generator verifies that the semantic
+    revision is an ancestor of the provider checkout and that Playground semantic
+    paths have not changed between them.
+    """
     try:
         compressed = path.read_bytes()
         raw = gzip.decompress(compressed)
@@ -39,19 +46,20 @@ def source_revision_from_gzip(path: Path) -> str:
     except (KeyError, TypeError) as exc:
         raise CompositionError(
             "INVALID_PLAYGROUND_PUBLICATION",
-            "published Playground projection has no source revision",
+            "published Playground projection has no semantic source revision",
         ) from exc
     if not isinstance(revision, str):
         raise CompositionError(
             "INVALID_PLAYGROUND_PUBLICATION",
-            "published Playground source revision is not a string",
+            "published Playground semantic source revision is not a string",
         )
     return revision
 
 
-def publication_bytes(*, source_revision: str | None = None) -> bytes:
+def publication_bytes(*, semantic_revision: str | None = None) -> bytes:
+    """Render transport bytes after authoritative semantic/provider validation."""
     return compress_projection(
-        render_projection(build_projection(source_revision=source_revision))
+        render_projection(build_projection(source_revision=semantic_revision))
     )
 
 
@@ -61,7 +69,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     output.add_argument("--output", type=Path)
     output.add_argument("--check", type=Path)
     parser.add_argument(
-        "--source-revision",
+        "--semantic-revision",
         help="bind output to this exact semantically equivalent Composition revision",
     )
     return parser.parse_args(argv)
@@ -71,8 +79,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv)
     try:
         if args.check is not None:
-            source_revision = args.source_revision or source_revision_from_gzip(args.check)
-            expected = publication_bytes(source_revision=source_revision)
+            semantic_revision = args.semantic_revision or semantic_revision_from_gzip(args.check)
+            expected = publication_bytes(semantic_revision=semantic_revision)
             try:
                 current = args.check.read_bytes()
             except OSError as exc:
@@ -86,12 +94,12 @@ def main(argv: Sequence[str] | None = None) -> int:
                 )
             print(
                 "Composition Playground publication is current: "
-                f"{args.check} (source {source_revision})"
+                f"{args.check} (semantic source {semantic_revision})"
             )
             return 0
 
-        source_revision = args.source_revision
-        payload = publication_bytes(source_revision=source_revision)
+        semantic_revision = args.semantic_revision
+        payload = publication_bytes(semantic_revision=semantic_revision)
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_bytes(payload)
         print(args.output)
