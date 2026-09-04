@@ -8,6 +8,8 @@ Before intentionally requesting independent review or starting another expensive
 
 This is a candidate-stabilization discipline, not a new acceptance gate. It has no fixed duration, does not require perfection, does not prevent PR creation, and does not require waiting for earlier CI or review before dependency-safe implementation continues. Naturally triggered CI may run before stabilization. Do not deliberately request independent review for a candidate already known to be intermediate or for a downstream identity that is already known to become stale after an unresolved upstream semantic repair.
 
+For a final whole-stack review, treat required CI and review as ordered revision-bound evidence rather than parallel latency-hiding work. Freeze the intended final heads first, then wait for all applicable required CI on those exact heads to complete successfully before requesting the final review. Pending required CI means the review candidate is not yet qualified for that request. Failed or cancelled required CI requires repair or explicit disposition and requalification. If a head changes, reacquire the required CI for the affected exact head before requesting a replacement review. This ordering does not block construction of later stack members and is not a time-based waiting gate.
+
 ## Preserve a stable candidate while evidence is in flight
 
 Once a candidate head has entered CI or independent review, treat that SHA as stable unless a justified repair, scope correction, conflict resolution, or other necessary head-changing action is ready to apply.

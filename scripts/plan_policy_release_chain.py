@@ -9,6 +9,8 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
+SHA256 = re.compile(r"^[0-9a-f]{64}$")
+INSTALLER_DESCRIPTOR = "release/skill-installer.json"
 
 DIRECT_SURFACES: dict[str, tuple[str, ...]] = {
     "T": (
@@ -23,7 +25,7 @@ DIRECT_SURFACES: dict[str, tuple[str, ...]] = {
         "tests/test_skill_installer_publication.py",
     ),
     "I": (
-        "release/skill-installer.json",
+        INSTALLER_DESCRIPTOR,
         "README.md",
         "docs/bootstrap.md",
         "docs/getting-started.md",
@@ -34,9 +36,7 @@ DIRECT_SURFACES: dict[str, tuple[str, ...]] = {
 }
 
 REGENERATION_SURFACES: dict[str, tuple[str, ...]] = {
-    "T-self-host-input": (".agent-policy.yml",),
     "T-self-host-projection": (
-        ".agent-policy.yml",
         ".agent-policy.lock",
         ".agents/skills/orchestrate-repository-change/",
         ".agents/skills/pr-review/",
@@ -54,6 +54,7 @@ REGENERATION_SURFACES: dict[str, tuple[str, ...]] = {
 }
 
 VALIDATION_BY_STAGE: dict[str, tuple[str, ...]] = {
+    "T-self-host-input": ("tests/test_policy_self_hosting.py",),
     "T-self-host-projection": (
         "tests/test_policy_self_hosting.py",
         "tests/test_repository_change_orchestration_skill.py",
@@ -94,16 +95,57 @@ def _require_full_sha(name: str, value: str) -> str:
     return value
 
 
-def runtime_lock_evidence(root: Path = ROOT) -> dict[str, str | bool]:
+def _require_sha256(value: str) -> str:
+    if SHA256.fullmatch(value) is None:
+        raise ValueError(
+            "runtime lock digest must be a lowercase 64-character SHA-256"
+        )
+    return value
+
+
+def _current_runtime_lock_evidence(root: Path) -> dict[str, str | bool]:
     lock = root / "requirements-runtime.lock"
     if not lock.is_file():
-        return {"available": False, "status": "runtime lock digest unavailable / awaiting"}
-    return {"available": True, "sha256": hashlib.sha256(lock.read_bytes()).hexdigest()}
+        return {
+            "available": False,
+            "status": "runtime lock digest unavailable / awaiting",
+        }
+    return {
+        "available": True,
+        "sha256": hashlib.sha256(lock.read_bytes()).hexdigest(),
+        "source": "current-repository-lock",
+    }
+
+
+def runtime_lock_evidence(
+    root: Path = ROOT,
+    *,
+    toolchain_changed: bool = False,
+    supplied_digest: str | None = None,
+) -> dict[str, str | bool]:
+    if toolchain_changed:
+        if supplied_digest is None:
+            return {
+                "available": False,
+                "status": "runtime lock digest unavailable / awaiting",
+            }
+        return {
+            "available": True,
+            "sha256": _require_sha256(supplied_digest),
+            "source": "supplied-for-requested-toolchain",
+        }
+    if supplied_digest is not None:
+        return {
+            "available": True,
+            "sha256": _require_sha256(supplied_digest),
+            "source": "supplied-for-current-toolchain",
+        }
+    return _current_runtime_lock_evidence(root)
 
 
 def current_identities(root: Path = ROOT) -> dict[str, str]:
     toolchain = _load_json(root / "release/toolchain.json")
-    installer = _load_json(root / "release/skill-installer.json")
+    installer = _load_json(root / INSTALLER_DESCRIPTOR)
     t = str(toolchain["toolchain"]["revision"])
     s = str(installer["skill_source"]["revision"])
     i = str(installer["installer"]["revision"])
@@ -119,17 +161,22 @@ def _surface_inventory(
     identity: str,
     current: str,
     requested: str,
+    *,
+    paths: tuple[str, ...] | None = None,
 ) -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
-    for relative in DIRECT_SURFACES[identity]:
+    for relative in paths or DIRECT_SURFACES[identity]:
         path = root / relative
         text = path.read_text(encoding="utf-8")
         occurrences = text.count(current)
         records.append(
             {
+                "identity": identity,
                 "path": relative,
                 "current_identity_occurrences": occurrences,
-                "expected_replacements": occurrences if requested != current else 0,
+                "expected_replacements": (
+                    occurrences if requested != current else 0
+                ),
                 "requires_change": requested != current and occurrences > 0,
             }
         )
@@ -152,6 +199,7 @@ def build_plan(
     toolchain_revision: str | None = None,
     skill_source_revision: str | None = None,
     installer_revision: str | None = None,
+    runtime_lock_sha256: str | None = None,
 ) -> dict[str, Any]:
     current = current_identities(root)
     requested = {
@@ -159,19 +207,28 @@ def build_plan(
         "S": _requested_identity("S", skill_source_revision, current),
         "I": _requested_identity("I", installer_revision, current),
     }
-    supplied = {
-        "T": toolchain_revision is not None,
-        "S": skill_source_revision is not None,
-        "I": installer_revision is not None,
+    changed = {
+        name: requested[name] != current[name]
+        for name in ("T", "S", "I")
     }
-    fresh = {name: supplied[name] and requested[name] != current[name] for name in ("T", "S", "I")}
-    changed = {name: requested[name] != current[name] for name in ("T", "S", "I")}
+
+    fresh = {
+        "T": changed["T"],
+        "S": changed["S"],
+        "I": changed["I"] and (not changed["T"] or changed["S"]),
+    }
 
     awaiting: list[str] = []
+    if changed["T"] and not fresh["S"]:
+        awaiting.extend(("S", "I"))
+    elif (changed["T"] or changed["S"]) and not fresh["I"]:
+        awaiting.append("I")
+
     stale: list[str] = []
     if changed["T"]:
         stale.extend(
             (
+                "T-self-host-input",
                 "T-self-host-projection",
                 "T-promotion",
                 "S-installer-candidate",
@@ -179,7 +236,6 @@ def build_plan(
                 "policy-to-site-projection",
             )
         )
-        awaiting.extend(name for name in ("S", "I") if not fresh[name])
     elif changed["S"]:
         stale.extend(
             (
@@ -188,38 +244,66 @@ def build_plan(
                 "policy-to-site-projection",
             )
         )
-        if not fresh["I"]:
-            awaiting.append("I")
     elif changed["I"]:
         stale.extend(("I-policy-publication", "policy-to-site-projection"))
+
+    runtime_lock = runtime_lock_evidence(
+        root,
+        toolchain_changed=changed["T"],
+        supplied_digest=runtime_lock_sha256,
+    )
+    awaiting_evidence: list[str] = []
+    if changed["T"] and not runtime_lock["available"]:
+        awaiting_evidence.append("runtime-lock-sha256")
+
+    publication_surfaces = _surface_inventory(
+        root,
+        "I",
+        current["I"],
+        requested["I"],
+    )
+    publication_surfaces.extend(
+        _surface_inventory(
+            root,
+            "S",
+            current["S"],
+            requested["S"],
+            paths=(INSTALLER_DESCRIPTOR,),
+        )
+    )
 
     stages = [
         {
             "name": "T-self-host-input",
             "identity": "T",
-            "action": "mutate the human-owned .agent-policy.yml input pin; it is not generated output",
+            "action": (
+                "mutate the human-owned .agent-policy.yml input pin; "
+                "it is not generated output"
+            ),
             "input_mutations": [".agent-policy.yml"],
             "generated_surfaces": [],
-            "validation": ["tests/test_policy_self_hosting.py"],
+            "validation": list(VALIDATION_BY_STAGE["T-self-host-input"]),
         },
         {
             "name": "T-self-host-projection",
             "identity": "T",
             "action": (
-                "regenerate projection from the frozen semantic/runtime candidate; "
-                "do not predict a future commit SHA"
+                "regenerate projection from the frozen semantic/runtime "
+                "candidate; do not predict a future commit SHA"
             ),
             "generated_surfaces": list(
                 REGENERATION_SURFACES["T-self-host-projection"]
             ),
-            "validation": list(VALIDATION_BY_STAGE["T-self-host-projection"]),
+            "validation": list(
+                VALIDATION_BY_STAGE["T-self-host-projection"]
+            ),
         },
         {
             "name": "T-promotion",
             "identity": "T",
             "action": (
-                "bind the reviewed stable runtime with its full SHA and matching "
-                "runtime-lock digest"
+                "bind the reviewed stable runtime with its full SHA and "
+                "matching runtime-lock digest"
             ),
             "direct_surfaces": _surface_inventory(
                 root,
@@ -227,14 +311,16 @@ def build_plan(
                 current["T"],
                 requested["T"],
             ),
+            "runtime_lock": runtime_lock,
             "validation": list(VALIDATION_BY_STAGE["T-promotion"]),
         },
         {
             "name": "S-installer-candidate",
             "identity": "S",
             "action": (
-                "materialize a separately reviewable Skill-source identity, then "
-                "propagate that full SHA through installer-candidate bindings"
+                "materialize a separately reviewable Skill-source identity, "
+                "then propagate its full SHA through installer-candidate "
+                "bindings"
             ),
             "direct_surfaces": _surface_inventory(
                 root,
@@ -242,38 +328,40 @@ def build_plan(
                 current["S"],
                 requested["S"],
             ),
-            "validation": list(VALIDATION_BY_STAGE["S-installer-candidate"]),
+            "validation": list(
+                VALIDATION_BY_STAGE["S-installer-candidate"]
+            ),
         },
         {
             "name": "I-policy-publication",
             "identity": "I",
             "action": (
-                "materialize a separately reviewed installer identity, then publish "
-                "immutable I/S without self-reference"
+                "after a new installer identity exists, publish immutable "
+                "I/S together without self-reference"
             ),
-            "direct_surfaces": _surface_inventory(
-                root,
-                "I",
-                current["I"],
-                requested["I"],
-            ),
+            "direct_surfaces": publication_surfaces,
             "generated_surfaces": list(
                 REGENERATION_SURFACES["I-policy-publication"]
             ),
-            "validation": list(VALIDATION_BY_STAGE["I-policy-publication"]),
+            "validation": list(
+                VALIDATION_BY_STAGE["I-policy-publication"]
+            ),
         },
         {
             "name": "policy-to-site-projection",
             "identity": "policy-publication",
             "action": (
-                "after canonical Policy publication changes, refresh Site-owned "
-                "integration without making Site a Policy super-authority"
+                "after canonical Policy publication changes, refresh "
+                "Site-owned integration without making Site a Policy "
+                "super-authority"
             ),
             "external_authority": "site",
             "generated_surfaces": list(
                 REGENERATION_SURFACES["policy-to-site-projection"]
             ),
-            "validation": list(VALIDATION_BY_STAGE["policy-to-site-projection"]),
+            "validation": list(
+                VALIDATION_BY_STAGE["policy-to-site-projection"]
+            ),
         },
     ]
 
@@ -283,9 +371,10 @@ def build_plan(
         "requested": requested,
         "changed": changed,
         "fresh_materialized": fresh,
-        "runtime_lock": runtime_lock_evidence(root),
+        "runtime_lock": runtime_lock,
         "stale_stages": stale,
         "awaiting_immutable_identity_materialization": awaiting,
+        "awaiting_release_evidence": awaiting_evidence,
         "stages": stages,
         "invariants": {
             "full_sha_only": True,
@@ -303,8 +392,8 @@ def check_current_inventory(plan: dict[str, Any]) -> list[str]:
         for surface in stage.get("direct_surfaces", []):
             if surface["current_identity_occurrences"] < 1:
                 errors.append(
-                    f"{stage['name']}: current identity not found in declared "
-                    f"surface {surface['path']}"
+                    f"{stage['name']}: current identity not found in "
+                    f"declared surface {surface['path']}"
                 )
     return errors
 
@@ -312,19 +401,20 @@ def check_current_inventory(plan: dict[str, Any]) -> list[str]:
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Plan immutable Policy release identity propagation without mutating "
-            "repository state."
+            "Plan immutable Policy release identity propagation without "
+            "mutating repository state."
         )
     )
     parser.add_argument("--toolchain-revision")
     parser.add_argument("--skill-source-revision")
     parser.add_argument("--installer-revision")
+    parser.add_argument("--runtime-lock-sha256")
     parser.add_argument(
         "--check-current",
         action="store_true",
         help=(
-            "fail when a declared direct identity surface no longer contains its "
-            "current published identity"
+            "fail when a declared direct identity surface no longer contains "
+            "its current published identity"
         ),
     )
     args = parser.parse_args()
@@ -334,10 +424,17 @@ def main() -> int:
             toolchain_revision=args.toolchain_revision,
             skill_source_revision=args.skill_source_revision,
             installer_revision=args.installer_revision,
+            runtime_lock_sha256=args.runtime_lock_sha256,
         )
         errors = check_current_inventory(plan) if args.check_current else []
     except (KeyError, OSError, TypeError, ValueError, json.JSONDecodeError) as exc:
-        print(json.dumps({"ok": False, "error": str(exc)}, indent=2, sort_keys=True))
+        print(
+            json.dumps(
+                {"ok": False, "error": str(exc)},
+                indent=2,
+                sort_keys=True,
+            )
+        )
         return 2
 
     print(
