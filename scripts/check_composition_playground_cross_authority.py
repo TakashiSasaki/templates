@@ -95,7 +95,38 @@ def assert_no_horizontal_overflow(page: Any) -> None:
     if metrics["innerWidth"] != 360 or metrics["clientWidth"] != 360:
         raise CrossAuthorityError(f"unexpected narrow viewport metrics: {metrics}")
     if metrics["scrollWidth"] > metrics["clientWidth"] + 1:
-        raise CrossAuthorityError(f"Playground has horizontal overflow at 360px: {metrics}")
+        offenders = page.evaluate(
+            """() => {
+              const viewport = document.documentElement.clientWidth;
+              const root = document.querySelector('#composition-playground');
+              if (!root) return [];
+              return Array.from(root.querySelectorAll('*'))
+                .map((node) => {
+                  const rect = node.getBoundingClientRect();
+                  const style = getComputedStyle(node);
+                  return {
+                    tag: node.tagName,
+                    id: node.id || '',
+                    className: typeof node.className === 'string' ? node.className : '',
+                    left: Math.round(rect.left * 10) / 10,
+                    right: Math.round(rect.right * 10) / 10,
+                    width: Math.round(rect.width * 10) / 10,
+                    clientWidth: node.clientWidth,
+                    scrollWidth: node.scrollWidth,
+                    boxSizing: style.boxSizing,
+                    whiteSpace: style.whiteSpace,
+                    overflowWrap: style.overflowWrap,
+                    text: (node.textContent || '').trim().replace(/\\s+/g, ' ').slice(0, 120)
+                  };
+                })
+                .filter((item) => item.right > viewport + 1 || item.left < -1 || item.scrollWidth > item.clientWidth + 1)
+                .sort((left, right) => Math.max(right.right - viewport, right.scrollWidth - right.clientWidth) - Math.max(left.right - viewport, left.scrollWidth - left.clientWidth))
+                .slice(0, 12);
+            }"""
+        )
+        raise CrossAuthorityError(
+            f"Playground has horizontal overflow at 360px: {metrics}; offenders={offenders}"
+        )
 
 
 def assert_text_contains(page: Any, selector: str, expected: str) -> None:
