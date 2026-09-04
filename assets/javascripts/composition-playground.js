@@ -1,6 +1,6 @@
 (function (globalScope, factory) {
   "use strict";
-  const api = factory();
+  const api = factory(globalScope);
   if (typeof module !== "undefined" && module.exports) {
     module.exports = api;
   }
@@ -13,7 +13,7 @@
       boot();
     }
   }
-})(typeof globalThis !== "undefined" ? globalThis : this, function () {
+})(typeof globalThis !== "undefined" ? globalThis : this, function (scope) {
   "use strict";
 
   const SUPPORTED_SCHEMA_VERSION = 1;
@@ -363,22 +363,34 @@
     nodes.config.textContent = configurationText(item);
   }
 
+  async function decodeProjectionResponse(response, url) {
+    try {
+      if (typeof url === "string" && url.endsWith(".gz")) {
+        if (typeof scope.DecompressionStream !== "function" || !response.body) {
+          throw new ProjectionError("UNSUPPORTED_PROJECTION", "gzip projection decoding is not supported by this browser");
+        }
+        const stream = response.body.pipeThrough(new scope.DecompressionStream("gzip"));
+        const text = await new scope.Response(stream).text();
+        return JSON.parse(text);
+      }
+      return await response.json();
+    } catch (error) {
+      if (error instanceof ProjectionError) throw error;
+      throw new ProjectionError("MALFORMED_PROJECTION", error instanceof Error ? error.message : String(error));
+    }
+  }
+
   async function loadProjection(url, options) {
     let response;
     try {
-      response = await fetch(url, { credentials: "same-origin", cache: "no-cache" });
+      response = await scope.fetch(url, { credentials: "same-origin", cache: "no-cache" });
     } catch (error) {
       throw new ProjectionError("PROJECTION_UNAVAILABLE", error instanceof Error ? error.message : String(error));
     }
     if (!response.ok) {
       throw new ProjectionError("PROJECTION_UNAVAILABLE", `projection request failed with HTTP ${response.status}`);
     }
-    let raw;
-    try {
-      raw = await response.json();
-    } catch (error) {
-      throw new ProjectionError("MALFORMED_PROJECTION", error instanceof Error ? error.message : String(error));
-    }
+    const raw = await decodeProjectionResponse(response, url);
     return validateProjection(raw, options);
   }
 
@@ -411,7 +423,7 @@
 
     try {
       const projection = await loadProjection(root.dataset.projectionUrl);
-      let state = parseHash(globalScope.location ? globalScope.location.hash : "", projection);
+      let state = parseHash(scope.location ? scope.location.hash : "", projection);
       let currentCase = null;
 
       const readControlState = () => ({
@@ -423,27 +435,27 @@
         renderSelection(document, nodes, projection, state, () => apply(readControlState(), false));
         currentCase = lookupCase(projection, state.recipeId, state.includes);
         renderCase(document, nodes, projection, currentCase);
-        if (globalScope.history && globalScope.location) {
+        if (scope.history && scope.location) {
           const nextHash = stateHash(state.recipeId, state.includes);
-          const url = `${globalScope.location.pathname}${globalScope.location.search}${nextHash}`;
-          if (replaceHash) globalScope.history.replaceState(null, "", url);
-          else globalScope.history.pushState(null, "", url);
+          const url = `${scope.location.pathname}${scope.location.search}${nextHash}`;
+          if (replaceHash) scope.history.replaceState(null, "", url);
+          else scope.history.pushState(null, "", url);
         }
       };
 
       nodes.recipe.addEventListener("change", () => apply({ recipeId: nodes.recipe.value, includes: [] }, false));
       nodes.copy.addEventListener("click", async () => {
         try {
-          await globalScope.navigator.clipboard.writeText(configurationText(currentCase));
+          await scope.navigator.clipboard.writeText(configurationText(currentCase));
           status.textContent = labels.copied;
         } catch (_error) {
           status.textContent = labels.copyFailed;
         }
       });
-      if (globalScope.addEventListener) {
-        globalScope.addEventListener("hashchange", () => {
+      if (scope.addEventListener) {
+        scope.addEventListener("hashchange", () => {
           try {
-            apply(parseHash(globalScope.location.hash, projection), true);
+            apply(parseHash(scope.location.hash, projection), true);
           } catch (error) {
             status.textContent = statusForError(error);
           }
@@ -476,6 +488,7 @@
     configurationForSelection,
     lookupCase,
     configurationText,
+    decodeProjectionResponse,
     loadProjection,
     statusForError,
     mount
