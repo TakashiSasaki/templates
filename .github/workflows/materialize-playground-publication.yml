@@ -1,0 +1,36 @@
+name: Materialize Playground publication bytes
+
+on:
+  push:
+    branches:
+      - codex/composition-playground-v1-publication
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out exact branch head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: codex/composition-playground-v1-publication
+          persist-credentials: true
+      - name: Generate deterministic binary publication
+        run: |
+          python tools/package_composition_playground.py \
+            --output generated/composition-playground-v1.json.gz \
+            --source-revision 6c1ee765795ff44add2ab284e9e82977d91ef40c
+          printf '%s  %s\n' \
+            ec92e567b287d3900f6129b4c58407eda4c3fdb66f5e9dcc1ab8c1ee2f1ccdf2 \
+            generated/composition-playground-v1.json.gz | sha256sum --check --strict
+      - name: Commit binary and remove one-shot workflow
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add generated/composition-playground-v1.json.gz
+          git rm .github/workflows/materialize-playground-publication.yml
+          git commit -m 'Fix Playground publication binary transport'
+          git push origin HEAD:codex/composition-playground-v1-publication
