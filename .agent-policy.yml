@@ -1,7 +1,7 @@
 schema_version: 2
 toolchain:
   repository: TakashiSasaki/templates
-  revision: ffe1e1ab0a00df974ec42cd801b7cd85a8c4d6ee
+  revision: 9c702d755ddc42b941a63eafd8f9aee06969517d
 contexts:
   coding:
     profiles:
