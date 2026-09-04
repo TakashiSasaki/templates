@@ -7,14 +7,15 @@ Human handoff is a normal completion boundary after the authorized implementatio
 
 At this boundary:
 
-- do not issue an automated review request;
+- do not initiate a new review request through reviewer assignment, provider invocation, requested-reviewer state, or any other review-request mechanism;
+- existing reviews may be observed, inspected, and reported without treating handoff as new review acquisition;
 - do not merge or close a pull request;
 - do not create a no-op commit solely to trigger CI or review;
 - do not make an approval-only mutation;
 - report implementation and validation states separately;
-- report independent review as NOT_REQUESTED or OUTSTANDING;
+- report independent review as NOT_REQUESTED or OUTSTANDING unless pre-existing applicable evidence truthfully establishes another observed state;
 - report merge authorization as NOT_ESTABLISHED;
 - report merge performed as NO; and
-- leave every stack member open and unmerged.
+- leave every applicable pull request or stack member open and unmerged.
 
-Use HANDOFF_READY only when the handoff report includes exact branch, PR, base, head, stack membership, validation, CI observations, limitations, and remaining human actions. HANDOFF_READY is not REVIEW_COMPLETE, MERGE_READY, or MERGED.
+Use HANDOFF_READY only when the handoff report includes exact branch, PR, base, head, stack membership when applicable, validation, CI observations, limitations, and remaining human actions. HANDOFF_READY is not REVIEW_COMPLETE, MERGE_READY, or MERGED.

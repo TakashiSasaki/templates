@@ -1,10 +1,10 @@
 lock_version: 1
 toolchain:
   repository: TakashiSasaki/templates
-  revision: ffe1e1ab0a00df974ec42cd801b7cd85a8c4d6ee
+  revision: 2d18f495d0494961f8da5ac10dfca332409cd2d8
 inputs:
   .agent-policy.yml:
-    sha256: 1963bae59006d7b9a3ab68edae8e4aee318b99ebd2b887dca5307eedd06e1a74
+    sha256: a8ba7d467d90bbddc9e4fc6e973c31dc9d1c2935409f42324494904d9fac1705
   repository-policy/architecture-decisions.md:
     sha256: 6377845c99329c58f0d26134dfa3cf91236d3d8ade4c317920bfdc13f77a0ff1
   repository-policy/authority-boundary.md:
@@ -21,15 +21,15 @@ inputs:
     sha256: eb45d47fafa2e406dabb2536a818e206acede23f229eda19e8fdaa37d8445542
 outputs:
   .agents/skills/orchestrate-repository-change/SKILL.md:
-    sha256: 6a5901ddd2beac8bbea1a3cf655b8edf929e8c774b1e5dc02b842cedebcd42d1
+    sha256: 75f818487e4a469ec34efbc1f2d48a5188b706f0ad53184c7fa539c433f2eee5
   .agents/skills/orchestrate-repository-change/references/human-handoff.md:
-    sha256: 001e52393520bf7c6229805c1cddc2b093847fe7ddf4894c299d0c3347441241
+    sha256: 663bfec760c01083f07c2b23f16b8e0abe4808385f9810f5bab4791f6be2a1a6
   .agents/skills/orchestrate-repository-change/references/pr-workflow-selection.md:
-    sha256: 60d76eb54e60f0d539845e91aa74309898681927906f9d9beea54f47d176734d
+    sha256: 682399f7fd2d4612e23052cf51c2dc21bfd8b12bf223ec42598c42867bf18434
   .agents/skills/orchestrate-repository-change/references/serial-pr-workflow.md:
-    sha256: 5f498c5ab8b9afac7e595ddbafe95f7919bfe09dc33cfe81f0e4b89191125165
+    sha256: 83de932516c604d78199c2ea04903706cc0f9376913bdaace01654c540dcfa73
   .agents/skills/orchestrate-repository-change/references/stacked-pr-workflow.md:
-    sha256: a4522c8a4c307f78dba67ca451c54c0b665c12d478813a1143686761a9fbb399
+    sha256: 2eb674fa87cdf1fc57217d24c6bfdcd6fb51b3c5382765eff8d150c354435aa8
   .agents/skills/pr-review/SKILL.md:
     sha256: ed44e1db3549e41342ced28b50fbd37189bef0e43e783c309300432e5df979f1
   .agents/skills/pr-review/references/github-pull-request-review-api.md:
@@ -57,6 +57,6 @@ outputs:
   .agents/skills/pr-review/references/risk-domains/state-mutation-and-recovery.md:
     sha256: 0cd5b71178b43da5128f4d2e1bfab8f3df5d71439531a9010f351c4ed1468f44
   .review-authority/review-policy.md:
-    sha256: 5a64d8b20f2433405e3a6577fe7fc154dfa1832e0f4cbb5c3240eeaa29fe9e93
+    sha256: 1a945aab7a7a3b0f05d47db75604c6b53f700bfbf9cf1745640f167c9fde9aef
   AGENTS.md:
-    sha256: 041e15294246fbfc34ea461a8a56ad8fe9af1d8db1860c3311a6de110c76f313
+    sha256: 3ab78429abee0c5bb413ec0a0bc60b521f49e6e32d22f748385f816c65e1e571
