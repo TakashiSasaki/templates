@@ -146,8 +146,7 @@ def run_browser_check() -> None:
                     "foundation.web",
                     "Required directly by capability.cli.",
                     "cli-interface",
-                    "web/routes.json",
-                    "ownership: generated",
+                    "routes.json — foundation.web; ownership: generated",
                     "Canonical empty-target initial plan: 3 create.",
                 ):
                     if expected not in explanation:
