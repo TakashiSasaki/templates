@@ -13,14 +13,16 @@ extra_css = [
   "stylesheets/mobile-density.css",
   "stylesheets/translation-reader.css",
   "stylesheets/glossary-inline.css",
-  "stylesheets/freshness-status.css"
+  "stylesheets/freshness-status.css",
+  "stylesheets/composition-playground.css"
 ]
 extra_javascript = [
   "javascripts/repository-tree-viewer.js",
   "javascripts/pwa.js",
   "javascripts/reader-navigation.js",
   "javascripts/search-history.js",
-  "javascripts/glossary-inline.js"
+  "javascripts/glossary-inline.js",
+  "javascripts/composition-playground.js"
 ]
 nav = __GENERATED_NAV__
 
