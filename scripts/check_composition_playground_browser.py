@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import gzip
+import json
 import shutil
 import tempfile
 import threading
@@ -18,6 +19,8 @@ FIXTURE = ROOT / "tests" / "fixtures" / "composition-playground-v1-explain.json"
 CORE_JS = ROOT / "assets" / "javascripts" / "composition-playground.js"
 EXPLAIN_JS = ROOT / "assets" / "javascripts" / "composition-playground-explain.js"
 CSS = ROOT / "assets" / "stylesheets" / "composition-playground.css"
+SEMANTIC_REVISION = "a" * 40
+PROVIDER_REVISION = "b" * 40
 
 
 class PlaygroundBrowserError(RuntimeError):
@@ -33,6 +36,9 @@ def playground_markup() -> str:
     markup = text[start:end].strip()
     for marker in (
         "data-playground-app",
+        "data-playground-semantic-revision",
+        "data-playground-provider-revision",
+        "data-playground-projection-id",
         "data-playground-explain",
         "data-playground-groups",
         "data-playground-contracts",
@@ -53,6 +59,20 @@ def prepare_harness(root: Path) -> None:
     raw_fixture = FIXTURE.read_bytes()
     (root / "composition" / "playground" / "composition-playground-v1.json.gz").write_bytes(
         gzip.compress(raw_fixture, compresslevel=9, mtime=0)
+    )
+    (root / "build-provenance.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 2,
+                "repository": "TakashiSasaki/templates",
+                "site_commit": "c" * 40,
+                "publication_commits": {
+                    "composition": PROVIDER_REVISION,
+                    "policy": "d" * 40,
+                },
+            }
+        ),
+        encoding="utf-8",
     )
     html = f"""<!doctype html>
 <html lang="en">
@@ -126,6 +146,13 @@ def run_browser_check() -> None:
                 page.wait_for_selector("[data-playground-app]:not([hidden])")
                 page.wait_for_selector("[data-playground-explain]:not([hidden])")
                 assert_mobile_layout(page)
+
+                if page.locator("[data-playground-semantic-revision]").text_content() != SEMANTIC_REVISION:
+                    raise PlaygroundBrowserError("semantic source revision did not render from projection")
+                if page.locator("[data-playground-provider-revision]").text_content() != PROVIDER_REVISION:
+                    raise PlaygroundBrowserError("provider revision did not render from Site build provenance")
+                if page.locator("[data-playground-projection-id]").text_content() != "composition-playground-v1":
+                    raise PlaygroundBrowserError("projection identity did not render")
 
                 recipe = page.locator("[data-playground-recipe]")
                 recipe.focus()
