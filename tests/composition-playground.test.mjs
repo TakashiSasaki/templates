@@ -12,9 +12,22 @@ async function fixture() {
   return JSON.parse(await readFile(fixturePath, "utf8"));
 }
 
+function buildProvenance(compositionRevision = "b".repeat(40)) {
+  return {
+    schema_version: 2,
+    repository: "TakashiSasaki/templates",
+    site_commit: "c".repeat(40),
+    publication_commits: {
+      composition: compositionRevision,
+      policy: "d".repeat(40)
+    }
+  };
+}
+
 test("supported v1 projection loads compact canonical case tables", async () => {
   const projection = playground.validateProjection(await fixture());
-  assert.equal(projection.sourceRevision, "a".repeat(40));
+  assert.equal(projection.semanticRevision, "a".repeat(40));
+  assert.equal(projection.projectionId, "composition-playground-v1");
   assert.equal(projection.recipeById.size, 1);
   assert.equal(projection.outcomeById.size, 4);
   assert.equal(projection.recipeById.get("skill").cases.length, 4);
@@ -60,11 +73,27 @@ test("malformed projection fails closed", async () => {
   );
 });
 
-test("mismatched expected source revision fails closed", async () => {
-  const raw = await fixture();
+test("semantic source revision and published provider revision are distinct identities", async () => {
+  const projection = playground.validateProjection(await fixture());
+  const provenance = playground.validateBuildProvenance(buildProvenance());
+  assert.equal(projection.semanticRevision, "a".repeat(40));
+  assert.equal(provenance.providerRevision, "b".repeat(40));
+  assert.notEqual(projection.semanticRevision, provenance.providerRevision);
+});
+
+test("malformed Site build provenance fails closed", () => {
+  const missingComposition = buildProvenance();
+  delete missingComposition.publication_commits.composition;
   assert.throws(
-    () => playground.validateProjection(raw, { expectedRevision: "b".repeat(40) }),
-    (error) => error.code === "SOURCE_REVISION_MISMATCH"
+    () => playground.validateBuildProvenance(missingComposition),
+    (error) => error.code === "MALFORMED_PROVENANCE"
+  );
+
+  const wrongSchema = buildProvenance();
+  wrongSchema.schema_version = 1;
+  assert.throws(
+    () => playground.validateBuildProvenance(wrongSchema),
+    (error) => error.code === "MALFORMED_PROVENANCE"
   );
 });
 
@@ -110,13 +139,17 @@ test("canonical configuration is serialized from projection scope plus selected 
   });
 });
 
-test("projection availability and compatibility errors map to explicit UI status", () => {
+test("projection and provenance availability errors map to explicit UI status", () => {
   assert.match(
     playground.statusForError(new playground.ProjectionError("PROJECTION_UNAVAILABLE", "HTTP 404")),
     /not available/
   );
   assert.match(
-    playground.statusForError(new playground.ProjectionError("SOURCE_REVISION_MISMATCH", "stale")),
-    /incompatible/
+    playground.statusForError(new playground.ProjectionError("PROVENANCE_UNAVAILABLE", "HTTP 404")),
+    /provenance required/
+  );
+  assert.match(
+    playground.statusForError(new playground.ProjectionError("MALFORMED_PROVENANCE", "bad")),
+    /malformed/
   );
 });

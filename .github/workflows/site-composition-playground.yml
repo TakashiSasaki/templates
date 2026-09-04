@@ -48,3 +48,9 @@ jobs:
           grep --fixed-strings -- '"id": "composition-playground"' docs/publication-catalog.json
           grep --fixed-strings -- 'stylesheets/composition-playground.css' zensical.template.toml
           grep --fixed-strings -- 'javascripts/composition-playground.js' zensical.template.toml
+          grep --fixed-strings -- 'data-provenance-url="/build-provenance.json"' docs/composition-playground.md
+          grep --fixed-strings -- 'data-playground-semantic-revision' docs/composition-playground.md
+          grep --fixed-strings -- 'data-playground-provider-revision' docs/composition-playground.md
+          grep --fixed-strings -- 'data-playground-projection-id' docs/composition-playground.md
+          ! grep --fixed-strings -- 'SOURCE_REVISION_MISMATCH' assets/javascripts/composition-playground.js
+          ! grep --fixed-strings -- 'expectedRevision' assets/javascripts/composition-playground.js

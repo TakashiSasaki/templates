@@ -18,6 +18,7 @@
 
   const SUPPORTED_SCHEMA_VERSION = 1;
   const PROJECTION_ID = "composition-playground-v1";
+  const BUILD_PROVENANCE_SCHEMA_VERSION = 2;
   const FULL_SHA = /^[0-9a-f]{40}$/;
   const EXPECTED_REASON_BITS = Object.freeze({
     recipe_artifact: 1,
@@ -30,8 +31,9 @@
   const labels = Object.freeze({
     loading: "Loading the canonical Composition projection…",
     unavailable: "The canonical Composition Playground projection is not available in the active publication yet.",
+    provenanceUnavailable: "The Site build provenance required to identify the published Composition provider is unavailable.",
     incompatible: "The published Composition Playground projection is incompatible with this Site consumer.",
-    malformed: "The published Composition Playground projection is malformed and was rejected.",
+    malformed: "The published Composition Playground projection or Site build provenance is malformed and was rejected.",
     valid: "This selection is valid for canonical initial composition.",
     invalid: "This selection is invalid according to the canonical Composition provider.",
     copied: "Canonical configuration copied.",
@@ -71,8 +73,7 @@
     ) && Object.keys(value).length === Object.keys(EXPECTED_REASON_BITS).length;
   }
 
-  function validateProjection(raw, options) {
-    const expectedRevision = options && options.expectedRevision ? options.expectedRevision : null;
+  function validateProjection(raw) {
     if (!isObject(raw)) {
       throw new ProjectionError("MALFORMED_PROJECTION", "projection must be an object");
     }
@@ -80,12 +81,7 @@
       throw new ProjectionError("UNSUPPORTED_PROJECTION", "unsupported Playground projection version");
     }
     if (!isObject(raw.source) || raw.source.repository !== "TakashiSasaki/templates" || raw.source.authority !== "composition" || !FULL_SHA.test(raw.source.revision || "")) {
-      throw new ProjectionError("MALFORMED_PROJECTION", "projection source provenance is invalid");
-    }
-    if (expectedRevision !== null) {
-      if (!FULL_SHA.test(expectedRevision) || raw.source.revision !== expectedRevision) {
-        throw new ProjectionError("SOURCE_REVISION_MISMATCH", "projection source revision does not match the expected Composition revision");
-      }
+      throw new ProjectionError("MALFORMED_PROJECTION", "projection semantic source provenance is invalid");
     }
     if (!isObject(raw.scope) || raw.scope.mode !== "initial" || raw.scope.target !== "empty" || raw.scope.configuration_schema_version !== 1 || JSON.stringify(raw.scope.components_exclude) !== "[]" || JSON.stringify(raw.scope.parameters) !== "{}") {
       throw new ProjectionError("UNSUPPORTED_PROJECTION", "projection scope is outside Playground v1");
@@ -192,7 +188,8 @@
 
     return Object.freeze({
       raw,
-      sourceRevision: raw.source.revision,
+      semanticRevision: raw.source.revision,
+      projectionId: raw.projection_id,
       scope: raw.scope,
       reasonBits: raw.provenance_reason_bits,
       recipes,
@@ -206,6 +203,17 @@
       materialById,
       outcomeById
     });
+  }
+
+  function validateBuildProvenance(raw) {
+    if (!isObject(raw) || raw.schema_version !== BUILD_PROVENANCE_SCHEMA_VERSION || raw.repository !== "TakashiSasaki/templates" || !isObject(raw.publication_commits)) {
+      throw new ProjectionError("MALFORMED_PROVENANCE", "Site build provenance has an unsupported shape");
+    }
+    const providerRevision = raw.publication_commits.composition;
+    if (!FULL_SHA.test(providerRevision || "")) {
+      throw new ProjectionError("MALFORMED_PROVENANCE", "Site build provenance has no exact Composition provider revision");
+    }
+    return Object.freeze({ raw, providerRevision });
   }
 
   function selectionMask(recipe, includes) {
@@ -347,8 +355,10 @@
     }
   }
 
-  function renderCase(document, nodes, projection, item) {
-    nodes.revision.textContent = projection.sourceRevision;
+  function renderCase(document, nodes, projection, provenance, item) {
+    nodes.semanticRevision.textContent = projection.semanticRevision;
+    nodes.providerRevision.textContent = provenance.providerRevision;
+    nodes.projectionId.textContent = projection.projectionId;
     nodes.validity.textContent = item.valid
       ? labels.valid
       : `${labels.invalid}${item.error && item.error.code ? ` (${item.error.code})` : ""}`;
@@ -380,7 +390,7 @@
     }
   }
 
-  async function loadProjection(url, options) {
+  async function loadProjection(url) {
     let response;
     try {
       response = await scope.fetch(url, { credentials: "same-origin", cache: "no-cache" });
@@ -391,13 +401,32 @@
       throw new ProjectionError("PROJECTION_UNAVAILABLE", `projection request failed with HTTP ${response.status}`);
     }
     const raw = await decodeProjectionResponse(response, url);
-    return validateProjection(raw, options);
+    return validateProjection(raw);
+  }
+
+  async function loadBuildProvenance(url) {
+    let response;
+    try {
+      response = await scope.fetch(url, { credentials: "same-origin", cache: "no-cache" });
+    } catch (error) {
+      throw new ProjectionError("PROVENANCE_UNAVAILABLE", error instanceof Error ? error.message : String(error));
+    }
+    if (!response.ok) {
+      throw new ProjectionError("PROVENANCE_UNAVAILABLE", `build provenance request failed with HTTP ${response.status}`);
+    }
+    try {
+      return validateBuildProvenance(await response.json());
+    } catch (error) {
+      if (error instanceof ProjectionError) throw error;
+      throw new ProjectionError("MALFORMED_PROVENANCE", error instanceof Error ? error.message : String(error));
+    }
   }
 
   function statusForError(error) {
     if (error instanceof ProjectionError) {
       if (error.code === "PROJECTION_UNAVAILABLE") return labels.unavailable;
-      if (error.code === "UNSUPPORTED_PROJECTION" || error.code === "SOURCE_REVISION_MISMATCH") return `${labels.incompatible} ${error.message}`;
+      if (error.code === "PROVENANCE_UNAVAILABLE") return labels.provenanceUnavailable;
+      if (error.code === "UNSUPPORTED_PROJECTION") return `${labels.incompatible} ${error.message}`;
       return `${labels.malformed} ${error.message}`;
     }
     return labels.malformed;
@@ -413,7 +442,9 @@
       recipe: root.querySelector("[data-playground-recipe]"),
       optionals: root.querySelector("[data-playground-optionals]"),
       validity: root.querySelector("[data-playground-validity]"),
-      revision: root.querySelector("[data-playground-revision]"),
+      semanticRevision: root.querySelector("[data-playground-semantic-revision]"),
+      providerRevision: root.querySelector("[data-playground-provider-revision]"),
+      projectionId: root.querySelector("[data-playground-projection-id]"),
       resolved: root.querySelector("[data-playground-resolved]"),
       config: root.querySelector("[data-playground-config]"),
       copy: root.querySelector("[data-playground-copy]")
@@ -422,7 +453,10 @@
     status.textContent = labels.loading;
 
     try {
-      const projection = await loadProjection(root.dataset.projectionUrl);
+      const [projection, provenance] = await Promise.all([
+        loadProjection(root.dataset.projectionUrl),
+        loadBuildProvenance(root.dataset.provenanceUrl || "/build-provenance.json")
+      ]);
       let state = parseHash(scope.location ? scope.location.hash : "", projection);
       let currentCase = null;
 
@@ -434,7 +468,7 @@
         state = nextState;
         renderSelection(document, nodes, projection, state, () => apply(readControlState(), false));
         currentCase = lookupCase(projection, state.recipeId, state.includes);
-        renderCase(document, nodes, projection, currentCase);
+        renderCase(document, nodes, projection, provenance, currentCase);
         if (scope.history && scope.location) {
           const nextHash = stateHash(state.recipeId, state.includes);
           const url = `${scope.location.pathname}${scope.location.search}${nextHash}`;
@@ -464,8 +498,8 @@
 
       apply(state, true);
       app.hidden = false;
-      status.textContent = "Canonical Composition projection loaded.";
-      return { projection, state, currentCase };
+      status.textContent = "Canonical Composition projection loaded with exact Site publication provenance.";
+      return { projection, provenance, state, currentCase };
     } catch (error) {
       app.hidden = true;
       status.textContent = statusForError(error);
@@ -476,10 +510,12 @@
 
   return Object.freeze({
     SUPPORTED_SCHEMA_VERSION,
+    BUILD_PROVENANCE_SCHEMA_VERSION,
     EXPECTED_REASON_BITS,
     ProjectionError,
     labels,
     validateProjection,
+    validateBuildProvenance,
     selectionMask,
     caseKey,
     explicitIncludes,
@@ -490,6 +526,7 @@
     configurationText,
     decodeProjectionResponse,
     loadProjection,
+    loadBuildProvenance,
     statusForError,
     mount
   });
