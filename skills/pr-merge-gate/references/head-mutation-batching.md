@@ -2,6 +2,12 @@
 
 This reference is provider-neutral procedure support for `pr-merge-gate`. It does not create a new acceptance gate, freshness interval, waiting period, or semantic pull-request rule. It controls when already-justified head-changing repairs are applied so exact-head evidence is not repeatedly invalidated by avoidable mutation churn.
 
+## Stabilize before intentionally acquiring expensive acceptance evidence
+
+Before intentionally requesting independent review or starting another expensive revision-bound acceptance evaluation, establish as far as reasonably possible that the authorized implementation is complete, known self-audit findings are dispositioned, focused validation is complete, required generated projections are internally coherent, known compatible head-changing repairs are batched, no known material defect remains unresolved, and no known downstream immutable-identity materialization is waiting on an upstream semantic repair.
+
+This is a candidate-stabilization discipline, not a new acceptance gate. It has no fixed duration, does not require perfection, does not prevent PR creation, and does not require waiting for earlier CI or review before dependency-safe implementation continues. Naturally triggered CI may run before stabilization. Do not deliberately request independent review for a candidate already known to be intermediate or for a downstream identity that is already known to become stale after an unresolved upstream semantic repair.
+
 ## Preserve a stable candidate while evidence is in flight
 
 Once a candidate head has entered CI or independent review, treat that SHA as stable unless a justified repair, scope correction, conflict resolution, or other necessary head-changing action is ready to apply.
@@ -48,4 +54,4 @@ Neither procedure changes finding severity or merge authorization. A verified ma
 
 ## Closure
 
-Mutation batching is an efficiency discipline, not acceptance evidence. Reacquire every exact-head gate invalidated by the mutation before reporting the batch as successful, and require the normal merge-gate workflow to reach its required state.
+Mutation batching is an efficiency discipline, not acceptance evidence. Candidate stabilization is likewise an efficiency discipline, not acceptance evidence. Reacquire every exact-head gate invalidated by the mutation before reporting the replacement candidate as successful, and require the normal merge-gate workflow to reach its required state.
