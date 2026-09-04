@@ -189,12 +189,13 @@ class PortalPublicationPolicyTests(unittest.TestCase):
             node for node in manifest["navigation"] if node["title"] == "Composition"
         )
         self.assertEqual(
-            [child["title"] for child in composition_group["children"][:7]],
+            [child["title"] for child in composition_group["children"][:8]],
             [
                 "Overview",
                 "Concepts and terminology",
                 "Evaluate Composition",
                 "Use Composition",
+                "Composition Playground",
                 "Produce a product release",
                 "Composer reference",
                 "Documentation index",
