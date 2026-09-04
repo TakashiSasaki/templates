@@ -32,6 +32,7 @@ EXPECTED = [
     "review.resolve-rule-conflicts-explicitly",
     "review.require-rule-conflict-evidence",
     "review.report-review-limitations",
+    "review.keep-findings-independently-addressable",
     "review.anchor-findings-at-cause",
 ]
 
