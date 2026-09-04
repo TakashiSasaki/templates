@@ -19,7 +19,6 @@ DIRECT_SURFACES: dict[str, tuple[str, ...]] = {
         "scripts/smoke_test_agent_policy_installer_candidate.py",
         "tests/test_installer_candidate_smoke.py",
         "tests/test_remote_skill_installer.py",
-        "release/skill-installer.json",
         "tests/test_skill_installer_publication.py",
     ),
     "I": (
@@ -34,10 +33,12 @@ DIRECT_SURFACES: dict[str, tuple[str, ...]] = {
 }
 
 REGENERATION_SURFACES: dict[str, tuple[str, ...]] = {
+    "T-self-host-input": (".agent-policy.yml",),
     "T-self-host-projection": (
-        ".agent-policy.lock",
         ".agent-policy.yml",
+        ".agent-policy.lock",
         ".agents/skills/orchestrate-repository-change/",
+        ".agents/skills/pr-review/",
         ".github/workflows/check-agent-policy.yml",
         ".review-authority/review-policy.md",
         "AGENTS.md",
@@ -60,6 +61,7 @@ VALIDATION_BY_STAGE: dict[str, tuple[str, ...]] = {
         "tests/test_immutable_toolchain_identity.py",
         "tests/test_release_lifecycle.py",
         "scripts/verify-release-state.py",
+        "skills/agent-policy/runtime-manifest.json",
     ),
     "S-installer-candidate": (
         "tests/test_installer_candidate_smoke.py",
@@ -154,6 +156,7 @@ def build_plan(
         "S": skill_source_revision is not None,
         "I": installer_revision is not None,
     }
+    fresh = {name: supplied[name] and requested[name] != current[name] for name in ("T", "S", "I")}
     changed = {name: requested[name] != current[name] for name in ("T", "S", "I")}
 
     awaiting: list[str] = []
@@ -168,7 +171,7 @@ def build_plan(
                 "policy-to-site-projection",
             )
         )
-        awaiting.extend(name for name in ("S", "I") if not supplied[name])
+        awaiting.extend(name for name in ("S", "I") if not fresh[name])
     elif changed["S"]:
         stale.extend(
             (
@@ -177,12 +180,20 @@ def build_plan(
                 "policy-to-site-projection",
             )
         )
-        if not supplied["I"]:
+        if not fresh["I"]:
             awaiting.append("I")
     elif changed["I"]:
         stale.extend(("I-policy-publication", "policy-to-site-projection"))
 
     stages = [
+        {
+            "name": "T-self-host-input",
+            "identity": "T",
+            "action": "mutate the human-owned .agent-policy.yml input pin; it is not generated output",
+            "input_mutations": [".agent-policy.yml"],
+            "generated_surfaces": [],
+            "validation": ["tests/test_policy_self_hosting.py"],
+        },
         {
             "name": "T-self-host-projection",
             "identity": "T",
@@ -263,6 +274,7 @@ def build_plan(
         "current": current,
         "requested": requested,
         "changed": changed,
+        "fresh_materialized": fresh,
         "stale_stages": stale,
         "awaiting_immutable_identity_materialization": awaiting,
         "stages": stages,
@@ -271,6 +283,7 @@ def build_plan(
             "predict_future_commit_sha": False,
             "self_referential_release": False,
             "site_is_policy_super_authority": False,
+            "runtime_lock_digest_required": True,
         },
     }
 
