@@ -1,8 +1,14 @@
 .composition-playground {
   --playground-border: color-mix(in srgb, currentColor 20%, transparent);
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 1rem;
   margin-block: 1.25rem;
+}
+
+.composition-playground > *,
+.composition-playground [data-playground-app] > * {
+  min-inline-size: 0;
 }
 
 .composition-playground [hidden] {
@@ -11,6 +17,7 @@
 
 .composition-playground [data-playground-app] {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 1.25rem;
 }
 
