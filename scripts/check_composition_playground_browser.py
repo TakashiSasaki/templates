@@ -152,8 +152,8 @@ def run_browser_check() -> None:
                     if expected not in explanation:
                         raise PlaygroundBrowserError(f"explainability output is missing {expected!r}")
 
-                details = page.locator("[data-playground-explain] details").first
-                summary = details.locator("summary")
+                details = page.locator("[data-playground-explain] > details").first
+                summary = details.locator(":scope > summary")
                 summary.focus()
                 if not details.evaluate("node => node.open"):
                     raise PlaygroundBrowserError("first explainability disclosure should start open")
