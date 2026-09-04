@@ -19,6 +19,13 @@ HANDOFF = (
     / "references"
     / "human-handoff.md"
 )
+SELECTION = (
+    ROOT
+    / "skills"
+    / "orchestrate-repository-change"
+    / "references"
+    / "pr-workflow-selection.md"
+)
 ORCHESTRATOR = ROOT / "skills" / "orchestrate-repository-change" / "SKILL.md"
 
 
@@ -55,10 +62,14 @@ def test_incomplete_cumulative_binding_falls_back_without_review_loop() -> None:
 def test_human_handoff_keeps_final_audit_separate_from_acceptance_review() -> None:
     handoff = _text(HANDOFF)
     orchestrator = _text(ORCHESTRATOR)
-    for text in (handoff, orchestrator):
-        assert "explicit task instruction" in text
+    selection = _text(SELECTION)
+    for text in (handoff, orchestrator, selection):
+        assert "explicit task" in text
         assert "whole-stack" in text
-        assert "merge evidence" in text
-        assert "merge authorization" in text
+        assert "merge" in text
+    assert "merge evidence" in handoff
+    assert "merge authorization" in handoff
     assert "review-retry loop" in handoff
     assert "do not turn it into a retry loop" in orchestrator
+    assert "not ordinary per-member merge-acceptance evidence" in selection
+    assert "must not create a review-retry loop" in selection
