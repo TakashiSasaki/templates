@@ -7,7 +7,7 @@ Policy turns shared coding-agent rules plus repository-specific policy into repr
 Prerequisites are Git on `PATH`, a target Git repository, and supported CPython 3.11 through 3.14. Install the single `agent-policy` skill using the reviewed immutable installer:
 
 ```bash
-python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/709df0be6287723bf3f1bb38ae5f64d8b3bde08e/scripts/install_agent_policy_skill.py', timeout=30).read())" /path/to/agent-skills/agent-policy
+python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/bf3db6dcfa3b8c79d5d90a75c1ed277a4b18c9d3/scripts/install_agent_policy_skill.py', timeout=30).read())" /path/to/agent-skills/agent-policy
 ```
 
 From the installed skill directory, inspect an unmanaged product repository before changing it:
@@ -73,15 +73,15 @@ The bare `agent-policy ...` examples above describe the canonical toolchain CLI.
 Install the reviewed skill with an installer script whose URL is itself pinned to a full commit SHA:
 
 ```bash
-python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/709df0be6287723bf3f1bb38ae5f64d8b3bde08e/scripts/install_agent_policy_skill.py', timeout=30).read())" /path/to/agent-skills/agent-policy
+python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/bf3db6dcfa3b8c79d5d90a75c1ed277a4b18c9d3/scripts/install_agent_policy_skill.py', timeout=30).read())" /path/to/agent-skills/agent-policy
 ```
 
 For an existing installation, append `--replace`; replacement is accepted only when the destination is already identified as this skill.
 
 The distribution has three distinct immutable roles:
 
-- **installer script revision** `709df0be6287723bf3f1bb38ae5f64d8b3bde08e` identifies the remotely executed stdlib-only bootstrap script;
-- **skill source revision** `a7b260ccc361ad8cd1bab94803a9b355c640fe7e` identifies the `skills/agent-policy/` tree that the installer downloads and atomically installs; and
+- **installer script revision** `bf3db6dcfa3b8c79d5d90a75c1ed277a4b18c9d3` identifies the remotely executed stdlib-only bootstrap script;
+- **skill source revision** `f3347021f6cdc4fcba3faecd01c9ab69ef0e2910` identifies the `skills/agent-policy/` tree that the installer downloads and atomically installs; and
 - the skill's **stable runtime revision** remains the full SHA in `skills/agent-policy/runtime-manifest.json`, independently selected for CLI execution.
 
 `release/skill-installer.json` records the first two identities. The one-line command never executes the mutable `policy` branch or a tag.
