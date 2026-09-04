@@ -11,7 +11,15 @@ The JSON Schema Draft 2020-12 contracts define the composition source, resolved-
 - `catalog.schema.json` — closed production component/recipe inventory.
 - `composition-skill-installer-release.schema.json` — stable release metadata that separates the immutable remote-installer revision, installed skill-source revision, and Composition toolchain revision.
 
-The Playground projection is generated only from canonical Composition resolution/planning APIs. `generated/composition-playground-v1.json.gz` is a deterministic gzip transport for that canonical JSON and is published at `playground/composition-playground-v1.json.gz`. The gzip's embedded `source.revision` is an exact semantically equivalent Composition ancestor; publication CI regenerates the bytes against that revision and rejects the asset if any Playground semantic input has changed since it. The transport does not create a second resolver or move composition semantics into Site.
+The Playground projection is generated only from canonical Composition resolution/planning APIs. `generated/composition-playground-v1.json.gz` is a deterministic gzip transport for that canonical JSON and is published at `playground/composition-playground-v1.json.gz`.
+
+Playground provenance has three deliberately separate identities:
+
+1. `projection_id` plus `schema_version` identify the projection contract and payload family.
+2. The gzip payload's `source.revision` is the **semantic source revision**: the exact Composition revision whose canonical Composer semantics produced the projected cases, provenance, contracts, materials, ownership, and empty-target plan summaries.
+3. The **publication/provider revision** is the exact Composition checkout selected by Site and recorded by Site in `/build-provenance.json`. It identifies the provider revision that supplied the published gzip asset and may be a publication-only descendant of `source.revision`.
+
+The semantic source revision and publication/provider revision therefore are not required to be equal. Publication CI is the authoritative place that validates their relationship: regenerating the asset through `build_projection(source_revision=...)` requires the embedded semantic revision to be an ancestor of the current provider checkout and rejects the publication if any Playground semantic path changed between those revisions. A browser consumer must not attempt to reproduce Git ancestry validation or reject a valid publication-only descendant merely because the two SHAs differ. The transport does not embed its own provider commit SHA, so no self-referential final-commit identity is introduced.
 
 A contract registration names one component-owned contract document/schema, stable migration slug, current document schema version, complete version history, and purpose. Registration metadata is source-time composition input; it is not copied into a consumer as an independent authority. `lifecycle.contract-evolution` deterministically renders the consumer `contracts/manifest.json` from the resolved registration set.
 
