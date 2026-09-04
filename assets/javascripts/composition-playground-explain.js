@@ -272,6 +272,7 @@
   }
 
   let coreUnsubscribe;
+  let mountGeneration = 0;
 
   function hide(root) {
     const explain = root && root.querySelector("[data-playground-explain]");
@@ -299,13 +300,18 @@
 
   async function mount(document) {
     const c = requireCore();
+    const invocationRoot = document && document.getElementById("composition-playground");
+    const generation = ++mountGeneration;
     if (!coreUnsubscribe) {
       coreUnsubscribe = c.subscribe(renderContext);
     }
     const context = await c.ensureMounted(document);
-    const root = document && document.getElementById("composition-playground");
-    if (!context) {
-      hide(root);
+    const activeRoot = document && document.getElementById("composition-playground");
+    if (generation !== mountGeneration || activeRoot !== invocationRoot) {
+      return null;
+    }
+    if (!context || context.root !== invocationRoot) {
+      hide(invocationRoot);
       return null;
     }
     renderContext({ type: "ready", context });
