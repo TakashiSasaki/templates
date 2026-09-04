@@ -1,0 +1,131 @@
+{
+  "schema_version": 1,
+  "projection_id": "composition-playground-v1",
+  "source": {
+    "repository": "TakashiSasaki/templates",
+    "authority": "composition",
+    "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "scope": {
+    "mode": "initial",
+    "target": "empty",
+    "components_exclude": [],
+    "parameters": {}
+  },
+  "recipes": [
+    {
+      "id": "skill",
+      "artifact": "artifact.skill",
+      "required_components": [],
+      "default_components": [],
+      "optional_components": ["capability.cli", "lifecycle.composition-state"],
+      "case_count": 4,
+      "source_path": "recipes/skill.json"
+    }
+  ],
+  "components": [
+    {
+      "id": "artifact.skill",
+      "role": "artifact",
+      "version": 1,
+      "summary": "Synthetic artifact fixture",
+      "requires": [],
+      "conflicts": [],
+      "contract_ids": [],
+      "material_declarations": [],
+      "source_path": "components/artifact.skill/component.json"
+    },
+    {
+      "id": "capability.cli",
+      "role": "capability",
+      "version": 1,
+      "summary": "Synthetic CLI fixture",
+      "requires": [],
+      "conflicts": [],
+      "contract_ids": [],
+      "material_declarations": [],
+      "source_path": "components/capability.cli/component.json"
+    },
+    {
+      "id": "lifecycle.composition-state",
+      "role": "lifecycle",
+      "version": 1,
+      "summary": "Synthetic lifecycle fixture",
+      "requires": [],
+      "conflicts": [],
+      "contract_ids": [],
+      "material_declarations": [],
+      "source_path": "components/lifecycle.composition-state/component.json"
+    }
+  ],
+  "contracts": [],
+  "materials": [],
+  "cases": [
+    {
+      "key": "skill:0",
+      "recipe": "skill",
+      "include_mask": 0,
+      "explicit_includes": [],
+      "configuration": {"schema_version": 1, "recipe": "skill", "components": {"include": [], "exclude": []}, "parameters": {}},
+      "valid": true,
+      "error": null,
+      "resolved_components": ["artifact.skill"],
+      "selection_provenance": [{"component": "artifact.skill", "reasons": [{"kind": "recipe-artifact"}]}],
+      "contract_ids": [],
+      "material_ids": [],
+      "initial_plan": {"action_counts": {"create": 1}, "conflict_count": 0}
+    },
+    {
+      "key": "skill:1",
+      "recipe": "skill",
+      "include_mask": 1,
+      "explicit_includes": ["capability.cli"],
+      "configuration": {"schema_version": 1, "recipe": "skill", "components": {"include": ["capability.cli"], "exclude": []}, "parameters": {}},
+      "valid": true,
+      "error": null,
+      "resolved_components": ["artifact.skill", "capability.cli"],
+      "selection_provenance": [
+        {"component": "artifact.skill", "reasons": [{"kind": "recipe-artifact"}]},
+        {"component": "capability.cli", "reasons": [{"kind": "explicit-include"}]}
+      ],
+      "contract_ids": [],
+      "material_ids": [],
+      "initial_plan": {"action_counts": {"create": 2}, "conflict_count": 0}
+    },
+    {
+      "key": "skill:2",
+      "recipe": "skill",
+      "include_mask": 2,
+      "explicit_includes": ["lifecycle.composition-state"],
+      "configuration": {"schema_version": 1, "recipe": "skill", "components": {"include": ["lifecycle.composition-state"], "exclude": []}, "parameters": {}},
+      "valid": true,
+      "error": null,
+      "resolved_components": ["artifact.skill", "lifecycle.composition-state"],
+      "selection_provenance": [
+        {"component": "artifact.skill", "reasons": [{"kind": "recipe-artifact"}]},
+        {"component": "lifecycle.composition-state", "reasons": [{"kind": "explicit-include"}]}
+      ],
+      "contract_ids": [],
+      "material_ids": [],
+      "initial_plan": {"action_counts": {"create": 2}, "conflict_count": 0}
+    },
+    {
+      "key": "skill:3",
+      "recipe": "skill",
+      "include_mask": 3,
+      "explicit_includes": ["capability.cli", "lifecycle.composition-state"],
+      "configuration": {"schema_version": 1, "recipe": "skill", "components": {"include": ["capability.cli", "lifecycle.composition-state"], "exclude": []}, "parameters": {}},
+      "valid": true,
+      "error": null,
+      "resolved_components": ["artifact.skill", "capability.cli", "lifecycle.composition-state"],
+      "selection_provenance": [
+        {"component": "artifact.skill", "reasons": [{"kind": "recipe-artifact"}]},
+        {"component": "capability.cli", "reasons": [{"kind": "explicit-include"}]},
+        {"component": "lifecycle.composition-state", "reasons": [{"kind": "explicit-include"}]}
+      ],
+      "contract_ids": [],
+      "material_ids": [],
+      "initial_plan": {"action_counts": {"create": 3}, "conflict_count": 0}
+    }
+  ]
+}
