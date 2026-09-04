@@ -20,7 +20,7 @@ jobs:
           persist-credentials: true
       - name: Generate deterministic binary publication
         run: |
-          python tools/package_composition_playground.py \
+          python scripts/generate_composition_playground_publication.py \
             --output generated/composition-playground-v1.json.gz \
             --source-revision 6c1ee765795ff44add2ab284e9e82977d91ef40c
           printf '%s  %s\n' \
