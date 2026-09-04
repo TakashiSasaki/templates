@@ -18,7 +18,7 @@ from typing import BinaryIO, Protocol
 
 TOOLCHAIN_REPOSITORY = "TakashiSasaki/templates"
 INSTALLER_PATH = "scripts/install_agent_policy_skill.py"
-SKILL_SOURCE_REVISION = "f3347021f6cdc4fcba3faecd01c9ab69ef0e2910"
+SKILL_SOURCE_REVISION = "344aaf0b140e3c066363297012bb866efbc106e4"
 SKILL_SOURCE_PATH = "skills/agent-policy"
 FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
 ARCHIVE_LIMIT = 16 * 1024 * 1024
