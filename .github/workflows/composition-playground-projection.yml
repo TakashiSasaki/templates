@@ -47,7 +47,7 @@ jobs:
         run: .venv/bin/python -I tests/test_composition_playground_projection.py
 
       - name: Generate exact-head canonical projection artifact
-        run: .venv/bin/python -I scripts/generate_composition_playground.py --output composition-playground-v1.json
+        run: .venv/bin/python scripts/generate_composition_playground.py --output composition-playground-v1.json
 
       - name: Record exact-head provenance
         env:
