@@ -1,4 +1,4 @@
-# Composition Playground
+# Composition Playground v1
 
 Explore the initial composition that the canonical Composition provider has already computed for a production recipe and an explicit set of optional components.
 
