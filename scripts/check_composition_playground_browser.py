@@ -108,7 +108,13 @@ def prepare_harness(root: Path) -> None:
 <body><main>{playground_markup()}</main></body>
 </html>
 """
-    (root / "index.html").write_text(html, encoding="utf-8")
+    for page_path in (
+        root / "index.html",
+        root / "playground" / "index.html",
+        root / "home" / "index.html",
+    ):
+        page_path.parent.mkdir(parents=True, exist_ok=True)
+        page_path.write_text(html, encoding="utf-8")
 
 
 def serve(root: Path) -> tuple[ThreadingHTTPServer, threading.Thread, str]:
