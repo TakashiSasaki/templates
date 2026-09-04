@@ -1,0 +1,257 @@
+#!/usr/bin/env python3
+"""Exercise the real Composition Playground provider artifact through the built Site."""
+
+from __future__ import annotations
+
+import argparse
+import gzip
+import json
+import re
+import threading
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+from typing import Any
+
+FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
+
+
+class CrossAuthorityError(RuntimeError):
+    pass
+
+
+def read_json(path: Path) -> dict[str, Any]:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise CrossAuthorityError(f"cannot read JSON {path}: {exc}") from exc
+    if not isinstance(value, dict):
+        raise CrossAuthorityError(f"expected object in {path}")
+    return value
+
+
+def validate_built_inputs(
+    site_root: Path,
+    *,
+    expected_site_revision: str,
+    expected_provider_revision: str,
+    expected_semantic_revision: str,
+) -> None:
+    provenance = read_json(site_root / "build-provenance.json")
+    if provenance.get("schema_version") != 2 or provenance.get("repository") != "TakashiSasaki/templates":
+        raise CrossAuthorityError("built Site provenance contract is invalid")
+    if provenance.get("site_commit") != expected_site_revision:
+        raise CrossAuthorityError(
+            f"built Site revision mismatch: {provenance.get('site_commit')} != {expected_site_revision}"
+        )
+    publications = provenance.get("publication_commits")
+    if not isinstance(publications, dict):
+        raise CrossAuthorityError("built Site provenance has no publication commits")
+    if publications.get("composition") != expected_provider_revision:
+        raise CrossAuthorityError(
+            "built Site did not use the exact candidate Composition provider revision"
+        )
+    if not FULL_SHA.fullmatch(str(publications.get("policy", ""))):
+        raise CrossAuthorityError("built Site provenance has no exact Policy revision")
+
+    projection_path = site_root / "composition" / "playground" / "composition-playground-v1.json.gz"
+    try:
+        projection = json.loads(gzip.decompress(projection_path.read_bytes()))
+    except (OSError, EOFError, gzip.BadGzipFile, json.JSONDecodeError) as exc:
+        raise CrossAuthorityError(f"cannot decode assembled Playground projection: {exc}") from exc
+    if projection.get("projection_id") != "composition-playground-v1" or projection.get("schema_version") != 1:
+        raise CrossAuthorityError("assembled Playground projection identity is invalid")
+    source = projection.get("source")
+    if not isinstance(source, dict) or source.get("revision") != expected_semantic_revision:
+        raise CrossAuthorityError("assembled Playground semantic revision is not the expected candidate semantic source")
+    if expected_semantic_revision == expected_provider_revision:
+        raise CrossAuthorityError(
+            "cross-authority regression must cover the publication-only descendant provenance case"
+        )
+
+
+def serve(root: Path) -> tuple[ThreadingHTTPServer, threading.Thread, str]:
+    class Handler(SimpleHTTPRequestHandler):
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            super().__init__(*args, directory=str(root), **kwargs)
+
+        def log_message(self, format: str, *args: Any) -> None:
+            return
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    host, port = server.server_address[:2]
+    return server, thread, f"http://{host}:{port}"
+
+
+def assert_no_horizontal_overflow(page: Any) -> None:
+    metrics = page.evaluate(
+        """() => ({
+          innerWidth: window.innerWidth,
+          clientWidth: document.documentElement.clientWidth,
+          scrollWidth: document.documentElement.scrollWidth
+        })"""
+    )
+    if metrics["innerWidth"] != 360 or metrics["clientWidth"] != 360:
+        raise CrossAuthorityError(f"unexpected narrow viewport metrics: {metrics}")
+    if metrics["scrollWidth"] > metrics["clientWidth"] + 1:
+        raise CrossAuthorityError(f"Playground has horizontal overflow at 360px: {metrics}")
+
+
+def assert_text_contains(page: Any, selector: str, expected: str) -> None:
+    text = page.locator(selector).text_content() or ""
+    if expected not in text:
+        raise CrossAuthorityError(f"{selector} is missing {expected!r}: {text[:500]!r}")
+
+
+def run_browser_check(
+    site_root: Path,
+    *,
+    expected_provider_revision: str,
+    expected_semantic_revision: str,
+) -> None:
+    try:
+        from playwright.sync_api import sync_playwright
+    except ImportError as exc:
+        raise CrossAuthorityError("Playwright is required; install requirements-visual.txt") from exc
+
+    server, thread, base_url = serve(site_root)
+    provenance_path = site_root / "build-provenance.json"
+    try:
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch()
+            page = browser.new_page(viewport={"width": 360, "height": 800})
+            page_errors: list[str] = []
+            page.on("pageerror", lambda error: page_errors.append(str(error)))
+            page.goto(
+                f"{base_url}/playground/#recipe=skill&include=capability.cli",
+                wait_until="networkidle",
+            )
+            page.wait_for_selector("[data-playground-app]:not([hidden])")
+            page.wait_for_selector("[data-playground-explain]:not([hidden])")
+
+            if page.locator("[data-playground-semantic-revision]").text_content() != expected_semantic_revision:
+                raise CrossAuthorityError("browser did not display the projection semantic source revision")
+            if page.locator("[data-playground-provider-revision]").text_content() != expected_provider_revision:
+                raise CrossAuthorityError("browser did not display the exact Site-selected provider revision")
+            if page.locator("[data-playground-projection-id]").text_content() != "composition-playground-v1":
+                raise CrossAuthorityError("browser did not display the Playground projection identity")
+            if page.locator("[data-playground-recipe]").input_value() != "skill":
+                raise CrossAuthorityError("shareable URL did not select the production skill recipe")
+            if not page.locator('input[type="checkbox"][value="capability.cli"]').is_checked():
+                raise CrossAuthorityError("shareable URL did not restore capability.cli")
+
+            resolved = page.locator("[data-playground-resolved]").text_content() or ""
+            for component in (
+                "artifact.skill-core",
+                "capability.cli",
+                "capability.runtime",
+                "lifecycle.implementation-evidence",
+                "lifecycle.contract-evolution",
+                "lifecycle.lifecycle-checkpoints",
+            ):
+                if component not in resolved:
+                    raise CrossAuthorityError(f"real canonical Skill case is missing {component}")
+
+            config = json.loads(page.locator("[data-playground-config]").text_content() or "{}")
+            expected_config = {
+                "schema_version": 1,
+                "recipe": "skill",
+                "components": {"include": ["capability.cli"], "exclude": []},
+                "parameters": {},
+            }
+            if config != expected_config:
+                raise CrossAuthorityError(f"generated composition.json configuration differs: {config}")
+
+            explanation = page.locator("[data-playground-explain]").text_content() or ""
+            for expected in (
+                "Why selected?",
+                "Required directly by capability.cli.",
+                "cli_interface",
+                "implementation_evidence",
+                "contracts/cli-interface.json",
+                "ownership: seed",
+                "Canonical empty-target initial plan:",
+            ):
+                if expected not in explanation:
+                    raise CrossAuthorityError(f"real explainability output is missing {expected!r}")
+            assert_no_horizontal_overflow(page)
+
+            cli = page.locator('input[type="checkbox"][value="capability.cli"]')
+            cli.uncheck()
+            page.wait_for_function("() => !location.hash.includes('include=capability.cli')")
+            without_cli = page.locator("[data-playground-resolved]").text_content() or ""
+            if "capability.cli" in without_cli:
+                raise CrossAuthorityError("optional component change did not select a new canonical case")
+            cli.check()
+            page.wait_for_function("() => location.hash.includes('include=capability.cli')")
+            page.reload(wait_until="networkidle")
+            page.wait_for_selector("[data-playground-app]:not([hidden])")
+            if not page.locator('input[type="checkbox"][value="capability.cli"]').is_checked():
+                raise CrossAuthorityError("shareable URL/hash did not round-trip after case changes")
+            assert_no_horizontal_overflow(page)
+
+            original_provenance = provenance_path.read_bytes()
+            provenance_path.unlink()
+            failed = browser.new_page(viewport={"width": 360, "height": 800})
+            try:
+                failed.goto(f"{base_url}/playground/", wait_until="networkidle")
+                failed.wait_for_function(
+                    "() => document.querySelector('#composition-playground')?.dataset.playgroundError === 'PROVENANCE_UNAVAILABLE'"
+                )
+                if not failed.locator("[data-playground-app]").is_hidden():
+                    raise CrossAuthorityError("missing Site build provenance did not fail closed")
+                assert_text_contains(failed, "[data-playground-status]", "provenance")
+            finally:
+                failed.close()
+                provenance_path.write_bytes(original_provenance)
+
+            if page_errors:
+                raise CrossAuthorityError(f"browser page errors: {page_errors}")
+            browser.close()
+    finally:
+        if not provenance_path.exists():
+            raise CrossAuthorityError("browser failure left build provenance missing")
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--site-root", type=Path, required=True)
+    parser.add_argument("--expected-site-revision", required=True)
+    parser.add_argument("--expected-provider-revision", required=True)
+    parser.add_argument("--expected-semantic-revision", required=True)
+    return parser.parse_args()
+
+
+def main() -> int:
+    args = parse_args()
+    for label, revision in (
+        ("site", args.expected_site_revision),
+        ("provider", args.expected_provider_revision),
+        ("semantic", args.expected_semantic_revision),
+    ):
+        if not FULL_SHA.fullmatch(revision):
+            raise SystemExit(f"expected {label} revision must be an exact lowercase full SHA")
+    try:
+        validate_built_inputs(
+            args.site_root,
+            expected_site_revision=args.expected_site_revision,
+            expected_provider_revision=args.expected_provider_revision,
+            expected_semantic_revision=args.expected_semantic_revision,
+        )
+        run_browser_check(
+            args.site_root,
+            expected_provider_revision=args.expected_provider_revision,
+            expected_semantic_revision=args.expected_semantic_revision,
+        )
+    except (OSError, CrossAuthorityError) as exc:
+        raise SystemExit(str(exc)) from exc
+    print("Composition Playground cross-authority producer-to-consumer acceptance passed")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
