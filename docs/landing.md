@@ -38,7 +38,7 @@
   <div class="portal-section-heading">
     <p class="portal-section-heading__kicker">What do you want to do?</p>
     <h2 id="portal-build-title">Choose a task, not an internal authority</h2>
-    <p>Each entry point routes to the authority that owns the detailed procedure. You do not need to understand Composition, capabilities, or lifecycle contracts before starting.</p>
+    <p>Each entry point routes to the authority that owns the detailed procedure. You do not need to understand Composition, capabilities, or lifecycle contracts before starting. Want to explore the resolved output interactively first? <a href="playground/">Try Composition Playground</a>.</p>
   </div>
 
   <div class="portal-artifact-grid">
@@ -97,6 +97,7 @@ your separate product repository
   </div>
   <div class="portal-doc-links">
     <a class="portal-doc-link" href="composition/">Explore Composition</a>
+    <a class="portal-doc-link" href="playground/">Composition Playground</a>
     <a class="portal-doc-link" href="composition/concepts/">Composition concepts</a>
     <a class="portal-doc-link" href="web/">Website or Web application?</a>
     <a class="portal-doc-link" href="website/">Explore Website</a>

@@ -87,6 +87,7 @@ class LandingPageTests(unittest.TestCase):
         self.assertEqual(text.count('class="portal-cover__button '), 2)
         for destination in (
             "web/",
+            "playground/",
             "website/",
             "webapp/",
             "composition/use/skill-first-use-walkthrough/",

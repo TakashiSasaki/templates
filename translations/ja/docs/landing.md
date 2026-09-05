@@ -40,7 +40,7 @@
   <div class="portal-section-heading">
     <p class="portal-section-heading__kicker">何をしたいですか？</p>
     <h2 id="portal-build-title">内部 authority ではなく task を選ぶ</h2>
-    <p>各 entry point は、その手順を正本として所有する authority へ案内します。開始前に Composition、capability、lifecycle contract を理解する必要はありません。</p>
+    <p>各 entry point は、その手順を正本として所有する authority へ案内します。開始前に Composition、capability、lifecycle contract を理解する必要はありません。まず対話的に resolved output を試したい場合は、<a href="/playground/">Composition Playground を試す</a>ことができます。</p>
   </div>
 
   <div class="portal-artifact-grid">
@@ -99,6 +99,7 @@ TakashiSasaki/templates
   </div>
   <div class="portal-doc-links">
     <a class="portal-doc-link" href="/composition/">Composition を見る</a>
+    <a class="portal-doc-link" href="/playground/">Composition Playground を試す</a>
     <a class="portal-doc-link" href="/composition/concepts/">Composition の概念と用語</a>
     <a class="portal-doc-link" href="/web/">Website か Web application か</a>
     <a class="portal-doc-link" href="/website/">Website を見る</a>
