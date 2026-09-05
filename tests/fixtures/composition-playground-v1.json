@@ -81,7 +81,7 @@
       "dependency_edges": [],
       "contract_ids": [],
       "material_ids": [],
-      "initial_plan": {"action_counts": {"create": 1}, "conflict_count": 0}
+      "initial_plan": {"action_counts": {"create": 0}, "conflict_count": 0}
     },
     {
       "index": 1,
@@ -89,7 +89,7 @@
       "dependency_edges": [],
       "contract_ids": [],
       "material_ids": [],
-      "initial_plan": {"action_counts": {"create": 2}, "conflict_count": 0}
+      "initial_plan": {"action_counts": {"create": 0}, "conflict_count": 0}
     },
     {
       "index": 2,
@@ -97,7 +97,7 @@
       "dependency_edges": [],
       "contract_ids": [],
       "material_ids": [],
-      "initial_plan": {"action_counts": {"create": 2}, "conflict_count": 0}
+      "initial_plan": {"action_counts": {"create": 0}, "conflict_count": 0}
     },
     {
       "index": 3,
@@ -105,7 +105,7 @@
       "dependency_edges": [],
       "contract_ids": [],
       "material_ids": [],
-      "initial_plan": {"action_counts": {"create": 3}, "conflict_count": 0}
+      "initial_plan": {"action_counts": {"create": 0}, "conflict_count": 0}
     }
   ]
 }
