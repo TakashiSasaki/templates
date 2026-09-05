@@ -125,7 +125,10 @@ def assert_fragment_semantics(page: Any, base_url: str) -> None:
     cli.uncheck()
     page.wait_for_function("() => location.hash === '#recipe=skill'")
 
-    page.goto(f"{base_url}playground/#recipe=unknown", wait_until="networkidle")
+    # Change the query as well as the hash so Playwright performs a fresh document
+    # navigation. That exercises initial-mount fail-closed behavior rather than the
+    # already-mounted hashchange status path.
+    page.goto(f"{base_url}playground/?invalid-state=1#recipe=unknown", wait_until="networkidle")
     page.wait_for_function(
         "() => document.querySelector('#composition-playground')?.dataset.playgroundError === 'INVALID_SELECTION'"
     )
