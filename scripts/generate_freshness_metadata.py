@@ -361,6 +361,42 @@ def annotate_generated_html(site_root: Path, site_revision: str) -> int:
     return len(updates)
 
 
+
+def annotate_and_validate_generated_html(site_root: Path, site_revision: str) -> tuple[int, int]:
+    """Annotate and validate each eligible page in one structural pass."""
+    resolved_root = site_root.resolve(strict=True)
+    updates: dict[Path, str] = {}
+    verified = 0
+    revision = validate_revision(site_revision, "site")
+    marker = (
+        f'<meta name="{SITE_REVISION_META_NAME}" '
+        f'content="{html.escape(revision, quote=True)}">\n'
+    )
+    for path in generated_html_files(resolved_root):
+        if is_sandbox_preview(path, resolved_root):
+            continue
+        try:
+            source = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeError) as exc:
+            raise FreshnessMetadataError(
+                f"unable to read generated HTML {path}: {exc}"
+            ) from exc
+        updated = annotate_site_revision(source, revision, path)
+        head_end = updated.find("</head>")
+        if updated.count(marker) != 1 or head_end < 0 or updated.find(marker) > head_end:
+            raise FreshnessMetadataError(
+                f"{path}: freshness revision metadata verification failed"
+            )
+        if updated != source:
+            updates[path] = updated
+        verified += 1
+
+    for path, updated in updates.items():
+        path.write_text(updated, encoding="utf-8")
+    if verified == 0:
+        raise FreshnessMetadataError("no cache-eligible HTML freshness metadata verified")
+    return len(updates), verified
+
 def build_payload(
     site_revision: str,
     deployment_timestamp: str,
@@ -439,17 +475,21 @@ def generate_freshness_metadata(
     payload = build_payload(site_revision, deployment_timestamp, publications)
     output = resolved_root / "site-version.json"
     validate_output_path(output)
-    annotated = annotate_generated_html(resolved_root, site_revision)
+    annotated, verified = annotate_and_validate_generated_html(resolved_root, site_revision)
     output.write_text(
         canonical_payload_text(payload),
         encoding="utf-8",
     )
-    verify_freshness_contract(
-        resolved_root,
-        output,
-        site_revision,
-        payload,
-    )
+    validate_output_path(output)
+    try:
+        if output.read_text(encoding="utf-8") != canonical_payload_text(payload):
+            raise FreshnessMetadataError(
+                f"freshness identity payload verification failed: {output}"
+            )
+    except (OSError, UnicodeError) as exc:
+        raise FreshnessMetadataError(
+            f"unable to verify freshness identity {output}: {exc}"
+        ) from exc
     return output, annotated
 
 
