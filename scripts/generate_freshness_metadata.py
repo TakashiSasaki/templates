@@ -287,16 +287,18 @@ def head_close_offset(source: str, path: Path) -> int:
     )
 
 
-def annotate_site_revision(source: str, revision: str, path: Path) -> str:
+def _annotate_site_revision_structurally(
+    source: str,
+    revision: str,
+    path: Path,
+) -> tuple[str, list[dict[str, str | None]], int]:
+    """Annotate one document and return its parsed freshness contract."""
     revision = validate_revision(revision, "site")
 
-    # Head placement and pre-existing revision metadata are both structural HTML
-    # properties. Collect them in one pass. The generated file is reread and
-    # structurally verified before generate_freshness_metadata() can succeed.
     parser = FreshnessDocumentParser()
     parser.feed(source)
     parser.close()
-    position = parsed_head_close_offset(
+    head_end = parsed_head_close_offset(
         source,
         path,
         parser.head_starts,
@@ -312,14 +314,19 @@ def annotate_site_revision(source: str, revision: str, path: Path) -> str:
             raise FreshnessMetadataError(
                 f"{path}: existing {SITE_REVISION_META_NAME} metadata conflicts with build revision"
             )
-        return source
+        return source, metas, head_end
 
     tag = (
         f'<meta name="{SITE_REVISION_META_NAME}" '
         f'content="{html.escape(revision, quote=True)}">\n'
     )
-    return source[:position] + tag + source[position:]
+    updated = source[:head_end] + tag + source[head_end:]
+    return updated, [{"name": SITE_REVISION_META_NAME, "content": revision}], head_end
 
+
+def annotate_site_revision(source: str, revision: str, path: Path) -> str:
+    updated, _, _ = _annotate_site_revision_structurally(source, revision, path)
+    return updated
 
 def is_sandbox_preview(path: Path, site_root: Path) -> bool:
     relative = path.relative_to(site_root)
@@ -368,10 +375,6 @@ def annotate_and_validate_generated_html(site_root: Path, site_revision: str) ->
     updates: dict[Path, str] = {}
     verified = 0
     revision = validate_revision(site_revision, "site")
-    marker = (
-        f'<meta name="{SITE_REVISION_META_NAME}" '
-        f'content="{html.escape(revision, quote=True)}">\n'
-    )
     for path in generated_html_files(resolved_root):
         if is_sandbox_preview(path, resolved_root):
             continue
@@ -381,9 +384,17 @@ def annotate_and_validate_generated_html(site_root: Path, site_revision: str) ->
             raise FreshnessMetadataError(
                 f"unable to read generated HTML {path}: {exc}"
             ) from exc
-        updated = annotate_site_revision(source, revision, path)
-        head_end = updated.find("</head>")
-        if updated.count(marker) != 1 or head_end < 0 or updated.find(marker) > head_end:
+        updated, metas, head_end = _annotate_site_revision_structurally(
+            source,
+            revision,
+            path,
+        )
+        if (
+            len(metas) != 1
+            or metas[0].get("content") != revision
+            or head_end < 0
+            or head_end > len(source)
+        ):
             raise FreshnessMetadataError(
                 f"{path}: freshness revision metadata verification failed"
             )

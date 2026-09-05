@@ -75,6 +75,28 @@ class FreshnessMetadataSingleValidationTests(unittest.TestCase):
                         PUBLICATIONS,
                     )
 
+    def test_accepts_structurally_equivalent_existing_metadata(self) -> None:
+        source = (
+            "<html><HEAD><script>const literal = '</head>';</script>"
+            f'<META CONTENT="{SITE_REVISION}" data-extra="1" '
+            'NAME="templates-site-revision"></HEAD>'
+            "<body>page</body></html>"
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            site_root = Path(directory)
+            index = site_root / "index.html"
+            index.write_text(source, encoding="utf-8")
+
+            _, annotated = generate_freshness_metadata.generate_freshness_metadata(
+                site_root,
+                SITE_REVISION,
+                DEPLOYMENT_TIMESTAMP,
+                PUBLICATIONS,
+            )
+
+            self.assertEqual(0, annotated)
+            self.assertEqual(source, index.read_text(encoding="utf-8"))
+
     def test_generation_keeps_independent_final_html_rediscovery(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             site_root = Path(directory)
