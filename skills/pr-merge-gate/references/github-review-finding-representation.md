@@ -43,3 +43,9 @@ The request may adapt wording to the reviewer or integration. It must not requir
 After a finding has been repaired or given an evidence-backed explicit disposition, validate that outcome against the current proposed head. Only then, when GitHub exposes a corresponding resolvable thread and current provider mechanics permit it, mark that thread resolved.
 
 A resolved thread is bookkeeping evidence that disposition occurred; it is not semantic proof that the remediation is correct. Conversely, a finding present only in a top-level review body still requires finding-level disposition and validation even though no resolvable thread exists. Absence of a thread does not establish absence or resolution of a finding.
+
+When a material finding is present only in a top-level review body or another non-resolvable GitHub surface, prefer recording its validated disposition as a reply or follow-up directly associated with the source review when current provider mechanics expose such an association. Preserve the source-review identity and a stable finding-level locator in that closure record so multiple body-only findings remain independently auditable.
+
+If GitHub or the connected execution surface cannot attach a reply or follow-up to the source review, record the validated disposition on another durable pull-request surface and explicitly reference the source review plus the stable finding locator. Do not invent an inline thread or fabricate a changed-line anchor merely to obtain resolvable UI state. This is a traceability preference; semantic closure still comes from the validated disposition rather than the transport location.
+
+The canonical review-reacquisition policy determines when recorded closure evidence is required before intentionally requesting another merge-acceptance review. This GitHub guidance only selects a traceable provider surface for that evidence and does not create the prerequisite itself.
