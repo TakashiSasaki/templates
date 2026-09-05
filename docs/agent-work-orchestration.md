@@ -29,6 +29,8 @@ Candidate churn is avoidable creation of replacement heads after a candidate has
 
 Review amplification is repeated review acquisition beyond what current authority and actual revision invalidation require. The most costly pattern is review -> fix one finding -> request review -> discover another already-actionable finding -> repeat. The review reacquisition gate interrupts that loop by requiring the complete known material backlog to receive a current-head validated repair or evidence-backed no-change disposition and recorded closure evidence before intentionally starting a new merge-acceptance review cycle.
 
+The same canonical gate applies to explicitly authorized final whole-stack audits under orchestration procedures. Head stabilization and green CI are necessary but not sufficient: before reviewer invocation, the complete known-finding ledger must also show current-head validated disposition and required closure evidence for every known material actionable finding.
+
 ### Finding backlog
 
 The finding backlog is the logical set of known material actionable review findings that have not yet reached validated semantic closure. It is independent of provider thread count. A body-only finding can remain in the backlog even when the provider exposes no resolvable thread; a resolved thread can still be semantically incomplete if its repair or no-change disposition was never validated or the required closure evidence was not recorded.
@@ -166,7 +168,7 @@ S1 is not yet stable, S2 can be implemented without embedding the unresolved S1 
 
 ### Human-handoff final audit
 
-Implementation and required validation are complete, the known finding backlog is empty, final stack heads are stable, and the task explicitly authorizes one final whole-stack diagnostic audit. Request that audit once. Unless the explicit task requires the diagnostic audit to complete before handoff, do not wait for its result. Do not retry the audit, do not merge, and stop autonomous work at HANDOFF_READY once the selected completion contract permits handoff.
+Implementation and required validation are complete, the known finding backlog is empty, final stack heads are stable, and the task explicitly authorizes one final whole-stack diagnostic audit. Recheck the canonical complete-ledger/closure-evidence gate immediately before reviewer invocation, then request that audit once. Unless the explicit task requires the diagnostic audit to complete before handoff, do not wait for the result. Do not retry the audit, do not merge, and stop autonomous work at HANDOFF_READY once the selected completion contract permits handoff.
 
 ## Relationship to existing procedures
 
@@ -187,7 +189,7 @@ Progression determines construction ordering. Completion determines where the ag
 
 Stacked progression likewise does not prescribe cumulative review. Under agent-review-and-merge, each stacked member may use its own completed independent exact-head review, or multiple members may be covered by one explicit cumulative review when the canonical coverage bindings are satisfied. A tip-only approval is not lower-member cumulative coverage. Under human-handoff, the validated whole stack remains open and unmerged without initiating a new merge-acceptance review request by default.
 
-An explicit task may authorize one final diagnostic whole-stack architecture/dependency/completeness audit after the complete stack is stable and the task's required exact-head validation has succeeded. That audit does not authorize merge, does not replace later exact-head acceptance review, and must not create a review-retry loop.
+An explicit task may authorize one final diagnostic whole-stack architecture/dependency/completeness audit after the complete stack is stable and the task's required exact-head validation has succeeded. That audit request is additionally gated by the canonical complete known-finding disposition and closure-evidence prerequisite immediately before reviewer invocation. The audit does not authorize merge, does not replace later exact-head acceptance review, and must not create a review-retry loop.
 
 Serial pull requests are often easier when each member should be merged before later implementation starts. Stacked pull requests are often useful when a coherent multi-part change can be constructed without review latency blocking later members. Neither strategy is universally preferable; scope, dependency topology, review contract, CI behavior, expected head stability, propagation cost, and human operating preference determine the choice.
 
