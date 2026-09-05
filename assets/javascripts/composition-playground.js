@@ -352,24 +352,28 @@
         }
         materialDestinations.add(material.destination);
       }
-      const expectedMaterialDestinations = new Set(
+      const materialSlot = (componentIdValue, destination) => `${componentIdValue}\u0000${destination}`;
+      const expectedMaterialSlots = new Set(
         materials
           .filter((material) => resolvedSet.has(material.component))
-          .map((material) => material.destination)
+          .map((material) => materialSlot(material.component, material.destination))
       );
       for (const componentIdValue of outcome.resolved_components) {
         const declarations = componentById.get(componentIdValue).material_declarations;
         for (const declaration of declarations) {
           if (isObject(declaration) && typeof declaration.destination === "string") {
-            expectedMaterialDestinations.add(declaration.destination);
+            expectedMaterialSlots.add(materialSlot(componentIdValue, declaration.destination));
           }
         }
       }
-      const listedMaterialDestinations = new Set(
-        outcome.material_ids.map((materialId) => materialById.get(materialId).destination)
+      const listedMaterialSlots = new Set(
+        outcome.material_ids.map((materialId) => {
+          const material = materialById.get(materialId);
+          return materialSlot(material.component, material.destination);
+        })
       );
-      if (expectedMaterialDestinations.size !== listedMaterialDestinations.size || Array.from(expectedMaterialDestinations).some((destination) => !listedMaterialDestinations.has(destination))) {
-        throw new ProjectionError("MALFORMED_PROJECTION", `outcome ${outcome.index} material projection is incomplete or extraneous`);
+      if (expectedMaterialSlots.size !== listedMaterialSlots.size || Array.from(expectedMaterialSlots).some((slot) => !listedMaterialSlots.has(slot))) {
+        throw new ProjectionError("MALFORMED_PROJECTION", `outcome ${outcome.index} material projection is incomplete, extraneous, or assigned to the wrong owner`);
       }
       const actionCounts = outcome.initial_plan.action_counts;
       if (Object.keys(actionCounts).length !== 1 || actionCounts.create !== outcome.material_ids.length) {
