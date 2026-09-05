@@ -153,11 +153,11 @@ function simpleProjection() {
     outcomes: [
       {
         index: 0, resolved_components: ["artifact.skill"], dependency_edges: [], contract_ids: [], material_ids: [],
-        initial_plan: { action_counts: { create: 1 }, conflict_count: 0 },
+        initial_plan: { action_counts: { create: 0 }, conflict_count: 0 },
       },
       {
         index: 1, resolved_components: ["artifact.skill", "capability.cli"], dependency_edges: [], contract_ids: [], material_ids: [],
-        initial_plan: { action_counts: { create: 2 }, conflict_count: 0 },
+        initial_plan: { action_counts: { create: 0 }, conflict_count: 0 },
       },
     ],
   };
@@ -196,7 +196,7 @@ function relationalProjection() {
     dependency_edges: [[0, 1], [1, 2]],
     contract_ids: [0],
     material_ids: [],
-    initial_plan: { action_counts: { create: 3 }, conflict_count: 0 },
+    initial_plan: { action_counts: { create: 0 }, conflict_count: 0 },
   }];
   return raw;
 }
