@@ -36,6 +36,7 @@ jobs:
       - name: Run Playground consumer and explainability tests
         run: |
           node --test tests/composition-playground.test.mjs
+          node --test tests/composition-playground-final-remediation.test.mjs
           node --test tests/composition-playground-explain.test.mjs
 
       - name: Set up Python
@@ -52,7 +53,9 @@ jobs:
         run: python -m playwright install --with-deps chromium
 
       - name: Run 360px keyboard and share-state acceptance
-        run: python -I scripts/check_composition_playground_browser.py
+        run: |
+          python -I scripts/check_composition_playground_browser.py
+          python -I scripts/check_composition_playground_final_browser.py
 
       - name: Verify exact-head and activation boundary
         env:
