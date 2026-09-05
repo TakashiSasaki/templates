@@ -109,18 +109,10 @@
   }
 
   function relativePath(value, name) {
-    if (typeof value !== "string" || !/^(?!\/)(?!.*(?:^|\/)\.\.?(?:\/|$))[A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_.-]+)*$/.test(value)) {
+    if (typeof value !== "string" || value.split("/").includes(".git") || !/^(?!\/)(?!.*(?:^|\/)\.\.?(?:\/|$))[A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_.-]+)*$/.test(value)) {
       throw new ProjectionError("MALFORMED_PROJECTION", `${name} must be a safe relative path`);
     }
     return value;
-  }
-
-  function materialDestination(value, name) {
-    const path = relativePath(value, name);
-    if (path.split("/").includes(".git")) {
-      throw new ProjectionError("MALFORMED_PROJECTION", `${name} must not target repository control state`);
-    }
-    return path;
   }
 
   function componentId(value, name) {
@@ -232,7 +224,7 @@
       const index = integerAtLeast(material.index, "material.index");
       if (materialById.has(index)) throw new ProjectionError("MALFORMED_PROJECTION", "material inventory is invalid or duplicated");
       componentId(material.component, `material ${index}.component`);
-      materialDestination(material.destination, `material ${index}.destination`);
+      relativePath(material.destination, `material ${index}.destination`);
       if (!["managed", "generated", "seed"].includes(material.ownership) || !/^[0-9a-f]{64}$/.test(material.sha256 || "")) {
         throw new ProjectionError("MALFORMED_PROJECTION", `material ${index} is invalid`);
       }
@@ -522,17 +514,29 @@
     });
   }
 
+  function readDocumentSiteRevision(document) {
+    if (!document || typeof document.querySelector !== "function") {
+      throw new ProjectionError("MALFORMED_PROVENANCE", "loaded Site document has no revision metadata");
+    }
+    const revisionMeta = document.querySelector('meta[name="templates-site-revision"]');
+    if (!revisionMeta) {
+      throw new ProjectionError("MALFORMED_PROVENANCE", "loaded Site document revision metadata is missing");
+    }
+    const value = typeof revisionMeta.getAttribute === "function"
+      ? revisionMeta.getAttribute("content")
+      : revisionMeta.content;
+    const documentRevision = typeof value === "string" ? value.trim() : "";
+    if (!FULL_SHA.test(documentRevision)) {
+      throw new ProjectionError("MALFORMED_PROVENANCE", "Site document revision metadata is invalid");
+    }
+    return documentRevision;
+  }
+
   function validateDocumentBuildProvenance(document, provenance) {
     if (!isObject(provenance) || !FULL_SHA.test(provenance.siteRevision || "")) {
       throw new ProjectionError("MALFORMED_PROVENANCE", "validated Site build provenance is required");
     }
-    if (!document || typeof document.querySelector !== "function") return provenance;
-    const revisionMeta = document.querySelector('meta[name="templates-site-revision"]');
-    if (!revisionMeta) return provenance;
-    const documentRevision = typeof revisionMeta.content === "string" ? revisionMeta.content.trim() : "";
-    if (!FULL_SHA.test(documentRevision)) {
-      throw new ProjectionError("MALFORMED_PROVENANCE", "Site document revision metadata is invalid");
-    }
+    const documentRevision = readDocumentSiteRevision(document);
     if (documentRevision !== provenance.siteRevision) {
       throw new ProjectionError("MALFORMED_PROVENANCE", "Site document revision does not match build provenance");
     }
@@ -1018,7 +1022,11 @@
       if (runtimeState.promise) return runtimeState.promise;
       if (runtimeState.context) return Promise.resolve(runtimeState.context);
       if (isRetryableAvailabilityError(runtimeState.error)) {
-        return startMount(document, root, runtimeState);
+        const listeners = runtimeState.listeners;
+        const current = { root, promise: null, context: null, error: null, listeners };
+        runtimeState = current;
+        activeHashHandler = null;
+        return startMount(document, root, current);
       }
       return Promise.resolve(null);
     }
@@ -1048,6 +1056,7 @@
     validateProjection,
     validateBuildProvenance,
     validateDocumentBuildProvenance,
+    readDocumentSiteRevision,
     selectionMask,
     caseKey,
     explicitIncludes,

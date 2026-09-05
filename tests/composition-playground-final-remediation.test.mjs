@@ -203,6 +203,10 @@ function relationalProjection() {
 
 function fakeDocument(root) {
   return {
+    querySelector(selector) {
+      if (selector === 'meta[name="templates-site-revision"]') return { content: "c".repeat(40) };
+      return null;
+    },
     createElement(tagName) { return new FakeNode(tagName); },
     createTextNode(text) { const node = new FakeNode("#text"); node.textContent = text; return node; },
     getElementById(id) { return id === "composition-playground" ? this.currentRoot : null; },

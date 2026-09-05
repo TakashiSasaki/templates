@@ -149,6 +149,10 @@ function fakeRoot(name) {
 function fakeDocument(root) {
   return {
     currentRoot: root,
+    querySelector(selector) {
+      if (selector === 'meta[name="templates-site-revision"]') return { content: "c".repeat(40) };
+      return null;
+    },
     getElementById(id) {
       return id === "composition-playground" ? this.currentRoot : null;
     }
