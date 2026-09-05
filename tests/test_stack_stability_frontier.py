@@ -17,6 +17,13 @@ SELECTION = (
     / "references"
     / "pr-workflow-selection.md"
 )
+HUMAN_HANDOFF = (
+    ROOT
+    / "skills"
+    / "orchestrate-repository-change"
+    / "references"
+    / "human-handoff.md"
+)
 
 
 def _text(path: Path) -> str:
@@ -81,6 +88,29 @@ def test_final_whole_stack_review_freezes_intended_heads_without_becoming_merge_
         "pending required ci blocks the final review request",
     ):
         assert phrase in text
+
+
+def test_final_whole_stack_review_requires_complete_ledger_before_invocation() -> None:
+    stacked = _text(STACKED)
+    handoff = _text(HUMAN_HANDOFF)
+
+    stacked_gate = stacked.index(
+        "pull-request.disposition-known-findings-before-review-reacquisition"
+    )
+    stacked_invoke = stacked.index("do not invoke the whole-stack reviewer")
+    assert stacked_gate < stacked_invoke
+    assert "complete logical finding backlog" in stacked
+    assert "required finding-level closure evidence" in stacked
+    assert "re-evaluate the complete known-finding gate immediately before reviewer invocation" in stacked
+
+    handoff_gate = handoff.index(
+        "pull-request.disposition-known-findings-before-review-reacquisition"
+    )
+    handoff_invoke = handoff.index("immediately before reviewer invocation")
+    assert handoff_gate < handoff_invoke
+    assert "complete logical finding backlog" in handoff
+    assert "required finding-level closure evidence" in handoff
+    assert "do not request the audit while any known material finding lacks" in handoff
 
 
 def test_pr_boundary_selection_accounts_for_propagation_and_invalidation_costs() -> None:
