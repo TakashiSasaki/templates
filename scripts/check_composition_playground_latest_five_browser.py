@@ -25,6 +25,7 @@ class AvailabilityState:
     def __init__(self) -> None:
         self.lock = threading.Lock()
         self.fail_projection = False
+        self.fail_provenance = False
         self.counts: Counter[str] = Counter()
 
     def record(self, path: str) -> bool:
@@ -34,11 +35,16 @@ class AvailabilityState:
                 return self.fail_projection
             if path == PROVENANCE_PATH:
                 self.counts["provenance"] += 1
+                return self.fail_provenance
             return False
 
     def projection_count(self) -> int:
         with self.lock:
             return self.counts["projection"]
+
+    def provenance_count(self) -> int:
+        with self.lock:
+            return self.counts["provenance"]
 
 
 class Handler(SimpleHTTPRequestHandler):
@@ -181,6 +187,35 @@ def assert_transient_recovery(browser, base_url: str, state: AvailabilityState) 
     context.close()
 
 
+def assert_provenance_transient_recovery(browser, base_url: str, state: AvailabilityState) -> None:
+    before = state.provenance_count()
+    state.fail_provenance = True
+    context = browser.new_context(service_workers="block", viewport={"width": 360, "height": 900})
+    page = context.new_page()
+    page.goto(f"{base_url}{PLAYGROUND_PATH}#recipe=skill", wait_until="domcontentloaded")
+    page.locator('#composition-playground[data-playground-error="PROVENANCE_UNAVAILABLE"]').wait_for()
+    assert page.locator("[data-playground-app]").is_hidden()
+    assert page.locator("[data-playground-explain]").is_hidden()
+    marker = page.evaluate("window.__latestFiveProvenanceRecoveryMarker = Math.random().toString(36); window.__latestFiveProvenanceRecoveryMarker")
+    failed_hash = page.evaluate("location.hash")
+
+    state.fail_provenance = False
+    page.evaluate("window.dispatchEvent(new Event('online'))")
+    page.locator("[data-playground-app]").wait_for(state="visible")
+    page.locator("[data-playground-explain]").wait_for(state="visible")
+    assert page.evaluate("window.__latestFiveProvenanceRecoveryMarker") == marker
+    assert page.evaluate("location.hash") == failed_hash
+    assert state.provenance_count() - before == 2, "one failed provenance request plus one legitimate retry is expected"
+
+    page.evaluate("window.dispatchEvent(new Event('online'))")
+    page.evaluate(
+        "Promise.all([CompositionPlayground.ensureMounted(document), CompositionPlayground.ensureMounted(document), CompositionPlayground.ensureMounted(document)])"
+    )
+    page.wait_for_timeout(100)
+    assert state.provenance_count() - before == 2, "repeated recovery signals must not duplicate provenance loads"
+    context.close()
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--site-root", type=Path, required=True)
@@ -204,6 +239,7 @@ def main() -> None:
             context.close()
 
             assert_document_provenance_mismatch_fails_closed(browser, base_url, site_root)
+            assert_provenance_transient_recovery(browser, base_url, state)
             assert_transient_recovery(browser, base_url, state)
             browser.close()
     finally:
