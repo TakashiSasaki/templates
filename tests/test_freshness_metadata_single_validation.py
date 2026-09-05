@@ -65,7 +65,7 @@ class FreshnessMetadataSingleValidationTests(unittest.TestCase):
 
             with mock.patch.object(
                 generate_freshness_metadata,
-                "annotate_site_revision",
+                "_annotate_site_revision_structurally",
                 side_effect=corrupt_annotation,
             ):
                 with self.assertRaisesRegex(
