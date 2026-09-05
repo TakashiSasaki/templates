@@ -109,10 +109,18 @@
   }
 
   function relativePath(value, name) {
-    if (typeof value !== "string" || value.split("/").includes(".git") || !/^(?!\/)(?!.*(?:^|\/)\.\.?(?:\/|$))[A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_.-]+)*$/.test(value)) {
+    if (typeof value !== "string" || !/^(?!\/)(?!.*(?:^|\/)\.\.?(?:\/|$))[A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_.-]+)*$/.test(value)) {
       throw new ProjectionError("MALFORMED_PROJECTION", `${name} must be a safe relative path`);
     }
     return value;
+  }
+
+  function materialDestination(value, name) {
+    const destination = relativePath(value, name);
+    if (destination.split("/").includes(".git")) {
+      throw new ProjectionError("MALFORMED_PROJECTION", `${name} must not contain a .git path segment`);
+    }
+    return destination;
   }
 
   function componentId(value, name) {
@@ -202,6 +210,11 @@
       if (!Array.isArray(component.material_declarations) || component.material_declarations.some((entry) => !isObject(entry))) {
         throw new ProjectionError("MALFORMED_PROJECTION", `component ${id}.material_declarations is invalid`);
       }
+      for (const declaration of component.material_declarations) {
+        if (typeof declaration.destination === "string") {
+          materialDestination(declaration.destination, `component ${id}.material_declarations.destination`);
+        }
+      }
       relativePath(component.source_path, `component ${id}.source_path`);
       componentById.set(id, component);
     }
@@ -224,7 +237,7 @@
       const index = integerAtLeast(material.index, "material.index");
       if (materialById.has(index)) throw new ProjectionError("MALFORMED_PROJECTION", "material inventory is invalid or duplicated");
       componentId(material.component, `material ${index}.component`);
-      relativePath(material.destination, `material ${index}.destination`);
+      materialDestination(material.destination, `material ${index}.destination`);
       if (!["managed", "generated", "seed"].includes(material.ownership) || !/^[0-9a-f]{64}$/.test(material.sha256 || "")) {
         throw new ProjectionError("MALFORMED_PROJECTION", `material ${index} is invalid`);
       }
