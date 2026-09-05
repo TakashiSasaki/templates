@@ -19,15 +19,36 @@ Resolve each value by the following precedence:
 
 A profile is a shared normative rule-selection bundle. It is not a workflow mode. Do not create one profile for every combination of progression, completion, provider, or Skill selection.
 
-The selected progression controls how implementation members are constructed. The selected completion controls where the agent stops and what evidence it may report. Completion takes precedence over progression when deciding whether the agent initiates review acquisition or performs a merge. Creating the pull-request artifact required by a progression path is not itself authorization to initiate review; use a non-review-triggering pull-request state when the provider or repository would otherwise invoke review automatically. Implementation completion, validation completion, review completion, merge authorization, and merged state remain distinct.
+The selected progression controls how implementation members are constructed. The selected completion controls where the agent stops and what evidence it may report. Completion takes precedence over progression when deciding whether the agent initiates merge-acceptance review acquisition or performs a merge. Creating the pull-request artifact required by a progression path is not itself authorization to initiate review; use a non-review-triggering pull-request state when the provider or repository would otherwise invoke review automatically. Implementation completion, validation completion, review completion, merge authorization, and merged state remain distinct.
 
 ## Strategy matrix
 
 | Progression | Completion | Construction | Review acquisition | Merge boundary |
 | --- | --- | --- | --- | --- |
 | serial-pr | agent-review-and-merge | implement and validate one member, then open its pull request without review acquisition | establish completed independent exact-head review for the member | guarded merge, then begin the next member |
-| serial-pr | human-handoff | implement and validate the current member, then open its pull request without review acquisition | do not initiate a new review request | stop at HANDOFF_READY; leave the member open and unmerged |
+| serial-pr | human-handoff | implement and validate the current member, then open its pull request without merge-acceptance review acquisition | no merge-acceptance review by default; an explicit task may authorize one final diagnostic whole-stack audit when a stack exists | stop at HANDOFF_READY; leave the member open and unmerged |
 | stacked-pr | agent-review-and-merge | construct and validate dependent members without review latency blocking construction | establish individual independent exact-head review per member, or explicit cumulative stack coverage satisfying canonical bindings | guarded bottom-up merge after applicability evaluation |
-| stacked-pr | human-handoff | construct and validate the ordered stack | do not initiate a new review request | stop at HANDOFF_READY; leave the whole stack open and unmerged |
+| stacked-pr | human-handoff | construct and validate the ordered stack | no merge-acceptance review by default; an explicit task may authorize one final diagnostic whole-stack audit after the complete stack is stable | stop at HANDOFF_READY; leave the whole stack open and unmerged |
+
+An explicitly authorized final whole-stack audit under human-handoff is diagnostic. It is not ordinary per-member merge-acceptance evidence, does not authorize merge, does not waive later exact-head review requirements, and must not create a review-retry loop. The workflow-specific stacked procedure may impose exact-head CI sequencing before that audit is requested.
 
 Cumulative review is an optional evidence-coverage mechanism for a stack, not a property of stacked progression. A stacked member may instead rely on its own completed independent exact-head review. A tip-only review or approval event is not cumulative coverage for lower members.
+
+## Pull-request boundary heuristic
+
+Choose a pull-request boundary when the separation improves the change as a reviewable, reversible, independently understandable unit. Evaluate the candidate boundary across these dimensions:
+
+- authority boundary;
+- semantic purpose;
+- independent merge value;
+- rollback unit;
+- validation boundary;
+- review comprehensibility;
+- expected head stability;
+- cross-member coupling;
+- descendant propagation cost when a lower member changes; and
+- evidence invalidation cost caused by restacking or replacement heads.
+
+Use the conceptual comparison `split benefit > restack / invalidation / coordination cost` as a heuristic, not a mandatory acceptance gate or numeric score. A boundary that materially improves authority isolation, rollback, validation, or review may justify its coordination cost. Conversely, avoid splitting tightly coupled work into separate pull requests when the later member cannot remain meaningful or stable without repeatedly following the earlier member's head.
+
+Do not optimize for a fixed PR count. Do not combine unrelated authority decisions merely to reduce review or CI fixed cost, and do not collapse tightly coupled work so aggressively that the result loses a coherent semantic purpose, useful rollback unit, or reviewable validation boundary. The objective is preserved correctness with less avoidable coordination and revision churn, not the smallest number of pull requests.

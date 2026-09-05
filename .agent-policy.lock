@@ -1,10 +1,10 @@
 lock_version: 1
 toolchain:
   repository: TakashiSasaki/templates
-  revision: 9c702d755ddc42b941a63eafd8f9aee06969517d
+  revision: 33a7ab809225c2a8b8dd2598ef04d0a39cf076a7
 inputs:
   .agent-policy.yml:
-    sha256: 75cd4632ba63ace0c4d926160982501f7b72d78c71bfc5b7b0b85ccee58c1131
+    sha256: 419c87370949a300b3662d599cf32eb77c45992adf76b6638251538fff22dd13
   repository-policy/architecture-decisions.md:
     sha256: 6377845c99329c58f0d26134dfa3cf91236d3d8ade4c317920bfdc13f77a0ff1
   repository-policy/authority-boundary.md:
@@ -21,15 +21,15 @@ inputs:
     sha256: eb45d47fafa2e406dabb2536a818e206acede23f229eda19e8fdaa37d8445542
 outputs:
   .agents/skills/orchestrate-repository-change/SKILL.md:
-    sha256: 75f818487e4a469ec34efbc1f2d48a5188b706f0ad53184c7fa539c433f2eee5
+    sha256: 29d31fab6e70aa05c1799ad1a15695dc20eeea186fc1b7a9c80f1c9359dc3f21
   .agents/skills/orchestrate-repository-change/references/human-handoff.md:
-    sha256: 3d4ab1b33fcbdef1edbbfe261096938410f3d925dbf201b24cf11214a582c6d1
+    sha256: 7e46be396087a5d745e21c4572b4dac19193756a33446553def6fac6bd0c6bfa
   .agents/skills/orchestrate-repository-change/references/pr-workflow-selection.md:
-    sha256: 682399f7fd2d4612e23052cf51c2dc21bfd8b12bf223ec42598c42867bf18434
+    sha256: d1ee57c538e1db9249c7406e9124203c09aca29afc1ec6323106a5049631bfda
   .agents/skills/orchestrate-repository-change/references/serial-pr-workflow.md:
     sha256: 83de932516c604d78199c2ea04903706cc0f9376913bdaace01654c540dcfa73
   .agents/skills/orchestrate-repository-change/references/stacked-pr-workflow.md:
-    sha256: 2eb674fa87cdf1fc57217d24c6bfdcd6fb51b3c5382765eff8d150c354435aa8
+    sha256: e816d267b2e0721cd6f97ac7fdd7b3e94ba59adad62d276ada318f020ed6f48e
   .agents/skills/pr-review/SKILL.md:
     sha256: ed44e1db3549e41342ced28b50fbd37189bef0e43e783c309300432e5df979f1
   .agents/skills/pr-review/references/github-pull-request-review-api.md:
@@ -57,6 +57,6 @@ outputs:
   .agents/skills/pr-review/references/risk-domains/state-mutation-and-recovery.md:
     sha256: 0cd5b71178b43da5128f4d2e1bfab8f3df5d71439531a9010f351c4ed1468f44
   .review-authority/review-policy.md:
-    sha256: 002f9e8ce8e0beb39c9ccb4d2235702ff9baf19bec23545852cc331c1ba22c06
+    sha256: 458fbd06762e6f14fdab9ca203bf3294cd66cf45f1279531f85031b9edd6151b
   AGENTS.md:
-    sha256: 68f7ce88338fd78a0cce275a8a7fd89d305a3c5dea2b01faa8674ee8b0e8890e
+    sha256: 9cf3721c9cc86267f5dfd2db8cacd784bd8e88cc2a7de9af2c7fdc31dd085fca
