@@ -33,7 +33,6 @@ EXPECTED_CASES = {
         "consumer-and-execution-paths",
     },
     "pr722-container-boundary-overflow": {
-        "resource-behavior",
         "consumer-and-execution-paths",
     },
     "pr722-same-document-invalid-state-transition": {
