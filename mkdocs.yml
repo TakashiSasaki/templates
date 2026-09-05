@@ -43,6 +43,7 @@ nav:
       - 規約の作成: policy-authoring.md
       - Policy maintainer workflow: policy-maintainer-workflow.md
       - Repository-change orchestration: agent-work-orchestration.md
+      - Revision-bound qualification lifecycle: revision-bound-qualification.md
       - Policy authority inventory: policy-authority-inventory.md
       - Shared review policy: review-policy.md
       - 外部artifact受領規約: external-artifact-intake.md
