@@ -1,5 +1,10 @@
 name: Site build detailed profile
 
+# This diagnostic workflow is intentionally reusable for optimized-stack comparisons.
+# Pull-request runs capture the exact candidate for the final performance handoff.
+# PWA-sensitive browser setup is measured separately from system-Chrome acceptance.
+# PWA-sensitive browser setup is measured separately from system-Chrome acceptance.
+
 on:
   workflow_dispatch:
     inputs:

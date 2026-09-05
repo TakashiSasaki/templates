@@ -194,7 +194,7 @@ def run(site_root: Path) -> dict[str, Any]:
     evidence: dict[str, Any] = {"base_url": base_url}
     try:
         with sync_playwright() as playwright:
-            browser = playwright.chromium.launch()
+            browser = playwright.chromium.launch(channel="chrome")
 
             context = browser.new_context(service_workers="block")
             page = new_page(context, base_url)

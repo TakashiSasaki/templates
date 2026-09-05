@@ -57,8 +57,10 @@ jobs:
       - name: Install browser acceptance dependency
         run: python -m pip install --disable-pip-version-check --requirement requirements-visual.txt
 
-      - name: Install Chromium
-        run: python -m playwright install --with-deps chromium
+      - name: Verify system Chrome runtime
+        run: |
+          google-chrome --version
+          echo "Playwright launch mode: channel=chrome" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Run 360px keyboard, share-state, and desktop-grid acceptance
         run: |

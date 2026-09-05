@@ -347,7 +347,6 @@ aside {{ min-width: 0; border-right: 1px solid color-mix(in srgb, CanvasText 22%
 </body>
 </html>
 """
-    return rendered
 
 
 def lexer_for(path: bytes, text: str):
@@ -493,6 +492,32 @@ body {{ margin: 0; min-height: 100vh; background: Canvas; color: CanvasText; }}
     validate_line_anchor_invariant(rendered, expected_lines)
     return rendered
 
+
+def write_verified_file_page(
+    destination: Path,
+    branch: str,
+    revision: str,
+    record: FileRecord,
+) -> None:
+    """Write one validated viewer and verify the exact on-disk artifact."""
+    rendered = render_file_page(branch, revision, record)
+    destination.write_text(rendered, encoding="utf-8")
+    if destination.is_symlink() or not destination.is_file():
+        raise RepositoryBrowserError(
+            f"repository viewer must remain a regular file after write: {destination}"
+        )
+    try:
+        on_disk = destination.read_text(encoding="utf-8")
+    except (OSError, UnicodeError) as exc:
+        raise RepositoryBrowserError(
+            f"unable to verify generated repository viewer {destination}: {exc}"
+        ) from exc
+    if on_disk != rendered:
+        raise RepositoryBrowserError(
+            f"repository viewer post-write verification failed: {destination}"
+        )
+
+
 def prepare_browser_root(output_root: Path) -> Path:
     if output_root.is_symlink() or not output_root.is_dir():
         raise RepositoryBrowserError(
@@ -574,10 +599,7 @@ def generate_browser(
         )
         for record in records.values():
             destination = branch_root / record.viewer_url
-            destination.write_text(
-                render_file_page(branch, revision, record),
-                encoding="utf-8",
-            )
+            write_verified_file_page(destination, branch, revision, record)
         messages.append(
             f"{branch}: {sum(record.viewable for record in records.values())}/"
             f"{len(records)} regular files browser-viewable at {revision}"

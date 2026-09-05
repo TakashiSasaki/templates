@@ -47,13 +47,17 @@ class FreshnessMetadataSingleValidationTests(unittest.TestCase):
     def test_final_on_disk_verifier_rejects_a_bad_injected_revision(self) -> None:
         wrong_revision = "d" * 40
 
-        def corrupt_annotation(source: str, revision: str, path: Path) -> str:
+        def corrupt_annotation(
+            source: str,
+            revision: str,
+            path: Path,
+        ) -> tuple[str, list[dict[str, str | None]], int]:
             del revision, path
-            marker = (
-                '<meta name="templates-site-revision" '
-                f'content="{wrong_revision}">\n'
+            return (
+                source,
+                [{"name": "templates-site-revision", "content": wrong_revision}],
+                0,
             )
-            return source.replace("</head>", marker + "</head>", 1)
 
         with tempfile.TemporaryDirectory() as directory:
             site_root = Path(directory)
@@ -61,12 +65,59 @@ class FreshnessMetadataSingleValidationTests(unittest.TestCase):
 
             with mock.patch.object(
                 generate_freshness_metadata,
-                "annotate_site_revision",
+                "_annotate_site_revision_structurally",
                 side_effect=corrupt_annotation,
             ):
                 with self.assertRaisesRegex(
                     generate_freshness_metadata.FreshnessMetadataError,
                     "freshness revision metadata verification failed",
+                ):
+                    generate_freshness_metadata.generate_freshness_metadata(
+                        site_root,
+                        SITE_REVISION,
+                        DEPLOYMENT_TIMESTAMP,
+                        PUBLICATIONS,
+                    )
+
+    def test_accepts_structurally_equivalent_existing_metadata(self) -> None:
+        source = (
+            "<html><HEAD><script>const literal = '</head>';</script>"
+            f'<META CONTENT="{SITE_REVISION}" data-extra="1" '
+            'NAME="templates-site-revision"></HEAD>'
+            "<body>page</body></html>"
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            site_root = Path(directory)
+            index = site_root / "index.html"
+            index.write_text(source, encoding="utf-8")
+
+            _, annotated = generate_freshness_metadata.generate_freshness_metadata(
+                site_root,
+                SITE_REVISION,
+                DEPLOYMENT_TIMESTAMP,
+                PUBLICATIONS,
+            )
+
+            self.assertEqual(0, annotated)
+            self.assertEqual(source, index.read_text(encoding="utf-8"))
+
+    def test_post_write_reread_rejects_corrupted_html_write(self) -> None:
+        wrong_revision = "d" * 40
+        original_write_text = Path.write_text
+
+        def corrupt_html_write(path: Path, data: str, *args: object, **kwargs: object) -> int:
+            if path.suffix == ".html" and SITE_REVISION in data:
+                data = data.replace(SITE_REVISION, wrong_revision)
+            return original_write_text(path, data, *args, **kwargs)
+
+        with tempfile.TemporaryDirectory() as directory:
+            site_root = Path(directory)
+            (site_root / "index.html").write_text(page(), encoding="utf-8")
+
+            with mock.patch.object(Path, "write_text", new=corrupt_html_write):
+                with self.assertRaisesRegex(
+                    generate_freshness_metadata.FreshnessMetadataError,
+                    "post-write freshness metadata verification failed",
                 ):
                     generate_freshness_metadata.generate_freshness_metadata(
                         site_root,

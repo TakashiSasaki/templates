@@ -24,7 +24,7 @@ concurrency:
 jobs:
   check:
     if: github.repository == 'TakashiSasaki/templates'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Check out Site regression implementation
@@ -54,8 +54,10 @@ jobs:
       - name: Install Playwright controller
         run: python -m pip install --disable-pip-version-check -r requirements-visual.txt
 
-      - name: Install Playwright Chromium
-        run: python -m playwright install --with-deps --only-shell chromium
+      - name: Verify system Chrome runtime
+        run: |
+          google-chrome --version
+          echo "Playwright launch mode: channel=chrome" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Check Site search history
         run: |

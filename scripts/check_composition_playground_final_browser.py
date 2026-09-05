@@ -208,7 +208,7 @@ def run_synthetic() -> None:
         server, thread, base_url, race = serve_harness(root)
         try:
             with sync_playwright() as playwright:
-                browser = playwright.chromium.launch()
+                browser = playwright.chromium.launch(channel="chrome")
                 context = browser.new_context(viewport={"width": 900, "height": 800}, service_workers="block")
                 page = context.new_page()
                 errors: list[str] = []
@@ -237,7 +237,7 @@ def run_built_fragment(site_root: Path) -> None:
     server, thread, base_url = serve_built_site(site_root)
     try:
         with sync_playwright() as playwright:
-            browser = playwright.chromium.launch()
+            browser = playwright.chromium.launch(channel="chrome")
             page = browser.new_page(viewport={"width": 1024, "height": 900})
             errors: list[str] = []
             page.on("pageerror", lambda error: errors.append(str(error)))

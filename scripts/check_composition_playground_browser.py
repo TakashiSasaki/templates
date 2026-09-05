@@ -405,7 +405,7 @@ def run_browser_check() -> None:
         server, thread, base_url, race = serve(harness)
         try:
             with sync_playwright() as playwright:
-                browser = playwright.chromium.launch()
+                browser = playwright.chromium.launch(channel="chrome")
 
                 # Deterministically reproduce both stale-success and stale-failure
                 # continuations while replacement root B is already current.
