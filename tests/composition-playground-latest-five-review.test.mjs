@@ -66,7 +66,7 @@ function projectionWithMaterials() {
         requires: [],
         conflicts: [],
         contract_ids: [],
-        material_declarations: [],
+        material_declarations: [{ destination: "SKILL.md" }],
         source_path: "components/artifact.skill/component.json",
       },
       {
@@ -77,7 +77,7 @@ function projectionWithMaterials() {
         requires: [],
         conflicts: [],
         contract_ids: [],
-        material_declarations: [],
+        material_declarations: [{ destination: "bin/tool.sh" }],
         source_path: "components/capability.cli/component.json",
       },
     ],
@@ -272,6 +272,16 @@ test("resolved owners require their complete published material set without orde
   reordered.outcomes[1].material_ids = [1, 0];
   assert.doesNotThrow(() => playground.validateProjection(reordered));
 
+  const alternatePublishedVariant = clone(valid);
+  alternatePublishedVariant.materials.push({
+    index: 2,
+    component: "capability.cli",
+    destination: "bin/tool.sh",
+    ownership: "generated",
+    sha256: "3".repeat(64),
+  });
+  assert.doesNotThrow(() => playground.validateProjection(alternatePublishedVariant));
+
   const unresolvedOwner = clone(valid);
   unresolvedOwner.outcomes[0].material_ids = [0, 1];
   unresolvedOwner.outcomes[0].initial_plan.action_counts.create = 2;
@@ -281,18 +291,20 @@ test("resolved owners require their complete published material set without orde
   noPublishedMaterial.materials = noPublishedMaterial.materials.filter((material) => material.component !== "capability.cli");
   noPublishedMaterial.outcomes[1].material_ids = [0];
   noPublishedMaterial.outcomes[1].initial_plan.action_counts.create = 1;
-  assert.doesNotThrow(() => playground.validateProjection(noPublishedMaterial));
+  assertMalformed(noPublishedMaterial, "a resolved material-producing component cannot lose its complete material destination set");
 });
 
 test("material destinations reject only complete .git path segments", () => {
   for (const destination of [".git/config", "subdir/.git/HEAD"]) {
     const value = projectionWithMaterials();
     value.materials[0].destination = destination;
+    value.components[0].material_declarations[0].destination = destination;
     assertMalformed(value, `${destination} must be rejected`);
   }
   for (const destination of [".github/workflows/test.yml", ".gitignore", "git/config", "something.git/HEAD", "nested/material.txt"]) {
     const value = projectionWithMaterials();
     value.materials[0].destination = destination;
+    value.components[0].material_declarations[0].destination = destination;
     assert.doesNotThrow(() => playground.validateProjection(value), destination);
   }
 });
