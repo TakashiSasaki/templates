@@ -328,6 +328,7 @@ def annotate_site_revision(source: str, revision: str, path: Path) -> str:
     updated, _, _ = _annotate_site_revision_structurally(source, revision, path)
     return updated
 
+
 def is_sandbox_preview(path: Path, site_root: Path) -> bool:
     relative = path.relative_to(site_root)
     return relative.parts[:2] == ("repository-trees", "previews")
@@ -368,11 +369,11 @@ def annotate_generated_html(site_root: Path, site_revision: str) -> int:
     return len(updates)
 
 
-
 def annotate_and_validate_generated_html(site_root: Path, site_revision: str) -> tuple[int, int]:
-    """Annotate and validate each eligible page in one structural pass."""
+    """Annotate once structurally, then re-read each eligible page fail-closed."""
     resolved_root = site_root.resolve(strict=True)
     updates: dict[Path, str] = {}
+    expected_on_disk: dict[Path, str] = {}
     verified = 0
     revision = validate_revision(site_revision, "site")
     for path in generated_html_files(resolved_root):
@@ -398,16 +399,34 @@ def annotate_and_validate_generated_html(site_root: Path, site_revision: str) ->
             raise FreshnessMetadataError(
                 f"{path}: freshness revision metadata verification failed"
             )
+        expected_on_disk[path] = updated
         if updated != source:
             updates[path] = updated
         verified += 1
 
     for path, updated in updates.items():
         path.write_text(updated, encoding="utf-8")
+
+    for path, expected in expected_on_disk.items():
+        relative = path.relative_to(resolved_root)
+        if path.is_symlink() or not path.is_file():
+            raise FreshnessMetadataError(
+                f"generated HTML must remain a regular file after annotation: {relative}"
+            )
+        try:
+            on_disk = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeError) as exc:
+            raise FreshnessMetadataError(
+                f"unable to verify generated HTML {path}: {exc}"
+            ) from exc
+        if on_disk != expected:
+            raise FreshnessMetadataError(
+                f"{path}: post-write freshness metadata verification failed"
+            )
+
     if verified == 0:
         raise FreshnessMetadataError("no cache-eligible HTML freshness metadata verified")
     return len(updates), verified
-
 
 
 def build_payload(
