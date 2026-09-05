@@ -1,0 +1,77 @@
+name: Site Composition Playground explainability
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+permissions:
+  contents: read
+
+concurrency:
+  group: site-composition-playground-explain-${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  explainability:
+    name: projection explanations and browser acceptance
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out exact pull request head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: ""
+
+      - name: Run Playground consumer and explainability tests
+        run: |
+          node --test tests/composition-playground.test.mjs
+          node --test tests/composition-playground-final-remediation.test.mjs
+          node --test tests/composition-playground-hash-copy-review.test.mjs
+          node --test tests/composition-playground-final-three-review.test.mjs
+          node --test tests/composition-playground-latest-review.test.mjs
+          node --test tests/composition-playground-root-reachability.test.mjs
+          node --test tests/composition-playground-latest-five-review.test.mjs
+          node --test tests/composition-playground-explain.test.mjs
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-visual.txt
+
+      - name: Validate cross-authority trigger contract
+        run: python -I tests/test_composition_playground_cross_authority_workflow.py
+
+      - name: Install browser acceptance dependency
+        run: python -m pip install --disable-pip-version-check --requirement requirements-visual.txt
+
+      - name: Install Chromium
+        run: python -m playwright install --with-deps chromium
+
+      - name: Run 360px keyboard, share-state, and desktop-grid acceptance
+        run: |
+          python -I scripts/check_composition_playground_browser.py
+          python -I scripts/check_composition_playground_final_browser.py
+          python -I scripts/check_composition_playground_final_three_browser.py
+          python -I scripts/check_composition_playground_final_grid_browser.py
+
+      - name: Verify exact-head and activation boundary
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          grep --fixed-strings -- 'composition-playground-explain.js' zensical.template.toml
+          grep --fixed-strings -- 'composition-playground-v1.json.gz' docs/composition-playground.md
+          test "$(git diff --name-only '${{ github.event.pull_request.base.sha }}' HEAD -- publication-sources.json)" = ""

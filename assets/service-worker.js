@@ -32,7 +32,8 @@ const STATIC_ASSETS = [
   "/javascripts/reader-navigation.js",
   "/javascripts/search-history.js",
   "/javascripts/glossary-inline.js",
-  "/javascripts/composition-playground.js"
+  "/javascripts/composition-playground.js",
+  "/javascripts/composition-playground-explain.js"
 ];
 const FRESHNESS_STATES = Object.freeze([
   "verified-current",

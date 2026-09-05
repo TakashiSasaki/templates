@@ -35,6 +35,27 @@ This page consumes a published projection. It does not resolve dependencies, con
       <button type="button" data-playground-copy>Copy</button>
       <pre><code data-playground-config></code></pre>
     </section>
+
+    <section class="composition-playground__explain" aria-labelledby="playground-explain-title" data-playground-explain hidden>
+      <h2 id="playground-explain-title">Explain the result</h2>
+      <p>These views render provenance and repository impact already contained in the Composition projection.</p>
+
+      <details open>
+        <summary>Components and why they were selected</summary>
+        <div data-playground-groups></div>
+      </details>
+
+      <details>
+        <summary>Registered contracts</summary>
+        <div data-playground-contracts></div>
+      </details>
+
+      <details>
+        <summary>Initial repository impact</summary>
+        <p data-playground-plan-summary></p>
+        <div data-playground-material-tree></div>
+      </details>
+    </section>
   </div>
 </div>
 
