@@ -28,7 +28,7 @@ The policy provider routinely has exact commit SHAs long before a change is read
 - A **qualification head** is deliberately frozen because an applicable review, merge, release, publication, provenance, or other revision-bound boundary now requires exact-revision evidence.
 - A **publication identity** is an immutable revision, digest, or artifact identity that is intentionally made authoritative for a consumer, release descriptor, distribution path, or provenance record.
 
-The transition is therefore normally `construction -> provisional -> freeze -> qualification`, not `every commit -> full qualification`. This distinction does not weaken required CI, independent review, immutable merge guards, release trust, or publication provenance. It controls when maintainers intentionally enter those expensive revision-bound stages.
+This revision-bound qualification lifecycle normally follows `construction -> provisional -> freeze -> qualification`, not `every commit -> full qualification`. This distinction does not weaken required CI, independent review, immutable merge guards, release trust, or publication provenance. It controls when maintainers intentionally enter those expensive revision-bound stages.
 
 For stacked changes, a lower-member mutation can change descendant commit identities without invalidating every descendant semantic decision. Preserve still-applicable local reasoning, finding identity, and focused evidence, then requalify the exact final descendants when the relevant authority boundary is actually reached. Conversely, if a downstream artifact embeds an upstream full SHA or digest as part of its meaning, delay that final materialization until the prerequisite identity is stable enough to bind.
 
