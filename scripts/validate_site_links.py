@@ -16,9 +16,6 @@ from urllib.parse import SplitResult, unquote, urlsplit, urlunsplit
 import idna
 
 
-REPOSITORY_LINE_FRAGMENT_RE = re.compile(r"^#L[1-9][0-9]*$")
-
-
 class SiteLinkError(RuntimeError):
     """Raised when the generated site or its configuration cannot be validated."""
 
@@ -457,12 +454,6 @@ def validate_site(site_root: Path, config_file: Path) -> tuple[int, int, list[st
     checked_links = 0
     for source in pages:
         for reference in source.links:
-            if (
-                source.relative_path.parts
-                and source.relative_path.parts[0] == "files"
-                and REPOSITORY_LINE_FRAGMENT_RE.fullmatch(reference.href)
-            ):
-                continue
             raw = preprocess_url_input(reference.href)
             normalized_raw = normalize_special_url_backslashes(raw)
             raw_parts = urlsplit(normalized_raw)
