@@ -345,6 +345,7 @@ aside {{ min-width: 0; border-right: 1px solid color-mix(in srgb, CanvasText 22%
 </body>
 </html>
 """
+    return rendered
 
 
 def lexer_for(path: bytes, text: str):
@@ -484,7 +485,6 @@ body {{ margin: 0; min-height: 100vh; background: Canvas; color: CanvasText; }}
 </body>
 </html>
 """
-
     validate_line_anchor_invariant(rendered, expected_lines)
     return rendered
 
