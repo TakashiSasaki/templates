@@ -42,6 +42,7 @@ jobs:
           node --test tests/composition-playground-latest-review.test.mjs
           node --test tests/composition-playground-root-reachability.test.mjs
           node --test tests/composition-playground-latest-five-review.test.mjs
+          node --test tests/composition-playground-latest-two-review.test.mjs
 
       - name: Validate Site integration declarations
         env:
@@ -59,5 +60,6 @@ jobs:
           grep --fixed-strings -- 'data-playground-semantic-revision' docs/composition-playground.md
           grep --fixed-strings -- 'data-playground-provider-revision' docs/composition-playground.md
           grep --fixed-strings -- 'data-playground-projection-id' docs/composition-playground.md
+          grep --fixed-strings -- 'data-playground-validity role="status" aria-live="polite" aria-atomic="true"' docs/composition-playground.md
           ! grep --fixed-strings -- 'SOURCE_REVISION_MISMATCH' assets/javascripts/composition-playground.js
           ! grep --fixed-strings -- 'expectedRevision' assets/javascripts/composition-playground.js
