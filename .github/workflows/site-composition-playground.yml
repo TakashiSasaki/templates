@@ -39,6 +39,7 @@ jobs:
           node --test tests/composition-playground-final-remediation.test.mjs
           node --test tests/composition-playground-hash-copy-review.test.mjs
           node --test tests/composition-playground-final-three-review.test.mjs
+          node --test tests/composition-playground-latest-review.test.mjs
 
       - name: Validate Site integration declarations
         env:
