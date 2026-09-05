@@ -14,6 +14,7 @@ POLICY_DIR = ROOT / "policy/pull-request"
 EXPECTED = [
     "pull-request.require-explicit-stacked-review-coverage",
     "pull-request.verify-target-branch-head-freshness",
+    "pull-request.preflight-review-acquisition",
     "pull-request.require-independent-exact-head-review",
     "pull-request.close-review-threads-before-merge",
     "pull-request.require-exact-head-ci-evidence",
