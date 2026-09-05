@@ -7,10 +7,8 @@ import argparse
 import hashlib
 import html
 import re
-from functools import lru_cache
-import re
-from functools import lru_cache
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 from urllib.parse import quote_from_bytes
 
