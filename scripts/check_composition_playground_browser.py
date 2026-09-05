@@ -153,6 +153,7 @@ def prepare_harness(root: Path) -> None:
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="templates-site-revision" content="cccccccccccccccccccccccccccccccccccccccc">
   <title>Composition Playground acceptance</title>
   <style>html {{ box-sizing: border-box; }} *, *::before, *::after {{ box-sizing: inherit; }} body {{ margin: 0; padding: 1rem; font: 16px/1.5 sans-serif; }} main {{ width: 38rem; max-width: calc(100% - 2rem); margin-inline: auto; }}</style>
   <link rel="stylesheet" href="/stylesheets/composition-playground.css">
