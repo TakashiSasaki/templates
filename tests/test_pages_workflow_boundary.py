@@ -103,7 +103,7 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
             "Set up Python",
             "Install Playwright controller",
             "Install Japanese browser font",
-            "Install Playwright Chromium",
+            "Install Playwright Chromium for PWA lifecycle",
             "Check mobile layout geometry",
             "Check localized inline Glossary chrome",
             "Check PWA freshness lifecycle",

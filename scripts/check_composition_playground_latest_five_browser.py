@@ -239,7 +239,7 @@ def main() -> None:
     server, state, base_url = start_server(site_root)
     try:
         with sync_playwright() as playwright:
-            browser = playwright.chromium.launch()
+            browser = playwright.chromium.launch(channel="chrome")
 
             context = browser.new_context(service_workers="block", viewport={"width": 1280, "height": 900})
             page = context.new_page()

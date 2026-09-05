@@ -409,7 +409,7 @@ def run_repository_browser_filter_check(
     try:
         try:
             with sync_playwright() as playwright:
-                browser = playwright.chromium.launch(headless=True)
+                browser = playwright.chromium.launch(channel="chrome", headless=True)
                 try:
                     metrics = _measure_repository_browser_filter(
                         browser, base_url, output_root

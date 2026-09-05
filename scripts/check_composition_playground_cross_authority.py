@@ -200,7 +200,7 @@ def run_browser_check(
     provenance_path = site_root / "build-provenance.json"
     try:
         with sync_playwright() as playwright:
-            browser = playwright.chromium.launch()
+            browser = playwright.chromium.launch(channel="chrome")
             page = browser.new_page(viewport={"width": 360, "height": 800})
             page_errors: list[str] = []
             provider_requests: list[str] = []

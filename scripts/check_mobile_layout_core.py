@@ -604,7 +604,7 @@ def run_checks(site_root: Path, output_root: Path) -> None:
     try:
         try:
             with sync_playwright() as playwright:
-                browser = playwright.chromium.launch(headless=True)
+                browser = playwright.chromium.launch(channel="chrome", headless=True)
                 try:
                     for case in CASES:
                         for width, height in VIEWPORTS:

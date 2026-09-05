@@ -174,7 +174,7 @@ def run_check(site_root: Path, output: Path | None) -> dict[str, Any]:
 
     try:
         with sync_playwright() as playwright:
-            browser = playwright.chromium.launch()
+            browser = playwright.chromium.launch(channel="chrome")
             context = browser.new_context(service_workers="allow")
             page = context.new_page()
             response = page.goto(base_url + route, wait_until="load")

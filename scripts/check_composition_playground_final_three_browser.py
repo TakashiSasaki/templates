@@ -230,7 +230,7 @@ def main() -> int:
         server, thread, base_url, race = serve_harness(root)
         try:
             with sync_playwright() as playwright:
-                browser = playwright.chromium.launch()
+                browser = playwright.chromium.launch(channel="chrome")
                 context = browser.new_context(viewport={"width": 900, "height": 800}, service_workers="block")
                 page = context.new_page()
                 errors: list[str] = []
