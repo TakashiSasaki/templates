@@ -40,6 +40,7 @@ jobs:
           node --test tests/composition-playground-hash-copy-review.test.mjs
           node --test tests/composition-playground-final-three-review.test.mjs
           node --test tests/composition-playground-latest-review.test.mjs
+          node --test tests/composition-playground-root-reachability.test.mjs
           node --test tests/composition-playground-explain.test.mjs
 
       - name: Set up Python
@@ -49,17 +50,21 @@ jobs:
           cache: pip
           cache-dependency-path: requirements-visual.txt
 
+      - name: Validate cross-authority trigger contract
+        run: python -I tests/test_composition_playground_cross_authority_workflow.py
+
       - name: Install browser acceptance dependency
         run: python -m pip install --disable-pip-version-check --requirement requirements-visual.txt
 
       - name: Install Chromium
         run: python -m playwright install --with-deps chromium
 
-      - name: Run 360px keyboard and share-state acceptance
+      - name: Run 360px keyboard, share-state, and desktop-grid acceptance
         run: |
           python -I scripts/check_composition_playground_browser.py
           python -I scripts/check_composition_playground_final_browser.py
           python -I scripts/check_composition_playground_final_three_browser.py
+          python -I scripts/check_composition_playground_final_grid_browser.py
 
       - name: Verify exact-head and activation boundary
         env:

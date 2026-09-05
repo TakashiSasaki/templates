@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - codex/site-composition-playground-v1-shell
+      - site
     types:
       - opened
       - synchronize
@@ -82,3 +83,4 @@ jobs:
             --expected-provider-revision "$EXPECTED_PROVIDER_REVISION" \
             --expected-semantic-revision "$EXPECTED_SEMANTIC_REVISION"
           python scripts/check_composition_playground_final_browser.py --site-root build/site
+          python scripts/check_composition_playground_final_grid_browser.py --site-root build/site
