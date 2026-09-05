@@ -4,7 +4,7 @@ This reference is provider-neutral procedure support for `pr-merge-gate`. It doe
 
 ## Stabilize before intentionally acquiring expensive acceptance evidence
 
-Before intentionally requesting independent review or starting another expensive revision-bound acceptance evaluation, establish as far as reasonably possible that the authorized implementation is complete, known self-audit findings are dispositioned, focused validation is complete, required generated projections are internally coherent, known compatible head-changing repairs are batched, no known material defect remains unresolved, and no known downstream immutable-identity materialization is waiting on an upstream semantic repair.
+Before intentionally requesting independent review or starting another expensive revision-bound acceptance evaluation, establish as far as reasonably possible that the authorized implementation is complete, known self-audit findings are dispositioned, the logical finding backlog in `review-finding-ledger.md` has no known material actionable item awaiting a validated repair, evidence-backed no-change disposition, or required closure evidence, focused validation is complete, required generated projections are internally coherent, known compatible head-changing repairs are batched, no known material defect remains unresolved, and no known downstream immutable-identity materialization is waiting on an upstream semantic repair.
 
 This is a candidate-stabilization discipline, not a new acceptance gate. It has no fixed duration, does not require perfection, does not prevent PR creation, and does not require waiting for earlier CI or review before dependency-safe implementation continues. Naturally triggered CI may run before stabilization. Do not deliberately request independent review for a candidate already known to be intermediate or for a downstream identity that is already known to become stale after an unresolved upstream semantic repair.
 
@@ -30,15 +30,18 @@ A newly discovered material defect immediately blocks merge readiness even if th
 
 When multiple findings or self-audit defects are being resolved in the same candidate cycle:
 
-1. verify or falsify each candidate issue with read-only evidence when possible;
-2. record which verified items actually require a head-changing repair;
-3. prepare compatible repairs and their regression evidence together;
-4. apply one coherent mutation batch when the currently known, actionable set is ready; and
-5. then invalidate and reacquire the exact-head evidence affected by the new SHA.
+1. enumerate the currently known backlog before mutating when the provider state makes that practical;
+2. verify or falsify each candidate issue with read-only evidence when possible;
+3. record which verified items actually require a head-changing repair;
+4. group only compatible repairs whose authority decision, scope, and validation boundary can be reasoned about coherently;
+5. apply one coherent mutation batch when that currently known actionable group is ready; and
+6. invalidate and reacquire only the exact-head evidence whose actual binding changed.
 
-Batch only work that is already known and justified. Do not wait an arbitrary amount of time for hypothetical future findings, broaden scope to make a batch look worthwhile, or postpone a ready material repair solely to save CI/review cost.
+Batch only work that is already known and justified. Do not wait an arbitrary amount of time for hypothetical future findings, broaden scope to make a batch look worthwhile, or postpone a ready material repair solely to save CI/review cost. Do not manufacture a no-op or cosmetic commit to retrigger CI/review or create a fresh-looking head.
 
-If two repairs conflict, require different authority decisions, or would make one combined change harder to reason about or validate, keep them separate. Coherence is more important than minimizing commit count.
+If two repairs conflict, require different authority decisions, belong to materially unrelated work, or would make one combined change harder to reason about or validate, keep them separate. Coherence is more important than minimizing commit count.
+
+Do not intentionally reacquire merge-acceptance review between compatible repairs that are already known and verified when that would create avoidable one-finding-at-a-time review/head churn. Once the coherent replacement candidate is ready, apply the canonical review-reacquisition rule to the complete known backlog rather than the last edited thread alone.
 
 ## Immediate-mutation exceptions
 
@@ -52,15 +55,16 @@ A mutation batch creates one new candidate head. Mark evidence stale according t
 
 - exact-head CI, exact-head review, and head-bound scope evidence for the former SHA are stale;
 - target-branch evidence is affected only when its own binding changed;
+- finding identity, source review, and other semantic ledger state survive a head change unless the change invalidates their applicability;
 - evidence independent of the changed head remains reusable when current policy establishes continued validity.
 
 Request or collect new exact-head CI/review evidence only after the coherent replacement candidate is ready. Do not deliberately produce a sequence of partial candidate SHAs that each trigger the same expensive evidence cycle when the remaining known repairs could have been applied together.
 
-## Relationship to review feedback disposition
+## Relationship to review feedback disposition and the ledger
 
-`review-feedback-disposition.md` decides what a verified review item means and what remediation it requires. This reference decides when compatible, already-justified head-changing remediations should be applied.
+`review-feedback-disposition.md` decides what a verified review item means and what remediation it requires. `review-finding-ledger.md` keeps the entire known backlog and its closure state recoverable across provider surfaces and head changes. This reference decides when compatible, already-justified head-changing remediations should be applied.
 
-Neither procedure changes finding severity or merge authorization. A verified material defect remains blocking until repaired and revalidated even when its repair is waiting in the current mutation batch.
+None of these procedures changes finding severity or merge authorization. A verified material defect remains blocking until repaired and revalidated even when its repair is waiting in the current mutation batch.
 
 ## Closure
 
