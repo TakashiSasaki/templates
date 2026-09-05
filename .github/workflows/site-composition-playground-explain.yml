@@ -37,7 +37,9 @@ jobs:
         run: |
           node --test tests/composition-playground.test.mjs
           node --test tests/composition-playground-final-remediation.test.mjs
+          node --test tests/composition-playground-hash-copy-review.test.mjs
           node --test tests/composition-playground-final-three-review.test.mjs
+          node --test tests/composition-playground-latest-review.test.mjs
           node --test tests/composition-playground-explain.test.mjs
 
       - name: Set up Python
