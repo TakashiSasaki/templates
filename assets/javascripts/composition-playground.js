@@ -28,6 +28,7 @@
   const PROJECTION_ID = "composition-playground-v1";
   const BUILD_PROVENANCE_SCHEMA_VERSION = 2;
   const FULL_SHA = /^[0-9a-f]{40}$/;
+  const COMPONENT_ROLES = Object.freeze(["foundation", "artifact", "capability", "lifecycle"]);
   const EXPECTED_REASON_BITS = Object.freeze({
     recipe_artifact: 1,
     recipe_required: 2,
@@ -38,6 +39,7 @@
 
   const labels = Object.freeze({
     loading: "Loading the canonical Composition projection…",
+    loaded: "Canonical Composition projection loaded with exact Site publication provenance.",
     unavailable: "The canonical Composition Playground projection is not available in the active publication yet.",
     provenanceUnavailable: "The Site build provenance required to identify the published Composition provider is unavailable.",
     incompatible: "The published Composition Playground projection is incompatible with this Site consumer.",
@@ -116,6 +118,10 @@
     return value;
   }
 
+  function componentNamespace(value) {
+    return value.slice(0, value.indexOf("."));
+  }
+
   function componentIdArray(value, name) {
     const entries = requireUniqueStrings(value, name);
     entries.forEach((entry) => componentId(entry, name));
@@ -170,6 +176,7 @@
     if (!recipes.length || !components.length || !outcomes.length) {
       throw new ProjectionError("MALFORMED_PROJECTION", "projection inventories are empty");
     }
+
     const recipeById = new Map();
     const componentById = new Map();
     const contractById = new Map();
@@ -179,8 +186,9 @@
     for (const component of components) {
       exactObject(component, "component", ["id", "role", "version", "summary", "requires", "conflicts", "contract_ids", "material_declarations", "source_path"]);
       const id = componentId(component.id, "component.id");
-      if (!["foundation", "artifact", "capability", "lifecycle"].includes(component.role) || componentById.has(id)) {
-        throw new ProjectionError("MALFORMED_PROJECTION", "component inventory is invalid or duplicated");
+      const namespace = componentNamespace(id);
+      if (!COMPONENT_ROLES.includes(component.role) || namespace !== component.role || componentById.has(id)) {
+        throw new ProjectionError("MALFORMED_PROJECTION", "component inventory has an invalid or mismatched role namespace");
       }
       integerAtLeast(component.version, `component ${id}.version`, 1);
       nonEmptyString(component.summary, `component ${id}.summary`);
@@ -255,6 +263,7 @@
         }
       }
     }
+
     for (const contract of contracts) {
       const owner = componentById.get(contract.component);
       if (!owner) throw new ProjectionError("MALFORMED_PROJECTION", `contract ${contract.index} references an unknown component`);
@@ -262,14 +271,20 @@
         throw new ProjectionError("MALFORMED_PROJECTION", `contract ${contract.index} is not registered by its owning component`);
       }
     }
+
     for (const material of materials) {
       if (!componentById.has(material.component)) throw new ProjectionError("MALFORMED_PROJECTION", `material ${material.index} references an unknown component`);
     }
+
     for (const outcome of outcomes) {
       const resolvedSet = new Set(outcome.resolved_components);
+      const positionByComponent = new Map(outcome.resolved_components.map((id, position) => [id, position]));
+      const edgeSet = new Set(outcome.dependency_edges.map((edge) => JSON.stringify(edge)));
+
       for (const componentIdValue of outcome.resolved_components) {
         if (!componentById.has(componentIdValue)) throw new ProjectionError("MALFORMED_PROJECTION", `outcome ${outcome.index} references an unknown component`);
       }
+
       for (const edge of outcome.dependency_edges) {
         const sourceId = outcome.resolved_components[edge[0]];
         const targetId = outcome.resolved_components[edge[1]];
@@ -278,6 +293,20 @@
           throw new ProjectionError("MALFORMED_PROJECTION", `outcome ${outcome.index} dependency edge disagrees with component metadata`);
         }
       }
+
+      outcome.resolved_components.forEach((sourceId, sourceIndex) => {
+        const source = componentById.get(sourceId);
+        for (const targetId of source.requires) {
+          if (!resolvedSet.has(targetId)) {
+            throw new ProjectionError("MALFORMED_PROJECTION", `outcome ${outcome.index} omits required component ${targetId}`);
+          }
+          const targetIndex = positionByComponent.get(targetId);
+          if (!edgeSet.has(JSON.stringify([sourceIndex, targetIndex]))) {
+            throw new ProjectionError("MALFORMED_PROJECTION", `outcome ${outcome.index} omits a required dependency edge`);
+          }
+        }
+      });
+
       for (const contractId of outcome.contract_ids) {
         const contract = contractById.get(contractId);
         if (!contract) throw new ProjectionError("MALFORMED_PROJECTION", `outcome ${outcome.index} references an unknown contract`);
@@ -286,6 +315,13 @@
           throw new ProjectionError("MALFORMED_PROJECTION", `outcome ${outcome.index} has inconsistent contract ownership`);
         }
       }
+      const expectedContracts = new Set(
+        outcome.resolved_components.flatMap((componentIdValue) => componentById.get(componentIdValue).contract_ids)
+      );
+      if (expectedContracts.size !== outcome.contract_ids.length || outcome.contract_ids.some((contractId) => !expectedContracts.has(contractId))) {
+        throw new ProjectionError("MALFORMED_PROJECTION", `outcome ${outcome.index} contract registrations are incomplete or extraneous`);
+      }
+
       const materialDestinations = new Set();
       for (const materialId of outcome.material_ids) {
         const material = materialById.get(materialId);
@@ -306,20 +342,28 @@
         throw new ProjectionError("MALFORMED_PROJECTION", "recipe inventory is invalid or duplicated");
       }
       componentId(recipe.artifact, `recipe ${recipe.id}.artifact`);
-      componentIdArray(recipe.required_components, `recipe ${recipe.id}.required_components`);
-      componentIdArray(recipe.default_components, `recipe ${recipe.id}.default_components`);
+      const required = componentIdArray(recipe.required_components, `recipe ${recipe.id}.required_components`);
+      const defaults = componentIdArray(recipe.default_components, `recipe ${recipe.id}.default_components`);
       const optionals = componentIdArray(recipe.optional_components, `recipe ${recipe.id}.optional_components`);
       relativePath(recipe.source_path, `recipe ${recipe.id}.source_path`);
-      for (const id of [recipe.artifact, ...recipe.required_components, ...recipe.default_components, ...optionals]) {
-        if (!componentById.has(id)) throw new ProjectionError("MALFORMED_PROJECTION", `recipe ${recipe.id} references an unknown component`);
+
+      const artifact = componentById.get(recipe.artifact);
+      if (!artifact || artifact.role !== "artifact") {
+        throw new ProjectionError("MALFORMED_PROJECTION", `recipe ${recipe.id} artifact is not an artifact component`);
       }
+      for (const id of [...required, ...defaults, ...optionals]) {
+        if (!componentById.has(id)) {
+          throw new ProjectionError("MALFORMED_PROJECTION", `recipe ${recipe.id} references an unknown component`);
+        }
+      }
+
       const cases = requireArray(recipe.cases, `recipe ${recipe.id} cases`);
       const expectedCaseCount = 2 ** optionals.length;
       if (!Number.isSafeInteger(expectedCaseCount) || !Number.isSafeInteger(recipe.case_count) || recipe.case_count !== expectedCaseCount || cases.length !== expectedCaseCount) {
         throw new ProjectionError("MALFORMED_PROJECTION", `recipe ${recipe.id} case table does not cover its optional-component domain`);
       }
-      const requiredComponents = new Set(recipe.required_components);
-      const defaultComponents = new Set(recipe.default_components);
+      const requiredComponents = new Set(required);
+      const defaultComponents = new Set(defaults);
       for (let mask = 0; mask < cases.length; mask += 1) {
         const item = cases[mask];
         exactObject(item, `recipe ${recipe.id} case ${mask}`, ["valid", "error", "outcome_id", "selection_reason_masks"]);
@@ -338,8 +382,8 @@
           const resolvedSet = new Set(outcome.resolved_components);
           for (const expectedComponent of new Set([
             recipe.artifact,
-            ...recipe.required_components,
-            ...recipe.default_components,
+            ...required,
+            ...defaults,
             ...explicitComponents
           ])) {
             if (!resolvedSet.has(expectedComponent)) {
@@ -356,10 +400,7 @@
             if (explicitComponents.has(componentIdValue)) expectedMask |= raw.provenance_reason_bits.explicit_include;
             if (dependencyTargets.has(componentIndex)) expectedMask |= raw.provenance_reason_bits.dependency;
             if (reasonMask !== expectedMask) {
-              throw new ProjectionError(
-                "MALFORMED_PROJECTION",
-                `recipe ${recipe.id} case ${mask} has inconsistent selection provenance`
-              );
+              throw new ProjectionError("MALFORMED_PROJECTION", `recipe ${recipe.id} case ${mask} has inconsistent selection provenance`);
             }
           });
         } else if (item.outcome_id !== null || !isObject(item.error) || item.selection_reason_masks.length !== 0) {
@@ -392,14 +433,31 @@
   }
 
   function validateBuildProvenance(raw) {
-    if (!isObject(raw) || raw.schema_version !== BUILD_PROVENANCE_SCHEMA_VERSION || raw.repository !== "TakashiSasaki/templates" || !isObject(raw.publication_commits)) {
-      throw new ProjectionError("MALFORMED_PROVENANCE", "Site build provenance has an unsupported shape");
+    const topKeys = ["schema_version", "repository", "site_commit", "publication_commits"];
+    if (!isObject(raw) || Object.keys(raw).length !== topKeys.length || topKeys.some((key) => !Object.prototype.hasOwnProperty.call(raw, key))) {
+      throw new ProjectionError("MALFORMED_PROVENANCE", "Site build provenance has an unsupported top-level shape");
+    }
+    if (raw.schema_version !== BUILD_PROVENANCE_SCHEMA_VERSION || raw.repository !== "TakashiSasaki/templates" || !FULL_SHA.test(raw.site_commit || "")) {
+      throw new ProjectionError("MALFORMED_PROVENANCE", "Site build provenance identity is invalid");
+    }
+    if (!isObject(raw.publication_commits)) {
+      throw new ProjectionError("MALFORMED_PROVENANCE", "Site build provenance publication_commits is invalid");
+    }
+    const providerKeys = Object.keys(raw.publication_commits);
+    if (providerKeys.length !== 2 || !providerKeys.includes("composition") || !providerKeys.includes("policy")) {
+      throw new ProjectionError("MALFORMED_PROVENANCE", "Site build provenance provider set must be exactly composition and policy");
     }
     const providerRevision = raw.publication_commits.composition;
-    if (!FULL_SHA.test(providerRevision || "")) {
-      throw new ProjectionError("MALFORMED_PROVENANCE", "Site build provenance has no exact Composition provider revision");
+    const policyRevision = raw.publication_commits.policy;
+    if (!FULL_SHA.test(providerRevision || "") || !FULL_SHA.test(policyRevision || "")) {
+      throw new ProjectionError("MALFORMED_PROVENANCE", "Site build provenance provider revisions must be exact lowercase SHAs");
     }
-    return Object.freeze({ raw, providerRevision });
+    return Object.freeze({
+      raw,
+      siteRevision: raw.site_commit,
+      providerRevision,
+      policyRevision
+    });
   }
 
   function selectionMask(recipe, includes) {
@@ -430,17 +488,36 @@
     return recipe.optional_components.filter((_componentId, position) => (mask & (2 ** position)) !== 0);
   }
 
-  function parseHash(hash, projection) {
+  function defaultSelection(projection) {
+    return { recipeId: projection.recipes[0].id, includes: [] };
+  }
+
+  function parseHashWithOwnership(hash, projection) {
     const text = typeof hash === "string" ? hash.replace(/^#/, "") : "";
+    if (text === "") {
+      return { kind: "empty", state: defaultSelection(projection) };
+    }
     const params = new URLSearchParams(text);
-    const recipeId = params.get("recipe") || projection.recipes[0].id;
+    if (!params.has("recipe")) {
+      return { kind: "document", state: defaultSelection(projection) };
+    }
+    const keys = Array.from(params.keys());
+    const recipeValues = params.getAll("recipe");
+    if (recipeValues.length !== 1 || !recipeValues[0] || keys.some((key) => key !== "recipe" && key !== "include")) {
+      throw new ProjectionError("INVALID_SELECTION", "Playground URL hash is not a canonical selection-state shape");
+    }
+    const recipeId = recipeValues[0];
     const recipe = projection.recipeById.get(recipeId);
     if (!recipe) {
       throw new ProjectionError("INVALID_SELECTION", `unknown recipe in URL hash: ${recipeId}`);
     }
     const includes = params.getAll("include");
     selectionMask(recipe, includes);
-    return { recipeId, includes: includes.slice().sort() };
+    return { kind: "playground", state: { recipeId, includes: includes.slice().sort() } };
+  }
+
+  function parseHash(hash, projection) {
+    return parseHashWithOwnership(hash, projection).state;
   }
 
   function stateHash(recipeId, includes) {
@@ -586,8 +663,7 @@
     if (!response.ok) {
       throw new ProjectionError("PROJECTION_UNAVAILABLE", `projection request failed with HTTP ${response.status}`);
     }
-    const raw = await decodeProjectionResponse(response, url);
-    return validateProjection(raw);
+    return validateProjection(await decodeProjectionResponse(response, url));
   }
 
   async function loadBuildProvenance(url) {
@@ -693,7 +769,9 @@
       if (runtimeState !== current || root.isConnected === false) return null;
       current.error = null;
       runtimeState.error = null;
-      let state = parseHash(scope.location ? scope.location.hash : "", projection);
+
+      const initialHash = parseHashWithOwnership(scope.location ? scope.location.hash : "", projection);
+      let state = initialHash.state;
       let currentCase = null;
 
       const updateContext = () => {
@@ -709,46 +787,61 @@
         runtimeState.context = current.context;
         notify({ type: "selection", context: current.context });
       };
+
       const readControlState = () => ({
         recipeId: nodes.recipe.value,
         includes: Array.from(nodes.optionals.querySelectorAll("input[type=checkbox]:checked"), (node) => node.value)
       });
-      const apply = (nextState, replaceHash) => {
+
+      const apply = (nextState, hashMode) => {
         if (runtimeState !== current || root.isConnected === false) return;
         state = nextState;
-        renderSelection(document, nodes, projection, state, () => apply(readControlState(), false));
+        renderSelection(document, nodes, projection, state, () => apply(readControlState(), "push"));
         updateContext();
         renderCase(document, nodes, projection, provenance, currentCase);
-        if (scope.history && scope.location) {
+        if (hashMode !== "preserve" && scope.history && scope.location) {
           const nextHash = stateHash(state.recipeId, state.includes);
           const url = `${scope.location.pathname}${scope.location.search}${nextHash}`;
-          if (replaceHash) scope.history.replaceState(null, "", url);
+          if (hashMode === "replace") scope.history.replaceState(null, "", url);
           else scope.history.pushState(null, "", url);
         }
       };
 
-      nodes.recipe.addEventListener("change", () => apply({ recipeId: nodes.recipe.value, includes: [] }, false));
+      nodes.recipe.addEventListener("change", () => apply({ recipeId: nodes.recipe.value, includes: [] }, "push"));
       nodes.copy.addEventListener("click", async () => {
+        const initiatingContext = current.context;
+        const initiatingCase = currentCase;
+        const text = configurationText(initiatingCase);
+        const isStillCurrent = () => (
+          runtimeState === current &&
+          root.isConnected !== false &&
+          current.context === initiatingContext &&
+          runtimeState.context === initiatingContext &&
+          currentCase === initiatingCase
+        );
         try {
-          await scope.navigator.clipboard.writeText(configurationText(currentCase));
-          status.textContent = labels.copied;
+          await scope.navigator.clipboard.writeText(text);
+          if (isStillCurrent()) status.textContent = labels.copied;
         } catch (_error) {
-          status.textContent = labels.copyFailed;
+          if (isStillCurrent()) status.textContent = labels.copyFailed;
         }
       });
+
       activeHashHandler = () => {
         if (runtimeState !== current || root.isConnected === false) return;
         try {
-          apply(parseHash(scope.location.hash, projection), true);
+          const parsed = parseHashWithOwnership(scope.location ? scope.location.hash : "", projection);
+          if (parsed.kind === "document") return;
+          apply(parsed.state, "replace");
         } catch (error) {
           status.textContent = statusForError(error);
         }
       };
       bindHashListener();
 
-      apply(state, true);
+      apply(state, initialHash.kind === "document" ? "preserve" : "replace");
       app.hidden = false;
-      status.textContent = "Canonical Composition projection loaded with exact Site publication provenance.";
+      status.textContent = labels.loaded;
       notify({ type: "ready", context: current.context });
       return current.context;
     } catch (error) {
