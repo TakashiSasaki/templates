@@ -331,16 +331,27 @@ test("contracts and materials have outcome-local ownership and registration inte
   );
 
   const globalOnlyDuplicate = clone(valid);
+  globalOnlyDuplicate.components.push({
+    id: "capability.unused",
+    role: "capability",
+    version: 1,
+    summary: "Synthetic unresolved capability",
+    requires: [],
+    conflicts: [],
+    contract_ids: [],
+    material_declarations: [],
+    source_path: "components/capability.unused/component.json"
+  });
   globalOnlyDuplicate.materials.push({
     index: 5,
-    component: "capability.cli",
+    component: "capability.unused",
     destination: ".template-composition/lock.json",
     ownership: "managed",
     sha256: "5".repeat(64)
   });
   assert.doesNotThrow(
     () => playground.validateProjection(globalOnlyDuplicate),
-    "destination uniqueness is outcome-local, not a broader global restriction"
+    "destination uniqueness remains outcome-local for materials owned only by unresolved components"
   );
 });
 
@@ -437,9 +448,11 @@ test("all Site-consumed explainability fields are validated before exposure", as
     index: 0, component: "artifact.skill", destination: "README.md",
     ownership: "seed", sha256: "0".repeat(64)
   }];
-  for (const outcome of base.outcomes) outcome.contract_ids = [0];
-  base.outcomes[0].material_ids = [0];
-  base.outcomes[0].initial_plan.action_counts = { create: 1 };
+  for (const outcome of base.outcomes) {
+    outcome.contract_ids = [0];
+    outcome.material_ids = [0];
+    outcome.initial_plan.action_counts = { create: 1 };
+  }
   assert.doesNotThrow(() => playground.validateProjection(base));
 
   for (const [label, mutate] of [
