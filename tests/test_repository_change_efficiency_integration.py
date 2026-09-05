@@ -122,6 +122,9 @@ def test_scenario_f_final_handoff_audit_is_one_way_and_non_merge_evidence() -> N
     stacked = _text("skills/orchestrate-repository-change/references/stacked-pr-workflow.md")
     selection = _text("skills/orchestrate-repository-change/references/pr-workflow-selection.md")
     docs = _text("docs/agent-work-orchestration.md")
+    handoff_section = docs.split("### human-handoff final audit", 1)[1].split(
+        "## relationship to existing procedures", 1
+    )[0]
     case = _case("F-human-handoff-final-audit")
     expected = " ".join(case["expected"]).lower()
 
@@ -132,11 +135,12 @@ def test_scenario_f_final_handoff_audit_is_one_way_and_non_merge_evidence() -> N
     assert "do not wait for its completion unless explicitly required" in stacked
     assert "then stop at handoff_ready" in stacked
     assert "must not create a review-retry loop" in selection
-    assert "request that audit once" in docs
-    assert "unless the explicit task requires the diagnostic audit to complete" in docs
-    assert "do not wait for its result" in docs
-    assert "do not retry the audit" in docs
-    assert "do not merge" in docs
+    assert "request that audit once" in handoff_section
+    assert "unless the explicit task requires the diagnostic audit to complete" in handoff_section
+    assert "do not wait" in handoff_section
+    assert "result" in handoff_section
+    assert "do not retry the audit" in handoff_section
+    assert "do not merge" in handoff_section
     assert "unless the explicit task requires the diagnostic audit to complete" in expected
 
 
