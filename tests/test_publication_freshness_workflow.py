@@ -21,7 +21,10 @@ class PublicationFreshnessWorkflowTests(unittest.TestCase):
         triggers = self.workflow["on"]
         pull_request = triggers["pull_request"]
 
-        self.assertEqual(["site"], pull_request["branches"])
+        self.assertEqual(
+            ["site", "codex/site-composition-playground-v1-shell"],
+            pull_request["branches"],
+        )
         expected_paths = {
             ".github/workflows/check-publication-freshness.yml",
             ".github/workflows/build-pages.yml",
