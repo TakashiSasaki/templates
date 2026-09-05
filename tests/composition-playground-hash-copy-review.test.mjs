@@ -174,7 +174,7 @@ function projection() {
         dependency_edges: [],
         contract_ids: [],
         material_ids: [],
-        initial_plan: { action_counts: { create: 1 }, conflict_count: 0 },
+        initial_plan: { action_counts: { create: 0 }, conflict_count: 0 },
       },
       {
         index: 1,
@@ -182,7 +182,7 @@ function projection() {
         dependency_edges: [],
         contract_ids: [],
         material_ids: [],
-        initial_plan: { action_counts: { create: 2 }, conflict_count: 0 },
+        initial_plan: { action_counts: { create: 0 }, conflict_count: 0 },
       },
     ],
   };

@@ -102,6 +102,9 @@ async function relationalFixture() {
   raw.outcomes[2].material_ids = [0, 2, 3, 4];
   raw.outcomes[3].contract_ids = [0];
   raw.outcomes[3].material_ids = [0, 1, 2, 3, 4];
+  for (const outcome of raw.outcomes) {
+    outcome.initial_plan.action_counts = { create: outcome.material_ids.length };
+  }
   return raw;
 }
 
@@ -436,6 +439,7 @@ test("all Site-consumed explainability fields are validated before exposure", as
   }];
   for (const outcome of base.outcomes) outcome.contract_ids = [0];
   base.outcomes[0].material_ids = [0];
+  base.outcomes[0].initial_plan.action_counts = { create: 1 };
   assert.doesNotThrow(() => playground.validateProjection(base));
 
   for (const [label, mutate] of [
