@@ -101,7 +101,11 @@ def test_final_whole_stack_review_requires_complete_ledger_before_invocation() -
     assert stacked_gate < stacked_invoke
     assert "complete logical finding backlog" in stacked
     assert "required finding-level closure evidence" in stacked
-    assert "re-evaluate the complete known-finding gate immediately before reviewer invocation" in stacked
+    assert (
+        "re-evaluate the complete known-finding gate immediately before "
+        "reviewer invocation"
+        in stacked
+    )
 
     handoff_gate = handoff.index(
         "pull-request.disposition-known-findings-before-review-reacquisition"
