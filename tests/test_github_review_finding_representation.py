@@ -48,6 +48,24 @@ def test_review_acquisition_can_request_remediation_friendly_output_without_sche
     assert "github event shape as semantic review authority" in text
 
 
+def test_body_only_closure_prefers_source_linked_durable_traceability() -> None:
+    text = GUIDANCE.read_text(encoding="utf-8").lower()
+    required = (
+        "prefer recording its validated disposition as a reply or follow-up "
+        "directly associated with the source review",
+        "source-review identity and a stable finding-level locator",
+        "another durable pull-request surface",
+        "explicitly reference the source review plus the stable finding locator",
+        "do not invent an inline thread",
+        "traceability preference",
+        "semantic closure still comes from the validated disposition",
+        "canonical review-reacquisition policy determines",
+        "does not create the prerequisite itself",
+    )
+    for phrase in required:
+        assert phrase in text
+
+
 def test_remediation_disposition_covers_findings_without_threads() -> None:
     text = DISPOSITION.read_text(encoding="utf-8").lower()
     required = (
