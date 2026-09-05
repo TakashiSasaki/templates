@@ -53,7 +53,7 @@ This page consumes a published projection. It does not resolve dependencies, con
       <details>
         <summary>Initial repository impact</summary>
         <p data-playground-plan-summary></p>
-        <div data-playground-material-tree role="tree" aria-label="Initial repository material destinations"></div>
+        <div data-playground-material-tree></div>
       </details>
     </section>
   </div>

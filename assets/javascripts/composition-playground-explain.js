@@ -227,16 +227,13 @@
   function renderTreeNodes(document, parent, node) {
     const entries = Array.from(node.children.entries()).sort(([left], [right]) => left.localeCompare(right));
     const group = document.createElement("ul");
-    group.setAttribute("role", "group");
     for (const [segment, child] of entries) {
       const item = document.createElement("li");
-      item.setAttribute("role", "treeitem");
       const label = document.createElement("span");
       if (child.material) {
         label.textContent = `${segment} — ${child.material.component}; ${text.ownership}: ${child.material.ownership}`;
       } else {
         label.textContent = segment;
-        item.setAttribute("aria-expanded", "true");
       }
       item.appendChild(label);
       if (child.children.size) renderTreeNodes(document, item, child);

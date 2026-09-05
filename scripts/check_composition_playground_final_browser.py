@@ -88,6 +88,28 @@ def assert_clipboard_races(page: Any) -> None:
     page.wait_for_function(
         "() => document.querySelector('[data-playground-status]')?.textContent === 'Canonical configuration copied.'"
     )
+    copied_text = page.evaluate("() => window.__copyText")
+    checkbox = page.locator('input[type="checkbox"][value="capability.cli"]')
+    checkbox.check()
+    page.wait_for_function(
+        """() => location.hash.includes('include=capability.cli') &&
+        document.querySelector('[data-playground-status]')?.textContent ===
+          'Canonical Composition projection loaded with exact Site publication provenance.'"""
+    )
+    if page.locator("[data-playground-status]").text_content() == "Canonical configuration copied.":
+        raise PlaygroundBrowserError("copy success feedback remained after the visible selection changed")
+    if page.evaluate("() => window.__copyText") != copied_text:
+        raise PlaygroundBrowserError("selection change unexpectedly rewrote the clipboard without a new copy action")
+
+
+def assert_material_list_semantics(page: Any) -> None:
+    container = page.locator("[data-playground-material-tree]")
+    if container.locator("ul li").count() == 0:
+        raise PlaygroundBrowserError("repository impact did not render ordinary nested-list material entries")
+    if container.get_attribute("role") is not None:
+        raise PlaygroundBrowserError("static repository impact container still exposes an interactive ARIA role")
+    if container.locator("[role], [aria-expanded]").count() != 0:
+        raise PlaygroundBrowserError("static repository impact list still exposes tree widget semantics")
 
 
 def assert_fragment_semantics(page: Any, base_url: str) -> None:
@@ -119,21 +141,58 @@ def assert_fragment_semantics(page: Any, base_url: str) -> None:
 
     page.goto(f"{base_url}playground/#recipe=skill&include=capability.cli", wait_until="networkidle")
     page.wait_for_selector("[data-playground-app]:not([hidden])")
+    page.wait_for_selector("[data-playground-explain]:not([hidden])")
     cli = page.locator('input[type="checkbox"][value="capability.cli"]')
     if not cli.is_checked():
         raise PlaygroundBrowserError("canonical Playground hash did not restore capability.cli")
+    assert_material_list_semantics(page)
     cli.uncheck()
     page.wait_for_function("() => location.hash === '#recipe=skill'")
 
+    # Exercise the same-document hashchange path that remains mounted. Invalid
+    # Playground-owned state must hide both core and explainability, then a
+    # later valid state must recover a coherent visible context and clear the error.
+    page.evaluate("() => { location.hash = '#recipe=unknown'; }")
+    page.wait_for_function(
+        "() => document.querySelector('#composition-playground')?.dataset.playgroundError === 'INVALID_SELECTION'"
+    )
+    if not page.locator("[data-playground-app]").is_hidden():
+        raise PlaygroundBrowserError("same-document invalid Playground hash did not hide the stale core result")
+    if not page.locator("[data-playground-explain]").is_hidden():
+        raise PlaygroundBrowserError("same-document invalid Playground hash did not hide stale explainability")
+
+    page.evaluate("() => { location.hash = '#recipe=skill&include=capability.cli'; }")
+    page.wait_for_selector("[data-playground-app]:not([hidden])")
+    page.wait_for_selector("[data-playground-explain]:not([hidden])")
+    page.wait_for_function(
+        """() => !document.querySelector('#composition-playground')?.dataset.playgroundError &&
+        document.querySelector('[data-playground-status]')?.textContent ===
+          'Canonical Composition projection loaded with exact Site publication provenance.'"""
+    )
+    if not page.locator('input[type="checkbox"][value="capability.cli"]').is_checked():
+        raise PlaygroundBrowserError("valid hash did not restore the selected case after fail-closed hashchange")
+
+    page.evaluate("() => { location.hash = '#recipe=unknown'; }")
+    page.wait_for_function(
+        "() => document.querySelector('#composition-playground')?.dataset.playgroundError === 'INVALID_SELECTION'"
+    )
+    page.evaluate("() => { location.hash = '#v1-scope'; }")
+    page.wait_for_selector("[data-playground-app]:not([hidden])")
+    if page.evaluate("() => location.hash") != "#v1-scope":
+        raise PlaygroundBrowserError("ordinary fragment recovery rewrote document-owned hash state")
+    if page.locator("[data-playground-status]").text_content() != (
+        "Canonical Composition projection loaded with exact Site publication provenance."
+    ):
+        raise PlaygroundBrowserError("ordinary fragment recovery left stale invalid-hash status visible")
+
     # Change the query as well as the hash so Playwright performs a fresh document
-    # navigation. That exercises initial-mount fail-closed behavior rather than the
-    # already-mounted hashchange status path.
+    # navigation. This separately preserves initial-mount fail-closed coverage.
     page.goto(f"{base_url}playground/?invalid-state=1#recipe=unknown", wait_until="networkidle")
     page.wait_for_function(
         "() => document.querySelector('#composition-playground')?.dataset.playgroundError === 'INVALID_SELECTION'"
     )
     if not page.locator("[data-playground-app]").is_hidden():
-        raise PlaygroundBrowserError("invalid Playground-owned fragment did not fail closed")
+        raise PlaygroundBrowserError("invalid Playground-owned fragment did not fail closed on initial mount")
 
 
 def run_synthetic() -> None:
@@ -210,7 +269,7 @@ def main() -> int:
     args = parse_args()
     if args.site_root is None:
         run_synthetic()
-        print("Composition Playground final fragment/clipboard browser regressions passed")
+        print("Composition Playground final fragment/clipboard/browser-semantics regressions passed")
     else:
         run_built_fragment(args.site_root)
         print("Composition Playground real built-Site fragment regression passed")
