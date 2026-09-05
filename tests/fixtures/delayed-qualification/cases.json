@@ -1,0 +1,108 @@
+[
+  {
+    "name": "provisional-descendant-keeps-working",
+    "required": {
+      "policy/pull-request/defer-revision-bound-qualification.md": [
+        "construction head",
+        "provisional candidate",
+        "the mere existence of a commit sha, branch head, or pull request does not by itself establish that the candidate has entered final qualification",
+        "dependency-safe downstream work"
+      ],
+      "skills/orchestrate-repository-change/references/stacked-pr-workflow.md": [
+        "a locally complete descendant may remain a provisional candidate",
+        "preserve its logical member responsibility and semantic delta"
+      ]
+    }
+  },
+  {
+    "name": "automatic-ci-does-not-promote-candidate",
+    "required": {
+      "policy/pull-request/defer-revision-bound-qualification.md": [
+        "naturally triggered ci",
+        "do not treat those activities, or an observed successful run on a provisional head, as proof that final qualification has been completed"
+      ],
+      "skills/pr-merge-gate/references/head-mutation-batching.md": [
+        "naturally triggered ci may run before stabilization",
+        "does not by itself convert that head into a final qualification identity"
+      ]
+    }
+  },
+  {
+    "name": "boundary-freezes-qualification-heads",
+    "required": {
+      "policy/pull-request/defer-revision-bound-qualification.md": [
+        "when a revision-bound boundary is reached",
+        "freeze the intended candidate revision or ordered candidate revisions",
+        "acquire every exact-revision evidence item required by the applicable authority"
+      ],
+      "skills/orchestrate-repository-change/references/stacked-pr-workflow.md": [
+        "freeze the exact candidate heads",
+        "pending required ci blocks the final review request"
+      ]
+    }
+  },
+  {
+    "name": "publication-binding-waits-for-stable-prerequisite",
+    "required": {
+      "policy/pull-request/defer-revision-bound-qualification.md": [
+        "publication identity",
+        "perform that final immutable materialization only after the prerequisite identity is stable enough to bind"
+      ],
+      "repository-policy/release-trust.md": [
+        "frozen reviewed candidate followed by a separate promotion change"
+      ]
+    }
+  },
+  {
+    "name": "ancestry-movement-preserves-semantic-repair",
+    "required": {
+      "skills/pr-merge-gate/references/review-finding-ledger.md": [
+        "semantic repair state",
+        "qualification state",
+        "may remain semantically repaired while moving to qualification-pending"
+      ],
+      "policy/pull-request/reuse-valid-evidence.md": [
+        "reacquire only the evidence affected by a concrete invalidation signal"
+      ]
+    }
+  },
+  {
+    "name": "semantic-dependency-change-requires-reevaluation",
+    "required": {
+      "skills/orchestrate-repository-change/references/stacked-pr-workflow.md": [
+        "if a changed base actually alters content, applicability, provenance, generated output, or required evidence",
+        "update only the affected members and invalidate only the evidence whose binding changed"
+      ],
+      "skills/pr-merge-gate/references/review-finding-ledger.md": [
+        "when the proposed or construction head changes, re-evaluate ledger fields according to actual binding rather than resetting every item mechanically",
+        "a disposition whose decisive evidence is independent of the changed content may remain valid if current applicability is re-established"
+      ]
+    }
+  },
+  {
+    "name": "urgent-repair-is-not-delayed",
+    "required": {
+      "policy/pull-request/defer-revision-bound-qualification.md": [
+        "must not delay an urgent security, operational, data-integrity, or publication-integrity repair"
+      ],
+      "skills/pr-merge-gate/references/head-mutation-batching.md": [
+        "immediate-mutation exceptions",
+        "concrete operational or safety risk"
+      ]
+    }
+  },
+  {
+    "name": "merge-safety-remains-exact-head-bound",
+    "required": {
+      "policy/pull-request/exact-head-ci-evidence.md": [
+        "require exact-head ci evidence before merge"
+      ],
+      "policy/pull-request/independent-exact-head-review.md": [
+        "require an independent exact-head review before merge"
+      ],
+      "policy/pull-request/immutable-head-guard.md": [
+        "bind the operation to the exact proposed head commit"
+      ]
+    }
+  }
+]
