@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "id": "pr722-incomplete-provenance-record-validation",
+  "kind": "empirical",
+  "title": "Partial provenance validation accepts an incomplete trusted record",
+  "authority": "non-authoritative-evaluation",
+  "risk_domains": [
+    "build-provenance-and-ci",
+    "identity-and-authority",
+    "consumer-and-execution-paths"
+  ],
+  "scenario": {
+    "observed_change": "A consumer announces exact publication provenance after validating one provider revision but accepts records with missing or malformed sibling Site and Policy identities or unexpected provider membership.",
+    "controlled_inputs": [
+      "published provenance object",
+      "provider identity set",
+      "revision-field shapes"
+    ],
+    "mutable_state": [
+      "consumer acceptance state",
+      "displayed provenance claim"
+    ],
+    "authority_boundaries": [
+      "canonical build-provenance record versus browser-consumed representation",
+      "one validated revision versus the complete identity set required by the trust claim"
+    ],
+    "operation_model": [
+      "load a syntactically valid provenance object",
+      "remove or corrupt a required sibling revision or alter provider membership",
+      "validate only a subset of the record",
+      "consumer reports exact publication provenance despite incomplete evidence"
+    ]
+  },
+  "required_invariants": [
+    {
+      "rule_id": "security.validate-boundaries",
+      "requirement": "Structured external or generated input must be validated before it establishes trusted consumer state."
+    },
+    {
+      "rule_id": "testing.require-adversarial-invariant-coverage",
+      "requirement": "Structured trusted records must cover materially applicable missing, malformed, extra, and inconsistent sibling fields."
+    }
+  ],
+  "expected_review": {
+    "disposition": "blocking-finding",
+    "must_investigate": [
+      "which fields and provider identities jointly establish the provenance claim",
+      "whether missing, malformed, extra, or unexpected sibling identities are rejected before exposure"
+    ],
+    "must_identify": [
+      "validating one provenance field is insufficient for a claim that depends on the complete record"
+    ],
+    "must_not_claim": [
+      "exact publication provenance from a partially validated record",
+      "that a valid Composition revision alone authenticates unrelated Site or Policy identity fields"
+    ]
+  },
+  "provenance": {
+    "repository": "TakashiSasaki/templates",
+    "pull_request": 722,
+    "source_type": "pull-request-review",
+    "source_id": "PRR_kwDOTm6ous8AAAABMRnlmw",
+    "reviewed_head": "59a84e0fbc4b03205cee2e2455f7457a270df891",
+    "head_binding": "exact",
+    "note": "Codex reported that the Playground accepted provenance with missing or malformed Site/Policy identity fields while still presenting an exact publication-provenance success state."
+  }
+}

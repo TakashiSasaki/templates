@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "id": "pr722-container-boundary-overflow",
+  "kind": "empirical",
+  "title": "Viewport-only layout tests miss the actual containing boundary",
+  "authority": "non-authoritative-evaluation",
+  "risk_domains": [
+    "resource-behavior",
+    "consumer-and-execution-paths"
+  ],
+  "scenario": {
+    "observed_change": "A responsive layout passes a narrow-viewport regression, but a desktop media rule imposes fixed minimum grid tracks that exceed the actual reader column once surrounding navigation and table-of-contents chrome reduce available width.",
+    "controlled_inputs": [
+      "viewport width",
+      "reader container width after surrounding chrome",
+      "grid track minimums and gap"
+    ],
+    "mutable_state": [
+      "active responsive rule",
+      "available content-container width"
+    ],
+    "authority_boundaries": [
+      "viewport dimensions versus the effective layout container",
+      "isolated component sizing versus the real consumer page chrome"
+    ],
+    "operation_model": [
+      "verify the component at a narrow viewport where the desktop rule is inactive",
+      "open the real desktop Site layout with side chrome",
+      "activate fixed desktop track minimums against a narrower reader column",
+      "component overflows horizontally despite the green mobile regression"
+    ]
+  },
+  "required_invariants": [
+    {
+      "rule_id": "testing.require-adversarial-invariant-coverage",
+      "requirement": "Resource and layout boundaries must be tested at the effective containing boundary when that boundary, rather than viewport width alone, determines correctness."
+    }
+  ],
+  "expected_review": {
+    "disposition": "blocking-finding",
+    "must_investigate": [
+      "which container actually constrains the component at the affected breakpoint",
+      "whether existing browser coverage activates the desktop rule in the real page chrome"
+    ],
+    "must_identify": [
+      "viewport-only coverage does not prove shrinkability inside the effective desktop reader container"
+    ],
+    "must_not_claim": [
+      "responsive safety from a mobile-only assertion that never activates the failing desktop rule",
+      "sufficient width from viewport size when surrounding chrome reduces the actual component container"
+    ]
+  },
+  "provenance": {
+    "repository": "TakashiSasaki/templates",
+    "pull_request": 722,
+    "source_type": "pull-request-review",
+    "source_id": "PRR_kwDOTm6ous8AAAABMNCqFw",
+    "reviewed_head": "5a5a700540436ad502fe152dbd270c5531642ea3",
+    "head_binding": "exact",
+    "note": "Codex found that fixed desktop grid minima could overflow the Site reader column even though the supplied 360px browser assertion passed because it never activated the desktop media rule."
+  }
+}

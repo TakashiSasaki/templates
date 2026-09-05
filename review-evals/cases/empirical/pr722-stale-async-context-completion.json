@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "id": "pr722-stale-async-context-completion",
+  "kind": "empirical",
+  "title": "Stale asynchronous completion mutates a replacement UI context",
+  "authority": "non-authoritative-evaluation",
+  "risk_domains": [
+    "concurrency-and-temporal-consistency",
+    "state-mutation-and-recovery",
+    "consumer-and-execution-paths"
+  ],
+  "scenario": {
+    "observed_change": "A UI mount awaits asynchronous data while navigation can replace the root. Completion of the old mount then looks up and mutates the current root instead of the root associated with the initiating operation.",
+    "controlled_inputs": [
+      "timing of the first asynchronous load",
+      "navigation that replaces the mounted root before completion"
+    ],
+    "mutable_state": [
+      "current mount generation",
+      "current root identity",
+      "pending asynchronous completion"
+    ],
+    "authority_boundaries": [
+      "state validated for the initiating mount versus state current at completion",
+      "old asynchronous operation versus replacement consumer context"
+    ],
+    "operation_model": [
+      "start mount A and begin asynchronous load",
+      "navigate away and mount replacement B",
+      "allow A to complete after B is current",
+      "stale continuation mutates or hides B"
+    ]
+  },
+  "required_invariants": [
+    {
+      "rule_id": "safety.bind-validated-state-to-operation",
+      "requirement": "State or identity validated for an operation must remain bound to the effective target through use."
+    },
+    {
+      "rule_id": "testing.require-adversarial-invariant-coverage",
+      "requirement": "Lifecycle and asynchronous changes must cover materially reachable stale/current transition cases that share the same invariant."
+    }
+  ],
+  "expected_review": {
+    "disposition": "blocking-finding",
+    "must_investigate": [
+      "whether an awaited continuation captures the initiating root or generation",
+      "whether success and failure completion can run after a replacement context becomes current"
+    ],
+    "must_identify": [
+      "the stale continuation can mutate the replacement consumer context"
+    ],
+    "must_not_claim": [
+      "safe remount behavior based only on direct-load or completed-navigation tests",
+      "that checking the current root after await preserves initiating-operation ownership"
+    ]
+  },
+  "provenance": {
+    "repository": "TakashiSasaki/templates",
+    "pull_request": 722,
+    "source_type": "review-thread-comment",
+    "source_id": "PRRC_kwDOTm6ous7qnDAi",
+    "reviewed_head": "65e246bdf9eb864186d24dfc3ef829ad5e4f8925",
+    "head_binding": "exact",
+    "note": "Codex identified that an older Playground mount could complete after instant navigation and hide the replacement root because the continuation did not preserve initiating root/generation identity."
+  }
+}

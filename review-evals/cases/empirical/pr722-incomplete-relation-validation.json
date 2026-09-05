@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "id": "pr722-incomplete-relation-validation",
+  "kind": "empirical",
+  "title": "One-way relation validation accepts an incomplete projected dependency",
+  "authority": "non-authoritative-evaluation",
+  "risk_domains": [
+    "consumer-and-execution-paths",
+    "namespace-and-indirection"
+  ],
+  "scenario": {
+    "observed_change": "A consumer validates every dependency edge that is present against component declarations, but does not require every declared dependency of a resolved component to appear in the projected relation.",
+    "controlled_inputs": [
+      "resolved component set",
+      "declared requires relation",
+      "projected dependency-edge set"
+    ],
+    "mutable_state": [
+      "projected outcome relation",
+      "consumer-visible explanation derived from that relation"
+    ],
+    "authority_boundaries": [
+      "producer-declared relation versus consumer projection",
+      "validation of present edges versus completeness of required edges"
+    ],
+    "operation_model": [
+      "resolve a component that declares a required target",
+      "omit the required target or corresponding projected edge",
+      "validate only edges that remain present",
+      "consumer renders an incomplete dependency explanation as valid"
+    ]
+  },
+  "required_invariants": [
+    {
+      "rule_id": "testing.require-adversarial-invariant-coverage",
+      "requirement": "Relation-set validation must cover materially required converse or completeness conditions, not only validity of listed entries."
+    }
+  ],
+  "expected_review": {
+    "disposition": "blocking-finding",
+    "must_investigate": [
+      "whether the consumer derives or checks the expected relation set from authoritative declarations",
+      "whether omitted required targets or edges are rejected"
+    ],
+    "must_identify": [
+      "validation proves that listed edges are valid but does not prove the required relation is complete"
+    ],
+    "must_not_claim": [
+      "complete dependency validation from a one-directional edge check",
+      "correct consumer explanation when required relation members can be silently omitted"
+    ]
+  },
+  "provenance": {
+    "repository": "TakashiSasaki/templates",
+    "pull_request": 722,
+    "source_type": "review-thread-comment",
+    "source_id": "PRRC_kwDOTm6ous7qwo5Y",
+    "reviewed_head": "59a84e0fbc4b03205cee2e2455f7457a270df891",
+    "head_binding": "exact",
+    "note": "Codex showed that removing a declared dependency target and its projected edge still passed validation because only present edges were checked."
+  }
+}

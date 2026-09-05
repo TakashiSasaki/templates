@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "id": "pr722-namespace-role-inconsistency",
+  "kind": "empirical",
+  "title": "Identifier namespace and semantic role can disagree",
+  "authority": "non-authoritative-evaluation",
+  "risk_domains": [
+    "identity-and-authority",
+    "namespace-and-indirection",
+    "consumer-and-execution-paths"
+  ],
+  "scenario": {
+    "observed_change": "A consumer validates an identifier prefix and a component role independently but does not require those two identity representations to agree, allowing an artifact-prefixed component to be labeled and rendered as a capability.",
+    "controlled_inputs": [
+      "component identifier namespace",
+      "component role field"
+    ],
+    "mutable_state": [
+      "validated component record",
+      "consumer grouping and explanation derived from the role"
+    ],
+    "authority_boundaries": [
+      "canonical identifier namespace versus semantic role metadata",
+      "syntactic validation versus cross-field identity consistency"
+    ],
+    "operation_model": [
+      "provide a component whose identifier has a valid artifact namespace",
+      "assign a separately valid capability role",
+      "pass independent field validation",
+      "consumer exposes the component under the wrong semantic role"
+    ]
+  },
+  "required_invariants": [
+    {
+      "rule_id": "testing.require-adversarial-invariant-coverage",
+      "requirement": "Identity mappings that jointly establish semantic meaning must cover materially reachable cross-field inconsistency, not only independent field syntax."
+    }
+  ],
+  "expected_review": {
+    "disposition": "blocking-finding",
+    "must_investigate": [
+      "whether identifier namespace and role jointly encode the same semantic identity",
+      "whether cross-field mismatch is rejected before consumer grouping or explanation"
+    ],
+    "must_identify": [
+      "independent validation of both fields does not establish their required consistency"
+    ],
+    "must_not_claim": [
+      "valid component identity solely because the namespace and role are each individually allowed",
+      "correct consumer classification when the two semantic identity fields can disagree"
+    ]
+  },
+  "provenance": {
+    "repository": "TakashiSasaki/templates",
+    "pull_request": 722,
+    "source_type": "review-thread-comment",
+    "source_id": "PRRC_kwDOTm6ous7qwo5m",
+    "reviewed_head": "59a84e0fbc4b03205cee2e2455f7457a270df891",
+    "head_binding": "exact",
+    "note": "Codex identified that a valid component ID prefix and a separately valid role could disagree, causing the Site consumer to render the component under the wrong semantic role."
+  }
+}
