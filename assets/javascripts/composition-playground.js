@@ -793,9 +793,27 @@
         includes: Array.from(nodes.optionals.querySelectorAll("input[type=checkbox]:checked"), (node) => node.value)
       });
 
+      const clearRuntimeError = () => {
+        delete root.dataset.playgroundError;
+        current.error = null;
+        runtimeState.error = null;
+      };
+
+      const failClosed = (error) => {
+        app.hidden = true;
+        status.textContent = statusForError(error);
+        root.dataset.playgroundError = error instanceof ProjectionError ? error.code : "UNKNOWN";
+        current.context = null;
+        current.error = error;
+        runtimeState.context = null;
+        runtimeState.error = error;
+        notify({ type: "error", root, error });
+      };
+
       const apply = (nextState, hashMode) => {
         if (runtimeState !== current || root.isConnected === false) return;
         state = nextState;
+        clearRuntimeError();
         renderSelection(document, nodes, projection, state, () => apply(readControlState(), "push"));
         updateContext();
         renderCase(document, nodes, projection, provenance, currentCase);
@@ -805,6 +823,8 @@
           if (hashMode === "replace") scope.history.replaceState(null, "", url);
           else scope.history.pushState(null, "", url);
         }
+        app.hidden = false;
+        status.textContent = labels.loaded;
       };
 
       nodes.recipe.addEventListener("change", () => apply({ recipeId: nodes.recipe.value, includes: [] }, "push"));
@@ -831,17 +851,18 @@
         if (runtimeState !== current || root.isConnected === false) return;
         try {
           const parsed = parseHashWithOwnership(scope.location ? scope.location.hash : "", projection);
-          if (parsed.kind === "document") return;
+          if (parsed.kind === "document") {
+            if (current.error) apply(state, "preserve");
+            return;
+          }
           apply(parsed.state, "replace");
         } catch (error) {
-          status.textContent = statusForError(error);
+          failClosed(error);
         }
       };
       bindHashListener();
 
       apply(state, initialHash.kind === "document" ? "preserve" : "replace");
-      app.hidden = false;
-      status.textContent = labels.loaded;
       notify({ type: "ready", context: current.context });
       return current.context;
     } catch (error) {
