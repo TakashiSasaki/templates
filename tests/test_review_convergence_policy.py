@@ -42,12 +42,14 @@ def test_adversarial_invariant_rule_is_bounded_and_risk_triggered() -> None:
         "asynchronous completion",
         "stale-state",
         "converse/completeness",
-        "actual container boundaries",
+        "effective inner containment boundary",
         "bounded sibling",
     ):
         assert phrase in text
     assert "fixed universal matrix" in text
     assert "do not require unrelated combinations" in text
+    for artifact_specific_term in ("browser", "viewport"):
+        assert artifact_specific_term not in text
 
 
 def test_review_acquisition_preflight_checks_identity_without_becoming_review_evidence() -> None:
