@@ -175,8 +175,10 @@ test("material destinations reject ancestor/descendant collisions", () => {
     { index: 0, component: "artifact.skill", destination: "README.md", ownership: "seed", sha256: "0".repeat(64) },
     { index: 1, component: "artifact.skill", destination: "README.md/child.txt", ownership: "seed", sha256: "1".repeat(64) },
   ];
-  value.outcomes[0].material_ids = [0, 1];
-  value.outcomes[0].initial_plan.action_counts = { create: 2 };
+  for (const outcome of value.outcomes) {
+    outcome.material_ids = [0, 1];
+    outcome.initial_plan.action_counts = { create: 2 };
+  }
   assert.throws(() => playground.validateProjection(value), (error) => error.code === "MALFORMED_PROJECTION");
 });
 
@@ -185,8 +187,10 @@ test("empty-target initial plan count must equal projected material count", () =
   valid.materials = [
     { index: 0, component: "artifact.skill", destination: "README.md", ownership: "seed", sha256: "0".repeat(64) },
   ];
-  valid.outcomes[0].material_ids = [0];
-  valid.outcomes[0].initial_plan.action_counts = { create: 1 };
+  for (const outcome of valid.outcomes) {
+    outcome.material_ids = [0];
+    outcome.initial_plan.action_counts = { create: 1 };
+  }
   assert.doesNotThrow(() => playground.validateProjection(valid));
 
   for (const counts of [{}, { create: 0 }, { create: 2 }, { create: 1, replace: 0 }]) {
