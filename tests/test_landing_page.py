@@ -84,11 +84,7 @@ class LandingPageTests(unittest.TestCase):
             'class="portal-cover__button portal-cover__button--primary" href="web/"',
             text,
         )
-        self.assertIn(
-            'class="portal-cover__button portal-cover__button--secondary" href="playground/"',
-            text,
-        )
-        self.assertEqual(text.count('class="portal-cover__button '), 3)
+        self.assertEqual(text.count('class="portal-cover__button '), 2)
         for destination in (
             "web/",
             "playground/",

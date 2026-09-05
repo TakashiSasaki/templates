@@ -21,9 +21,6 @@
       <a class="portal-cover__button portal-cover__button--secondary" href="composition/use/skill-first-use-walkthrough/">
         Create an Agent Skill <span aria-hidden="true">→</span>
       </a>
-      <a class="portal-cover__button portal-cover__button--secondary" href="playground/">
-        Try Composition Playground <span aria-hidden="true">→</span>
-      </a>
     </div>
     <ul class="portal-cover__signals" role="list">
       <li>Start with a concrete task; learn the architecture later.</li>
@@ -41,7 +38,7 @@
   <div class="portal-section-heading">
     <p class="portal-section-heading__kicker">What do you want to do?</p>
     <h2 id="portal-build-title">Choose a task, not an internal authority</h2>
-    <p>Each entry point routes to the authority that owns the detailed procedure. You do not need to understand Composition, capabilities, or lifecycle contracts before starting.</p>
+    <p>Each entry point routes to the authority that owns the detailed procedure. You do not need to understand Composition, capabilities, or lifecycle contracts before starting. Want to explore the resolved output interactively first? <a href="playground/">Try Composition Playground</a>.</p>
   </div>
 
   <div class="portal-artifact-grid">
