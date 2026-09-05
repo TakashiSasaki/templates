@@ -10,6 +10,7 @@ on:
   pull_request:
     branches:
       - site
+      - codex/site-composition-playground-v1-shell
     paths:
       - '.github/workflows/check-publication-freshness.yml'
       - '.github/workflows/build-pages.yml'
