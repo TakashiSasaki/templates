@@ -408,6 +408,8 @@ def annotate_and_validate_generated_html(site_root: Path, site_revision: str) ->
         raise FreshnessMetadataError("no cache-eligible HTML freshness metadata verified")
     return len(updates), verified
 
+
+
 def build_payload(
     site_revision: str,
     deployment_timestamp: str,

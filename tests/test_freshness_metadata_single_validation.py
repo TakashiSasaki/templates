@@ -47,13 +47,17 @@ class FreshnessMetadataSingleValidationTests(unittest.TestCase):
     def test_final_on_disk_verifier_rejects_a_bad_injected_revision(self) -> None:
         wrong_revision = "d" * 40
 
-        def corrupt_annotation(source: str, revision: str, path: Path) -> str:
+        def corrupt_annotation(
+            source: str,
+            revision: str,
+            path: Path,
+        ) -> tuple[str, list[dict[str, str | None]], int]:
             del revision, path
-            marker = (
-                '<meta name="templates-site-revision" '
-                f'content="{wrong_revision}">\n'
+            return (
+                source,
+                [{"name": "templates-site-revision", "content": wrong_revision}],
+                0,
             )
-            return source.replace("</head>", marker + "</head>", 1)
 
         with tempfile.TemporaryDirectory() as directory:
             site_root = Path(directory)
