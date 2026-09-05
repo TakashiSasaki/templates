@@ -5,6 +5,7 @@ policy_files:
   - policy/core/semantic-decision-gates.md
   - policy/core/regression-safety.md
   - policy/core/testing.md
+  - policy/core/adversarial-invariant-testing.md
   - policy/core/evidence-layers.md
   - policy/core/generated-artifacts.md
   - policy/core/compatibility.md
