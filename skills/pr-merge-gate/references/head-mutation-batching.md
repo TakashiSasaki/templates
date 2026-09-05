@@ -10,6 +10,14 @@ This is a candidate-stabilization discipline, not a new acceptance gate. It has 
 
 For a final whole-stack review, treat required CI and review as ordered revision-bound evidence rather than parallel latency-hiding work. Freeze the intended final heads first, then require all applicable required CI on those exact heads to have completed successfully before requesting the final review. Pending required CI means the review candidate is not yet qualified for that request. Failed or cancelled required CI requires repair or explicit disposition and requalification. If a head changes, reacquire the required CI for the affected exact head before requesting a replacement review. This ordering does not block construction of later stack members and is not a time-based waiting gate.
 
+## Distinguish diagnostic validation from qualification evidence
+
+Use focused diagnostic validation during implementation to falsify the current change quickly. Diagnostic checks may be repeated as the implementation changes and may intentionally cover only the changed invariant or suspected failure mode. Their purpose is feedback, not a claim that the candidate has completed every required acceptance gate.
+
+Use qualification validation when the current candidate is intended to support revision-bound acceptance, final review, release, publication, or another authority-defined completion boundary. Qualification must include every check required by the applicable repository authority and must bind those results to the exact candidate revision or artifact.
+
+Do not deliberately spend an expensive full qualification cycle on a candidate already known to be intermediate when focused diagnostics can complete the known repair first. Conversely, never substitute a diagnostic pass for required qualification merely because the focused check is faster. Naturally triggered repository CI remains valid observable evidence when applicable; this distinction does not authorize disabling required automatic checks.
+
 ## Preserve a stable candidate while evidence is in flight
 
 Once a candidate head has entered CI or independent review, treat that SHA as stable unless a justified repair, scope correction, conflict resolution, or other necessary head-changing action is ready to apply.

@@ -12,6 +12,22 @@ If the evidence is still insufficient to determine what happened, keep the item 
 
 Historical or stale-head review comments may be useful diagnostic inputs, but they are not exact-head acceptance evidence. Re-evaluate any still-material hypothesis against the current head before using it to justify a repair or a no-change disposition.
 
+## Audit bounded sibling dimensions after a verified invariant break
+
+When a review item is verified as an `actual-defect`, `invariant-gap`, or `regression-test-gap`, identify the material invariant that failed before choosing the final repair boundary. Inspect only the bounded sibling dimensions that share that same root cause and are realistically reachable in the changed execution or consumer path.
+
+Useful sibling dimensions include:
+
+- success versus failure completion for the same asynchronous operation;
+- current versus stale generation, root, selection, or target state;
+- a listed relation versus the required converse or completeness condition;
+- missing, malformed, extra, duplicate, or internally inconsistent structured fields consumed by the same boundary;
+- direct load versus remount, navigation, retry, recovery, or same-document transition for the same lifecycle;
+- viewport assumptions versus the actual containing layout or resource boundary; and
+- one validated identity/provenance field versus sibling fields that jointly establish the same trusted record.
+
+This is a bounded root-cause audit, not permission for open-ended neighboring cleanup. Stop when the shared invariant and its materially reachable sibling dimensions are covered. Do not delay a ready safety-critical repair merely to search for hypothetical variants. Record any verified sibling defect as its own independently addressable item when it requires distinct remediation or validation.
+
 ## Assign one primary disposition
 
 Once the evidence is sufficient, assign exactly one primary disposition to the review item:
