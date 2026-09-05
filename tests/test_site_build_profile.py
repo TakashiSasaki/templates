@@ -21,7 +21,8 @@ class SiteBuildProfileTests(unittest.TestCase):
             browser.parent.mkdir(parents=True)
             reader.write_text(
                 '<html><head><meta name="templates-site-revision" content="' + 'a' * 40 + '"></head>'
-                '<body><main><a href="/target/">target</a></main></body></html>',
+                '<body><main><a href="/target/">target</a>'
+                '<a href=" /glossary/#term ">term</a></main></body></html>',
                 encoding="utf-8",
             )
             browser.write_text(
@@ -33,11 +34,12 @@ class SiteBuildProfileTests(unittest.TestCase):
             inventory = site_build_profile.collect_inventory(root)
 
             self.assertEqual(inventory["html_pages"], 2)
-            self.assertEqual(inventory["effective_links"], 3)
-            self.assertEqual(inventory["fragment_links"], 2)
+            self.assertEqual(inventory["effective_links"], 4)
+            self.assertEqual(inventory["fragment_links"], 3)
             self.assertEqual(inventory["line_anchors"], 2)
             self.assertEqual(inventory["buckets"]["files"]["html_pages"], 1)
             self.assertEqual(inventory["buckets"]["files"]["line_anchors"], 2)
+            self.assertEqual(inventory["buckets"]["reader"]["fragment_links"], 1)
             self.assertEqual(inventory["buckets"]["reader"]["freshness_meta_pages"], 1)
 
     def test_prepare_freshness_input_preserves_sandbox_previews(self) -> None:
@@ -76,7 +78,7 @@ class SiteBuildProfileTests(unittest.TestCase):
                 {"schema_version": 1, "canonical_language": "en", "translations": []},
             )
 
-    def test_profile_summary_records_cpu_totals(self) -> None:
+    def test_profile_summary_records_elapsed_profiler_total(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             profile_path = Path(temporary_directory) / "sample.prof"
             profiler = cProfile.Profile()
@@ -87,7 +89,8 @@ class SiteBuildProfileTests(unittest.TestCase):
 
             self.assertEqual(record["label"], "sample")
             self.assertGreater(record["total_calls"], 0)
-            self.assertGreaterEqual(record["profiled_cpu_seconds"], 0)
+            self.assertGreaterEqual(record["profiled_elapsed_seconds"], 0)
+            self.assertNotIn("profiled_cpu_seconds", record)
 
 
 if __name__ == "__main__":

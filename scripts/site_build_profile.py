@@ -15,6 +15,11 @@ from html.parser import HTMLParser
 from pathlib import Path, PurePosixPath
 from typing import Any
 
+from validate_site_links import (
+    normalize_special_url_backslashes,
+    preprocess_url_input,
+)
+
 
 SITE_REVISION_META_NAME = "templates-site-revision"
 FRESHNESS_META_PATTERN = re.compile(
@@ -81,7 +86,11 @@ class MainLinkCounter(HTMLParser):
         if href is None:
             return
         self.all_links += 1
-        fragment = href.startswith("#") and len(href) > 1
+        normalized_href = normalize_special_url_backslashes(
+            preprocess_url_input(href)
+        )
+        _, separator, fragment_value = normalized_href.partition("#")
+        fragment = bool(separator and fragment_value)
         if fragment:
             self.all_fragments += 1
         if self.main_depth:
@@ -251,7 +260,7 @@ def summarize_profile(profile: Path, label: str, limit: int) -> dict[str, Any]:
         "label": label,
         "total_calls": stats.total_calls,
         "primitive_calls": stats.prim_calls,
-        "profiled_cpu_seconds": round(stats.total_tt, 6),
+        "profiled_elapsed_seconds": round(stats.total_tt, 6),
     }
 
 
