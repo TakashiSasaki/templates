@@ -14,6 +14,22 @@ Construct an explicit dependency topology in which every member has one coherent
 
 Do not deliberately propagate a known material defect into later members. A later member may depend on an earlier open PR, but the dependency must remain explicit.
 
+## Stability frontier
+
+Track a practical stability frontier through the ordered stack. A member is at the stability frontier when, based on currently known work, no further head change is planned unless a new material defect, authority decision, scope correction, conflict, or other justified mutation appears. This is a planning state for controlling descendant churn. It does not mean the member is merged, reviewed, approved, immutable forever, or independently merge-ready.
+
+Review latency alone does not move the frontier backward and does not block dependency-safe implementation above it. If a lower member is still being validated or reviewed but no known defect prevents later work, construct later members on the current exact parent head and keep the dependency explicit. Do not create a cosmetic or mechanical lower-head rewrite merely to make a stable member appear fresh.
+
+A known material upstream defect is different from review latency. Do not deliberately build later work on behavior already known to require semantic correction when that correction invalidates the prerequisite. When dependency-safe later implementation can proceed without embedding the defective assumption, it may continue, but preserve the unresolved dependency explicitly.
+
+When a known upstream semantic repair will necessarily stale a downstream immutable identity, provenance value, generated projection, signed artifact, or other revision-bound materialization, defer that downstream **final materialization** until the upstream identity is stable enough to bind. This does not prohibit implementation of the downstream logic, tests, schemas, adapters, or other dependency-safe work. It prevents knowingly manufacturing final immutable evidence that must immediately be replaced.
+
+When a lower member later merges or its base identity changes, re-evaluate upper members according to actual bindings. If an upper head and its semantic diff remain valid without modification, do not mechanically rewrite the upper head solely to record the lower merge. If a changed base actually alters content, applicability, provenance, generated output, or required evidence, update only the affected members and invalidate only the evidence whose binding changed.
+
+Before intentionally requesting a final revision-bound whole-stack review, move the intended stack to a final stability frontier: freeze the exact candidate heads that are intended to be reviewed and avoid further planned head mutation. A subsequent justified repair may move the frontier again, but the old review candidate then becomes stale according to its actual bindings.
+
+## Candidate stabilization and review sequencing
+
 Before intentionally starting expensive acceptance review for a member, stabilize that candidate as far as reasonably possible: complete the authorized implementation, disposition known self-audit findings, finish focused validation, establish required generated-projection coherence, batch known compatible head-changing repairs, resolve known material defects, and finish any upstream semantic repair that is known to make downstream immutable identity materialization stale. This is not a timer, perfection requirement, PR-creation gate, or reason to wait for earlier CI/review. Continue useful dependent implementation while earlier members stabilize when safe, and do not deliberately review a knowingly intermediate downstream head.
 
 Before intentionally requesting a final whole-stack review, freeze every stack member at its intended final candidate head and require all applicable required CI for those exact heads to have completed successfully. CI completion does not block construction of later members; this sequencing applies to final revision-bound review acquisition after the stack is stabilized. Pending required CI blocks the final review request. Failed or cancelled required CI requires repair or explicit disposition and requalification before review. If any reviewed candidate head changes, reacquire the required CI for the affected exact heads before requesting the replacement final review.
