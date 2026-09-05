@@ -399,16 +399,40 @@
           }
           const explicitComponents = new Set(optionals.filter((_componentIdValue, position) => (mask & (2 ** position)) !== 0));
           const resolvedSet = new Set(outcome.resolved_components);
-          for (const expectedComponent of new Set([
+          const directlySelected = new Set([
             recipe.artifact,
             ...required,
             ...defaults,
             ...explicitComponents
-          ])) {
+          ]);
+          for (const expectedComponent of directlySelected) {
             if (!resolvedSet.has(expectedComponent)) {
               throw new ProjectionError("MALFORMED_PROJECTION", `recipe ${recipe.id} case ${mask} omits a directly selected component from its outcome`);
             }
           }
+
+          const positionByComponent = new Map(
+            outcome.resolved_components.map((componentIdValue, componentIndex) => [componentIdValue, componentIndex])
+          );
+          const outgoingDependencies = new Map();
+          for (const [sourceIndex, targetIndex] of outcome.dependency_edges) {
+            if (!outgoingDependencies.has(sourceIndex)) outgoingDependencies.set(sourceIndex, []);
+            outgoingDependencies.get(sourceIndex).push(targetIndex);
+          }
+          const reachable = new Set(Array.from(directlySelected, (componentIdValue) => positionByComponent.get(componentIdValue)));
+          const pending = Array.from(reachable);
+          while (pending.length) {
+            const sourceIndex = pending.pop();
+            for (const targetIndex of outgoingDependencies.get(sourceIndex) || []) {
+              if (reachable.has(targetIndex)) continue;
+              reachable.add(targetIndex);
+              pending.push(targetIndex);
+            }
+          }
+          if (reachable.size !== outcome.resolved_components.length) {
+            throw new ProjectionError("MALFORMED_PROJECTION", `recipe ${recipe.id} case ${mask} has a resolved component that is not reachable from a directly selected root`);
+          }
+
           const dependencyTargets = new Set(outcome.dependency_edges.map((edge) => edge[1]));
           item.selection_reason_masks.forEach((reasonMask, componentIndex) => {
             const componentIdValue = outcome.resolved_components[componentIndex];

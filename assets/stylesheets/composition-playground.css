@@ -87,7 +87,8 @@
     align-items: start;
   }
 
-  .composition-playground [aria-labelledby="playground-config-title"] {
+  .composition-playground [aria-labelledby="playground-config-title"],
+  .composition-playground [data-playground-explain] {
     grid-column: 1 / -1;
   }
 }
