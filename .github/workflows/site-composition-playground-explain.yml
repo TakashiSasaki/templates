@@ -67,11 +67,16 @@ jobs:
           python -I scripts/check_composition_playground_final_three_browser.py
           python -I scripts/check_composition_playground_final_grid_browser.py
 
-      - name: Verify exact-head and activation boundary
+      - name: Verify exact-head and active publication binding
         env:
           EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+          EXPECTED_COMPOSITION_REVISION: 95a91a9f0a2258a7611c77f32a571164c065ece3
+          EXPECTED_POLICY_REVISION: c5a3294809a1066bf59b83f467f1d597f885289a
         run: |
           test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
           grep --fixed-strings -- 'composition-playground-explain.js' zensical.template.toml
           grep --fixed-strings -- 'composition-playground-v1.json.gz' docs/composition-playground.md
-          test "$(git diff --name-only '${{ github.event.pull_request.base.sha }}' HEAD -- publication-sources.json)" = ""
+          python -I scripts/resolve_publication_sources.py > "$RUNNER_TEMP/publication-sources.txt"
+          test "$(wc -l < "$RUNNER_TEMP/publication-sources.txt")" -eq 2
+          grep --fixed-strings --line-regexp -- "composition=$EXPECTED_COMPOSITION_REVISION" "$RUNNER_TEMP/publication-sources.txt"
+          grep --fixed-strings --line-regexp -- "policy=$EXPECTED_POLICY_REVISION" "$RUNNER_TEMP/publication-sources.txt"
