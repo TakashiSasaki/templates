@@ -6,6 +6,8 @@ from __future__ import annotations
 import argparse
 import hashlib
 import html
+from functools import lru_cache
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import quote_from_bytes
@@ -257,7 +259,7 @@ def render_browser_page(
         "<p>Select a file from the tree.</p></html>",
         quote=True,
     )
-    return f"""<!doctype html>
+    rendered = f"""<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -355,6 +357,7 @@ def lexer_for(path: bytes, text: str):
         return TextLexer()
 
 
+@lru_cache(maxsize=4096)
 def highlighted_lines(path: bytes, text: str) -> tuple[list[str], str]:
     lexer = lexer_for(path, text)
     formatter = HtmlFormatter(nowrap=True)
@@ -382,12 +385,26 @@ def pygments_css() -> str:
     return HtmlFormatter().get_style_defs(".line-code")
 
 
+def validate_line_anchor_invariant(rendered: str, expected_lines: int) -> None:
+    """Validate deterministic source-line anchors owned by this generator."""
+    ids = tuple(int(value) for value in re.findall(r'<div class="source-line" id="L(\\d+)">', rendered))
+    hrefs = tuple(int(value) for value in re.findall(r'class="line-number" href="#L(\\d+)"', rendered))
+    expected = tuple(range(1, expected_lines + 1))
+    if ids != expected or hrefs != expected:
+        raise RepositoryBrowserError(
+            "source viewer line-anchor invariant failed: "
+            f"expected {expected_lines} contiguous anchors"
+        )
+
+
 def render_file_page(branch: str, revision: str, record: FileRecord) -> str:
     path_label = html.escape(display_bytes(record.path), quote=False)
     object_id = html.escape(record.object_id, quote=False)
     escaped_revision = html.escape(revision, quote=False)
+    expected_lines = 0
     if record.viewable and record.text is not None:
         lines, lexer_name = highlighted_lines(record.path, record.text)
+        expected_lines = len(lines)
         body_lines = []
         for number, fragment in enumerate(lines, start=1):
             body_lines.append(
@@ -466,6 +483,8 @@ body {{ margin: 0; min-height: 100vh; background: Canvas; color: CanvasText; }}
 </body>
 </html>
 """
+    validate_line_anchor_invariant(rendered, expected_lines)
+    return rendered
 
 
 def prepare_browser_root(output_root: Path) -> Path:

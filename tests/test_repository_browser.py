@@ -128,6 +128,23 @@ class RepositoryBrowserSafetyTests(unittest.TestCase):
                 combined,
             )
 
+    def test_generator_owns_contiguous_line_anchor_invariant(self) -> None:
+        with self.assertRaisesRegex(
+            RepositoryBrowserError, "line-anchor invariant failed"
+        ):
+            repository_browser.validate_line_anchor_invariant(
+                '<div class="source-line" id="L1">'
+                '<a class="line-number" href="#L1">1</a></div>',
+                2,
+            )
+        repository_browser.validate_line_anchor_invariant(
+            '<div class="source-line" id="L1">'
+            '<a class="line-number" href="#L1">1</a></div>'
+            '<div class="source-line" id="L2">'
+            '<a class="line-number" href="#L2">2</a></div>',
+            2,
+        )
+
     def test_text_boundary_rejects_invalid_or_unsafe_content(self) -> None:
         self.assertEqual(decode_browser_text(b"hello\n"), ("hello\n", None))
         self.assertIsNone(decode_browser_text(b"\x00binary")[0])

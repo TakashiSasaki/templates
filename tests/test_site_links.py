@@ -355,5 +355,18 @@ class GeneratedSiteLinkTests(unittest.TestCase):
         self.assertIn("must define a non-empty project.site_url", result.stderr)
 
 
+class RepositoryBrowserLineAnchorBoundaryTests(unittest.TestCase):
+    def test_validator_excludes_only_generator_owned_line_fragments(self) -> None:
+        self.assertTrue(
+            validate_site_links.REPOSITORY_LINE_FRAGMENT_RE.fullmatch("#L12")
+        )
+        self.assertFalse(
+            validate_site_links.REPOSITORY_LINE_FRAGMENT_RE.fullmatch("#L0")
+        )
+        self.assertFalse(
+            validate_site_links.REPOSITORY_LINE_FRAGMENT_RE.fullmatch("#Lx")
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
