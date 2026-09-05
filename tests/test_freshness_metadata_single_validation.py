@@ -93,7 +93,7 @@ class FreshnessMetadataSingleValidationTests(unittest.TestCase):
                     PUBLICATIONS,
                 )
 
-            self.assertEqual(2, discovery.call_count)
+            self.assertEqual(1, discovery.call_count)
 
 
 if __name__ == "__main__":
