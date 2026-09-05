@@ -103,6 +103,7 @@ Included modules:
 - `policy/core/semantic-decision-gates.md`
 - `policy/core/regression-safety.md`
 - `policy/core/testing.md`
+- `policy/core/adversarial-invariant-testing.md`
 - `policy/core/evidence-layers.md`
 - `policy/core/generated-artifacts.md`
 - `policy/core/compatibility.md`
@@ -125,12 +126,13 @@ Included modules:
 <!-- PROFILE: pull-request -->
 ### `pull-request`
 
-Use when the context owns pull-request lifecycle work. This profile is operational: it requires target-branch freshness evaluation, at least one completed independent review bound to the exact proposed head, review-thread closure, exact-head CI evidence, fail-closed handling while expected CI evidence is unresolved, reuse of still-valid acceptance evidence with selective invalidation, current mergeability, a final invalidation-focused live-state refresh, an immutable proposed-head guard for merge execution, and post-merge verification. Provider-specific APIs, field names, observation intervals, and retry mechanics belong to an adapter or repository-local policy rather than these shared semantics.
+Use when the context owns pull-request lifecycle work. This profile is operational: it requires target-branch freshness evaluation, revision-binding preflight before intentionally acquiring revision-bound review, at least one completed independent review bound to the exact proposed head, review-thread closure, exact-head CI evidence, fail-closed handling while expected CI evidence is unresolved, reuse of still-valid acceptance evidence with selective invalidation, current mergeability, a final invalidation-focused live-state refresh, an immutable proposed-head guard for merge execution, and post-merge verification. Provider-specific APIs, field names, observation intervals, and retry mechanics belong to an adapter or repository-local policy rather than these shared semantics.
 
 Included modules:
 
 - `policy/pull-request/stacked-review-coverage.md`
 - `policy/pull-request/target-branch-head-freshness.md`
+- `policy/pull-request/review-acquisition-preflight.md`
 - `policy/pull-request/independent-exact-head-review.md`
 - `policy/pull-request/review-thread-closure.md`
 - `policy/pull-request/exact-head-ci-evidence.md`
