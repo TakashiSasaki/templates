@@ -19,8 +19,12 @@ def test_reacquisition_gate_requires_disposition_of_known_material_findings() ->
         "every material actionable finding already known",
         "repair validated for the current proposed head",
         "evidence-backed no-change disposition",
+        "finding-level closure evidence",
+        "unresolved or deferred material findings",
+        "required current-head validated outcome or the required closure evidence",
         "top-level review body",
         "provider thread resolution is bookkeeping",
+        "closure evidence records the validated disposition for auditability",
         "defect hypothesis rather than authority",
         "appeasement edit",
         "unrelated suggestion",
@@ -36,6 +40,7 @@ def test_reacquisition_gate_preserves_handoff_and_urgent_repair_semantics() -> N
         "does not require waiting for hypothetical future findings",
         "explicit human-handoff procedure",
         "one final diagnostic whole-stack audit",
+        "validated dispositions and recorded closure evidence required above",
         "distinct from merge-acceptance evidence",
         "does not satisfy or waive the independent exact-head review requirements",
     ):
@@ -51,6 +56,7 @@ def test_reacquisition_gate_has_distinct_boundary_from_merge_thread_closure() ->
         "before intentionally starting a new merge-acceptance review acquisition cycle"
         in reacquisition
     )
+    assert "finding-level closure evidence" in reacquisition
     assert "before merge" in closure
     assert "before merging" in independent
     assert "review acquisition cycle" not in closure
