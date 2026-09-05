@@ -313,6 +313,11 @@ test("Site document revision is separately bound to structurally validated build
     () => playground.validateDocumentBuildProvenance(malformed, provenance),
     (error) => error.code === "MALFORMED_PROVENANCE",
   );
+  const missing = { querySelector: () => null };
+  assert.throws(
+    () => playground.validateDocumentBuildProvenance(missing, provenance),
+    (error) => error.code === "MALFORMED_PROVENANCE" && /missing/.test(error.message),
+  );
 
   const projection = playground.validateProjection(projectionWithMaterials());
   assert.equal(projection.semanticRevision, "a".repeat(40));
