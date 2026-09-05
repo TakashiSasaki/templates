@@ -434,7 +434,7 @@ test("all Site-consumed explainability fields are validated before exposure", as
     index: 0, component: "artifact.skill", destination: "README.md",
     ownership: "seed", sha256: "0".repeat(64)
   }];
-  base.outcomes[0].contract_ids = [0];
+  for (const outcome of base.outcomes) outcome.contract_ids = [0];
   base.outcomes[0].material_ids = [0];
   assert.doesNotThrow(() => playground.validateProjection(base));
 
