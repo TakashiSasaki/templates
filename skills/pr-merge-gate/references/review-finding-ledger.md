@@ -20,8 +20,10 @@ For each material finding, preserve enough state to recover:
 - **decisive evidence** — the evidence that verifies or falsifies the claim;
 - **mutation required?** — whether closure requires a head-changing repair;
 - **repair / action** — the generalized repair, regression guard, documentation clarification, no-change explanation, or scope disposition;
-- **repair/current head** — the current proposed head on which the disposition is being validated;
-- **validation evidence** — focused and/or required qualification evidence that proves the repair or no-change disposition for that head;
+- **semantic repair state** — whether the required semantic change or no-change determination is understood, repair-ready, applied, or still unresolved independently of final qualification state;
+- **repair/current head** — the current construction or proposed head on which the disposition is being evaluated;
+- **qualification state** — provisional, qualification-pending, qualified for the applicable boundary, or not-applicable when no revision-bound qualification is required for the disposition;
+- **validation evidence** — focused and/or required qualification evidence that proves the repair or no-change disposition for the relevant head and boundary;
 - **closure evidence / surface** — thread resolution, review reply, issue comment, PR body entry, or other available audit surface recording semantic closure;
 - **final state** — unresolved, repair-ready, validation-pending, semantically-closed, or intentionally out-of-scope/non-blocking as supported by the disposition.
 
@@ -36,10 +38,17 @@ After receiving review evidence:
 3. deduplicate only findings that truly describe the same root cause and remediation unit, preserving aliases back to each source occurrence;
 4. verify or falsify each hypothesis against the current proposed head and applicable authority;
 5. assign the existing primary disposition only when evidence is sufficient;
-6. record whether a head mutation is required and, if so, the compatible repair group; and
-7. leave the item in the unresolved backlog until the required current-head validation and closure evidence exist.
+6. record whether a head mutation is required and, if so, the compatible repair group;
+7. distinguish semantic repair progress from revision-bound qualification progress so a provisional descendant can preserve completed repair work without pretending final qualification has occurred; and
+8. leave the item in the unresolved backlog until the required current-head validation and closure evidence exist.
 
 A provider showing zero unresolved threads does not imply an empty finding backlog. Conversely, an old thread need not remain semantically blocking when current evidence has produced a validated no-change disposition.
+
+## Provisional repair and qualification
+
+Apply `pull-request.defer-revision-bound-qualification-until-required` when a repair is being carried through a mutable stacked topology or another provisional construction state. A finding may have its semantic repair applied and focused diagnostics completed while the associated descendant remains `qualification-pending`; this preserves useful work across expected ancestry movement without claiming that exact-head acceptance has been completed.
+
+Do not use `qualification-pending` to bypass a boundary that currently requires exact-revision evidence. Before review reacquisition, final whole-stack audit, merge readiness, publication, release, or another applicable revision-bound completion boundary, the required current-head validation must exist for the exact qualification head and any required closure evidence must be recorded. Semantic repair progress and qualification freshness are separate ledger dimensions, but both must satisfy the applicable authority before the finding can be treated as closed for that boundary.
 
 ## Reacquisition readiness
 
@@ -55,17 +64,17 @@ Do not use provider thread state alone as the decision. Do not create an appease
 
 ## Head movement and selective invalidation
 
-When the proposed head changes, re-evaluate ledger fields according to actual binding rather than resetting every item mechanically.
+When the proposed or construction head changes, re-evaluate ledger fields according to actual binding rather than resetting every item mechanically.
 
 - Exact-head CI or review evidence bound to the former proposed commit becomes stale when the head changes and must be reacquired when that evidence is required for the new exact head.
 - A disposition whose decisive evidence is independent of the changed content may remain valid if current applicability is re-established.
-- A finding repaired by the mutation moves to validation-pending until required evidence for the new head succeeds.
-- A finding about an unchanged, still-applicable fact need not be rediscovered from the provider merely because another finding caused a commit.
+- A finding repaired by the mutation may remain semantically repaired while moving to qualification-pending until required evidence for the new qualification head succeeds.
+- A finding about an unchanged, still-applicable fact need not be rediscovered from the provider merely because another finding or ancestry update caused a commit.
 
-The ledger therefore tracks semantic applicability separately from transport freshness and exact-head qualification evidence.
+The ledger therefore tracks semantic applicability and repair state separately from transport freshness and exact-head qualification evidence.
 
 ## Closure surfaces
 
 For inline findings, prefer a concise reply that records the disposition and decisive validation before resolving the thread. For body-only findings, record the same information on an available review/PR surface that preserves an independently identifiable finding locator. If the execution environment keeps an internal ledger during work, mirror enough final closure evidence to a durable provider surface when the task or repository requires auditable handoff.
 
-Semantic closure means the finding has a validated outcome. Provider resolution is evidence that the disposition was recorded, not the semantic outcome itself.
+Semantic closure means the finding has a validated outcome for the applicable boundary. Provider resolution is evidence that the disposition was recorded, not the semantic outcome itself.
