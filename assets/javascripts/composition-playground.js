@@ -44,6 +44,7 @@
     provenanceUnavailable: "The Site build provenance required to identify the published Composition provider is unavailable.",
     incompatible: "The published Composition Playground projection is incompatible with this Site consumer.",
     malformed: "The published Composition Playground projection or Site build provenance is malformed and was rejected.",
+    invalidSelection: "The Playground selection in this URL is malformed and was rejected.",
     valid: "This selection is valid for canonical initial composition.",
     invalid: "This selection is invalid according to the canonical Composition provider.",
     copied: "Canonical configuration copied.",
@@ -283,6 +284,15 @@
 
       for (const componentIdValue of outcome.resolved_components) {
         if (!componentById.has(componentIdValue)) throw new ProjectionError("MALFORMED_PROJECTION", `outcome ${outcome.index} references an unknown component`);
+      }
+
+      for (const componentIdValue of outcome.resolved_components) {
+        const component = componentById.get(componentIdValue);
+        for (const conflictId of component.conflicts) {
+          if (resolvedSet.has(conflictId)) {
+            throw new ProjectionError("MALFORMED_PROJECTION", `outcome ${outcome.index} contains conflicting components ${componentIdValue} and ${conflictId}`);
+          }
+        }
       }
 
       for (const edge of outcome.dependency_edges) {
@@ -689,6 +699,7 @@
       if (error.code === "PROJECTION_UNAVAILABLE") return labels.unavailable;
       if (error.code === "PROVENANCE_UNAVAILABLE") return labels.provenanceUnavailable;
       if (error.code === "UNSUPPORTED_PROJECTION") return `${labels.incompatible} ${error.message}`;
+      if (error.code === "INVALID_SELECTION") return labels.invalidSelection;
       return `${labels.malformed} ${error.message}`;
     }
     return labels.malformed;
@@ -773,6 +784,7 @@
       const initialHash = parseHashWithOwnership(scope.location ? scope.location.hash : "", projection);
       let state = initialHash.state;
       let currentCase = null;
+      let copyAttemptGeneration = 0;
 
       const updateContext = () => {
         currentCase = lookupCase(projection, state.recipeId, state.includes);
@@ -831,13 +843,15 @@
       nodes.copy.addEventListener("click", async () => {
         const initiatingContext = current.context;
         const initiatingCase = currentCase;
+        const initiatingCopyAttempt = ++copyAttemptGeneration;
         const text = configurationText(initiatingCase);
         const isStillCurrent = () => (
           runtimeState === current &&
           root.isConnected !== false &&
           current.context === initiatingContext &&
           runtimeState.context === initiatingContext &&
-          currentCase === initiatingCase
+          currentCase === initiatingCase &&
+          copyAttemptGeneration === initiatingCopyAttempt
         );
         try {
           await scope.navigator.clipboard.writeText(text);
