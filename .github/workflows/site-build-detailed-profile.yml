@@ -1,0 +1,277 @@
+name: Site build detailed profile
+
+on:
+  workflow_dispatch:
+    inputs:
+      site_ref:
+        description: Site commit, branch, or tag to profile
+        required: false
+        type: string
+        default: site
+  pull_request:
+    paths:
+      - '.github/workflows/site-build-detailed-profile.yml'
+      - 'scripts/site_build_profile.py'
+      - 'tests/test_site_build_profile.py'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: site-build-detailed-profile-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  resolve-site:
+    name: Resolve immutable Site revision
+    runs-on: ubuntu-24.04
+    outputs:
+      site_sha: ${{ steps.resolve.outputs.site_sha }}
+    steps:
+      - name: Resolve requested Site ref
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || inputs.site_ref || 'site' }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Record immutable Site revision
+        id: resolve
+        run: |
+          site_sha="$(git rev-parse HEAD)"
+          if ! printf '%s\n' "$site_sha" | grep --quiet --extended-regexp '^[0-9a-f]{40}$'; then
+            echo "::error::Resolved Site revision is not a full SHA: $site_sha"
+            exit 1
+          fi
+          echo "site_sha=$site_sha" >> "$GITHUB_OUTPUT"
+          echo "Resolved Site profiling target to \`$site_sha\`." >> "$GITHUB_STEP_SUMMARY"
+
+  profile-tests:
+    name: Validate profiling harness
+    needs: resolve-site
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out profiling candidate
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.resolve-site.outputs.site_sha }}
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12.13'
+
+      - name: Install pinned Site dependencies
+        run: python -m pip install --disable-pip-version-check --requirement requirements.txt
+
+      - name: Run focused profiling tests
+        run: python -m unittest discover --start-directory tests --pattern 'test_site_build_profile.py' --verbose
+
+  build:
+    name: Build exact Pages artifact
+    needs: resolve-site
+    uses: ./.github/workflows/build-pages.yml
+    with:
+      site_ref: ${{ needs.resolve-site.outputs.site_sha }}
+
+  profile:
+    name: Profile Site post-processing hotspots
+    needs:
+      - resolve-site
+      - profile-tests
+      - build
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out exact Site candidate
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.resolve-site.outputs.site_sha }}
+          path: site-source
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12.13'
+
+      - name: Resolve publication source revisions
+        id: publication_refs
+        run: |
+          python site-source/scripts/resolve_publication_sources.py \
+            --lock site-source/publication-sources.json \
+            --output "$GITHUB_OUTPUT"
+
+      - name: Check out Composition publication
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ steps.publication_refs.outputs.composition }}
+          path: composition-source
+          persist-credentials: false
+
+      - name: Check out Policy publication
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ steps.publication_refs.outputs.policy }}
+          path: policy-source
+          persist-credentials: false
+
+      - name: Install pinned Site dependencies
+        run: python -m pip install --disable-pip-version-check --requirement site-source/requirements.txt
+
+      - name: Download exact Pages artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: github-pages
+          path: pages-artifact
+
+      - name: Extract profiling input
+        run: |
+          mkdir -p profile/base-site profile/results
+          tar --extract --file pages-artifact/artifact.tar --directory profile/base-site
+          test -f profile/base-site/index.html
+
+      - name: Inventory generated Site corpus
+        run: |
+          python site-source/scripts/site_build_profile.py inventory \
+            --site-root profile/base-site \
+            --output profile/results/site-inventory.json \
+            --summary "$GITHUB_STEP_SUMMARY"
+
+      - name: Profile repository browser generation
+        run: |
+          mkdir -p profile/browser-baseline-output profile/browser-profile-output
+          /usr/bin/time --verbose --output profile/results/repository-browser.baseline.time.txt \
+            python site-source/scripts/generate_repository_browser_composition.py \
+            --repository "$GITHUB_REPOSITORY" \
+            --output-root profile/browser-baseline-output \
+            --branch site=site-source \
+            --branch composition=composition-source \
+            --branch policy=policy-source
+          python -m cProfile -o profile/results/repository-browser.prof \
+            site-source/scripts/generate_repository_browser_composition.py \
+            --repository "$GITHUB_REPOSITORY" \
+            --output-root profile/browser-profile-output \
+            --branch site=site-source \
+            --branch composition=composition-source \
+            --branch policy=policy-source
+          python site-source/scripts/site_build_profile.py inventory \
+            --site-root profile/browser-profile-output \
+            --output profile/results/repository-browser-inventory.json
+          python site-source/scripts/site_build_profile.py profile-summary \
+            --profile profile/results/repository-browser.prof \
+            --label repository-browser \
+            --output-jsonl profile/results/profile-summary.jsonl
+
+      - name: Prepare pre-freshness Site copies
+        run: |
+          python site-source/scripts/site_build_profile.py prepare-freshness-input \
+            --source-root profile/base-site \
+            --destination profile/freshness-baseline-site \
+            --output profile/results/freshness-baseline-preparation.json
+          python site-source/scripts/site_build_profile.py prepare-freshness-input \
+            --source-root profile/base-site \
+            --destination profile/freshness-profile-site \
+            --output profile/results/freshness-profile-preparation.json
+
+      - name: Profile provenance and freshness projection
+        env:
+          SITE_REVISION: ${{ needs.resolve-site.outputs.site_sha }}
+        run: |
+          composition_revision="$(git -C composition-source rev-parse HEAD)"
+          policy_revision="$(git -C policy-source rev-parse HEAD)"
+          /usr/bin/time --verbose --output profile/results/freshness.baseline.time.txt \
+            python site-source/scripts/write_publication_provenance.py \
+            --output profile/freshness-baseline-site/build-provenance.json \
+            --repository "$GITHUB_REPOSITORY" \
+            --site-commit "$SITE_REVISION" \
+            --publication-commit "composition=$composition_revision" \
+            --publication-commit "policy=$policy_revision"
+          python -m cProfile -o profile/results/freshness.prof \
+            site-source/scripts/write_publication_provenance.py \
+            --output profile/freshness-profile-site/build-provenance.json \
+            --repository "$GITHUB_REPOSITORY" \
+            --site-commit "$SITE_REVISION" \
+            --publication-commit "composition=$composition_revision" \
+            --publication-commit "policy=$policy_revision"
+          python site-source/scripts/site_build_profile.py profile-summary \
+            --profile profile/results/freshness.prof \
+            --label provenance-freshness \
+            --output-jsonl profile/results/profile-summary.jsonl
+
+      - name: Profile translation-reader full-tree baseline
+        run: |
+          cp -a profile/base-site profile/translation-baseline-site
+          cp -a profile/base-site profile/translation-profile-site
+          python site-source/scripts/site_build_profile.py write-empty-translation-map \
+            --output profile/empty-translation-publication.json
+          /usr/bin/time --verbose --output profile/results/translation-reader.baseline.time.txt \
+            python site-source/scripts/finalize_translation_reader.py \
+            --site-root profile/translation-baseline-site \
+            --translation-map profile/empty-translation-publication.json \
+            --canonical-url https://templates.moukaeritai.work/
+          python -m cProfile -o profile/results/translation-reader.prof \
+            site-source/scripts/finalize_translation_reader.py \
+            --site-root profile/translation-profile-site \
+            --translation-map profile/empty-translation-publication.json \
+            --canonical-url https://templates.moukaeritai.work/
+          python site-source/scripts/site_build_profile.py profile-summary \
+            --profile profile/results/translation-reader.prof \
+            --label translation-reader-full-tree-baseline \
+            --output-jsonl profile/results/profile-summary.jsonl
+
+      - name: Profile generated Site link validation
+        run: |
+          cat > profile/zensical.toml <<'EOF'
+          [project]
+          site_url = "https://templates.moukaeritai.work/"
+          EOF
+          /usr/bin/time --verbose --output profile/results/site-links.baseline.time.txt \
+            python site-source/scripts/validate_site_links.py \
+            --site-root profile/base-site \
+            --config-file profile/zensical.toml
+          python -m cProfile -o profile/results/site-links.prof \
+            site-source/scripts/validate_site_links.py \
+            --site-root profile/base-site \
+            --config-file profile/zensical.toml
+          python site-source/scripts/site_build_profile.py profile-summary \
+            --profile profile/results/site-links.prof \
+            --label site-links \
+            --output-jsonl profile/results/profile-summary.jsonl
+
+      - name: Record profile summary
+        if: ${{ always() }}
+        run: |
+          {
+            echo
+            echo '### Unprofiled baseline resource samples'
+            echo
+            for timing in profile/results/*.baseline.time.txt; do
+              test -f "$timing" || continue
+              echo "#### \`$(basename "$timing")\`"
+              echo '```text'
+              grep --extended-regexp \
+                'User time|System time|Percent of CPU|Elapsed \(wall clock\)|Maximum resident set size|File system inputs|File system outputs|Exit status' \
+                "$timing" || true
+              echo '```'
+            done
+            echo
+            echo '### cProfile totals (instrumented elapsed time)'
+            echo
+            echo '```json'
+            if test -f profile/results/profile-summary.jsonl; then
+              cat profile/results/profile-summary.jsonl
+            else
+              echo '{"status":"profile summaries unavailable"}'
+            fi
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload detailed Site profile
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: site-build-profile-${{ github.run_id }}
+          path: profile/results
+          if-no-files-found: error
+          retention-days: 14
