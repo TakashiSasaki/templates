@@ -32,7 +32,7 @@
   "required_invariants": [
     {
       "rule_id": "testing.require-adversarial-invariant-coverage",
-      "requirement": "Resource and layout boundaries must be tested at the effective containing boundary when that boundary, rather than viewport width alone, determines correctness."
+      "requirement": "Layout containment must be tested at the effective containing boundary when that boundary, rather than viewport width alone, determines correctness."
     }
   ],
   "expected_review": {
