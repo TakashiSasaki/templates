@@ -33,3 +33,22 @@ The selected progression controls how implementation members are constructed. Th
 An explicitly authorized final whole-stack audit under human-handoff is diagnostic. It is not ordinary per-member merge-acceptance evidence, does not authorize merge, does not waive later exact-head review requirements, and must not create a review-retry loop. The workflow-specific stacked procedure may impose exact-head CI sequencing before that audit is requested.
 
 Cumulative review is an optional evidence-coverage mechanism for a stack, not a property of stacked progression. A stacked member may instead rely on its own completed independent exact-head review. A tip-only review or approval event is not cumulative coverage for lower members.
+
+## Pull-request boundary heuristic
+
+Choose a pull-request boundary when the separation improves the change as a reviewable, reversible, independently understandable unit. Evaluate the candidate boundary across these dimensions:
+
+- authority boundary;
+- semantic purpose;
+- independent merge value;
+- rollback unit;
+- validation boundary;
+- review comprehensibility;
+- expected head stability;
+- cross-member coupling;
+- descendant propagation cost when a lower member changes; and
+- evidence invalidation cost caused by restacking or replacement heads.
+
+Use the conceptual comparison `split benefit > restack / invalidation / coordination cost` as a heuristic, not a mandatory acceptance gate or numeric score. A boundary that materially improves authority isolation, rollback, validation, or review may justify its coordination cost. Conversely, avoid splitting tightly coupled work into separate pull requests when the later member cannot remain meaningful or stable without repeatedly following the earlier member's head.
+
+Do not optimize for a fixed PR count. Do not combine unrelated authority decisions merely to reduce review or CI fixed cost, and do not collapse tightly coupled work so aggressively that the result loses a coherent semantic purpose, useful rollback unit, or reviewable validation boundary. The objective is preserved correctness with less avoidable coordination and revision churn, not the smallest number of pull requests.
