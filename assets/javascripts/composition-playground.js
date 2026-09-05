@@ -20,6 +20,9 @@
         void api.ensureMounted(globalScope.document);
       });
     }
+    if (typeof globalScope.addEventListener === "function") {
+      globalScope.addEventListener("online", boot);
+    }
   }
 })(typeof globalThis !== "undefined" ? globalThis : this, function (scope) {
   "use strict";
@@ -110,6 +113,14 @@
       throw new ProjectionError("MALFORMED_PROJECTION", `${name} must be a safe relative path`);
     }
     return value;
+  }
+
+  function materialDestination(value, name) {
+    const path = relativePath(value, name);
+    if (path.split("/").includes(".git")) {
+      throw new ProjectionError("MALFORMED_PROJECTION", `${name} must not target repository control state`);
+    }
+    return path;
   }
 
   function componentId(value, name) {
@@ -221,7 +232,7 @@
       const index = integerAtLeast(material.index, "material.index");
       if (materialById.has(index)) throw new ProjectionError("MALFORMED_PROJECTION", "material inventory is invalid or duplicated");
       componentId(material.component, `material ${index}.component`);
-      relativePath(material.destination, `material ${index}.destination`);
+      materialDestination(material.destination, `material ${index}.destination`);
       if (!["managed", "generated", "seed"].includes(material.ownership) || !/^[0-9a-f]{64}$/.test(material.sha256 || "")) {
         throw new ProjectionError("MALFORMED_PROJECTION", `material ${index} is invalid`);
       }
@@ -348,6 +359,14 @@
           throw new ProjectionError("MALFORMED_PROJECTION", `outcome ${outcome.index} has duplicate material destinations`);
         }
         materialDestinations.add(material.destination);
+      }
+      const expectedMaterials = new Set(
+        materials
+          .filter((material) => resolvedSet.has(material.component))
+          .map((material) => material.index)
+      );
+      if (expectedMaterials.size !== outcome.material_ids.length || outcome.material_ids.some((materialId) => !expectedMaterials.has(materialId))) {
+        throw new ProjectionError("MALFORMED_PROJECTION", `outcome ${outcome.index} material projection is incomplete or extraneous`);
       }
       const actionCounts = outcome.initial_plan.action_counts;
       if (Object.keys(actionCounts).length !== 1 || actionCounts.create !== outcome.material_ids.length) {
@@ -503,6 +522,23 @@
     });
   }
 
+  function validateDocumentBuildProvenance(document, provenance) {
+    if (!isObject(provenance) || !FULL_SHA.test(provenance.siteRevision || "")) {
+      throw new ProjectionError("MALFORMED_PROVENANCE", "validated Site build provenance is required");
+    }
+    if (!document || typeof document.querySelector !== "function") return provenance;
+    const revisionMeta = document.querySelector('meta[name="templates-site-revision"]');
+    if (!revisionMeta) return provenance;
+    const documentRevision = typeof revisionMeta.content === "string" ? revisionMeta.content.trim() : "";
+    if (!FULL_SHA.test(documentRevision)) {
+      throw new ProjectionError("MALFORMED_PROVENANCE", "Site document revision metadata is invalid");
+    }
+    if (documentRevision !== provenance.siteRevision) {
+      throw new ProjectionError("MALFORMED_PROVENANCE", "Site document revision does not match build provenance");
+    }
+    return provenance;
+  }
+
   function selectionMask(recipe, includes) {
     if (!isObject(recipe) || typeof recipe.id !== "string") {
       throw new ProjectionError("INVALID_SELECTION", "recipe is missing from the projection inventory");
@@ -647,6 +683,7 @@
     clear(nodes.optionals);
     const recipe = projection.recipeById.get(state.recipeId);
     const selected = new Set(state.includes);
+    const renderedOptionals = new Map();
     for (const componentIdValue of recipe.optional_components) {
       const label = document.createElement("label");
       label.className = "composition-playground__option";
@@ -654,11 +691,13 @@
       checkbox.type = "checkbox";
       checkbox.value = componentIdValue;
       checkbox.checked = selected.has(componentIdValue);
-      checkbox.addEventListener("change", onChange);
+      checkbox.addEventListener("change", () => onChange(componentIdValue));
       label.appendChild(checkbox);
       label.appendChild(document.createTextNode(` ${componentIdValue}`));
       nodes.optionals.appendChild(label);
+      renderedOptionals.set(componentIdValue, checkbox);
     }
+    return renderedOptionals;
   }
 
   function renderCase(document, nodes, projection, provenance, item) {
@@ -787,6 +826,12 @@
     }
   }
 
+  function isRetryableAvailabilityError(error) {
+    return error instanceof ProjectionError && (
+      error.code === "PROJECTION_UNAVAILABLE" || error.code === "PROVENANCE_UNAVAILABLE"
+    );
+  }
+
   async function mountRoot(document, root, current) {
     const status = root.querySelector("[data-playground-status]");
     const app = root.querySelector("[data-playground-app]");
@@ -806,10 +851,11 @@
     status.textContent = labels.loading;
 
     try {
-      const [projection, provenance] = await Promise.all([
+      const [projection, loadedProvenance] = await Promise.all([
         loadProjection(root.dataset.projectionUrl),
         loadBuildProvenance(root.dataset.provenanceUrl || "/build-provenance.json")
       ]);
+      const provenance = validateDocumentBuildProvenance(document, loadedProvenance);
       if (runtimeState !== current || root.isConnected === false) return null;
       current.error = null;
       runtimeState.error = null;
@@ -862,11 +908,17 @@
         notify({ type: "error", root, error });
       };
 
-      const apply = (nextState, hashMode) => {
+      const apply = (nextState, hashMode, focusComponentId = null) => {
         if (runtimeState !== current || root.isConnected === false) return;
         state = nextState;
         clearRuntimeError();
-        renderSelection(document, nodes, projection, state, () => apply(readControlState(), "push"));
+        const renderedOptionals = renderSelection(
+          document,
+          nodes,
+          projection,
+          state,
+          (componentIdValue) => apply(readControlState(), "push", componentIdValue)
+        );
         updateContext();
         renderCase(document, nodes, projection, provenance, currentCase);
         if (hashMode !== "preserve" && scope.history && scope.location) {
@@ -877,6 +929,10 @@
         }
         app.hidden = false;
         status.textContent = labels.loaded;
+        if (focusComponentId) {
+          const focusTarget = renderedOptionals.get(focusComponentId);
+          if (focusTarget && typeof focusTarget.focus === "function") focusTarget.focus();
+        }
       };
 
       nodes.recipe.addEventListener("change", () => apply({ recipeId: nodes.recipe.value, includes: [] }, "push"));
@@ -937,6 +993,15 @@
     }
   }
 
+  function startMount(document, root, current) {
+    const mountPromise = mountRoot(document, root, current);
+    current.promise = mountPromise;
+    void mountPromise.finally(() => {
+      if (runtimeState === current && current.promise === mountPromise) current.promise = null;
+    });
+    return mountPromise;
+  }
+
   function ensureMounted(document) {
     const root = document && document.getElementById("composition-playground");
     if (!root) {
@@ -949,7 +1014,14 @@
       }
       return Promise.resolve(null);
     }
-    if (runtimeState.root === root) return runtimeState.promise || Promise.resolve(runtimeState.context);
+    if (runtimeState.root === root) {
+      if (runtimeState.promise) return runtimeState.promise;
+      if (runtimeState.context) return Promise.resolve(runtimeState.context);
+      if (isRetryableAvailabilityError(runtimeState.error)) {
+        return startMount(document, root, runtimeState);
+      }
+      return Promise.resolve(null);
+    }
 
     const previousRoot = runtimeState.root;
     const listeners = runtimeState.listeners;
@@ -960,12 +1032,7 @@
     }
     const current = { root, promise: null, context: null, error: null, listeners };
     runtimeState = current;
-    const mountPromise = mountRoot(document, root, current);
-    current.promise = mountPromise;
-    void mountPromise.finally(() => {
-      if (runtimeState === current && current.promise === mountPromise) current.promise = null;
-    });
-    return mountPromise;
+    return startMount(document, root, current);
   }
 
   function mount(document) {
@@ -980,6 +1047,7 @@
     labels,
     validateProjection,
     validateBuildProvenance,
+    validateDocumentBuildProvenance,
     selectionMask,
     caseKey,
     explicitIncludes,
@@ -992,6 +1060,7 @@
     loadProjection,
     loadBuildProvenance,
     statusForError,
+    isRetryableAvailabilityError,
     ensureMounted,
     subscribe,
     mount

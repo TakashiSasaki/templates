@@ -84,3 +84,4 @@ jobs:
             --expected-semantic-revision "$EXPECTED_SEMANTIC_REVISION"
           python scripts/check_composition_playground_final_browser.py --site-root build/site
           python scripts/check_composition_playground_final_grid_browser.py --site-root build/site
+          python scripts/check_composition_playground_latest_five_browser.py --site-root build/site
