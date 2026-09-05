@@ -166,6 +166,25 @@ def assert_desktop_reader_column(page: Any) -> None:
         raise CrossAuthorityError(f"built Site reader column overflows at desktop width: {metrics}")
 
 
+def wait_for_initial_playground(page: Any) -> None:
+    try:
+        page.wait_for_selector("[data-playground-app]:not([hidden])", timeout=5000)
+    except Exception as exc:
+        diagnostics = page.evaluate(
+            """() => ({
+              url: location.href,
+              siteRevisionMeta: document.querySelector('meta[name="templates-site-revision"]')?.getAttribute('content') || null,
+              appHidden: document.querySelector('[data-playground-app]')?.hidden ?? null,
+              explainHidden: document.querySelector('[data-playground-explain]')?.hidden ?? null,
+              error: document.querySelector('#composition-playground')?.dataset.playgroundError || null,
+              status: document.querySelector('[data-playground-status]')?.textContent || ''
+            })"""
+        )
+        raise CrossAuthorityError(
+            f"built Site initial mount did not become visible: {diagnostics}"
+        ) from exc
+
+
 def run_browser_check(
     site_root: Path,
     *,
@@ -191,7 +210,7 @@ def run_browser_check(
                 f"{base_url}/playground/#recipe=skill&include=capability.cli",
                 wait_until="networkidle",
             )
-            page.wait_for_selector("[data-playground-app]:not([hidden])")
+            wait_for_initial_playground(page)
             page.wait_for_selector("[data-playground-explain]:not([hidden])")
             if len(provider_requests) != 1:
                 raise CrossAuthorityError(f"expected one projection request for one real mount: {provider_requests}")
