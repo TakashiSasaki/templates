@@ -382,6 +382,24 @@ def pygments_css() -> str:
     return HtmlFormatter().get_style_defs(".line-code")
 
 
+def validate_line_anchor_invariant(rendered: str, expected_lines: int) -> None:
+    """Validate deterministic source-line anchors owned by this generator."""
+    ids = tuple(
+        int(value)
+        for value in re.findall(r'<div class="source-line" id="L(\d+)">', rendered)
+    )
+    hrefs = tuple(
+        int(value)
+        for value in re.findall(r'class="line-number" href="#L(\d+)"', rendered)
+    )
+    expected = tuple(range(1, expected_lines + 1))
+    if ids != expected or hrefs != expected:
+        raise RepositoryBrowserError(
+            "source viewer line-anchor invariant failed: "
+            f"expected {expected_lines} contiguous anchors"
+        )
+
+
 def render_file_page(branch: str, revision: str, record: FileRecord) -> str:
     path_label = html.escape(display_bytes(record.path), quote=False)
     object_id = html.escape(record.object_id, quote=False)
