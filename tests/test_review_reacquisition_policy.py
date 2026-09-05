@@ -47,7 +47,10 @@ def test_reacquisition_gate_has_distinct_boundary_from_merge_thread_closure() ->
     closure = _text(THREAD_RULE)
     independent = _text(INDEPENDENT_RULE)
 
-    assert "before intentionally starting a new merge-acceptance review acquisition cycle" in reacquisition
+    assert (
+        "before intentionally starting a new merge-acceptance review acquisition cycle"
+        in reacquisition
+    )
     assert "before merge" in closure
     assert "before merging" in independent
     assert "review acquisition cycle" not in closure
