@@ -101,6 +101,31 @@ class FreshnessMetadataSingleValidationTests(unittest.TestCase):
             self.assertEqual(0, annotated)
             self.assertEqual(source, index.read_text(encoding="utf-8"))
 
+    def test_post_write_reread_rejects_corrupted_html_write(self) -> None:
+        wrong_revision = "d" * 40
+        original_write_text = Path.write_text
+
+        def corrupt_html_write(path: Path, data: str, *args: object, **kwargs: object) -> int:
+            if path.suffix == ".html" and SITE_REVISION in data:
+                data = data.replace(SITE_REVISION, wrong_revision)
+            return original_write_text(path, data, *args, **kwargs)
+
+        with tempfile.TemporaryDirectory() as directory:
+            site_root = Path(directory)
+            (site_root / "index.html").write_text(page(), encoding="utf-8")
+
+            with mock.patch.object(Path, "write_text", new=corrupt_html_write):
+                with self.assertRaisesRegex(
+                    generate_freshness_metadata.FreshnessMetadataError,
+                    "post-write freshness metadata verification failed",
+                ):
+                    generate_freshness_metadata.generate_freshness_metadata(
+                        site_root,
+                        SITE_REVISION,
+                        DEPLOYMENT_TIMESTAMP,
+                        PUBLICATIONS,
+                    )
+
     def test_generation_keeps_independent_final_html_rediscovery(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             site_root = Path(directory)
