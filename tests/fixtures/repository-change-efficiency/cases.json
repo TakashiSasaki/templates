@@ -7,7 +7,8 @@
       "expected": [
         "Do not intentionally start merge-acceptance review 2 yet.",
         "B and C remain in the known material finding backlog.",
-        "Each remaining finding requires current-head validated repair or evidence-backed no-change disposition plus required closure evidence before reacquisition."
+        "Each remaining finding requires current-head validated repair or evidence-backed no-change disposition plus required closure evidence before reacquisition.",
+        "The closure-evidence prerequisite is owned by canonical pull-request policy; procedure and provider guidance only implement or represent it."
       ]
     },
     {
