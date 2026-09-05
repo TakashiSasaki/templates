@@ -5,7 +5,6 @@
   "title": "Viewport-only layout tests miss the actual containing boundary",
   "authority": "non-authoritative-evaluation",
   "risk_domains": [
-    "resource-behavior",
     "consumer-and-execution-paths"
   ],
   "scenario": {
