@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import stat
 import unittest
 from pathlib import Path
 
@@ -30,6 +31,21 @@ class SystemChromeWorkflowTests(unittest.TestCase):
             source = path.read_text(encoding="utf-8")
             self.assertIn('playwright.chromium.launch(channel="chrome"', source)
             self.assertNotIn("playwright.chromium.launch()", source)
+
+    def test_direct_browser_entry_points_remain_executable(self) -> None:
+        executable_scripts = (
+            ROOT / "scripts/check_composition_playground_final_browser.py",
+            ROOT / "scripts/check_composition_playground_final_grid_browser.py",
+            ROOT / "scripts/check_composition_playground_final_three_browser.py",
+            ROOT / "scripts/check_search_history.py",
+            ROOT / "scripts/check_search_history_review_regressions.py",
+        )
+        for path in executable_scripts:
+            with self.subTest(path=path.name):
+                self.assertTrue(
+                    path.stat().st_mode & stat.S_IXUSR,
+                    f"{path} must remain directly executable",
+                )
 
     def test_browser_workflows_use_system_chrome_except_pwa_lifecycle_jobs(self) -> None:
         workflows = (
