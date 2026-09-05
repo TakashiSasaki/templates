@@ -13,6 +13,7 @@ POLICY_DIR = ROOT / "policy/pull-request"
 
 EXPECTED = [
     "pull-request.require-explicit-stacked-review-coverage",
+    "pull-request.defer-revision-bound-qualification-until-required",
     "pull-request.verify-target-branch-head-freshness",
     "pull-request.preflight-review-acquisition",
     "pull-request.disposition-known-findings-before-review-reacquisition",
