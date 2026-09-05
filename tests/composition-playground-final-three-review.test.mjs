@@ -250,6 +250,10 @@ function makeHarness(name) {
 
   const document = {
     currentRoot: root,
+    querySelector(selector) {
+      if (selector === 'meta[name="templates-site-revision"]') return { content: "c".repeat(40) };
+      return null;
+    },
     createElement(tagName) { return new FakeNode(tagName); },
     createTextNode(text) {
       const node = new FakeNode("#text");
