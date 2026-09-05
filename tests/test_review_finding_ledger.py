@@ -6,6 +6,7 @@ ROOT = Path(__file__).resolve().parents[1]
 LEDGER = ROOT / "skills" / "pr-merge-gate" / "references" / "review-finding-ledger.md"
 DISPOSITION = ROOT / "skills" / "pr-merge-gate" / "references" / "review-feedback-disposition.md"
 BATCHING = ROOT / "skills" / "pr-merge-gate" / "references" / "head-mutation-batching.md"
+MERGE_GATE = ROOT / "skills" / "pr-merge-gate" / "SKILL.md"
 
 
 def _text(path: Path) -> str:
@@ -100,6 +101,26 @@ def test_reacquisition_consumers_require_closure_evidence_before_review() -> Non
         "validated repair, evidence-backed no-change disposition, or required closure evidence"
         in batching
     )
+
+
+def test_main_workflow_applies_reacquisition_gate_before_reviewer_invocation() -> None:
+    text = _text(MERGE_GATE)
+    section = text.split("### 3. establish independent review evidence", 1)[1].split(
+        "### 4. clear findings and review threads", 1
+    )[0]
+    gate = section.index(
+        "pull-request.disposition-known-findings-before-review-reacquisition"
+    )
+    ledger = section.index("references/review-finding-ledger.md")
+    invoke = section.index("before invoking the reviewer")
+    preflight = section.index("pull-request.preflight-review-acquisition")
+
+    assert gate < invoke
+    assert ledger < invoke
+    assert gate < preflight < invoke
+    assert "required finding-level closure evidence" in section
+    assert "enter `blocked_review_findings` and do not invoke the reviewer" in section
+    assert "apply the same complete known-finding reacquisition gate" in section
 
 
 def test_batching_avoids_one_finding_head_churn_without_time_gate() -> None:
