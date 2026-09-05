@@ -339,10 +339,19 @@
         if (!resolvedSet.has(material.component)) {
           throw new ProjectionError("MALFORMED_PROJECTION", `outcome ${outcome.index} has material owned by an unresolved component`);
         }
+        for (const destination of materialDestinations) {
+          if (material.destination.startsWith(`${destination}/`) || destination.startsWith(`${material.destination}/`)) {
+            throw new ProjectionError("MALFORMED_PROJECTION", `outcome ${outcome.index} has ancestor/descendant material destinations`);
+          }
+        }
         if (materialDestinations.has(material.destination)) {
           throw new ProjectionError("MALFORMED_PROJECTION", `outcome ${outcome.index} has duplicate material destinations`);
         }
         materialDestinations.add(material.destination);
+      }
+      const actionCounts = outcome.initial_plan.action_counts;
+      if (Object.keys(actionCounts).length !== 1 || actionCounts.create !== outcome.material_ids.length) {
+        throw new ProjectionError("MALFORMED_PROJECTION", `outcome ${outcome.index} initial plan does not match its projected materials`);
       }
     }
 
@@ -781,7 +790,14 @@
       current.error = null;
       runtimeState.error = null;
 
-      const initialHash = parseHashWithOwnership(scope.location ? scope.location.hash : "", projection);
+      let initialHash;
+      let initialHashError = null;
+      try {
+        initialHash = parseHashWithOwnership(scope.location ? scope.location.hash : "", projection);
+      } catch (error) {
+        initialHashError = error;
+        initialHash = { kind: "playground", state: defaultSelection(projection) };
+      }
       let state = initialHash.state;
       let currentCase = null;
       let copyAttemptGeneration = 0;
@@ -876,6 +892,10 @@
       };
       bindHashListener();
 
+      if (initialHashError) {
+        failClosed(initialHashError);
+        return null;
+      }
       apply(state, initialHash.kind === "document" ? "preserve" : "replace");
       notify({ type: "ready", context: current.context });
       return current.context;
@@ -916,8 +936,12 @@
     }
     const current = { root, promise: null, context: null, error: null, listeners };
     runtimeState = current;
-    current.promise = mountRoot(document, root, current);
-    return current.promise;
+    const mountPromise = mountRoot(document, root, current);
+    current.promise = mountPromise;
+    void mountPromise.finally(() => {
+      if (runtimeState === current && current.promise === mountPromise) current.promise = null;
+    });
+    return mountPromise;
   }
 
   function mount(document) {
