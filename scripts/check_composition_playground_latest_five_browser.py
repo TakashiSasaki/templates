@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Real Pages-artifact acceptance for the latest five Playground remediations."""
+"""Real Pages-artifact acceptance for the latest Playground remediations."""
 
 from __future__ import annotations
 
@@ -99,7 +99,16 @@ def assert_exact_built_provenance(page, site_root: Path) -> None:
             assert expected_semantic != expected_provider, "semantic source and provider identities must remain distinct"
 
 
+def assert_validity_live_region(page) -> None:
+    validity = page.locator("[data-playground-validity]")
+    assert validity.get_attribute("role") == "status"
+    assert validity.get_attribute("aria-live") == "polite"
+    assert validity.get_attribute("aria-atomic") == "true"
+    assert validity.inner_text().strip(), "the live validity result must contain the current provider outcome"
+
+
 def assert_focus_continuity(page) -> None:
+    assert_validity_live_region(page)
     checkbox = page.locator('[data-playground-optionals] input[type="checkbox"]').first
     assert checkbox.count() == 1, "canonical Pages artifact must expose at least one optional checkbox"
     component_id = checkbox.get_attribute("value")
@@ -111,6 +120,7 @@ def assert_focus_continuity(page) -> None:
         "component => document.activeElement && document.activeElement.type === 'checkbox' && document.activeElement.value === component",
         arg=component_id,
     )
+    assert_validity_live_region(page)
     first_checked = page.locator(
         f'[data-playground-optionals] input[type="checkbox"][value="{component_id}"]'
     ).is_checked()
@@ -123,6 +133,7 @@ def assert_focus_continuity(page) -> None:
         "component => document.activeElement && document.activeElement.type === 'checkbox' && document.activeElement.value === component",
         arg=component_id,
     )
+    assert_validity_live_region(page)
     second_checked = page.locator(
         f'[data-playground-optionals] input[type="checkbox"][value="{component_id}"]'
     ).is_checked()
@@ -236,6 +247,7 @@ def main() -> None:
             page.locator("[data-playground-app]").wait_for(state="visible")
             page.locator("[data-playground-explain]").wait_for(state="visible")
             assert_exact_built_provenance(page, site_root)
+            assert_validity_live_region(page)
             context.close()
 
             assert_document_provenance_mismatch_fails_closed(browser, base_url, site_root)
