@@ -18,7 +18,7 @@ This page consumes a published projection. It does not resolve dependencies, con
     </section>
     <section aria-labelledby="playground-result-title">
       <h2 id="playground-result-title">Canonical result</h2>
-      <p data-playground-validity></p>
+      <p data-playground-validity role="status" aria-live="polite" aria-atomic="true"></p>
       <dl class="composition-playground__provenance">
         <dt>Semantic source revision</dt>
         <dd><code data-playground-semantic-revision></code></dd>
