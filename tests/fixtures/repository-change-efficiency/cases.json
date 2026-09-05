@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "id": "A-review-loop-prevention",
+      "condition": "Review 1 reports findings A, B, and C; only A has been repaired and validated.",
+      "expected": [
+        "Do not intentionally start merge-acceptance review 2 yet.",
+        "B and C remain in the known material finding backlog.",
+        "Each remaining finding requires current-head validated repair or evidence-backed no-change disposition plus required closure evidence before reacquisition."
+      ]
+    },
+    {
+      "id": "B-body-only-finding",
+      "condition": "A material actionable finding exists only in a review summary/body and has no resolvable inline thread.",
+      "expected": [
+        "Keep an independently identifiable finding locator.",
+        "Run the same disposition and current-head validation process as for inline findings.",
+        "Record closure evidence on an available durable review or pull-request surface."
+      ]
+    },
+    {
+      "id": "C-reviewer-misunderstanding",
+      "condition": "A reviewer finding is falsified by the current exact head and applicable authority, but its no-change disposition has not yet been validated and recorded as closed.",
+      "expected": [
+        "Keep the falsified finding in the unresolved backlog until validated no-change disposition and closure evidence are recorded.",
+        "Do not create an appeasement mutation.",
+        "Record decisive evidence, current-head validation, and durable closure evidence before treating the finding as semantically closed."
+      ]
+    },
+    {
+      "id": "D-coherent-repair-batch",
+      "condition": "Several currently known verified compatible findings require head-changing repairs.",
+      "expected": [
+        "Combine the compatible repairs into one coherent mutation batch before intentionally reacquiring expensive exact-head evidence.",
+        "Keep unrelated or authority-conflicting repairs separate.",
+        "Any proposed-head change invalidates exact-head CI and review for the former commit; reuse only other evidence whose binding genuinely did not change."
+      ]
+    },
+    {
+      "id": "E-stack-propagation",
+      "condition": "S1 is not stable, S2 can be implemented without embedding the unresolved S1 assumption, and S3 final immutable identity depends on the eventual S1 SHA.",
+      "expected": [
+        "Allow dependency-safe S2 implementation to continue despite review latency.",
+        "Defer S3 final immutable identity materialization until the upstream identity is stable enough to bind.",
+        "Do not deliberately propagate a known material defect or manufacture knowingly stale final provenance."
+      ]
+    },
+    {
+      "id": "F-human-handoff-final-audit",
+      "condition": "Implementation and required validation are complete, the known finding backlog is empty, final exact heads are stable, and the task explicitly authorizes one final whole-stack audit.",
+      "expected": [
+        "Request one final diagnostic whole-stack review after exact-head required CI succeeds.",
+        "Do not treat the audit as per-member merge-acceptance evidence or merge authorization.",
+        "Unless the explicit task requires the diagnostic audit to complete before handoff, do not wait for the result; do not retry review or merge, and stop at HANDOFF_READY when the completion contract permits handoff."
+      ]
+    }
+  ]
+}
