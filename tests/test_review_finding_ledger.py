@@ -92,6 +92,16 @@ def test_disposition_reuses_existing_taxonomy_and_ledger() -> None:
     assert "entire known-finding backlog" in text
 
 
+def test_reacquisition_consumers_require_closure_evidence_before_review() -> None:
+    disposition = _text(DISPOSITION)
+    batching = _text(BATCHING)
+    assert "required closure evidence" in disposition
+    assert (
+        "validated repair, evidence-backed no-change disposition, or required closure evidence"
+        in batching
+    )
+
+
 def test_batching_avoids_one_finding_head_churn_without_time_gate() -> None:
     text = _text(BATCHING)
     for phrase in (
