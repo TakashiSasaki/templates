@@ -257,7 +257,7 @@ def render_browser_page(
         "<p>Select a file from the tree.</p></html>",
         quote=True,
     )
-    rendered = f"""<!doctype html>
+    return f"""<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -467,6 +467,8 @@ body {{ margin: 0; min-height: 100vh; background: Canvas; color: CanvasText; }}
 </html>
 """
 
+    validate_line_anchor_invariant(rendered, expected_lines)
+    return rendered
 
 def prepare_browser_root(output_root: Path) -> Path:
     if output_root.is_symlink() or not output_root.is_dir():
