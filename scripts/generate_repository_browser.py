@@ -414,7 +414,7 @@ def render_file_page(branch: str, revision: str, record: FileRecord) -> str:
     controls = "" if not record.viewable else """
     <label class="toggle-label" for="show-lines"><span>Line numbers</span></label>
     <label class="toggle-label" for="wrap-lines"><span>Wrap lines</span></label>"""
-    return f"""<!doctype html>
+    rendered = f"""<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
