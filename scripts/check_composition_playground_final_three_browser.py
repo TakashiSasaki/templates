@@ -44,16 +44,43 @@ def assert_selection_failure(page: Any) -> None:
         raise PlaygroundBrowserError("invalid selection was falsely presented as provider/provenance corruption")
 
 
+def current_mount_state(page: Any) -> Any:
+    return page.evaluate(
+        """async () => {
+          const context = await window.CompositionPlayground.ensureMounted(document);
+          return context ? { recipeId: context.state.recipeId, includes: context.state.includes } : null;
+        }"""
+    )
+
+
 def assert_selection_error_paths(page: Any, base_url: str) -> None:
+    # An initially invalid owned hash must fail closed but still install the
+    # same-document recovery path. Repeated mounts must expose the live state,
+    # not the context from the initial mount promise.
     page.goto(f"{base_url}playground/?initial-invalid=1#recipe=unknown", wait_until="networkidle")
     assert_selection_failure(page)
+    if current_mount_state(page) is not None:
+        raise PlaygroundBrowserError("initial invalid selection exposed a stale validated context")
 
-    page.goto(f"{base_url}playground/#recipe=skill", wait_until="networkidle")
+    page.evaluate("() => { location.hash = '#recipe=skill'; }")
     page.wait_for_selector("[data-playground-app]:not([hidden])")
     page.wait_for_selector("[data-playground-explain]:not([hidden])")
+    recovered = current_mount_state(page)
+    if recovered != {"recipeId": "skill", "includes": []}:
+        raise PlaygroundBrowserError(f"initial invalid selection did not recover in the same document: {recovered!r}")
+
+    page.evaluate("() => { location.hash = '#recipe=skill&include=capability.cli'; }")
+    page.wait_for_function(
+        """() => document.querySelector('[data-playground-config]')?.textContent.includes('capability.cli')"""
+    )
+    changed = current_mount_state(page)
+    if changed != {"recipeId": "skill", "includes": ["capability.cli"]}:
+        raise PlaygroundBrowserError(f"repeated mount returned stale selection context: {changed!r}")
 
     page.evaluate("() => { location.hash = '#recipe=unknown'; }")
     assert_selection_failure(page)
+    if current_mount_state(page) is not None:
+        raise PlaygroundBrowserError("repeated mount returned a prior context after same-document fail-close")
 
     page.evaluate("() => { location.hash = '#recipe=skill&include=capability.cli'; }")
     page.wait_for_selector("[data-playground-app]:not([hidden])")
