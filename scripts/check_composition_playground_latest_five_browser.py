@@ -109,7 +109,7 @@ def assert_focus_continuity(page) -> None:
     page.keyboard.press("Space")
     page.wait_for_function(
         "component => document.activeElement && document.activeElement.type === 'checkbox' && document.activeElement.value === component",
-        component_id,
+        arg=component_id,
     )
     first_checked = page.locator(
         f'[data-playground-optionals] input[type="checkbox"][value="{component_id}"]'
@@ -121,7 +121,7 @@ def assert_focus_continuity(page) -> None:
     page.keyboard.press("Space")
     page.wait_for_function(
         "component => document.activeElement && document.activeElement.type === 'checkbox' && document.activeElement.value === component",
-        component_id,
+        arg=component_id,
     )
     second_checked = page.locator(
         f'[data-playground-optionals] input[type="checkbox"][value="{component_id}"]'
