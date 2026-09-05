@@ -405,8 +405,10 @@ def render_file_page(branch: str, revision: str, record: FileRecord) -> str:
     path_label = html.escape(display_bytes(record.path), quote=False)
     object_id = html.escape(record.object_id, quote=False)
     escaped_revision = html.escape(revision, quote=False)
+    expected_lines = 0
     if record.viewable and record.text is not None:
         lines, lexer_name = highlighted_lines(record.path, record.text)
+        expected_lines = len(lines)
         body_lines = []
         for number, fragment in enumerate(lines, start=1):
             body_lines.append(
