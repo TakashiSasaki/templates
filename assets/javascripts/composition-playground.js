@@ -352,12 +352,23 @@
         }
         materialDestinations.add(material.destination);
       }
-      const expectedMaterials = new Set(
+      const expectedMaterialDestinations = new Set(
         materials
           .filter((material) => resolvedSet.has(material.component))
-          .map((material) => material.index)
+          .map((material) => material.destination)
       );
-      if (expectedMaterials.size !== outcome.material_ids.length || outcome.material_ids.some((materialId) => !expectedMaterials.has(materialId))) {
+      for (const componentIdValue of outcome.resolved_components) {
+        const declarations = componentById.get(componentIdValue).material_declarations;
+        for (const declaration of declarations) {
+          if (isObject(declaration) && typeof declaration.destination === "string") {
+            expectedMaterialDestinations.add(declaration.destination);
+          }
+        }
+      }
+      const listedMaterialDestinations = new Set(
+        outcome.material_ids.map((materialId) => materialById.get(materialId).destination)
+      );
+      if (expectedMaterialDestinations.size !== listedMaterialDestinations.size || Array.from(expectedMaterialDestinations).some((destination) => !listedMaterialDestinations.has(destination))) {
         throw new ProjectionError("MALFORMED_PROJECTION", `outcome ${outcome.index} material projection is incomplete or extraneous`);
       }
       const actionCounts = outcome.initial_plan.action_counts;
