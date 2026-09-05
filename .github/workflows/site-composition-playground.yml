@@ -43,6 +43,7 @@ jobs:
           node --test tests/composition-playground-root-reachability.test.mjs
           node --test tests/composition-playground-latest-five-review.test.mjs
           node --test tests/composition-playground-latest-two-review.test.mjs
+          node --test tests/composition-playground-material-path-scope.test.mjs
 
       - name: Validate Site integration declarations
         env:
