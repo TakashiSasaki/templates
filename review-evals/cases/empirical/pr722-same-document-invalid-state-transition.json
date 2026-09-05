@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "id": "pr722-same-document-invalid-state-transition",
+  "kind": "empirical",
+  "title": "Initial-load validation misses an invalid same-document transition",
+  "authority": "non-authoritative-evaluation",
+  "risk_domains": [
+    "state-mutation-and-recovery",
+    "consumer-and-execution-paths"
+  ],
+  "scenario": {
+    "observed_change": "A UI rejects an invalid selection fragment during a fresh document load, but after the app is already mounted the same invalid fragment only updates status text while leaving the previous successful result visible and does not restore coherent state after a later valid transition.",
+    "controlled_inputs": [
+      "initial document fragment",
+      "same-document hash changes after mount",
+      "sequence of invalid then valid selection state"
+    ],
+    "mutable_state": [
+      "visible application result",
+      "validated shared context",
+      "error and status state"
+    ],
+    "authority_boundaries": [
+      "initial validation path versus post-mount transition path",
+      "visible prior result versus current invalid selection state"
+    ],
+    "operation_model": [
+      "mount successfully with a valid selection",
+      "change the same document to an invalid application-owned fragment",
+      "handler changes only status while retaining stale successful output",
+      "change back to a valid fragment and observe incoherent recovery state"
+    ]
+  },
+  "required_invariants": [
+    {
+      "rule_id": "testing.require-adversarial-invariant-coverage",
+      "requirement": "Stateful lifecycle changes must test materially reachable post-mount transitions and recovery, not only equivalent inputs on initial load."
+    }
+  ],
+  "expected_review": {
+    "disposition": "blocking-finding",
+    "must_investigate": [
+      "whether invalid state after mount follows the same fail-closed invariant as initial mount",
+      "whether a later valid transition clears stale error state and restores a coherent result"
+    ],
+    "must_identify": [
+      "fresh-document coverage does not establish correctness of the same-document transition path"
+    ],
+    "must_not_claim": [
+      "fail-closed selection handling solely from initial-load invalid-input tests",
+      "coherent recovery when stale successful content can remain visible under an invalid current state"
+    ]
+  },
+  "provenance": {
+    "repository": "TakashiSasaki/templates",
+    "pull_request": 722,
+    "source_type": "review-thread-comment",
+    "source_id": "PRRC_kwDOTm6ous7qy8ee",
+    "reviewed_head": "226acd53737346f94aeefed19cb713856ec33499",
+    "head_binding": "exact",
+    "note": "Codex found that invalid Playground-owned fragments after mount did not clear the prior result or shared context, while the existing browser test forced a fresh document and missed that transition."
+  }
+}

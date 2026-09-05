@@ -7,6 +7,7 @@
 ## Provider and toolchain
 
 * [Provider and toolchain documentation](provider/index.md) - Describes the `policy` branch as the source repository for the toolchain, release and bootstrap machinery, maintenance model, and explanatory documentation.
+* [Maintaining the policy provider](policy-maintainer-workflow.md) - Explains how repository maintainers consume shared best practices through immutable self-hosting while preserving repository-specific maintenance authority and non-self-authorizing promotion.
 
 ## Shared policy corpus
 
