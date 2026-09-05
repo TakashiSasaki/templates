@@ -81,3 +81,4 @@ jobs:
             --expected-site-revision "$EXPECTED_SITE_REVISION" \
             --expected-provider-revision "$EXPECTED_PROVIDER_REVISION" \
             --expected-semantic-revision "$EXPECTED_SEMANTIC_REVISION"
+          python scripts/check_composition_playground_final_browser.py --site-root build/site
