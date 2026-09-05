@@ -1,0 +1,105 @@
+.composition-playground {
+  --playground-border: color-mix(in srgb, currentColor 20%, transparent);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+  margin-block: 1.25rem;
+}
+
+.composition-playground > *,
+.composition-playground [data-playground-app] > * {
+  min-inline-size: 0;
+}
+
+.composition-playground [hidden] {
+  display: none !important;
+}
+
+.composition-playground [data-playground-app] {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.25rem;
+}
+
+.composition-playground section {
+  border: 1px solid var(--playground-border);
+  border-radius: 0.5rem;
+  padding: 1rem;
+}
+
+.composition-playground select,
+.composition-playground button {
+  min-height: 2.75rem;
+  font: inherit;
+}
+
+.composition-playground select {
+  display: block;
+  width: min(100%, 32rem);
+  margin-block: 0.35rem 1rem;
+}
+
+.composition-playground fieldset {
+  min-inline-size: 0;
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+
+.composition-playground__option {
+  display: flex;
+  gap: 0.55rem;
+  align-items: flex-start;
+  min-height: 2.5rem;
+  padding-block: 0.25rem;
+  overflow-wrap: anywhere;
+}
+
+.composition-playground__option input {
+  inline-size: 1.1rem;
+  block-size: 1.1rem;
+  flex: none;
+  margin-block-start: 0.15rem;
+}
+
+.composition-playground pre {
+  box-sizing: border-box;
+  inline-size: 100%;
+  max-width: 100%;
+  min-inline-size: 0;
+  overflow: auto;
+  border: 1px solid var(--playground-border);
+  border-radius: 0.35rem;
+  padding: 0.75rem;
+}
+
+.composition-playground code {
+  overflow-wrap: anywhere;
+}
+
+.composition-playground [data-playground-status] {
+  margin: 0;
+}
+
+@media (min-width: 60rem) {
+  .composition-playground [data-playground-app] {
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    align-items: start;
+  }
+
+  .composition-playground [aria-labelledby="playground-config-title"],
+  .composition-playground [data-playground-explain] {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 30rem) {
+  .composition-playground section {
+    padding: 0.75rem;
+  }
+
+  .composition-playground select,
+  .composition-playground button {
+    width: 100%;
+  }
+}

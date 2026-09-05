@@ -24,13 +24,16 @@ const STATIC_ASSETS = [
   "/stylesheets/translation-reader.css",
   "/stylesheets/glossary-inline.css",
   "/stylesheets/freshness-status.css",
+  "/stylesheets/composition-playground.css",
   "/javascripts/repository-tree-viewer.js",
   "/javascripts/repository-browser.js",
   "/javascripts/guided-copy.js",
   "/javascripts/pwa.js",
   "/javascripts/reader-navigation.js",
   "/javascripts/search-history.js",
-  "/javascripts/glossary-inline.js"
+  "/javascripts/glossary-inline.js",
+  "/javascripts/composition-playground.js",
+  "/javascripts/composition-playground-explain.js"
 ];
 const FRESHNESS_STATES = Object.freeze([
   "verified-current",

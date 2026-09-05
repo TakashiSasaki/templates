@@ -1,0 +1,111 @@
+{
+  "schema_version": 1,
+  "projection_id": "composition-playground-v1",
+  "source": {
+    "repository": "TakashiSasaki/templates",
+    "authority": "composition",
+    "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "scope": {
+    "mode": "initial",
+    "target": "empty",
+    "configuration_schema_version": 1,
+    "components_exclude": [],
+    "parameters": {}
+  },
+  "provenance_reason_bits": {
+    "recipe_artifact": 1,
+    "recipe_required": 2,
+    "recipe_default": 4,
+    "explicit_include": 8,
+    "dependency": 16
+  },
+  "recipes": [
+    {
+      "id": "skill",
+      "artifact": "artifact.skill",
+      "required_components": [],
+      "default_components": [],
+      "optional_components": ["capability.cli", "lifecycle.composition-state"],
+      "case_count": 4,
+      "source_path": "recipes/skill.json",
+      "cases": [
+        {"valid": true, "error": null, "outcome_id": 0, "selection_reason_masks": [1]},
+        {"valid": true, "error": null, "outcome_id": 1, "selection_reason_masks": [1, 8]},
+        {"valid": true, "error": null, "outcome_id": 2, "selection_reason_masks": [1, 8]},
+        {"valid": true, "error": null, "outcome_id": 3, "selection_reason_masks": [1, 8, 8]}
+      ]
+    }
+  ],
+  "components": [
+    {
+      "id": "artifact.skill",
+      "role": "artifact",
+      "version": 1,
+      "summary": "Synthetic artifact fixture",
+      "requires": [],
+      "conflicts": [],
+      "contract_ids": [],
+      "material_declarations": [],
+      "source_path": "components/artifact.skill/component.json"
+    },
+    {
+      "id": "capability.cli",
+      "role": "capability",
+      "version": 1,
+      "summary": "Synthetic CLI fixture",
+      "requires": [],
+      "conflicts": [],
+      "contract_ids": [],
+      "material_declarations": [],
+      "source_path": "components/capability.cli/component.json"
+    },
+    {
+      "id": "lifecycle.composition-state",
+      "role": "lifecycle",
+      "version": 1,
+      "summary": "Synthetic lifecycle fixture",
+      "requires": [],
+      "conflicts": [],
+      "contract_ids": [],
+      "material_declarations": [],
+      "source_path": "components/lifecycle.composition-state/component.json"
+    }
+  ],
+  "contracts": [],
+  "materials": [],
+  "outcomes": [
+    {
+      "index": 0,
+      "resolved_components": ["artifact.skill"],
+      "dependency_edges": [],
+      "contract_ids": [],
+      "material_ids": [],
+      "initial_plan": {"action_counts": {"create": 0}, "conflict_count": 0}
+    },
+    {
+      "index": 1,
+      "resolved_components": ["artifact.skill", "capability.cli"],
+      "dependency_edges": [],
+      "contract_ids": [],
+      "material_ids": [],
+      "initial_plan": {"action_counts": {"create": 0}, "conflict_count": 0}
+    },
+    {
+      "index": 2,
+      "resolved_components": ["artifact.skill", "lifecycle.composition-state"],
+      "dependency_edges": [],
+      "contract_ids": [],
+      "material_ids": [],
+      "initial_plan": {"action_counts": {"create": 0}, "conflict_count": 0}
+    },
+    {
+      "index": 3,
+      "resolved_components": ["artifact.skill", "capability.cli", "lifecycle.composition-state"],
+      "dependency_edges": [],
+      "contract_ids": [],
+      "material_ids": [],
+      "initial_plan": {"action_counts": {"create": 0}, "conflict_count": 0}
+    }
+  ]
+}
