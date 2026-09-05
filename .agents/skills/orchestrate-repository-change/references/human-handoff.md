@@ -7,13 +7,15 @@ Human handoff is a normal completion boundary after the authorized implementatio
 
 At this boundary:
 
-- do not initiate a new review request through reviewer assignment, provider invocation, requested-reviewer state, or any other review-request mechanism;
-- existing reviews may be observed, inspected, and reported without treating handoff as new review acquisition;
+- do not initiate merge-acceptance review through reviewer assignment, provider invocation, requested-reviewer state, or any other review-request mechanism by default;
+- an explicit task instruction may authorize one final whole-stack architecture/dependency/completeness audit before handoff; for a stacked workflow, request that audit only after every member is frozen at its intended final head, all applicable required CI for those exact heads has completed successfully, and the canonical `pull-request.disposition-known-findings-before-review-reacquisition` rule has been applied to the complete logical finding backlog from `skills/pr-merge-gate/references/review-finding-ledger.md`; every known material actionable finding must have a current-head validated repair or evidence-backed no-change disposition and the required finding-level closure evidence recorded on an auditable review or pull-request surface; recheck this complete-ledger gate immediately before reviewer invocation and do not request the audit while any known material finding lacks that validated outcome or closure evidence; such an audit is not per-member merge evidence unless all canonical cumulative bindings are independently established, and it must not create a review-retry loop or merge authorization;
+- existing reviews may be observed, inspected, and reported without treating handoff as new acceptance-review acquisition;
 - do not merge or close a pull request;
 - do not create a no-op commit solely to trigger CI or review;
 - do not make an approval-only mutation;
 - report implementation and validation states separately;
-- report independent review as NOT_REQUESTED or OUTSTANDING unless pre-existing applicable evidence truthfully establishes another observed state;
+- report per-member independent review as NOT_REQUESTED or OUTSTANDING unless pre-existing applicable evidence truthfully establishes another observed state;
+- report any explicitly authorized whole-stack audit separately from merge-acceptance evidence;
 - report merge authorization as NOT_ESTABLISHED;
 - report merge performed as NO; and
 - leave every applicable pull request or stack member open and unmerged.
