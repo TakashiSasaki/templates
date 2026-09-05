@@ -6,6 +6,8 @@ from __future__ import annotations
 import argparse
 import hashlib
 import html
+import re
+from functools import lru_cache
 from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import quote_from_bytes
@@ -356,6 +358,7 @@ def lexer_for(path: bytes, text: str):
         return TextLexer()
 
 
+@lru_cache(maxsize=4096)
 def highlighted_lines(path: bytes, text: str) -> tuple[list[str], str]:
     lexer = lexer_for(path, text)
     formatter = HtmlFormatter(nowrap=True)
