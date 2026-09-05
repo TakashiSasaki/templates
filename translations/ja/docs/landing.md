@@ -23,6 +23,9 @@
       <a class="portal-cover__button portal-cover__button--secondary" href="/composition/use/skill-first-use-walkthrough/">
         Agent Skill を作る <span aria-hidden="true">→</span>
       </a>
+      <a class="portal-cover__button portal-cover__button--secondary" href="/playground/">
+        Composition Playground を試す <span aria-hidden="true">→</span>
+      </a>
     </div>
     <ul class="portal-cover__signals" role="list">
       <li>具体的な作業から始め、architecture は必要になってから確認します。</li>
@@ -99,6 +102,7 @@ TakashiSasaki/templates
   </div>
   <div class="portal-doc-links">
     <a class="portal-doc-link" href="/composition/">Composition を見る</a>
+    <a class="portal-doc-link" href="/playground/">Composition Playground を試す</a>
     <a class="portal-doc-link" href="/composition/concepts/">Composition の概念と用語</a>
     <a class="portal-doc-link" href="/web/">Website か Web application か</a>
     <a class="portal-doc-link" href="/website/">Website を見る</a>

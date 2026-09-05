@@ -21,6 +21,9 @@
       <a class="portal-cover__button portal-cover__button--secondary" href="composition/use/skill-first-use-walkthrough/">
         Create an Agent Skill <span aria-hidden="true">→</span>
       </a>
+      <a class="portal-cover__button portal-cover__button--secondary" href="playground/">
+        Try Composition Playground <span aria-hidden="true">→</span>
+      </a>
     </div>
     <ul class="portal-cover__signals" role="list">
       <li>Start with a concrete task; learn the architecture later.</li>
@@ -97,6 +100,7 @@ your separate product repository
   </div>
   <div class="portal-doc-links">
     <a class="portal-doc-link" href="composition/">Explore Composition</a>
+    <a class="portal-doc-link" href="playground/">Composition Playground</a>
     <a class="portal-doc-link" href="composition/concepts/">Composition concepts</a>
     <a class="portal-doc-link" href="web/">Website or Web application?</a>
     <a class="portal-doc-link" href="website/">Explore Website</a>
