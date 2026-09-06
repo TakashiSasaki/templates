@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import posixpath
 import re
 import shlex
 from collections.abc import Iterable
@@ -146,10 +147,15 @@ def render_skill(
             + (package_root() / source).read_text(encoding="utf-8")
         )
     for relative, content in result.items():
+        source_parent = PurePath("skills") / skill_name / PurePath(relative).parent
+        installed_parent = PurePath(relative).parent
         for target, source in SKILL_REFERENCE_IMPORTS.get(skill_name, {}).items():
-            # Existing provider-path references must resolve from the installed Skill.
-            local = target if relative == "SKILL.md" else PurePath(target).name
-            content = content.replace(source, local)
+            # Canonical source-tree links must remain navigable in the repository while
+            # rendered copies are localized to the imported installed reference.
+            source_link = posixpath.relpath(source, source_parent.as_posix())
+            local_link = posixpath.relpath(target, installed_parent.as_posix())
+            content = content.replace(source_link, local_link)
+            content = content.replace(source, local_link)
         result[relative] = content
     return result
 
