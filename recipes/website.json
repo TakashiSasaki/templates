@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "id": "website",
-  "summary": "Framework-neutral content-oriented Website with shared Web routes, page structure, document metadata, discovery semantics, and implementation evidence; PWA, runtime, service, Web interface, and release are explicit opt-ins.",
+  "summary": "Framework-neutral content-oriented Website with shared Web routes, page structure, document metadata, discovery semantics, and implementation evidence; PWA, WebMCP, runtime, service, Web interface, and release are explicit opt-ins.",
   "artifact": "artifact.website-core",
   "required_components": [],
   "default_components": [],
@@ -10,6 +10,7 @@
     "capability.runtime",
     "capability.service",
     "capability.web-interface",
+    "capability.webmcp",
     "lifecycle.release-bundle"
   ]
 }
