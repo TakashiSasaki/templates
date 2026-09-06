@@ -151,7 +151,8 @@ def check(repository: Path, site_root: Path):
                 raise AssertionError("negative identity proof accepted missing favicon")
             page.evaluate("markup => document.head.insertAdjacentHTML('beforeend', markup)", icon_markup)
             expected = load("pwa-manifest")
-            check_link(page, expected["platformCompatibility"]["ios"]["homeScreenIcon"])
+            ios_identity = expected["platformCompatibility"]["ios"]["homeScreenIcon"]
+            check_link(page, ios_identity)
             check_link(page, {"relation": "manifest", "href": expected["manifestPath"]})
             manifest_url = urljoin(page.url, expected["manifestPath"])
             manifest = context.request.get(manifest_url).json()
@@ -162,8 +163,14 @@ def check(repository: Path, site_root: Path):
                 if icon["mediaType"] == "image/png":
                     require(response.body().startswith(b"\x89PNG\r\n\x1a\n"), "invalid raster fallback")
             # Exercise both landing paths and the existing canonical projection.
+            # Product-wide browser identity must survive localization rather than
+            # only matching on the primary English document.
             for prefix, language in (("", "en"), ("/ja", "ja")):
                 page.goto(f"http://127.0.0.1:{server.server_port}{prefix}/", wait_until="domcontentloaded")
+                check_link(page, identity["favicon"])
+                for fallback in identity["favicon"]["fallbacks"]:
+                    check_link(page, {**fallback, "relation": identity["favicon"]["relation"]})
+                check_link(page, ios_identity)
                 page.locator('section[aria-labelledby="portal-reference-consumer-title"] a').click()
                 page.wait_for_url(f"**{prefix}/coexistence/#self-hosting-reference-consumer")
                 require(page.locator("html").get_attribute("lang") == language, "reference explanation locale mismatch")
