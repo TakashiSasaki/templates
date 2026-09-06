@@ -18,6 +18,24 @@
           "localized": "Policy の概念（初めての読者向け）"
         }
       ]
+    },
+    {
+      "id": "routes-v5",
+      "publication": "composition",
+      "document": "web-routes-v4-migration",
+      "title": "Routes v4 to v5",
+      "destination": "web/migrations/routes-v4-to-v5.md",
+      "insert_after": {
+        "publication": "composition",
+        "document": "web-routes-v3-migration"
+      },
+      "localizations": [
+        {
+          "language": "ja",
+          "label_id": "routes-v4-to-v5",
+          "localized": "Routes v4 から v5 への移行"
+        }
+      ]
     }
   ]
 }
