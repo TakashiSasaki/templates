@@ -60,13 +60,7 @@ def normalize_link_relation(source, relation, identities, path):
     return source.replace("</head>", markup + "</head>")
 
 
-def render(repository: Path, site_root: Path) -> None:
-    def load(name):
-        return json.loads((repository / "contracts" / f"{name}.json").read_text())
-
-    routes = {r["id"]: r["path"] for r in load("routes")["routes"]}
-    pages = {p["id"]: p for p in load("site-structure")["pages"]}
-    browser_identity = load("browser-identity")["favicon"]
+def normalize_browser_identity(site_root, browser_identity, ios_identity):
     favicon_identities = [
         browser_identity,
         *(
@@ -74,20 +68,8 @@ def render(repository: Path, site_root: Path) -> None:
             for fallback in browser_identity["fallbacks"]
         ),
     ]
-    pwa = load("pwa-manifest")
-    ios_identity = pwa["platformCompatibility"]["ios"]["homeScreenIcon"]
-
-    for meta in load("document-metadata")["pages"]:
-        route = routes[pages[meta["pageId"]]["routeId"]]
-        path = site_root / route.lstrip("/") / "index.html"
+    for path in sorted(site_root.rglob("*.html")):
         source = path.read_text()
-        source, count = re.subn(r"<title>.*?</title>", "<title>" + html.escape(meta["title"]) + "</title>", source, flags=re.S)
-        if count != 1:
-            raise ValueError(f"expected one title: {path}")
-        # Zensical owns HTML rendering; Site's explicit product worksheets own
-        # the primary page metadata and browser-identity values. Normalize
-        # generated link metadata from those public contracts rather than
-        # depending on framework defaults.
         source = normalize_link_relation(
             source,
             browser_identity["relation"],
@@ -100,12 +82,38 @@ def render(repository: Path, site_root: Path) -> None:
             [ios_identity],
             path,
         )
+        path.write_text(source)
+
+
+def render(repository: Path, site_root: Path) -> None:
+    def load(name):
+        return json.loads((repository / "contracts" / f"{name}.json").read_text())
+
+    routes = {r["id"]: r["path"] for r in load("routes")["routes"]}
+    pages = {p["id"]: p for p in load("site-structure")["pages"]}
+    browser_identity = load("browser-identity")["favicon"]
+    pwa = load("pwa-manifest")
+    ios_identity = pwa["platformCompatibility"]["ios"]["homeScreenIcon"]
+
+    for meta in load("document-metadata")["pages"]:
+        route = routes[pages[meta["pageId"]]["routeId"]]
+        path = site_root / route.lstrip("/") / "index.html"
+        source = path.read_text()
+        source, count = re.subn(r"<title>.*?</title>", "<title>" + html.escape(meta["title"]) + "</title>", source, flags=re.S)
+        if count != 1:
+            raise ValueError(f"expected one title: {path}")
         source = re.sub(r'<meta\s+name="description"\s+content="[^"]*"\s*/?>', "", source)
         marker = '<meta name="description" content="' + html.escape(meta["description"], quote=True) + '">'
         if source.lower().count("</head>") != 1:
             raise ValueError(f"expected one head: {path}")
         source = source.replace("</head>", marker + "</head>")
         path.write_text(source)
+
+    # Zensical owns HTML rendering; Site's explicit product worksheets own the
+    # product-wide browser identity values. Normalize every generated HTML
+    # document from those public contracts so localized, guided and repository
+    # reader surfaces cannot silently retain framework-default link metadata.
+    normalize_browser_identity(site_root, browser_identity, ios_identity)
     (site_root / "robots.txt").write_text("User-agent: *\nAllow: /\nSitemap: " + load("site-discovery")["canonicalOrigin"] + "/sitemap.xml\n")
 
 

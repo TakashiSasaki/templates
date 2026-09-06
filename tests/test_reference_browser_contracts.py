@@ -1,11 +1,12 @@
 """Mutation regressions for the Site adapter's consumption of public contracts."""
 import copy
 import json
+import tempfile
 import unittest
 from pathlib import Path
 
 from scripts.check_reference_website import check_link, check_manifest, viewport_probes
-from scripts.render_website_metadata import normalize_link_relation
+from scripts.render_website_metadata import normalize_browser_identity
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -90,39 +91,36 @@ class ReferenceBrowserContractTests(unittest.TestCase):
                 with self.assertRaises(AssertionError):
                     check_link(page, changed)
 
-    def test_site_renderer_normalizes_declared_link_identity_fields(self):
-        path = Path("index.html")
-        source = (
+    def test_site_renderer_normalizes_all_generated_html_link_identity_fields(self):
+        favicon = json.loads((ROOT / "contracts/browser-identity.json").read_text())["favicon"]
+        ios = json.loads((ROOT / "contracts/pwa-manifest.json").read_text())[
+            "platformCompatibility"
+        ]["ios"]["homeScreenIcon"]
+        stale = (
             '<html><head>'
             '<link rel="icon" href="./icon.svg">'
             '<link rel="apple-touch-icon" href="/icon-180.png" sizes="180x180">'
             '</head><body></body></html>'
         )
-        favicon = json.loads((ROOT / "contracts/browser-identity.json").read_text())["favicon"]
-        ios = json.loads((ROOT / "contracts/pwa-manifest.json").read_text())[
-            "platformCompatibility"
-        ]["ios"]["homeScreenIcon"]
-        source = normalize_link_relation(
-            source,
-            favicon["relation"],
-            [favicon],
-            path,
-        )
-        source = normalize_link_relation(
-            source,
-            ios["relation"],
-            [ios],
-            path,
-        )
-        self.assertIn(
-            '<link rel="icon" href="/icon.svg" type="image/svg+xml" sizes="any">',
-            source,
-        )
-        self.assertIn(
-            '<link rel="apple-touch-icon" href="/icon-180.png" type="image/png" sizes="180x180">',
-            source,
-        )
-        self.assertNotIn('href="./icon.svg"', source)
+        with tempfile.TemporaryDirectory() as directory:
+            site_root = Path(directory)
+            paths = [site_root / "index.html", site_root / "ja" / "index.html"]
+            for path in paths:
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(stale)
+            normalize_browser_identity(site_root, favicon, ios)
+            for path in paths:
+                with self.subTest(path=path.relative_to(site_root)):
+                    source = path.read_text()
+                    self.assertIn(
+                        '<link rel="icon" href="/icon.svg" type="image/svg+xml" sizes="any">',
+                        source,
+                    )
+                    self.assertIn(
+                        '<link rel="apple-touch-icon" href="/icon-180.png" type="image/png" sizes="180x180">',
+                        source,
+                    )
+                    self.assertNotIn('href="./icon.svg"', source)
 
     def test_every_declared_breakpoint_is_probed(self):
         expected = json.loads((ROOT / "contracts/viewports.json").read_text())
