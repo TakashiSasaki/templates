@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import gzip
 import json
 import threading
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -27,24 +28,36 @@ def serve(root: Path) -> tuple[ThreadingHTTPServer, threading.Thread, str]:
     return server, thread, f"http://{host}:{port}"
 
 
+def read_gzip_json(path: Path) -> dict[str, Any]:
+    try:
+        value = json.loads(gzip.decompress(path.read_bytes()))
+    except (OSError, EOFError, gzip.BadGzipFile, json.JSONDecodeError) as exc:
+        raise BrowserError(f"cannot decode assembled provider projection {path}: {exc}") from exc
+    if not isinstance(value, dict):
+        raise BrowserError(f"assembled provider projection must be an object: {path}")
+    return value
+
+
 def validate_projection_pair(site_root: Path) -> str:
-    base_path = site_root / "composition" / "playground" / "composition-playground-v1.json"
-    intent_path = site_root / "composition" / "playground" / "composition-playground-intent-v1.json"
-    base = json.loads(base_path.read_text(encoding="utf-8"))
-    intent = json.loads(intent_path.read_text(encoding="utf-8"))
+    base_path = site_root / "composition" / "playground" / "composition-playground-v1.json.gz"
+    intent_path = site_root / "composition" / "playground" / "composition-playground-intent-v1.json.gz"
+    base = read_gzip_json(base_path)
+    intent = read_gzip_json(intent_path)
     if base.get("projection_id") != "composition-playground-v1":
         raise BrowserError("assembled resolution projection identity is invalid")
     if intent.get("projection_id") != "composition-playground-intent-v1":
         raise BrowserError("assembled intent projection identity is invalid")
+    if intent.get("resolution_projection_id") != "composition-playground-v1":
+        raise BrowserError("assembled intent projection does not target the canonical resolution projection")
     if intent.get("strategy") != "indexed-single-explicit-exclusion-transitions":
         raise BrowserError("assembled intent projection strategy is invalid")
     base_revision = base.get("source", {}).get("revision")
-    if intent.get("source", {}).get("revision") != base_revision:
+    if not isinstance(base_revision, str) or intent.get("source", {}).get("revision") != base_revision:
         raise BrowserError("assembled resolution and intent projections have different semantic revisions")
     website = next((r for r in intent.get("recipes", []) if r.get("id") == "website"), None)
     if not website or "capability.webmcp" not in website.get("optional_components", []):
         raise BrowserError("assembled intent projection does not expose Website WebMCP intent")
-    return str(base_revision)
+    return base_revision
 
 
 def run(site_root: Path) -> None:
@@ -60,7 +73,14 @@ def run(site_root: Path) -> None:
             browser = playwright.chromium.launch(channel="chrome")
             page = browser.new_page(viewport={"width": 1024, "height": 900})
             errors: list[str] = []
+            intent_requests: list[str] = []
             page.on("pageerror", lambda error: errors.append(str(error)))
+            page.on(
+                "request",
+                lambda request: intent_requests.append(request.url)
+                if request.url.endswith("/composition/playground/composition-playground-intent-v1.json.gz")
+                else None,
+            )
             page.goto(f"{base_url}/playground/#recipe=website", wait_until="networkidle")
             page.wait_for_selector("[data-playground-app]:not([hidden])")
             page.wait_for_function("() => document.querySelector('[data-playground-webmcp-status]')?.textContent.includes('Default:')")
@@ -68,6 +88,8 @@ def run(site_root: Path) -> None:
             root = page.locator("#composition-playground")
             if root.get_attribute("data-playground-webmcp-error"):
                 raise BrowserError("WebMCP enhancer failed during initial mount")
+            if len(intent_requests) != 1:
+                raise BrowserError(f"expected exactly one intent projection request for initial mount: {intent_requests}")
             if page.locator("[data-playground-semantic-revision]").text_content() != semantic_revision:
                 raise BrowserError("browser semantic revision differs from assembled projection")
 
