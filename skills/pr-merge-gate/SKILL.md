@@ -28,7 +28,9 @@ Apply every rule selected by `profiles/pull-request.yml`. At the current Policy 
 - `pull-request.verify-target-branch-head-freshness` — `policy/pull-request/target-branch-head-freshness.md`
 - `pull-request.preflight-review-acquisition` — `policy/pull-request/review-acquisition-preflight.md`
 - `pull-request.disposition-known-findings-before-review-reacquisition` — `policy/pull-request/review-reacquisition-after-disposition.md`
+- `pull-request.discover-review-results-across-applicable-surfaces` — `policy/pull-request/review-result-discovery.md`
 - `pull-request.require-independent-exact-head-review` — `policy/pull-request/independent-exact-head-review.md`
+- `pull-request.bind-review-result-classification-to-applicable-cycle-and-revision` — `policy/pull-request/review-result-applicability.md`
 - `pull-request.close-review-threads-before-merge` — `policy/pull-request/review-thread-closure.md`
 - `pull-request.require-exact-head-ci-evidence` — `policy/pull-request/exact-head-ci-evidence.md`
 - `pull-request.fail-closed-on-unresolved-ci-discovery` — `policy/pull-request/ci-discovery-fail-closed.md`
@@ -70,10 +72,11 @@ Establish one acceptance snapshot containing:
 5. intended semantic scope and effective changed-file set;
 6. applicable exact-head checks and their accepted evidence;
 7. CI discovery conclusion and the live views consulted when discovery was needed;
-8. completed independent review evidence, including reviewed SHA;
-9. current material review state and unresolved review-thread dispositions;
-10. current mergeability;
-11. the binding facts for each relied-upon evidence item.
+8. applicable review purpose, latest applicable review request/cycle, and its candidate binding when available;
+9. completed independent review evidence, including reviewed SHA and the review-result surfaces used to reconstruct it;
+10. current material review state and unresolved review-thread or non-thread finding dispositions;
+11. current mergeability;
+12. the binding facts for each relied-upon evidence item.
 
 Do not discard the whole snapshot merely because one binding changes. Mark only affected evidence stale and reacquire it. A proposed-head change invalidates exact-head CI, exact-head review, and head-bound scope evidence. Target-branch movement requires impact evaluation and invalidates additional evidence only when that movement changes its applicability or semantic basis.
 
@@ -93,12 +96,13 @@ Use explicit blocked or transient states rather than collapsing uncertainty into
 - `BLOCKED_REVIEW_MISSING`;
 - `BLOCKED_REVIEW_PENDING`;
 - `BLOCKED_REVIEW_STALE`;
+- `BLOCKED_REVIEW_APPLICABILITY_UNKNOWN`;
 - `BLOCKED_REVIEW_FINDINGS`;
 - `BLOCKED_BASE_DRIFT`;
 - `BLOCKED_HEAD_CHANGED`;
 - `BLOCKED_MERGEABILITY`.
 
-Never transition directly from a missing review, unresolved CI discovery, stale exact-head evidence, unknown base drift, or unknown mergeability to `MERGE_ALLOWED`.
+Never transition directly from a missing review, unresolved CI discovery, stale or applicability-unknown review evidence, unknown base drift, or unknown mergeability to `MERGE_ALLOWED`.
 
 The state model is an authorization model, not a polling schedule. Do not repeat a successful observation merely for conservatism. Do not add an extra review cycle, waiting period, repeated live-state read, or redundant evidence collection as a new mandatory gate unless current repository authority requires it or a concrete invalidation signal makes existing evidence unusable.
 
@@ -163,7 +167,9 @@ Once exact-head CI evidence is accepted, reuse it while the exact head and the c
 
 ### 3. Establish independent review evidence
 
-Apply `pull-request.require-independent-exact-head-review`. Apply `pull-request.require-explicit-stacked-review-coverage` additionally only when one completed review is claimed to cover multiple stacked members.
+Apply `pull-request.discover-review-results-across-applicable-surfaces`, `pull-request.require-independent-exact-head-review`, and `pull-request.bind-review-result-classification-to-applicable-cycle-and-revision`. Apply `pull-request.require-explicit-stacked-review-coverage` additionally only when one completed review is claimed to cover multiple stacked members.
+
+For GitHub-facing evidence, use `references/github-review-result-discovery.md` to identify the review purpose and latest applicable review request, then inspect the applicable submitted reviews, ordinary pull-request comments, inline review comments, resolvable review threads, reactions with defined semantics, and provider completion/failure/limitation signals. Reconstruct the logical result before deciding whether review is pending, complete, problem-free, or contains findings. If the applicable cycle, purpose, or reviewed revision cannot be established, enter `BLOCKED_REVIEW_APPLICABILITY_UNKNOWN`; do not infer completion or `no findings` from a clean or empty surface.
 
 Before intentionally initiating revision-bound review acquisition, apply `pull-request.disposition-known-findings-before-review-reacquisition` and evaluate the complete logical finding backlog with `references/review-finding-ledger.md`. Every known material actionable finding applicable to the candidate must already have either a repair validated for the current proposed head or an evidence-backed no-change disposition validated against the current proposed head and applicable authority, and the required finding-level closure evidence must be recorded on an auditable review or pull-request surface. If any known material item lacks that validated outcome or required closure evidence, enter `BLOCKED_REVIEW_FINDINGS` and do not invoke the reviewer. Only after this known-finding gate is satisfied, apply `pull-request.preflight-review-acquisition` and the revision-binding preflight below.
 
@@ -171,7 +177,7 @@ Ask the evidence question: **Is there valid independent review evidence covering
 
 For any current member, including a member constructed under stacked-pr progression, valid evidence may be a completed independent review bound to that member's exact current head and applicable review contract. When one completed review is claimed to cover multiple stacked members, valid cumulative evidence must additionally bind to the ordered stack, integration base, every covered member exact head, stack tip, cumulative reviewed scope, review contract, reviewer independence, completion state, and material limitations. A tip-only review or approval event does not establish lower-member cumulative coverage.
 
-If valid evidence is absent, enter `REVIEW_EVIDENCE_PENDING` or `BLOCKED_REVIEW_MISSING`; do not transition to `REVIEW_EVIDENCE_ESTABLISHED` or `MERGE_ALLOWED`. A request, pending review, empty review list, or absence of findings is not completed review evidence. Human handoff does not establish review evidence.
+If valid evidence is absent, enter `REVIEW_EVIDENCE_PENDING` or `BLOCKED_REVIEW_MISSING`; do not transition to `REVIEW_EVIDENCE_ESTABLISHED` or `MERGE_ALLOWED`. A request, pending review, empty review list, clean review body, or absence of findings on one surface is not completed review evidence. Human handoff does not establish review evidence.
 
 Review acquisition belongs to the selected completion procedure, not to serial or stacked progression. Under agent-review-and-merge, when no completed independent exact-head review exists for a member and no applicable cumulative evidence covers it, the procedure may initiate review for the exact current head and must name the exact SHA. Before invoking the reviewer, first confirm that the complete known-finding gate above remains satisfied; then use `references/review-acquisition-preflight.md` to refresh the current PR head and every ref or stack identity named by the intended request. If the ledger has gained a known material actionable item without a current-head validated repair or evidence-backed no-change disposition and required closure evidence, enter `BLOCKED_REVIEW_FINDINGS` and do not invoke the reviewer. If any required revision binding is missing, stale, moved, ambiguous, or no longer resolves to the intended candidate, do not invoke the reviewer with that binding; rebuild the request from current live state first. If the head changes after review, the prior review is stale and acquisition must address the new exact head. Reviewer selection and reviewer-specific invocation syntax are repository- or execution-environment concerns and are not defined by this shared adapter.
 
@@ -183,15 +189,15 @@ If the exact head remains unchanged and the relied-upon completed review has not
 
 ### 4. Clear findings and review threads
 
-Apply `pull-request.close-review-threads-before-merge`.
+Apply `pull-request.close-review-threads-before-merge` together with the cross-surface discovery and applicability rules.
 
-Inspect submitted reviews and inline review threads. Treat each review item as a hypothesis to verify or falsify against the current proposed head; reviewer prose is not authority and is not an instruction to make appeasement edits.
+Inspect the applicable submitted reviews, ordinary pull-request comments, inline review comments, resolvable review threads, and any other provider surface defined as capable of carrying review-result semantics. Treat each review item as a hypothesis to verify or falsify against the current proposed head; reviewer prose is not authority and is not an instruction to make appeasement edits. A finding remains actionable when another surface is clean, and absence of an inline thread does not establish absence or resolution.
 
 Use `references/review-feedback-disposition.md` to classify and disposition each material review item after evidence is sufficient. The procedure distinguishes `actual-defect`, `invariant-gap`, `regression-test-gap`, `documentation-ambiguity`, `reviewer-misunderstanding`, and `unrelated-suggestion`. Classification explains remediation ownership; it does not override severity, finding validity, exact-head review requirements, or the canonical thread-closure rule.
 
 Keep an item unresolved while its evidence is insufficient. For verified defects or gaps, prefer the smallest generalized repair and appropriate regression evidence rather than only the reported symptom. When a verified item exposes an invariant break, use the reference's bounded sibling-dimension audit to inspect only materially reachable success/failure, stale/current, converse/completeness, malformed-structure, lifecycle, identity, or boundary variants that share the same root cause. For a falsified reviewer claim, record the decisive evidence-backed no-change reason instead of changing correct code merely to satisfy the comment. Historical or stale-head comments may be useful diagnostic inputs, but they are not exact-head acceptance evidence and must be re-evaluated against the current head before they justify a repair or no-change disposition.
 
-Resolve a material review thread only after its required action is complete for the current head or an evidence-backed no-change disposition is recorded. If a repair changes the PR head, invalidate the evidence bound to the former head and reacquire the affected exact-head CI, review, and scope evidence. Do not automatically discard evidence that is not affected by the change.
+Resolve a material review thread only after its required action is complete for the current head or an evidence-backed no-change disposition is recorded. For findings on non-thread surfaces, retain finding-level closure evidence on an auditable pull-request surface. If a repair changes the PR head, invalidate the evidence bound to the former head and reacquire the affected exact-head CI, review, and scope evidence. Do not automatically discard evidence that is not affected by the change, and do not discard an older finding solely because completion evidence for its source review became stale.
 
 ### 5. Evaluate target-branch freshness
 
@@ -209,7 +215,7 @@ Immediately before merge, obtain one current live-state snapshot sufficient to v
 
 - current PR head equals the exact accepted head;
 - current target-branch head is unchanged or its movement has been evaluated;
-- current material review state and unresolved review threads do not invalidate the accepted review evidence;
+- current material review state across applicable review-result surfaces and unresolved finding dispositions do not invalidate the accepted review evidence;
 - current mergeability is true;
 - the PR body does not materially misstate the accepted head or acceptance state.
 
@@ -237,8 +243,8 @@ Do not declare merge readiness or invoke merge while any of the following is tru
 
 - CI discovery is unresolved or confirmed absence has not been dispositioned;
 - any applicable exact-head CI is not acceptable;
-- completed independent exact-head review is missing, pending, stale, or has unresolved material findings;
-- a material review thread remains unresolved;
+- completed independent exact-head review is missing, pending, stale, applicability-unknown, or has unresolved material findings;
+- a material review thread or material finding on another applicable review-result surface remains unresolved;
 - target-branch movement is unknown or unresolved;
 - current head differs from the accepted head;
 - current mergeability is unknown or false;
@@ -255,8 +261,9 @@ At completion report:
 - current target-branch head and exact accepted PR head;
 - effective changed-file scope;
 - exact-head CI summary and the binding facts that kept it valid;
-- completed independent review evidence and reviewed SHA;
-- unresolved thread/finding status;
+- applicable review purpose and latest applicable review request/cycle;
+- completed independent review evidence, reviewed SHA, and review-result surfaces consulted;
+- unresolved thread/non-thread finding status;
 - target-branch freshness decision;
 - any invalidation signals observed and the evidence selectively reacquired;
 - final gate state;
