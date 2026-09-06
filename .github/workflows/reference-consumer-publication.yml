@@ -5,8 +5,8 @@ permissions:
   contents: read
 jobs:
   compatibility:
-    uses: TakashiSasaki/templates/.github/workflows/build-pages.yml@2b7a7374959cdecea5970ab99bbe32712a211b91
+    uses: TakashiSasaki/templates/.github/workflows/build-pages.yml@857716f362e78c48c503f40e7a4848ef19a008e8
     with:
-      site_ref: 2b7a7374959cdecea5970ab99bbe32712a211b91
+      site_ref: 857716f362e78c48c503f40e7a4848ef19a008e8
       composition_ref: ${{ github.event.pull_request.head.sha }}
       publication_staging_id: routes-v5

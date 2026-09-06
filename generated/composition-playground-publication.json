@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "projection_id": "composition-playground-v1",
+  "intent_projection_id": "composition-playground-intent-v1",
+  "semantic_revision": "c78cdd15dba56a9d6e851e28b8a43dd5ebf286ad",
+  "assets": [
+    "composition-playground-v1.json.gz",
+    "composition-playground-intent-v1.json.gz"
+  ]
+}
