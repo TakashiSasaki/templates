@@ -90,6 +90,16 @@ your separate product repository
 <p>Clone or create your product repository separately. The provider-owned tutorials tell you what to install or run there. The <code>templates</code> repository itself is primarily the source of the tooling, contracts, and documentation.</p>
 </section>
 
+<section class="portal-policy-panel" aria-labelledby="portal-reference-consumer-title">
+  <span class="portal-policy-panel__icon"><img src="images/icon-policy.svg" alt=""></span>
+  <div class="portal-policy-panel__copy">
+    <p class="portal-policy-panel__label">Concrete example · Self-hosting</p>
+    <h2 id="portal-reference-consumer-title">See this repository consume its own systems</h2>
+    <p><code>TakashiSasaki/templates</code> is also an executable reference consumer. Composition defines the Site Website/PWA product, while Policy governs Site maintenance and generates the agent and review instructions used to maintain it. The relationship stays split into independent consumer states rather than becoming a special combined authority.</p>
+  </div>
+  <a class="portal-policy-panel__action" href="coexistence/#self-hosting-reference-consumer">See the reference consumer <span aria-hidden="true">→</span></a>
+</section>
+
 <nav class="portal-doc-nav" aria-labelledby="portal-doc-nav-title">
   <div class="portal-section-heading portal-section-heading--compact">
     <p class="portal-section-heading__kicker">Already started, or want the model?</p>
@@ -104,6 +114,7 @@ your separate product repository
     <a class="portal-doc-link" href="webapp/">Explore Web application</a>
     <a class="portal-doc-link" href="skill/">Explore Agent Skill</a>
     <a class="portal-doc-link" href="policy/">Explore Policy</a>
+    <a class="portal-doc-link" href="coexistence/#self-hosting-reference-consumer">This repository as a reference consumer</a>
     <a class="portal-doc-link" href="capabilities/">Capabilities</a>
     <a class="portal-doc-link" href="lifecycle/">Lifecycle</a>
     <a class="portal-doc-link" href="/glossary/">Glossary</a>
