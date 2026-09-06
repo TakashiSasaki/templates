@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "id": "capability.webmcp",
+  "component_role": "capability",
+  "version": 1,
+  "summary": "Browser-context WebMCP interface semantics for explicitly selected Website and Webapp consumers, independent of MCP servers, MCP Apps, runtimes, or ordinary Web interfaces.",
+  "requires": [
+    "lifecycle.implementation-evidence"
+  ],
+  "conflicts": [],
+  "contract_registrations": [
+    {
+      "id": "webmcp_interface",
+      "document": "contracts/webmcp-interface.json",
+      "schema": "schemas/webmcp-interface.schema.json",
+      "migration_slug": "webmcp-interface",
+      "document_schema_version": 1,
+      "version_history": [
+        {
+          "version": 1,
+          "change_type": "initial"
+        }
+      ],
+      "purpose": "Declare the product-owned WebMCP browser-context profile, registration lifetime, origin exposure, Permissions Policy expectations, unsupported-browser behavior, and shared-domain-operation invariant without creating a second adoption authority."
+    },
+    {
+      "id": "webmcp_tools",
+      "document": "contracts/webmcp-tools.json",
+      "schema": "schemas/webmcp-tools.schema.json",
+      "migration_slug": "webmcp-tools",
+      "document_schema_version": 1,
+      "version_history": [
+        {
+          "version": 1,
+          "change_type": "initial"
+        }
+      ],
+      "purpose": "Declare stable product tool identities separately from caller-visible WebMCP names, with domain purpose, input contracts, effect class, output trust, applicability, and confirmation semantics."
+    }
+  ],
+  "materials": [
+    {
+      "source": "files/WEBMCP.md",
+      "destination": "WEBMCP.md",
+      "ownership": "seed"
+    },
+    {
+      "source": "files/contracts/webmcp-interface.json",
+      "destination": "contracts/webmcp-interface.json",
+      "ownership": "seed"
+    },
+    {
+      "source": "files/contracts/webmcp-tools.json",
+      "destination": "contracts/webmcp-tools.json",
+      "ownership": "seed"
+    },
+    {
+      "source": "files/schemas/webmcp-interface.schema.json",
+      "destination": "schemas/webmcp-interface.schema.json",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/schemas/webmcp-tools.schema.json",
+      "destination": "schemas/webmcp-tools.schema.json",
+      "ownership": "managed"
+    }
+  ]
+}
