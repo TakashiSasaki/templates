@@ -1,0 +1,554 @@
+{
+  "$schema": "../schemas/pwa-offline.schema.json",
+  "schemaVersion": 2,
+  "mode": "planning",
+  "availability": "offline-capable",
+  "serviceWorkerScope": "/",
+  "controlledRouteIds": [
+    "site-portal-home",
+    "site-policy-composition-coexistence",
+    "composition-overview",
+    "composition-composition-concepts",
+    "composition-evaluation-guide",
+    "composition-consumer-guide",
+    "site-composition-playground",
+    "composition-release-guide",
+    "composition-composer-reference",
+    "composition-documentation-index",
+    "composition-composition-model",
+    "composition-catalog-architecture",
+    "composition-generated-contract-manifest",
+    "composition-composer-mvp",
+    "composition-catalog-guide",
+    "composition-schema-guide",
+    "composition-publication-boundary",
+    "composition-composition-authority-migration",
+    "composition-skill-first-use-walkthrough",
+    "composition-skill-overview",
+    "composition-skill-contract",
+    "composition-skill-documentation-index",
+    "composition-skill-profiles",
+    "composition-skill-capability-map",
+    "composition-skill-architecture",
+    "composition-website-webapp-selection",
+    "composition-web-url-path-design-guidance",
+    "composition-web-routes-v1-migration",
+    "composition-web-routes-v2-migration",
+    "composition-web-routes-v3-migration",
+    "composition-web-routes-v4-migration",
+    "composition-website-product-walkthrough",
+    "composition-webapp-product-walkthrough",
+    "composition-webapp-overview",
+    "composition-webapp-template",
+    "composition-webapp-documentation-index",
+    "composition-webapp-contracts",
+    "composition-webapp-responsibility-boundaries",
+    "composition-webapp-validation-toolchain",
+    "composition-surfaces-v2-migration",
+    "composition-ui-states-migration",
+    "site-capabilities-overview",
+    "composition-runtime-decision-record",
+    "composition-runtime-selection",
+    "composition-cli-interface",
+    "composition-cli-interface-v2-migration",
+    "composition-mcp-interface",
+    "composition-mcp-transports",
+    "composition-mcp-interface-v2-migration",
+    "composition-mcp-apps-interface",
+    "composition-mcp-apps-guidance",
+    "composition-mcp-apps-v2-migration",
+    "composition-browser-interface",
+    "composition-pwa-capability",
+    "composition-pwa-offline-v2-migration",
+    "composition-pwa-update-v2-migration",
+    "composition-web-interface-v2-migration",
+    "composition-service-interface",
+    "composition-service-interface-v2-migration",
+    "site-lifecycle-overview",
+    "composition-composition-state",
+    "composition-contract-evolution",
+    "composition-implementation-evidence",
+    "composition-implementation-evidence-v2-migration",
+    "composition-implementation-evidence-v3-migration",
+    "composition-implementation-evidence-v4-migration",
+    "composition-implementation-evidence-v5-migration",
+    "composition-implementation-evidence-v6-migration",
+    "composition-lifecycle-checkpoints",
+    "composition-release-execution",
+    "composition-release-execution-v2-migration",
+    "composition-release-evidence",
+    "composition-release-bundle",
+    "policy-overview",
+    "policy-provider-navigation",
+    "policy-shared-policy-navigation",
+    "policy-consumer-policy-navigation",
+    "policy-getting-started",
+    "policy-policy-concepts",
+    "policy-managed-operation",
+    "policy-cli",
+    "policy-bootstrap",
+    "policy-adoption",
+    "policy-release-lifecycle",
+    "policy-policy-readiness",
+    "policy-documentation-publication",
+    "policy-publication-catalog",
+    "policy-pwa",
+    "policy-google-ai-studio",
+    "policy-repository-structure",
+    "policy-architecture",
+    "policy-configuration",
+    "policy-policy-profiles",
+    "policy-policy-authoring",
+    "policy-policy-authority-inventory",
+    "policy-review-policy",
+    "policy-external-artifact-intake",
+    "policy-regression-prevention",
+    "policy-bootstrap-model",
+    "policy-threat-model",
+    "policy-adr-index",
+    "policy-adr-repository-adoption",
+    "policy-adr-application-neutral-scope",
+    "policy-adr-single-policy-authority",
+    "policy-adr-copyable-artifact-policy-adoption",
+    "policy-adr-single-agent-policy-skill-runtime-cache",
+    "policy-adr-integrated-bootstrap-skill"
+  ],
+  "navigationFallbackRouteId": "site-portal-home",
+  "routePolicies": [
+    {
+      "routeId": "site-portal-home",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "site-policy-composition-coexistence",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-overview",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-composition-concepts",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-evaluation-guide",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-consumer-guide",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "site-composition-playground",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-release-guide",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-composer-reference",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-documentation-index",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-composition-model",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-catalog-architecture",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-generated-contract-manifest",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-composer-mvp",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-catalog-guide",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-schema-guide",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-publication-boundary",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-composition-authority-migration",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-skill-first-use-walkthrough",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-skill-overview",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-skill-contract",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-skill-documentation-index",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-skill-profiles",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-skill-capability-map",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-skill-architecture",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-website-webapp-selection",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-web-url-path-design-guidance",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-web-routes-v1-migration",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-web-routes-v2-migration",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-web-routes-v3-migration",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-web-routes-v4-migration",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-website-product-walkthrough",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-webapp-product-walkthrough",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-webapp-overview",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-webapp-template",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-webapp-documentation-index",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-webapp-contracts",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-webapp-responsibility-boundaries",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-webapp-validation-toolchain",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-surfaces-v2-migration",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-ui-states-migration",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "site-capabilities-overview",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-runtime-decision-record",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-runtime-selection",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-cli-interface",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-cli-interface-v2-migration",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-mcp-interface",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-mcp-transports",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-mcp-interface-v2-migration",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-mcp-apps-interface",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-mcp-apps-guidance",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-mcp-apps-v2-migration",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-browser-interface",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-pwa-capability",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-pwa-offline-v2-migration",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-pwa-update-v2-migration",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-web-interface-v2-migration",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-service-interface",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-service-interface-v2-migration",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "site-lifecycle-overview",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-composition-state",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-contract-evolution",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-implementation-evidence",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-implementation-evidence-v2-migration",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-implementation-evidence-v3-migration",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-implementation-evidence-v4-migration",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-implementation-evidence-v5-migration",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-implementation-evidence-v6-migration",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-lifecycle-checkpoints",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-release-execution",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-release-execution-v2-migration",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-release-evidence",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "composition-release-bundle",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "policy-overview",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "policy-provider-navigation",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "policy-shared-policy-navigation",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "policy-consumer-policy-navigation",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "policy-getting-started",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "policy-policy-concepts",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "policy-managed-operation",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "policy-cli",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "policy-bootstrap",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "policy-adoption",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "policy-release-lifecycle",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "policy-policy-readiness",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "policy-documentation-publication",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "policy-publication-catalog",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "policy-pwa",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "policy-google-ai-studio",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "policy-repository-structure",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "policy-architecture",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "policy-configuration",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "policy-policy-profiles",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "policy-policy-authoring",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "policy-policy-authority-inventory",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "policy-review-policy",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "policy-external-artifact-intake",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "policy-regression-prevention",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "policy-bootstrap-model",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "policy-threat-model",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "policy-adr-index",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "policy-adr-repository-adoption",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "policy-adr-application-neutral-scope",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "policy-adr-single-policy-authority",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "policy-adr-copyable-artifact-policy-adoption",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "policy-adr-single-agent-policy-skill-runtime-cache",
+      "offlineReadBehavior": "cached-content-when-available"
+    },
+    {
+      "routeId": "policy-adr-integrated-bootstrap-skill",
+      "offlineReadBehavior": "cached-content-when-available"
+    }
+  ],
+  "networkUnavailablePresentation": "required-visible",
+  "freshnessUnknownPresentation": "required-visible",
+  "revalidatingPresentation": "required-visible",
+  "cacheStrategy": "implementation-defined",
+  "onlineFreshnessPolicy": "revalidate-before-display",
+  "offlineFreshnessPolicy": "indicate-unverified",
+  "mutationBehavior": "not-applicable"
+}
