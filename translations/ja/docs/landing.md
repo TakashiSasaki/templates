@@ -99,7 +99,7 @@ TakashiSasaki/templates
     <h2 id="portal-reference-consumer-title">この repository 自身が自分の仕組みを使う例を見る</h2>
     <p><code>TakashiSasaki/templates</code> 自身も実行可能な reference consumer です。Composition が Site の Website/PWA product を定義し、Policy が Site maintenance を規定して、保守に使う agent/review instructions を生成します。この関係は特別な統合 authority にはせず、独立した consumer state のまま維持します。</p>
   </div>
-  <a class="portal-policy-panel__action" href="/coexistence/#self-hosting-reference-consumer">Reference consumer を見る <span aria-hidden="true">→</span></a>
+  <a class="portal-policy-panel__action" href="/ja/coexistence/#self-hosting-reference-consumer">Reference consumer を見る <span aria-hidden="true">→</span></a>
 </section>
 
 <nav class="portal-doc-nav" aria-labelledby="portal-doc-nav-title">
@@ -116,7 +116,7 @@ TakashiSasaki/templates
     <a class="portal-doc-link" href="/webapp/">Web application を見る</a>
     <a class="portal-doc-link" href="/skill/">Agent Skill を見る</a>
     <a class="portal-doc-link" href="/policy/">Policy を見る</a>
-    <a class="portal-doc-link" href="/coexistence/#self-hosting-reference-consumer">この repository を reference consumer として見る</a>
+    <a class="portal-doc-link" href="/ja/coexistence/#self-hosting-reference-consumer">この repository を reference consumer として見る</a>
     <a class="portal-doc-link" href="/capabilities/">Capabilities</a>
     <a class="portal-doc-link" href="/lifecycle/">Lifecycle</a>
     <a class="portal-doc-link" href="/glossary/">Glossary</a>

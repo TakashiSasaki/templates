@@ -242,4 +242,14 @@ does not pretend to reconstruct the Website's original development history.
 Contract validation is not proof of deployment or release readiness; deferred
 browser evidence remains visible until the relevant proof actually runs.
 
+The ledger currently declares 434 verified proof entries
+and 20 deferred entries. These are coverage entries,
+not counts of independent tests or a release certificate. PWA tests use actual
+worker code with controlled fixture pages, and the Website test checks served
+manifest/icon packaging. Complete PWA product families remain deferred until
+actual controlled routes/fallbacks, visible revalidation, installation/platform
+presentation and product updates have corresponding acceptance. Viewport probes
+exercise declared widths and overflow; they do not establish full accessibility
+or every device/orientation/zoom combination.
+
 <!-- reference-consumer:end -->

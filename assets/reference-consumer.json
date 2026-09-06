@@ -485,6 +485,11 @@
       }
     }
   },
+  "evidence": {
+    "ledger": "contracts/implementation-evidence.json",
+    "verified": 434,
+    "deferred": 20
+  },
   "validation": {
     "composition": "python .template-composition/validate.py . --format json",
     "policy_workflow": ".github/workflows/check-agent-policy.yml",

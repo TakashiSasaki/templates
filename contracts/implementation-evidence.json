@@ -8609,7 +8609,7 @@
           "id": "pwa-manifest-installability-positive",
           "status": "deferred",
           "kind": "end-to-end-test",
-          "description": "Actual browser contract assertions. Deferred: this family still needs a dedicated browser failure-path assertion or installation acceptance; successful broad harness execution does not establish this claim.",
+          "description": "Deferred product-family proof: current CI checks served manifest/icon packaging and real worker behavior on controlled fixture pages. It does not establish installed-platform icon presentation, every declared controlled-route/fallback binding, visible revalidation on actual product pages, or complete product update acceptance.",
           "locator": "scripts/check_reference_website.py",
           "commandId": "website-browser",
           "expectedResult": "All reachable contract assertions pass; corrupted or unavailable states fail or expose the required fallback."
@@ -8620,7 +8620,7 @@
           "id": "pwa-manifest-installability-negative",
           "status": "deferred",
           "kind": "end-to-end-test",
-          "description": "Browser corruption or network/update failure assertions. Deferred: this family still needs a dedicated browser failure-path assertion or installation acceptance; successful broad harness execution does not establish this claim.",
+          "description": "Deferred product-family proof: current CI checks served manifest/icon packaging and real worker behavior on controlled fixture pages. It does not establish installed-platform icon presentation, every declared controlled-route/fallback binding, visible revalidation on actual product pages, or complete product update acceptance.",
           "locator": "scripts/check_reference_website.py",
           "commandId": "website-browser",
           "expectedResult": "All reachable contract assertions pass; corrupted or unavailable states fail or expose the required fallback."
@@ -8646,9 +8646,9 @@
       "positiveEvidence": [
         {
           "id": "pwa-manifest-application-icon-positive",
-          "status": "verified",
+          "status": "deferred",
           "kind": "end-to-end-test",
-          "description": "Actual browser contract assertions.",
+          "description": "Deferred product-family proof: current CI checks served manifest/icon packaging and real worker behavior on controlled fixture pages. It does not establish installed-platform icon presentation, every declared controlled-route/fallback binding, visible revalidation on actual product pages, or complete product update acceptance.",
           "locator": "scripts/check_reference_website.py",
           "commandId": "website-browser",
           "expectedResult": "All reachable contract assertions pass; corrupted or unavailable states fail or expose the required fallback."
@@ -8659,7 +8659,7 @@
           "id": "pwa-manifest-application-icon-negative",
           "status": "deferred",
           "kind": "end-to-end-test",
-          "description": "Browser corruption or network/update failure assertions. Deferred: this family still needs a dedicated browser failure-path assertion or installation acceptance; successful broad harness execution does not establish this claim.",
+          "description": "Deferred product-family proof: current CI checks served manifest/icon packaging and real worker behavior on controlled fixture pages. It does not establish installed-platform icon presentation, every declared controlled-route/fallback binding, visible revalidation on actual product pages, or complete product update acceptance.",
           "locator": "scripts/check_reference_website.py",
           "commandId": "website-browser",
           "expectedResult": "All reachable contract assertions pass; corrupted or unavailable states fail or expose the required fallback."
@@ -8685,9 +8685,9 @@
       "positiveEvidence": [
         {
           "id": "pwa-offline-offline-presentation-positive",
-          "status": "verified",
+          "status": "deferred",
           "kind": "end-to-end-test",
-          "description": "Actual browser contract assertions.",
+          "description": "Deferred product-family proof: current CI checks served manifest/icon packaging and real worker behavior on controlled fixture pages. It does not establish installed-platform icon presentation, every declared controlled-route/fallback binding, visible revalidation on actual product pages, or complete product update acceptance.",
           "locator": "scripts/check_pwa_freshness.py",
           "commandId": "pwa-browser",
           "expectedResult": "All reachable contract assertions pass; corrupted or unavailable states fail or expose the required fallback."
@@ -8696,9 +8696,9 @@
       "negativeEvidence": [
         {
           "id": "pwa-offline-offline-presentation-negative",
-          "status": "verified",
+          "status": "deferred",
           "kind": "end-to-end-test",
-          "description": "Browser corruption or network/update failure assertions.",
+          "description": "Deferred product-family proof: current CI checks served manifest/icon packaging and real worker behavior on controlled fixture pages. It does not establish installed-platform icon presentation, every declared controlled-route/fallback binding, visible revalidation on actual product pages, or complete product update acceptance.",
           "locator": "scripts/check_pwa_freshness.py",
           "commandId": "pwa-browser",
           "expectedResult": "All reachable contract assertions pass; corrupted or unavailable states fail or expose the required fallback."
@@ -8724,9 +8724,9 @@
       "positiveEvidence": [
         {
           "id": "pwa-offline-online-revalidation-positive",
-          "status": "verified",
+          "status": "deferred",
           "kind": "end-to-end-test",
-          "description": "Actual browser contract assertions.",
+          "description": "Deferred product-family proof: current CI checks served manifest/icon packaging and real worker behavior on controlled fixture pages. It does not establish installed-platform icon presentation, every declared controlled-route/fallback binding, visible revalidation on actual product pages, or complete product update acceptance.",
           "locator": "scripts/check_pwa_freshness.py",
           "commandId": "pwa-browser",
           "expectedResult": "All reachable contract assertions pass; corrupted or unavailable states fail or expose the required fallback."
@@ -8735,9 +8735,9 @@
       "negativeEvidence": [
         {
           "id": "pwa-offline-online-revalidation-negative",
-          "status": "verified",
+          "status": "deferred",
           "kind": "end-to-end-test",
-          "description": "Browser corruption or network/update failure assertions.",
+          "description": "Deferred product-family proof: current CI checks served manifest/icon packaging and real worker behavior on controlled fixture pages. It does not establish installed-platform icon presentation, every declared controlled-route/fallback binding, visible revalidation on actual product pages, or complete product update acceptance.",
           "locator": "scripts/check_pwa_freshness.py",
           "commandId": "pwa-browser",
           "expectedResult": "All reachable contract assertions pass; corrupted or unavailable states fail or expose the required fallback."
@@ -8763,9 +8763,9 @@
       "positiveEvidence": [
         {
           "id": "pwa-update-update-detection-positive",
-          "status": "verified",
+          "status": "deferred",
           "kind": "end-to-end-test",
-          "description": "Actual browser contract assertions.",
+          "description": "Deferred product-family proof: current CI checks served manifest/icon packaging and real worker behavior on controlled fixture pages. It does not establish installed-platform icon presentation, every declared controlled-route/fallback binding, visible revalidation on actual product pages, or complete product update acceptance.",
           "locator": "scripts/check_pwa_freshness.py",
           "commandId": "pwa-browser",
           "expectedResult": "All reachable contract assertions pass; corrupted or unavailable states fail or expose the required fallback."
@@ -8776,7 +8776,7 @@
           "id": "pwa-update-update-detection-negative",
           "status": "deferred",
           "kind": "end-to-end-test",
-          "description": "Browser corruption or network/update failure assertions. Deferred: this family still needs a dedicated browser failure-path assertion or installation acceptance; successful broad harness execution does not establish this claim.",
+          "description": "Deferred product-family proof: current CI checks served manifest/icon packaging and real worker behavior on controlled fixture pages. It does not establish installed-platform icon presentation, every declared controlled-route/fallback binding, visible revalidation on actual product pages, or complete product update acceptance.",
           "locator": "scripts/check_pwa_freshness.py",
           "commandId": "pwa-browser",
           "expectedResult": "All reachable contract assertions pass; corrupted or unavailable states fail or expose the required fallback."
@@ -8802,9 +8802,9 @@
       "positiveEvidence": [
         {
           "id": "pwa-update-update-application-positive",
-          "status": "verified",
+          "status": "deferred",
           "kind": "end-to-end-test",
-          "description": "Actual browser contract assertions.",
+          "description": "Deferred product-family proof: current CI checks served manifest/icon packaging and real worker behavior on controlled fixture pages. It does not establish installed-platform icon presentation, every declared controlled-route/fallback binding, visible revalidation on actual product pages, or complete product update acceptance.",
           "locator": "scripts/check_pwa_freshness.py",
           "commandId": "pwa-browser",
           "expectedResult": "All reachable contract assertions pass; corrupted or unavailable states fail or expose the required fallback."
@@ -8815,7 +8815,7 @@
           "id": "pwa-update-update-application-negative",
           "status": "deferred",
           "kind": "end-to-end-test",
-          "description": "Browser corruption or network/update failure assertions. Deferred: this family still needs a dedicated browser failure-path assertion or installation acceptance; successful broad harness execution does not establish this claim.",
+          "description": "Deferred product-family proof: current CI checks served manifest/icon packaging and real worker behavior on controlled fixture pages. It does not establish installed-platform icon presentation, every declared controlled-route/fallback binding, visible revalidation on actual product pages, or complete product update acceptance.",
           "locator": "scripts/check_pwa_freshness.py",
           "commandId": "pwa-browser",
           "expectedResult": "All reachable contract assertions pass; corrupted or unavailable states fail or expose the required fallback."
@@ -8841,9 +8841,9 @@
       "positiveEvidence": [
         {
           "id": "pwa-offline-offline-cached-content-positive",
-          "status": "verified",
+          "status": "deferred",
           "kind": "end-to-end-test",
-          "description": "Actual browser contract assertions.",
+          "description": "Deferred product-family proof: current CI checks served manifest/icon packaging and real worker behavior on controlled fixture pages. It does not establish installed-platform icon presentation, every declared controlled-route/fallback binding, visible revalidation on actual product pages, or complete product update acceptance.",
           "locator": "scripts/check_pwa_freshness.py",
           "commandId": "pwa-browser",
           "expectedResult": "All reachable contract assertions pass; corrupted or unavailable states fail or expose the required fallback."
@@ -8852,9 +8852,9 @@
       "negativeEvidence": [
         {
           "id": "pwa-offline-offline-cached-content-negative",
-          "status": "verified",
+          "status": "deferred",
           "kind": "end-to-end-test",
-          "description": "Browser corruption or network/update failure assertions.",
+          "description": "Deferred product-family proof: current CI checks served manifest/icon packaging and real worker behavior on controlled fixture pages. It does not establish installed-platform icon presentation, every declared controlled-route/fallback binding, visible revalidation on actual product pages, or complete product update acceptance.",
           "locator": "scripts/check_pwa_freshness.py",
           "commandId": "pwa-browser",
           "expectedResult": "All reachable contract assertions pass; corrupted or unavailable states fail or expose the required fallback."
@@ -8880,9 +8880,9 @@
       "positiveEvidence": [
         {
           "id": "pwa-offline-freshness-unverified-positive",
-          "status": "verified",
+          "status": "deferred",
           "kind": "end-to-end-test",
-          "description": "Actual browser contract assertions.",
+          "description": "Deferred product-family proof: current CI checks served manifest/icon packaging and real worker behavior on controlled fixture pages. It does not establish installed-platform icon presentation, every declared controlled-route/fallback binding, visible revalidation on actual product pages, or complete product update acceptance.",
           "locator": "scripts/check_pwa_freshness.py",
           "commandId": "pwa-browser",
           "expectedResult": "All reachable contract assertions pass; corrupted or unavailable states fail or expose the required fallback."
@@ -8891,9 +8891,9 @@
       "negativeEvidence": [
         {
           "id": "pwa-offline-freshness-unverified-negative",
-          "status": "verified",
+          "status": "deferred",
           "kind": "end-to-end-test",
-          "description": "Browser corruption or network/update failure assertions.",
+          "description": "Deferred product-family proof: current CI checks served manifest/icon packaging and real worker behavior on controlled fixture pages. It does not establish installed-platform icon presentation, every declared controlled-route/fallback binding, visible revalidation on actual product pages, or complete product update acceptance.",
           "locator": "scripts/check_pwa_freshness.py",
           "commandId": "pwa-browser",
           "expectedResult": "All reachable contract assertions pass; corrupted or unavailable states fail or expose the required fallback."

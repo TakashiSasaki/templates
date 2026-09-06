@@ -38,6 +38,13 @@ after regeneration. CI checks freshness with the same command without
 `--write`, validates each provider independently, then builds and tests the actual
 Pages artifact through `.github/workflows/reference-consumer.yml`. Browser evidence
 is distinct from schema/ownership validity and from actual production deployment.
+The derived explanation reports proof-entry counts from the public evidence ledger;
+these counts are not independent test counts. PWA worker-fixture success and served
+icon packaging do not establish complete product-family acceptance. Keep those
+families deferred until actual product routes, presentation and installation have
+bound acceptance. A future provider update must use its ordinary immutable-source
+consumer runner; a read-only `plan --mode update` against the currently selected
+Composition source should preserve customized seeds and require no managed changes.
 
 This file applies to `site`, the repository integration and publication authority. Repository-wide authority ownership and semantic-role rules are defined in `docs/authority-model.md`.
 
