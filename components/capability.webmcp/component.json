@@ -15,12 +15,7 @@
       "schema": "schemas/webmcp-interface.schema.json",
       "migration_slug": "webmcp-interface",
       "document_schema_version": 1,
-      "version_history": [
-        {
-          "version": 1,
-          "change_type": "initial"
-        }
-      ],
+      "version_history": [{"version": 1, "change_type": "initial"}],
       "purpose": "Declare the product-owned WebMCP browser-context profile, registration lifetime, origin exposure, Permissions Policy expectations, unsupported-browser behavior, and shared-domain-operation invariant without creating a second adoption authority."
     },
     {
@@ -29,40 +24,20 @@
       "schema": "schemas/webmcp-tools.schema.json",
       "migration_slug": "webmcp-tools",
       "document_schema_version": 1,
-      "version_history": [
-        {
-          "version": 1,
-          "change_type": "initial"
-        }
-      ],
+      "version_history": [{"version": 1, "change_type": "initial"}],
       "purpose": "Declare stable product tool identities separately from caller-visible WebMCP names, with domain purpose, input contracts, effect class, output trust, applicability, and confirmation semantics."
     }
   ],
   "materials": [
-    {
-      "source": "files/WEBMCP.md",
-      "destination": "WEBMCP.md",
-      "ownership": "seed"
-    },
-    {
-      "source": "files/contracts/webmcp-interface.json",
-      "destination": "contracts/webmcp-interface.json",
-      "ownership": "seed"
-    },
-    {
-      "source": "files/contracts/webmcp-tools.json",
-      "destination": "contracts/webmcp-tools.json",
-      "ownership": "seed"
-    },
-    {
-      "source": "files/schemas/webmcp-interface.schema.json",
-      "destination": "schemas/webmcp-interface.schema.json",
-      "ownership": "managed"
-    },
-    {
-      "source": "files/schemas/webmcp-tools.schema.json",
-      "destination": "schemas/webmcp-tools.schema.json",
-      "ownership": "managed"
-    }
+    {"source": "files/WEBMCP.md", "destination": "WEBMCP.md", "ownership": "seed"},
+    {"source": "files/contracts/webmcp-interface.json", "destination": "contracts/webmcp-interface.json", "ownership": "seed"},
+    {"source": "files/contracts/webmcp-tools.json", "destination": "contracts/webmcp-tools.json", "ownership": "seed"},
+    {"source": "files/schemas/webmcp-interface.schema.json", "destination": "schemas/webmcp-interface.schema.json", "ownership": "managed"},
+    {"source": "files/schemas/webmcp-tools.schema.json", "destination": "schemas/webmcp-tools.schema.json", "ownership": "managed"},
+    {"source": "files/docs/webmcp-tool-design.md", "destination": "docs/webmcp-tool-design.md", "ownership": "managed"},
+    {"source": "files/docs/webmcp-security.md", "destination": "docs/webmcp-security.md", "ownership": "managed"},
+    {"source": "files/docs/webmcp-testing.md", "destination": "docs/webmcp-testing.md", "ownership": "managed"},
+    {"source": "files/scripts/webmcp_evidence_targets.py", "destination": "scripts/webmcp_evidence_targets.py", "ownership": "managed"},
+    {"source": "files/.template-composition/validators/validate_webmcp.py", "destination": ".template-composition/validators/validate_webmcp.py", "ownership": "managed"}
   ]
 }
