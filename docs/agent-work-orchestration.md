@@ -200,7 +200,7 @@ The dispatcher applies explicit task instruction before repository-local policy,
 
 ## Resumable Work ledger
 
-The [Work ledger procedure](../skills/orchestrate-repository-change/references/work-ledger.md) ties the existing workflow state together as a provider-side operational projection. Use a discoverable stack-tip/standalone PR comment or tracking issue for durable checkpoints and execution-local state for frequent updates. Record material transitions, not every tool call. A progress-only repository commit would move the head and stale exact-head evidence; ordinary progress therefore remains outside the tracked source tree.
+The Work ledger procedure at `skills/orchestrate-repository-change/references/work-ledger.md` ties the existing workflow state together as a provider-side operational projection. Use a discoverable stack-tip/standalone PR comment or tracking issue for durable checkpoints and execution-local state for frequent updates. Record material transitions, not every tool call. A progress-only repository commit would move the head and stale exact-head evidence; ordinary progress therefore remains outside the tracked source tree.
 
 Resume by discovering or reconstructing the checkpoint, refreshing affected live bindings, choosing the next safe action, performing useful work, and checkpointing material changes. Preserve semantic progress separately from final qualification. Link the existing review-finding ledger instead of duplicating finding dispositions or closure evidence. Provider facts and existing acceptance procedures retain authority.
 

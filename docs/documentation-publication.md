@@ -81,3 +81,6 @@ The documentation build is successful only when all of the following pass:
 - regression tests confirming that no Pages deployment route exists.
 
 A successful MkDocs build does not mean that documentation has been published.
+
+
+Authority-local stacked pull requests using `policy-*` base branches receive the same read-only documentation build as root PRs targeting `policy`. Push-triggered documentation builds remain restricted to `policy`; this does not introduce a Site deployment route or join authority histories.
