@@ -64,9 +64,7 @@ jobs:
         with:
           python-version: '3.12.13'
       - run: python -m pip install PyYAML==6.0.3
-      - name: Patch temporary materializer contract field
-        run: python -c "from pathlib import Path; p=Path('scripts/materialize_reference_consumer_example.py'); t=p.read_text(); p.write_text(t.replace('\\\"offlinePolicy\\\": \\\"cached-content-when-available\\\"','\\\"offlineReadBehavior\\\": \\\"cached-content-when-available\\\"'))"
-      - run: python scripts/materialize_reference_consumer_example.py
+      - run: python scripts/materialize_reference_consumer_example_fixed.py
       - uses: actions/upload-artifact@v4
         with:
           name: reference-consumer-example-materialized
