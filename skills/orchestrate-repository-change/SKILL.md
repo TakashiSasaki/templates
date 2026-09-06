@@ -98,7 +98,7 @@ A known material defect blocks acceptance immediately even while the candidate r
 
 For pull-request merge acceptance, defer to the repository's pull-request policy and any dedicated merge-gate procedure. This skill does not redefine exact-head review, CI, thread-closure, mergeability, or guarded-merge requirements.
 
-## 5. Use asynchronous wait time for bounded read-only work
+## 5. Use asynchronous wait time for bounded read-only work and dependency-safe construction
 
 While CI, review, publication, deployment, or another external result is in flight, continue useful work that does not invalidate the candidate under evaluation. CI waiting must not stop dependency-safe implementation on later members; record the dependency and provisional state in the Work ledger. For a frozen qualification candidate, suitable work includes:
 

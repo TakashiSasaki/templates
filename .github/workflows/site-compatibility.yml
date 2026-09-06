@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - policy
+      - "policy-*"
     paths:
       - docs/**
       - .github/workflows/pages.yml

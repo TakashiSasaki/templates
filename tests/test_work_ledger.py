@@ -58,3 +58,17 @@ def test_every_progression_and_handoff_path_routes_to_the_same_work_ledger():
     assert "do not poll or issue a post-request checkpoint update" in handoff
     serial = rendered["references/serial-pr-workflow.md"].lower()
     assert "checkpoint cannot authorize" in serial
+
+
+def test_policy_documentation_validation_reaches_authority_local_descendants():
+    import fnmatch
+
+    import yaml
+
+    for name in ("pages.yml", "site-compatibility.yml"):
+        workflow = yaml.safe_load((ROOT / ".github/workflows" / name).read_text())
+        events = workflow.get("on", workflow.get(True))
+        branches = events["pull_request"]["branches"]
+        for base in ("policy", "policy-work-ledger-model"):
+            assert any(fnmatch.fnmatchcase(base, pattern) for pattern in branches)
+        assert not any(fnmatch.fnmatchcase("site", pattern) for pattern in branches)
