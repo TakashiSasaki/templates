@@ -43,7 +43,10 @@ jobs:
       - name: Run publication regression tests
         run: .venv/bin/python -I tests/test_composition_playground_publication.py
 
-      - name: Verify committed publication projections are current
+      - name: Materialize deterministic publication projections
+        run: .venv/bin/python scripts/generate_composition_playground_publication.py --output-dir generated
+
+      - name: Verify materialized publication projections are current
         run: .venv/bin/python scripts/generate_composition_playground_publication.py --check-dir generated
 
       - name: Verify exact-head checkout and bounded publication size
@@ -56,9 +59,10 @@ jobs:
           .venv/bin/python - <<'PY'
           import gzip, json, pathlib
           root = pathlib.Path('generated')
+          manifest = json.loads((root / 'composition-playground-publication.json').read_text())
           base = json.loads(gzip.decompress((root / 'composition-playground-v1.json.gz').read_bytes()))
           intent = json.loads(gzip.decompress((root / 'composition-playground-intent-v1.json.gz').read_bytes()))
-          assert base['source']['revision'] == intent['source']['revision']
+          assert base['source']['revision'] == intent['source']['revision'] == manifest['semantic_revision']
           catalog = json.loads(pathlib.Path('docs/publication-catalog.json').read_text())
           expected = [
               {'source':'generated/composition-playground-v1.json.gz','destination':'playground/composition-playground-v1.json.gz','optional':False},
