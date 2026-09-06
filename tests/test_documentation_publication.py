@@ -95,10 +95,11 @@ def workflow_text() -> str:
     return WORKFLOW.read_text(encoding="utf-8")
 
 
-def test_documentation_workflow_targets_only_policy() -> None:
+def test_documentation_workflow_targets_policy_and_its_pr_stacks() -> None:
     workflow = workflow_text()
 
-    assert workflow.count("branches: [policy]") == 2
+    assert "push:\n    branches: [policy]" in workflow
+    assert 'branches: [policy, "policy-*"]' in workflow
     assert "branches: [skill]" not in workflow
     assert "branches: [main]" not in workflow
     assert "branches: [site]" not in workflow

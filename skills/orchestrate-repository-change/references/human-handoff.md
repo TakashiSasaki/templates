@@ -1,6 +1,12 @@
 <!-- agent-policy-generated: true -->
 # Human-handoff completion
 
+## Recoverable handoff
+
+Use [Work ledger](work-ledger.md) and its evidence locators to reconstruct the HANDOFF_READY report: starting/current authority observations, exact member/base/head topology, scope, completed/deferred mutation units, stability/qualification state, validation and CI bindings, review acquisition role, finding-ledger reference, blockers and remaining human action. Refresh materially stale facts before claiming the boundary is met. The checkpoint is an index and cannot substitute for the required evidence.
+
+For an authorized final diagnostic review with an immediate-stop instruction, persist the preflight Work ledger checkpoint before invoking the reviewer. Bind the request to that checkpoint and the intended exact heads. Successful submission itself is the durable acquisition event: stop immediately, report its locator and OUTSTANDING, and do not poll or issue a post-request checkpoint update. On a later authorized resume, reconcile the event before considering a retry. All existing complete-ledger disposition, closure and exact-head qualification gates below still apply.
+
 Use this procedure when human-handoff is selected.
 
 Human handoff is a normal completion boundary after the authorized implementation and validation work is complete. It does not waive any later independent review requirement, establish merge authorization, or imply that the pull requests are merge-ready.

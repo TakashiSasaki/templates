@@ -4,7 +4,7 @@ The `policy` branch builds its documentation through `.github/workflows/pages.ym
 
 ## Current workflow boundary
 
-Both pull requests targeting `policy` and pushes to `policy` regenerate repository previews and documentation assets, verify the documented tree, generate build metadata, and run a strict MkDocs build. The enabled build baseline is Ubuntu 24.04 with CPython 3.12.13. Checkout and Python setup actions are pinned to reviewed full commit SHAs, and every documentation command runs from a cleared branch-maintainer virtual environment rather than the runner's system environment.
+Pull requests targeting `policy` or authority-local `policy-*` stacked bases, and pushes to `policy`, regenerate repository previews and documentation assets, verify the documented tree, generate build metadata, and run a strict MkDocs build. The enabled build baseline is Ubuntu 24.04 with CPython 3.12.13. Checkout and Python setup actions are pinned to reviewed full commit SHAs, and every documentation command runs from a cleared branch-maintainer virtual environment rather than the runner's system environment.
 
 The documentation build also consumes the Site-owned generic schema-v3 publication protocol. It sparse-checks out only `scripts/publication_contract.py` from reviewed Site merge commit `3ae5d1e60c65e7a8ebf5f9af0436044484e42983` (Site PR #313) and executes that exact stdlib-only file against the Policy checkout. This is an immutable development/publication protocol dependency, not a runtime dependency of `agent-policy`. Policy does not keep a duplicate generic publication parser or validator.
 
@@ -12,7 +12,7 @@ Before `actions/setup-python` performs its cache lookup, the build job neutraliz
 
 The workflow has only `contents: read`. It contains no Pages artifact upload, Pages deployment or configuration action, `pages: write`, `id-token: write`, `github-pages` environment, deployment job, reusable deployment entry point, or manual publication trigger. No `policy` event can upload or deploy a GitHub Pages site.
 
-The workflow does not check out Composition or any retired provider branch. Its only cross-authority checkout is the single Site protocol file at the reviewed full SHA above; it does not execute a mutable `site` branch tip or consume Site's reader IA as Policy semantics. The repository default branch is irrelevant to the Policy event boundary. The workflow is scoped explicitly to pushes and pull requests for `policy` and deliberately omits `workflow_dispatch` and `workflow_call`.
+The workflow does not check out Composition or any retired provider branch. Its only cross-authority checkout is the single Site protocol file at the reviewed full SHA above; it does not execute a mutable `site` branch tip or consume Site's reader IA as Policy semantics. The repository default branch is irrelevant to the Policy event boundary. The workflow is scoped explicitly to pushes on `policy` and pull requests targeting `policy` or authority-local `policy-*` bases, and deliberately omits `workflow_dispatch` and `workflow_call`.
 
 All third-party actions are pinned to full commit SHAs. `requirements-docs.txt` records the reviewed direct documentation dependencies with arbitrary exact equality (`===`), while `requirements-docs.lock` records the complete arbitrary-exact graph for CPython 3.12.13 on Ubuntu 24.04. `scripts/verify_docs_environment.py` rejects missing, extra, or version-mismatched distributions outside that lock, excluding only the virtual environment's bootstrap `pip`. Dependency updates require a reviewed re-resolution and successful strict build.
 
@@ -81,3 +81,6 @@ The documentation build is successful only when all of the following pass:
 - regression tests confirming that no Pages deployment route exists.
 
 A successful MkDocs build does not mean that documentation has been published.
+
+
+Authority-local stacked pull requests using `policy-*` base branches receive the same read-only documentation build as root PRs targeting `policy`. Push-triggered documentation builds remain restricted to `policy`; this does not introduce a Site deployment route or join authority histories.

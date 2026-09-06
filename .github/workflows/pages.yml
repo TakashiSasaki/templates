@@ -4,7 +4,8 @@ on:
   push:
     branches: [policy]
   pull_request:
-    branches: [policy]
+    # Validate authority-local descendants as well as the root Policy PR.
+    branches: [policy, "policy-*"]
 
 permissions:
   contents: read
