@@ -58,13 +58,12 @@ class CompositionPlaygroundPublicationTests(unittest.TestCase):
         self.assertRegex(provider_revision, re.compile(r"^[0-9a-f]{40}$"))
         self.assertNotEqual(semantic_revision, provider_revision)
 
-    def test_publication_catalog_registers_both_projection_assets(self) -> None:
+    def test_publication_catalog_declares_materialized_projection_assets(self) -> None:
         catalog = json.loads(CATALOG.read_text(encoding="utf-8"))
         matches = [asset for asset in catalog["assets"] if asset["destination"].startswith("playground/composition-playground")]
         self.assertEqual([
             {"source": "generated/composition-playground-v1.json.gz", "destination": "playground/composition-playground-v1.json.gz", "optional": False},
             {"source": "generated/composition-playground-intent-v1.json.gz", "destination": "playground/composition-playground-intent-v1.json.gz", "optional": False},
-            {"source": "generated/composition-playground-publication.json", "destination": "playground/composition-playground-publication.json", "optional": False},
         ], matches)
 
     def test_invalid_manifest_fails_closed(self) -> None:
