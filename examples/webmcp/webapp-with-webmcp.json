@@ -1,0 +1,6 @@
+{
+  "schema_version": 1,
+  "recipe": "webapp",
+  "components": {"include": ["capability.webmcp"], "exclude": []},
+  "parameters": {}
+}
