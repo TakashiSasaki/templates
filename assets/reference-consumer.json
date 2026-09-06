@@ -1,0 +1,475 @@
+{
+  "schema_version": 1,
+  "kind": "reference-consumer-description",
+  "repository": "TakashiSasaki/templates",
+  "authority": "site",
+  "composition": {
+    "source": {
+      "repository": "TakashiSasaki/templates",
+      "revision": "bd28b67ad97652182d6744ee38ef992349104961"
+    },
+    "intent": {
+      "schema_version": 1,
+      "recipe": "website",
+      "components": {
+        "include": [
+          "capability.pwa"
+        ],
+        "exclude": []
+      },
+      "parameters": {}
+    },
+    "ownership": [
+      {
+        "destination": ".github/workflows/validate-website.yml",
+        "component": "artifact.website-core",
+        "ownership": "managed",
+        "materialized_sha256": "ed8794e9801ce75aaf8d442d420eca13f49e6a17e33a5b68cf7c181779c8b27c"
+      },
+      {
+        "destination": ".template-composition/checkpoint.py",
+        "component": "lifecycle.lifecycle-checkpoints",
+        "ownership": "managed",
+        "materialized_sha256": "7bec7512e496fabfc4f6d67e341b44213d12ad0fed2e8b486168756e3dabc7ef"
+      },
+      {
+        "destination": ".template-composition/composition-lock.schema.json",
+        "component": "lifecycle.composition-state",
+        "ownership": "managed",
+        "materialized_sha256": "c6a520a4c5e0ef36571ef1a59fa2fc076765a513f422caf7c88c619c8a239297"
+      },
+      {
+        "destination": ".template-composition/implementation-evidence-actions.json",
+        "component": "lifecycle.implementation-evidence",
+        "ownership": "managed",
+        "materialized_sha256": "cbdc930f57077606c6369ec325a1115b127b01fc91eb7e7ba6bfa09c4592f4d7"
+      },
+      {
+        "destination": ".template-composition/implementation-evidence-actions.schema.json",
+        "component": "lifecycle.implementation-evidence",
+        "ownership": "managed",
+        "materialized_sha256": "06d1649c886f05ba4656d40c4ce26cd27f38ead55b6543958887fd86c1086e78"
+      },
+      {
+        "destination": ".template-composition/implementation-evidence-release-readiness.schema.json",
+        "component": "lifecycle.implementation-evidence",
+        "ownership": "managed",
+        "materialized_sha256": "5d3e5cab1c7cb5eda234b49269a3d4513407ba42adf50abb9b5852b049afb332"
+      },
+      {
+        "destination": ".template-composition/lifecycle-checkpoint-action-result.schema.json",
+        "component": "lifecycle.lifecycle-checkpoints",
+        "ownership": "managed",
+        "materialized_sha256": "4b11ed536cebc519af6dbda3e0c2fa800bd43e3e1971128549875d14691eaa17"
+      },
+      {
+        "destination": ".template-composition/lifecycle-checkpoint-actions.json",
+        "component": "lifecycle.lifecycle-checkpoints",
+        "ownership": "managed",
+        "materialized_sha256": "6ff45208373acd40e81a6ba9bbd8c34159d0c41d64d57ada3be621f4dacc3f90"
+      },
+      {
+        "destination": ".template-composition/lifecycle-checkpoint-actions.schema.json",
+        "component": "lifecycle.lifecycle-checkpoints",
+        "ownership": "managed",
+        "materialized_sha256": "5c6340b86166dc49e30b363332e5fdcb51d3c40ed333e400b58b011718292910"
+      },
+      {
+        "destination": ".template-composition/lifecycle-next-actions.schema.json",
+        "component": "lifecycle.composition-state",
+        "ownership": "managed",
+        "materialized_sha256": "65452c91826bf7ceef43b1d0f9071f811d448358c453f21941fc8843f752fb1c"
+      },
+      {
+        "destination": ".template-composition/requirements-validation.lock",
+        "component": "lifecycle.contract-evolution",
+        "ownership": "managed",
+        "materialized_sha256": "4f7abee46e68d6f1072ee7c7439d69c68533e7ce7b063d417c556898938279c5"
+      },
+      {
+        "destination": ".template-composition/run_action.py",
+        "component": "lifecycle.composition-state",
+        "ownership": "managed",
+        "materialized_sha256": "c7439b6cd34a27a73930e52b960173b7394da20e96b8bdbc6d7f987bdfea5928"
+      },
+      {
+        "destination": ".template-composition/validate.py",
+        "component": "lifecycle.composition-state",
+        "ownership": "managed",
+        "materialized_sha256": "204a8c036877f9561be6b3950a8da0a848b6b5fb50656d12dd8e451cc5cdc8b1"
+      },
+      {
+        "destination": ".template-composition/validate_composition.py",
+        "component": "lifecycle.composition-state",
+        "ownership": "managed",
+        "materialized_sha256": "67c5e5b90eb08bc641a4bfe9e4f87a15810fbf7ea06643a08e1cf931947d9947"
+      },
+      {
+        "destination": ".template-composition/validate_impl.py",
+        "component": "lifecycle.composition-state",
+        "ownership": "managed",
+        "materialized_sha256": "ce84681cf27364b45adc5315071c0578254054166ab9ecf045bbd2cb65e77bbf"
+      },
+      {
+        "destination": ".template-composition/validation-registry.json",
+        "component": "lifecycle.composition-state",
+        "ownership": "managed",
+        "materialized_sha256": "96b6aeee60a25a9cde7a11646068491e0519249f41ae28b5b71c0e14c85541bb"
+      },
+      {
+        "destination": ".template-composition/validators/contract_common.py",
+        "component": "lifecycle.contract-evolution",
+        "ownership": "managed",
+        "materialized_sha256": "c71185664a0b4bb9053c557787d55835e78736bc1a5a98919335e23bfdd4d45f"
+      },
+      {
+        "destination": ".template-composition/validators/validate_contract_evolution.py",
+        "component": "lifecycle.contract-evolution",
+        "ownership": "managed",
+        "materialized_sha256": "6b9a95f988970a7be9cac173e66c4910e405240def98e07ec2d4954176b6c34c"
+      },
+      {
+        "destination": ".template-composition/validators/validate_implementation_evidence.py",
+        "component": "lifecycle.implementation-evidence",
+        "ownership": "managed",
+        "materialized_sha256": "13b4df9a87e14dc93af3ac43cfbb08820faa8ad199c48f0954847f17e515a906"
+      },
+      {
+        "destination": ".template-composition/validators/validate_lifecycle_checkpoints.py",
+        "component": "lifecycle.lifecycle-checkpoints",
+        "ownership": "managed",
+        "materialized_sha256": "64244e2cd9bb42f729d31b2e90cddbb23ba91e99ea5194ed7ba9998d657f5a49"
+      },
+      {
+        "destination": ".template-composition/validators/validate_pwa.py",
+        "component": "capability.pwa",
+        "ownership": "managed",
+        "materialized_sha256": "0e5143738d2526bccb60fe327e0ddf97bf623d2416740035626c98f1400d6d3d"
+      },
+      {
+        "destination": ".template-composition/validators/validate_pwa_evidence.py",
+        "component": "capability.pwa",
+        "ownership": "managed",
+        "materialized_sha256": "a32306ef7b7183e30a0f6c725ef10c7cc3e730481d52c227bcf0f70d340f0891"
+      },
+      {
+        "destination": "PWA.md",
+        "component": "capability.pwa",
+        "ownership": "seed",
+        "materialized_sha256": "e7a5e652f96eadbb85f75a515f237a98e878dc5a1b080b81bbeebd934985d985"
+      },
+      {
+        "destination": "contracts/browser-identity.json",
+        "component": "foundation.web",
+        "ownership": "seed",
+        "materialized_sha256": "c56eff611c0736c724f951261f2d9ffdc96527d0e5c97b6ef81a1a4609a44c01"
+      },
+      {
+        "destination": "contracts/document-metadata.json",
+        "component": "artifact.website-core",
+        "ownership": "seed",
+        "materialized_sha256": "db0e9183b7fd7d9049d0622ec01bc82283af8287f154632c15c484c99fb2504d"
+      },
+      {
+        "destination": "contracts/implementation-evidence.json",
+        "component": "lifecycle.implementation-evidence",
+        "ownership": "seed",
+        "materialized_sha256": "b7bbdf550e97ca33261bf5f3c54bd67eec67c598417bb09d0f4ef76e0c6e2f7b"
+      },
+      {
+        "destination": "contracts/lifecycle-checkpoints.json",
+        "component": "lifecycle.lifecycle-checkpoints",
+        "ownership": "seed",
+        "materialized_sha256": "0242cd734b8f0c14e381f5e850dc4ac80e1dd611f9892c912fc0d25a0f39d0a1"
+      },
+      {
+        "destination": "contracts/manifest.json",
+        "component": "lifecycle.contract-evolution",
+        "ownership": "generated",
+        "materialized_sha256": "2bdfb597a7ee661988aa58cfbb8b017b89e0be467984702c1b06144f7300084e"
+      },
+      {
+        "destination": "contracts/pwa-manifest.json",
+        "component": "capability.pwa",
+        "ownership": "seed",
+        "materialized_sha256": "4a3319408fe514122ba098f349683f9e5577a6acfffb9a77cea139ae12fac99e"
+      },
+      {
+        "destination": "contracts/pwa-offline.json",
+        "component": "capability.pwa",
+        "ownership": "seed",
+        "materialized_sha256": "526054318c598d1cbf4fa055acb3889a8ea8f5ba6c97d96fddca0a314cfa44c1"
+      },
+      {
+        "destination": "contracts/pwa-update.json",
+        "component": "capability.pwa",
+        "ownership": "seed",
+        "materialized_sha256": "bb2b79668df807b354e55a49257af56cfcc79e0c9cd1cfe6e17123d427143429"
+      },
+      {
+        "destination": "contracts/routes.json",
+        "component": "foundation.web",
+        "ownership": "seed",
+        "materialized_sha256": "89d101a2105e0f1e48e0c4b87fa0941b1ea32803cd8062b1bef1ba49bad5fe78"
+      },
+      {
+        "destination": "contracts/site-discovery.json",
+        "component": "artifact.website-core",
+        "ownership": "seed",
+        "materialized_sha256": "42a5cece60772dc6d790a591b12c7245be89c8f79661f2320270792812857b3f"
+      },
+      {
+        "destination": "contracts/site-structure.json",
+        "component": "artifact.website-core",
+        "ownership": "seed",
+        "materialized_sha256": "203fd5b73526a9b84d6aa06f935e7e9b71d0c3893036b49010f8cffd1246be12"
+      },
+      {
+        "destination": "contracts/viewports.json",
+        "component": "foundation.web",
+        "ownership": "seed",
+        "materialized_sha256": "5687efe84244b9ebc6a2384507d157543b84641f4b3c4ddc0f4d5d2de28d6dd3"
+      },
+      {
+        "destination": "docs/architecture/composition-state.md",
+        "component": "lifecycle.composition-state",
+        "ownership": "managed",
+        "materialized_sha256": "ec45180bba8c31fb9e1549884d99be17a7c5aa49528c705fdd4ed20efcf0a63b"
+      },
+      {
+        "destination": "docs/architecture/contract-evolution.md",
+        "component": "lifecycle.contract-evolution",
+        "ownership": "managed",
+        "materialized_sha256": "7dc1b4510d1c154de51b8ed8a664e1ce0b40452f6ec57e9e6b65b795a85923a3"
+      },
+      {
+        "destination": "docs/architecture/implementation-evidence.md",
+        "component": "lifecycle.implementation-evidence",
+        "ownership": "managed",
+        "materialized_sha256": "1665a29cd99d2fc4164f5d5673d5094e2715b1e61ad4550bbfec5ff7ea944658"
+      },
+      {
+        "destination": "docs/architecture/lifecycle-checkpoints.md",
+        "component": "lifecycle.lifecycle-checkpoints",
+        "ownership": "managed",
+        "materialized_sha256": "bb5defd002799c91e125f60bec8e322646325d4173f750b5b2297ca8e1b7ca43"
+      },
+      {
+        "destination": "docs/migrations/implementation-evidence-v1-to-v2.md",
+        "component": "lifecycle.implementation-evidence",
+        "ownership": "managed",
+        "materialized_sha256": "1f86d41f0ad6cc49d14f92accdb77d84fc588ac3c7480c49ed5f12e7bdad53b4"
+      },
+      {
+        "destination": "docs/migrations/implementation-evidence-v2-to-v3.md",
+        "component": "lifecycle.implementation-evidence",
+        "ownership": "managed",
+        "materialized_sha256": "212e2c5560ec83c79f9025f12c2bd5e74bd42064080c253ec9b75fa5409f5ac6"
+      },
+      {
+        "destination": "docs/migrations/implementation-evidence-v3-to-v4.md",
+        "component": "lifecycle.implementation-evidence",
+        "ownership": "managed",
+        "materialized_sha256": "f4f544fbdf33f26b4ede5bf3fc76055a88e000fd51f9bb847fe752d77723ec5e"
+      },
+      {
+        "destination": "docs/migrations/implementation-evidence-v4-to-v5.md",
+        "component": "lifecycle.implementation-evidence",
+        "ownership": "managed",
+        "materialized_sha256": "7ced84bd35d57dd73013920375c411fd8b15067a40fca95dd54b5ca580e48ebd"
+      },
+      {
+        "destination": "docs/migrations/implementation-evidence-v5-to-v6.md",
+        "component": "lifecycle.implementation-evidence",
+        "ownership": "managed",
+        "materialized_sha256": "55c9e36eff083b4e6bd55bbfceb65d0ca4c0a508f0de6e39a2d695909a248ab6"
+      },
+      {
+        "destination": "docs/migrations/pwa-offline-v1-to-v2.md",
+        "component": "capability.pwa",
+        "ownership": "managed",
+        "materialized_sha256": "d14eb5dc6edabc96f1bf82ea66146f1d2f43bbb40bff39b88db6f5afa6a45e62"
+      },
+      {
+        "destination": "docs/migrations/pwa-update-v1-to-v2.md",
+        "component": "capability.pwa",
+        "ownership": "managed",
+        "materialized_sha256": "d8b3946c89ea0e995f0a3a0235501fc7a7de8107dc0fb1526898b57652b721eb"
+      },
+      {
+        "destination": "docs/migrations/routes-v1-to-v2.md",
+        "component": "foundation.web",
+        "ownership": "managed",
+        "materialized_sha256": "22d0d2bf0295cf9f68fdf42fcef196b0698af9c84fa916e5717fab3706ab5121"
+      },
+      {
+        "destination": "docs/migrations/routes-v2-to-v3.md",
+        "component": "foundation.web",
+        "ownership": "managed",
+        "materialized_sha256": "ddfe91f67d29dbcd2695cf85e74daaf662097d73c36ac7a8e4c8595956a6977d"
+      },
+      {
+        "destination": "docs/migrations/routes-v3-to-v4.md",
+        "component": "foundation.web",
+        "ownership": "managed",
+        "materialized_sha256": "5134c3430dfdcae9dbcf7d98042405e8c46bb1a7cc457ecec497b96973107da3"
+      },
+      {
+        "destination": "docs/migrations/routes-v4-to-v5.md",
+        "component": "foundation.web",
+        "ownership": "managed",
+        "materialized_sha256": "edb83f6f63afef0e1ea1c3eb9e36be4d80182311d0efcab3d8bb558eb1422bcf"
+      },
+      {
+        "destination": "docs/url-path-design-guidance.md",
+        "component": "foundation.web",
+        "ownership": "managed",
+        "materialized_sha256": "1fbd73229be79114098212527601639a574c2a957c59d80b52e633ca1be23ca8"
+      },
+      {
+        "destination": "schemas/browser-identity.schema.json",
+        "component": "foundation.web",
+        "ownership": "managed",
+        "materialized_sha256": "8651720b577bd57f28f557e3e7f61af66dae0ce1c7b0b4b123673f895a6af597"
+      },
+      {
+        "destination": "schemas/contract-manifest.schema.json",
+        "component": "lifecycle.contract-evolution",
+        "ownership": "managed",
+        "materialized_sha256": "143d1d93195e5d5304b15bfcff83231ca2759568679034d7cdb053463666245d"
+      },
+      {
+        "destination": "schemas/document-metadata.schema.json",
+        "component": "artifact.website-core",
+        "ownership": "managed",
+        "materialized_sha256": "d242d2fbfc811c5e6315364f0bf2a0726880d9179a8ca11ac72b93807cd43930"
+      },
+      {
+        "destination": "schemas/implementation-evidence.schema.json",
+        "component": "lifecycle.implementation-evidence",
+        "ownership": "managed",
+        "materialized_sha256": "7fe338a70e95a54897a3d11723465ce396e8117a20984000449b93242cd7c409"
+      },
+      {
+        "destination": "schemas/lifecycle-checkpoints.schema.json",
+        "component": "lifecycle.lifecycle-checkpoints",
+        "ownership": "managed",
+        "materialized_sha256": "dd5ca4bcc3b1ac71e41f141ed4639cc605be513e11622173c58329ebf91ba6fc"
+      },
+      {
+        "destination": "schemas/pwa-manifest.schema.json",
+        "component": "capability.pwa",
+        "ownership": "managed",
+        "materialized_sha256": "5ad91b1c488c4d2ab49cb4de1ccc07a8f564171a840dde9925b78b20f7387459"
+      },
+      {
+        "destination": "schemas/pwa-offline.schema.json",
+        "component": "capability.pwa",
+        "ownership": "managed",
+        "materialized_sha256": "3d475624be95e0b0cf6779c0e8af980e57037981274d55e20f6dd1236f38061c"
+      },
+      {
+        "destination": "schemas/pwa-update.schema.json",
+        "component": "capability.pwa",
+        "ownership": "managed",
+        "materialized_sha256": "863dfb73daae1b6def4cb8193b00791b613fc3c09a914fe222cc4fac90e67ae2"
+      },
+      {
+        "destination": "schemas/routes.schema.json",
+        "component": "foundation.web",
+        "ownership": "managed",
+        "materialized_sha256": "7118d344a4d58bb7ae3b9e1e9d8260dc46105980c5d3c0d4aea2836d40587d42"
+      },
+      {
+        "destination": "schemas/site-discovery.schema.json",
+        "component": "artifact.website-core",
+        "ownership": "managed",
+        "materialized_sha256": "70112d88b75c9b246fe148c9a2570d53408bcef4696e915c59f7598d20f96d82"
+      },
+      {
+        "destination": "schemas/site-structure.schema.json",
+        "component": "artifact.website-core",
+        "ownership": "managed",
+        "materialized_sha256": "b96e5cfbf7b57a972e9b6d77616c88a2151e33475c85df87aa7796cfb8b368d6"
+      },
+      {
+        "destination": "schemas/viewports.schema.json",
+        "component": "foundation.web",
+        "ownership": "managed",
+        "materialized_sha256": "f0468b0e831e5cf4bf156d49999a591f0169e9eb00c61c729d54ea785e41a872"
+      },
+      {
+        "destination": "scripts/pwa_evidence_targets.py",
+        "component": "capability.pwa",
+        "ownership": "managed",
+        "materialized_sha256": "683c6ce4c6979a5f4c7a0590b33156d6ff35e2d1f4000d8d53f520c4409e2cdc"
+      },
+      {
+        "destination": "scripts/validate_website_contracts.py",
+        "component": "artifact.website-core",
+        "ownership": "managed",
+        "materialized_sha256": "27b59d4efd955dc685e287bb18ff94cc3e3ac994e7ab411613a49c52aef027f6"
+      },
+      {
+        "destination": "scripts/validate_website_evidence.py",
+        "component": "artifact.website-core",
+        "ownership": "managed",
+        "materialized_sha256": "c4260751efdeffd6f677e6cafa359ac99390cc528d6ffe9e67e26f79affc9a6b"
+      },
+      {
+        "destination": "scripts/website_evidence_targets.py",
+        "component": "artifact.website-core",
+        "ownership": "managed",
+        "materialized_sha256": "d41c7aa02ac1aad361d62532ae23904bbd602a114973c640746cfcd80f4293c0"
+      }
+    ],
+    "state": ".template-composition/lock.json"
+  },
+  "policy": {
+    "toolchain": {
+      "repository": "TakashiSasaki/templates",
+      "revision": "33a7ab809225c2a8b8dd2598ef04d0a39cf076a7"
+    },
+    "contexts": {
+      "default": {
+        "profiles": [
+          "core",
+          "security-baseline",
+          "pull-request"
+        ],
+        "project_policy": {
+          "files": [
+            "policy/project.md"
+          ]
+        }
+      }
+    },
+    "outputs": {
+      "agents": {
+        "enabled": true,
+        "path": "AGENTS.md",
+        "context": "default",
+        "renderer": "agents-md"
+      }
+    },
+    "configuration": ".agent-policy.yml",
+    "state": ".agent-policy.lock"
+  },
+  "publication": {
+    "schema_version": 1,
+    "repository": "TakashiSasaki/templates",
+    "publications": {
+      "composition": {
+        "revision": "95a91a9f0a2258a7611c77f32a571164c065ece3"
+      },
+      "policy": {
+        "revision": "c5a3294809a1066bf59b83f467f1d597f885289a"
+      }
+    }
+  },
+  "validation": {
+    "composition": "python .template-composition/validate.py . --format json",
+    "policy_workflow": ".github/workflows/check-agent-policy.yml",
+    "integration_workflow": ".github/workflows/reference-consumer.yml"
+  }
+}

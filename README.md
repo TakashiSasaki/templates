@@ -29,6 +29,13 @@ The rest of this README documents the repository authority and publication model
 
 ## Repository authority model
 
+This repository is also an executable reference consumer: Composition defines
+its own Website product, and Policy governs Site maintenance. Inspect
+[`reference-consumer.json`](reference-consumer.json) and the
+[generated self-hosting explanation](docs/policy-composition-coexistence.md#self-hosting-reference-consumer).
+These two consumer relationships are independent of the publication revisions
+selected for readers.
+
 This repository separates three authorities by responsibility:
 
 | Branch | Authority | Start here when you need to |

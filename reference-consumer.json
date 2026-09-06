@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "kind": "reference-consumer-discovery",
+  "repository": "TakashiSasaki/templates",
+  "authority": "site",
+  "relationships": {
+    "product": {
+      "provider": "composition",
+      "intent": "composition.json",
+      "state": ".template-composition/lock.json",
+      "validation": "python .template-composition/validate.py . --format json"
+    },
+    "maintenance": {
+      "provider": "policy",
+      "configuration": ".agent-policy.yml",
+      "state": ".agent-policy.lock",
+      "local_policy": "policy/project.md",
+      "validation_workflow": ".github/workflows/check-agent-policy.yml"
+    },
+    "publication": {
+      "selection": "publication-sources.json",
+      "provenance": "/build-provenance.json"
+    }
+  },
+  "projection": "assets/reference-consumer.json",
+  "documentation": "docs/policy-composition-coexistence.md"
+}
