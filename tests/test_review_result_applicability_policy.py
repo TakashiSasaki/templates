@@ -6,7 +6,12 @@ ROOT = Path(__file__).resolve().parents[1]
 RULE = ROOT / "policy" / "pull-request" / "review-result-applicability.md"
 PROFILE = ROOT / "profiles" / "pull-request.yml"
 INDEPENDENT = ROOT / "policy" / "pull-request" / "independent-exact-head-review.md"
-REACQUISITION = ROOT / "policy" / "pull-request" / "review-reacquisition-after-disposition.md"
+REACQUISITION = (
+    ROOT
+    / "policy"
+    / "pull-request"
+    / "review-reacquisition-after-disposition.md"
+)
 
 
 def _text(path: Path) -> str:
@@ -44,8 +49,14 @@ def test_historical_findings_survive_review_cycle_and_head_changes_when_applicab
     for phrase in (
         "review-cycle completion applicability and finding applicability are distinct",
         "earlier review cycle must not by itself establish completion",
-        "material actionable finding reported earlier remains part of the known finding backlog",
-        "do not discard a finding solely because the head changed or a newer review request exists",
+        (
+            "material actionable finding reported earlier remains part of the "
+            "known finding backlog"
+        ),
+        (
+            "do not discard a finding solely because the head changed or a newer "
+            "review request exists"
+        ),
     ):
         assert phrase in text
 
