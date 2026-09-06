@@ -2,10 +2,7 @@ name: Composition Playground publication
 
 on:
   pull_request:
-    types:
-      - opened
-      - synchronize
-      - reopened
+    types: [opened, synchronize, reopened]
 
 permissions:
   contents: read
@@ -16,7 +13,7 @@ concurrency:
 
 jobs:
   publication:
-    name: deterministic published asset
+    name: deterministic published assets
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -46,25 +43,26 @@ jobs:
       - name: Run publication regression tests
         run: .venv/bin/python -I tests/test_composition_playground_publication.py
 
-      - name: Verify committed publication bytes are current
-        run: .venv/bin/python scripts/generate_composition_playground_publication.py --check generated/composition-playground-v1.json.gz
+      - name: Verify committed publication projections are current
+        run: .venv/bin/python scripts/generate_composition_playground_publication.py --check-dir generated
 
-      - name: Verify exact-head checkout and bounded transport size
+      - name: Verify exact-head checkout and bounded publication size
         env:
           EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
         run: |
           test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
-          test "$(wc -c < generated/composition-playground-v1.json.gz)" -lt 131072
+          test "$(wc -c < generated/composition-playground-v1.json)" -lt 1048576
+          test "$(wc -c < generated/composition-playground-intent-v1.json)" -lt 524288
           .venv/bin/python - <<'PY'
-          import gzip, json, pathlib
-          path = pathlib.Path("generated/composition-playground-v1.json.gz")
-          projection = json.loads(gzip.decompress(path.read_bytes()))
-          source = projection["source"]["revision"]
-          assert len(source) == 40 and all(c in "0123456789abcdef" for c in source)
-          catalog = json.loads(pathlib.Path("docs/publication-catalog.json").read_text())
-          assert {
-              "source": "generated/composition-playground-v1.json.gz",
-              "destination": "playground/composition-playground-v1.json.gz",
-              "optional": False,
-          } in catalog["assets"]
+          import json, pathlib
+          root = pathlib.Path('generated')
+          base = json.loads((root / 'composition-playground-v1.json').read_text())
+          intent = json.loads((root / 'composition-playground-intent-v1.json').read_text())
+          assert base['source']['revision'] == intent['source']['revision']
+          catalog = json.loads(pathlib.Path('docs/publication-catalog.json').read_text())
+          expected = [
+              {'source':'generated/composition-playground-v1.json','destination':'playground/composition-playground-v1.json','optional':False},
+              {'source':'generated/composition-playground-intent-v1.json','destination':'playground/composition-playground-intent-v1.json','optional':False},
+          ]
+          assert [a for a in catalog['assets'] if a['destination'].startswith('playground/composition-playground')] == expected
           PY
