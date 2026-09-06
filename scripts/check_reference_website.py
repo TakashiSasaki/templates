@@ -36,10 +36,22 @@ def viewport_probes(contract):
 
 
 def check_link(page, identity):
-    links = page.locator(f'link[rel="{identity["relation"]}"]')
-    expected = urljoin(page.url, identity["href"])
-    require(any(urljoin(page.url, links.nth(i).get_attribute("href") or "") == expected
-                for i in range(links.count())), f"missing browser identity: {expected}")
+    links = page.locator(f'link[rel~="{identity["relation"]}"]')
+    expected_href = urljoin(page.url, identity["href"])
+    expected_type = identity.get("mediaType")
+    expected_sizes = set(identity.get("sizes", []))
+
+    def matches(link):
+        if urljoin(page.url, link.get_attribute("href") or "") != expected_href:
+            return False
+        if expected_type is not None and (link.get_attribute("type") or "").strip().casefold() != expected_type.casefold():
+            return False
+        if "sizes" in identity and set((link.get_attribute("sizes") or "").split()) != expected_sizes:
+            return False
+        return True
+
+    require(any(matches(links.nth(i)) for i in range(links.count())),
+            f"missing browser identity: {expected_href}")
 
 
 def check_manifest(actual, expected, routes, manifest_url):
@@ -125,7 +137,7 @@ def check(repository: Path, site_root: Path):
             page.keyboard.press("Tab")
             require(page.evaluate("document.activeElement !== document.body"), "keyboard navigation unavailable")
             check_link(page, identity["favicon"])
-            icons = page.locator(f'link[rel="{identity["favicon"]["relation"]}"]')
+            icons = page.locator(f'link[rel~="{identity["favicon"]["relation"]}"]')
             require(icons.count() > 0, "favicon missing")
             icon_markup = icons.first.evaluate("element => element.outerHTML")
             for fallback in identity["favicon"]["fallbacks"]:
