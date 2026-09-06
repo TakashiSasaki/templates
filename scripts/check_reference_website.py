@@ -25,6 +25,10 @@ def check_page(page, meta, canonical):
     require(page.locator("h1").first.is_visible(), "main heading is not visible")
 
 
+def check_viewport(page):
+    require(page.evaluate("document.documentElement.scrollWidth <= innerWidth + 1"), "horizontal document overflow")
+
+
 def check(repository: Path, site_root: Path):
     from playwright.sync_api import sync_playwright
     def load(name):
@@ -54,6 +58,9 @@ def check(repository: Path, site_root: Path):
                 response = page.goto(f"http://127.0.0.1:{server.server_port}" + route, wait_until="domcontentloaded")
                 require(response.status == 200, f"unreachable route: {route}")
                 check_page(page, meta, canonical)
+                for width in (360, 1280):
+                    page.set_viewport_size({"width":width,"height":900})
+                    check_viewport(page)
                 # Prove that the browser assertion rejects a corrupted product
                 # value, rather than accepting any schema-valid declaration.
                 page.evaluate("document.title = 'invalid consumer title'")
@@ -76,10 +83,29 @@ def check(repository: Path, site_root: Path):
             page.goto(f"http://127.0.0.1:{server.server_port}/", wait_until="domcontentloaded")
             for width in (360, 1280):
                 page.set_viewport_size({"width":width,"height":900})
-                require(page.evaluate("document.documentElement.scrollWidth <= innerWidth + 1"), f"horizontal overflow at {width}px")
+                check_viewport(page)
+                page.evaluate("document.body.insertAdjacentHTML('beforeend', '<div id=negative-overflow style=width:20000px;height:1px></div>')")
+                try:
+                    check_viewport(page)
+                except AssertionError:
+                    pass
+                else:
+                    raise AssertionError("negative viewport proof accepted document overflow")
+                page.locator("#negative-overflow").evaluate("element => element.remove()")
             page.keyboard.press("Tab")
             require(page.evaluate("document.activeElement !== document.body"), "keyboard navigation unavailable")
-            require(page.locator('link[rel="icon"]').count() > 0, "favicon missing")
+            icons = page.locator('link[rel="icon"]')
+            require(icons.count() > 0, "favicon missing")
+            icon_markup = icons.first.evaluate("element => element.outerHTML")
+            require(urljoin(page.url, icons.first.get_attribute("href")) == urljoin(page.url, "/icon.svg"), "favicon identity mismatch")
+            icons.evaluate_all("elements => elements.forEach(element => element.remove())")
+            try:
+                require(icons.count() > 0, "favicon missing")
+            except AssertionError:
+                pass
+            else:
+                raise AssertionError("negative identity proof accepted missing favicon")
+            page.evaluate("markup => document.head.insertAdjacentHTML('beforeend', markup)", icon_markup)
             touch_href = page.locator('link[rel="apple-touch-icon"]').get_attribute("href")
             require(urljoin(page.url, touch_href or "") == urljoin(page.url, "/icon-180.png"), f"iOS icon mismatch: {touch_href!r}")
             manifest_href = page.locator('link[rel="manifest"]').get_attribute("href")

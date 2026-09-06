@@ -1,5 +1,44 @@
 # Documentation Site maintenance
 
+## Independent self-hosted consumers
+
+Start with `reference-consumer.json` to discover the three separate relationships.
+The Site consumes Composition for its Website product and Policy for maintenance;
+`publication-sources.json` continues to select reader-facing provider revisions.
+
+Composition was adopted with the canonical `plan`/`apply` path against an exact
+provider archive. The plan created only new destinations and preserved the mature
+Site implementation. Do not hand-edit its lock, generated registry, or managed
+validators. Use the normal Composition runner at the selected immutable revision
+for `inspect`, `plan`, `update`/`upgrade`, and `validate`. A newer consumer revision
+does not imply publication promotion. A provider candidate must remain reachable
+before the consuming Site PR lands; land the provider prerequisite first.
+
+`scripts/site_website_contract.py --write` is a Site product worksheet generator:
+it derives consumer-owned route, structure, metadata, and discovery seed values
+from the existing navigation. It is not a Composer replacement. Review changes
+to those worksheets and the implementation-evidence requirement ledger together.
+Use `.template-composition/checkpoint.py` for canonical planning/product history;
+do not fabricate historical evidence for the pre-existing Site.
+
+Policy adoption uses its independent immutable toolchain in `.agent-policy.yml`.
+Edit shared-profile selection or `policy/project.md`, then run the pinned Policy
+renderer and `check`. Existing Site procedural Skills remain consumer-owned.
+The merge-gate shim's `source.json` is bound to the same selected Policy semantics;
+when updating Policy, verify the canonical adapter at the new immutable revision
+and refresh its Git blob identity as a separately reviewed procedural reference.
+The finalized adoption backup is history, not active policy. Never edit generated
+`AGENTS.md` or `.review-authority/review-policy.md` directly.
+
+Run `python scripts/render_reference_consumer.py --write` after changing public
+consumer declarations. This only updates the machine and documentation projections;
+it never changes provider state or blesses translation synchronization. Review the
+English/Japanese page pair and refresh its normal translation manifest provenance
+after regeneration. CI checks freshness with the same command without
+`--write`, validates each provider independently, then builds and tests the actual
+Pages artifact through `.github/workflows/reference-consumer.yml`. Browser evidence
+is distinct from schema/ownership validity and from actual production deployment.
+
 This file applies to `site`, the repository integration and publication authority. Repository-wide authority ownership and semantic-role rules are defined in `docs/authority-model.md`.
 
 ## Authority responsibilities

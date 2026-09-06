@@ -2,7 +2,7 @@
   "schema_version": 1,
   "kind": "policy-adapter-reference",
   "repository": "TakashiSasaki/templates",
-  "revision": "462cd0dbd0802d960f6eb01b8a34c5b0cd6520b7",
+  "revision": "33a7ab809225c2a8b8dd2598ef04d0a39cf076a7",
   "path": "skills/pr-merge-gate/SKILL.md",
-  "blob_sha": "5eadd926ced521cfbaa18c5301a7a7c29d1aa41c"
+  "blob_sha": "bf3e8e5d9868c7c6039e6a9a6196eec10f54cc33"
 }

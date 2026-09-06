@@ -184,3 +184,50 @@ Site はこの boundary における repository integration / publication author
 - 上記 cross-authority invariant のいずれかを無効にする。
 
 この surface に影響しない provider-internal change は、引き続き独立して release できます。
+
+<!-- reference-consumer:start -->
+
+## 自己ホスティングの参照 consumer
+
+この Site は、自ら提供する Composition と Policy を実際に採用しています。
+Website 製品は `website` recipe と `capability.pwa` を、保守作業は Policy を使います。
+以下は正規の宣言から生成した関係です。
+
+| 関係 | 不変 revision | 意味 |
+| --- | --- | --- |
+| Composition consumer | `bd28b67ad97652182d6744ee38ef992349104961` | Website 契約と material の所有関係 |
+| Policy consumer | `33a7ab809225c2a8b8dd2598ef04d0a39cf076a7` | 保守規範と生成された agent 指示 |
+| Composition publication | `95a91a9f0a2258a7611c77f32a571164c065ece3` | 読者に公開する provider の内容 |
+| Policy publication | `c5a3294809a1066bf59b83f467f1d597f885289a` | 読者に公開する provider の内容 |
+
+既知の provider revision N が後続の consumer revision N+1 を規定します。
+これは時間順序を持つ bootstrap であり、実行時の循環依存ではありません。
+意味、toolchain、projection、publication の identity は異なって構いません。
+公開 revision の更新は consumer の更新ではなく、候補 revision の採用も公開を意味しません。
+
+[機械可読の説明](/reference-consumer.json) は Composition の公開 ownership inventory、
+独立した Policy 設定、検証入口を示します。ソースの `reference-consumer.json` が
+discovery index です。Composition の state は `.template-composition/lock.json`、
+Policy の選択は `.agent-policy.yml`、Policy 所有の state は `.agent-policy.lock` にあります。
+共通 lock や共通 transaction manager はありません。
+
+管理対象の schema、validator、生成 registry は Composition の所有物です。
+Site の実装と具体化した seed worksheet は consumer 所有です。
+主要な公開入口は `site-manifest.json` から Website 契約へ投影します。
+生成 source viewer、guided view、翻訳などの派生ページは既存の Site 検証が担当し、
+主要ページ inventory がそれらを全件列挙するとは主張しません。
+
+Site 固有の規範は `policy/project.md`、手順は `.agents/skills/` に置きます。
+`AGENTS.md` と review-authority は選択した Policy toolchain が生成します。
+元の手書き指示は移行の履歴証拠として保存し、現行の規範とは扱いません。
+
+実採用から、末尾スラッシュ付き URL を扱う routes v5 と、ディレクトリ全体ではなく
+Composition の所有範囲に従う契約 inventory 検証が必要になりました。
+両方を Composition 側で一般的に修正し、Site 固有の例外は設けていません。
+
+Composition と Policy はそれぞれ自分の state を検証し、Site は実際の Pages artifact を
+ブラウザで検証します。planning checkpoint は今回の採用評価を記録するものであり、
+既存 Website の開発履歴を後から作るものではありません。契約検証だけで公開済みや
+release-ready とは判断せず、未実施のブラウザ証拠は deferred として明示します。
+
+<!-- reference-consumer:end -->

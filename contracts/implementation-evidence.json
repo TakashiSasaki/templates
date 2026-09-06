@@ -6,7 +6,7 @@
     {
       "id": "website-browser",
       "command": "python scripts/check_reference_website.py",
-      "purpose": "Verify primary Website entrypoints, metadata, discovery, identity and responsive browser behavior against the actual Pages artifact.",
+      "purpose": "Verify primary Website entrypoints, metadata, discovery, identity and responsive browser behavior against the actual Pages artifact. Execution provenance is the successful reference-consumer workflow for the exact candidate head, linked from the PR acceptance record. Historical runs do not qualify changed heads.",
       "execution": {
         "capabilities": [
           "browser",
@@ -22,7 +22,7 @@
     {
       "id": "pwa-browser",
       "command": "python scripts/check_reference_pwa.py",
-      "purpose": "Exercise real worker updates, online revalidation, network failure and cached-content freshness.",
+      "purpose": "Exercise real worker updates, online revalidation, network failure and cached-content freshness. Execution provenance is the successful reference-consumer workflow for the exact candidate head, linked from the PR acceptance record. Historical runs do not qualify changed heads.",
       "execution": {
         "capabilities": [
           "browser",
@@ -66,7 +66,7 @@
       "positiveEvidence": [
         {
           "id": "browser-identity-browser-identity-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -77,7 +77,7 @@
       "negativeEvidence": [
         {
           "id": "browser-identity-browser-identity-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -105,7 +105,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-browser-interface-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -116,7 +116,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-browser-interface-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -144,7 +144,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-catalog-architecture-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -155,7 +155,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-catalog-architecture-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -183,7 +183,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-catalog-guide-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -194,7 +194,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-catalog-guide-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -222,7 +222,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-cli-interface-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -233,7 +233,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-cli-interface-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -261,7 +261,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-cli-interface-v2-migration-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -272,7 +272,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-cli-interface-v2-migration-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -300,7 +300,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-composer-mvp-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -311,7 +311,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-composer-mvp-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -339,7 +339,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-composer-reference-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -350,7 +350,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-composer-reference-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -378,7 +378,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-composition-authority-migration-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -389,7 +389,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-composition-authority-migration-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -417,7 +417,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-composition-concepts-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -428,7 +428,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-composition-concepts-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -456,7 +456,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-composition-model-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -467,7 +467,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-composition-model-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -495,7 +495,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-composition-state-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -506,7 +506,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-composition-state-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -534,7 +534,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-consumer-guide-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -545,7 +545,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-consumer-guide-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -573,7 +573,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-contract-evolution-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -584,7 +584,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-contract-evolution-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -612,7 +612,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-documentation-index-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -623,7 +623,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-documentation-index-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -651,7 +651,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-evaluation-guide-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -662,7 +662,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-evaluation-guide-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -690,7 +690,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-generated-contract-manifest-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -701,7 +701,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-generated-contract-manifest-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -729,7 +729,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-implementation-evidence-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -740,7 +740,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-implementation-evidence-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -768,7 +768,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-implementation-evidence-v2-migration-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -779,7 +779,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-implementation-evidence-v2-migration-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -807,7 +807,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-implementation-evidence-v3-migration-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -818,7 +818,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-implementation-evidence-v3-migration-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -846,7 +846,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-implementation-evidence-v4-migration-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -857,7 +857,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-implementation-evidence-v4-migration-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -885,7 +885,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-implementation-evidence-v5-migration-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -896,7 +896,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-implementation-evidence-v5-migration-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -924,7 +924,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-implementation-evidence-v6-migration-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -935,7 +935,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-implementation-evidence-v6-migration-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -963,7 +963,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-lifecycle-checkpoints-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -974,7 +974,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-lifecycle-checkpoints-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -1002,7 +1002,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-mcp-apps-guidance-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -1013,7 +1013,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-mcp-apps-guidance-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -1041,7 +1041,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-mcp-apps-interface-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -1052,7 +1052,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-mcp-apps-interface-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -1080,7 +1080,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-mcp-apps-v2-migration-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -1091,7 +1091,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-mcp-apps-v2-migration-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -1119,7 +1119,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-mcp-interface-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -1130,7 +1130,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-mcp-interface-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -1158,7 +1158,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-mcp-interface-v2-migration-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -1169,7 +1169,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-mcp-interface-v2-migration-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -1197,7 +1197,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-mcp-transports-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -1208,7 +1208,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-mcp-transports-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -1236,7 +1236,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-overview-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -1247,7 +1247,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-overview-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -1275,7 +1275,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-publication-boundary-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -1286,7 +1286,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-publication-boundary-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -1314,7 +1314,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-pwa-capability-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -1325,7 +1325,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-pwa-capability-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -1353,7 +1353,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-pwa-offline-v2-migration-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -1364,7 +1364,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-pwa-offline-v2-migration-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -1392,7 +1392,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-pwa-update-v2-migration-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -1403,7 +1403,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-pwa-update-v2-migration-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -1431,7 +1431,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-release-bundle-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -1442,7 +1442,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-release-bundle-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -1470,7 +1470,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-release-evidence-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -1481,7 +1481,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-release-evidence-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -1509,7 +1509,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-release-execution-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -1520,7 +1520,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-release-execution-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -1548,7 +1548,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-release-execution-v2-migration-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -1559,7 +1559,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-release-execution-v2-migration-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -1587,7 +1587,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-release-guide-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -1598,7 +1598,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-release-guide-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -1626,7 +1626,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-runtime-decision-record-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -1637,7 +1637,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-runtime-decision-record-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -1665,7 +1665,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-runtime-selection-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -1676,7 +1676,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-runtime-selection-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -1704,7 +1704,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-schema-guide-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -1715,7 +1715,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-schema-guide-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -1743,7 +1743,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-service-interface-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -1754,7 +1754,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-service-interface-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -1782,7 +1782,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-service-interface-v2-migration-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -1793,7 +1793,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-service-interface-v2-migration-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -1821,7 +1821,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-skill-architecture-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -1832,7 +1832,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-skill-architecture-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -1860,7 +1860,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-skill-capability-map-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -1871,7 +1871,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-skill-capability-map-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -1899,7 +1899,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-skill-contract-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -1910,7 +1910,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-skill-contract-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -1938,7 +1938,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-skill-documentation-index-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -1949,7 +1949,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-skill-documentation-index-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -1977,7 +1977,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-skill-first-use-walkthrough-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -1988,7 +1988,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-skill-first-use-walkthrough-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -2016,7 +2016,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-skill-overview-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -2027,7 +2027,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-skill-overview-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -2055,7 +2055,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-skill-profiles-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -2066,7 +2066,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-skill-profiles-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -2094,7 +2094,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-surfaces-v2-migration-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -2105,7 +2105,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-surfaces-v2-migration-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -2133,7 +2133,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-ui-states-migration-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -2144,7 +2144,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-ui-states-migration-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -2172,7 +2172,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-web-interface-v2-migration-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -2183,7 +2183,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-web-interface-v2-migration-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -2211,7 +2211,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-web-routes-v1-migration-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -2222,7 +2222,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-web-routes-v1-migration-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -2250,7 +2250,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-web-routes-v2-migration-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -2261,7 +2261,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-web-routes-v2-migration-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -2289,7 +2289,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-web-routes-v3-migration-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -2300,7 +2300,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-web-routes-v3-migration-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -2328,7 +2328,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-web-url-path-design-guidance-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -2339,7 +2339,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-web-url-path-design-guidance-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -2367,7 +2367,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-webapp-contracts-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -2378,7 +2378,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-webapp-contracts-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -2406,7 +2406,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-webapp-documentation-index-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -2417,7 +2417,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-webapp-documentation-index-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -2445,7 +2445,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-webapp-overview-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -2456,7 +2456,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-webapp-overview-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -2484,7 +2484,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-webapp-product-walkthrough-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -2495,7 +2495,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-webapp-product-walkthrough-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -2523,7 +2523,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-webapp-responsibility-boundaries-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -2534,7 +2534,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-webapp-responsibility-boundaries-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -2562,7 +2562,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-webapp-template-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -2573,7 +2573,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-webapp-template-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -2601,7 +2601,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-webapp-validation-toolchain-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -2612,7 +2612,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-webapp-validation-toolchain-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -2640,7 +2640,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-website-product-walkthrough-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -2651,7 +2651,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-website-product-walkthrough-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -2679,7 +2679,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-composition-website-webapp-selection-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -2690,7 +2690,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-composition-website-webapp-selection-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -2718,7 +2718,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-policy-adoption-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -2729,7 +2729,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-policy-adoption-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -2757,7 +2757,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-policy-adr-application-neutral-scope-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -2768,7 +2768,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-policy-adr-application-neutral-scope-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -2796,7 +2796,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-policy-adr-copyable-artifact-policy-adoption-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -2807,7 +2807,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-policy-adr-copyable-artifact-policy-adoption-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -2835,7 +2835,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-policy-adr-index-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -2846,7 +2846,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-policy-adr-index-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -2874,7 +2874,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-policy-adr-integrated-bootstrap-skill-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -2885,7 +2885,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-policy-adr-integrated-bootstrap-skill-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -2913,7 +2913,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-policy-adr-repository-adoption-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -2924,7 +2924,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-policy-adr-repository-adoption-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -2952,7 +2952,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-policy-adr-single-agent-policy-skill-runtime-cache-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -2963,7 +2963,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-policy-adr-single-agent-policy-skill-runtime-cache-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -2991,7 +2991,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-policy-adr-single-policy-authority-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -3002,7 +3002,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-policy-adr-single-policy-authority-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -3030,7 +3030,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-policy-architecture-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -3041,7 +3041,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-policy-architecture-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -3069,7 +3069,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-policy-bootstrap-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -3080,7 +3080,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-policy-bootstrap-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -3108,7 +3108,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-policy-bootstrap-model-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -3119,7 +3119,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-policy-bootstrap-model-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -3147,7 +3147,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-policy-cli-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -3158,7 +3158,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-policy-cli-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -3186,7 +3186,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-policy-configuration-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -3197,7 +3197,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-policy-configuration-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -3225,7 +3225,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-policy-consumer-policy-navigation-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -3236,7 +3236,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-policy-consumer-policy-navigation-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -3264,7 +3264,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-policy-documentation-publication-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -3275,7 +3275,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-policy-documentation-publication-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -3303,7 +3303,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-policy-external-artifact-intake-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -3314,7 +3314,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-policy-external-artifact-intake-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -3342,7 +3342,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-policy-getting-started-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -3353,7 +3353,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-policy-getting-started-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -3381,7 +3381,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-policy-google-ai-studio-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -3392,7 +3392,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-policy-google-ai-studio-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -3420,7 +3420,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-policy-managed-operation-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -3431,7 +3431,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-policy-managed-operation-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -3459,7 +3459,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-policy-overview-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -3470,7 +3470,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-policy-overview-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -3498,7 +3498,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-policy-policy-authoring-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -3509,7 +3509,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-policy-policy-authoring-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -3537,7 +3537,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-policy-policy-authority-inventory-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -3548,7 +3548,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-policy-policy-authority-inventory-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -3576,7 +3576,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-policy-policy-concepts-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -3587,7 +3587,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-policy-policy-concepts-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -3615,7 +3615,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-policy-policy-profiles-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -3626,7 +3626,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-policy-policy-profiles-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -3654,7 +3654,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-policy-policy-readiness-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -3665,7 +3665,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-policy-policy-readiness-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -3693,7 +3693,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-policy-provider-navigation-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -3704,7 +3704,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-policy-provider-navigation-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -3732,7 +3732,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-policy-publication-catalog-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -3743,7 +3743,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-policy-publication-catalog-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -3771,7 +3771,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-policy-pwa-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -3782,7 +3782,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-policy-pwa-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -3810,7 +3810,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-policy-regression-prevention-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -3821,7 +3821,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-policy-regression-prevention-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -3849,7 +3849,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-policy-release-lifecycle-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -3860,7 +3860,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-policy-release-lifecycle-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -3888,7 +3888,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-policy-repository-structure-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -3899,7 +3899,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-policy-repository-structure-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -3927,7 +3927,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-policy-review-policy-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -3938,7 +3938,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-policy-review-policy-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -3966,7 +3966,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-policy-shared-policy-navigation-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -3977,7 +3977,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-policy-shared-policy-navigation-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -4005,7 +4005,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-policy-threat-model-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -4016,7 +4016,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-policy-threat-model-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -4044,7 +4044,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-site-capabilities-overview-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -4055,7 +4055,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-site-capabilities-overview-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -4083,7 +4083,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-site-composition-playground-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -4094,7 +4094,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-site-composition-playground-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -4122,7 +4122,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-site-lifecycle-overview-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -4133,7 +4133,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-site-lifecycle-overview-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -4161,7 +4161,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-site-policy-composition-coexistence-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -4172,7 +4172,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-site-policy-composition-coexistence-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -4200,7 +4200,7 @@
       "positiveEvidence": [
         {
           "id": "document-metadata-site-portal-home-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -4211,7 +4211,7 @@
       "negativeEvidence": [
         {
           "id": "document-metadata-site-portal-home-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -4239,7 +4239,7 @@
       "positiveEvidence": [
         {
           "id": "site-discovery-canonical-origin-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -4252,7 +4252,7 @@
           "id": "site-discovery-canonical-origin-negative",
           "status": "deferred",
           "kind": "end-to-end-test",
-          "description": "Browser corruption or network/update failure assertions.",
+          "description": "Browser corruption or network/update failure assertions. Deferred: this family still needs a dedicated browser failure-path assertion or installation acceptance; successful broad harness execution does not establish this claim.",
           "locator": "scripts/check_reference_website.py",
           "commandId": "website-browser",
           "expectedResult": "All reachable contract assertions pass; corrupted or unavailable states fail or expose the required fallback."
@@ -4278,7 +4278,7 @@
       "positiveEvidence": [
         {
           "id": "site-discovery-robots-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -4291,7 +4291,7 @@
           "id": "site-discovery-robots-negative",
           "status": "deferred",
           "kind": "end-to-end-test",
-          "description": "Browser corruption or network/update failure assertions.",
+          "description": "Browser corruption or network/update failure assertions. Deferred: this family still needs a dedicated browser failure-path assertion or installation acceptance; successful broad harness execution does not establish this claim.",
           "locator": "scripts/check_reference_website.py",
           "commandId": "website-browser",
           "expectedResult": "All reachable contract assertions pass; corrupted or unavailable states fail or expose the required fallback."
@@ -4317,7 +4317,7 @@
       "positiveEvidence": [
         {
           "id": "site-discovery-sitemap-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -4330,7 +4330,7 @@
           "id": "site-discovery-sitemap-negative",
           "status": "deferred",
           "kind": "end-to-end-test",
-          "description": "Browser corruption or network/update failure assertions.",
+          "description": "Browser corruption or network/update failure assertions. Deferred: this family still needs a dedicated browser failure-path assertion or installation acceptance; successful broad harness execution does not establish this claim.",
           "locator": "scripts/check_reference_website.py",
           "commandId": "website-browser",
           "expectedResult": "All reachable contract assertions pass; corrupted or unavailable states fail or expose the required fallback."
@@ -4356,7 +4356,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-browser-interface-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -4367,7 +4367,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-browser-interface-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -4395,7 +4395,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-catalog-architecture-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -4406,7 +4406,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-catalog-architecture-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -4434,7 +4434,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-catalog-guide-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -4445,7 +4445,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-catalog-guide-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -4473,7 +4473,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-cli-interface-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -4484,7 +4484,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-cli-interface-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -4512,7 +4512,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-cli-interface-v2-migration-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -4523,7 +4523,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-cli-interface-v2-migration-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -4551,7 +4551,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-composer-mvp-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -4562,7 +4562,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-composer-mvp-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -4590,7 +4590,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-composer-reference-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -4601,7 +4601,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-composer-reference-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -4629,7 +4629,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-composition-authority-migration-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -4640,7 +4640,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-composition-authority-migration-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -4668,7 +4668,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-composition-concepts-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -4679,7 +4679,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-composition-concepts-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -4707,7 +4707,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-composition-model-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -4718,7 +4718,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-composition-model-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -4746,7 +4746,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-composition-state-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -4757,7 +4757,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-composition-state-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -4785,7 +4785,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-consumer-guide-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -4796,7 +4796,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-consumer-guide-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -4824,7 +4824,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-contract-evolution-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -4835,7 +4835,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-contract-evolution-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -4863,7 +4863,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-documentation-index-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -4874,7 +4874,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-documentation-index-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -4902,7 +4902,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-evaluation-guide-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -4913,7 +4913,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-evaluation-guide-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -4941,7 +4941,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-generated-contract-manifest-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -4952,7 +4952,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-generated-contract-manifest-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -4980,7 +4980,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-implementation-evidence-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -4991,7 +4991,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-implementation-evidence-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -5019,7 +5019,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-implementation-evidence-v2-migration-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -5030,7 +5030,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-implementation-evidence-v2-migration-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -5058,7 +5058,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-implementation-evidence-v3-migration-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -5069,7 +5069,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-implementation-evidence-v3-migration-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -5097,7 +5097,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-implementation-evidence-v4-migration-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -5108,7 +5108,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-implementation-evidence-v4-migration-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -5136,7 +5136,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-implementation-evidence-v5-migration-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -5147,7 +5147,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-implementation-evidence-v5-migration-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -5175,7 +5175,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-implementation-evidence-v6-migration-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -5186,7 +5186,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-implementation-evidence-v6-migration-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -5214,7 +5214,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-lifecycle-checkpoints-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -5225,7 +5225,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-lifecycle-checkpoints-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -5253,7 +5253,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-mcp-apps-guidance-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -5264,7 +5264,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-mcp-apps-guidance-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -5292,7 +5292,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-mcp-apps-interface-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -5303,7 +5303,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-mcp-apps-interface-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -5331,7 +5331,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-mcp-apps-v2-migration-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -5342,7 +5342,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-mcp-apps-v2-migration-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -5370,7 +5370,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-mcp-interface-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -5381,7 +5381,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-mcp-interface-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -5409,7 +5409,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-mcp-interface-v2-migration-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -5420,7 +5420,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-mcp-interface-v2-migration-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -5448,7 +5448,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-mcp-transports-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -5459,7 +5459,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-mcp-transports-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -5487,7 +5487,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-overview-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -5498,7 +5498,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-overview-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -5526,7 +5526,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-publication-boundary-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -5537,7 +5537,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-publication-boundary-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -5565,7 +5565,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-pwa-capability-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -5576,7 +5576,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-pwa-capability-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -5604,7 +5604,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-pwa-offline-v2-migration-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -5615,7 +5615,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-pwa-offline-v2-migration-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -5643,7 +5643,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-pwa-update-v2-migration-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -5654,7 +5654,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-pwa-update-v2-migration-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -5682,7 +5682,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-release-bundle-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -5693,7 +5693,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-release-bundle-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -5721,7 +5721,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-release-evidence-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -5732,7 +5732,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-release-evidence-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -5760,7 +5760,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-release-execution-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -5771,7 +5771,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-release-execution-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -5799,7 +5799,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-release-execution-v2-migration-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -5810,7 +5810,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-release-execution-v2-migration-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -5838,7 +5838,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-release-guide-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -5849,7 +5849,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-release-guide-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -5877,7 +5877,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-runtime-decision-record-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -5888,7 +5888,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-runtime-decision-record-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -5916,7 +5916,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-runtime-selection-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -5927,7 +5927,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-runtime-selection-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -5955,7 +5955,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-schema-guide-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -5966,7 +5966,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-schema-guide-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -5994,7 +5994,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-service-interface-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -6005,7 +6005,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-service-interface-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -6033,7 +6033,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-service-interface-v2-migration-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -6044,7 +6044,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-service-interface-v2-migration-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -6072,7 +6072,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-skill-architecture-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -6083,7 +6083,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-skill-architecture-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -6111,7 +6111,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-skill-capability-map-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -6122,7 +6122,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-skill-capability-map-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -6150,7 +6150,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-skill-contract-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -6161,7 +6161,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-skill-contract-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -6189,7 +6189,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-skill-documentation-index-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -6200,7 +6200,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-skill-documentation-index-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -6228,7 +6228,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-skill-first-use-walkthrough-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -6239,7 +6239,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-skill-first-use-walkthrough-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -6267,7 +6267,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-skill-overview-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -6278,7 +6278,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-skill-overview-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -6306,7 +6306,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-skill-profiles-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -6317,7 +6317,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-skill-profiles-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -6345,7 +6345,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-surfaces-v2-migration-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -6356,7 +6356,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-surfaces-v2-migration-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -6384,7 +6384,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-ui-states-migration-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -6395,7 +6395,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-ui-states-migration-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -6423,7 +6423,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-web-interface-v2-migration-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -6434,7 +6434,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-web-interface-v2-migration-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -6462,7 +6462,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-web-routes-v1-migration-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -6473,7 +6473,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-web-routes-v1-migration-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -6501,7 +6501,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-web-routes-v2-migration-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -6512,7 +6512,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-web-routes-v2-migration-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -6540,7 +6540,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-web-routes-v3-migration-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -6551,7 +6551,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-web-routes-v3-migration-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -6579,7 +6579,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-web-url-path-design-guidance-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -6590,7 +6590,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-web-url-path-design-guidance-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -6618,7 +6618,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-webapp-contracts-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -6629,7 +6629,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-webapp-contracts-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -6657,7 +6657,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-webapp-documentation-index-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -6668,7 +6668,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-webapp-documentation-index-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -6696,7 +6696,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-webapp-overview-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -6707,7 +6707,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-webapp-overview-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -6735,7 +6735,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-webapp-product-walkthrough-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -6746,7 +6746,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-webapp-product-walkthrough-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -6774,7 +6774,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-webapp-responsibility-boundaries-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -6785,7 +6785,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-webapp-responsibility-boundaries-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -6813,7 +6813,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-webapp-template-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -6824,7 +6824,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-webapp-template-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -6852,7 +6852,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-webapp-validation-toolchain-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -6863,7 +6863,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-webapp-validation-toolchain-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -6891,7 +6891,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-website-product-walkthrough-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -6902,7 +6902,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-website-product-walkthrough-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -6930,7 +6930,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-composition-website-webapp-selection-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -6941,7 +6941,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-composition-website-webapp-selection-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -6969,7 +6969,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-policy-adoption-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -6980,7 +6980,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-policy-adoption-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -7008,7 +7008,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-policy-adr-application-neutral-scope-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -7019,7 +7019,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-policy-adr-application-neutral-scope-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -7047,7 +7047,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-policy-adr-copyable-artifact-policy-adoption-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -7058,7 +7058,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-policy-adr-copyable-artifact-policy-adoption-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -7086,7 +7086,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-policy-adr-index-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -7097,7 +7097,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-policy-adr-index-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -7125,7 +7125,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-policy-adr-integrated-bootstrap-skill-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -7136,7 +7136,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-policy-adr-integrated-bootstrap-skill-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -7164,7 +7164,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-policy-adr-repository-adoption-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -7175,7 +7175,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-policy-adr-repository-adoption-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -7203,7 +7203,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-policy-adr-single-agent-policy-skill-runtime-cache-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -7214,7 +7214,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-policy-adr-single-agent-policy-skill-runtime-cache-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -7242,7 +7242,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-policy-adr-single-policy-authority-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -7253,7 +7253,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-policy-adr-single-policy-authority-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -7281,7 +7281,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-policy-architecture-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -7292,7 +7292,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-policy-architecture-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -7320,7 +7320,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-policy-bootstrap-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -7331,7 +7331,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-policy-bootstrap-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -7359,7 +7359,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-policy-bootstrap-model-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -7370,7 +7370,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-policy-bootstrap-model-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -7398,7 +7398,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-policy-cli-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -7409,7 +7409,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-policy-cli-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -7437,7 +7437,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-policy-configuration-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -7448,7 +7448,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-policy-configuration-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -7476,7 +7476,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-policy-consumer-policy-navigation-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -7487,7 +7487,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-policy-consumer-policy-navigation-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -7515,7 +7515,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-policy-documentation-publication-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -7526,7 +7526,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-policy-documentation-publication-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -7554,7 +7554,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-policy-external-artifact-intake-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -7565,7 +7565,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-policy-external-artifact-intake-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -7593,7 +7593,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-policy-getting-started-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -7604,7 +7604,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-policy-getting-started-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -7632,7 +7632,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-policy-google-ai-studio-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -7643,7 +7643,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-policy-google-ai-studio-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -7671,7 +7671,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-policy-managed-operation-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -7682,7 +7682,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-policy-managed-operation-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -7710,7 +7710,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-policy-overview-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -7721,7 +7721,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-policy-overview-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -7749,7 +7749,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-policy-policy-authoring-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -7760,7 +7760,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-policy-policy-authoring-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -7788,7 +7788,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-policy-policy-authority-inventory-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -7799,7 +7799,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-policy-policy-authority-inventory-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -7827,7 +7827,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-policy-policy-concepts-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -7838,7 +7838,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-policy-policy-concepts-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -7866,7 +7866,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-policy-policy-profiles-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -7877,7 +7877,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-policy-policy-profiles-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -7905,7 +7905,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-policy-policy-readiness-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -7916,7 +7916,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-policy-policy-readiness-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -7944,7 +7944,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-policy-provider-navigation-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -7955,7 +7955,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-policy-provider-navigation-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -7983,7 +7983,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-policy-publication-catalog-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -7994,7 +7994,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-policy-publication-catalog-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -8022,7 +8022,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-policy-pwa-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -8033,7 +8033,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-policy-pwa-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -8061,7 +8061,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-policy-regression-prevention-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -8072,7 +8072,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-policy-regression-prevention-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -8100,7 +8100,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-policy-release-lifecycle-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -8111,7 +8111,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-policy-release-lifecycle-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -8139,7 +8139,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-policy-repository-structure-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -8150,7 +8150,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-policy-repository-structure-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -8178,7 +8178,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-policy-review-policy-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -8189,7 +8189,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-policy-review-policy-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -8217,7 +8217,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-policy-shared-policy-navigation-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -8228,7 +8228,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-policy-shared-policy-navigation-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -8256,7 +8256,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-policy-threat-model-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -8267,7 +8267,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-policy-threat-model-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -8295,7 +8295,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-site-capabilities-overview-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -8306,7 +8306,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-site-capabilities-overview-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -8334,7 +8334,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-site-composition-playground-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -8345,7 +8345,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-site-composition-playground-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -8373,7 +8373,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-site-lifecycle-overview-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -8384,7 +8384,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-site-lifecycle-overview-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -8412,7 +8412,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-site-policy-composition-coexistence-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -8423,7 +8423,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-site-policy-composition-coexistence-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -8451,7 +8451,7 @@
       "positiveEvidence": [
         {
           "id": "site-structure-site-portal-home-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -8462,7 +8462,7 @@
       "negativeEvidence": [
         {
           "id": "site-structure-site-portal-home-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -8490,7 +8490,7 @@
       "positiveEvidence": [
         {
           "id": "viewports-desktop-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -8501,7 +8501,7 @@
       "negativeEvidence": [
         {
           "id": "viewports-desktop-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -8529,7 +8529,7 @@
       "positiveEvidence": [
         {
           "id": "viewports-keyboard-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -8542,7 +8542,7 @@
           "id": "viewports-keyboard-negative",
           "status": "deferred",
           "kind": "end-to-end-test",
-          "description": "Browser corruption or network/update failure assertions.",
+          "description": "Browser corruption or network/update failure assertions. Deferred: this family still needs a dedicated browser failure-path assertion or installation acceptance; successful broad harness execution does not establish this claim.",
           "locator": "scripts/check_reference_website.py",
           "commandId": "website-browser",
           "expectedResult": "All reachable contract assertions pass; corrupted or unavailable states fail or expose the required fallback."
@@ -8568,7 +8568,7 @@
       "positiveEvidence": [
         {
           "id": "viewports-mobile-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -8579,7 +8579,7 @@
       "negativeEvidence": [
         {
           "id": "viewports-mobile-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -8609,7 +8609,7 @@
           "id": "pwa-manifest-installability-positive",
           "status": "deferred",
           "kind": "end-to-end-test",
-          "description": "Actual browser contract assertions.",
+          "description": "Actual browser contract assertions. Deferred: this family still needs a dedicated browser failure-path assertion or installation acceptance; successful broad harness execution does not establish this claim.",
           "locator": "scripts/check_reference_website.py",
           "commandId": "website-browser",
           "expectedResult": "All reachable contract assertions pass; corrupted or unavailable states fail or expose the required fallback."
@@ -8620,7 +8620,7 @@
           "id": "pwa-manifest-installability-negative",
           "status": "deferred",
           "kind": "end-to-end-test",
-          "description": "Browser corruption or network/update failure assertions.",
+          "description": "Browser corruption or network/update failure assertions. Deferred: this family still needs a dedicated browser failure-path assertion or installation acceptance; successful broad harness execution does not establish this claim.",
           "locator": "scripts/check_reference_website.py",
           "commandId": "website-browser",
           "expectedResult": "All reachable contract assertions pass; corrupted or unavailable states fail or expose the required fallback."
@@ -8646,7 +8646,7 @@
       "positiveEvidence": [
         {
           "id": "pwa-manifest-application-icon-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_reference_website.py",
@@ -8659,7 +8659,7 @@
           "id": "pwa-manifest-application-icon-negative",
           "status": "deferred",
           "kind": "end-to-end-test",
-          "description": "Browser corruption or network/update failure assertions.",
+          "description": "Browser corruption or network/update failure assertions. Deferred: this family still needs a dedicated browser failure-path assertion or installation acceptance; successful broad harness execution does not establish this claim.",
           "locator": "scripts/check_reference_website.py",
           "commandId": "website-browser",
           "expectedResult": "All reachable contract assertions pass; corrupted or unavailable states fail or expose the required fallback."
@@ -8685,7 +8685,7 @@
       "positiveEvidence": [
         {
           "id": "pwa-offline-offline-presentation-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_pwa_freshness.py",
@@ -8696,7 +8696,7 @@
       "negativeEvidence": [
         {
           "id": "pwa-offline-offline-presentation-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_pwa_freshness.py",
@@ -8724,7 +8724,7 @@
       "positiveEvidence": [
         {
           "id": "pwa-offline-online-revalidation-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_pwa_freshness.py",
@@ -8735,7 +8735,7 @@
       "negativeEvidence": [
         {
           "id": "pwa-offline-online-revalidation-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_pwa_freshness.py",
@@ -8763,7 +8763,7 @@
       "positiveEvidence": [
         {
           "id": "pwa-update-update-detection-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_pwa_freshness.py",
@@ -8776,7 +8776,7 @@
           "id": "pwa-update-update-detection-negative",
           "status": "deferred",
           "kind": "end-to-end-test",
-          "description": "Browser corruption or network/update failure assertions.",
+          "description": "Browser corruption or network/update failure assertions. Deferred: this family still needs a dedicated browser failure-path assertion or installation acceptance; successful broad harness execution does not establish this claim.",
           "locator": "scripts/check_pwa_freshness.py",
           "commandId": "pwa-browser",
           "expectedResult": "All reachable contract assertions pass; corrupted or unavailable states fail or expose the required fallback."
@@ -8802,7 +8802,7 @@
       "positiveEvidence": [
         {
           "id": "pwa-update-update-application-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_pwa_freshness.py",
@@ -8815,7 +8815,7 @@
           "id": "pwa-update-update-application-negative",
           "status": "deferred",
           "kind": "end-to-end-test",
-          "description": "Browser corruption or network/update failure assertions.",
+          "description": "Browser corruption or network/update failure assertions. Deferred: this family still needs a dedicated browser failure-path assertion or installation acceptance; successful broad harness execution does not establish this claim.",
           "locator": "scripts/check_pwa_freshness.py",
           "commandId": "pwa-browser",
           "expectedResult": "All reachable contract assertions pass; corrupted or unavailable states fail or expose the required fallback."
@@ -8841,7 +8841,7 @@
       "positiveEvidence": [
         {
           "id": "pwa-offline-offline-cached-content-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_pwa_freshness.py",
@@ -8852,7 +8852,7 @@
       "negativeEvidence": [
         {
           "id": "pwa-offline-offline-cached-content-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_pwa_freshness.py",
@@ -8880,7 +8880,7 @@
       "positiveEvidence": [
         {
           "id": "pwa-offline-freshness-unverified-positive",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Actual browser contract assertions.",
           "locator": "scripts/check_pwa_freshness.py",
@@ -8891,7 +8891,7 @@
       "negativeEvidence": [
         {
           "id": "pwa-offline-freshness-unverified-negative",
-          "status": "deferred",
+          "status": "verified",
           "kind": "end-to-end-test",
           "description": "Browser corruption or network/update failure assertions.",
           "locator": "scripts/check_pwa_freshness.py",

@@ -18,6 +18,8 @@ jobs:
         with:
           python-version: '3.12.13'
       - run: python scripts/site_website_contract.py
+      - run: python -m pip install PyYAML==6.0.3
+      - run: python scripts/render_reference_consumer.py
       - run: python .template-composition/validate.py . --format json
   build:
     uses: ./.github/workflows/build-pages.yml
