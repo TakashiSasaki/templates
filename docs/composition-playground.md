@@ -4,7 +4,7 @@ Explore the initial composition that the canonical Composition provider has alre
 
 This page consumes published provider projections. It does not resolve dependencies, conflicts, ownership, or materialization rules in the browser.
 
-<div id="composition-playground" class="composition-playground" data-projection-url="/composition/playground/composition-playground-v1.json" data-intent-projection-url="/composition/playground/composition-playground-intent-v1.json" data-provenance-url="/build-provenance.json">
+<div id="composition-playground" class="composition-playground" data-projection-url="/composition/playground/composition-playground-v1.json.gz" data-intent-projection-url="/composition/playground/composition-playground-intent-v1.json.gz" data-provenance-url="/build-provenance.json">
   <p data-playground-status role="status" aria-live="polite">Loading the canonical Composition projection…</p>
   <div data-playground-app hidden>
     <section aria-labelledby="playground-selection-title">
@@ -27,21 +27,16 @@ This page consumes published provider projections. It does not resolve dependenc
       <h2 id="playground-result-title">Canonical result</h2>
       <p data-playground-validity role="status" aria-live="polite" aria-atomic="true"></p>
       <dl class="composition-playground__provenance">
-        <dt>Semantic source revision</dt>
-        <dd><code data-playground-semantic-revision></code></dd>
-        <dt>Published Composition provider revision</dt>
-        <dd><code data-playground-provider-revision></code></dd>
-        <dt>Projection identity</dt>
-        <dd><code data-playground-projection-id></code></dd>
+        <dt>Semantic source revision</dt><dd><code data-playground-semantic-revision></code></dd>
+        <dt>Published Composition provider revision</dt><dd><code data-playground-provider-revision></code></dd>
+        <dt>Projection identity</dt><dd><code data-playground-projection-id></code></dd>
       </dl>
-      <h3>Resolved components</h3>
-      <ul data-playground-resolved></ul>
+      <h3>Resolved components</h3><ul data-playground-resolved></ul>
     </section>
     <section data-playground-webmcp-result hidden aria-labelledby="playground-webmcp-result-title">
       <h2 id="playground-webmcp-result-title">Explicit WebMCP exclusion result</h2>
       <p data-playground-webmcp-validity></p>
-      <h3>Canonical configuration</h3>
-      <pre><code data-playground-webmcp-config></code></pre>
+      <h3>Canonical configuration</h3><pre><code data-playground-webmcp-config></code></pre>
       <h3>Resolved components</h3><ul data-playground-webmcp-resolved></ul>
       <h3>Registered contracts</h3><ul data-playground-webmcp-contracts></ul>
       <h3>Resulting materials</h3><ul data-playground-webmcp-materials></ul>
@@ -52,7 +47,6 @@ This page consumes published provider projections. It does not resolve dependenc
       <button type="button" data-playground-copy>Copy</button>
       <pre><code data-playground-config></code></pre>
     </section>
-
     <section class="composition-playground__explain" aria-labelledby="playground-explain-title" data-playground-explain hidden>
       <h2 id="playground-explain-title">Explain the result</h2>
       <p>These views render provenance and repository impact already contained in the Composition projection.</p>
@@ -69,7 +63,7 @@ The canonical include projection retains the bounded `2^N` include-case table. E
 
 Parameters remain an empty object, mode remains initial, and the target repository remains empty. Existing-repository, update, and upgrade workflows are outside this page.
 
-Both canonical projections are published by the exact Composition provider revision as JSON assets. The intent projection uses an indexed encoding: non-negative values reference canonical resolution outcomes; negative values reference provider-supplied canonical errors. This encoding is transport only and does not move resolution logic into Site.
+Both canonical projections are published by the pinned Composition provider as deterministic gzip-compressed JSON. The intent projection uses an indexed encoding: non-negative values reference canonical resolution outcomes; negative values reference provider-supplied canonical errors. Compression and indexing are transport details and do not move resolution logic into Site.
 
 The displayed **semantic source revision** is the exact Composition revision recorded by the resolution projection. The displayed **published Composition provider revision** comes separately from Site's `/build-provenance.json`. The intent projection is accepted only when its semantic source revision and resolution projection identity match the loaded canonical resolution projection.
 
