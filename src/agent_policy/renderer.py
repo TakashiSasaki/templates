@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import posixpath
 import re
 import shlex
 from collections.abc import Iterable
@@ -16,6 +17,17 @@ from .policy_loader import Rule
 GENERATED_MARKER = "agent-policy-generated: true"
 SKILL_NAME_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 NON_GENERATED_SKILLS = frozenset({"agent-policy", "pr-merge-gate"})
+# Canonical reference imports; emitted copies have no independent authoring authority.
+SKILL_REFERENCE_IMPORTS = {
+    "orchestrate-repository-change": {
+        f"references/{name}": f"skills/pr-merge-gate/references/{name}"
+        for name in (
+            "review-finding-ledger.md",
+            "review-feedback-disposition.md",
+            "github-review-finding-representation.md",
+        )
+    }
+}
 SKILL_CONFIG_PATH_TOKEN = "{{ config_path }}"
 SKILL_CONFIG_PATH_SHELL_TOKEN = "{{ config_path_shell }}"
 SKILL_CONFIG_PATH_YAML_TOKEN = "{{ config_path_yaml }}"
@@ -127,6 +139,24 @@ def render_skill(
             for token, value in replacements.items():
                 content = content.replace(token, value)
             result[relative] = content
+    for relative, source in SKILL_REFERENCE_IMPORTS.get(skill_name, {}).items():
+        if relative in result:
+            raise ValueError(f"Imported Skill reference collides with local source: {relative}")
+        result[relative] = (
+            f"<!-- {GENERATED_MARKER}; source-skill: pr-merge-gate -->\n"
+            + (package_root() / source).read_text(encoding="utf-8")
+        )
+    for relative, content in result.items():
+        source_parent = PurePath("skills") / skill_name / PurePath(relative).parent
+        installed_parent = PurePath(relative).parent
+        for target, source in SKILL_REFERENCE_IMPORTS.get(skill_name, {}).items():
+            # Canonical source-tree links must remain navigable in the repository while
+            # rendered copies are localized to the imported installed reference.
+            source_link = posixpath.relpath(source, source_parent.as_posix())
+            local_link = posixpath.relpath(target, installed_parent.as_posix())
+            content = content.replace(source_link, local_link)
+            content = content.replace(source, local_link)
+        result[relative] = content
     return result
 
 

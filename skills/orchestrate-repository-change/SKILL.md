@@ -42,6 +42,8 @@ When human-handoff is selected, stop at HANDOFF_READY after the authorized imple
 
 Use the focused procedures in references/pr-workflow-selection.md, references/serial-pr-workflow.md, references/stacked-pr-workflow.md, and references/human-handoff.md for the selected path.
 
+For the repository-change operational state model, read [Work ledger](references/work-ledger.md). It defines provider-side resumable checkpoints without creating acceptance authority.
+
 ## 1. Establish the minimum sufficient snapshot
 
 Before mutating, identify the facts that determine the next safe action:

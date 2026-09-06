@@ -5,7 +5,12 @@ from collections.abc import Mapping
 from pathlib import Path
 
 from agent_policy.config import package_root
-from agent_policy.renderer import GENERATED_MARKER, NON_GENERATED_SKILLS, render_skill
+from agent_policy.renderer import (
+    GENERATED_MARKER,
+    NON_GENERATED_SKILLS,
+    SKILL_REFERENCE_IMPORTS,
+    render_skill,
+)
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 SOURCE_ROOT = SCRIPT_DIR.parent
@@ -93,7 +98,20 @@ def verify_runtime_skill_data(source_root: Path = SOURCE_ROOT) -> tuple[str, ...
             continue
 
         rendered_files = set(rendered)
-        expected_files = set(expected[skill_name])
+        imports = SKILL_REFERENCE_IMPORTS.get(skill_name, {})
+        expected_files = set(expected[skill_name]) | set(imports)
+        for relative, source in imports.items():
+            try:
+                canonical = (source_root / source).read_text(encoding="utf-8")
+                installed = (runtime_root / source).read_text(encoding="utf-8")
+                projected = (
+                    f"<!-- {GENERATED_MARKER}; source-skill: pr-merge-gate -->\n"
+                    + canonical
+                )
+                if installed != canonical or rendered.get(relative) != projected:
+                    errors.append(f"imported Skill reference differs from authority: {source}")
+            except (OSError, UnicodeError) as exc:
+                errors.append(f"imported Skill reference unavailable: {source}: {exc}")
         if rendered_files != expected_files:
             errors.append(
                 f"rendered generated Skill {skill_name} file inventory differs from source"
