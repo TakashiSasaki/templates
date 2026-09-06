@@ -3,6 +3,7 @@
 
   const COMPONENT = "capability.webmcp";
   const INTENT_ID = "composition-playground-intent-v1";
+  const STRATEGY = "indexed-single-explicit-exclusion-transitions";
   const MODES = new Set(["default", "adopt", "exclude"]);
   let state = { root: null, intent: null, mode: "default", context: null, generation: 0 };
 
@@ -14,7 +15,7 @@
   }
 
   function validateIntent(raw, context) {
-    if (!raw || raw.schema_version !== 1 || raw.projection_id !== INTENT_ID || raw.resolution_projection_id !== context.projection.projectionId || raw.strategy !== "single-explicit-exclusion-transitions") {
+    if (!raw || raw.schema_version !== 1 || raw.projection_id !== INTENT_ID || raw.resolution_projection_id !== context.projection.projectionId || raw.strategy !== STRATEGY) {
       throw new Error("unsupported WebMCP intent projection");
     }
     if (!raw.source || raw.source.repository !== "TakashiSasaki/templates" || raw.source.authority !== "composition" || !exactSha(raw.source.revision)) {
@@ -23,7 +24,9 @@
     if (raw.source.revision !== context.projection.semanticRevision) {
       throw new Error("WebMCP intent and resolution projections have different semantic revisions");
     }
-    if (!Array.isArray(raw.recipes)) throw new Error("invalid WebMCP intent recipe inventory");
+    if (!raw.encoding || raw.encoding.nonnegative !== "canonical outcome id" || raw.encoding.negative !== "-(error index + 1)" || !Array.isArray(raw.errors) || !Array.isArray(raw.recipes)) {
+      throw new Error("invalid WebMCP intent projection encoding");
+    }
     return raw;
   }
 
@@ -41,12 +44,21 @@
     return intent.recipes.find((entry) => entry && entry.id === recipeId) || null;
   }
 
+  function decodeTransition(intent, encoded) {
+    if (!Number.isSafeInteger(encoded)) throw new Error("invalid WebMCP exclusion transition encoding");
+    if (encoded >= 0) return { valid: true, error: null, outcome_id: encoded };
+    const error = intent.errors[-encoded - 1];
+    if (!error || typeof error.code !== "string" || typeof error.message !== "string") throw new Error("WebMCP exclusion error index is out of range");
+    return { valid: false, error, outcome_id: null };
+  }
+
   function transitionFor(context) {
     const recipe = recipeIntent(state.intent, context.state.recipeId);
     if (!recipe || !Array.isArray(recipe.optional_components) || !recipe.optional_components.includes(COMPONENT)) return null;
-    const caseRow = recipe.cases && recipe.cases.find((entry) => entry && entry.include_case_index === context.currentCase.include_mask);
-    if (!caseRow || !Array.isArray(caseRow.exclude)) throw new Error("WebMCP exclusion case is absent from provider projection");
-    return caseRow.exclude.find((entry) => entry && entry.component === COMPONENT) || null;
+    const position = recipe.optional_components.indexOf(COMPONENT);
+    const row = recipe.cases && recipe.cases[context.currentCase.include_mask];
+    if (!Array.isArray(row) || row.length !== recipe.optional_components.length) throw new Error("WebMCP exclusion case is absent from provider projection");
+    return decodeTransition(state.intent, row[position]);
   }
 
   function setModeControls(root, mode, available) {
@@ -84,18 +96,9 @@
     const status = root.querySelector("[data-playground-webmcp-status]");
     if (!panel || !status) return;
     panel.hidden = state.mode !== "exclude" || !available;
-    if (!available) {
-      status.textContent = "WebMCP is not optional for this recipe.";
-      return;
-    }
-    if (state.mode === "default") {
-      status.textContent = "Default: WebMCP intent is unspecified; the canonical include-only case is shown above.";
-      return;
-    }
-    if (state.mode === "adopt") {
-      status.textContent = "Adopt: capability.webmcp is an explicit include in the canonical case shown above.";
-      return;
-    }
+    if (!available) { status.textContent = "WebMCP is not optional for this recipe."; return; }
+    if (state.mode === "default") { status.textContent = "Default: WebMCP intent is unspecified; the canonical include-only case is shown above."; return; }
+    if (state.mode === "adopt") { status.textContent = "Adopt: capability.webmcp is an explicit include in the canonical case shown above."; return; }
 
     try {
       const transition = transitionFor(context);
@@ -105,9 +108,9 @@
       const resolved = root.querySelector("[data-playground-webmcp-resolved]");
       const contracts = root.querySelector("[data-playground-webmcp-contracts]");
       const materials = root.querySelector("[data-playground-webmcp-materials]");
+      config.textContent = JSON.stringify({ schema_version: 1, recipe: context.state.recipeId, components: { include: context.state.includes, exclude: [COMPONENT] }, parameters: {} }, null, 2) + "\n";
       if (!transition.valid) {
         validity.textContent = `Explicit exclusion is invalid (${transition.error.code}): ${transition.error.message}`;
-        config.textContent = JSON.stringify({ schema_version: 1, recipe: context.state.recipeId, components: { include: context.state.includes, exclude: [COMPONENT] }, parameters: {} }, null, 2) + "\n";
         renderList(scope.document, resolved, []); renderList(scope.document, contracts, []); renderList(scope.document, materials, []);
         status.textContent = "Explicitly exclude: provider rejected this selection.";
         return;
@@ -115,14 +118,9 @@
       const outcome = context.projection.outcomeById.get(transition.outcome_id);
       if (!outcome) throw new Error("WebMCP exclusion outcome is absent from resolution projection");
       validity.textContent = "Explicit exclusion is valid according to the canonical Composition provider.";
-      config.textContent = JSON.stringify({ schema_version: 1, recipe: context.state.recipeId, components: { include: context.state.includes, exclude: [COMPONENT] }, parameters: {} }, null, 2) + "\n";
       renderList(scope.document, resolved, outcome.resolved_components);
-      renderList(scope.document, contracts, outcome.contract_ids.map((id) => {
-        const item = context.projection.contractById.get(id); return item ? `${item.component}: ${item.id}` : `contract ${id}`;
-      }));
-      renderList(scope.document, materials, outcome.material_ids.map((id) => {
-        const item = context.projection.materialById.get(id); return item ? `${item.destination} (${item.component}, ${item.ownership})` : `material ${id}`;
-      }));
+      renderList(scope.document, contracts, outcome.contract_ids.map((id) => { const item = context.projection.contractById.get(id); return item ? `${item.component}: ${item.id}` : `contract ${id}`; }));
+      renderList(scope.document, materials, outcome.material_ids.map((id) => { const item = context.projection.materialById.get(id); return item ? `${item.destination} (${item.component}, ${item.ownership})` : `material ${id}`; }));
       status.textContent = "Explicitly exclude: result is a provider-resolved transition; Site performed no dependency resolution.";
     } catch (error) {
       fail(root, error instanceof Error ? error.message : String(error));
@@ -144,9 +142,7 @@
     const root = context.root;
     if (state.root !== root) {
       state = { root, intent: null, mode: "default", context, generation: state.generation + 1 };
-      root.querySelectorAll('[name="playground-webmcp-intent"]').forEach((radio) => radio.addEventListener("change", () => {
-        if (radio.checked) chooseMode(root, radio.value);
-      }));
+      root.querySelectorAll('[name="playground-webmcp-intent"]').forEach((radio) => radio.addEventListener("change", () => { if (radio.checked) chooseMode(root, radio.value); }));
       const generation = state.generation;
       void loadIntent(root, context, generation).then((intent) => {
         if (!intent) return;
