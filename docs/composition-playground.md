@@ -4,7 +4,7 @@ Explore the initial composition that the canonical Composition provider has alre
 
 This page consumes published provider projections. It does not resolve dependencies, conflicts, ownership, or materialization rules in the browser.
 
-<div id="composition-playground" class="composition-playground" data-projection-url="/composition/playground/composition-playground-v1.json.gz" data-intent-projection-url="/assets/composition-playground-intent-v1.json" data-provenance-url="/build-provenance.json">
+<div id="composition-playground" class="composition-playground" data-projection-url="/composition/playground/composition-playground-v1.json" data-intent-projection-url="/composition/playground/composition-playground-intent-v1.json" data-provenance-url="/build-provenance.json">
   <p data-playground-status role="status" aria-live="polite">Loading the canonical Composition projection…</p>
   <div data-playground-app hidden>
     <section aria-labelledby="playground-selection-title">
@@ -69,7 +69,7 @@ The canonical include projection retains the bounded `2^N` include-case table. E
 
 Parameters remain an empty object, mode remains initial, and the target repository remains empty. Existing-repository, update, and upgrade workflows are outside this page.
 
-The canonical resolution projection is published as deterministic gzip-compressed JSON. The WebMCP intent projection is a byte-for-byte Site publication copy produced from the exact Composition semantic candidate. Compression/transport and Site mapping do not transfer semantic ownership to Site.
+Both canonical projections are published by the exact Composition provider revision as JSON assets. The intent projection uses an indexed encoding: non-negative values reference canonical resolution outcomes; negative values reference provider-supplied canonical errors. This encoding is transport only and does not move resolution logic into Site.
 
 The displayed **semantic source revision** is the exact Composition revision recorded by the resolution projection. The displayed **published Composition provider revision** comes separately from Site's `/build-provenance.json`. The intent projection is accepted only when its semantic source revision and resolution projection identity match the loaded canonical resolution projection.
 
