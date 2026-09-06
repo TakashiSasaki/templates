@@ -187,6 +187,8 @@ Site はこの boundary における repository integration / publication author
 
 <!-- reference-consumer:start -->
 
+<span id="self-hosting-reference-consumer"></span>
+
 ## 自己ホスティングの参照 consumer
 
 この Site は、自ら提供する Composition と Policy を実際に採用しています。
@@ -229,5 +231,14 @@ Composition と Policy はそれぞれ自分の state を検証し、Site は実
 ブラウザで検証します。planning checkpoint は今回の採用評価を記録するものであり、
 既存 Website の開発履歴を後から作るものではありません。契約検証だけで公開済みや
 release-ready とは判断せず、未実施のブラウザ証拠は deferred として明示します。
+
+現在の台帳は verified 434 件、deferred 20 件です。
+これはカバレッジ項目数であり、独立したテスト数やリリース認定ではありません。
+PWA 試験は実際の worker コードと制御された試験用ページを使い、Website 試験は
+配信された manifest と icon ファイルを確認します。実製品の controlled route／fallback、
+再検証中の可視表示、インストール後の各プラットフォームでの表示、製品更新の
+受け入れ検証が揃うまでは、PWA 製品の証拠ファミリーを deferred とします。
+viewport 試験は宣言された幅と横方向のはみ出しを検査しますが、アクセシビリティ全体や
+すべての端末・画面方向・ズーム条件を証明するものではありません。
 
 <!-- reference-consumer:end -->

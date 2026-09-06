@@ -21,6 +21,10 @@ def project(root: Path):
     intent = read(relations["product"]["intent"])
     policy = yaml.safe_load((root / relations["maintenance"]["configuration"]).read_text())
     publication = read(relations["publication"]["selection"])
+    evidence = read("contracts/implementation-evidence.json")
+    proof_statuses = [proof["status"] for record in evidence["records"]
+                      for field in ("positiveEvidence", "negativeEvidence")
+                      for proof in record[field]]
     return {"schema_version":1,"kind":"reference-consumer-description",
             "repository":discovery["repository"],"authority":"site",
             "composition":{"source":composition["source"],"intent":intent,
@@ -29,6 +33,9 @@ def project(root: Path):
                       "outputs":policy["outputs"],"configuration":relations["maintenance"]["configuration"],
                       "state":relations["maintenance"]["state"]},
             "publication":publication,
+            "evidence":{"ledger":"contracts/implementation-evidence.json",
+                        "verified":proof_statuses.count("verified"),
+                        "deferred":proof_statuses.count("deferred")},
             "validation": {"composition":relations["product"]["validation"],
                            "policy_workflow":relations["maintenance"]["validation_workflow"],
                            "integration_workflow":".github/workflows/reference-consumer.yml"}}
@@ -94,6 +101,16 @@ in a browser. The recorded planning checkpoint is this adoption assessment; it
 does not pretend to reconstruct the Website's original development history.
 Contract validation is not proof of deployment or release readiness; deferred
 browser evidence remains visible until the relevant proof actually runs.
+
+The ledger currently declares {data["evidence"]["verified"]} verified proof entries
+and {data["evidence"]["deferred"]} deferred entries. These are coverage entries,
+not counts of independent tests or a release certificate. PWA tests use actual
+worker code with controlled fixture pages, and the Website test checks served
+manifest/icon packaging. Complete PWA product families remain deferred until
+actual controlled routes/fallbacks, visible revalidation, installation/platform
+presentation and product updates have corresponding acceptance. Viewport probes
+exercise declared widths and overflow; they do not establish full accessibility
+or every device/orientation/zoom combination.
 """
 
 
@@ -101,7 +118,9 @@ def explanation_ja(data):
     c = data["composition"]["source"]["revision"]
     p = data["policy"]["toolchain"]["revision"]
     published = data["publication"]["publications"]
-    return f"""## 自己ホスティングの参照 consumer
+    return f'''<span id="self-hosting-reference-consumer"></span>
+
+## 自己ホスティングの参照 consumer
 
 この Site は、自ら提供する Composition と Policy を実際に採用しています。
 Website 製品は `website` recipe と `capability.pwa` を、保守作業は Policy を使います。
@@ -143,7 +162,16 @@ Composition と Policy はそれぞれ自分の state を検証し、Site は実
 ブラウザで検証します。planning checkpoint は今回の採用評価を記録するものであり、
 既存 Website の開発履歴を後から作るものではありません。契約検証だけで公開済みや
 release-ready とは判断せず、未実施のブラウザ証拠は deferred として明示します。
-"""
+
+現在の台帳は verified {data["evidence"]["verified"]} 件、deferred {data["evidence"]["deferred"]} 件です。
+これはカバレッジ項目数であり、独立したテスト数やリリース認定ではありません。
+PWA 試験は実際の worker コードと制御された試験用ページを使い、Website 試験は
+配信された manifest と icon ファイルを確認します。実製品の controlled route／fallback、
+再検証中の可視表示、インストール後の各プラットフォームでの表示、製品更新の
+受け入れ検証が揃うまでは、PWA 製品の証拠ファミリーを deferred とします。
+viewport 試験は宣言された幅と横方向のはみ出しを検査しますが、アクセシビリティ全体や
+すべての端末・画面方向・ズーム条件を証明するものではありません。
+'''
 
 
 def insert_section(text, explanation):

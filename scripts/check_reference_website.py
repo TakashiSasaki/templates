@@ -29,6 +29,33 @@ def check_viewport(page):
     require(page.evaluate("document.documentElement.scrollWidth <= innerWidth + 1"), "horizontal document overflow")
 
 
+def viewport_probes(contract):
+    # The zero-width baseline is not a physical device. Use Site's 360px
+    # baseline probe and every declared positive breakpoint, including new ones.
+    return sorted({360, *(v["minWidthPx"] for v in contract["viewports"] if v["minWidthPx"] > 0)})
+
+
+def check_link(page, identity):
+    links = page.locator(f'link[rel="{identity["relation"]}"]')
+    expected = urljoin(page.url, identity["href"])
+    require(any(urljoin(page.url, links.nth(i).get_attribute("href") or "") == expected
+                for i in range(links.count())), f"missing browser identity: {expected}")
+
+
+def check_manifest(actual, expected, routes, manifest_url):
+    for key, value in (("name", expected["name"]), ("short_name", expected["shortName"]),
+                       ("display", expected["display"]), ("orientation", expected["orientation"])):
+        require(actual.get(key) == value, f"manifest {key} mismatch")
+    for key, value in (("scope", expected["scope"]), ("start_url", routes[expected["startRouteId"]])):
+        require(urljoin(manifest_url, actual.get(key, "")) == urljoin(manifest_url, value), f"manifest {key} mismatch")
+    for icon in expected["icons"]:
+        require(any(urljoin(manifest_url, item.get("src", "")) == urljoin(manifest_url, icon["href"])
+                    and item.get("type") == icon["mediaType"]
+                    and set(item.get("sizes", "").split()) == set(icon["sizes"])
+                    and set(item.get("purpose", "any").split()) == set(icon["purposes"])
+                    for item in actual.get("icons", [])), f"manifest icon intent mismatch: {icon['id']}")
+
+
 def check(repository: Path, site_root: Path):
     from playwright.sync_api import sync_playwright
     def load(name):
@@ -36,6 +63,9 @@ def check(repository: Path, site_root: Path):
     routes = {r["id"]: r["path"] for r in load("routes")["routes"]}
     pages = {p["id"]: p for p in load("site-structure")["pages"]}
     discovery = load("site-discovery")
+    identity = load("browser-identity")
+    viewport = load("viewports")
+    widths = viewport_probes(viewport)
     sitemap = {node.text for node in ElementTree.parse(site_root / "sitemap.xml").iter() if node.tag.endswith("}loc")}
     robots = (site_root / "robots.txt").read_text()
     require("Allow: /" in robots and discovery["canonicalOrigin"] + "/sitemap.xml" in robots, "robots discovery mismatch")
@@ -58,7 +88,7 @@ def check(repository: Path, site_root: Path):
                 response = page.goto(f"http://127.0.0.1:{server.server_port}" + route, wait_until="domcontentloaded")
                 require(response.status == 200, f"unreachable route: {route}")
                 check_page(page, meta, canonical)
-                for width in (360, 1280):
+                for width in widths:
                     page.set_viewport_size({"width":width,"height":900})
                     check_viewport(page)
                 # Prove that the browser assertion rejects a corrupted product
@@ -81,7 +111,7 @@ def check(repository: Path, site_root: Path):
                 page.locator("h1").first.evaluate("element => element.style.visibility = ''")
                 checked.append(meta["pageId"])
             page.goto(f"http://127.0.0.1:{server.server_port}/", wait_until="domcontentloaded")
-            for width in (360, 1280):
+            for width in widths:
                 page.set_viewport_size({"width":width,"height":900})
                 check_viewport(page)
                 page.evaluate("document.body.insertAdjacentHTML('beforeend', '<div id=negative-overflow style=width:20000px;height:1px></div>')")
@@ -94,37 +124,46 @@ def check(repository: Path, site_root: Path):
                 page.locator("#negative-overflow").evaluate("element => element.remove()")
             page.keyboard.press("Tab")
             require(page.evaluate("document.activeElement !== document.body"), "keyboard navigation unavailable")
-            icons = page.locator('link[rel="icon"]')
+            check_link(page, identity["favicon"])
+            icons = page.locator(f'link[rel="{identity["favicon"]["relation"]}"]')
             require(icons.count() > 0, "favicon missing")
             icon_markup = icons.first.evaluate("element => element.outerHTML")
-            require(urljoin(page.url, icons.first.get_attribute("href")) == urljoin(page.url, "/icon.svg"), "favicon identity mismatch")
+            for fallback in identity["favicon"]["fallbacks"]:
+                check_link(page, {**fallback, "relation": identity["favicon"]["relation"]})
             icons.evaluate_all("elements => elements.forEach(element => element.remove())")
             try:
-                require(icons.count() > 0, "favicon missing")
+                check_link(page, identity["favicon"])
             except AssertionError:
                 pass
             else:
                 raise AssertionError("negative identity proof accepted missing favicon")
             page.evaluate("markup => document.head.insertAdjacentHTML('beforeend', markup)", icon_markup)
-            touch_href = page.locator('link[rel="apple-touch-icon"]').get_attribute("href")
-            require(urljoin(page.url, touch_href or "") == urljoin(page.url, "/icon-180.png"), f"iOS icon mismatch: {touch_href!r}")
-            manifest_href = page.locator('link[rel="manifest"]').get_attribute("href")
-            manifest = context.request.get(urljoin(page.url, manifest_href)).json()
             expected = load("pwa-manifest")
-            for key, value in (("name",expected["name"]),("short_name",expected["shortName"]),("scope",expected["scope"]),("display",expected["display"])):
-                require(manifest[key] == value, f"manifest {key} mismatch")
+            check_link(page, expected["platformCompatibility"]["ios"]["homeScreenIcon"])
+            check_link(page, {"relation": "manifest", "href": expected["manifestPath"]})
+            manifest_url = urljoin(page.url, expected["manifestPath"])
+            manifest = context.request.get(manifest_url).json()
+            check_manifest(manifest, expected, routes, manifest_url)
             for icon in expected["icons"]:
-                require(any(x["src"] == icon["href"] and x["type"] == icon["mediaType"] for x in manifest["icons"]), "manifest icon missing")
-                response = context.request.get(urljoin(page.url, icon["href"]))
+                response = context.request.get(urljoin(manifest_url, icon["href"]))
                 require(response.status == 200, "icon unreachable")
                 if icon["mediaType"] == "image/png":
                     require(response.body().startswith(b"\x89PNG\r\n\x1a\n"), "invalid raster fallback")
+            # Exercise both landing paths and the existing canonical projection.
+            for prefix, language in (("", "en"), ("/ja", "ja")):
+                page.goto(f"http://127.0.0.1:{server.server_port}{prefix}/", wait_until="domcontentloaded")
+                page.locator('section[aria-labelledby="portal-reference-consumer-title"] a').click()
+                page.wait_for_url(f"**{prefix}/coexistence/#self-hosting-reference-consumer")
+                require(page.locator("html").get_attribute("lang") == language, "reference explanation locale mismatch")
+                require(page.locator("#self-hosting-reference-consumer").count() == 1, "reference anchor missing")
+            projection = context.request.get(f"http://127.0.0.1:{server.server_port}/reference-consumer.json").json()
+            require(projection == json.loads((repository / "assets/reference-consumer.json").read_text()), "served reference projection mismatch")
             browser.close()
     finally:
         server.shutdown()
         server.server_close()
         thread.join()
-    return {"status":"passed","pages":checked,"viewports":[360,1280]}
+    return {"status":"passed","pages":checked,"viewports":widths}
 
 
 if __name__ == "__main__":
