@@ -16,3 +16,5 @@ jobs:
       - uses: TakashiSasaki/templates@33a7ab809225c2a8b8dd2598ef04d0a39cf076a7
         with:
           command: check
+      - name: Verify review output freshness and regeneration
+        run: python .github/tests/test_policy_outputs.py

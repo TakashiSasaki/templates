@@ -11,11 +11,24 @@ contexts:
     project_policy:
       files:
       - policy/project.md
+  review:
+    profiles:
+    - core
+    - security-baseline
+    - review
+    project_policy:
+      files:
+      - policy/project.md
 outputs:
   agents:
     enabled: true
     path: AGENTS.md
     context: default
     renderer: agents-md
+  review-authority:
+    enabled: true
+    path: .review-authority/review-policy.md
+    context: review
+    renderer: policy-context-md
 skills:
   enabled: []
