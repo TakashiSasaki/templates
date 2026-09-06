@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://templates.moukaeritai.work/schemas/webmcp-tools.schema.json",
+  "title": "WebMCP tools contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schemaVersion", "tools"],
+  "properties": {
+    "$schema": {"type": "string"},
+    "schemaVersion": {"const": 1},
+    "tools": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "name", "purpose", "inputSchema", "effect", "outputTrust", "applicability", "confirmation"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"},
+          "name": {"type": "string", "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$"},
+          "purpose": {"type": "string", "minLength": 1},
+          "inputSchema": {"type": "object"},
+          "effect": {"enum": ["read-only", "state-changing", "consequential"]},
+          "outputTrust": {"enum": ["trusted", "untrusted"]},
+          "applicability": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["routes", "states"],
+            "properties": {
+              "routes": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+              "states": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}}
+            }
+          },
+          "confirmation": {"enum": ["not-required", "required-by-domain-operation"]}
+        },
+        "allOf": [
+          {
+            "if": {"properties": {"effect": {"const": "consequential"}}, "required": ["effect"]},
+            "then": {"properties": {"confirmation": {"const": "required-by-domain-operation"}}}
+          }
+        ]
+      }
+    }
+  }
+}
