@@ -1,0 +1,56 @@
+{
+  "backup_path": ".agent-policy/adoption/original/AGENTS.md",
+  "config_path": ".agent-policy.yml",
+  "final_output": "AGENTS.md",
+  "generated_skills": [],
+  "preview_output": ".agent-policy/preview/AGENTS.md",
+  "primary_instructions": "AGENTS.md",
+  "project_policy_files": [
+    "policy/project.md"
+  ],
+  "schema_version": 1,
+  "selected_profiles": [
+    "core",
+    "security-baseline",
+    "pull-request"
+  ],
+  "sources": [
+    {
+      "generated": false,
+      "path": ".agents/skills/pr-merge-gate/SKILL.md",
+      "sha256": "7cdb9d003ea22a3447a9194a7d1f052658d2c1f491ee442014f703c5309eb009"
+    },
+    {
+      "generated": false,
+      "path": ".agents/skills/pr-merge-gate/source.json",
+      "sha256": "cc66b15205fcb5ebf1f2e32d1751c49d3492ede0d6c7def194231c4fdb9ee5d0"
+    },
+    {
+      "generated": false,
+      "path": ".agents/skills/site-browser-regression-triage/SKILL.md",
+      "sha256": "38d33cc57b76e0dc7c035299ddd5c083aa30f71ab8c78cf2c655810932dc49ce"
+    },
+    {
+      "generated": false,
+      "path": ".agents/skills/site-pr-exact-head-acceptance/SKILL.md",
+      "sha256": "01c42447882f90467341bcf36f9c079acb3fba012523c13ae25c257f2f7fa159"
+    },
+    {
+      "generated": false,
+      "path": ".agents/skills/site-publication-cutover/SKILL.md",
+      "sha256": "c204997428acf98f78476dd83de7192affd7f146c7fe846a2f5766fa1e825be1"
+    },
+    {
+      "generated": false,
+      "path": "AGENTS.md",
+      "sha256": "0fd216c6516dda02580858b4cf62d4a73ad322a18e90303aa66b8ef2004ac87a"
+    }
+  ],
+  "state_path": ".agent-policy/adoption.json",
+  "status": "finalized",
+  "toolchain": {
+    "repository": "TakashiSasaki/templates",
+    "revision": "33a7ab809225c2a8b8dd2598ef04d0a39cf076a7"
+  },
+  "verification_command": null
+}
