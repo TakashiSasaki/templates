@@ -1,0 +1,21 @@
+schema_version: 2
+toolchain:
+  repository: TakashiSasaki/templates
+  revision: 33a7ab809225c2a8b8dd2598ef04d0a39cf076a7
+contexts:
+  default:
+    profiles:
+    - core
+    - security-baseline
+    - pull-request
+    project_policy:
+      files:
+      - policy/project.md
+outputs:
+  agents:
+    enabled: true
+    path: AGENTS.md
+    context: default
+    renderer: agents-md
+skills:
+  enabled: []

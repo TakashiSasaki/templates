@@ -1,0 +1,12 @@
+lock_version: 1
+toolchain:
+  repository: TakashiSasaki/templates
+  revision: 33a7ab809225c2a8b8dd2598ef04d0a39cf076a7
+inputs:
+  .agent-policy.yml:
+    sha256: bab9c987f487beff9afdbb842ad731ebc74224c91b1c95143b538ffbf8bf367a
+  policy/project.md:
+    sha256: 7b306366a740eb8438311fa380e6286c2f9d1b2286ea648b259e01a71a3bc047
+outputs:
+  AGENTS.md:
+    sha256: d34a2348425692c5eeccda4ada1b3a5437031f3db40a1317fef0490558e361ed

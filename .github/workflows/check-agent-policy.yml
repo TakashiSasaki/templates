@@ -1,0 +1,18 @@
+name: Check Site agent policy
+on:
+  pull_request:
+  push:
+    branches: [site]
+permissions:
+  contents: read
+jobs:
+  policy:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: TakashiSasaki/templates@33a7ab809225c2a8b8dd2598ef04d0a39cf076a7
+        with:
+          command: check
