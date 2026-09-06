@@ -49,6 +49,6 @@ jobs:
           mkdir -p build/site
           tar --extract --file pages-artifact/artifact.tar --directory build/site
       - name: Verify Website product contract in Chrome
-        run: python scripts/check_reference_website.py --site-root build/site
+        run: python scripts/check_reference_website.py
       - name: Verify PWA positive and failure paths
-        run: python scripts/check_pwa_freshness.py --site-root build/site
+        run: python scripts/check_reference_pwa.py
