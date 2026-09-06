@@ -1,0 +1,401 @@
+name: Materialize reference consumer example
+on:
+  pull_request:
+    branches:
+      - site
+permissions:
+  contents: read
+jobs:
+  materialize:
+    if: ${{ github.head_ref == 'reference-consumer-example-page' }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: '3.12.13'
+      - run: python -m pip install PyYAML==6.0.3
+      - name: Close the existing adoption product transition
+        run: >-
+          python .template-composition/checkpoint.py product
+          --id site-reference-adoption-product
+          --from site-reference-adoption
+      - name: Materialize planned specification
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path('.')
+          def load(path):
+              return json.loads((root / path).read_text(encoding='utf-8'))
+          def write(path, value):
+              (root / path).write_text(json.dumps(value, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+
+          manifest = load('site-manifest.json')
+          new_page = {
+              'title': 'This repository as a reference consumer',
+              'publication': 'site',
+              'document': 'reference-consumer',
+              'destination': 'reference-consumer/index.md',
+          }
+          if not any(isinstance(item, dict) and item.get('document') == 'reference-consumer' for item in manifest['navigation']):
+              manifest['navigation'].insert(2, new_page)
+          write('site-manifest.json', manifest)
+          PY
+          python scripts/site_website_contract.py --write
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path('.')
+          def load(path):
+              return json.loads((root / path).read_text(encoding='utf-8'))
+          def write(path, value):
+              (root / path).write_text(json.dumps(value, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+
+          offline = load('contracts/pwa-offline.json')
+          route_id = 'site-reference-consumer'
+          if route_id not in offline['controlledRouteIds']:
+              anchor = offline['controlledRouteIds'].index('site-policy-composition-coexistence') + 1
+              offline['controlledRouteIds'].insert(anchor, route_id)
+          if not any(item.get('routeId') == route_id for item in offline['routePolicies']):
+              anchor = next(i for i, item in enumerate(offline['routePolicies']) if item.get('routeId') == 'site-policy-composition-coexistence') + 1
+              offline['routePolicies'].insert(anchor, {'routeId': route_id, 'offlinePolicy': 'cached-content-when-available'})
+          write('contracts/pwa-offline.json', offline)
+
+          for path in ('contracts/pwa-manifest.json', 'contracts/pwa-offline.json', 'contracts/pwa-update.json'):
+              data = load(path)
+              data['mode'] = 'planning'
+              write(path, data)
+
+          product = load('contracts/implementation-evidence.json')
+          planned = []
+          for req in product['requirements']:
+              targets = req.get('targets')
+              if not isinstance(targets, list) or not targets:
+                  raise SystemExit(f"requirement lacks retained planning targets: {req.get('id')}")
+              planned.append({
+                  'id': req['id'],
+                  'description': req['description'],
+                  'targets': targets,
+                  'recordIds': [],
+                  'requiredPositiveProofKinds': req['requiredPositiveProofKinds'],
+              })
+          for contract_id, item_kind in (('site_structure', 'page'), ('document_metadata', 'page-metadata')):
+              rid = ('site-structure-' if contract_id == 'site_structure' else 'document-metadata-') + route_id
+              planned.append({
+                  'id': rid,
+                  'description': f'Site fulfills {rid}',
+                  'targets': [{
+                      'kind': 'contract-item',
+                      'contractId': contract_id,
+                      'itemKind': item_kind,
+                      'itemId': route_id,
+                  }],
+                  'recordIds': [],
+                  'requiredPositiveProofKinds': ['end-to-end-test'],
+              })
+          evidence = {
+              '$schema': product['$schema'],
+              'schemaVersion': product['schemaVersion'],
+              'mode': 'planning',
+              'commands': [],
+              'releaseGates': [],
+              'records': [],
+              'requirements': planned,
+          }
+          write('contracts/implementation-evidence.json', evidence)
+          (root / 'build').mkdir(exist_ok=True)
+          write('build/original-product-evidence.json', product)
+          PY
+          python .template-composition/validate.py . --format json
+          python .template-composition/checkpoint.py planning --id reference-consumer-page
+      - name: Materialize reader implementation and product evidence
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          root = Path('.')
+          def load(path):
+              return json.loads((root / path).read_text(encoding='utf-8'))
+          def write(path, value):
+              (root / path).write_text(json.dumps(value, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+
+          page = r'''# `TakashiSasaki/templates` as a reference consumer
+
+Most repositories should consume these systems from a separate product repository. This repository deliberately goes further: it uses the systems it provides to define and maintain its own Site. That makes the default `site` authority a concrete, executable reference consumer rather than only a documentation publisher.
+
+## The normal relationship
+
+```text
+TakashiSasaki/templates
+        |
+        | provides Composition and Policy
+        v
+a separate consumer repository
+```
+
+That is still the recommended shape for ordinary users. The self-hosting case exists to demonstrate that the same contracts work on a mature, real repository.
+
+## What this repository consumes
+
+```text
+Composition authority                    Policy authority
+        |                                      |
+        | Website + PWA contracts              | coding/review policy
+        v                                      v
+Site as a product                       Site maintenance
+        \                                      /
+         \                                    /
+          +------ TakashiSasaki/templates ----+
+```
+
+The two consumer relationships are independent. Composition defines what the Site Website/PWA product is. Policy governs how maintainers and coding agents change and review the Site repository. The deployed Website runtime is not a Policy consumer.
+
+| Concern | Canonical repository surface | What it demonstrates |
+| --- | --- | --- |
+| Composition intent | `composition.json` | The Site selects the `website` recipe with `capability.pwa`. |
+| Composition managed state | `.template-composition/lock.json` | Exact provider source, resolved components, and managed/seed/generated ownership are explicit. |
+| Policy selection | `.agent-policy.yml` | Site maintenance selects shared coding and review profiles plus repository-local policy. |
+| Policy managed state | `.agent-policy.lock` | Generated Policy outputs are checked against the pinned immutable toolchain. |
+| Site-specific maintenance rules | `policy/project.md` | Repository-specific normative constraints stay local instead of becoming shared Policy semantics. |
+| Procedural maintenance workflows | `.agents/skills/` | Site-specific procedures remain Skills rather than being folded into Policy or Composition. |
+| Agent-facing projection | `AGENTS.md` | Maintainer instructions are generated from the selected Policy context. |
+| Reviewer-facing projection | `.review-authority/review-policy.md` | Review instructions are also generated and freshness-checked by Policy. |
+| Self-hosting discovery | `reference-consumer.json` | Machines can discover the two consumer relationships without parsing this page. |
+| Policy CI | `.github/workflows/check-agent-policy.yml` | CI verifies that Policy configuration, lock, and generated outputs remain synchronized. |
+| Reference-consumer CI | `.github/workflows/reference-consumer.yml` | CI validates Composition state and exercises the real Website/PWA artifact. |
+| Site build | `.github/workflows/build-pages.yml` | The consumer is validated as the same Pages artifact that Site publishes. |
+| Publication selection | `publication-sources.json` | Reader publication revisions remain separate from consumer/runtime revisions. |
+
+## Why immutable revisions do not create a cycle
+
+Self-hosting is temporal rather than circular. A known immutable Composition or Policy revision **N** governs a later Site consumer revision **N+1**. The provider revision, consumer semantic source, Policy runtime, generated projection, and reader publication revision can therefore differ without contradiction.
+
+This distinction matters: advancing what the Site publishes does not silently upgrade its own consumer state, and adopting a provider candidate does not automatically publish that candidate to readers.
+
+## The maintenance path is part of the demonstration
+
+A maintainer editing this repository is not following an unrelated handwritten process. The Site's `.agent-policy.yml` selects Policy, `policy/project.md` adds Site-local normative constraints, and Policy generates the current `AGENTS.md` and reviewer policy. Site-local Skills provide concrete procedures. CI then checks those generated outputs and the independent Composition consumer state.
+
+The result is a useful dogfooding loop: provider semantics are exercised by a real consumer, while authority ownership stays separated. When Site adoption exposed generic Composition gaps, those gaps were fixed in Composition rather than hidden behind Site-only exceptions.
+
+## What this page is — and is not
+
+This page is a Site-owned explanation and example. It does not become a new semantic authority above Composition or Policy. Canonical state remains in the files listed above, and the generated section below is derived from that state. See also the [Policy–Composition coexistence contract](/coexistence/), the [machine-readable reference-consumer description](/reference-consumer.json), and the [published source browser](/files/).
+'''
+          (root / 'docs/reference-consumer.md').write_text(page, encoding='utf-8')
+
+          catalog = load('docs/publication-catalog.json')
+          if not any(item['id'] == 'reference-consumer' for item in catalog['documents']):
+              idx = next(i for i, item in enumerate(catalog['documents']) if item['id'] == 'policy-composition-coexistence') + 1
+              catalog['documents'].insert(idx, {'id': 'reference-consumer', 'source': 'docs/reference-consumer.md', 'optional': False, 'home': False})
+          write('docs/publication-catalog.json', catalog)
+
+          landing_path = root / 'docs/landing.md'
+          landing = landing_path.read_text(encoding='utf-8')
+          anchor = '''<p>Clone or create your product repository separately. The provider-owned tutorials tell you what to install or run there. The <code>templates</code> repository itself is primarily the source of the tooling, contracts, and documentation.</p>\n</section>\n'''
+          panel = '''\n<section class="portal-policy-panel" aria-labelledby="portal-reference-consumer-title">\n  <span class="portal-policy-panel__icon"><img src="images/icon-policy.svg" alt=""></span>\n  <div class="portal-policy-panel__copy">\n    <p class="portal-policy-panel__label">Concrete reference consumer</p>\n    <h2 id="portal-reference-consumer-title">See this repository consume its own systems</h2>\n    <p><code>TakashiSasaki/templates</code> is also an executable example: Composition defines the Site Website/PWA product, while Policy governs repository maintenance and generated agent/review instructions.</p>\n  </div>\n  <a class="portal-policy-panel__action" href="reference-consumer/">Explore the reference consumer <span aria-hidden="true">→</span></a>\n</section>\n'''
+          if 'portal-reference-consumer-title' not in landing:
+              landing = landing.replace(anchor, anchor + panel, 1)
+          doc_anchor = '    <a class="portal-doc-link" href="coexistence/">Policy–Composition coexistence</a>'
+          if doc_anchor not in landing:
+              # Existing landing did not expose coexistence in this list; insert the example before the glossary instead.
+              glossary = '    <a class="portal-doc-link" href="/glossary/">Glossary</a>'
+              landing = landing.replace(glossary, '    <a class="portal-doc-link" href="reference-consumer/">This repository as a reference consumer</a>\n' + glossary, 1)
+          landing_path.write_text(landing, encoding='utf-8')
+
+          ja_path = root / 'translations/ja/docs/landing.md'
+          ja = ja_path.read_text(encoding='utf-8')
+          ja_anchor = '''<p>product repository は別に clone または作成します。provider-owned tutorial が、そこで何を install / run するかを説明します。<code>templates</code> repository 自体は主に tooling、contracts、documentation の供給元です。</p>\n</section>\n'''
+          ja_panel = '''\n<section class="portal-policy-panel" aria-labelledby="portal-reference-consumer-title">\n  <span class="portal-policy-panel__icon"><img src="/images/icon-policy.svg" alt=""></span>\n  <div class="portal-policy-panel__copy">\n    <p class="portal-policy-panel__label">具体的な reference consumer</p>\n    <h2 id="portal-reference-consumer-title">この repository 自身が自分の仕組みを使う例を見る</h2>\n    <p><code>TakashiSasaki/templates</code> 自身も実行可能な利用例です。Composition が Site の Website/PWA product を定義し、Policy が repository maintenance と生成された agent/review instructions を規定します。</p>\n  </div>\n  <a class="portal-policy-panel__action" href="/reference-consumer/">Reference consumer を見る <span aria-hidden="true">→</span></a>\n</section>\n'''
+          if 'portal-reference-consumer-title' not in ja:
+              ja = ja.replace(ja_anchor, ja_anchor + ja_panel, 1)
+          ja_glossary = '    <a class="portal-doc-link" href="/glossary/">Glossary</a>'
+          if '/reference-consumer/' not in ja:
+              ja = ja.replace(ja_glossary, '    <a class="portal-doc-link" href="/reference-consumer/">この repository を reference consumer として見る</a>\n' + ja_glossary, 1)
+          ja_path.write_text(ja, encoding='utf-8')
+
+          renderer_path = root / 'scripts/render_reference_consumer.py'
+          renderer = renderer_path.read_text(encoding='utf-8')
+          old = '''    doc = root / "docs/policy-composition-coexistence.md"\n    text = insert_section(doc.read_text(), explanation(data))\n    translated_path = "translations/ja/docs/policy-composition-coexistence.md"'''
+          new = '''    doc = root / "docs/policy-composition-coexistence.md"\n    text = insert_section(doc.read_text(), explanation(data))\n    example_path = "docs/reference-consumer.md"\n    example = insert_section((root / example_path).read_text(), explanation(data))\n    translated_path = "translations/ja/docs/policy-composition-coexistence.md"'''
+          if old not in renderer:
+              raise SystemExit('renderer insertion anchor not found')
+          renderer = renderer.replace(old, new, 1)
+          old_return = '''    return {"assets/reference-consumer.json":json.dumps(data,indent=2,ensure_ascii=False)+"\\n",\n            "docs/policy-composition-coexistence.md":text,\n            translated_path:translated}'''
+          new_return = '''    return {"assets/reference-consumer.json":json.dumps(data,indent=2,ensure_ascii=False)+"\\n",\n            "docs/policy-composition-coexistence.md":text,\n            example_path:example,\n            translated_path:translated}'''
+          if old_return not in renderer:
+              raise SystemExit('renderer return anchor not found')
+          renderer_path.write_text(renderer.replace(old_return, new_return, 1), encoding='utf-8')
+
+          product = load('build/original-product-evidence.json')
+          route_id = 'site-reference-consumer'
+          for contract_id, item_kind in (('site_structure', 'page'), ('document_metadata', 'page-metadata')):
+              rid = ('site-structure-' if contract_id == 'site_structure' else 'document-metadata-') + route_id
+              target = {'kind': 'contract-item', 'contractId': contract_id, 'itemKind': item_kind, 'itemId': route_id}
+              if not any(record.get('id') == rid for record in product['records']):
+                  product['records'].append({
+                      'id': rid,
+                      'target': target,
+                      'implementationBoundary': {
+                          'status': 'verified',
+                          'description': f'Site publication assembly and browser implementation for {rid}',
+                          'locator': 'scripts/assemble_publications_v3.py',
+                      },
+                      'releaseGateIds': ['site-reference'],
+                      'positiveEvidence': [{
+                          'id': f'{rid}-positive',
+                          'status': 'verified',
+                          'kind': 'end-to-end-test',
+                          'description': 'Actual browser contract assertions.',
+                          'locator': 'scripts/check_reference_website.py',
+                          'commandId': 'website-browser',
+                          'expectedResult': 'All reachable contract assertions pass; corrupted or unavailable states fail or expose the required fallback.',
+                      }],
+                      'negativeEvidence': [{
+                          'id': f'{rid}-negative',
+                          'status': 'verified',
+                          'kind': 'end-to-end-test',
+                          'description': 'Browser corruption or network/update failure assertions.',
+                          'locator': 'scripts/check_reference_website.py',
+                          'commandId': 'website-browser',
+                          'expectedResult': 'All reachable contract assertions pass; corrupted or unavailable states fail or expose the required fallback.',
+                      }],
+                  })
+              if not any(req.get('id') == rid for req in product['requirements']):
+                  product['requirements'].append({
+                      'id': rid,
+                      'description': f'Site fulfills {rid}',
+                      'targets': [target],
+                      'recordIds': [rid],
+                      'requiredPositiveProofKinds': ['end-to-end-test'],
+                  })
+          product['records'].sort(key=lambda item: item['id'])
+          product['requirements'].sort(key=lambda item: item['id'])
+          write('contracts/implementation-evidence.json', product)
+
+          for path in ('contracts/pwa-manifest.json', 'contracts/pwa-offline.json', 'contracts/pwa-update.json'):
+              data = load(path)
+              data['mode'] = 'product'
+              write(path, data)
+
+          test = r'''import json
+          import unittest
+          from pathlib import Path
+
+          ROOT = Path(__file__).resolve().parents[1]
+
+          class ReferenceConsumerExampleTests(unittest.TestCase):
+              def test_reader_example_is_canonical_and_reachable(self):
+                  catalog = json.loads((ROOT / "docs/publication-catalog.json").read_text())
+                  manifest = json.loads((ROOT / "site-manifest.json").read_text())
+                  self.assertIn("reference-consumer", {item["id"] for item in catalog["documents"]})
+                  leaves = []
+                  def visit(nodes):
+                      for node in nodes:
+                          if "children" in node:
+                              visit(node["children"])
+                          else:
+                              leaves.append(node)
+                  visit(manifest["navigation"])
+                  page = next(item for item in leaves if item.get("document") == "reference-consumer")
+                  self.assertEqual("reference-consumer/index.md", page["destination"])
+                  landing = (ROOT / "docs/landing.md").read_text()
+                  self.assertIn('href="reference-consumer/"', landing)
+
+              def test_example_points_to_real_consumer_state(self):
+                  text = (ROOT / "docs/reference-consumer.md").read_text()
+                  for token in (
+                      "composition.json",
+                      ".template-composition/lock.json",
+                      ".agent-policy.yml",
+                      ".agent-policy.lock",
+                      "policy/project.md",
+                      ".agents/skills/",
+                      "AGENTS.md",
+                      ".review-authority/review-policy.md",
+                      ".github/workflows/check-agent-policy.yml",
+                      ".github/workflows/reference-consumer.yml",
+                      "publication-sources.json",
+                      "<!-- reference-consumer:start -->",
+                  ):
+                      self.assertIn(token, text)
+
+          if __name__ == "__main__":
+              unittest.main()
+          '''
+          # Dedent the embedded source without importing another dependency.
+          lines = test.splitlines()
+          test = '\n'.join(line[10:] if line.startswith('          ') else line for line in lines).lstrip() + '\n'
+          (root / 'tests/test_reference_consumer_example.py').write_text(test, encoding='utf-8')
+
+          # Bind the Japanese landing translation to the exact Git blob bytes of the new canonical landing.
+          data = landing_path.read_bytes()
+          blob = hashlib.sha1(f'blob {len(data)}\0'.encode() + data).hexdigest()
+          translations = load('translations/manifest.json')
+          entry = next(item for item in translations['translations'] if item['canonical'] == 'docs/landing.md' and item['language'] == 'ja')
+          entry['canonical_blob_sha'] = blob
+          write('translations/manifest.json', translations)
+          PY
+          python scripts/render_reference_consumer.py --write
+          python scripts/site_website_contract.py
+          python .template-composition/validate.py . --format json
+          python .template-composition/checkpoint.py product --id reference-consumer-page-product --from reference-consumer-page
+          python .template-composition/validate.py . --format json
+          python -m unittest tests.test_reference_consumer tests.test_reference_consumer_example tests.test_landing_page
+      - name: Collect canonical materialization
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import shutil
+
+          root = Path('.')
+          out = root / 'materialized'
+          paths = [
+              'docs/reference-consumer.md',
+              'docs/landing.md',
+              'translations/ja/docs/landing.md',
+              'translations/manifest.json',
+              'docs/publication-catalog.json',
+              'site-manifest.json',
+              'scripts/render_reference_consumer.py',
+              'tests/test_reference_consumer_example.py',
+              'contracts/routes.json',
+              'contracts/site-structure.json',
+              'contracts/document-metadata.json',
+              'contracts/site-discovery.json',
+              'contracts/pwa-offline.json',
+              'contracts/pwa-manifest.json',
+              'contracts/pwa-update.json',
+              'contracts/implementation-evidence.json',
+              'contracts/lifecycle-checkpoints.json',
+              'docs/policy-composition-coexistence.md',
+              'translations/ja/docs/policy-composition-coexistence.md',
+              'assets/reference-consumer.json',
+              'artifacts/lifecycle/002-site-reference-adoption-product',
+              'artifacts/lifecycle/003-reference-consumer-page',
+              'artifacts/lifecycle/004-reference-consumer-page-product',
+          ]
+          for relative in paths:
+              source = root / relative
+              target = out / relative
+              target.parent.mkdir(parents=True, exist_ok=True)
+              if source.is_dir():
+                  shutil.copytree(source, target)
+              else:
+                  shutil.copy2(source, target)
+          PY
+      - name: Upload canonical materialization
+        uses: actions/upload-artifact@v4
+        with:
+          name: reference-consumer-example-materialized
+          path: materialized
+          if-no-files-found: error
+          retention-days: 1
