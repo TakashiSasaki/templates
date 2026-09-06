@@ -14,12 +14,12 @@
     },
     "routePath": {
       "type": "string",
-      "pattern": "^/(?!\\.{1,2}(?:/|$))(?:[A-Za-z0-9._~-]+(?:/(?!\\.{1,2}(?:/|$))[A-Za-z0-9._~-]+)*)?(?![\\s\\S])"
+      "pattern": "^/(?!\\.{1,2}(?:/|$))(?:[A-Za-z0-9._~-]+(?:/(?!\\.{1,2}(?:/|$))[A-Za-z0-9._~-]+)*/?)?(?![\\s\\S])"
     },
     "nonBlankText": {
       "type": "string",
       "minLength": 1,
-      "pattern": "[^\\u0000-\\u0020\\u007F-\\u00A0\\u00AD\\u034F\\u061C\\u115F\\u1160\\u1680\\u17B4\\u17B5\\u180B-\\u180F\\u2000-\\u200F\\u2028-\\u202F\\u205F-\\u206F\\u2800\\u3000\\u3164\\uFE00-\\uFE0F\\uFEFF\\uFFA0\\uFFF0-\\uFFFF𓑁𓑂𝅙]"
+      "pattern": "[^\\u0000-\\u0020\\u007F-\\u00A0\\u00AD\\u034F\\u061C\\u115F\\u1160\\u1680\\u17B4\\u17B5\\u180B-\\u180F\\u2000-\\u200F\\u2028-\\u202F\\u205F-\\u206F\\u2800\\u3000\\u3164\\uFE00-\\uFE0F\\uFEFF\\uFFA0\\uFFF0-\\uFFFF\ud80d\udc41\ud80d\udc42\ud834\udd59]"
     }
   },
   "properties": {
@@ -27,7 +27,7 @@
       "const": "../schemas/routes.schema.json"
     },
     "schemaVersion": {
-      "const": 4
+      "const": 5
     },
     "routes": {
       "type": "array",

@@ -32,7 +32,7 @@ def normalized_prose(text: str) -> str:
 def route_document(path: str) -> dict:
     return {
         "$schema": "../schemas/routes.schema.json",
-        "schemaVersion": 4,
+        "schemaVersion": 5,
         "routes": [
             {
                 "id": "account-settings",
@@ -75,7 +75,7 @@ class WebUrlPathGuidanceTests(unittest.TestCase):
         routes = next(item for item in registrations if item["id"] == "routes")
         self.assertEqual(routes["document"], "contracts/routes.json")
         self.assertEqual(routes["schema"], "schemas/routes.schema.json")
-        self.assertEqual(routes["document_schema_version"], 4)
+        self.assertEqual(routes["document_schema_version"], 5)
 
     def test_guidance_is_reader_discoverable_without_becoming_machine_contract(self) -> None:
         catalog = load_json(PUBLICATION_CATALOG)
@@ -106,7 +106,7 @@ class WebUrlPathGuidanceTests(unittest.TestCase):
         self.assertEqual([], validation_errors("/Account_Settings.HTML"))
 
     def test_guidance_cannot_waive_normative_representation_rules(self) -> None:
-        for path in ("relative/path", "/a/../b", "/reports/", "/café"):
+        for path in ("relative/path", "/a/../b", "/café"):
             with self.subTest(path=path):
                 self.assertTrue(validation_errors(path))
 
