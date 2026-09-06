@@ -26,6 +26,12 @@
       "home": false
     },
     {
+      "id": "webmcp-guide",
+      "source": "docs/webmcp.md",
+      "optional": false,
+      "home": false
+    },
+    {
       "id": "lifecycle-overview",
       "source": "docs/lifecycle.md",
       "optional": false,
