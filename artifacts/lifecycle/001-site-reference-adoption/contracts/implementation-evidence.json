@@ -1,0 +1,3642 @@
+{
+  "$schema": "../schemas/implementation-evidence.schema.json",
+  "schemaVersion": 6,
+  "mode": "planning",
+  "commands": [],
+  "releaseGates": [],
+  "records": [],
+  "requirements": [
+    {
+      "id": "browser-identity-browser-identity",
+      "description": "Site fulfills browser-identity-browser-identity",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "browser_identity",
+          "itemKind": "proof-family",
+          "itemId": "browser-identity"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-browser-interface",
+      "description": "Site fulfills document-metadata-composition-browser-interface",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-browser-interface"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-catalog-architecture",
+      "description": "Site fulfills document-metadata-composition-catalog-architecture",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-catalog-architecture"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-catalog-guide",
+      "description": "Site fulfills document-metadata-composition-catalog-guide",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-catalog-guide"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-cli-interface",
+      "description": "Site fulfills document-metadata-composition-cli-interface",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-cli-interface"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-cli-interface-v2-migration",
+      "description": "Site fulfills document-metadata-composition-cli-interface-v2-migration",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-cli-interface-v2-migration"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-composer-mvp",
+      "description": "Site fulfills document-metadata-composition-composer-mvp",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-composer-mvp"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-composer-reference",
+      "description": "Site fulfills document-metadata-composition-composer-reference",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-composer-reference"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-composition-authority-migration",
+      "description": "Site fulfills document-metadata-composition-composition-authority-migration",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-composition-authority-migration"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-composition-concepts",
+      "description": "Site fulfills document-metadata-composition-composition-concepts",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-composition-concepts"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-composition-model",
+      "description": "Site fulfills document-metadata-composition-composition-model",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-composition-model"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-composition-state",
+      "description": "Site fulfills document-metadata-composition-composition-state",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-composition-state"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-consumer-guide",
+      "description": "Site fulfills document-metadata-composition-consumer-guide",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-consumer-guide"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-contract-evolution",
+      "description": "Site fulfills document-metadata-composition-contract-evolution",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-contract-evolution"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-documentation-index",
+      "description": "Site fulfills document-metadata-composition-documentation-index",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-documentation-index"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-evaluation-guide",
+      "description": "Site fulfills document-metadata-composition-evaluation-guide",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-evaluation-guide"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-generated-contract-manifest",
+      "description": "Site fulfills document-metadata-composition-generated-contract-manifest",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-generated-contract-manifest"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-implementation-evidence",
+      "description": "Site fulfills document-metadata-composition-implementation-evidence",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-implementation-evidence"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-implementation-evidence-v2-migration",
+      "description": "Site fulfills document-metadata-composition-implementation-evidence-v2-migration",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-implementation-evidence-v2-migration"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-implementation-evidence-v3-migration",
+      "description": "Site fulfills document-metadata-composition-implementation-evidence-v3-migration",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-implementation-evidence-v3-migration"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-implementation-evidence-v4-migration",
+      "description": "Site fulfills document-metadata-composition-implementation-evidence-v4-migration",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-implementation-evidence-v4-migration"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-implementation-evidence-v5-migration",
+      "description": "Site fulfills document-metadata-composition-implementation-evidence-v5-migration",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-implementation-evidence-v5-migration"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-implementation-evidence-v6-migration",
+      "description": "Site fulfills document-metadata-composition-implementation-evidence-v6-migration",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-implementation-evidence-v6-migration"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-lifecycle-checkpoints",
+      "description": "Site fulfills document-metadata-composition-lifecycle-checkpoints",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-lifecycle-checkpoints"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-mcp-apps-guidance",
+      "description": "Site fulfills document-metadata-composition-mcp-apps-guidance",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-mcp-apps-guidance"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-mcp-apps-interface",
+      "description": "Site fulfills document-metadata-composition-mcp-apps-interface",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-mcp-apps-interface"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-mcp-apps-v2-migration",
+      "description": "Site fulfills document-metadata-composition-mcp-apps-v2-migration",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-mcp-apps-v2-migration"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-mcp-interface",
+      "description": "Site fulfills document-metadata-composition-mcp-interface",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-mcp-interface"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-mcp-interface-v2-migration",
+      "description": "Site fulfills document-metadata-composition-mcp-interface-v2-migration",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-mcp-interface-v2-migration"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-mcp-transports",
+      "description": "Site fulfills document-metadata-composition-mcp-transports",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-mcp-transports"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-overview",
+      "description": "Site fulfills document-metadata-composition-overview",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-overview"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-publication-boundary",
+      "description": "Site fulfills document-metadata-composition-publication-boundary",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-publication-boundary"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-pwa-capability",
+      "description": "Site fulfills document-metadata-composition-pwa-capability",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-pwa-capability"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-pwa-offline-v2-migration",
+      "description": "Site fulfills document-metadata-composition-pwa-offline-v2-migration",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-pwa-offline-v2-migration"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-pwa-update-v2-migration",
+      "description": "Site fulfills document-metadata-composition-pwa-update-v2-migration",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-pwa-update-v2-migration"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-release-bundle",
+      "description": "Site fulfills document-metadata-composition-release-bundle",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-release-bundle"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-release-evidence",
+      "description": "Site fulfills document-metadata-composition-release-evidence",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-release-evidence"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-release-execution",
+      "description": "Site fulfills document-metadata-composition-release-execution",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-release-execution"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-release-execution-v2-migration",
+      "description": "Site fulfills document-metadata-composition-release-execution-v2-migration",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-release-execution-v2-migration"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-release-guide",
+      "description": "Site fulfills document-metadata-composition-release-guide",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-release-guide"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-runtime-decision-record",
+      "description": "Site fulfills document-metadata-composition-runtime-decision-record",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-runtime-decision-record"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-runtime-selection",
+      "description": "Site fulfills document-metadata-composition-runtime-selection",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-runtime-selection"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-schema-guide",
+      "description": "Site fulfills document-metadata-composition-schema-guide",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-schema-guide"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-service-interface",
+      "description": "Site fulfills document-metadata-composition-service-interface",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-service-interface"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-service-interface-v2-migration",
+      "description": "Site fulfills document-metadata-composition-service-interface-v2-migration",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-service-interface-v2-migration"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-skill-architecture",
+      "description": "Site fulfills document-metadata-composition-skill-architecture",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-skill-architecture"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-skill-capability-map",
+      "description": "Site fulfills document-metadata-composition-skill-capability-map",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-skill-capability-map"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-skill-contract",
+      "description": "Site fulfills document-metadata-composition-skill-contract",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-skill-contract"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-skill-documentation-index",
+      "description": "Site fulfills document-metadata-composition-skill-documentation-index",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-skill-documentation-index"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-skill-first-use-walkthrough",
+      "description": "Site fulfills document-metadata-composition-skill-first-use-walkthrough",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-skill-first-use-walkthrough"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-skill-overview",
+      "description": "Site fulfills document-metadata-composition-skill-overview",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-skill-overview"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-skill-profiles",
+      "description": "Site fulfills document-metadata-composition-skill-profiles",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-skill-profiles"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-surfaces-v2-migration",
+      "description": "Site fulfills document-metadata-composition-surfaces-v2-migration",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-surfaces-v2-migration"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-ui-states-migration",
+      "description": "Site fulfills document-metadata-composition-ui-states-migration",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-ui-states-migration"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-web-interface-v2-migration",
+      "description": "Site fulfills document-metadata-composition-web-interface-v2-migration",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-web-interface-v2-migration"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-web-routes-v1-migration",
+      "description": "Site fulfills document-metadata-composition-web-routes-v1-migration",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-web-routes-v1-migration"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-web-routes-v2-migration",
+      "description": "Site fulfills document-metadata-composition-web-routes-v2-migration",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-web-routes-v2-migration"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-web-routes-v3-migration",
+      "description": "Site fulfills document-metadata-composition-web-routes-v3-migration",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-web-routes-v3-migration"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-web-url-path-design-guidance",
+      "description": "Site fulfills document-metadata-composition-web-url-path-design-guidance",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-web-url-path-design-guidance"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-webapp-contracts",
+      "description": "Site fulfills document-metadata-composition-webapp-contracts",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-webapp-contracts"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-webapp-documentation-index",
+      "description": "Site fulfills document-metadata-composition-webapp-documentation-index",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-webapp-documentation-index"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-webapp-overview",
+      "description": "Site fulfills document-metadata-composition-webapp-overview",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-webapp-overview"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-webapp-product-walkthrough",
+      "description": "Site fulfills document-metadata-composition-webapp-product-walkthrough",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-webapp-product-walkthrough"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-webapp-responsibility-boundaries",
+      "description": "Site fulfills document-metadata-composition-webapp-responsibility-boundaries",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-webapp-responsibility-boundaries"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-webapp-template",
+      "description": "Site fulfills document-metadata-composition-webapp-template",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-webapp-template"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-webapp-validation-toolchain",
+      "description": "Site fulfills document-metadata-composition-webapp-validation-toolchain",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-webapp-validation-toolchain"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-website-product-walkthrough",
+      "description": "Site fulfills document-metadata-composition-website-product-walkthrough",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-website-product-walkthrough"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-composition-website-webapp-selection",
+      "description": "Site fulfills document-metadata-composition-website-webapp-selection",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "composition-website-webapp-selection"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-policy-adoption",
+      "description": "Site fulfills document-metadata-policy-adoption",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "policy-adoption"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-policy-adr-application-neutral-scope",
+      "description": "Site fulfills document-metadata-policy-adr-application-neutral-scope",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "policy-adr-application-neutral-scope"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-policy-adr-copyable-artifact-policy-adoption",
+      "description": "Site fulfills document-metadata-policy-adr-copyable-artifact-policy-adoption",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "policy-adr-copyable-artifact-policy-adoption"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-policy-adr-index",
+      "description": "Site fulfills document-metadata-policy-adr-index",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "policy-adr-index"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-policy-adr-integrated-bootstrap-skill",
+      "description": "Site fulfills document-metadata-policy-adr-integrated-bootstrap-skill",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "policy-adr-integrated-bootstrap-skill"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-policy-adr-repository-adoption",
+      "description": "Site fulfills document-metadata-policy-adr-repository-adoption",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "policy-adr-repository-adoption"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-policy-adr-single-agent-policy-skill-runtime-cache",
+      "description": "Site fulfills document-metadata-policy-adr-single-agent-policy-skill-runtime-cache",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "policy-adr-single-agent-policy-skill-runtime-cache"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-policy-adr-single-policy-authority",
+      "description": "Site fulfills document-metadata-policy-adr-single-policy-authority",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "policy-adr-single-policy-authority"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-policy-architecture",
+      "description": "Site fulfills document-metadata-policy-architecture",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "policy-architecture"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-policy-bootstrap",
+      "description": "Site fulfills document-metadata-policy-bootstrap",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "policy-bootstrap"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-policy-bootstrap-model",
+      "description": "Site fulfills document-metadata-policy-bootstrap-model",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "policy-bootstrap-model"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-policy-cli",
+      "description": "Site fulfills document-metadata-policy-cli",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "policy-cli"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-policy-configuration",
+      "description": "Site fulfills document-metadata-policy-configuration",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "policy-configuration"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-policy-consumer-policy-navigation",
+      "description": "Site fulfills document-metadata-policy-consumer-policy-navigation",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "policy-consumer-policy-navigation"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-policy-documentation-publication",
+      "description": "Site fulfills document-metadata-policy-documentation-publication",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "policy-documentation-publication"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-policy-external-artifact-intake",
+      "description": "Site fulfills document-metadata-policy-external-artifact-intake",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "policy-external-artifact-intake"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-policy-getting-started",
+      "description": "Site fulfills document-metadata-policy-getting-started",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "policy-getting-started"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-policy-google-ai-studio",
+      "description": "Site fulfills document-metadata-policy-google-ai-studio",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "policy-google-ai-studio"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-policy-managed-operation",
+      "description": "Site fulfills document-metadata-policy-managed-operation",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "policy-managed-operation"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-policy-overview",
+      "description": "Site fulfills document-metadata-policy-overview",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "policy-overview"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-policy-policy-authoring",
+      "description": "Site fulfills document-metadata-policy-policy-authoring",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "policy-policy-authoring"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-policy-policy-authority-inventory",
+      "description": "Site fulfills document-metadata-policy-policy-authority-inventory",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "policy-policy-authority-inventory"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-policy-policy-concepts",
+      "description": "Site fulfills document-metadata-policy-policy-concepts",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "policy-policy-concepts"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-policy-policy-profiles",
+      "description": "Site fulfills document-metadata-policy-policy-profiles",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "policy-policy-profiles"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-policy-policy-readiness",
+      "description": "Site fulfills document-metadata-policy-policy-readiness",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "policy-policy-readiness"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-policy-provider-navigation",
+      "description": "Site fulfills document-metadata-policy-provider-navigation",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "policy-provider-navigation"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-policy-publication-catalog",
+      "description": "Site fulfills document-metadata-policy-publication-catalog",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "policy-publication-catalog"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-policy-pwa",
+      "description": "Site fulfills document-metadata-policy-pwa",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "policy-pwa"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-policy-regression-prevention",
+      "description": "Site fulfills document-metadata-policy-regression-prevention",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "policy-regression-prevention"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-policy-release-lifecycle",
+      "description": "Site fulfills document-metadata-policy-release-lifecycle",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "policy-release-lifecycle"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-policy-repository-structure",
+      "description": "Site fulfills document-metadata-policy-repository-structure",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "policy-repository-structure"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-policy-review-policy",
+      "description": "Site fulfills document-metadata-policy-review-policy",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "policy-review-policy"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-policy-shared-policy-navigation",
+      "description": "Site fulfills document-metadata-policy-shared-policy-navigation",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "policy-shared-policy-navigation"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-policy-threat-model",
+      "description": "Site fulfills document-metadata-policy-threat-model",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "policy-threat-model"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-site-capabilities-overview",
+      "description": "Site fulfills document-metadata-site-capabilities-overview",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "site-capabilities-overview"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-site-composition-playground",
+      "description": "Site fulfills document-metadata-site-composition-playground",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "site-composition-playground"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-site-lifecycle-overview",
+      "description": "Site fulfills document-metadata-site-lifecycle-overview",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "site-lifecycle-overview"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-site-policy-composition-coexistence",
+      "description": "Site fulfills document-metadata-site-policy-composition-coexistence",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "site-policy-composition-coexistence"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "document-metadata-site-portal-home",
+      "description": "Site fulfills document-metadata-site-portal-home",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "document_metadata",
+          "itemKind": "page-metadata",
+          "itemId": "site-portal-home"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-discovery-canonical-origin",
+      "description": "Site fulfills site-discovery-canonical-origin",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_discovery",
+          "itemKind": "proof-family",
+          "itemId": "canonical-origin"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-discovery-robots",
+      "description": "Site fulfills site-discovery-robots",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_discovery",
+          "itemKind": "proof-family",
+          "itemId": "robots"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-discovery-sitemap",
+      "description": "Site fulfills site-discovery-sitemap",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_discovery",
+          "itemKind": "proof-family",
+          "itemId": "sitemap"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-browser-interface",
+      "description": "Site fulfills site-structure-composition-browser-interface",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-browser-interface"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-catalog-architecture",
+      "description": "Site fulfills site-structure-composition-catalog-architecture",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-catalog-architecture"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-catalog-guide",
+      "description": "Site fulfills site-structure-composition-catalog-guide",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-catalog-guide"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-cli-interface",
+      "description": "Site fulfills site-structure-composition-cli-interface",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-cli-interface"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-cli-interface-v2-migration",
+      "description": "Site fulfills site-structure-composition-cli-interface-v2-migration",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-cli-interface-v2-migration"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-composer-mvp",
+      "description": "Site fulfills site-structure-composition-composer-mvp",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-composer-mvp"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-composer-reference",
+      "description": "Site fulfills site-structure-composition-composer-reference",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-composer-reference"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-composition-authority-migration",
+      "description": "Site fulfills site-structure-composition-composition-authority-migration",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-composition-authority-migration"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-composition-concepts",
+      "description": "Site fulfills site-structure-composition-composition-concepts",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-composition-concepts"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-composition-model",
+      "description": "Site fulfills site-structure-composition-composition-model",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-composition-model"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-composition-state",
+      "description": "Site fulfills site-structure-composition-composition-state",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-composition-state"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-consumer-guide",
+      "description": "Site fulfills site-structure-composition-consumer-guide",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-consumer-guide"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-contract-evolution",
+      "description": "Site fulfills site-structure-composition-contract-evolution",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-contract-evolution"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-documentation-index",
+      "description": "Site fulfills site-structure-composition-documentation-index",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-documentation-index"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-evaluation-guide",
+      "description": "Site fulfills site-structure-composition-evaluation-guide",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-evaluation-guide"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-generated-contract-manifest",
+      "description": "Site fulfills site-structure-composition-generated-contract-manifest",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-generated-contract-manifest"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-implementation-evidence",
+      "description": "Site fulfills site-structure-composition-implementation-evidence",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-implementation-evidence"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-implementation-evidence-v2-migration",
+      "description": "Site fulfills site-structure-composition-implementation-evidence-v2-migration",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-implementation-evidence-v2-migration"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-implementation-evidence-v3-migration",
+      "description": "Site fulfills site-structure-composition-implementation-evidence-v3-migration",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-implementation-evidence-v3-migration"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-implementation-evidence-v4-migration",
+      "description": "Site fulfills site-structure-composition-implementation-evidence-v4-migration",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-implementation-evidence-v4-migration"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-implementation-evidence-v5-migration",
+      "description": "Site fulfills site-structure-composition-implementation-evidence-v5-migration",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-implementation-evidence-v5-migration"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-implementation-evidence-v6-migration",
+      "description": "Site fulfills site-structure-composition-implementation-evidence-v6-migration",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-implementation-evidence-v6-migration"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-lifecycle-checkpoints",
+      "description": "Site fulfills site-structure-composition-lifecycle-checkpoints",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-lifecycle-checkpoints"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-mcp-apps-guidance",
+      "description": "Site fulfills site-structure-composition-mcp-apps-guidance",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-mcp-apps-guidance"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-mcp-apps-interface",
+      "description": "Site fulfills site-structure-composition-mcp-apps-interface",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-mcp-apps-interface"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-mcp-apps-v2-migration",
+      "description": "Site fulfills site-structure-composition-mcp-apps-v2-migration",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-mcp-apps-v2-migration"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-mcp-interface",
+      "description": "Site fulfills site-structure-composition-mcp-interface",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-mcp-interface"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-mcp-interface-v2-migration",
+      "description": "Site fulfills site-structure-composition-mcp-interface-v2-migration",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-mcp-interface-v2-migration"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-mcp-transports",
+      "description": "Site fulfills site-structure-composition-mcp-transports",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-mcp-transports"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-overview",
+      "description": "Site fulfills site-structure-composition-overview",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-overview"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-publication-boundary",
+      "description": "Site fulfills site-structure-composition-publication-boundary",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-publication-boundary"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-pwa-capability",
+      "description": "Site fulfills site-structure-composition-pwa-capability",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-pwa-capability"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-pwa-offline-v2-migration",
+      "description": "Site fulfills site-structure-composition-pwa-offline-v2-migration",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-pwa-offline-v2-migration"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-pwa-update-v2-migration",
+      "description": "Site fulfills site-structure-composition-pwa-update-v2-migration",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-pwa-update-v2-migration"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-release-bundle",
+      "description": "Site fulfills site-structure-composition-release-bundle",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-release-bundle"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-release-evidence",
+      "description": "Site fulfills site-structure-composition-release-evidence",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-release-evidence"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-release-execution",
+      "description": "Site fulfills site-structure-composition-release-execution",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-release-execution"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-release-execution-v2-migration",
+      "description": "Site fulfills site-structure-composition-release-execution-v2-migration",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-release-execution-v2-migration"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-release-guide",
+      "description": "Site fulfills site-structure-composition-release-guide",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-release-guide"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-runtime-decision-record",
+      "description": "Site fulfills site-structure-composition-runtime-decision-record",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-runtime-decision-record"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-runtime-selection",
+      "description": "Site fulfills site-structure-composition-runtime-selection",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-runtime-selection"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-schema-guide",
+      "description": "Site fulfills site-structure-composition-schema-guide",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-schema-guide"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-service-interface",
+      "description": "Site fulfills site-structure-composition-service-interface",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-service-interface"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-service-interface-v2-migration",
+      "description": "Site fulfills site-structure-composition-service-interface-v2-migration",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-service-interface-v2-migration"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-skill-architecture",
+      "description": "Site fulfills site-structure-composition-skill-architecture",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-skill-architecture"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-skill-capability-map",
+      "description": "Site fulfills site-structure-composition-skill-capability-map",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-skill-capability-map"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-skill-contract",
+      "description": "Site fulfills site-structure-composition-skill-contract",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-skill-contract"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-skill-documentation-index",
+      "description": "Site fulfills site-structure-composition-skill-documentation-index",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-skill-documentation-index"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-skill-first-use-walkthrough",
+      "description": "Site fulfills site-structure-composition-skill-first-use-walkthrough",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-skill-first-use-walkthrough"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-skill-overview",
+      "description": "Site fulfills site-structure-composition-skill-overview",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-skill-overview"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-skill-profiles",
+      "description": "Site fulfills site-structure-composition-skill-profiles",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-skill-profiles"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-surfaces-v2-migration",
+      "description": "Site fulfills site-structure-composition-surfaces-v2-migration",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-surfaces-v2-migration"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-ui-states-migration",
+      "description": "Site fulfills site-structure-composition-ui-states-migration",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-ui-states-migration"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-web-interface-v2-migration",
+      "description": "Site fulfills site-structure-composition-web-interface-v2-migration",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-web-interface-v2-migration"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-web-routes-v1-migration",
+      "description": "Site fulfills site-structure-composition-web-routes-v1-migration",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-web-routes-v1-migration"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-web-routes-v2-migration",
+      "description": "Site fulfills site-structure-composition-web-routes-v2-migration",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-web-routes-v2-migration"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-web-routes-v3-migration",
+      "description": "Site fulfills site-structure-composition-web-routes-v3-migration",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-web-routes-v3-migration"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-web-url-path-design-guidance",
+      "description": "Site fulfills site-structure-composition-web-url-path-design-guidance",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-web-url-path-design-guidance"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-webapp-contracts",
+      "description": "Site fulfills site-structure-composition-webapp-contracts",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-webapp-contracts"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-webapp-documentation-index",
+      "description": "Site fulfills site-structure-composition-webapp-documentation-index",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-webapp-documentation-index"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-webapp-overview",
+      "description": "Site fulfills site-structure-composition-webapp-overview",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-webapp-overview"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-webapp-product-walkthrough",
+      "description": "Site fulfills site-structure-composition-webapp-product-walkthrough",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-webapp-product-walkthrough"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-webapp-responsibility-boundaries",
+      "description": "Site fulfills site-structure-composition-webapp-responsibility-boundaries",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-webapp-responsibility-boundaries"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-webapp-template",
+      "description": "Site fulfills site-structure-composition-webapp-template",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-webapp-template"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-webapp-validation-toolchain",
+      "description": "Site fulfills site-structure-composition-webapp-validation-toolchain",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-webapp-validation-toolchain"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-website-product-walkthrough",
+      "description": "Site fulfills site-structure-composition-website-product-walkthrough",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-website-product-walkthrough"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-composition-website-webapp-selection",
+      "description": "Site fulfills site-structure-composition-website-webapp-selection",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "composition-website-webapp-selection"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-policy-adoption",
+      "description": "Site fulfills site-structure-policy-adoption",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "policy-adoption"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-policy-adr-application-neutral-scope",
+      "description": "Site fulfills site-structure-policy-adr-application-neutral-scope",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "policy-adr-application-neutral-scope"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-policy-adr-copyable-artifact-policy-adoption",
+      "description": "Site fulfills site-structure-policy-adr-copyable-artifact-policy-adoption",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "policy-adr-copyable-artifact-policy-adoption"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-policy-adr-index",
+      "description": "Site fulfills site-structure-policy-adr-index",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "policy-adr-index"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-policy-adr-integrated-bootstrap-skill",
+      "description": "Site fulfills site-structure-policy-adr-integrated-bootstrap-skill",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "policy-adr-integrated-bootstrap-skill"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-policy-adr-repository-adoption",
+      "description": "Site fulfills site-structure-policy-adr-repository-adoption",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "policy-adr-repository-adoption"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-policy-adr-single-agent-policy-skill-runtime-cache",
+      "description": "Site fulfills site-structure-policy-adr-single-agent-policy-skill-runtime-cache",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "policy-adr-single-agent-policy-skill-runtime-cache"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-policy-adr-single-policy-authority",
+      "description": "Site fulfills site-structure-policy-adr-single-policy-authority",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "policy-adr-single-policy-authority"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-policy-architecture",
+      "description": "Site fulfills site-structure-policy-architecture",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "policy-architecture"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-policy-bootstrap",
+      "description": "Site fulfills site-structure-policy-bootstrap",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "policy-bootstrap"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-policy-bootstrap-model",
+      "description": "Site fulfills site-structure-policy-bootstrap-model",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "policy-bootstrap-model"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-policy-cli",
+      "description": "Site fulfills site-structure-policy-cli",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "policy-cli"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-policy-configuration",
+      "description": "Site fulfills site-structure-policy-configuration",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "policy-configuration"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-policy-consumer-policy-navigation",
+      "description": "Site fulfills site-structure-policy-consumer-policy-navigation",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "policy-consumer-policy-navigation"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-policy-documentation-publication",
+      "description": "Site fulfills site-structure-policy-documentation-publication",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "policy-documentation-publication"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-policy-external-artifact-intake",
+      "description": "Site fulfills site-structure-policy-external-artifact-intake",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "policy-external-artifact-intake"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-policy-getting-started",
+      "description": "Site fulfills site-structure-policy-getting-started",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "policy-getting-started"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-policy-google-ai-studio",
+      "description": "Site fulfills site-structure-policy-google-ai-studio",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "policy-google-ai-studio"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-policy-managed-operation",
+      "description": "Site fulfills site-structure-policy-managed-operation",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "policy-managed-operation"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-policy-overview",
+      "description": "Site fulfills site-structure-policy-overview",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "policy-overview"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-policy-policy-authoring",
+      "description": "Site fulfills site-structure-policy-policy-authoring",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "policy-policy-authoring"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-policy-policy-authority-inventory",
+      "description": "Site fulfills site-structure-policy-policy-authority-inventory",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "policy-policy-authority-inventory"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-policy-policy-concepts",
+      "description": "Site fulfills site-structure-policy-policy-concepts",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "policy-policy-concepts"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-policy-policy-profiles",
+      "description": "Site fulfills site-structure-policy-policy-profiles",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "policy-policy-profiles"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-policy-policy-readiness",
+      "description": "Site fulfills site-structure-policy-policy-readiness",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "policy-policy-readiness"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-policy-provider-navigation",
+      "description": "Site fulfills site-structure-policy-provider-navigation",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "policy-provider-navigation"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-policy-publication-catalog",
+      "description": "Site fulfills site-structure-policy-publication-catalog",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "policy-publication-catalog"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-policy-pwa",
+      "description": "Site fulfills site-structure-policy-pwa",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "policy-pwa"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-policy-regression-prevention",
+      "description": "Site fulfills site-structure-policy-regression-prevention",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "policy-regression-prevention"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-policy-release-lifecycle",
+      "description": "Site fulfills site-structure-policy-release-lifecycle",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "policy-release-lifecycle"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-policy-repository-structure",
+      "description": "Site fulfills site-structure-policy-repository-structure",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "policy-repository-structure"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-policy-review-policy",
+      "description": "Site fulfills site-structure-policy-review-policy",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "policy-review-policy"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-policy-shared-policy-navigation",
+      "description": "Site fulfills site-structure-policy-shared-policy-navigation",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "policy-shared-policy-navigation"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-policy-threat-model",
+      "description": "Site fulfills site-structure-policy-threat-model",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "policy-threat-model"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-site-capabilities-overview",
+      "description": "Site fulfills site-structure-site-capabilities-overview",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "site-capabilities-overview"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-site-composition-playground",
+      "description": "Site fulfills site-structure-site-composition-playground",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "site-composition-playground"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-site-lifecycle-overview",
+      "description": "Site fulfills site-structure-site-lifecycle-overview",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "site-lifecycle-overview"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-site-policy-composition-coexistence",
+      "description": "Site fulfills site-structure-site-policy-composition-coexistence",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "site-policy-composition-coexistence"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "site-structure-site-portal-home",
+      "description": "Site fulfills site-structure-site-portal-home",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "site_structure",
+          "itemKind": "page",
+          "itemId": "site-portal-home"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "viewports-desktop",
+      "description": "Site fulfills viewports-desktop",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "viewports",
+          "itemKind": "viewport",
+          "itemId": "desktop"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "viewports-keyboard",
+      "description": "Site fulfills viewports-keyboard",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "viewports",
+          "itemKind": "input-capability",
+          "itemId": "keyboard"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "viewports-mobile",
+      "description": "Site fulfills viewports-mobile",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "viewports",
+          "itemKind": "viewport",
+          "itemId": "mobile"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "pwa-manifest-installability",
+      "description": "Site fulfills pwa-manifest-installability",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "pwa_manifest",
+          "itemKind": "proof-family",
+          "itemId": "installability"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "pwa-manifest-application-icon",
+      "description": "Site fulfills pwa-manifest-application-icon",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "pwa_manifest",
+          "itemKind": "proof-family",
+          "itemId": "application-icon"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "pwa-offline-offline-presentation",
+      "description": "Site fulfills pwa-offline-offline-presentation",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "pwa_offline",
+          "itemKind": "proof-family",
+          "itemId": "offline-presentation"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "pwa-offline-online-revalidation",
+      "description": "Site fulfills pwa-offline-online-revalidation",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "pwa_offline",
+          "itemKind": "proof-family",
+          "itemId": "online-revalidation"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "pwa-update-update-detection",
+      "description": "Site fulfills pwa-update-update-detection",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "pwa_update",
+          "itemKind": "proof-family",
+          "itemId": "update-detection"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "pwa-update-update-application",
+      "description": "Site fulfills pwa-update-update-application",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "pwa_update",
+          "itemKind": "proof-family",
+          "itemId": "update-application"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "pwa-offline-offline-cached-content",
+      "description": "Site fulfills pwa-offline-offline-cached-content",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "pwa_offline",
+          "itemKind": "proof-family",
+          "itemId": "offline-cached-content"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    },
+    {
+      "id": "pwa-offline-freshness-unverified",
+      "description": "Site fulfills pwa-offline-freshness-unverified",
+      "targets": [
+        {
+          "kind": "contract-item",
+          "contractId": "pwa_offline",
+          "itemKind": "proof-family",
+          "itemId": "freshness-unverified"
+        }
+      ],
+      "recordIds": [],
+      "requiredPositiveProofKinds": [
+        "end-to-end-test"
+      ]
+    }
+  ]
+}

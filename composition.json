@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "recipe": "website",
+  "components": {
+    "include": [
+      "capability.pwa"
+    ],
+    "exclude": []
+  },
+  "parameters": {}
+}

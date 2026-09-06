@@ -1,0 +1,1172 @@
+{
+  "$schema": "../schemas/routes.schema.json",
+  "schemaVersion": 5,
+  "routes": [
+    {
+      "id": "site-portal-home",
+      "path": "/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "site-policy-composition-coexistence",
+      "path": "/coexistence/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-overview",
+      "path": "/composition/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-composition-concepts",
+      "path": "/composition/concepts/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-evaluation-guide",
+      "path": "/composition/evaluate/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-consumer-guide",
+      "path": "/composition/use/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "site-composition-playground",
+      "path": "/playground/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-release-guide",
+      "path": "/composition/release/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-composer-reference",
+      "path": "/composition/reference/composer/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-documentation-index",
+      "path": "/composition/docs/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-composition-model",
+      "path": "/composition/architecture/composition-model/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-catalog-architecture",
+      "path": "/composition/architecture/catalog/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-generated-contract-manifest",
+      "path": "/composition/architecture/generated-contract-manifest/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-composer-mvp",
+      "path": "/composition/architecture/composer-mvp/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-catalog-guide",
+      "path": "/composition/catalog/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-schema-guide",
+      "path": "/composition/schemas/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-publication-boundary",
+      "path": "/composition/docs/publication-catalog/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-composition-authority-migration",
+      "path": "/composition/migrations/authority-migration/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-skill-first-use-walkthrough",
+      "path": "/composition/use/skill-first-use-walkthrough/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-skill-overview",
+      "path": "/skill/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-skill-contract",
+      "path": "/skill/SKILL/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-skill-documentation-index",
+      "path": "/skill/docs/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-skill-profiles",
+      "path": "/skill/docs/skill-profiles/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-skill-capability-map",
+      "path": "/skill/docs/skill-capability-map/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-skill-architecture",
+      "path": "/skill/docs/architecture/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-website-webapp-selection",
+      "path": "/web/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-web-url-path-design-guidance",
+      "path": "/web/url-path-design-guidance/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-web-routes-v1-migration",
+      "path": "/web/migrations/routes-v1-to-v2/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-web-routes-v2-migration",
+      "path": "/web/migrations/routes-v2-to-v3/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-web-routes-v3-migration",
+      "path": "/web/migrations/routes-v3-to-v4/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-website-product-walkthrough",
+      "path": "/website/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-webapp-product-walkthrough",
+      "path": "/webapp/product-walkthrough/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-webapp-overview",
+      "path": "/webapp/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-webapp-template",
+      "path": "/webapp/TEMPLATE/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-webapp-documentation-index",
+      "path": "/webapp/docs/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-webapp-contracts",
+      "path": "/webapp/docs/architecture/contracts/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-webapp-responsibility-boundaries",
+      "path": "/webapp/docs/architecture/responsibility-boundaries/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-webapp-validation-toolchain",
+      "path": "/webapp/docs/architecture/validation-toolchain/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-surfaces-v2-migration",
+      "path": "/webapp/docs/migrations/surfaces-v1-to-v2/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-ui-states-migration",
+      "path": "/webapp/docs/migrations/ui-states-v1-to-v2/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "site-capabilities-overview",
+      "path": "/capabilities/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-runtime-decision-record",
+      "path": "/capabilities/runtime/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-runtime-selection",
+      "path": "/capabilities/runtime/selection/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-cli-interface",
+      "path": "/capabilities/cli/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-cli-interface-v2-migration",
+      "path": "/capabilities/cli/migrations/v1-to-v2/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-mcp-interface",
+      "path": "/capabilities/mcp/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-mcp-transports",
+      "path": "/capabilities/mcp/transports/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-mcp-interface-v2-migration",
+      "path": "/capabilities/mcp/migrations/v1-to-v2/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-mcp-apps-interface",
+      "path": "/capabilities/mcp-apps/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-mcp-apps-guidance",
+      "path": "/capabilities/mcp-apps/guidance/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-mcp-apps-v2-migration",
+      "path": "/capabilities/mcp-apps/migrations/v1-to-v2/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-browser-interface",
+      "path": "/capabilities/browser/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-pwa-capability",
+      "path": "/capabilities/pwa/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-pwa-offline-v2-migration",
+      "path": "/capabilities/pwa/migrations/offline-v1-to-v2/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-pwa-update-v2-migration",
+      "path": "/capabilities/pwa/migrations/update-v1-to-v2/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-web-interface-v2-migration",
+      "path": "/capabilities/browser/migrations/v1-to-v2/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-service-interface",
+      "path": "/capabilities/service/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-service-interface-v2-migration",
+      "path": "/capabilities/service/migrations/v1-to-v2/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "site-lifecycle-overview",
+      "path": "/lifecycle/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-composition-state",
+      "path": "/lifecycle/composition-state/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-contract-evolution",
+      "path": "/lifecycle/contract-evolution/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-implementation-evidence",
+      "path": "/lifecycle/implementation-evidence/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-implementation-evidence-v2-migration",
+      "path": "/lifecycle/implementation-evidence/migrations/v1-to-v2/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-implementation-evidence-v3-migration",
+      "path": "/lifecycle/implementation-evidence/migrations/v2-to-v3/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-implementation-evidence-v4-migration",
+      "path": "/lifecycle/implementation-evidence/migrations/v3-to-v4/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-implementation-evidence-v5-migration",
+      "path": "/lifecycle/implementation-evidence/migrations/v4-to-v5/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-implementation-evidence-v6-migration",
+      "path": "/lifecycle/implementation-evidence/migrations/v5-to-v6/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-lifecycle-checkpoints",
+      "path": "/lifecycle/checkpoints/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-release-execution",
+      "path": "/lifecycle/release-execution/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-release-execution-v2-migration",
+      "path": "/lifecycle/release-execution/migrations/v1-to-v2/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-release-evidence",
+      "path": "/lifecycle/release-evidence/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-release-bundle",
+      "path": "/lifecycle/release-bundle/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "policy-overview",
+      "path": "/policy/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "policy-provider-navigation",
+      "path": "/policy/provider/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "policy-shared-policy-navigation",
+      "path": "/policy/shared-policy/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "policy-consumer-policy-navigation",
+      "path": "/policy/consumer/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "policy-getting-started",
+      "path": "/policy/getting-started/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "policy-policy-concepts",
+      "path": "/policy/policy-concepts/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "policy-managed-operation",
+      "path": "/policy/managed-operation/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "policy-cli",
+      "path": "/policy/cli/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "policy-bootstrap",
+      "path": "/policy/bootstrap/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "policy-adoption",
+      "path": "/policy/adoption/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "policy-release-lifecycle",
+      "path": "/policy/release-lifecycle/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "policy-policy-readiness",
+      "path": "/policy/policy-readiness/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "policy-documentation-publication",
+      "path": "/policy/documentation-publication/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "policy-publication-catalog",
+      "path": "/policy/publication-catalog/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "policy-pwa",
+      "path": "/policy/pwa/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "policy-google-ai-studio",
+      "path": "/policy/agent-environments/google-ai-studio/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "policy-repository-structure",
+      "path": "/policy/repository-structure/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "policy-architecture",
+      "path": "/policy/architecture/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "policy-configuration",
+      "path": "/policy/configuration/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "policy-policy-profiles",
+      "path": "/policy/shared-policy/profiles/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "policy-policy-authoring",
+      "path": "/policy/policy-authoring/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "policy-policy-authority-inventory",
+      "path": "/policy/policy-authority-inventory/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "policy-review-policy",
+      "path": "/policy/review-policy/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "policy-external-artifact-intake",
+      "path": "/policy/external-artifact-intake/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "policy-regression-prevention",
+      "path": "/policy/regression-prevention/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "policy-bootstrap-model",
+      "path": "/policy/bootstrap-model/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "policy-threat-model",
+      "path": "/policy/threat-model/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "policy-adr-index",
+      "path": "/policy/adr/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "policy-adr-repository-adoption",
+      "path": "/policy/adr/0002-repository-adoption/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "policy-adr-application-neutral-scope",
+      "path": "/policy/adr/0003-application-neutral-policy-scope/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "policy-adr-single-policy-authority",
+      "path": "/policy/adr/0005-single-policy-authority/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "policy-adr-copyable-artifact-policy-adoption",
+      "path": "/policy/adr/0006-copyable-artifact-policy-adoption/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "policy-adr-single-agent-policy-skill-runtime-cache",
+      "path": "/policy/adr/0007-single-agent-policy-skill-runtime-cache/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "policy-adr-integrated-bootstrap-skill",
+      "path": "/policy/adr/0004-integrated-bootstrap-skill/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    }
+  ]
+}

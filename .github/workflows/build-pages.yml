@@ -232,6 +232,10 @@ jobs:
             --site-root build/site/guided \
             --canonical-url "${PUBLIC_SITE_URL}"
 
+      - name: Apply Site Website consumer metadata
+        run: |
+          python site-source/scripts/render_website_metadata.py --repository site-source --site-root build/site
+
       - name: Finalize per-page and translation reader metadata
         run: |
           python site-source/scripts/finalize_translation_reader.py \

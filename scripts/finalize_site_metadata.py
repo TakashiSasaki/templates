@@ -288,6 +288,12 @@ def ensure_pwa_metadata(source: str, path: Path) -> str:
         raise SiteMetadataError(f"{path}: theme-color must be {THEME_COLOR}")
 
     additions: list[str] = []
+    touch_icons = [link for link in parse_head_elements(source).links
+                   if "apple-touch-icon" in (link.get("rel") or "").lower().split()]
+    if len(touch_icons) > 1 or (touch_icons and touch_icons[0].get("href") != "/icon-180.png"):
+        raise SiteMetadataError(f"{path}: ambiguous iOS home-screen icon")
+    if not touch_icons:
+        additions.append('<link rel="apple-touch-icon" href="/icon-180.png" sizes="180x180">\n')
     if not manifests:
         additions.append(f'<link rel="manifest" href="{MANIFEST_HREF}">\n')
     if not themes:

@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Implementation-evidence executable action registry",
+  "description": "Machine argv is complete and exact. Consumers replace whole-token caller_inputs only and must not add, remove, reorder, or inject interpreter options. Execute from the materialized repository root. The dispatcher owns provider-internal validator paths, Python flags, argv ordering, and working directory.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schemaVersion", "actions"],
+  "properties": {
+    "$schema": {"const": "./implementation-evidence-actions.schema.json"},
+    "schemaVersion": {"const": 1},
+    "actions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["check-release-readiness"],
+      "properties": {
+        "check-release-readiness": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["argv", "caller_inputs", "output_schema"],
+          "properties": {
+            "argv": {
+              "const": [
+                "{python}",
+                ".template-composition/run_action.py",
+                "check-release-readiness"
+              ]
+            },
+            "caller_inputs": {"const": ["{python}"]},
+            "output_schema": {
+              "const": ".template-composition/implementation-evidence-release-readiness.schema.json"
+            }
+          }
+        }
+      }
+    }
+  }
+}
