@@ -75,6 +75,52 @@ repository change
 
 この分離により、operational progress を product authority に変えることなく repository work を resumable にしつつ、product requirement と historical lifecycle evidence を repository 内で再現可能に保てます。
 
+## reference consumer としての `templates`
+
+このリポジトリ自身が、他の consumer 向けに文書化するだけでなく、これらの役割の具体例を提供しています。
+
+### Requirement / evidence の実例
+
+現在の canonical Site base では `contracts/implementation-evidence.json` は `product` mode です。実行可能な Website/PWA command を宣言し、product requirement を implementation record、proof kind、implementation boundary、release gate に接続しています。この file は product state なので、その claim を変更するなら consumer contract の変更として Git で追跡されます。
+
+### Lifecycle history の実例
+
+現在の canonical Site history には、次の4つの validated checkpoint が存在します。
+
+```text
+1  site-reference-adoption
+   phase: planning
+   changeKind: initial
+   parentId: null
+   snapshotPath: artifacts/lifecycle/001-site-reference-adoption
+   manifestSha256: 9ec8d87ea01cf6f178422ca39589882ac3aac86dbc6084d7cc71f5a03df667d4
+
+2  site-reference-adoption-product
+   phase: product
+   changeKind: initial
+   parentId: site-reference-adoption
+
+3  routes-v5-publication
+   phase: planning
+   changeKind: specification-change
+   parentId: site-reference-adoption-product
+
+4  routes-v5-publication-product
+   phase: product
+   changeKind: specification-change
+   parentId: routes-v5-publication
+   snapshotPath: artifacts/lifecycle/004-routes-v5-publication-product
+   manifestSha256: c3ba91ed78fc90f780213b443182b17c38316d77d92f0151fb3d00392e77d9f1
+```
+
+`site-reference-adoption` は individual requirement ではなく、最初の validated planning baseline の identity です。次の checkpoint はこの identity を parent として消費します。後続の `routes-v5-publication -> routes-v5-publication-product` は、initial product state の後も同じ linear history 上で specification change が継続することを示します。root の requirement/evidence ledger が current product state を表す一方、これらの snapshot はそこへ至った validated state を保存します。
+
+### Review-finding と Work-ledger の dogfooding
+
+このリポジトリでは operational side も実際の Policy work で検証しています。Policy PR stack `#754 -> #755` は repository-change Work ledger を formalize し、その実装作業自体を管理する canonical provider-side checkpoint を stack-tip PR 上で使用しました。checkpoint には objective、P1/P2 topology と exact head、current/stale CI binding、linked finding ledger、blocker、next safe action、immediate-stop review boundary が記録されました。finding-level disposition と closure は Work ledger に複製せず別の finding surface に保持されました。
+
+review 済み staged identity は、P1 / #754 head `c2e23789ebabee4d1f35653e86ebe8f61ab6e8bf` と P2 / #755 head `e73757b93bb7a97c2e6a618d899f652933c9c795` です。この stack は P2 head に対する exact-head Policy CI が green となり、Codex diagnostic review も clean でした。この実例は resumability と authority separation を示しますが、それ自体によって Work ledger が現在公開されている Policy authority の一部になるわけでは**ありません**。
+
 ## 公開されている lifecycle destination
 
 以下の canonical lifecycle semantics と source document は `composition` provider が所有します。この Site page は安定した `/lifecycle/` reader entry point を提供し、公開 destination をまとめます。
