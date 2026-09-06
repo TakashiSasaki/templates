@@ -433,7 +433,7 @@ class PR3ProductionCatalogTests(unittest.TestCase):
         self.assertEqual(entries["ui_states"]["documentSchemaVersion"], 2)
         self.assertEqual(
             [entry["version"] for entry in entries["routes"]["versionHistory"]],
-            [1, 2, 3, 4],
+            [1, 2, 3, 4, 5],
         )
         self.assertEqual(
             [entry["version"] for entry in entries["ui_states"]["versionHistory"]],
