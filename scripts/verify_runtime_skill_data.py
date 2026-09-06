@@ -104,7 +104,11 @@ def verify_runtime_skill_data(source_root: Path = SOURCE_ROOT) -> tuple[str, ...
             try:
                 canonical = (source_root / source).read_text(encoding="utf-8")
                 installed = (runtime_root / source).read_text(encoding="utf-8")
-                if installed != canonical or rendered.get(relative) != canonical:
+                projected = (
+                    f"<!-- {GENERATED_MARKER}; source-skill: pr-merge-gate -->\n"
+                    + canonical
+                )
+                if installed != canonical or rendered.get(relative) != projected:
                     errors.append(f"imported Skill reference differs from authority: {source}")
             except (OSError, UnicodeError) as exc:
                 errors.append(f"imported Skill reference unavailable: {source}: {exc}")

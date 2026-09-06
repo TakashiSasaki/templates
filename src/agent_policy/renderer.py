@@ -141,7 +141,10 @@ def render_skill(
     for relative, source in SKILL_REFERENCE_IMPORTS.get(skill_name, {}).items():
         if relative in result:
             raise ValueError(f"Imported Skill reference collides with local source: {relative}")
-        result[relative] = (package_root() / source).read_text(encoding="utf-8")
+        result[relative] = (
+            f"<!-- {GENERATED_MARKER}; source-skill: pr-merge-gate -->\n"
+            + (package_root() / source).read_text(encoding="utf-8")
+        )
     for relative, content in result.items():
         for target, source in SKILL_REFERENCE_IMPORTS.get(skill_name, {}).items():
             # Existing provider-path references must resolve from the installed Skill.

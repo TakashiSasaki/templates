@@ -20,7 +20,9 @@ def test_installed_consumer_can_follow_finding_procedures(tmp_path):
     assert not (tmp_path / "skills/pr-merge-gate").exists()
     assert not (tmp_path / ".agents/skills/pr-merge-gate").exists()
     for relative, source in renderer.SKILL_REFERENCE_IMPORTS[SKILL].items():
-        assert (installed / relative).read_text() == (ROOT / source).read_text()
+        projected = (installed / relative).read_text()
+        assert "agent-policy-generated: true" in projected.splitlines()[0]
+        assert projected.split("\n", 1)[1] == (ROOT / source).read_text()
     ledger = (installed / "references/work-ledger.md").read_text()
     assert "(review-finding-ledger.md)" in ledger
     assert "(review-feedback-disposition.md)" in ledger
