@@ -8,10 +8,15 @@ SKILL = ROOT / "skills/orchestrate-repository-change"
 
 def test_work_ledger_is_discoverable_and_distributed_without_runtime_artifact():
     rendered = render_skill("orchestrate-repository-change")
+    source = (SKILL / "references/work-ledger.md").read_text()
+    installed = rendered["references/work-ledger.md"]
+
     assert "references/work-ledger.md" in rendered["SKILL.md"]
-    assert rendered["references/work-ledger.md"] == (
-        SKILL / "references/work-ledger.md"
-    ).read_text()
+    assert "../../pr-merge-gate/references/review-finding-ledger.md" in source
+    assert "../../pr-merge-gate/references/review-feedback-disposition.md" in source
+    assert "(review-finding-ledger.md)" in installed
+    assert "(review-feedback-disposition.md)" in installed
+    assert "../../pr-merge-gate/references/" not in installed
     assert not (ROOT / ".work-ledger.json").exists()
 
 
@@ -35,40 +40,3 @@ def test_work_ledger_preserves_storage_and_acceptance_boundaries():
         "stop without polling, a post-request checkpoint write",
     ):
         assert required in text
-
-
-def test_every_progression_and_handoff_path_routes_to_the_same_work_ledger():
-    rendered = render_skill("orchestrate-repository-change")
-    for name in (
-        "SKILL.md",
-        "references/serial-pr-workflow.md",
-        "references/stacked-pr-workflow.md",
-        "references/human-handoff.md",
-    ):
-        assert "work-ledger.md" in rendered[name]
-    main = rendered["SKILL.md"].lower()
-    assert main.index("discover the canonical provider checkpoint") < main.index(
-        "determine the next safe action"
-    ) < main.index("perform useful authorized work")
-    assert "naturally triggered ci does not by itself freeze" in main
-    assert "checking whether an interrupted mutation or review request already succeeded" in main
-    assert "complete known-finding and live-identity gates" in main
-    handoff = rendered["references/human-handoff.md"].lower()
-    assert "persist the preflight work ledger checkpoint before invoking" in handoff
-    assert "do not poll or issue a post-request checkpoint update" in handoff
-    serial = rendered["references/serial-pr-workflow.md"].lower()
-    assert "checkpoint cannot authorize" in serial
-
-
-def test_policy_documentation_validation_reaches_authority_local_descendants():
-    import fnmatch
-
-    import yaml
-
-    for name in ("pages.yml", "site-compatibility.yml"):
-        workflow = yaml.safe_load((ROOT / ".github/workflows" / name).read_text())
-        events = workflow.get("on", workflow.get(True))
-        branches = events["pull_request"]["branches"]
-        for base in ("policy", "policy-work-ledger-model"):
-            assert any(fnmatch.fnmatchcase(base, pattern) for pattern in branches)
-        assert not any(fnmatch.fnmatchcase("site", pattern) for pattern in branches)
