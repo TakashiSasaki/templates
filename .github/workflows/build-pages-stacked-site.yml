@@ -1,0 +1,15 @@
+name: Build documentation artifact for stacked Site PR
+
+on:
+  pull_request:
+    branches:
+      - "site-*"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    uses: ./.github/workflows/build-pages.yml
+    with:
+      site_ref: ${{ github.event.pull_request.head.sha }}
