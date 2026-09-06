@@ -16,6 +16,17 @@ from .policy_loader import Rule
 GENERATED_MARKER = "agent-policy-generated: true"
 SKILL_NAME_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 NON_GENERATED_SKILLS = frozenset({"agent-policy", "pr-merge-gate"})
+# Canonical reference imports; emitted copies have no independent authoring authority.
+SKILL_REFERENCE_IMPORTS = {
+    "orchestrate-repository-change": {
+        f"references/{name}": f"skills/pr-merge-gate/references/{name}"
+        for name in (
+            "review-finding-ledger.md",
+            "review-feedback-disposition.md",
+            "github-review-finding-representation.md",
+        )
+    }
+}
 SKILL_CONFIG_PATH_TOKEN = "{{ config_path }}"
 SKILL_CONFIG_PATH_SHELL_TOKEN = "{{ config_path_shell }}"
 SKILL_CONFIG_PATH_YAML_TOKEN = "{{ config_path_yaml }}"
@@ -127,6 +138,19 @@ def render_skill(
             for token, value in replacements.items():
                 content = content.replace(token, value)
             result[relative] = content
+    for relative, source in SKILL_REFERENCE_IMPORTS.get(skill_name, {}).items():
+        if relative in result:
+            raise ValueError(f"Imported Skill reference collides with local source: {relative}")
+        result[relative] = (
+            f"<!-- {GENERATED_MARKER}; source-skill: pr-merge-gate -->\n"
+            + (package_root() / source).read_text(encoding="utf-8")
+        )
+    for relative, content in result.items():
+        for target, source in SKILL_REFERENCE_IMPORTS.get(skill_name, {}).items():
+            # Existing provider-path references must resolve from the installed Skill.
+            local = target if relative == "SKILL.md" else PurePath(target).name
+            content = content.replace(source, local)
+        result[relative] = content
     return result
 
 

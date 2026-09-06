@@ -18,7 +18,7 @@ Prefer one canonical provider-side checkpoint surface per work scope:
 3. a tracking issue for pre-PR, multi-stack or long-running work; and
 4. execution-local state as a high-frequency checkpoint supplement.
 
-Use the supported equivalent on other providers. Identify the canonical surface in the PR body or tracking issue so another session can discover it. If the tip changes, move the checkpoint only when useful, leave a forwarding locator at the former surface, and mark it superseded. A multi-stack issue may index separate authority-local stacks; it must not imply shared branch history or duplicate their detailed checkpoints. If several purported canonical surfaces conflict, reconstruct from live facts and explicitly select one before relying on either. Do not silently overwrite another worker's update: use available write guards or re-read and reconcile the checkpoint before updating it.
+Use the supported equivalent on other providers. Identify the canonical surface in the PR body or tracking issue so another session can discover it. If the tip changes, move the checkpoint only when useful, leave a forwarding locator at the former surface, and mark it superseded. A multi-stack issue may index separate authority-local stacks; it must not imply shared branch history or duplicate their detailed checkpoints. If several purported canonical surfaces conflict, reconstruct from live facts and explicitly select one before relying on either. Do not silently overwrite another worker's update. Use an atomic provider version/compare-and-swap guard when available. A pre-write read and reconciliation alone do not protect against a concurrent write. Without a conditional update, use an established single writer with serialized handoff, or append immutable checkpoint comments that identify their predecessor and work scope. Competing successors are a conflict, not last-write-wins state: preserve both, reconcile from live facts, and designate the successor before relying on it. Never edit a shared pointer/comment concurrently without a guard; discover append-only successors from the thread instead. If exclusive ownership or reconciliation cannot be established, pause the conflicting write and report the limitation. This procedure does not require a new lock service or updater.
 
 Do not create a repository file solely to store operational progress. In particular, do not commit `.work-ledger.json` merely to satisfy this procedure. Repository files are appropriate when the information itself is authoritative product state, a contract, or formal lifecycle evidence, or when independent repository authority explicitly requires that storage. This is not a mandatory JSON/YAML artifact.
 
@@ -32,15 +32,21 @@ Combine fields where natural; omit inapplicable dimensions with an explanation w
 
 | Group | State needed to resume |
 | --- | --- |
-| Change contract | Objective, scope/non-goals, progression and completion modes. |
-| Authority snapshot | For each authority: branch, starting revision, current observed revision and last live refresh. |
-| Topology | PR/branch members, base, exact observed head, dependency, semantic responsibility and cumulative scope. Keep unrelated authority histories separate. |
-| Mutation plan | Coherent mutation units, affected authority and planned/complete/deferred state. |
+| Change contract | Objective, scope/non-goals, preserved behavior/invariants, required acceptance criteria and evidence, progression and completion modes; alternatively an authoritative change-contract locator carrying those requirements. |
+| Authority snapshot | For each authority: provider host/namespace, stable repository ID when available plus current qualified locator, branch, starting revision, current observed revision and last live refresh. |
+| Topology | Repository-qualified PR/branch members, stable PR ID when available, base, exact observed head, dependency, semantic responsibility and cumulative scope. Keep unrelated authority histories separate. |
+| Mutation plan | Coherent mutation units, affected authority, planned/in-progress/complete/deferred state, owned paths/provider objects and completed effects; retain relevant preflight/commit-boundary observations for an interrupted unit. |
 | Stability and qualification | Practical stability frontier, provisional candidates, intended qualification heads when required, and evidence binding status. |
-| Evidence | Validation type, bound SHA or artifact, run/evidence locator, observed result and applicability conditions (including relevant base, scope, configuration or environment). |
+| Evidence | Evidence layer (local, environment-dependent, remote CI, independent review), exact executed command or workflow/check identity, bound SHA or artifact, run/evidence locator and provenance, observed result, limitations and applicability conditions (including relevant base, scope, configuration or environment). |
 | Review | Acquisition state and locator; distinguish whole-stack diagnostic audit from member/cumulative acceptance review. Reference the review-finding ledger and its known-material-findings status. |
 | Dependencies | Blockers, asynchronous dependencies and the concrete waiting condition that releases each dependency. |
 | Resume | Next safe action, stop boundary and remaining human action. |
+
+Resolve the authoritative change-contract locator and recover its preserved invariants and required acceptance evidence before resuming dependent work or claiming completion. Observed Evidence results do not define the required acceptance baseline. If that contract is unavailable, mark the affected action blocked rather than reconstructing requirements from a green check.
+
+Bind member identity to its repository namespace; a bare PR number, branch name or SHA is insufficient across repositories/forks. Re-resolve stable provider/repository/member IDs before mutating, including after a rename or transfer. Where a provider lacks stable IDs, retain its fully qualified locator and explicit identity evidence; if identity remains ambiguous, block the mutation rather than following an alias by assumption.
+
+For an interrupted mutation, distinguish this operation's owned effects from pre-existing or concurrent changes. Record only material owned paths/objects and completed boundary state, not a command transcript. Reconcile actual effects before retry, cleanup or rollback; a general diff is not proof of ownership. If ownership or the completed boundary cannot be recovered, do not overwrite, delete or roll back uncertain changes. Record the unresolved unit and preserve unrelated state.
 
 Use `unknown`, `pending` and `not applicable` distinctly. An uninspected review surface is not evidence of zero findings. A CI observation needs its run locator and exact head binding, not just `CI: success`. Record observation time when freshness matters; do not turn this into a timestamp for every operation.
 
@@ -59,7 +65,7 @@ A construction head is not automatically a qualification head. Follow `pull-requ
 
 ## Review-finding relationship
 
-Keep finding details in the existing review-finding ledger defined by `skills/pr-merge-gate/references/review-finding-ledger.md`. The Work ledger records only the ledger reference, known-material-findings status and effect on next action, qualification, review acquisition or handoff. Do not duplicate disposition, repair reasoning, current-head validation or closure evidence as a second finding authority. Resolve disagreement by consulting the finding record and its evidence; a summary count cannot override it.
+Keep finding details in the existing review-finding ledger defined by the bundled [review-finding ledger](review-finding-ledger.md). The renderer imports this reference and its [disposition procedure](review-feedback-disposition.md) from the canonical `pr-merge-gate` reference sources at the same toolchain revision; generated copies are not separately authored authority. The Work ledger records only the ledger reference, known-material-findings status and effect on next action, qualification, review acquisition or handoff. Do not duplicate disposition, repair reasoning, current-head validation or closure evidence as a second finding authority. Resolve disagreement by consulting the finding record and its evidence; a summary count cannot override it.
 
 Before a new authorized review acquisition, apply the existing complete known-finding disposition and closure gate, including body-only findings. A repaired item may still be qualification-pending. A work checkpoint cannot declare that item closed for the boundary without the finding ledger's required current-head evidence. An interrupted request with uncertain delivery must be checked on the provider before any retry.
 

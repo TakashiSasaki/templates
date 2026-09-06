@@ -23,6 +23,9 @@ def test_orchestration_skill_is_generated_and_renderable() -> None:
         "references/stacked-pr-workflow.md",
         "references/human-handoff.md",
         "references/work-ledger.md",
+        "references/review-finding-ledger.md",
+        "references/review-feedback-disposition.md",
+        "references/github-review-finding-representation.md",
     }
     assert GENERATED_MARKER in rendered["SKILL.md"]
     assert "name: orchestrate-repository-change" in rendered["SKILL.md"]
