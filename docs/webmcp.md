@@ -1,14 +1,20 @@
-# WebMCP
+# WebMCP for Website and Web application consumers
 
-WebMCP is an optional browser-context interface that lets an AI agent discover and invoke product-defined tools while operating in the authenticated browser context. In this repository, the semantic authority is Composition's `capability.webmcp`; this Site page is a reader-facing guide and does not redefine the contract.
+This is the Site-owned reader guide to Composition's optional `capability.webmcp`. **Composition remains the semantic authority** for component selection, contracts, schemas, validation, and implementation-evidence requirements; this page does not redefine those rules.
+
+## What is WebMCP?
+
+WebMCP is a browser-context interface that lets an AI-capable browser discover and invoke meaningful product tools exposed by a page. The current Composition v1 profile targets the imperative `document.modelContext` API. WebMCP can exist without a backend MCP server and is independent of MCP, MCP Apps, runtime, and the standalone Web-interface capability.
+
+Selecting Website or Web application does not select WebMCP. Selecting WebMCP does not select MCP, MCP Apps, runtime, or the standalone Web interface.
 
 ## Should I adopt it?
 
-Adopt WebMCP when a Website or Webapp has meaningful domain operations that should be callable by browser agents and those operations can reuse the same authorization, validation, confirmation, state-transition, and side-effect semantics as the human-facing product.
+Adopt WebMCP when the product has stable domain operations useful to an agent in the authenticated browser context and those operations can share the same authorization, validation, confirmation, state-transition, and side-effect semantics as the human-facing product path.
 
-Do not adopt it merely to expose UI controls. A useful WebMCP inventory is expressed in domain intent such as search, retrieve, update, or initiate a guarded workflow.
+Do not adopt it merely to expose UI controls. Tool boundaries should express user/domain intent rather than low-level actions such as clicking a button.
 
-Composition represents three distinct consumer intentions:
+Composition represents three distinct intentions:
 
 | Intent | Composition selection | Meaning |
 | --- | --- | --- |
@@ -16,28 +22,34 @@ Composition represents three distinct consumer intentions:
 | Adopt | include `capability.webmcp` | explicit adoption |
 | Explicitly exclude | exclude `capability.webmcp` | durable explicit non-adoption |
 
-The last two states remain distinct even while the current recipe default does not select WebMCP.
+Explicit non-adoption is not equivalent to omission even while the current recipes do not select WebMCP by default.
 
-## WebMCP compared with related interfaces
+## WebMCP vs MCP
 
-**WebMCP vs MCP.** WebMCP is a browser-context capability and does not require a backend MCP server. Selecting either capability does not imply the other.
+MCP is a protocol/interface capability that can be used outside a browser page. WebMCP is a browser-context capability. A product may expose either, both, or neither; selection of one does not imply the other.
 
-**WebMCP vs MCP Apps.** MCP Apps is a separate capability and is not selected by WebMCP. WebMCP does not require an MCP runtime or MCP Apps host.
+## WebMCP vs MCP Apps
 
-**WebMCP vs ordinary Web UI.** Human UI remains a first-class interface. WebMCP should adapt the same domain/application operations rather than create a privileged alternate business path.
+MCP Apps adds application UI/resource semantics around MCP. WebMCP instead exposes tools from the browser context. Selecting either capability does not imply the other.
+
+## WebMCP vs ordinary Web UI
+
+Human UI remains a first-class interface. Where Human UI and WebMCP reach the same domain operation, they should converge on shared application/domain code. A WebMCP callback must not become a privileged alternate implementation that bypasses rules enforced by the human UI or API.
 
 ## Security implications
 
 WebMCP execution must not bypass product authorization, input validation, required confirmation, state-transition rules, or externally observable side-effect semantics. An authenticated browser session provides context; it is not sufficient authorization for every operation.
 
-Treat tool metadata and untrusted tool output as injection/trust-boundary inputs. Consequential actions retain the product's confirmation rules. Registration must not remain stale when route, state, session, or owning UI lifetime changes.
+Treat prompt injection, tool metadata poisoning, untrusted tool output, sensitive input/output, stale registration, confused-deputy behavior, and Human UI/WebMCP path divergence as explicit trust-boundary concerns. Upstream annotations or hints are interoperability metadata, not security authority.
 
-The Composition v1 contract defaults to same-origin exposure. Cross-origin exposure is an explicit contract choice requiring a narrow HTTPS allowlist, WebMCP Permissions Policy handling, and positive/negative browser evidence for allowed and denied origins.
+Same-origin/narrow exposure is the default. Cross-origin exposure is an explicit Composition contract choice requiring a narrow allowlist, relevant Permissions Policy handling, and positive and denied-origin browser evidence.
 
-## Imperative and declarative WebMCP
+## Imperative and Declarative WebMCP
 
-The current templates v1 product profile is **imperative WebMCP** through `document.modelContext`. Declarative WebMCP is treated as experimental/informative rather than a product baseline. Composition evolves this promise through immutable source revisions, component/contract schema versions, migrations, and implementation evidence rather than a consumer-selectable upstream specification revision.
+The current Composition v1 product profile is **Imperative WebMCP** through `document.modelContext`. **Declarative WebMCP** remains experimental/informative rather than part of the current product contract. Consumer-visible evolution is handled through immutable Composition revisions, component/schema versions, migrations, and lifecycle evidence rather than a second consumer-selected upstream specification revision.
 
 ## Verify the selection
 
-The Composition Playground presents WebMCP as **Default / Adopt / Explicitly exclude**. Its validity, conflict, resulting materials/contracts, dependency reasons, and explainability come from the exact pinned Composition provider projection; the browser UI does not implement a dependency resolver.
+The Composition Playground presents **Default / Adopt / Explicitly exclude**. Validity, conflicts, resulting materials/contracts, dependency reasons, and explainability come from the exact pinned Composition provider projection; Site browser code does not implement the dependency resolver.
+
+For implementation work, use the provider-owned `WEBMCP.md`, tool-design, security, testing, machine-contract, and implementation-evidence materials supplied by `capability.webmcp`.
