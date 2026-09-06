@@ -156,6 +156,8 @@ class PR3ProductionCatalogTests(unittest.TestCase):
             lock_path.write_text(
                 json.dumps(
                     {
+                        "files": [{"destination": path.relative_to(target).as_posix()}
+                                  for path in sorted(target.rglob("*")) if path.is_file()],
                         "resolved_components": [
                             {"id": component_id}
                             for component_id in sorted(selected)
