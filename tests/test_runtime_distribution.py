@@ -98,7 +98,7 @@ def test_runtime_workflow_trigger_tiers_are_exact() -> None:
         "tags": ["policy-compatibility-*"],
     }
     assert triggers["pull_request"] == {
-        "branches": ["policy"],
+        "branches": ["policy", "policy-*"],
         "types": ["opened", "synchronize", "reopened", "labeled", "unlabeled"],
     }
     assert "schedule" not in triggers
