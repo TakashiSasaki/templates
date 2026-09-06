@@ -32,7 +32,9 @@ The finalized adoption backup is history, not active policy. Never edit generate
 
 Run `python scripts/render_reference_consumer.py --write` after changing public
 consumer declarations. This only updates the machine and documentation projections;
-it never changes provider state. CI checks freshness with the same command without
+it never changes provider state or blesses translation synchronization. Review the
+English/Japanese page pair and refresh its normal translation manifest provenance
+after regeneration. CI checks freshness with the same command without
 `--write`, validates each provider independently, then builds and tests the actual
 Pages artifact through `.github/workflows/reference-consumer.yml`. Browser evidence
 is distinct from schema/ownership validity and from actual production deployment.
