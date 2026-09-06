@@ -40,6 +40,7 @@
         {"id": "routes-v1-v2", "canonical": "Routes v1 to v2", "localized": "Routes v1 → v2"},
         {"id": "routes-v2-v3", "canonical": "Routes v2 to v3", "localized": "Routes v2 → v3"},
         {"id": "routes-v3-v4", "canonical": "Routes v3 to v4", "localized": "Routes v3 → v4"},
+        {"id": "routes-v4-to-v5", "canonical": "Routes v4 to v5", "localized": "Routes v4 から v5 への移行"},
         {"id": "website", "canonical": "Website", "localized": "Website"},
         {"id": "product-walkthrough", "canonical": "Product walkthrough", "localized": "プロダクト実装ウォークスルー"},
         {"id": "web-application", "canonical": "Web application", "localized": "Web application"},

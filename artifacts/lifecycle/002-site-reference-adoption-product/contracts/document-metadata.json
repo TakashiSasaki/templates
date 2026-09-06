@@ -1,0 +1,857 @@
+{
+  "$schema": "../schemas/document-metadata.schema.json",
+  "schemaVersion": 1,
+  "siteName": "Templates Documentation Portal",
+  "defaultLanguage": "en",
+  "siteSocialPreview": "none",
+  "pages": [
+    {
+      "pageId": "site-portal-home",
+      "title": "Documentation portal",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "site-policy-composition-coexistence",
+      "title": "Policy–Composition coexistence",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-overview",
+      "title": "Overview",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-composition-concepts",
+      "title": "Concepts and terminology",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-evaluation-guide",
+      "title": "Evaluate Composition",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-consumer-guide",
+      "title": "Use Composition",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "site-composition-playground",
+      "title": "Composition Playground",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-release-guide",
+      "title": "Produce a product release",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-composer-reference",
+      "title": "Composer reference",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-documentation-index",
+      "title": "Documentation index",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-composition-model",
+      "title": "Composition model",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-catalog-architecture",
+      "title": "Production catalog",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-generated-contract-manifest",
+      "title": "Generated contract manifest",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-composer-mvp",
+      "title": "Composer architecture",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-catalog-guide",
+      "title": "Catalog guide",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-schema-guide",
+      "title": "Schema guide",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-publication-boundary",
+      "title": "Publication boundary",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-composition-authority-migration",
+      "title": "Authority migration history",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-skill-first-use-walkthrough",
+      "title": "First-use walkthrough",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-skill-overview",
+      "title": "Overview",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-skill-contract",
+      "title": "Skill contract",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-skill-documentation-index",
+      "title": "Documentation index",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-skill-profiles",
+      "title": "Skill profiles",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-skill-capability-map",
+      "title": "Skill/capability map",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-skill-architecture",
+      "title": "Architecture",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-website-webapp-selection",
+      "title": "Choose Website or Web application",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-web-url-path-design-guidance",
+      "title": "URL and path design guidance",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-web-routes-v1-migration",
+      "title": "Routes v1 to v2",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-web-routes-v2-migration",
+      "title": "Routes v2 to v3",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-web-routes-v3-migration",
+      "title": "Routes v3 to v4",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-website-product-walkthrough",
+      "title": "Product walkthrough",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-webapp-product-walkthrough",
+      "title": "Product walkthrough",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-webapp-overview",
+      "title": "Overview",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-webapp-template",
+      "title": "Template contract",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-webapp-documentation-index",
+      "title": "Documentation index",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-webapp-contracts",
+      "title": "Webapp contracts",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-webapp-responsibility-boundaries",
+      "title": "Responsibility boundaries",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-webapp-validation-toolchain",
+      "title": "Validation toolchain",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-surfaces-v2-migration",
+      "title": "Surfaces v1 to v2",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-ui-states-migration",
+      "title": "UI states v1 to v2",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "site-capabilities-overview",
+      "title": "Overview",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-runtime-decision-record",
+      "title": "Runtime decision record",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-runtime-selection",
+      "title": "Runtime selection",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-cli-interface",
+      "title": "Packaged CLI interface",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-cli-interface-v2-migration",
+      "title": "CLI interface v1 to v2",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-mcp-interface",
+      "title": "MCP interface",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-mcp-transports",
+      "title": "MCP transports",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-mcp-interface-v2-migration",
+      "title": "MCP interface v1 to v2",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-mcp-apps-interface",
+      "title": "MCP Apps interface",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-mcp-apps-guidance",
+      "title": "MCP Apps guidance",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-mcp-apps-v2-migration",
+      "title": "MCP Apps v1 to v2",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-browser-interface",
+      "title": "Standalone browser interface",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-pwa-capability",
+      "title": "Progressive Web App",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-pwa-offline-v2-migration",
+      "title": "PWA offline v1 to v2",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-pwa-update-v2-migration",
+      "title": "PWA update v1 to v2",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-web-interface-v2-migration",
+      "title": "Web interface v1 to v2",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-service-interface",
+      "title": "Headless service interface",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-service-interface-v2-migration",
+      "title": "Service interface v1 to v2",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "site-lifecycle-overview",
+      "title": "Overview",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-composition-state",
+      "title": "Composition state",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-contract-evolution",
+      "title": "Contract evolution",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-implementation-evidence",
+      "title": "Implementation evidence",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-implementation-evidence-v2-migration",
+      "title": "Implementation evidence v1 to v2",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-implementation-evidence-v3-migration",
+      "title": "Implementation evidence v2 to v3",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-implementation-evidence-v4-migration",
+      "title": "Implementation evidence v3 to v4",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-implementation-evidence-v5-migration",
+      "title": "Implementation evidence v4 to v5",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-implementation-evidence-v6-migration",
+      "title": "Implementation evidence v5 to v6",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-lifecycle-checkpoints",
+      "title": "Lifecycle checkpoints",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-release-execution",
+      "title": "Release execution",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-release-execution-v2-migration",
+      "title": "Release execution v1 to v2",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-release-evidence",
+      "title": "Release evidence",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-release-bundle",
+      "title": "Release bundle",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "policy-overview",
+      "title": "Overview",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "policy-provider-navigation",
+      "title": "Provider and toolchain",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "policy-shared-policy-navigation",
+      "title": "Shared policy corpus",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "policy-consumer-policy-navigation",
+      "title": "Consumer effective policy",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "policy-getting-started",
+      "title": "Getting started",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "policy-policy-concepts",
+      "title": "Policy concepts for first-time readers",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "policy-managed-operation",
+      "title": "Managed repository operation",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "policy-cli",
+      "title": "CLI",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "policy-bootstrap",
+      "title": "Bootstrap skill",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "policy-adoption",
+      "title": "Repository adoption",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "policy-release-lifecycle",
+      "title": "Toolchain release lifecycle",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "policy-policy-readiness",
+      "title": "Policy completion roadmap",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "policy-documentation-publication",
+      "title": "Documentation publication",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "policy-publication-catalog",
+      "title": "Publication catalog",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "policy-pwa",
+      "title": "PWA usage",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "policy-google-ai-studio",
+      "title": "Google AI Studio Build mode",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "policy-repository-structure",
+      "title": "Repository structure",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "policy-architecture",
+      "title": "Architecture",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "policy-configuration",
+      "title": "Configuration",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "policy-policy-profiles",
+      "title": "Policy profiles",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "policy-policy-authoring",
+      "title": "Policy authoring",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "policy-policy-authority-inventory",
+      "title": "Policy authority inventory",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "policy-review-policy",
+      "title": "Shared review policy",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "policy-external-artifact-intake",
+      "title": "External artifact intake",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "policy-regression-prevention",
+      "title": "Regression prevention",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "policy-bootstrap-model",
+      "title": "Bootstrap model",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "policy-threat-model",
+      "title": "Threat model",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "policy-adr-index",
+      "title": "Overview",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "policy-adr-repository-adoption",
+      "title": "ADR-0002 Repository adoption",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "policy-adr-application-neutral-scope",
+      "title": "ADR-0003 Application-neutral scope",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "policy-adr-single-policy-authority",
+      "title": "ADR-0005 Single policy authority",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "policy-adr-copyable-artifact-policy-adoption",
+      "title": "ADR-0006 Copyable artifact policy adoption",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "policy-adr-single-agent-policy-skill-runtime-cache",
+      "title": "ADR-0007 Single agent-policy skill runtime cache",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "policy-adr-integrated-bootstrap-skill",
+      "title": "ADR-0004 Integrated bootstrap skill (superseded)",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    }
+  ]
+}

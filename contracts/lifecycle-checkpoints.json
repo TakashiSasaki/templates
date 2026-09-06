@@ -11,6 +11,36 @@
       "snapshotPath": "artifacts/lifecycle/001-site-reference-adoption",
       "manifestSha256": "9ec8d87ea01cf6f178422ca39589882ac3aac86dbc6084d7cc71f5a03df667d4",
       "recordedAt": "2026-09-06T00:31:12.289366Z"
+    },
+    {
+      "id": "site-reference-adoption-product",
+      "sequence": 2,
+      "phase": "product",
+      "changeKind": "initial",
+      "parentId": "site-reference-adoption",
+      "snapshotPath": "artifacts/lifecycle/002-site-reference-adoption-product",
+      "manifestSha256": "3f1ba39e4de303b6d4e6148593a916368188764b4046a167e9804a1d4f2a948d",
+      "recordedAt": "2026-09-06T08:29:03.321985Z"
+    },
+    {
+      "id": "routes-v5-publication",
+      "sequence": 3,
+      "phase": "planning",
+      "changeKind": "specification-change",
+      "parentId": "site-reference-adoption-product",
+      "snapshotPath": "artifacts/lifecycle/003-routes-v5-publication",
+      "manifestSha256": "ba65f8f8fcc8223b23d441aff5aea5ac1cb5c76d3f332c73571d3583e56bd5d1",
+      "recordedAt": "2026-09-06T08:29:06.060430Z"
+    },
+    {
+      "id": "routes-v5-publication-product",
+      "sequence": 4,
+      "phase": "product",
+      "changeKind": "specification-change",
+      "parentId": "routes-v5-publication",
+      "snapshotPath": "artifacts/lifecycle/004-routes-v5-publication-product",
+      "manifestSha256": "c3ba91ed78fc90f780213b443182b17c38316d77d92f0151fb3d00392e77d9f1",
+      "recordedAt": "2026-09-06T08:29:08.757113Z"
     }
   ]
 }

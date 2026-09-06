@@ -195,7 +195,7 @@ The relationships below are generated from their canonical declarations.
 | --- | --- | --- |
 | Composition consumer | `bd28b67ad97652182d6744ee38ef992349104961` | Governs the Site Website contracts and material ownership |
 | Policy consumer | `33a7ab809225c2a8b8dd2598ef04d0a39cf076a7` | Governs Site maintenance and generated agent instructions |
-| Composition publication | `95a91a9f0a2258a7611c77f32a571164c065ece3` | Provider material exposed to readers |
+| Composition publication | `223f97b37c07ada37acaa38a5ed4cc23c18b3c01` | Provider material exposed to readers |
 | Policy publication | `c5a3294809a1066bf59b83f467f1d597f885289a` | Provider material exposed to readers |
 
 ```mermaid
@@ -242,7 +242,7 @@ does not pretend to reconstruct the Website's original development history.
 Contract validation is not proof of deployment or release readiness; deferred
 browser evidence remains visible until the relevant proof actually runs.
 
-The ledger currently declares 434 verified proof entries
+The ledger currently declares 438 verified proof entries
 and 20 deferred entries. These are coverage entries,
 not counts of independent tests or a release certificate. PWA tests use actual
 worker code with controlled fixture pages, and the Website test checks served

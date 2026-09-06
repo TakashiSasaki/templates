@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schemaVersion", "mode"],
+  "$defs": {
+    "presentation": {"const": "required-visible"}
+  },
+  "properties": {
+    "$schema": {"const": "../schemas/pwa-update.schema.json"},
+    "schemaVersion": {"const": 2},
+    "mode": {"enum": ["template", "planning", "product"]},
+    "updateDetection": {"const": "observable"},
+    "activation": {"enum": ["next-launch", "user-confirmed", "immediate"]},
+    "unsavedChangesPolicy": {"enum": ["preserve", "block-activation", "not-applicable"]},
+    "updateAvailablePresentation": {"$ref": "#/$defs/presentation"},
+    "applyingUpdatePresentation": {"$ref": "#/$defs/presentation"},
+    "failedUpdatePresentation": {"$ref": "#/$defs/presentation"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"mode": {"const": "template"}}, "required": ["mode"]},
+      "then": {"not": {"anyOf": [{"required": ["updateDetection"]}, {"required": ["activation"]}, {"required": ["unsavedChangesPolicy"]}, {"required": ["updateAvailablePresentation"]}, {"required": ["applyingUpdatePresentation"]}, {"required": ["failedUpdatePresentation"]}]}}
+    },
+    {
+      "if": {"properties": {"mode": {"enum": ["planning", "product"]}}, "required": ["mode"]},
+      "then": {"required": ["updateDetection", "activation", "unsavedChangesPolicy"]}
+    },
+    {
+      "if": {"properties": {"activation": {"const": "user-confirmed"}}, "required": ["activation"]},
+      "then": {"required": ["updateAvailablePresentation"]}
+    },
+    {
+      "if": {"properties": {"activation": {"enum": ["next-launch", "immediate"]}}, "required": ["activation"]},
+      "then": {"not": {"required": ["updateAvailablePresentation"]}}
+    },
+    {
+      "if": {"properties": {"activation": {"const": "immediate"}}, "required": ["activation"]},
+      "then": {"properties": {"unsavedChangesPolicy": {"not": {"const": "block-activation"}}}}
+    }
+  ]
+}

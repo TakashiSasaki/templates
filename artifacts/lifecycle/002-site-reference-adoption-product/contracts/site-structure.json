@@ -1,0 +1,857 @@
+{
+  "$schema": "../schemas/site-structure.schema.json",
+  "schemaVersion": 1,
+  "homePageId": "site-portal-home",
+  "pages": [
+    {
+      "id": "site-portal-home",
+      "routeId": "site-portal-home",
+      "role": "home",
+      "title": "Documentation portal",
+      "parentPageId": null
+    },
+    {
+      "id": "site-policy-composition-coexistence",
+      "routeId": "site-policy-composition-coexistence",
+      "role": "content",
+      "title": "Policy–Composition coexistence",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-overview",
+      "routeId": "composition-overview",
+      "role": "content",
+      "title": "Overview",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-composition-concepts",
+      "routeId": "composition-composition-concepts",
+      "role": "content",
+      "title": "Concepts and terminology",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-evaluation-guide",
+      "routeId": "composition-evaluation-guide",
+      "role": "content",
+      "title": "Evaluate Composition",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-consumer-guide",
+      "routeId": "composition-consumer-guide",
+      "role": "content",
+      "title": "Use Composition",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "site-composition-playground",
+      "routeId": "site-composition-playground",
+      "role": "content",
+      "title": "Composition Playground",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-release-guide",
+      "routeId": "composition-release-guide",
+      "role": "content",
+      "title": "Produce a product release",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-composer-reference",
+      "routeId": "composition-composer-reference",
+      "role": "content",
+      "title": "Composer reference",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-documentation-index",
+      "routeId": "composition-documentation-index",
+      "role": "content",
+      "title": "Documentation index",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-composition-model",
+      "routeId": "composition-composition-model",
+      "role": "content",
+      "title": "Composition model",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-catalog-architecture",
+      "routeId": "composition-catalog-architecture",
+      "role": "content",
+      "title": "Production catalog",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-generated-contract-manifest",
+      "routeId": "composition-generated-contract-manifest",
+      "role": "content",
+      "title": "Generated contract manifest",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-composer-mvp",
+      "routeId": "composition-composer-mvp",
+      "role": "content",
+      "title": "Composer architecture",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-catalog-guide",
+      "routeId": "composition-catalog-guide",
+      "role": "content",
+      "title": "Catalog guide",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-schema-guide",
+      "routeId": "composition-schema-guide",
+      "role": "content",
+      "title": "Schema guide",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-publication-boundary",
+      "routeId": "composition-publication-boundary",
+      "role": "content",
+      "title": "Publication boundary",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-composition-authority-migration",
+      "routeId": "composition-composition-authority-migration",
+      "role": "content",
+      "title": "Authority migration history",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-skill-first-use-walkthrough",
+      "routeId": "composition-skill-first-use-walkthrough",
+      "role": "content",
+      "title": "First-use walkthrough",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-skill-overview",
+      "routeId": "composition-skill-overview",
+      "role": "content",
+      "title": "Overview",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-skill-contract",
+      "routeId": "composition-skill-contract",
+      "role": "content",
+      "title": "Skill contract",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-skill-documentation-index",
+      "routeId": "composition-skill-documentation-index",
+      "role": "content",
+      "title": "Documentation index",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-skill-profiles",
+      "routeId": "composition-skill-profiles",
+      "role": "content",
+      "title": "Skill profiles",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-skill-capability-map",
+      "routeId": "composition-skill-capability-map",
+      "role": "content",
+      "title": "Skill/capability map",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-skill-architecture",
+      "routeId": "composition-skill-architecture",
+      "role": "content",
+      "title": "Architecture",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-website-webapp-selection",
+      "routeId": "composition-website-webapp-selection",
+      "role": "content",
+      "title": "Choose Website or Web application",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-web-url-path-design-guidance",
+      "routeId": "composition-web-url-path-design-guidance",
+      "role": "content",
+      "title": "URL and path design guidance",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-web-routes-v1-migration",
+      "routeId": "composition-web-routes-v1-migration",
+      "role": "content",
+      "title": "Routes v1 to v2",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-web-routes-v2-migration",
+      "routeId": "composition-web-routes-v2-migration",
+      "role": "content",
+      "title": "Routes v2 to v3",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-web-routes-v3-migration",
+      "routeId": "composition-web-routes-v3-migration",
+      "role": "content",
+      "title": "Routes v3 to v4",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-website-product-walkthrough",
+      "routeId": "composition-website-product-walkthrough",
+      "role": "content",
+      "title": "Product walkthrough",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-webapp-product-walkthrough",
+      "routeId": "composition-webapp-product-walkthrough",
+      "role": "content",
+      "title": "Product walkthrough",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-webapp-overview",
+      "routeId": "composition-webapp-overview",
+      "role": "content",
+      "title": "Overview",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-webapp-template",
+      "routeId": "composition-webapp-template",
+      "role": "content",
+      "title": "Template contract",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-webapp-documentation-index",
+      "routeId": "composition-webapp-documentation-index",
+      "role": "content",
+      "title": "Documentation index",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-webapp-contracts",
+      "routeId": "composition-webapp-contracts",
+      "role": "content",
+      "title": "Webapp contracts",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-webapp-responsibility-boundaries",
+      "routeId": "composition-webapp-responsibility-boundaries",
+      "role": "content",
+      "title": "Responsibility boundaries",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-webapp-validation-toolchain",
+      "routeId": "composition-webapp-validation-toolchain",
+      "role": "content",
+      "title": "Validation toolchain",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-surfaces-v2-migration",
+      "routeId": "composition-surfaces-v2-migration",
+      "role": "content",
+      "title": "Surfaces v1 to v2",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-ui-states-migration",
+      "routeId": "composition-ui-states-migration",
+      "role": "content",
+      "title": "UI states v1 to v2",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "site-capabilities-overview",
+      "routeId": "site-capabilities-overview",
+      "role": "content",
+      "title": "Overview",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-runtime-decision-record",
+      "routeId": "composition-runtime-decision-record",
+      "role": "content",
+      "title": "Runtime decision record",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-runtime-selection",
+      "routeId": "composition-runtime-selection",
+      "role": "content",
+      "title": "Runtime selection",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-cli-interface",
+      "routeId": "composition-cli-interface",
+      "role": "content",
+      "title": "Packaged CLI interface",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-cli-interface-v2-migration",
+      "routeId": "composition-cli-interface-v2-migration",
+      "role": "content",
+      "title": "CLI interface v1 to v2",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-mcp-interface",
+      "routeId": "composition-mcp-interface",
+      "role": "content",
+      "title": "MCP interface",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-mcp-transports",
+      "routeId": "composition-mcp-transports",
+      "role": "content",
+      "title": "MCP transports",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-mcp-interface-v2-migration",
+      "routeId": "composition-mcp-interface-v2-migration",
+      "role": "content",
+      "title": "MCP interface v1 to v2",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-mcp-apps-interface",
+      "routeId": "composition-mcp-apps-interface",
+      "role": "content",
+      "title": "MCP Apps interface",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-mcp-apps-guidance",
+      "routeId": "composition-mcp-apps-guidance",
+      "role": "content",
+      "title": "MCP Apps guidance",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-mcp-apps-v2-migration",
+      "routeId": "composition-mcp-apps-v2-migration",
+      "role": "content",
+      "title": "MCP Apps v1 to v2",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-browser-interface",
+      "routeId": "composition-browser-interface",
+      "role": "content",
+      "title": "Standalone browser interface",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-pwa-capability",
+      "routeId": "composition-pwa-capability",
+      "role": "content",
+      "title": "Progressive Web App",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-pwa-offline-v2-migration",
+      "routeId": "composition-pwa-offline-v2-migration",
+      "role": "content",
+      "title": "PWA offline v1 to v2",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-pwa-update-v2-migration",
+      "routeId": "composition-pwa-update-v2-migration",
+      "role": "content",
+      "title": "PWA update v1 to v2",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-web-interface-v2-migration",
+      "routeId": "composition-web-interface-v2-migration",
+      "role": "content",
+      "title": "Web interface v1 to v2",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-service-interface",
+      "routeId": "composition-service-interface",
+      "role": "content",
+      "title": "Headless service interface",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-service-interface-v2-migration",
+      "routeId": "composition-service-interface-v2-migration",
+      "role": "content",
+      "title": "Service interface v1 to v2",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "site-lifecycle-overview",
+      "routeId": "site-lifecycle-overview",
+      "role": "content",
+      "title": "Overview",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-composition-state",
+      "routeId": "composition-composition-state",
+      "role": "content",
+      "title": "Composition state",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-contract-evolution",
+      "routeId": "composition-contract-evolution",
+      "role": "content",
+      "title": "Contract evolution",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-implementation-evidence",
+      "routeId": "composition-implementation-evidence",
+      "role": "content",
+      "title": "Implementation evidence",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-implementation-evidence-v2-migration",
+      "routeId": "composition-implementation-evidence-v2-migration",
+      "role": "content",
+      "title": "Implementation evidence v1 to v2",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-implementation-evidence-v3-migration",
+      "routeId": "composition-implementation-evidence-v3-migration",
+      "role": "content",
+      "title": "Implementation evidence v2 to v3",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-implementation-evidence-v4-migration",
+      "routeId": "composition-implementation-evidence-v4-migration",
+      "role": "content",
+      "title": "Implementation evidence v3 to v4",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-implementation-evidence-v5-migration",
+      "routeId": "composition-implementation-evidence-v5-migration",
+      "role": "content",
+      "title": "Implementation evidence v4 to v5",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-implementation-evidence-v6-migration",
+      "routeId": "composition-implementation-evidence-v6-migration",
+      "role": "content",
+      "title": "Implementation evidence v5 to v6",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-lifecycle-checkpoints",
+      "routeId": "composition-lifecycle-checkpoints",
+      "role": "content",
+      "title": "Lifecycle checkpoints",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-release-execution",
+      "routeId": "composition-release-execution",
+      "role": "content",
+      "title": "Release execution",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-release-execution-v2-migration",
+      "routeId": "composition-release-execution-v2-migration",
+      "role": "content",
+      "title": "Release execution v1 to v2",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-release-evidence",
+      "routeId": "composition-release-evidence",
+      "role": "content",
+      "title": "Release evidence",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-release-bundle",
+      "routeId": "composition-release-bundle",
+      "role": "content",
+      "title": "Release bundle",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "policy-overview",
+      "routeId": "policy-overview",
+      "role": "content",
+      "title": "Overview",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "policy-provider-navigation",
+      "routeId": "policy-provider-navigation",
+      "role": "content",
+      "title": "Provider and toolchain",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "policy-shared-policy-navigation",
+      "routeId": "policy-shared-policy-navigation",
+      "role": "content",
+      "title": "Shared policy corpus",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "policy-consumer-policy-navigation",
+      "routeId": "policy-consumer-policy-navigation",
+      "role": "content",
+      "title": "Consumer effective policy",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "policy-getting-started",
+      "routeId": "policy-getting-started",
+      "role": "content",
+      "title": "Getting started",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "policy-policy-concepts",
+      "routeId": "policy-policy-concepts",
+      "role": "content",
+      "title": "Policy concepts for first-time readers",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "policy-managed-operation",
+      "routeId": "policy-managed-operation",
+      "role": "content",
+      "title": "Managed repository operation",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "policy-cli",
+      "routeId": "policy-cli",
+      "role": "content",
+      "title": "CLI",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "policy-bootstrap",
+      "routeId": "policy-bootstrap",
+      "role": "content",
+      "title": "Bootstrap skill",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "policy-adoption",
+      "routeId": "policy-adoption",
+      "role": "content",
+      "title": "Repository adoption",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "policy-release-lifecycle",
+      "routeId": "policy-release-lifecycle",
+      "role": "content",
+      "title": "Toolchain release lifecycle",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "policy-policy-readiness",
+      "routeId": "policy-policy-readiness",
+      "role": "content",
+      "title": "Policy completion roadmap",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "policy-documentation-publication",
+      "routeId": "policy-documentation-publication",
+      "role": "content",
+      "title": "Documentation publication",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "policy-publication-catalog",
+      "routeId": "policy-publication-catalog",
+      "role": "content",
+      "title": "Publication catalog",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "policy-pwa",
+      "routeId": "policy-pwa",
+      "role": "content",
+      "title": "PWA usage",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "policy-google-ai-studio",
+      "routeId": "policy-google-ai-studio",
+      "role": "content",
+      "title": "Google AI Studio Build mode",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "policy-repository-structure",
+      "routeId": "policy-repository-structure",
+      "role": "content",
+      "title": "Repository structure",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "policy-architecture",
+      "routeId": "policy-architecture",
+      "role": "content",
+      "title": "Architecture",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "policy-configuration",
+      "routeId": "policy-configuration",
+      "role": "content",
+      "title": "Configuration",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "policy-policy-profiles",
+      "routeId": "policy-policy-profiles",
+      "role": "content",
+      "title": "Policy profiles",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "policy-policy-authoring",
+      "routeId": "policy-policy-authoring",
+      "role": "content",
+      "title": "Policy authoring",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "policy-policy-authority-inventory",
+      "routeId": "policy-policy-authority-inventory",
+      "role": "content",
+      "title": "Policy authority inventory",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "policy-review-policy",
+      "routeId": "policy-review-policy",
+      "role": "content",
+      "title": "Shared review policy",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "policy-external-artifact-intake",
+      "routeId": "policy-external-artifact-intake",
+      "role": "content",
+      "title": "External artifact intake",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "policy-regression-prevention",
+      "routeId": "policy-regression-prevention",
+      "role": "content",
+      "title": "Regression prevention",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "policy-bootstrap-model",
+      "routeId": "policy-bootstrap-model",
+      "role": "content",
+      "title": "Bootstrap model",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "policy-threat-model",
+      "routeId": "policy-threat-model",
+      "role": "content",
+      "title": "Threat model",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "policy-adr-index",
+      "routeId": "policy-adr-index",
+      "role": "content",
+      "title": "Overview",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "policy-adr-repository-adoption",
+      "routeId": "policy-adr-repository-adoption",
+      "role": "content",
+      "title": "ADR-0002 Repository adoption",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "policy-adr-application-neutral-scope",
+      "routeId": "policy-adr-application-neutral-scope",
+      "role": "content",
+      "title": "ADR-0003 Application-neutral scope",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "policy-adr-single-policy-authority",
+      "routeId": "policy-adr-single-policy-authority",
+      "role": "content",
+      "title": "ADR-0005 Single policy authority",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "policy-adr-copyable-artifact-policy-adoption",
+      "routeId": "policy-adr-copyable-artifact-policy-adoption",
+      "role": "content",
+      "title": "ADR-0006 Copyable artifact policy adoption",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "policy-adr-single-agent-policy-skill-runtime-cache",
+      "routeId": "policy-adr-single-agent-policy-skill-runtime-cache",
+      "role": "content",
+      "title": "ADR-0007 Single agent-policy skill runtime cache",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "policy-adr-integrated-bootstrap-skill",
+      "routeId": "policy-adr-integrated-bootstrap-skill",
+      "role": "content",
+      "title": "ADR-0004 Integrated bootstrap skill (superseded)",
+      "parentPageId": "site-portal-home"
+    }
+  ],
+  "primaryNavigationPageIds": [
+    "site-portal-home",
+    "site-policy-composition-coexistence",
+    "composition-overview",
+    "composition-composition-concepts",
+    "composition-evaluation-guide",
+    "composition-consumer-guide",
+    "site-composition-playground",
+    "composition-release-guide",
+    "composition-composer-reference",
+    "composition-documentation-index",
+    "composition-composition-model",
+    "composition-catalog-architecture",
+    "composition-generated-contract-manifest",
+    "composition-composer-mvp",
+    "composition-catalog-guide",
+    "composition-schema-guide",
+    "composition-publication-boundary",
+    "composition-composition-authority-migration",
+    "composition-skill-first-use-walkthrough",
+    "composition-skill-overview",
+    "composition-skill-contract",
+    "composition-skill-documentation-index",
+    "composition-skill-profiles",
+    "composition-skill-capability-map",
+    "composition-skill-architecture",
+    "composition-website-webapp-selection",
+    "composition-web-url-path-design-guidance",
+    "composition-web-routes-v1-migration",
+    "composition-web-routes-v2-migration",
+    "composition-web-routes-v3-migration",
+    "composition-website-product-walkthrough",
+    "composition-webapp-product-walkthrough",
+    "composition-webapp-overview",
+    "composition-webapp-template",
+    "composition-webapp-documentation-index",
+    "composition-webapp-contracts",
+    "composition-webapp-responsibility-boundaries",
+    "composition-webapp-validation-toolchain",
+    "composition-surfaces-v2-migration",
+    "composition-ui-states-migration",
+    "site-capabilities-overview",
+    "composition-runtime-decision-record",
+    "composition-runtime-selection",
+    "composition-cli-interface",
+    "composition-cli-interface-v2-migration",
+    "composition-mcp-interface",
+    "composition-mcp-transports",
+    "composition-mcp-interface-v2-migration",
+    "composition-mcp-apps-interface",
+    "composition-mcp-apps-guidance",
+    "composition-mcp-apps-v2-migration",
+    "composition-browser-interface",
+    "composition-pwa-capability",
+    "composition-pwa-offline-v2-migration",
+    "composition-pwa-update-v2-migration",
+    "composition-web-interface-v2-migration",
+    "composition-service-interface",
+    "composition-service-interface-v2-migration",
+    "site-lifecycle-overview",
+    "composition-composition-state",
+    "composition-contract-evolution",
+    "composition-implementation-evidence",
+    "composition-implementation-evidence-v2-migration",
+    "composition-implementation-evidence-v3-migration",
+    "composition-implementation-evidence-v4-migration",
+    "composition-implementation-evidence-v5-migration",
+    "composition-implementation-evidence-v6-migration",
+    "composition-lifecycle-checkpoints",
+    "composition-release-execution",
+    "composition-release-execution-v2-migration",
+    "composition-release-evidence",
+    "composition-release-bundle",
+    "policy-overview",
+    "policy-provider-navigation",
+    "policy-shared-policy-navigation",
+    "policy-consumer-policy-navigation",
+    "policy-getting-started",
+    "policy-policy-concepts",
+    "policy-managed-operation",
+    "policy-cli",
+    "policy-bootstrap",
+    "policy-adoption",
+    "policy-release-lifecycle",
+    "policy-policy-readiness",
+    "policy-documentation-publication",
+    "policy-publication-catalog",
+    "policy-pwa",
+    "policy-google-ai-studio",
+    "policy-repository-structure",
+    "policy-architecture",
+    "policy-configuration",
+    "policy-policy-profiles",
+    "policy-policy-authoring",
+    "policy-policy-authority-inventory",
+    "policy-review-policy",
+    "policy-external-artifact-intake",
+    "policy-regression-prevention",
+    "policy-bootstrap-model",
+    "policy-threat-model",
+    "policy-adr-index",
+    "policy-adr-repository-adoption",
+    "policy-adr-application-neutral-scope",
+    "policy-adr-single-policy-authority",
+    "policy-adr-copyable-artifact-policy-adoption",
+    "policy-adr-single-agent-policy-skill-runtime-cache",
+    "policy-adr-integrated-bootstrap-skill"
+  ]
+}
