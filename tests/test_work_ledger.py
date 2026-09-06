@@ -8,10 +8,15 @@ SKILL = ROOT / "skills/orchestrate-repository-change"
 
 def test_work_ledger_is_discoverable_and_distributed_without_runtime_artifact():
     rendered = render_skill("orchestrate-repository-change")
+    source = (SKILL / "references/work-ledger.md").read_text()
+    installed = rendered["references/work-ledger.md"]
+
     assert "references/work-ledger.md" in rendered["SKILL.md"]
-    assert rendered["references/work-ledger.md"] == (
-        SKILL / "references/work-ledger.md"
-    ).read_text()
+    assert "../../pr-merge-gate/references/review-finding-ledger.md" in source
+    assert "../../pr-merge-gate/references/review-feedback-disposition.md" in source
+    assert "(review-finding-ledger.md)" in installed
+    assert "(review-feedback-disposition.md)" in installed
+    assert "../../pr-merge-gate/references/" not in installed
     assert not (ROOT / ".work-ledger.json").exists()
 
 
