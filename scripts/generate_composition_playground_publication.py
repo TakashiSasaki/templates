@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Generate and validate immutable Composition Playground publication assets."""
+"""Generate and validate immutable gzip Composition Playground publication assets."""
 from __future__ import annotations
 
 import argparse
+import gzip
 import json
 import sys
 from pathlib import Path
@@ -12,19 +13,25 @@ from composer_core_impl import CompositionError, load_json_bytes
 from generate_composition_playground import build_projection, render_projection
 from generate_composition_playground_intent import build_intent_projection
 
-BASE_NAME = "composition-playground-v1.json"
-INTENT_NAME = "composition-playground-intent-v1.json"
+BASE_NAME = "composition-playground-v1.json.gz"
+INTENT_NAME = "composition-playground-intent-v1.json.gz"
 
 
-def semantic_revision_from_json(path: Path) -> str:
+def compress_payload(data: bytes) -> bytes:
+    compressed = bytearray(gzip.compress(data, compresslevel=9, mtime=0))
+    if len(compressed) < 10:
+        raise CompositionError("PLAYGROUND_GZIP_FAILED", "gzip output is unexpectedly short")
+    compressed[9] = 255
+    return bytes(compressed)
+
+
+def semantic_revision_from_gzip(path: Path) -> str:
     try:
-        projection = load_json_bytes(path.read_bytes(), label=str(path))
+        raw = gzip.decompress(path.read_bytes())
+        projection = load_json_bytes(raw, label=str(path))
         revision = projection["source"]["revision"]
-    except (OSError, KeyError, TypeError, json.JSONDecodeError) as exc:
-        raise CompositionError(
-            "INVALID_PLAYGROUND_PUBLICATION",
-            f"cannot read Playground semantic source revision from {path}: {exc}",
-        ) from exc
+    except (OSError, EOFError, gzip.BadGzipFile, KeyError, TypeError, json.JSONDecodeError) as exc:
+        raise CompositionError("INVALID_PLAYGROUND_PUBLICATION", f"cannot read Playground semantic source revision from {path}: {exc}") from exc
     if not isinstance(revision, str) or len(revision) != 40 or any(ch not in "0123456789abcdef" for ch in revision):
         raise CompositionError("INVALID_PLAYGROUND_PUBLICATION", "published Playground semantic source revision is not an exact lowercase SHA")
     return revision
@@ -33,14 +40,14 @@ def semantic_revision_from_json(path: Path) -> str:
 def publication_payloads(*, semantic_revision: str | None = None) -> dict[str, bytes]:
     base = render_projection(build_projection(source_revision=semantic_revision))
     intent = (json.dumps(build_intent_projection(source_revision=semantic_revision), indent=2, sort_keys=False) + "\n").encode()
-    return {BASE_NAME: base, INTENT_NAME: intent}
+    return {BASE_NAME: compress_payload(base), INTENT_NAME: compress_payload(intent)}
 
 
 def check_directory(directory: Path, *, semantic_revision: str | None = None) -> str:
     base_path = directory / BASE_NAME
     intent_path = directory / INTENT_NAME
-    revision = semantic_revision or semantic_revision_from_json(base_path)
-    if semantic_revision_from_json(intent_path) != revision:
+    revision = semantic_revision or semantic_revision_from_gzip(base_path)
+    if semantic_revision_from_gzip(intent_path) != revision:
         raise CompositionError("INVALID_PLAYGROUND_PUBLICATION", "resolution and intent projections have different semantic source revisions")
     expected = publication_payloads(semantic_revision=revision)
     for name, payload in expected.items():
