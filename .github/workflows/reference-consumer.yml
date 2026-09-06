@@ -35,9 +35,9 @@ jobs:
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
           python-version: '3.12.13'
-      - run: python -m pip install playwright==1.58.0
+      - run: python -m pip install --requirement requirements-visual.txt
       - name: Install worker-lifecycle browser
-        run: python -m playwright install chromium --with-deps
+        run: python -m playwright install --only-shell chromium
       - uses: actions/download-artifact@v5
         with:
           name: github-pages
