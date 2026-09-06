@@ -1,678 +1,137 @@
 {
   "schema_version": 3,
   "documents": [
-    {
-      "id": "overview",
-      "source": "README.md",
-      "optional": false,
-      "home": true
-    },
-    {
-      "id": "documentation-index",
-      "source": "docs/index.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "composition-concepts",
-      "source": "docs/guides/composition-concepts.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "website-webapp-selection",
-      "source": "docs/guides/website-webapp-selection.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "web-url-path-design-guidance",
-      "source": "components/foundation.web/files/docs/url-path-design-guidance.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "website-product-walkthrough",
-      "source": "docs/guides/website-product-walkthrough.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "evaluation-guide",
-      "source": "docs/evaluation-guide.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "consumer-guide",
-      "source": "docs/consumer-guide.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "webapp-product-walkthrough",
-      "source": "docs/guides/webapp-product-walkthrough.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "skill-first-use-walkthrough",
-      "source": "docs/guides/skill-first-use-walkthrough.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "release-guide",
-      "source": "docs/release-guide.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "composer-reference",
-      "source": "docs/reference/composer.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "publication-boundary",
-      "source": "docs/publication-catalog.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "composition-model",
-      "source": "docs/architecture/composition-model.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "catalog-architecture",
-      "source": "docs/architecture/catalog.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "generated-contract-manifest",
-      "source": "docs/architecture/generated-contract-manifest.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "composer-mvp",
-      "source": "docs/architecture/composer-mvp.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "catalog-guide",
-      "source": "catalog/README.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "schema-guide",
-      "source": "schemas/README.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "skill-overview",
-      "source": "components/artifact.skill-core/files/README.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "skill-contract",
-      "source": "components/artifact.skill-core/files/SKILL.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "skill-documentation-index",
-      "source": "components/artifact.skill-core/files/docs/index.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "skill-profiles",
-      "source": "components/artifact.skill-core/files/docs/skill-profiles.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "skill-capability-map",
-      "source": "components/artifact.skill-core/files/docs/skill-capability-map.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "skill-architecture",
-      "source": "components/artifact.skill-core/files/docs/architecture.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "runtime-decision-record",
-      "source": "components/capability.runtime/files/RUNTIME.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "runtime-selection",
-      "source": "components/capability.runtime/files/docs/runtime-selection.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "cli-interface",
-      "source": "components/capability.cli/files/CLI_INTERFACE.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "cli-interface-v2-migration",
-      "source": "components/capability.cli/files/docs/migrations/cli-interface-v1-to-v2.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "mcp-interface",
-      "source": "components/capability.mcp/files/MCP_INTERFACE.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "mcp-transports",
-      "source": "components/capability.mcp/files/docs/mcp-transports.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "mcp-interface-v2-migration",
-      "source": "components/capability.mcp/files/docs/migrations/mcp-interface-v1-to-v2.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "mcp-apps-interface",
-      "source": "components/capability.mcp-apps/files/MCP_APPS.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "mcp-apps-guidance",
-      "source": "components/capability.mcp-apps/files/docs/mcp-apps.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "mcp-apps-v2-migration",
-      "source": "components/capability.mcp-apps/files/docs/migrations/mcp-apps-v1-to-v2.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "pwa-capability",
-      "source": "components/capability.pwa/files/PWA.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "pwa-offline-v2-migration",
-      "source": "components/capability.pwa/files/docs/migrations/pwa-offline-v1-to-v2.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "pwa-update-v2-migration",
-      "source": "components/capability.pwa/files/docs/migrations/pwa-update-v1-to-v2.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "browser-interface",
-      "source": "components/capability.web-interface/files/WEB_INTERFACE.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "web-interface-v2-migration",
-      "source": "components/capability.web-interface/files/docs/migrations/web-interface-v1-to-v2.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "service-interface",
-      "source": "components/capability.service/files/SERVICE_INTERFACE.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "service-interface-v2-migration",
-      "source": "components/capability.service/files/docs/migrations/service-interface-v1-to-v2.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "webapp-overview",
-      "source": "components/artifact.webapp-core/files/README.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "webapp-template",
-      "source": "components/artifact.webapp-core/files/TEMPLATE.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "webapp-documentation-index",
-      "source": "components/artifact.webapp-core/files/docs/index.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "webapp-contracts",
-      "source": "components/artifact.webapp-core/files/docs/architecture/webapp-contracts.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "webapp-responsibility-boundaries",
-      "source": "components/artifact.webapp-core/files/docs/architecture/responsibility-boundaries.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "webapp-validation-toolchain",
-      "source": "components/artifact.webapp-core/files/docs/architecture/validation-toolchain.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "web-routes-v1-migration",
-      "source": "components/foundation.web/files/docs/migrations/routes-v1-to-v2.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "web-routes-v2-migration",
-      "source": "components/foundation.web/files/docs/migrations/routes-v2-to-v3.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "web-routes-v3-migration",
-      "source": "components/foundation.web/files/docs/migrations/routes-v3-to-v4.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "surfaces-v2-migration",
-      "source": "components/artifact.webapp-core/files/docs/migrations/surfaces-v1-to-v2.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "ui-states-migration",
-      "source": "components/artifact.webapp-core/files/docs/migrations/ui-states-v1-to-v2.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "composition-state",
-      "source": "components/lifecycle.composition-state/files/docs/architecture/composition-state.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "contract-evolution",
-      "source": "components/lifecycle.contract-evolution/files/docs/architecture/contract-evolution.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "implementation-evidence",
-      "source": "components/lifecycle.implementation-evidence/files/docs/architecture/implementation-evidence.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "implementation-evidence-v2-migration",
-      "source": "components/lifecycle.implementation-evidence/files/docs/migrations/implementation-evidence-v1-to-v2.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "implementation-evidence-v3-migration",
-      "source": "components/lifecycle.implementation-evidence/files/docs/migrations/implementation-evidence-v2-to-v3.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "implementation-evidence-v4-migration",
-      "source": "components/lifecycle.implementation-evidence/files/docs/migrations/implementation-evidence-v3-to-v4.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "implementation-evidence-v5-migration",
-      "source": "components/lifecycle.implementation-evidence/files/docs/migrations/implementation-evidence-v4-to-v5.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "implementation-evidence-v6-migration",
-      "source": "components/lifecycle.implementation-evidence/files/docs/migrations/implementation-evidence-v5-to-v6.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "lifecycle-checkpoints",
-      "source": "components/lifecycle.lifecycle-checkpoints/files/docs/architecture/lifecycle-checkpoints.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "release-execution",
-      "source": "components/lifecycle.release-execution/files/docs/architecture/release-execution.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "release-execution-v2-migration",
-      "source": "components/lifecycle.release-execution/files/docs/migrations/release-execution-v1-to-v2.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "release-evidence",
-      "source": "components/lifecycle.release-evidence/files/docs/architecture/release-evidence.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "release-bundle",
-      "source": "components/lifecycle.release-bundle/files/docs/architecture/release-bundle.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "composition-authority-migration",
-      "source": "docs/migrations/composition-authority-migration.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "web-routes-v4-migration",
-      "source": "components/foundation.web/files/docs/migrations/routes-v4-to-v5.md",
-      "optional": false,
-      "home": false
-    }
+    {"id":"overview","source":"README.md","optional":false,"home":true},
+    {"id":"documentation-index","source":"docs/index.md","optional":false,"home":false},
+    {"id":"composition-concepts","source":"docs/guides/composition-concepts.md","optional":false,"home":false},
+    {"id":"website-webapp-selection","source":"docs/guides/website-webapp-selection.md","optional":false,"home":false},
+    {"id":"web-url-path-design-guidance","source":"components/foundation.web/files/docs/url-path-design-guidance.md","optional":false,"home":false},
+    {"id":"website-product-walkthrough","source":"docs/guides/website-product-walkthrough.md","optional":false,"home":false},
+    {"id":"evaluation-guide","source":"docs/evaluation-guide.md","optional":false,"home":false},
+    {"id":"consumer-guide","source":"docs/consumer-guide.md","optional":false,"home":false},
+    {"id":"webapp-product-walkthrough","source":"docs/guides/webapp-product-walkthrough.md","optional":false,"home":false},
+    {"id":"skill-first-use-walkthrough","source":"docs/guides/skill-first-use-walkthrough.md","optional":false,"home":false},
+    {"id":"release-guide","source":"docs/release-guide.md","optional":false,"home":false},
+    {"id":"composer-reference","source":"docs/reference/composer.md","optional":false,"home":false},
+    {"id":"publication-boundary","source":"docs/publication-catalog.md","optional":false,"home":false},
+    {"id":"composition-model","source":"docs/architecture/composition-model.md","optional":false,"home":false},
+    {"id":"catalog-architecture","source":"docs/architecture/catalog.md","optional":false,"home":false},
+    {"id":"generated-contract-manifest","source":"docs/architecture/generated-contract-manifest.md","optional":false,"home":false},
+    {"id":"composer-mvp","source":"docs/architecture/composer-mvp.md","optional":false,"home":false},
+    {"id":"catalog-guide","source":"catalog/README.md","optional":false,"home":false},
+    {"id":"schema-guide","source":"schemas/README.md","optional":false,"home":false},
+    {"id":"skill-overview","source":"components/artifact.skill-core/files/README.md","optional":false,"home":false},
+    {"id":"skill-contract","source":"components/artifact.skill-core/files/SKILL.md","optional":false,"home":false},
+    {"id":"skill-documentation-index","source":"components/artifact.skill-core/files/docs/index.md","optional":false,"home":false},
+    {"id":"skill-profiles","source":"components/artifact.skill-core/files/docs/skill-profiles.md","optional":false,"home":false},
+    {"id":"skill-capability-map","source":"components/artifact.skill-core/files/docs/skill-capability-map.md","optional":false,"home":false},
+    {"id":"skill-architecture","source":"components/artifact.skill-core/files/docs/architecture.md","optional":false,"home":false},
+    {"id":"runtime-decision-record","source":"components/capability.runtime/files/RUNTIME.md","optional":false,"home":false},
+    {"id":"runtime-selection","source":"components/capability.runtime/files/docs/runtime-selection.md","optional":false,"home":false},
+    {"id":"cli-interface","source":"components/capability.cli/files/CLI_INTERFACE.md","optional":false,"home":false},
+    {"id":"cli-interface-v2-migration","source":"components/capability.cli/files/docs/migrations/cli-interface-v1-to-v2.md","optional":false,"home":false},
+    {"id":"mcp-interface","source":"components/capability.mcp/files/MCP_INTERFACE.md","optional":false,"home":false},
+    {"id":"mcp-transports","source":"components/capability.mcp/files/docs/mcp-transports.md","optional":false,"home":false},
+    {"id":"mcp-interface-v2-migration","source":"components/capability.mcp/files/docs/migrations/mcp-interface-v1-to-v2.md","optional":false,"home":false},
+    {"id":"mcp-apps-interface","source":"components/capability.mcp-apps/files/MCP_APPS.md","optional":false,"home":false},
+    {"id":"mcp-apps-guidance","source":"components/capability.mcp-apps/files/docs/mcp-apps.md","optional":false,"home":false},
+    {"id":"mcp-apps-v2-migration","source":"components/capability.mcp-apps/files/docs/migrations/mcp-apps-v1-to-v2.md","optional":false,"home":false},
+    {"id":"pwa-capability","source":"components/capability.pwa/files/PWA.md","optional":false,"home":false},
+    {"id":"pwa-offline-v2-migration","source":"components/capability.pwa/files/docs/migrations/pwa-offline-v1-to-v2.md","optional":false,"home":false},
+    {"id":"pwa-update-v2-migration","source":"components/capability.pwa/files/docs/migrations/pwa-update-v1-to-v2.md","optional":false,"home":false},
+    {"id":"webmcp-capability","source":"components/capability.webmcp/files/WEBMCP.md","optional":false,"home":false},
+    {"id":"webmcp-tool-design","source":"components/capability.webmcp/files/docs/webmcp-tool-design.md","optional":false,"home":false},
+    {"id":"webmcp-security","source":"components/capability.webmcp/files/docs/webmcp-security.md","optional":false,"home":false},
+    {"id":"webmcp-testing","source":"components/capability.webmcp/files/docs/webmcp-testing.md","optional":false,"home":false},
+    {"id":"browser-interface","source":"components/capability.web-interface/files/WEB_INTERFACE.md","optional":false,"home":false},
+    {"id":"web-interface-v2-migration","source":"components/capability.web-interface/files/docs/migrations/web-interface-v1-to-v2.md","optional":false,"home":false},
+    {"id":"service-interface","source":"components/capability.service/files/SERVICE_INTERFACE.md","optional":false,"home":false},
+    {"id":"service-interface-v2-migration","source":"components/capability.service/files/docs/migrations/service-interface-v1-to-v2.md","optional":false,"home":false},
+    {"id":"webapp-overview","source":"components/artifact.webapp-core/files/README.md","optional":false,"home":false},
+    {"id":"webapp-template","source":"components/artifact.webapp-core/files/TEMPLATE.md","optional":false,"home":false},
+    {"id":"webapp-documentation-index","source":"components/artifact.webapp-core/files/docs/index.md","optional":false,"home":false},
+    {"id":"webapp-contracts","source":"components/artifact.webapp-core/files/docs/architecture/webapp-contracts.md","optional":false,"home":false},
+    {"id":"webapp-responsibility-boundaries","source":"components/artifact.webapp-core/files/docs/architecture/responsibility-boundaries.md","optional":false,"home":false},
+    {"id":"webapp-validation-toolchain","source":"components/artifact.webapp-core/files/docs/architecture/validation-toolchain.md","optional":false,"home":false},
+    {"id":"web-routes-v1-migration","source":"components/foundation.web/files/docs/migrations/routes-v1-to-v2.md","optional":false,"home":false},
+    {"id":"web-routes-v2-migration","source":"components/foundation.web/files/docs/migrations/routes-v2-to-v3.md","optional":false,"home":false},
+    {"id":"web-routes-v3-migration","source":"components/foundation.web/files/docs/migrations/routes-v3-to-v4.md","optional":false,"home":false},
+    {"id":"surfaces-v2-migration","source":"components/artifact.webapp-core/files/docs/migrations/surfaces-v1-to-v2.md","optional":false,"home":false},
+    {"id":"ui-states-migration","source":"components/artifact.webapp-core/files/docs/migrations/ui-states-v1-to-v2.md","optional":false,"home":false},
+    {"id":"composition-state","source":"components/lifecycle.composition-state/files/docs/architecture/composition-state.md","optional":false,"home":false},
+    {"id":"contract-evolution","source":"components/lifecycle.contract-evolution/files/docs/architecture/contract-evolution.md","optional":false,"home":false},
+    {"id":"implementation-evidence","source":"components/lifecycle.implementation-evidence/files/docs/architecture/implementation-evidence.md","optional":false,"home":false},
+    {"id":"implementation-evidence-v2-migration","source":"components/lifecycle.implementation-evidence/files/docs/migrations/implementation-evidence-v1-to-v2.md","optional":false,"home":false},
+    {"id":"implementation-evidence-v3-migration","source":"components/lifecycle.implementation-evidence/files/docs/migrations/implementation-evidence-v2-to-v3.md","optional":false,"home":false},
+    {"id":"implementation-evidence-v4-migration","source":"components/lifecycle.implementation-evidence/files/docs/migrations/implementation-evidence-v3-to-v4.md","optional":false,"home":false},
+    {"id":"implementation-evidence-v5-migration","source":"components/lifecycle.implementation-evidence/files/docs/migrations/implementation-evidence-v4-to-v5.md","optional":false,"home":false},
+    {"id":"implementation-evidence-v6-migration","source":"components/lifecycle.implementation-evidence/files/docs/migrations/implementation-evidence-v5-to-v6.md","optional":false,"home":false},
+    {"id":"lifecycle-checkpoints","source":"components/lifecycle.lifecycle-checkpoints/files/docs/architecture/lifecycle-checkpoints.md","optional":false,"home":false},
+    {"id":"release-execution","source":"components/lifecycle.release-execution/files/docs/architecture/release-execution.md","optional":false,"home":false},
+    {"id":"release-execution-v2-migration","source":"components/lifecycle.release-execution/files/docs/migrations/release-execution-v1-to-v2.md","optional":false,"home":false},
+    {"id":"release-evidence","source":"components/lifecycle.release-evidence/files/docs/architecture/release-evidence.md","optional":false,"home":false},
+    {"id":"release-bundle","source":"components/lifecycle.release-bundle/files/docs/architecture/release-bundle.md","optional":false,"home":false},
+    {"id":"composition-authority-migration","source":"docs/migrations/composition-authority-migration.md","optional":false,"home":false},
+    {"id":"web-routes-v4-migration","source":"components/foundation.web/files/docs/migrations/routes-v4-to-v5.md","optional":false,"home":false}
   ],
   "assets": [
-    {
-      "source": "catalog/catalog.json",
-      "destination": "catalog/catalog.json",
-      "optional": false
-    },
-    {
-      "source": "recipes",
-      "destination": "recipes",
-      "optional": false
-    },
-    {
-      "source": "release/composition-installer.json",
-      "destination": "release/composition-installer.json",
-      "optional": false
-    },
-    {
-      "source": "generated/composition-playground-v1.json.gz",
-      "destination": "playground/composition-playground-v1.json.gz",
-      "optional": false
-    },
-    {
-      "source": "schemas/catalog.schema.json",
-      "destination": "schemas/catalog.schema.json",
-      "optional": false
-    },
-    {
-      "source": "schemas/component.schema.json",
-      "destination": "schemas/component.schema.json",
-      "optional": false
-    },
-    {
-      "source": "schemas/composition-config.schema.json",
-      "destination": "schemas/composition-config.schema.json",
-      "optional": false
-    },
-    {
-      "source": "schemas/composition-playground-projection.schema.json",
-      "destination": "schemas/composition-playground-projection.schema.json",
-      "optional": false
-    },
-    {
-      "source": "schemas/composition-lock.schema.json",
-      "destination": "schemas/composition-lock.schema.json",
-      "optional": false
-    },
-    {
-      "source": "schemas/composition-skill-installer-release.schema.json",
-      "destination": "schemas/composition-skill-installer-release.schema.json",
-      "optional": false
-    },
-    {
-      "source": "schemas/composition-transaction.schema.json",
-      "destination": "schemas/composition-transaction.schema.json",
-      "optional": false
-    },
-    {
-      "source": "schemas/recipe.schema.json",
-      "destination": "schemas/recipe.schema.json",
-      "optional": false
-    },
-    {
-      "source": "components/artifact.skill-core/component.json",
-      "destination": "components/artifact.skill-core/component.json",
-      "optional": false
-    },
-    {
-      "source": "components/artifact.webapp-core/component.json",
-      "destination": "components/artifact.webapp-core/component.json",
-      "optional": false
-    },
-    {
-      "source": "components/artifact.website-core/component.json",
-      "destination": "components/artifact.website-core/component.json",
-      "optional": false
-    },
-    {
-      "source": "components/capability.cli/component.json",
-      "destination": "components/capability.cli/component.json",
-      "optional": false
-    },
-    {
-      "source": "components/capability.mcp/component.json",
-      "destination": "components/capability.mcp/component.json",
-      "optional": false
-    },
-    {
-      "source": "components/capability.mcp-apps/component.json",
-      "destination": "components/capability.mcp-apps/component.json",
-      "optional": false
-    },
-    {
-      "source": "components/capability.pwa/component.json",
-      "destination": "components/capability.pwa/component.json",
-      "optional": false
-    },
-    {
-      "source": "components/capability.runtime/component.json",
-      "destination": "components/capability.runtime/component.json",
-      "optional": false
-    },
-    {
-      "source": "components/capability.service/component.json",
-      "destination": "components/capability.service/component.json",
-      "optional": false
-    },
-    {
-      "source": "components/capability.web-interface/component.json",
-      "destination": "components/capability.web-interface/component.json",
-      "optional": false
-    },
-    {
-      "source": "components/lifecycle.composition-state/component.json",
-      "destination": "components/lifecycle.composition-state/component.json",
-      "optional": false
-    },
-    {
-      "source": "components/lifecycle.contract-evolution/component.json",
-      "destination": "components/lifecycle.contract-evolution/component.json",
-      "optional": false
-    },
-    {
-      "source": "components/lifecycle.implementation-evidence/component.json",
-      "destination": "components/lifecycle.implementation-evidence/component.json",
-      "optional": false
-    },
-    {
-      "source": "components/lifecycle.lifecycle-checkpoints/component.json",
-      "destination": "components/lifecycle.lifecycle-checkpoints/component.json",
-      "optional": false
-    },
-    {
-      "source": "components/lifecycle.release-bundle/component.json",
-      "destination": "components/lifecycle.release-bundle/component.json",
-      "optional": false
-    },
-    {
-      "source": "components/lifecycle.release-evidence/component.json",
-      "destination": "components/lifecycle.release-evidence/component.json",
-      "optional": false
-    },
-    {
-      "source": "components/lifecycle.release-execution/component.json",
-      "destination": "components/lifecycle.release-execution/component.json",
-      "optional": false
-    },
-    {
-      "source": "components/artifact.webapp-core/files/contracts",
-      "destination": "webapp/contracts",
-      "optional": false
-    },
-    {
-      "source": "components/artifact.webapp-core/files/schemas",
-      "destination": "webapp/schemas",
-      "optional": false
-    },
-    {
-      "source": "components/artifact.website-core/files/contracts",
-      "destination": "website/contracts",
-      "optional": false
-    },
-    {
-      "source": "components/artifact.website-core/files/schemas",
-      "destination": "website/schemas",
-      "optional": false
-    },
-    {
-      "source": "examples/onboarding/project-docs/implementation-evidence.product.json",
-      "destination": "lifecycle/implementation-evidence/project-docs/implementation-evidence.product.json",
-      "optional": false
-    },
-    {
-      "source": "components/lifecycle.contract-evolution/files/schemas",
-      "destination": "lifecycle/contract-evolution/schemas",
-      "optional": false
-    },
-    {
-      "source": "components/lifecycle.implementation-evidence/files/contracts",
-      "destination": "lifecycle/implementation-evidence/contracts",
-      "optional": false
-    },
-    {
-      "source": "components/lifecycle.implementation-evidence/files/schemas",
-      "destination": "lifecycle/implementation-evidence/schemas",
-      "optional": false
-    },
-    {
-      "source": "components/lifecycle.lifecycle-checkpoints/files/contracts",
-      "destination": "lifecycle/lifecycle-checkpoints/contracts",
-      "optional": false
-    },
-    {
-      "source": "components/lifecycle.lifecycle-checkpoints/files/schemas",
-      "destination": "lifecycle/lifecycle-checkpoints/schemas",
-      "optional": false
-    },
-    {
-      "source": "components/lifecycle.release-execution/files/contracts",
-      "destination": "lifecycle/release-execution/contracts",
-      "optional": false
-    },
-    {
-      "source": "components/lifecycle.release-execution/files/schemas",
-      "destination": "lifecycle/release-execution/schemas",
-      "optional": false
-    },
-    {
-      "source": "components/lifecycle.release-evidence/files/contracts",
-      "destination": "lifecycle/release-evidence/contracts",
-      "optional": false
-    },
-    {
-      "source": "components/lifecycle.release-evidence/files/schemas",
-      "destination": "lifecycle/release-evidence/schemas",
-      "optional": false
-    },
-    {
-      "source": "components/lifecycle.release-bundle/files/contracts",
-      "destination": "lifecycle/release-bundle/contracts",
-      "optional": false
-    },
-    {
-      "source": "components/lifecycle.release-bundle/files/schemas",
-      "destination": "lifecycle/release-bundle/schemas",
-      "optional": false
-    },
-    {
-      "source": "components/lifecycle.composition-state/files/.template-composition/composition-lock.schema.json",
-      "destination": "lifecycle/composition-state/composition-lock.schema.json",
-      "optional": false
-    },
-    {
-      "source": "examples/evaluations/small-model-clean-room-protocol.txt",
-      "destination": "evaluation/small-model-clean-room-protocol.txt",
-      "optional": false
-    },
-    {
-      "source": "examples/evaluations/evaluation-scorecard.txt",
-      "destination": "evaluation/evaluation-scorecard.txt",
-      "optional": false
-    },
-    {
-      "source": "examples/evaluations/evaluation-scorecard.schema.json",
-      "destination": "evaluation/evaluation-scorecard.schema.json",
-      "optional": false
-    },
-    {
-      "source": "components/foundation.web/component.json",
-      "destination": "components/foundation.web/component.json",
-      "optional": false
-    },
-    {
-      "source": "components/foundation.web/files/contracts",
-      "destination": "web/contracts",
-      "optional": false
-    },
-    {
-      "source": "components/foundation.web/files/schemas",
-      "destination": "web/schemas",
-      "optional": false
-    }
+    {"source":"catalog/catalog.json","destination":"catalog/catalog.json","optional":false},
+    {"source":"recipes","destination":"recipes","optional":false},
+    {"source":"release/composition-installer.json","destination":"release/composition-installer.json","optional":false},
+    {"source":"generated/composition-playground-v1.json","destination":"playground/composition-playground-v1.json","optional":false},
+    {"source":"generated/composition-playground-intent-v1.json","destination":"playground/composition-playground-intent-v1.json","optional":false},
+    {"source":"schemas/catalog.schema.json","destination":"schemas/catalog.schema.json","optional":false},
+    {"source":"schemas/component.schema.json","destination":"schemas/component.schema.json","optional":false},
+    {"source":"schemas/composition-config.schema.json","destination":"schemas/composition-config.schema.json","optional":false},
+    {"source":"schemas/composition-playground-projection.schema.json","destination":"schemas/composition-playground-projection.schema.json","optional":false},
+    {"source":"schemas/composition-playground-intent.schema.json","destination":"schemas/composition-playground-intent.schema.json","optional":false},
+    {"source":"schemas/composition-lock.schema.json","destination":"schemas/composition-lock.schema.json","optional":false},
+    {"source":"schemas/composition-skill-installer-release.schema.json","destination":"schemas/composition-skill-installer-release.schema.json","optional":false},
+    {"source":"schemas/composition-transaction.schema.json","destination":"schemas/composition-transaction.schema.json","optional":false},
+    {"source":"schemas/recipe.schema.json","destination":"schemas/recipe.schema.json","optional":false},
+    {"source":"components/artifact.skill-core/component.json","destination":"components/artifact.skill-core/component.json","optional":false},
+    {"source":"components/artifact.webapp-core/component.json","destination":"components/artifact.webapp-core/component.json","optional":false},
+    {"source":"components/artifact.website-core/component.json","destination":"components/artifact.website-core/component.json","optional":false},
+    {"source":"components/capability.cli/component.json","destination":"components/capability.cli/component.json","optional":false},
+    {"source":"components/capability.mcp/component.json","destination":"components/capability.mcp/component.json","optional":false},
+    {"source":"components/capability.mcp-apps/component.json","destination":"components/capability.mcp-apps/component.json","optional":false},
+    {"source":"components/capability.pwa/component.json","destination":"components/capability.pwa/component.json","optional":false},
+    {"source":"components/capability.webmcp/component.json","destination":"components/capability.webmcp/component.json","optional":false},
+    {"source":"components/capability.runtime/component.json","destination":"components/capability.runtime/component.json","optional":false},
+    {"source":"components/capability.service/component.json","destination":"components/capability.service/component.json","optional":false},
+    {"source":"components/capability.web-interface/component.json","destination":"components/capability.web-interface/component.json","optional":false},
+    {"source":"components/lifecycle.composition-state/component.json","destination":"components/lifecycle.composition-state/component.json","optional":false},
+    {"source":"components/lifecycle.contract-evolution/component.json","destination":"components/lifecycle.contract-evolution/component.json","optional":false},
+    {"source":"components/lifecycle.implementation-evidence/component.json","destination":"components/lifecycle.implementation-evidence/component.json","optional":false},
+    {"source":"components/lifecycle.lifecycle-checkpoints/component.json","destination":"components/lifecycle.lifecycle-checkpoints/component.json","optional":false},
+    {"source":"components/lifecycle.release-bundle/component.json","destination":"components/lifecycle.release-bundle/component.json","optional":false},
+    {"source":"components/lifecycle.release-evidence/component.json","destination":"components/lifecycle.release-evidence/component.json","optional":false},
+    {"source":"components/lifecycle.release-execution/component.json","destination":"components/lifecycle.release-execution/component.json","optional":false},
+    {"source":"components/capability.webmcp/files/contracts","destination":"capabilities/webmcp/contracts","optional":false},
+    {"source":"components/capability.webmcp/files/schemas","destination":"capabilities/webmcp/schemas","optional":false},
+    {"source":"components/artifact.webapp-core/files/contracts","destination":"webapp/contracts","optional":false},
+    {"source":"components/artifact.webapp-core/files/schemas","destination":"webapp/schemas","optional":false},
+    {"source":"components/artifact.website-core/files/contracts","destination":"website/contracts","optional":false},
+    {"source":"components/artifact.website-core/files/schemas","destination":"website/schemas","optional":false},
+    {"source":"examples/onboarding/project-docs/implementation-evidence.product.json","destination":"lifecycle/implementation-evidence/project-docs/implementation-evidence.product.json","optional":false},
+    {"source":"components/lifecycle.contract-evolution/files/schemas","destination":"lifecycle/contract-evolution/schemas","optional":false},
+    {"source":"components/lifecycle.implementation-evidence/files/contracts","destination":"lifecycle/implementation-evidence/contracts","optional":false},
+    {"source":"components/lifecycle.implementation-evidence/files/schemas","destination":"lifecycle/implementation-evidence/schemas","optional":false},
+    {"source":"components/lifecycle.lifecycle-checkpoints/files/contracts","destination":"lifecycle/lifecycle-checkpoints/contracts","optional":false},
+    {"source":"components/lifecycle.lifecycle-checkpoints/files/schemas","destination":"lifecycle/lifecycle-checkpoints/schemas","optional":false},
+    {"source":"components/lifecycle.release-execution/files/contracts","destination":"lifecycle/release-execution/contracts","optional":false},
+    {"source":"components/lifecycle.release-execution/files/schemas","destination":"lifecycle/release-execution/schemas","optional":false},
+    {"source":"components/lifecycle.release-evidence/files/contracts","destination":"lifecycle/release-evidence/contracts","optional":false},
+    {"source":"components/lifecycle.release-evidence/files/schemas","destination":"lifecycle/release-evidence/schemas","optional":false},
+    {"source":"components/lifecycle.release-bundle/files/contracts","destination":"lifecycle/release-bundle/contracts","optional":false},
+    {"source":"components/lifecycle.release-bundle/files/schemas","destination":"lifecycle/release-bundle/schemas","optional":false},
+    {"source":"components/lifecycle.composition-state/files/.template-composition/composition-lock.schema.json","destination":"lifecycle/composition-state/composition-lock.schema.json","optional":false},
+    {"source":"examples/evaluations/small-model-clean-room-protocol.txt","destination":"evaluation/small-model-clean-room-protocol.txt","optional":false},
+    {"source":"examples/evaluations/evaluation-scorecard.txt","destination":"evaluation/evaluation-scorecard.txt","optional":false},
+    {"source":"examples/evaluations/evaluation-scorecard.schema.json","destination":"evaluation/evaluation-scorecard.schema.json","optional":false},
+    {"source":"components/foundation.web/component.json","destination":"components/foundation.web/component.json","optional":false},
+    {"source":"components/foundation.web/files/contracts","destination":"web/contracts","optional":false},
+    {"source":"components/foundation.web/files/schemas","destination":"web/schemas","optional":false}
   ],
-  "glossary": {
-    "source": "docs/glossary.yml"
-  }
+  "glossary": {"source":"docs/glossary.yml"}
 }
