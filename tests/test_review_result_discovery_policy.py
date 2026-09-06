@@ -6,7 +6,12 @@ ROOT = Path(__file__).resolve().parents[1]
 RULE = ROOT / "policy" / "pull-request" / "review-result-discovery.md"
 PROFILE = ROOT / "profiles" / "pull-request.yml"
 CLOSURE = ROOT / "policy" / "pull-request" / "review-thread-closure.md"
-REACQUISITION = ROOT / "policy" / "pull-request" / "review-reacquisition-after-disposition.md"
+REACQUISITION = (
+    ROOT
+    / "policy"
+    / "pull-request"
+    / "review-reacquisition-after-disposition.md"
+)
 
 
 def _text(path: Path) -> str:
@@ -22,7 +27,10 @@ def test_review_result_discovery_requires_cross_surface_observation() -> None:
         "inline review comments and resolvable review threads",
         "reconstruct the logical result",
         "absence of findings on any single provider surface",
-        "material actionable finding discovered on any applicable review-result surface",
+        (
+            "material actionable finding discovered on any applicable "
+            "review-result surface"
+        ),
     ):
         assert phrase in text
 
@@ -31,7 +39,10 @@ def test_reactions_are_not_implicitly_completion_evidence() -> None:
     text = _text(RULE)
     for phrase in (
         "reactions and similar provider signals",
-        "only when the applicable workflow, review procedure, or provider contract establishes their meaning",
+        (
+            "only when the applicable workflow, review procedure, or provider "
+            "contract establishes their meaning"
+        ),
         "uninterpreted provider state",
         "do not interpret an acknowledgement or attention signal as review completion",
     ):
