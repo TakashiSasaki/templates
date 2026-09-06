@@ -1,14 +1,92 @@
-# Lifecycle contracts
+# Lifecycle contract と repository ledger
 
 > **参考訳（非正本）:** このページは英語正本の参考訳です。内容に差異がある場合は英語正本が優先されます。
 
-これは、再利用可能な lifecycle contract のための Site 所有の読者向けインデックスです。canonical な lifecycle の意味論とソース文書は `composition` provider が所有します。このページは、安定した `/lifecycle/` の読者向け入口を提供し、公開先をグループ化するだけです。
+この Site 所有の読者向けページでは、リポジトリ内の複数の ledger / lifecycle-history の仕組みがどのように関係するかを説明します。これは新しい semantic authority ではありません。product lifecycle の canonical semantics は引き続き `composition` provider が所有し、repository-change と review の手続きは Policy が所有します。
+
+## なぜ複数の ledger があるのか
+
+Git history、pull request、CI run、review thread は重要な provider fact を保存しますが、product contract や validated lifecycle history とは異なる問いに答えます。そのため、このリポジトリでは永続的な記録を一種類の generic ledger とみなさず、役割の異なる複数の logical record を使います。
+
+| Record | 答える問い | Authority | 通常の durable storage | Git tracked? |
+| --- | --- | --- | --- | --- |
+| Requirement / evidence ledger | 現在の product requirement は何か、どの contract target が対応し、どの proof が必要または記録済みか | Composition lifecycle contracts | `contracts/implementation-evidence.json` | Yes |
+| Lifecycle checkpoint ledger | どの validated planning/product state が product の semantic transition history を構成するか | Composition lifecycle contracts | `contracts/lifecycle-checkpoints.json` と content-addressed `artifacts/lifecycle/...` snapshot | Yes |
+| Review-finding ledger | どの material review finding が適用中で、その disposition と closure evidence は何か | Policy review procedure | Review/PR surface または execution state | 必須ではない |
+| Repository-change Work ledger | repository change の現在の resumable state、binding 済み evidence、次の safe action は何か | staged Policy repository-change candidate | Provider-side PR/issue checkpoint と execution-local state | 原則 No |
+
+これらは相互に関係しますが、どれか一つが他を暗黙に置き換えることはありません。
+
+**Publication status:** Requirement/Evidence と lifecycle の説明は現在選択されている Composition contract を反映し、review-finding model はすでに公開済みの Policy procedure です。Work-ledger の行は review 済みだが未マージの Policy candidate `#754 -> #755` を説明しています。この Site が現在公開している Policy revision は `c5a3294809a1066bf59b83f467f1d597f885289a` であり、この candidate は含まれません。したがって Work ledger はここでは staged architecture であり、現在公開済みの Policy authority ではありません。
+
+## Requirement と evidence: 現在の product state
+
+[Implementation evidence](/lifecycle/implementation-evidence/) contract は、選択された Composition lifecycle における canonical requirement/evidence ledger です。stable requirement ID を contract target に結び付け、product mode ではさらに implementation boundary、positive/negative proof、authoritative command、execution capability、release gate に接続します。
+
+Planning mode は implementation evidence が存在する前に target-bound requirement を記録します。Product mode は stable requirement identity を維持したまま implementation/evidence graph を有効化します。したがって、この ledger が答えるのは「現在の product state では何が要求され、どの evidence がそれを支えるか」です。これらの claim 自体が consumer/product contract の一部なので、repository で追跡されます。
+
+## Lifecycle checkpoint: validated transition history
+
+[Lifecycle checkpoints](/lifecycle/checkpoints/) contract は requirement/evidence ledger を置き換えずに historical transition evidence を保存します。planning checkpoint は product implementation が満たすべき exact validated contract baseline を固定し、product checkpoint がその transition を閉じます。後続の specification change は直前の product state を parent とする新しい planning checkpoint を作ります。
+
+Checkpoint chronology は sequence、parent edge、phase alternation、content hash で表されます。snapshot manifest は historical contract、schema、validation result、利用可能な Composition validation authority を binding します。これは current evidence とは別の「この product state はどの validated semantic state から来たか」という問いに答えます。
+
+## Review finding: review-process state
+
+Policy の review-finding ledger は、既知の material actionable review finding を、current-head disposition が検証され必要な closure evidence が記録されるまで追跡します。これは logical tracking model であり、mandatory repository JSON/YAML artifact ではありません。active procedure に応じて inline review thread、durable PR/review comment、PR body section、execution state などに表現できます。
+
+Finding の詳細はこの ledger に残します。repository-change orchestration はそれを参照し、disposition、repair reasoning、qualification、closure evidence を別の authority として複製しません。
+
+## Work ledger: resumable repository-change state
+
+Repository-change Work ledger はさらに別の目的を持ち、進行中 change の operational projection です。logical state には objective/scope、authority snapshot、PR/branch topology、mutation unit、stability/qualification state、evidence binding、blocker、asynchronous dependency、review-finding-ledger reference、next safe action、stop/handoff boundary などを含められます。
+
+Work ledger は repository-associated ですが、通常は Git-tracked progress file にすべきではありません。progress の記録だけを目的とした commit は candidate SHA を動かし、その evidence を記録するためだけに exact-head CI/review evidence を stale にする可能性があります。provider-side PR/issue checkpoint なら source candidate を変えずに operational state を durable にできます。GitHub の commit、branch、PR、CI、review、merge object は canonical provider fact のままであり、Work ledger はそれらを上書きせず observation と binding を記録します。
+
+Work ledger は agent transcript でもありません。すべての fetch、command、poll を記録するのではなく、material state transition を checkpoint し、具体的な next safe action を保持します。
+
+## Authority と storage の境界
+
+product state と worker state を分けると整理できます。
+
+- requirement/evidence と lifecycle checkpoint は product semantic state または semantic history なので、repository-tracked Composition contract / artifact に属します。
+- review-finding と Work ledger は operational process state なので、durable representation は通常 provider-side work surface に置き、新しい product contract を作りません。
+- CI result、review、commit、pull request はそれぞれ provider authority を保持します。`success` のような ledger entry は、その exact binding と locator が引き続き適用可能でなければ evidence ではありません。
+
+したがって head/base movement では、実際に binding が変化した observation だけを無効化します。古い exact-head qualification が stale になったという理由だけで semantic implementation progress 全体を捨てる必要はありません。
+
+## 各 record の関係
+
+```text
+repository change
+    |
+    +-- Work ledger ---------------------- resumable orchestration state
+    |       |
+    |       +-- references review-finding ledger
+    |                     |
+    |                     +-- finding -> disposition -> closure evidence
+    |
+    +-- changes product contracts
+            |
+            +-- requirement/evidence ledger --- current semantic state
+            |
+            +-- lifecycle checkpoints --------- validated transition history
+```
+
+この分離により、operational progress を product authority に変えることなく repository work を resumable にしつつ、product requirement と historical lifecycle evidence を repository 内で再現可能に保てます。
+
+## 公開されている lifecycle destination
+
+以下の canonical lifecycle semantics と source document は `composition` provider が所有します。この Site page は安定した `/lifecycle/` reader entry point を提供し、公開 destination をまとめます。
 
 - [Composition state](/lifecycle/composition-state/)
 - [Contract evolution](/lifecycle/contract-evolution/)
 - [Implementation evidence](/lifecycle/implementation-evidence/)
+- [Lifecycle checkpoints](/lifecycle/checkpoints/)
 - [Release execution](/lifecycle/release-execution/)
 - [Release evidence](/lifecycle/release-evidence/)
 - [Release bundle](/lifecycle/release-bundle/)
 
-これらの読者向け path が別個の provider を作るわけではありません。build artifact 内での provenance は、`build-provenance.json` に記録された正確な Composition revision に解決されます。
+repository 全体の ownership model と Policy / Composition の分離については [Policy–Composition coexistence](/coexistence/) を参照してください。
+
+これらの reader path が別個の provider を作るわけではありません。build artifact 内の provenance は `build-provenance.json` に記録された exact provider revision に解決されます。
