@@ -2,7 +2,7 @@
   "schema_version": 1,
   "id": "lifecycle.contract-evolution",
   "component_role": "lifecycle",
-  "version": 2,
+  "version": 3,
   "summary": "Generic closed contract registry, schema binding, version history, and migration validation.",
   "requires": [],
   "conflicts": [],

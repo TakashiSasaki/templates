@@ -40,7 +40,7 @@ class PwaContractTests(unittest.TestCase):
     def web_routes(self) -> dict:
         return {
             "$schema": "../schemas/routes.schema.json",
-            "schemaVersion": 4,
+            "schemaVersion": 5,
             "routes": [self.shared_route("home", "/")],
         }
 

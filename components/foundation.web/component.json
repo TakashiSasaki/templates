@@ -2,7 +2,7 @@
   "schema_version": 1,
   "id": "foundation.web",
   "component_role": "foundation",
-  "version": 2,
+  "version": 3,
   "summary": "Mandatory shared Web baseline: browser identity, generalized routes, viewports, and product-neutral browser navigation semantics.",
   "requires": [],
   "conflicts": [],
@@ -26,7 +26,7 @@
       "document": "contracts/routes.json",
       "schema": "schemas/routes.schema.json",
       "migration_slug": "routes",
-      "document_schema_version": 4,
+      "document_schema_version": 5,
       "version_history": [
         {
           "version": 1,
@@ -46,6 +46,11 @@
           "version": 4,
           "change_type": "breaking",
           "migration": "docs/migrations/routes-v3-to-v4.md"
+        },
+        {
+          "version": 5,
+          "change_type": "additive",
+          "migration": "docs/migrations/routes-v4-to-v5.md"
         }
       ],
       "purpose": "Declare canonical Web paths, aliases, deep-link expectations, and generic browser navigation/accessibility semantics without application state or authorization behavior."
@@ -114,6 +119,11 @@
     {
       "source": "files/docs/url-path-design-guidance.md",
       "destination": "docs/url-path-design-guidance.md",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/docs/migrations/routes-v4-to-v5.md",
+      "destination": "docs/migrations/routes-v4-to-v5.md",
       "ownership": "managed"
     }
   ]

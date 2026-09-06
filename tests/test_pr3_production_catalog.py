@@ -156,6 +156,8 @@ class PR3ProductionCatalogTests(unittest.TestCase):
             lock_path.write_text(
                 json.dumps(
                     {
+                        "files": [{"destination": path.relative_to(target).as_posix()}
+                                  for path in sorted(target.rglob("*")) if path.is_file()],
                         "resolved_components": [
                             {"id": component_id}
                             for component_id in sorted(selected)
@@ -427,11 +429,11 @@ class PR3ProductionCatalogTests(unittest.TestCase):
             },
         )
         self.assertEqual(entries["application_routes"]["documentSchemaVersion"], 1)
-        self.assertEqual(entries["routes"]["documentSchemaVersion"], 4)
+        self.assertEqual(entries["routes"]["documentSchemaVersion"], 5)
         self.assertEqual(entries["ui_states"]["documentSchemaVersion"], 2)
         self.assertEqual(
             [entry["version"] for entry in entries["routes"]["versionHistory"]],
-            [1, 2, 3, 4],
+            [1, 2, 3, 4, 5],
         )
         self.assertEqual(
             [entry["version"] for entry in entries["ui_states"]["versionHistory"]],

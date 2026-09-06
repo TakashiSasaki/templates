@@ -99,7 +99,7 @@ class RoutesV3AccessFailureTests(unittest.TestCase):
             target / "contracts/routes.json",
             {
                 "$schema": "../schemas/routes.schema.json",
-                "schemaVersion": 4,
+                "schemaVersion": 5,
                 "routes": shared_routes,
             },
         )
@@ -366,7 +366,7 @@ class RoutesV3AccessFailureTests(unittest.TestCase):
 
     def test_explicit_access_fixture_binds_render_state_targets(self) -> None:
         routes = self.load_routes_with_behavior(self.target)
-        self.assertEqual(routes["schemaVersion"], 4)
+        self.assertEqual(routes["schemaVersion"], 5)
         application = self.route(routes, "application-home")
         self.assertEqual(
             application["accessFailures"],
@@ -585,7 +585,7 @@ class RoutesV3AccessFailureTests(unittest.TestCase):
             for item in component["contract_registrations"]
             if item["id"] == "routes"
         )
-        self.assertEqual(registration["document_schema_version"], 4)
+        self.assertEqual(registration["document_schema_version"], 5)
         self.assertEqual(
             registration["version_history"],
             [
@@ -605,6 +605,7 @@ class RoutesV3AccessFailureTests(unittest.TestCase):
                     "change_type": "breaking",
                     "migration": "docs/migrations/routes-v3-to-v4.md",
                 },
+                {"version": 5, "change_type": "additive", "migration": "docs/migrations/routes-v4-to-v5.md"},
             ],
         )
         material_pairs = {
@@ -633,7 +634,7 @@ class RoutesV3AccessFailureTests(unittest.TestCase):
 
     def test_composer_materializes_routes_v3_and_v3_validator(self) -> None:
         routes = self.load_routes_with_behavior(self.target)
-        self.assertEqual(routes["schemaVersion"], 4)
+        self.assertEqual(routes["schemaVersion"], 5)
         validator_source = (
             self.target / "scripts/validate_contracts_impl.py"
         ).read_text(encoding="utf-8")

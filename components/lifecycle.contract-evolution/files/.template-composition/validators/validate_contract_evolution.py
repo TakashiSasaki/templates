@@ -65,9 +65,23 @@ def validate(root: Path) -> list[str]:
     expected_schemas = {MANIFEST_SCHEMA, *schemas}
     actual_docs = {path.relative_to(root).as_posix() for path in (root / "contracts").glob("*.json") if path.is_file() or path.is_symlink()} if (root / "contracts").is_dir() else set()
     actual_schemas = {path.relative_to(root).as_posix() for path in (root / "schemas").glob("*.schema.json") if path.is_file() or path.is_symlink()} if (root / "schemas").is_dir() else set()
-    for extra in sorted(actual_docs - expected_docs): errors.append(f"unregistered contract document: {extra}")
+    # Directory membership is not an ownership transfer. A real consumer may
+    # already have unrelated schemas, contracts, and migration documents here.
+    # Full Composition validation verifies lock structure and digests first;
+    # this validator checks registry closure within that provider inventory.
+    lock_path = root / ".template-composition/lock.json"
+    owned = actual_docs | actual_schemas
+    if lock_path.exists() or lock_path.is_symlink():
+        try:
+            if lock_path.is_symlink():
+                raise ValueError("Composition lock must be a regular file")
+            lock = load_json(lock_path)
+            owned = {item["destination"] for item in lock["files"]}
+        except (OSError, ValueError, TypeError, KeyError) as exc:
+            return errors + [f"cannot establish Composition ownership inventory: {exc}"]
+    for extra in sorted((actual_docs & owned) - expected_docs): errors.append(f"unregistered contract document: {extra}")
     for missing in sorted(expected_docs - actual_docs): errors.append(f"missing contract document: {missing}")
-    for extra in sorted(actual_schemas - expected_schemas): errors.append(f"unregistered contract schema: {extra}")
+    for extra in sorted((actual_schemas & owned) - expected_schemas): errors.append(f"unregistered contract schema: {extra}")
     for missing in sorted(expected_schemas - actual_schemas): errors.append(f"missing contract schema: {missing}")
 
     registered_migrations: set[str] = set()
@@ -102,7 +116,8 @@ def validate(root: Path) -> list[str]:
 
     migration_root = root / "docs/migrations"
     actual_migrations = {path.relative_to(root).as_posix() for path in migration_root.iterdir() if path.is_file() or path.is_symlink()} if migration_root.is_dir() else set()
-    for extra in sorted(actual_migrations - registered_migrations): errors.append(f"unregistered migration artifact: {extra}")
+    migration_inventory = actual_migrations & owned if lock_path.exists() else actual_migrations
+    for extra in sorted(migration_inventory - registered_migrations): errors.append(f"unregistered migration artifact: {extra}")
     for missing in sorted(registered_migrations - actual_migrations): errors.append(f"missing migration artifact: {missing}")
     for relative in sorted(registered_migrations & actual_migrations):
         candidate = root / relative

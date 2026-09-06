@@ -34,14 +34,13 @@ the shared routes contract.
 The current `routes` contract at schema version 4 accepts `/` or an absolute
 non-root path composed of slash-delimited ASCII letters, digits, `.`, `_`, `~`,
 and `-`, while excluding path segments that are exactly `.` or `..`. Non-root
-paths end in a segment rather than a trailing slash. Query syntax, fragment
+paths may end in a segment or a single trailing slash. Routes v5 preserves that choice as part of canonical identity; `/reports` and `/reports/` are distinct paths, not implicit aliases. Query syntax, fragment
 syntax, percent escapes, and literal non-ASCII characters are outside the current
 `path` representation.
 
 Those facts are conformance rules from the registered schema, not preferences
 created by this document. A product that needs a broader path representation,
-such as literal internationalized segments or a different canonical trailing-
-slash model, needs an explicit route-contract evolution rather than a guidance
+such as literal internationalized segments or repeated separators, needs an explicit route-contract evolution rather than a guidance
 exception.
 
 ## Design preferences
@@ -154,7 +153,7 @@ normative route validity.
 | `/Account_Settings.HTML` | Discouraged by case, separator, and implementation-detail guidance | Valid |
 | `relative/path` | Not evaluated as an alternative style because it is not an absolute route path | Invalid |
 | `/a/../b` | Avoid parent traversal in a public identifier | Invalid |
-| `/reports/` | Trailing-slash style is not a guidance exception to the current representation | Invalid |
+| `/reports/` | A directory-style canonical URL is representable in routes v5 | Valid |
 | `/café` | Internationalized literal path requires contract evolution under the current representation | Invalid |
 
 The second row is deliberate: a validator that rejects
