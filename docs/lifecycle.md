@@ -136,6 +136,76 @@ This separation keeps repository work resumable without turning operational
 progress into product authority, while keeping product requirements and
 historical lifecycle evidence reproducible inside the repository.
 
+## `templates` as a reference consumer
+
+The repository itself provides concrete examples of these roles rather than
+only documenting them for other consumers.
+
+### Requirement / evidence example
+
+In the current canonical Site base, `contracts/implementation-evidence.json`
+is in `product` mode. It declares executable Website/PWA commands and connects
+product requirements to implementation records, proof kinds, implementation
+boundaries, and release gates. That file is product state: changing the claims
+changes the consumer contract and therefore belongs in Git.
+
+### Lifecycle-history example
+
+The current canonical Site history contains four validated checkpoints:
+
+```text
+1  site-reference-adoption
+   phase: planning
+   changeKind: initial
+   parentId: null
+   snapshotPath: artifacts/lifecycle/001-site-reference-adoption
+   manifestSha256: 9ec8d87ea01cf6f178422ca39589882ac3aac86dbc6084d7cc71f5a03df667d4
+
+2  site-reference-adoption-product
+   phase: product
+   changeKind: initial
+   parentId: site-reference-adoption
+
+3  routes-v5-publication
+   phase: planning
+   changeKind: specification-change
+   parentId: site-reference-adoption-product
+
+4  routes-v5-publication-product
+   phase: product
+   changeKind: specification-change
+   parentId: routes-v5-publication
+   snapshotPath: artifacts/lifecycle/004-routes-v5-publication-product
+   manifestSha256: c3ba91ed78fc90f780213b443182b17c38316d77d92f0151fb3d00392e77d9f1
+```
+
+`site-reference-adoption` identifies the first validated planning baseline,
+not an individual requirement. The next checkpoint consumes that identity as
+its parent. The later `routes-v5-publication -> routes-v5-publication-product`
+pair shows a specification change continuing the same linear history after the
+initial product state. The root requirement/evidence ledger represents current
+product state while these snapshots preserve the validated states it passed
+through.
+
+### Review-finding and Work-ledger dogfooding
+
+The repository has also exercised the operational side of the model in real
+Policy work. Policy PR stack `#754 -> #755` formalized a repository-change Work
+ledger and then used a canonical provider-side checkpoint on the stack-tip PR
+to manage that same implementation. The checkpoint recorded the objective,
+P1/P2 topology and exact heads, current versus stale CI bindings, the linked
+finding ledger, blockers, next safe action, and the immediate-stop review
+boundary. Finding-level disposition and closure stayed on a separate finding
+surface instead of being copied into the Work ledger.
+
+The reviewed staged identities are P1 / #754 head
+`c2e23789ebabee4d1f35653e86ebe8f61ab6e8bf` and P2 / #755 head
+`e73757b93bb7a97c2e6a618d899f652933c9c795`. That stack reached green
+exact-head Policy CI and a clean Codex diagnostic review at the P2 head. The
+example demonstrates resumability and authority separation, but it does
+**not** make the Work ledger part of the currently published Policy authority
+by itself.
+
 ## Published lifecycle destinations
 
 The canonical lifecycle semantics and source documents below are owned by the
