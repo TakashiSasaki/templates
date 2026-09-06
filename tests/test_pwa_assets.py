@@ -30,8 +30,8 @@ class PwaAssetTests(unittest.TestCase):
             matching = [icon for icon in icons if icon.get("sizes") == size]
             self.assertEqual(len(matching), 1)
             icon = matching[0]
-            self.assertEqual(icon["src"], "/icon.svg")
-            self.assertEqual(icon["type"], "image/svg+xml")
+            self.assertEqual(icon["src"], f"/icon-{size.split('x')[0]}.png")
+            self.assertEqual(icon["type"], "image/png")
             self.assertEqual(set(icon["purpose"].split()), {"any", "maskable"})
 
     def test_service_worker_precache_paths_exist_in_source_assets(self) -> None:

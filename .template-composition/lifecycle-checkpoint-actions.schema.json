@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Lifecycle checkpoint action registry",
+  "description": "Machine argv is complete and exact. Consumers replace whole-token caller_inputs only and must not add, remove, reorder, or inject interpreter options. Execute from the materialized repository root. Provider-owned bindings are resolved before projection.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schemaVersion", "actions"],
+  "properties": {
+    "$schema": {"const": "./lifecycle-checkpoint-actions.schema.json"},
+    "schemaVersion": {"const": 1},
+    "actions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["create-planning-checkpoint", "create-product-checkpoint"],
+      "properties": {
+        "create-planning-checkpoint": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["argv", "caller_inputs", "bindings"],
+          "properties": {
+            "argv": {
+              "const": [
+                "{python}",
+                ".template-composition/run_action.py",
+                "create-planning-checkpoint",
+                "{checkpoint_id}"
+              ]
+            },
+            "caller_inputs": {"const": ["{python}", "{checkpoint_id}"]},
+            "bindings": {"const": {}}
+          }
+        },
+        "create-product-checkpoint": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["argv", "caller_inputs", "bindings"],
+          "properties": {
+            "argv": {
+              "const": [
+                "{python}",
+                ".template-composition/run_action.py",
+                "create-product-checkpoint",
+                "{checkpoint_id}",
+                "{latest_checkpoint_id}"
+              ]
+            },
+            "caller_inputs": {"const": ["{python}", "{checkpoint_id}"]},
+            "bindings": {
+              "const": {"{latest_checkpoint_id}": "latest-checkpoint-id"}
+            }
+          }
+        }
+      }
+    }
+  }
+}

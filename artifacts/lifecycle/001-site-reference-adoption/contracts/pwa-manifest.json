@@ -1,0 +1,73 @@
+{
+  "$schema": "../schemas/pwa-manifest.schema.json",
+  "schemaVersion": 1,
+  "mode": "planning",
+  "manifestPath": "/app.webmanifest",
+  "manifestLinkRequired": true,
+  "secureContextRequired": true,
+  "name": "Templates Portal",
+  "shortName": "Templates",
+  "startRouteId": "site-portal-home",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "icons": [
+    {
+      "id": "icon-0",
+      "href": "/icon.svg",
+      "mediaType": "image/svg+xml",
+      "sizes": [
+        "any"
+      ],
+      "purposes": [
+        "any",
+        "maskable"
+      ]
+    },
+    {
+      "id": "icon-1",
+      "href": "/icon-192.png",
+      "mediaType": "image/png",
+      "sizes": [
+        "192x192"
+      ],
+      "purposes": [
+        "any",
+        "maskable"
+      ]
+    },
+    {
+      "id": "icon-2",
+      "href": "/icon-512.png",
+      "mediaType": "image/png",
+      "sizes": [
+        "512x512"
+      ],
+      "purposes": [
+        "any",
+        "maskable"
+      ]
+    }
+  ],
+  "vectorIconPolicy": "prefer-svg-when-compatible",
+  "vectorIconException": null,
+  "platformCompatibility": {
+    "android": {
+      "requiredRasterSizes": [
+        "192x192",
+        "512x512"
+      ],
+      "maskableIconRequired": true
+    },
+    "ios": {
+      "homeScreenIcon": {
+        "relation": "apple-touch-icon",
+        "href": "/icon-180.png",
+        "mediaType": "image/png",
+        "sizes": [
+          "180x180"
+        ]
+      }
+    }
+  }
+}

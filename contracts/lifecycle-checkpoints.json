@@ -1,0 +1,16 @@
+{
+  "$schema": "../schemas/lifecycle-checkpoints.schema.json",
+  "schemaVersion": 1,
+  "checkpoints": [
+    {
+      "id": "site-reference-adoption",
+      "sequence": 1,
+      "phase": "planning",
+      "changeKind": "initial",
+      "parentId": null,
+      "snapshotPath": "artifacts/lifecycle/001-site-reference-adoption",
+      "manifestSha256": "9ec8d87ea01cf6f178422ca39589882ac3aac86dbc6084d7cc71f5a03df667d4",
+      "recordedAt": "2026-09-06T00:31:12.289366Z"
+    }
+  ]
+}

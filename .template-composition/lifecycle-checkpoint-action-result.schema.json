@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Lifecycle checkpoint executable action result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schema_version",
+    "action",
+    "status",
+    "provider_returncode"
+  ],
+  "properties": {
+    "$schema": {
+      "const": ".template-composition/lifecycle-checkpoint-action-result.schema.json"
+    },
+    "schema_version": {"const": 1},
+    "action": {
+      "enum": [
+        "create-planning-checkpoint",
+        "create-product-checkpoint"
+      ]
+    },
+    "status": {"enum": ["completed", "failed"]},
+    "provider_returncode": {
+      "type": ["integer", "null"]
+    },
+    "result": {
+      "type": "object"
+    },
+    "error": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"status": {"const": "completed"}}},
+      "then": {
+        "required": ["result"],
+        "properties": {
+          "provider_returncode": {"const": 0}
+        },
+        "not": {"required": ["error"]}
+      }
+    },
+    {
+      "if": {"properties": {"status": {"const": "failed"}}},
+      "then": {
+        "required": ["error"],
+        "not": {"required": ["result"]}
+      }
+    }
+  ]
+}
