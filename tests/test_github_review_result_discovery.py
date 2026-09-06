@@ -3,9 +3,10 @@ from __future__ import annotations
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-DISCOVERY = ROOT / "skills" / "pr-merge-gate" / "references" / "github-review-result-discovery.md"
-REPRESENTATION = ROOT / "skills" / "pr-merge-gate" / "references" / "github-review-finding-representation.md"
-DISPOSITION = ROOT / "skills" / "pr-merge-gate" / "references" / "review-feedback-disposition.md"
+REFERENCES = ROOT / "skills" / "pr-merge-gate" / "references"
+DISCOVERY = REFERENCES / "github-review-result-discovery.md"
+REPRESENTATION = REFERENCES / "github-review-finding-representation.md"
+DISPOSITION = REFERENCES / "review-feedback-disposition.md"
 
 
 def _text(path: Path) -> str:
