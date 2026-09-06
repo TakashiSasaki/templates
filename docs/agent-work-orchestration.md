@@ -196,3 +196,12 @@ Serial pull requests are often easier when each member should be merged before l
 A human handoff can be selected with either progression strategy. It means that implementation and authorized validation work are complete while merge authorization is not established. When no applicable pre-existing review evidence establishes another state, independent review is NOT_REQUESTED or OUTSTANDING. When applicable pre-existing review evidence already establishes completed review, preserve REVIEW_COMPLETE; HANDOFF_READY can coexist with that review state. Human handoff does not waive later review requirements, create approval, or imply merge readiness.
 
 The dispatcher applies explicit task instruction before repository-local policy, repository-declared defaults, and any agent choice that is explicitly permitted. A profile remains a shared normative rule-selection bundle; it does not encode serial or stacked progression, completion mode, agent provider, or Skill selection.
+
+
+## Resumable Work ledger
+
+The [Work ledger procedure](../skills/orchestrate-repository-change/references/work-ledger.md) ties the existing workflow state together as a provider-side operational projection. Use a discoverable stack-tip/standalone PR comment or tracking issue for durable checkpoints and execution-local state for frequent updates. Record material transitions, not every tool call. A progress-only repository commit would move the head and stale exact-head evidence; ordinary progress therefore remains outside the tracked source tree.
+
+Resume by discovering or reconstructing the checkpoint, refreshing affected live bindings, choosing the next safe action, performing useful work, and checkpointing material changes. Preserve semantic progress separately from final qualification. Link the existing review-finding ledger instead of duplicating finding dispositions or closure evidence. Provider facts and existing acceptance procedures retain authority.
+
+This procedure source can be developed independently of the repository's pinned self-host toolchain. Source changes do not silently promote the runtime or regenerate a consumer from an unreviewed candidate. Adoption remains a separate release/self-host boundary.

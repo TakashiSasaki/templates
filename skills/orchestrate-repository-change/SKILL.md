@@ -44,6 +44,21 @@ Use the focused procedures in references/pr-workflow-selection.md, references/se
 
 For the repository-change operational state model, read [Work ledger](references/work-ledger.md). It defines provider-side resumable checkpoints without creating acceptance authority.
 
+## Resumable execution loop
+
+Use [Work ledger](references/work-ledger.md) as the operational index throughout the selected workflow:
+
+1. discover the canonical provider checkpoint or reconstruct it from live facts;
+2. refresh materially stale bindings needed for the next safe action, checking whether an interrupted mutation or review request already succeeded;
+3. determine the next safe action under the selected progression/completion modes and actual dependencies;
+4. perform useful authorized work, including dependency-safe descendant implementation while CI is pending;
+5. checkpoint material transitions on the canonical surface, referencing finding details in the existing review-finding ledger; and
+6. validate/qualify when the applicable boundary requires it, then continue or hand off.
+
+Recover ordered members, their bases and exact heads before resuming a stack. Preserve completed semantic work when a head moves while marking affected exact-head evidence stale. Record asynchronous waiting conditions and the safe action they unblock. A missing or inaccessible durable checkpoint does not establish completed work: reconstruct what can be verified and report remaining uncertainty.
+
+At completion, use the checkpoint and its linked evidence to reconstruct the required report. Follow references/human-handoff.md for HANDOFF_READY and the dedicated merge gate for agent-review-and-merge. Recheck the existing complete known-finding and live-identity gates before any authorized review acquisition. If the task requires immediate stop after the request, persist the preflight checkpoint first and let the request record be the acquisition event; do not perform a post-request provider write.
+
 ## 1. Establish the minimum sufficient snapshot
 
 Before mutating, identify the facts that determine the next safe action:
@@ -77,7 +92,7 @@ Never skip a required expensive check merely because a cheaper check passed. Nev
 
 ## 4. Freeze revision-bound candidates
 
-Once CI, independent review, release qualification, or another revision-bound evaluation has started for a candidate, keep that candidate stable unless a justified head-changing repair, scope correction, conflict resolution, or other necessary mutation is ready.
+Distinguish construction heads and provisional candidates from qualification heads under `pull-request.defer-revision-bound-qualification-until-required`. Naturally triggered CI does not by itself freeze a provisional candidate or block authorized implementation. When an applicable boundary requires final qualification, stabilize prerequisite identities and freeze the intended candidate heads. Keep those qualification heads stable unless a justified head-changing repair, scope correction, conflict resolution, or other necessary mutation is ready. Record the frontier and affected evidence bindings in the Work ledger.
 
 A known material defect blocks acceptance immediately even while the candidate revision remains unchanged for investigation. Candidate stability is an efficiency mechanism, not evidence that the candidate is acceptable.
 
@@ -85,7 +100,7 @@ For pull-request merge acceptance, defer to the repository's pull-request policy
 
 ## 5. Use asynchronous wait time for bounded read-only work
 
-While CI, review, publication, deployment, or another external result is in flight, continue useful work that does not invalidate the candidate under evaluation. Suitable work includes:
+While CI, review, publication, deployment, or another external result is in flight, continue useful work that does not invalidate the candidate under evaluation. CI waiting must not stop dependency-safe implementation on later members; record the dependency and provisional state in the Work ledger. For a frozen qualification candidate, suitable work includes:
 
 - bounded read-only self-audit of the current candidate;
 - reproducing or falsifying suspected defects;
