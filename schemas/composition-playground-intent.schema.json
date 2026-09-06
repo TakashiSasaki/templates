@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://templates.moukaeritai.work/schemas/composition/composition-playground-intent.schema.json",
+  "title": "Composition Playground explicit-intent sidecar",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "projection_id", "source", "resolution_projection_id", "strategy", "recipes"],
+  "$defs": {
+    "componentId": {"type": "string", "pattern": "^(foundation|artifact|capability|lifecycle)\\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"},
+    "transition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["component", "valid", "error", "outcome_id"],
+      "properties": {
+        "component": {"$ref": "#/$defs/componentId"},
+        "valid": {"type": "boolean"},
+        "error": {
+          "oneOf": [
+            {"type": "null"},
+            {"type": "object", "additionalProperties": false, "required": ["code", "message"], "properties": {"code": {"type": "string"}, "message": {"type": "string", "minLength": 1}}}
+          ]
+        },
+        "outcome_id": {"oneOf": [{"type": "null"}, {"type": "integer", "minimum": 0}]}
+      },
+      "allOf": [
+        {"if": {"properties": {"valid": {"const": true}}, "required": ["valid"]}, "then": {"properties": {"error": {"type": "null"}, "outcome_id": {"type": "integer", "minimum": 0}}}, "else": {"properties": {"error": {"type": "object"}, "outcome_id": {"type": "null"}}}}
+      ]
+    }
+  },
+  "properties": {
+    "schema_version": {"const": 1},
+    "projection_id": {"const": "composition-playground-intent-v1"},
+    "source": {
+      "type": "object", "additionalProperties": false,
+      "required": ["repository", "authority", "revision"],
+      "properties": {"repository": {"const": "TakashiSasaki/templates"}, "authority": {"const": "composition"}, "revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"}}
+    },
+    "resolution_projection_id": {"const": "composition-playground-v1"},
+    "strategy": {"const": "single-explicit-exclusion-transitions"},
+    "recipes": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "optional_components", "case_count", "cases"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "optional_components": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/componentId"}},
+          "case_count": {"type": "integer", "minimum": 1},
+          "cases": {
+            "type": "array", "minItems": 1,
+            "items": {
+              "type": "object", "additionalProperties": false,
+              "required": ["include_case_index", "exclude"],
+              "properties": {
+                "include_case_index": {"type": "integer", "minimum": 0},
+                "exclude": {"type": "array", "items": {"$ref": "#/$defs/transition"}}
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
