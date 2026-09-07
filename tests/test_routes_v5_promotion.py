@@ -6,7 +6,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-COMPOSITION_MERGE_SHA = "806f8574a8b9607c5d6cf438f96e5801ea69f7ae"
+COMPOSITION_MERGE_SHA = "a739b3823660e3db742ff0e1e159d279126cba7c"
 COMPOSITION_CONSUMER_SHA = "bd28b67ad97652182d6744ee38ef992349104961"
 TITLE = "Routes v4 to v5"
 DOCUMENT = "web-routes-v4-migration"
