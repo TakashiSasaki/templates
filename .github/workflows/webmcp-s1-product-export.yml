@@ -28,7 +28,7 @@ jobs:
       - name: Install Site renderer dependency
         run: python -m pip install PyYAML==6.0.3
 
-      - name: Restore and register the canonical planning checkpoint
+      - name: Replay and register the canonical planning checkpoint
         run: |
           python - <<'PY'
           from __future__ import annotations
@@ -40,16 +40,29 @@ jobs:
 
           root = Path('.')
           snapshot_root = root / 'artifacts/lifecycle/005-webmcp-reader-publication'
-          snapshot_evidence = snapshot_root / 'contracts/implementation-evidence.json'
-          root_evidence = root / 'contracts/implementation-evidence.json'
           ledger_path = root / 'contracts/lifecycle-checkpoints.json'
           manifest_path = snapshot_root / 'manifest.json'
-
-          shutil.copyfile(snapshot_evidence, root_evidence)
-          ledger = json.loads(ledger_path.read_text(encoding='utf-8'))
           manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
           checkpoint_id = manifest['checkpointId']
 
+          # Preserve the current implemented candidate while replaying the immutable
+          # planning snapshot exactly. The product transition below restores these
+          # bytes before adding the 10 new evidence records.
+          current_root = Path('/tmp/webmcp-s1-current-authority')
+          current_root.mkdir(parents=True, exist_ok=True)
+          for item in manifest['files']:
+              relative = Path(item['path'])
+              source = root / relative
+              destination = current_root / relative
+              destination.parent.mkdir(parents=True, exist_ok=True)
+              shutil.copyfile(source, destination)
+
+              snapshot = snapshot_root / item['snapshotPath']
+              if hashlib.sha256(snapshot.read_bytes()).hexdigest() != item['sha256']:
+                  raise SystemExit(f'planning snapshot hash mismatch: {relative}')
+              shutil.copyfile(snapshot, source)
+
+          ledger = json.loads(ledger_path.read_text(encoding='utf-8'))
           checkpoints = ledger['checkpoints']
           if not any(entry.get('id') == checkpoint_id for entry in checkpoints):
               expected_sequence = len(checkpoints) + 1
@@ -74,19 +87,30 @@ jobs:
       - name: Validate canonical planning state
         run: python .template-composition/validate.py . --format json
 
-      - name: Close planning requirements with established browser evidence pattern
+      - name: Restore implemented candidate and close WebMCP product evidence
         run: |
           python - <<'PY'
           from __future__ import annotations
 
           import copy
           import json
+          import shutil
           from pathlib import Path
 
           root = Path('.')
+          snapshot_root = root / 'artifacts/lifecycle/005-webmcp-reader-publication'
+          current_root = Path('/tmp/webmcp-s1-current-authority')
+          manifest = json.loads((snapshot_root / 'manifest.json').read_text(encoding='utf-8'))
+
+          # Restore every implemented authority file that existed at the candidate
+          # head, but keep the now-registered root lifecycle ledger.
+          for item in manifest['files']:
+              relative = Path(item['path'])
+              shutil.copyfile(current_root / relative, root / relative)
+
           product_path = root / 'contracts/implementation-evidence.json'
           prior_product_path = root / 'artifacts/lifecycle/004-routes-v5-publication-product/contracts/implementation-evidence.json'
-          planning_path = root / 'artifacts/lifecycle/005-webmcp-reader-publication/contracts/implementation-evidence.json'
+          planning_path = snapshot_root / 'contracts/implementation-evidence.json'
           product = json.loads(prior_product_path.read_text(encoding='utf-8'))
           planning = json.loads(planning_path.read_text(encoding='utf-8'))
 
@@ -136,6 +160,9 @@ jobs:
                   proofs[0]['id'] = f'{requirement_id}-{suffix}'
 
               product_records[requirement_id] = record
+              # Product targets are optional in implementation-evidence v6; the
+              # immutable planning checkpoint retains exact target intent while the
+              # record reference closes the active product graph.
               product_requirements[requirement_id] = {
                   'id': requirement_id,
                   'description': requirement['description'],
