@@ -8,12 +8,14 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "scripts"
 if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
+import generate_composition_playground as playground  # noqa: E402
 import generate_composition_playground_publication as publication  # noqa: E402
 from composer_core_impl import CompositionError  # noqa: E402
 
@@ -24,15 +26,27 @@ CATALOG = ROOT / "docs" / "publication-catalog.json"
 class CompositionPlaygroundPublicationTests(unittest.TestCase):
     def test_manifest_pins_exact_semantic_source_and_asset_inventory(self) -> None:
         manifest = publication.read_publication_manifest(GENERATED)
+        self.assertEqual(2, manifest["schema_version"])
         self.assertRegex(str(manifest["semantic_revision"]), re.compile(r"^[0-9a-f]{40}$"))
+        self.assertEqual(
+            set(playground.SEMANTIC_PATHS),
+            set(manifest["semantic_objects"]),
+        )
         self.assertEqual(
             [publication.BASE_NAME, publication.INTENT_NAME],
             manifest["assets"],
         )
+        publication.verify_semantic_snapshot(
+            publication.semantic_objects_from_manifest(GENERATED)
+        )
 
     def test_generated_assets_are_deterministic_and_bounded(self) -> None:
         semantic_revision = publication.semantic_revision_from_manifest(GENERATED)
-        payloads = publication.publication_payloads(semantic_revision=semantic_revision)
+        semantic_objects = publication.semantic_objects_from_manifest(GENERATED)
+        payloads = publication.publication_payloads(
+            semantic_revision=semantic_revision,
+            semantic_objects=semantic_objects,
+        )
         base = payloads[publication.BASE_NAME]
         intent = payloads[publication.INTENT_NAME]
         self.assertEqual(b"\x1f\x8b", base[:2])
@@ -51,6 +65,28 @@ class CompositionPlaygroundPublicationTests(unittest.TestCase):
             (target / publication.MANIFEST_NAME).write_bytes((GENERATED / publication.MANIFEST_NAME).read_bytes())
             publication.write_directory(target)
             self.assertEqual(semantic_revision, publication.check_directory(target))
+
+    def test_publication_generation_does_not_require_source_revision_history(self) -> None:
+        semantic_revision = publication.semantic_revision_from_manifest(GENERATED)
+        semantic_objects = publication.semantic_objects_from_manifest(GENERATED)
+        with mock.patch.object(
+            playground,
+            "_git",
+            side_effect=AssertionError("publication generation must not walk semantic revision history"),
+        ):
+            payloads = publication.publication_payloads(
+                semantic_revision=semantic_revision,
+                semantic_objects=semantic_objects,
+            )
+        base_projection = json.loads(gzip.decompress(payloads[publication.BASE_NAME]))
+        self.assertEqual(semantic_revision, base_projection["source"]["revision"])
+
+    def test_semantic_snapshot_rejects_a_different_current_object(self) -> None:
+        semantic_objects = publication.semantic_objects_from_manifest(GENERATED)
+        semantic_objects[playground.SEMANTIC_PATHS[0]] = "1" * 40
+        with self.assertRaises(CompositionError) as context:
+            publication.verify_semantic_snapshot(semantic_objects)
+        self.assertEqual("STALE_PLAYGROUND_SOURCE", context.exception.code)
 
     def test_publication_provider_may_be_semantically_equivalent_descendant(self) -> None:
         semantic_revision = publication.semantic_revision_from_manifest(GENERATED)
