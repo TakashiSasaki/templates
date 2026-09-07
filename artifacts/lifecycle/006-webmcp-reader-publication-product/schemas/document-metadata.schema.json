@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schemaVersion", "siteName", "defaultLanguage", "siteSocialPreview", "pages"],
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[a-z][a-z0-9-]*(?![\\s\\S])"},
+    "nonBlankText": {"type": "string", "minLength": 1},
+    "language": {"type": "string", "pattern": "^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*(?![\\s\\S])"},
+    "pageMetadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pageId", "title", "description", "indexability", "canonicalPathPolicy", "socialPreview"],
+      "properties": {
+        "pageId": {"$ref": "#/$defs/identifier"},
+        "title": {"$ref": "#/$defs/nonBlankText"},
+        "description": {"$ref": "#/$defs/nonBlankText"},
+        "language": {"$ref": "#/$defs/language"},
+        "indexability": {"enum": ["index", "noindex"]},
+        "canonicalPathPolicy": {"const": "route-canonical"},
+        "socialPreview": {"enum": ["inherit-site", "page-specific", "none"]}
+      }
+    }
+  },
+  "properties": {
+    "$schema": {"const": "../schemas/document-metadata.schema.json"},
+    "schemaVersion": {"const": 1},
+    "siteName": {"$ref": "#/$defs/nonBlankText"},
+    "defaultLanguage": {"$ref": "#/$defs/language"},
+    "siteSocialPreview": {"enum": ["configured", "none"]},
+    "pages": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/pageMetadata"}}
+  }
+}

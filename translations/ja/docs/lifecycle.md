@@ -85,7 +85,7 @@ repository change
 
 ### Lifecycle history の実例
 
-現在の canonical Site history には、次の4つの validated checkpoint が存在します。
+現在の canonical Site history には、次の6つの validated checkpoint が存在します。
 
 ```text
 1  site-reference-adoption
@@ -111,9 +111,23 @@ repository change
    parentId: routes-v5-publication
    snapshotPath: artifacts/lifecycle/004-routes-v5-publication-product
    manifestSha256: c3ba91ed78fc90f780213b443182b17c38316d77d92f0151fb3d00392e77d9f1
+
+5  webmcp-reader-publication
+   phase: planning
+   changeKind: specification-change
+   parentId: routes-v5-publication-product
+   snapshotPath: artifacts/lifecycle/005-webmcp-reader-publication
+   manifestSha256: a6c587cac040a7929fe4fc020acd61843598b6447bd733795d83e2b7182104dc
+
+6  webmcp-reader-publication-product
+   phase: product
+   changeKind: specification-change
+   parentId: webmcp-reader-publication
+   snapshotPath: artifacts/lifecycle/006-webmcp-reader-publication-product
+   manifestSha256: 2b434f5636675eeacc0d6c4a9676f68a64c953abfada439b1306449ed31ea2a1
 ```
 
-`site-reference-adoption` は individual requirement ではなく、最初の validated planning baseline の identity です。次の checkpoint はこの identity を parent として消費します。後続の `routes-v5-publication -> routes-v5-publication-product` は、initial product state の後も同じ linear history 上で specification change が継続することを示します。root の requirement/evidence ledger が current product state を表す一方、これらの snapshot はそこへ至った validated state を保存します。
+`site-reference-adoption` は individual requirement ではなく、最初の validated planning baseline の identity です。次の checkpoint はこの identity を parent として消費します。後続の `routes-v5-publication -> routes-v5-publication-product` と `webmcp-reader-publication -> webmcp-reader-publication-product` は、initial product state の後も同じ linear history 上で specification change が継続することを示します。root の requirement/evidence ledger が current product state を表す一方、これらの snapshot はそこへ至った validated state を保存します。
 
 ### Review-finding と Work-ledger の dogfooding
 

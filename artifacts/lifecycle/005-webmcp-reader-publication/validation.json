@@ -1,0 +1,137 @@
+{
+  "schemaVersion": 1,
+  "authority": "composition-selected-validation-v1",
+  "command": [
+    "/opt/hostedtoolcache/Python/3.12.13/x64/bin/python",
+    ".template-composition/validate.py",
+    ".",
+    "--format",
+    "json"
+  ],
+  "result": "passed",
+  "output": {
+    "schema_version": 1,
+    "status": "valid",
+    "target": "/home/runner/work/templates/templates",
+    "resolved_components": [
+      "artifact.website-core",
+      "capability.pwa",
+      "foundation.web",
+      "lifecycle.composition-state",
+      "lifecycle.contract-evolution",
+      "lifecycle.implementation-evidence",
+      "lifecycle.lifecycle-checkpoints"
+    ],
+    "checks": [
+      {
+        "id": "composition-state",
+        "component": "lifecycle.composition-state",
+        "status": "passed",
+        "entrypoint": ".template-composition/validate_composition.py",
+        "purpose": "Validate the resolved Composition lock and material ownership state.",
+        "returncode": 0,
+        "stdout": "Composition state validation: OK\n",
+        "stderr": ""
+      },
+      {
+        "id": "website-contracts",
+        "component": "artifact.website-core",
+        "status": "passed",
+        "entrypoint": "scripts/validate_website_contracts.py",
+        "purpose": "Validate Website page structure, document metadata, discovery semantics, and shared Web route bindings without imposing Web application surfaces or UI states.",
+        "returncode": 0,
+        "stdout": "Website structure, document metadata, discovery, shared-route, and viewport invariants: OK\n",
+        "stderr": ""
+      },
+      {
+        "id": "website-implementation-coverage",
+        "component": "artifact.website-core",
+        "status": "passed",
+        "entrypoint": "scripts/validate_website_evidence.py",
+        "purpose": "Validate Website implementation-evidence target coverage and browser-backed proof strength for pages, document metadata, browser identity, and responsive behavior.",
+        "returncode": 0,
+        "stdout": "Website implementation-evidence coverage: OK\n",
+        "stderr": ""
+      },
+      {
+        "id": "pwa",
+        "component": "capability.pwa",
+        "status": "passed",
+        "entrypoint": ".template-composition/validators/validate_pwa.py",
+        "purpose": "Validate selected PWA installability, route-scoped offline freshness, and update semantics against shared Web routes and the implementation-evidence lifecycle mode without depending on artifact-specific surfaces or UI states.",
+        "returncode": 0,
+        "stdout": "PWA planning installability, route-scoped offline freshness, platform compatibility, and update semantics: OK\n",
+        "stderr": ""
+      },
+      {
+        "id": "pwa-implementation-coverage",
+        "component": "capability.pwa",
+        "status": "passed",
+        "entrypoint": ".template-composition/validators/validate_pwa_evidence.py",
+        "purpose": "Validate selected PWA proof-family coverage and require browser-backed positive and negative implementation evidence without prescribing cache or service-worker implementation strategy.",
+        "returncode": 0,
+        "stdout": "PWA planning proof-family coverage and browser proof strength: OK\n",
+        "stderr": ""
+      },
+      {
+        "id": "contract-evolution",
+        "component": "lifecycle.contract-evolution",
+        "status": "passed",
+        "entrypoint": ".template-composition/validators/validate_contract_evolution.py",
+        "purpose": "Validate the closed contract registry, schema bindings, version histories, and migration declarations.",
+        "returncode": 0,
+        "stdout": "Contract evolution validation: OK\n",
+        "stderr": ""
+      },
+      {
+        "id": "implementation-evidence",
+        "component": "lifecycle.implementation-evidence",
+        "status": "passed",
+        "entrypoint": ".template-composition/validators/validate_implementation_evidence.py",
+        "purpose": "Validate template, planning, and product implementation-evidence semantics, requirement ledgers, proof commands, and release-gate coverage.",
+        "returncode": 0,
+        "stdout": "Release readiness: NOT READY (planning requirement ledger is target-bound but not yet linked to implementation evidence)\nImplementation evidence validation: OK\n",
+        "stderr": ""
+      },
+      {
+        "id": "lifecycle-checkpoints",
+        "component": "lifecycle.lifecycle-checkpoints",
+        "status": "passed",
+        "entrypoint": ".template-composition/validators/validate_lifecycle_checkpoints.py",
+        "purpose": "Validate content-addressed lifecycle snapshots and planning-to-product historical transition bindings.",
+        "returncode": 0,
+        "stdout": "Lifecycle checkpoint validation: PASS\n",
+        "stderr": ""
+      }
+    ],
+    "lifecycle": {
+      "schema_version": 3,
+      "lifecycle_stage": "scaffold-valid",
+      "implementation_evidence_mode": "planning",
+      "release_readiness": "not-evaluated",
+      "blocking_conditions": [
+        "implementation-evidence-planning",
+        "planning-checkpoint-required"
+      ],
+      "deferred_checks": [],
+      "next_actions": [
+        "create-planning-checkpoint"
+      ],
+      "next_action_command": {
+        "action": "create-planning-checkpoint",
+        "argv": [
+          "{python}",
+          ".template-composition/run_action.py",
+          "create-planning-checkpoint",
+          "{checkpoint_id}"
+        ],
+        "caller_inputs": [
+          "{python}",
+          "{checkpoint_id}"
+        ]
+      },
+      "deferred_proofs": [],
+      "conditional_prerequisite_commands": []
+    }
+  }
+}
