@@ -60,16 +60,25 @@ class LedgerOverviewTests(unittest.TestCase):
                 "site-reference-adoption-product",
                 "routes-v5-publication",
                 "routes-v5-publication-product",
+                "webmcp-reader-publication",
+                "webmcp-reader-publication-product",
             ],
         )
-        self.assertEqual([item["sequence"] for item in checkpoints], [1, 2, 3, 4])
+        self.assertEqual([item["sequence"] for item in checkpoints], [1, 2, 3, 4, 5, 6])
         self.assertEqual(
             [item["phase"] for item in checkpoints],
-            ["planning", "product", "planning", "product"],
+            ["planning", "product", "planning", "product", "planning", "product"],
         )
         self.assertEqual(
             [item["changeKind"] for item in checkpoints],
-            ["initial", "initial", "specification-change", "specification-change"],
+            [
+                "initial",
+                "initial",
+                "specification-change",
+                "specification-change",
+                "specification-change",
+                "specification-change",
+            ],
         )
         self.assertEqual(
             [item["parentId"] for item in checkpoints],
@@ -78,6 +87,8 @@ class LedgerOverviewTests(unittest.TestCase):
                 "site-reference-adoption",
                 "site-reference-adoption-product",
                 "routes-v5-publication",
+                "routes-v5-publication-product",
+                "webmcp-reader-publication",
             ],
         )
         self.assertEqual(
@@ -90,11 +101,11 @@ class LedgerOverviewTests(unittest.TestCase):
         )
         self.assertEqual(
             checkpoints[-1]["snapshotPath"],
-            "artifacts/lifecycle/004-routes-v5-publication-product",
+            "artifacts/lifecycle/006-webmcp-reader-publication-product",
         )
         self.assertEqual(
             checkpoints[-1]["manifestSha256"],
-            "c3ba91ed78fc90f780213b443182b17c38316d77d92f0151fb3d00392e77d9f1",
+            "2b434f5636675eeacc0d6c4a9676f68a64c953abfada439b1306449ed31ea2a1",
         )
         for value in (
             checkpoints[0]["id"],

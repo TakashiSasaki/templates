@@ -22,6 +22,7 @@ Composition の canonical model は [Composition concepts](/composition/concepts
 - [MCP Apps guidance](/capabilities/mcp-apps/guidance/)
 - [Standalone browser interface](/capabilities/browser/)
 - [Headless service interface](/capabilities/service/)
+- [WebMCP reader guide](/capabilities/webmcp/)
 
 ### Browser 関連 entry
 
@@ -29,6 +30,9 @@ Composition の canonical model は [Composition concepts](/composition/concepts
 - [Website](/website/)
 - [Web application](/webapp/)
 - [Progressive Web App capability](/capabilities/pwa/)
+- [WebMCP reader guide](/capabilities/webmcp/)
+
+WebMCP guide は reader 向けに adoption の判断と security 上の含意を説明します。canonical WebMCP capability / contract semantics は引き続き Composition が所有します。
 
 別の [Policy PWA usage guide](/policy/pwa/) は Policy documentation site を install / use するための reader route であり、Composition capability document ではありません。
 

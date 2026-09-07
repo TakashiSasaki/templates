@@ -151,7 +151,7 @@ changes the consumer contract and therefore belongs in Git.
 
 ### Lifecycle-history example
 
-The current canonical Site history contains four validated checkpoints:
+The current canonical Site history contains six validated checkpoints:
 
 ```text
 1  site-reference-adoption
@@ -177,15 +177,29 @@ The current canonical Site history contains four validated checkpoints:
    parentId: routes-v5-publication
    snapshotPath: artifacts/lifecycle/004-routes-v5-publication-product
    manifestSha256: c3ba91ed78fc90f780213b443182b17c38316d77d92f0151fb3d00392e77d9f1
+
+5  webmcp-reader-publication
+   phase: planning
+   changeKind: specification-change
+   parentId: routes-v5-publication-product
+   snapshotPath: artifacts/lifecycle/005-webmcp-reader-publication
+   manifestSha256: a6c587cac040a7929fe4fc020acd61843598b6447bd733795d83e2b7182104dc
+
+6  webmcp-reader-publication-product
+   phase: product
+   changeKind: specification-change
+   parentId: webmcp-reader-publication
+   snapshotPath: artifacts/lifecycle/006-webmcp-reader-publication-product
+   manifestSha256: 2b434f5636675eeacc0d6c4a9676f68a64c953abfada439b1306449ed31ea2a1
 ```
 
 `site-reference-adoption` identifies the first validated planning baseline,
 not an individual requirement. The next checkpoint consumes that identity as
-its parent. The later `routes-v5-publication -> routes-v5-publication-product`
-pair shows a specification change continuing the same linear history after the
-initial product state. The root requirement/evidence ledger represents current
-product state while these snapshots preserve the validated states it passed
-through.
+its parent. The later `routes-v5-publication -> routes-v5-publication-product` and
+`webmcp-reader-publication -> webmcp-reader-publication-product` pairs show
+specification changes continuing the same linear history after the initial
+product state. The root requirement/evidence ledger represents current product
+state while these snapshots preserve the validated states it passed through.
 
 ### Review-finding and Work-ledger dogfooding
 
