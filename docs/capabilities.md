@@ -26,6 +26,7 @@ those decision rules here.
 - [MCP Apps guidance](mcp-apps/guidance/)
 - [Standalone browser interface](browser/)
 - [Headless service interface](service/)
+- [WebMCP reader guide](webmcp/)
 
 ### Browser-related entries
 
@@ -33,6 +34,10 @@ those decision rules here.
 - [Website](../website/)
 - [Web application](../webapp/)
 - [Progressive Web App capability](pwa/)
+- [WebMCP reader guide](webmcp/)
+
+The WebMCP guide explains adoption choices and security implications for readers;
+canonical WebMCP capability and contract semantics remain owned by Composition.
 
 The separate [Policy PWA usage guide](../policy/pwa/) is the reader route for
 installing and using the Policy documentation site; it is not the Composition

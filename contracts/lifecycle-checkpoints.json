@@ -41,6 +41,26 @@
       "snapshotPath": "artifacts/lifecycle/004-routes-v5-publication-product",
       "manifestSha256": "c3ba91ed78fc90f780213b443182b17c38316d77d92f0151fb3d00392e77d9f1",
       "recordedAt": "2026-09-06T08:29:08.757113Z"
+    },
+    {
+      "id": "webmcp-reader-publication",
+      "sequence": 5,
+      "phase": "planning",
+      "changeKind": "specification-change",
+      "parentId": "routes-v5-publication-product",
+      "snapshotPath": "artifacts/lifecycle/005-webmcp-reader-publication",
+      "manifestSha256": "a6c587cac040a7929fe4fc020acd61843598b6447bd733795d83e2b7182104dc",
+      "recordedAt": "2026-09-07T03:15:54.066438Z"
+    },
+    {
+      "id": "webmcp-reader-publication-product",
+      "sequence": 6,
+      "phase": "product",
+      "changeKind": "specification-change",
+      "parentId": "webmcp-reader-publication",
+      "snapshotPath": "artifacts/lifecycle/006-webmcp-reader-publication-product",
+      "manifestSha256": "2b434f5636675eeacc0d6c4a9676f68a64c953abfada439b1306449ed31ea2a1",
+      "recordedAt": "2026-09-07T06:58:33.856899Z"
     }
   ]
 }

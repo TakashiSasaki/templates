@@ -195,6 +195,14 @@ class SiteOwnedTranslationContractTests(unittest.TestCase):
             english = docs_root / "index.md"
             english.write_text("# Canonical English\n", encoding="utf-8")
 
+            manifest = load_translation_manifest(
+                site_root / "translations" / "manifest.json",
+                "site translation manifest",
+                publication_root=site_root,
+            )
+            expected_current = sum(
+                entry.is_current for entry in manifest.for_surface("reader")
+            )
             records = publish_translations(
                 {"site": (site_root, documents, assets)},
                 included_pages,
@@ -202,7 +210,7 @@ class SiteOwnedTranslationContractTests(unittest.TestCase):
                 skip_stale=True,
             )
 
-            self.assertEqual(len(records), 3)
+            self.assertEqual(len(records), expected_current)
             self.assertFalse((docs_root / "ja" / "index.md").exists())
             self.assertEqual(
                 english.read_text(encoding="utf-8"),
