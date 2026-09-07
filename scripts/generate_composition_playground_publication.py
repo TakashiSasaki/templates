@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""Package and validate the immutable Composition Playground publication asset."""
-
+"""Generate and validate deterministic Composition Playground publication assets."""
 from __future__ import annotations
 
 import argparse
@@ -12,97 +11,127 @@ from typing import Sequence
 
 from composer_core_impl import CompositionError, load_json_bytes
 from generate_composition_playground import build_projection, render_projection
+from generate_composition_playground_intent import build_intent_projection
+
+BASE_NAME = "composition-playground-v1.json.gz"
+INTENT_NAME = "composition-playground-intent-v1.json.gz"
+MANIFEST_NAME = "composition-playground-publication.json"
 
 
-def compress_projection(data: bytes) -> bytes:
-    """Return a deterministic gzip transport for canonical projection JSON."""
+def compress_payload(data: bytes) -> bytes:
     compressed = bytearray(gzip.compress(data, compresslevel=9, mtime=0))
     if len(compressed) < 10:
         raise CompositionError("PLAYGROUND_GZIP_FAILED", "gzip output is unexpectedly short")
-    # Normalize the RFC 1952 OS byte so the publication bytes are platform-neutral.
     compressed[9] = 255
     return bytes(compressed)
 
 
-def semantic_revision_from_gzip(path: Path) -> str:
-    """Return the semantic Composition revision embedded in the projection.
+def read_publication_manifest(directory: Path) -> dict[str, object]:
+    path = directory / MANIFEST_NAME
+    try:
+        value = load_json_bytes(path.read_bytes(), label=str(path))
+    except (OSError, TypeError, json.JSONDecodeError) as exc:
+        raise CompositionError(
+            "INVALID_PLAYGROUND_PUBLICATION",
+            f"cannot read Playground publication manifest {path}: {exc}",
+        ) from exc
+    expected_keys = {
+        "schema_version",
+        "projection_id",
+        "intent_projection_id",
+        "semantic_revision",
+        "assets",
+    }
+    if set(value) != expected_keys or value.get("schema_version") != 1:
+        raise CompositionError("INVALID_PLAYGROUND_PUBLICATION", "Playground publication manifest shape is invalid")
+    if value.get("projection_id") != "composition-playground-v1" or value.get("intent_projection_id") != "composition-playground-intent-v1":
+        raise CompositionError("INVALID_PLAYGROUND_PUBLICATION", "Playground publication manifest projection identity is invalid")
+    if value.get("assets") != [BASE_NAME, INTENT_NAME]:
+        raise CompositionError("INVALID_PLAYGROUND_PUBLICATION", "Playground publication manifest asset inventory is invalid")
+    revision = value.get("semantic_revision")
+    if not isinstance(revision, str) or len(revision) != 40 or any(ch not in "0123456789abcdef" for ch in revision):
+        raise CompositionError("INVALID_PLAYGROUND_PUBLICATION", "Playground publication semantic revision is not an exact lowercase SHA")
+    return value
 
-    This is intentionally distinct from the provider/publication revision that
-    carries the gzip asset. The canonical generator verifies that the semantic
-    revision is an ancestor of the provider checkout and that Playground semantic
-    paths have not changed between them.
-    """
-    try:
-        compressed = path.read_bytes()
-        raw = gzip.decompress(compressed)
-    except (OSError, EOFError, gzip.BadGzipFile) as exc:
-        raise CompositionError(
-            "INVALID_PLAYGROUND_PUBLICATION",
-            f"cannot read gzip Playground projection {path}: {exc}",
-        ) from exc
-    projection = load_json_bytes(raw, label=str(path))
-    try:
-        revision = projection["source"]["revision"]
-    except (KeyError, TypeError) as exc:
-        raise CompositionError(
-            "INVALID_PLAYGROUND_PUBLICATION",
-            "published Playground projection has no semantic source revision",
-        ) from exc
-    if not isinstance(revision, str):
-        raise CompositionError(
-            "INVALID_PLAYGROUND_PUBLICATION",
-            "published Playground semantic source revision is not a string",
-        )
+
+def semantic_revision_from_manifest(directory: Path) -> str:
+    revision = read_publication_manifest(directory)["semantic_revision"]
+    assert isinstance(revision, str)
     return revision
 
 
-def publication_bytes(*, semantic_revision: str | None = None) -> bytes:
-    """Render transport bytes after authoritative semantic/provider validation."""
-    return compress_projection(
-        render_projection(build_projection(source_revision=semantic_revision))
-    )
+def semantic_revision_from_gzip(path: Path) -> str:
+    try:
+        raw = gzip.decompress(path.read_bytes())
+        projection = load_json_bytes(raw, label=str(path))
+        revision = projection["source"]["revision"]
+    except (OSError, EOFError, gzip.BadGzipFile, KeyError, TypeError, json.JSONDecodeError) as exc:
+        raise CompositionError("INVALID_PLAYGROUND_PUBLICATION", f"cannot read Playground semantic source revision from {path}: {exc}") from exc
+    if not isinstance(revision, str) or len(revision) != 40 or any(ch not in "0123456789abcdef" for ch in revision):
+        raise CompositionError("INVALID_PLAYGROUND_PUBLICATION", "published Playground semantic source revision is not an exact lowercase SHA")
+    return revision
+
+
+def publication_payloads(*, semantic_revision: str) -> dict[str, bytes]:
+    base = render_projection(build_projection(source_revision=semantic_revision))
+    intent = (json.dumps(build_intent_projection(source_revision=semantic_revision), indent=2, sort_keys=False) + "\n").encode()
+    return {BASE_NAME: compress_payload(base), INTENT_NAME: compress_payload(intent)}
+
+
+def resolve_revision(directory: Path, semantic_revision: str | None) -> str:
+    manifest_revision = semantic_revision_from_manifest(directory)
+    if semantic_revision is not None and semantic_revision != manifest_revision:
+        raise CompositionError(
+            "INVALID_PLAYGROUND_PUBLICATION",
+            f"explicit semantic revision {semantic_revision} does not match publication manifest {manifest_revision}",
+        )
+    return manifest_revision
+
+
+def check_directory(directory: Path, *, semantic_revision: str | None = None) -> str:
+    revision = resolve_revision(directory, semantic_revision)
+    base_path = directory / BASE_NAME
+    intent_path = directory / INTENT_NAME
+    if semantic_revision_from_gzip(base_path) != revision or semantic_revision_from_gzip(intent_path) != revision:
+        raise CompositionError("INVALID_PLAYGROUND_PUBLICATION", "published projections do not match manifest semantic revision")
+    expected = publication_payloads(semantic_revision=revision)
+    for name, payload in expected.items():
+        path = directory / name
+        try:
+            current = path.read_bytes()
+        except OSError as exc:
+            raise CompositionError("READ_FAILED", f"cannot read publication asset {path}: {exc}") from exc
+        if current != payload:
+            raise CompositionError("STALE_PLAYGROUND_PUBLICATION", f"{path} is not the deterministic current Playground publication asset")
+    return revision
+
+
+def write_directory(directory: Path, *, semantic_revision: str | None = None) -> str:
+    directory.mkdir(parents=True, exist_ok=True)
+    revision = resolve_revision(directory, semantic_revision)
+    for name, payload in publication_payloads(semantic_revision=revision).items():
+        (directory / name).write_bytes(payload)
+    return revision
 
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    output = parser.add_mutually_exclusive_group(required=True)
-    output.add_argument("--output", type=Path)
-    output.add_argument("--check", type=Path)
-    parser.add_argument(
-        "--semantic-revision",
-        help="bind output to this exact semantically equivalent Composition revision",
-    )
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("--output-dir", type=Path)
+    group.add_argument("--check-dir", type=Path)
+    parser.add_argument("--semantic-revision")
     return parser.parse_args(argv)
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv)
     try:
-        if args.check is not None:
-            semantic_revision = args.semantic_revision or semantic_revision_from_gzip(args.check)
-            expected = publication_bytes(semantic_revision=semantic_revision)
-            try:
-                current = args.check.read_bytes()
-            except OSError as exc:
-                raise CompositionError(
-                    "READ_FAILED", f"cannot read publication asset {args.check}: {exc}"
-                ) from exc
-            if current != expected:
-                raise CompositionError(
-                    "STALE_PLAYGROUND_PUBLICATION",
-                    f"{args.check} is not the deterministic current Playground publication asset",
-                )
-            print(
-                "Composition Playground publication is current: "
-                f"{args.check} (semantic source {semantic_revision})"
-            )
-            return 0
-
-        semantic_revision = args.semantic_revision
-        payload = publication_bytes(semantic_revision=semantic_revision)
-        args.output.parent.mkdir(parents=True, exist_ok=True)
-        args.output.write_bytes(payload)
-        print(args.output)
+        if args.check_dir is not None:
+            revision = check_directory(args.check_dir, semantic_revision=args.semantic_revision)
+            print(f"Composition Playground publication is current: {args.check_dir} (semantic source {revision})")
+        else:
+            revision = write_directory(args.output_dir, semantic_revision=args.semantic_revision)
+            print(f"{args.output_dir} (semantic source {revision})")
         return 0
     except (CompositionError, json.JSONDecodeError) as exc:
         if isinstance(exc, CompositionError):

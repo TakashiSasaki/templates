@@ -43,11 +43,16 @@ jobs:
       - name: Verify dependency graph
         run: .venv/bin/python -m pip check
 
-      - name: Run Playground projection regression
-        run: .venv/bin/python -I tests/test_composition_playground_projection.py
+      - name: Run Playground projection regressions
+        run: |
+          .venv/bin/python -I tests/test_composition_playground_projection.py
+          .venv/bin/python -I tests/test_composition_playground_intent.py
+          .venv/bin/python -I tests/test_webmcp_capability.py
 
-      - name: Generate exact-head canonical projection artifact
-        run: .venv/bin/python scripts/generate_composition_playground.py --output composition-playground-v1.json
+      - name: Generate exact-head canonical projection artifacts
+        run: |
+          .venv/bin/python scripts/generate_composition_playground.py --output composition-playground-v1.json
+          .venv/bin/python scripts/generate_composition_playground_intent.py --output composition-playground-intent-v1.json
 
       - name: Record exact-head provenance
         env:
@@ -55,13 +60,17 @@ jobs:
         run: |
           actual_head="$(git rev-parse HEAD)"
           test "$actual_head" = "$EXPECTED_HEAD"
-          projection_head="$(python -c 'import json; print(json.load(open("composition-playground-v1.json"))["source"]["revision"])')"
-          test "$projection_head" = "$EXPECTED_HEAD"
+          for projection in composition-playground-v1.json composition-playground-intent-v1.json; do
+            projection_head="$(python -c "import json; print(json.load(open('$projection'))['source']['revision'])")"
+            test "$projection_head" = "$EXPECTED_HEAD"
+          done
 
-      - name: Upload canonical projection artifact
+      - name: Upload canonical projection artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: composition-playground-v1-${{ github.event.pull_request.head.sha }}
-          path: composition-playground-v1.json
+          name: composition-playground-${{ github.event.pull_request.head.sha }}
+          path: |
+            composition-playground-v1.json
+            composition-playground-intent-v1.json
           if-no-files-found: error
           retention-days: 7

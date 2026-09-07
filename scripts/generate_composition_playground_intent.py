@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate explicit-exclusion transitions beside the canonical Playground v1 projection."""
+"""Generate compact explicit-exclusion transitions beside the Playground v1 projection."""
 from __future__ import annotations
 
 import argparse
@@ -26,19 +26,32 @@ def _config(recipe_id: str, includes: list[str], exclude: str) -> dict[str, Any]
     return {"schema_version": 1, **normalize_intent(value)}
 
 
+def decode_transition(projection: dict[str, Any], encoded: int) -> dict[str, Any]:
+    """Decode one indexed transition without performing Composition resolution."""
+    if encoded >= 0:
+        return {"valid": True, "error": None, "outcome_id": encoded}
+    error_index = -encoded - 1
+    errors = projection.get("errors", [])
+    if error_index < 0 or error_index >= len(errors):
+        raise CompositionError("INVALID_PLAYGROUND_INTENT_PROJECTION", "encoded error index is out of range")
+    return {"valid": False, "error": errors[error_index], "outcome_id": None}
+
+
 def build_intent_projection(*, source_revision: str | None = None) -> dict[str, Any]:
     base = build_projection(source_revision=source_revision)
     state = load_source_state()
     outcomes = {tuple(row["resolved_components"]): row["index"] for row in base["outcomes"]}
+    errors: list[dict[str, str]] = []
+    error_indexes: dict[tuple[str, str], int] = {}
     recipes: list[dict[str, Any]] = []
 
     for base_recipe in base["recipes"]:
         recipe_id = base_recipe["id"]
         optionals = list(base_recipe["optional_components"])
-        cases: list[dict[str, Any]] = []
+        cases: list[list[int]] = []
         for case_index in range(base_recipe["case_count"]):
             includes = explicit_includes_for_mask(optionals, case_index)
-            transitions: list[dict[str, Any]] = []
+            transitions: list[int] = []
             for component_id in optionals:
                 try:
                     _, resolved = resolve_configuration(state, _config(recipe_id, includes, component_id))
@@ -48,10 +61,16 @@ def build_intent_projection(*, source_revision: str | None = None) -> dict[str, 
                             "UNPROJECTED_EXCLUSION_OUTCOME",
                             f"explicit exclusion produced an outcome absent from the resolution projection: {recipe_id} / {component_id}",
                         )
-                    transitions.append({"component": component_id, "valid": True, "error": None, "outcome_id": outcome_id})
+                    transitions.append(outcome_id)
                 except CompositionError as exc:
-                    transitions.append({"component": component_id, "valid": False, "error": {"code": exc.code, "message": exc.message}, "outcome_id": None})
-            cases.append({"include_case_index": case_index, "exclude": transitions})
+                    key = (exc.code, exc.message)
+                    error_index = error_indexes.get(key)
+                    if error_index is None:
+                        error_index = len(errors)
+                        error_indexes[key] = error_index
+                        errors.append({"code": exc.code, "message": exc.message})
+                    transitions.append(-(error_index + 1))
+            cases.append(transitions)
         recipes.append({
             "id": recipe_id,
             "optional_components": optionals,
@@ -64,14 +83,19 @@ def build_intent_projection(*, source_revision: str | None = None) -> dict[str, 
         "projection_id": "composition-playground-intent-v1",
         "source": base["source"],
         "resolution_projection_id": base["projection_id"],
-        "strategy": "single-explicit-exclusion-transitions",
+        "strategy": "indexed-single-explicit-exclusion-transitions",
+        "encoding": {
+            "nonnegative": "canonical outcome id",
+            "negative": "-(error index + 1)",
+        },
+        "errors": errors,
         "recipes": recipes,
     }
     schema = read_json(SCHEMA)
     Draft202012Validator.check_schema(schema)
-    errors = sorted(Draft202012Validator(schema).iter_errors(projection), key=lambda error: tuple(error.absolute_path))
-    if errors:
-        raise CompositionError("INVALID_PLAYGROUND_INTENT_PROJECTION", "; ".join(error.message for error in errors[:8]))
+    validation_errors = sorted(Draft202012Validator(schema).iter_errors(projection), key=lambda error: tuple(error.absolute_path))
+    if validation_errors:
+        raise CompositionError("INVALID_PLAYGROUND_INTENT_PROJECTION", "; ".join(error.message for error in validation_errors[:8]))
     return projection
 
 
