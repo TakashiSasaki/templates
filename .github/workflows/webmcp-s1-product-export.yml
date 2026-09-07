@@ -100,13 +100,22 @@ jobs:
           done < /tmp/webmcp-s1-expected.txt
 
       - name: Install Site renderer dependency
-        run: |
-          python -m pip install PyYAML==6.0.3
+        run: python -m pip install PyYAML==6.0.3
 
       - name: Apply and validate canonical product state
         run: |
           set -euo pipefail
           cp -a /tmp/webmcp-s1-product-export/. .
+
+          checkpoint_root='artifacts/lifecycle/006-webmcp-reader-publication-product'
+          test "$(sha256sum .template-composition/lock.json | cut -d' ' -f1)" = '3859023e77c765c9a40e065dbd01aa6fcfaaae7c6e139416c9e1fda0dbd3b964'
+          test "$(sha256sum .template-composition/validation-registry.json | cut -d' ' -f1)" = '96b6aeee60a25a9cde7a11646068491e0519249f41ae28b5b71c0e14c85541bb'
+          mkdir -p "$checkpoint_root/.template-composition"
+          cp .template-composition/lock.json "$checkpoint_root/.template-composition/lock.json"
+          cp .template-composition/validation-registry.json "$checkpoint_root/.template-composition/validation-registry.json"
+          test "$(git hash-object "$checkpoint_root/.template-composition/lock.json")" = '4d7b91efc73df0b108688135f7085746ded35e6d'
+          test "$(git hash-object "$checkpoint_root/.template-composition/validation-registry.json")" = '9a8d97bf177d4ecf62215f76095548e5e20feba3'
+
           while read -r path expected_sha expected_size; do
             actual_sha="$(git hash-object "$path")"
             test "$actual_sha" = "$expected_sha" || {
@@ -114,6 +123,7 @@ jobs:
               exit 1
             }
           done < /tmp/webmcp-s1-expected.txt
+
           python .template-composition/validate.py . --format json
           python scripts/render_reference_consumer.py
 
@@ -129,6 +139,10 @@ jobs:
               for line in Path('/tmp/webmcp-s1-expected.txt').read_text().splitlines()
               if line.strip()
           }
+          expected.update({
+              'artifacts/lifecycle/006-webmcp-reader-publication-product/.template-composition/lock.json',
+              'artifacts/lifecycle/006-webmcp-reader-publication-product/.template-composition/validation-registry.json',
+          })
           raw = subprocess.check_output(['git', 'status', '--porcelain=v1', '-z'])
           entries = [entry for entry in raw.decode().split('\0') if entry]
           changed = set()
@@ -155,6 +169,8 @@ jobs:
           while read -r path _ _; do
             git add -- "$path"
           done < /tmp/webmcp-s1-expected.txt
+          git add -- artifacts/lifecycle/006-webmcp-reader-publication-product/.template-composition/lock.json
+          git add -- artifacts/lifecycle/006-webmcp-reader-publication-product/.template-composition/validation-registry.json
           git diff --cached --check
           git commit -m 'Finalize WebMCP S1 product checkpoint'
           git push origin "HEAD:${PR_BRANCH}"
