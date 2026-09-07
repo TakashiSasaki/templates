@@ -13,9 +13,12 @@ from typing import Any, Iterator
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from scripts.materialize_publication_assets import (
+    PublicationMaterializationError,
+    load_materialized_publication_catalog,
+)
 from scripts.publication_contract import (
     PublicationContractError,
-    load_publication_catalog,
     parse_name as contract_parse_name,
     resolve_without_symlinks,
     safe_relative_path,
@@ -79,8 +82,8 @@ def load_catalog(
     root: Path,
 ) -> tuple[dict[str, dict[str, Any]], list[dict[str, Any]]]:
     try:
-        catalog = load_publication_catalog(root, label=f"{name} catalog")
-    except PublicationContractError as exc:
+        catalog = load_materialized_publication_catalog(root, name)
+    except PublicationMaterializationError as exc:
         raise AssemblyError(str(exc)) from exc
 
     documents = {

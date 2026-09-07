@@ -50,7 +50,7 @@ class PublicationCatalogSchemaVersionTests(unittest.TestCase):
             self.write_catalog(root, catalog)
             with self.assertRaisesRegex(
                 AssemblyError,
-                "test catalog schema_version must be integer 3",
+                "publication catalog schema must be 3 or 4",
             ):
                 load_catalog("test", root)
 
@@ -64,12 +64,21 @@ class PublicationCatalogSchemaVersionTests(unittest.TestCase):
         self.assert_schema_version_rejected(2)
 
     def test_unknown_future_schema_version_is_rejected(self) -> None:
-        self.assert_schema_version_rejected(4)
+        self.assert_schema_version_rejected(5)
 
     def test_non_integer_schema_versions_are_rejected(self) -> None:
         for version in ("3", 3.0, [3], None):
             with self.subTest(version=version):
                 self.assert_schema_version_rejected(version)
+
+    def test_schema_v4_is_accepted_at_canonical_consumption_boundary(self) -> None:
+        catalog = self.base_catalog(4)
+        with tempfile.TemporaryDirectory(prefix="catalog-version-test-") as directory:
+            root = Path(directory)
+            self.write_catalog(root, catalog)
+            documents, assets = load_catalog("test", root)
+            self.assertIn("overview", documents)
+            self.assertEqual(assets, [])
 
     def test_schema_v3_rejects_unsupported_top_level_fields(self) -> None:
         catalog = self.base_catalog(3)
