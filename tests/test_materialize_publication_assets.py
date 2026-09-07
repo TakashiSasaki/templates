@@ -5,8 +5,10 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.assemble_publications import AssemblyError
-from scripts.materialize_publication_assets import materialize_publication
+from scripts.materialize_publication_assets import (
+    PublicationMaterializationError,
+    materialize_publication,
+)
 
 
 class PublicationMaterializationTests(unittest.TestCase):
@@ -68,7 +70,10 @@ target.write_bytes(b'deterministic fixture output')
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             self.write_catalog(root, version=4, source_kind="generated")
-            with self.assertRaisesRegex(AssemblyError, "declares generated publication assets"):
+            with self.assertRaisesRegex(
+                PublicationMaterializationError,
+                "declares generated publication assets",
+            ):
                 materialize_publication(root, "fixture")
 
     def test_materializer_failure_is_not_treated_as_optional(self) -> None:
@@ -76,7 +81,10 @@ target.write_bytes(b'deterministic fixture output')
             root = Path(directory)
             self.write_catalog(root, version=4, source_kind="generated")
             self.write_materializer(root, fail=True)
-            with self.assertRaisesRegex(AssemblyError, "publication materializer failed: fixture failure"):
+            with self.assertRaisesRegex(
+                PublicationMaterializationError,
+                "publication materializer failed: fixture failure",
+            ):
                 materialize_publication(root, "fixture")
 
     def test_v3_conventional_materializer_is_supported_only_as_migration_bridge(self) -> None:
@@ -91,7 +99,10 @@ target.write_bytes(b'deterministic fixture output')
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             self.write_catalog(root, version=3, source_kind=None)
-            with self.assertRaisesRegex(AssemblyError, "declared asset source does not exist"):
+            with self.assertRaisesRegex(
+                PublicationMaterializationError,
+                "declared asset source does not exist",
+            ):
                 materialize_publication(root, "fixture")
 
 
