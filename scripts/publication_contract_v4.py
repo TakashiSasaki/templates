@@ -11,7 +11,6 @@ not move into Site.
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
@@ -25,6 +24,7 @@ from scripts.publication_contract import (  # noqa: E402
     Document,
     PublicationContractError,
     asset_files,
+    parse_name,
     paths_overlap,
     read_json_object,
     reject_overlapping_paths,
@@ -66,14 +66,7 @@ def _parse_document(raw: Any, index: int, label: str) -> Document:
         raise PublicationContractError(
             f"{field} must contain exactly id, source, optional, and home"
         )
-    document_id = raw["id"]
-    if (
-        not isinstance(document_id, str)
-        or not document_id
-        or any(not part or not part.replace("-", "").isalnum() for part in [document_id])
-        or document_id.lower() != document_id
-    ):
-        raise PublicationContractError(f"{field}.id must be lowercase kebab-case")
+    document_id = parse_name(raw["id"], f"{field}.id")
     source = safe_relative_path(raw["source"], f"{field}.source")
     if source.suffix.lower() != ".md":
         raise PublicationContractError(f"{field}.source must be Markdown")
