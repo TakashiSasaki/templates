@@ -284,19 +284,19 @@ class PublicationContractTests(unittest.TestCase):
             ):
                 parse_publication_catalog(path)
 
-    def test_assembler_load_catalog_delegates_to_canonical_implementation(self) -> None:
+    def test_assembler_load_catalog_delegates_to_materialization_boundary(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             self.create_valid_root(root)
-            real_loader = load_publication_catalog
+            real_loader = assemble_publications.load_materialized_publication_catalog
             with mock.patch.object(
                 assemble_publications,
-                "load_publication_catalog",
+                "load_materialized_publication_catalog",
                 wraps=real_loader,
             ) as loader:
                 documents, assets = assemble_publications.load_catalog("provider", root)
 
-            loader.assert_called_once_with(root, label="provider catalog")
+            loader.assert_called_once_with(root, "provider")
             self.assertEqual(set(documents), {"overview"})
             self.assertEqual(assets, [])
 
