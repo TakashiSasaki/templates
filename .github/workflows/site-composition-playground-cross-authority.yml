@@ -27,7 +27,7 @@ jobs:
     uses: ./.github/workflows/build-pages.yml
     with:
       site_ref: ${{ github.event.pull_request.head.sha }}
-      composition_ref: 223f97b37c07ada37acaa38a5ed4cc23c18b3c01
+      composition_ref: a739b3823660e3db742ff0e1e159d279126cba7c
 
   producer_consumer:
     name: Real producer to Chromium consumer
@@ -75,8 +75,8 @@ jobs:
       - name: Exercise actual Composition candidate through actual Site candidate
         env:
           EXPECTED_SITE_REVISION: ${{ github.event.pull_request.head.sha }}
-          EXPECTED_PROVIDER_REVISION: 223f97b37c07ada37acaa38a5ed4cc23c18b3c01
-          EXPECTED_SEMANTIC_REVISION: bd28b67ad97652182d6744ee38ef992349104961
+          EXPECTED_PROVIDER_REVISION: a739b3823660e3db742ff0e1e159d279126cba7c
+          EXPECTED_SEMANTIC_REVISION: c78cdd15dba56a9d6e851e28b8a43dd5ebf286ad
         run: |
           test "$(git rev-parse HEAD)" = "$EXPECTED_SITE_REVISION"
           python scripts/check_composition_playground_cross_authority.py \
@@ -87,3 +87,4 @@ jobs:
           python scripts/check_composition_playground_final_browser.py --site-root build/site
           python scripts/check_composition_playground_final_grid_browser.py --site-root build/site
           python scripts/check_composition_playground_latest_five_browser.py --site-root build/site
+          python scripts/check_composition_playground_webmcp_browser.py --site-root build/site
