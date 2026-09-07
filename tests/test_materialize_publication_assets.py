@@ -40,16 +40,20 @@ class PublicationMaterializationTests(unittest.TestCase):
     def write_materializer(self, root: Path, *, fail: bool = False) -> None:
         path = root / "scripts" / "materialize_publication.py"
         path.parent.mkdir(parents=True, exist_ok=True)
-        if fail:
-            body = "import sys\nprint('fixture failure', file=sys.stderr)\nraise SystemExit(7)\n"
-        else:
-            body = """from __future__ import annotations
+        common = """from __future__ import annotations
 import argparse
 from pathlib import Path
 parser = argparse.ArgumentParser()
 parser.add_argument('--source-root', type=Path, required=True)
 args = parser.parse_args()
-target = args.source_root / 'generated' / 'output.bin'
+counter = args.source_root / 'materializer-runs.txt'
+count = int(counter.read_text(encoding='utf-8')) + 1 if counter.exists() else 1
+counter.write_text(str(count), encoding='utf-8')
+"""
+        if fail:
+            body = common + "import sys\nprint('fixture failure', file=sys.stderr)\nraise SystemExit(7)\n"
+        else:
+            body = common + """target = args.source_root / 'generated' / 'output.bin'
 target.parent.mkdir(parents=True, exist_ok=True)
 target.write_bytes(b'deterministic fixture output')
 """
@@ -76,16 +80,52 @@ target.write_bytes(b'deterministic fixture output')
             ):
                 materialize_publication(root, "fixture")
 
-    def test_materializer_failure_is_not_treated_as_optional(self) -> None:
+    def test_materializer_failure_is_not_treated_as_optional_or_cached(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             self.write_catalog(root, version=4, source_kind="generated")
             self.write_materializer(root, fail=True)
-            with self.assertRaisesRegex(
-                PublicationMaterializationError,
-                "publication materializer failed: fixture failure",
-            ):
-                materialize_publication(root, "fixture")
+            for expected_runs in (1, 2):
+                with self.assertRaisesRegex(
+                    PublicationMaterializationError,
+                    "publication materializer failed: fixture failure",
+                ):
+                    materialize_publication(root, "fixture")
+                self.assertEqual(
+                    str(expected_runs),
+                    (root / "materializer-runs.txt").read_text(encoding="utf-8"),
+                )
+
+    def test_v4_success_is_reused_but_revalidated_and_invalidated(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.write_catalog(root, version=4, source_kind="generated")
+            self.write_materializer(root)
+
+            self.assertTrue(materialize_publication(root, "fixture"))
+            self.assertFalse(materialize_publication(root, "fixture"))
+            self.assertEqual(
+                "1",
+                (root / "materializer-runs.txt").read_text(encoding="utf-8"),
+            )
+
+            # A cached success never suppresses strict post-validation. If a
+            # generated product disappears, the provider materializer runs again.
+            (root / "generated" / "output.bin").unlink()
+            self.assertTrue(materialize_publication(root, "fixture"))
+            self.assertEqual(
+                "2",
+                (root / "materializer-runs.txt").read_text(encoding="utf-8"),
+            )
+
+            # In-place lifecycle input changes invalidate the root cache entry.
+            catalog = root / "docs" / "publication-catalog.json"
+            catalog.write_text(catalog.read_text(encoding="utf-8") + "\n", encoding="utf-8")
+            self.assertTrue(materialize_publication(root, "fixture"))
+            self.assertEqual(
+                "3",
+                (root / "materializer-runs.txt").read_text(encoding="utf-8"),
+            )
 
     def test_v3_conventional_materializer_is_supported_only_as_migration_bridge(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
