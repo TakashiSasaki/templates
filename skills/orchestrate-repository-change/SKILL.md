@@ -78,6 +78,8 @@ When independent reads do not depend on one another and the execution surface su
 
 Group compatible edits that share the same authority, semantic purpose, validation boundary, and rollback unit. Prefer one coherent mutation over avoidable one-finding-at-a-time churn.
 
+Before selecting a transport or mutation mechanism, classify every large, binary, encoded, generated, or otherwise transport-sensitive file payload as **Git-tracked authority source**, **generated build product**, or **external artifact**. Read [Generated artifact transport and mutation payload classification](references/generated-artifact-transport.md) and record enough size, encoding, API-shape, generator/materializer, and transport-limit facts to justify the mechanism. Prefer deterministic provider-owned generation/materialization for generated build products; do not promote a generated projection to authority source or add it to Git merely to make transport easier. If the available mutation surface cannot safely carry a required Git-tracked authority source, fail closed and select another supported transport rather than substituting inline base64, truncation, lossy encoding, or an unverified copy.
+
 Do not combine unrelated work merely to reduce commit, pull-request, or tool-call counts. Keep work separate when changes have different authorities, materially different risks, conflicting decisions, independent merge value, or clearer validation as distinct units.
 
 Do not create no-op, cosmetic, or speculative mutations to demonstrate progress, retrigger automation, or refresh evidence unless current repository authority explicitly requires such a recovery action.
@@ -150,6 +152,7 @@ At completion or handoff, report:
 - validation and asynchronous evidence used;
 - findings that required mutation and how they were batched or separated;
 - evidence invalidated and evidence legitimately reused;
+- payload classification and chosen transport when transport-sensitive mutation affected execution or resumption;
 - guarded-write or race-handling decisions, when applicable;
 - unresolved blockers, residual risks, and the exact completion or stop boundary.
 
