@@ -575,6 +575,61 @@
       }
     },
     {
+      "id": "site-webmcp-guide",
+      "path": "/capabilities/webmcp/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-webmcp-capability",
+      "path": "/capabilities/webmcp/provider/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-webmcp-tool-design",
+      "path": "/capabilities/webmcp/tool-design/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-webmcp-security",
+      "path": "/capabilities/webmcp/security/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-webmcp-testing",
+      "path": "/capabilities/webmcp/testing/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
       "id": "composition-browser-interface",
       "path": "/capabilities/browser/",
       "canonical": true,
