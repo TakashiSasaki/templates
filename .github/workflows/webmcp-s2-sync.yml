@@ -39,13 +39,25 @@ jobs:
           LC_ALL=C sort "$RUNNER_TEMP/expected-setup.txt" -o "$RUNNER_TEMP/expected-setup.txt"
           diff -u "$RUNNER_TEMP/expected-setup.txt" "$RUNNER_TEMP/actual-setup.txt"
 
-      - name: Merge final S1 candidate
+      - name: Merge exact final S1 candidate
+        env:
+          EXPECTED_S1_HEAD: 6c86ae7d63de24b68817d593d982c8a731eade5e
         run: |
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git fetch origin webmcp/s1-reader-docs
+          test "$(git rev-parse origin/webmcp/s1-reader-docs)" = "$EXPECTED_S1_HEAD"
           git merge --no-ff --no-edit origin/webmcp/s1-reader-docs
+
+      - name: Restore generic generated-publication boundary
+        run: |
+          set -euo pipefail
+          git restore --source=origin/webmcp/s1-reader-docs -- \
+            scripts/assemble_publications_v3.py \
+            scripts/publication_contract_v4.py \
+            tests/test_publication_contract_v4.py
+          rm -f tests/test_provider_publication_materialization.py
 
       - name: Verify preserved S2 delta
         run: |
@@ -57,30 +69,31 @@ jobs:
           M	assets/service-worker.js
           M	docs/composition-playground.md
           M	reader-navigation-locales.json
-          M	scripts/assemble_publications_v3.py
           A	scripts/check_composition_playground_webmcp_browser.py
-          D	scripts/publication_contract_v4.py
           M	tests/test_composition_playground_cross_authority_workflow.py
           M	tests/test_glossary_inline_assets.py
           M	tests/test_landing_page.py
-          A	tests/test_provider_publication_materialization.py
-          D	tests/test_publication_contract_v4.py
           M	zensical.template.toml
           EOF
-          git diff --name-status origin/webmcp/s1-reader-docs HEAD | LC_ALL=C sort > "$RUNNER_TEMP/actual.txt"
+          git diff --name-status origin/webmcp/s1-reader-docs | LC_ALL=C sort > "$RUNNER_TEMP/actual.txt"
           LC_ALL=C sort "$RUNNER_TEMP/expected.txt" -o "$RUNNER_TEMP/expected.txt"
           diff -u "$RUNNER_TEMP/expected.txt" "$RUNNER_TEMP/actual.txt"
-          test "$(git rev-parse HEAD^2)" = "$(git rev-parse origin/webmcp/s1-reader-docs)"
 
-      - name: Run synchronization smoke tests
+      - name: Run synchronization regressions
         run: |
           set -euo pipefail
-          python -I tests/test_composition_playground_cross_authority_workflow.py
-          python -m unittest tests.test_provider_publication_materialization
+          python -m unittest \
+            tests.test_publication_contract_v4 \
+            tests.test_composition_playground_cross_authority_workflow \
+            tests.test_glossary_inline_assets \
+            tests.test_landing_page
 
-      - name: Push synchronized S2 branch
+      - name: Finalize and push synchronized S2 branch
         env:
           PR_BRANCH: ${{ github.event.pull_request.head.ref }}
         run: |
           set -euo pipefail
+          rm .github/workflows/webmcp-s2-sync.yml
+          git add -A
+          git commit -m 'Preserve generic publication materialization in S2'
           git push origin "HEAD:${PR_BRANCH}"
