@@ -76,7 +76,7 @@ jobs:
         run: |
           set -euo pipefail
           python -I tests/test_composition_playground_cross_authority_workflow.py
-          python -I tests/test_provider_publication_materialization.py
+          python tests/test_provider_publication_materialization.py
 
       - name: Push synchronized S2 branch
         env:
