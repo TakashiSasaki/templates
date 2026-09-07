@@ -43,6 +43,7 @@ jobs:
 
       - name: Remediate and push only after focused validation
         run: |
+          sed -i 's/return completed.stdout.strip()/return completed.stdout.rstrip("\\n")/' site-source/.github/scripts/webmcp_s1_remediate.py
           python site-source/.github/scripts/webmcp_s1_remediate.py \
             --site-root site-source \
             --composition-root composition-source \
