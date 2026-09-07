@@ -20,7 +20,7 @@ jobs:
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
           python-version: '3.12.13'
-      - name: Author planning evidence from current Website target inventory
+      - name: Author planning contracts and evidence from current target inventory
         run: |
           python - <<'PY'
           from __future__ import annotations
@@ -38,6 +38,20 @@ jobs:
           original = json.loads(evidence_path.read_text(encoding='utf-8'))
           if original.get('mode') != 'product':
               raise SystemExit('expected current product evidence before WebMCP reader transition')
+
+          pwa_paths = [
+              root / 'contracts' / 'pwa-manifest.json',
+              root / 'contracts' / 'pwa-offline.json',
+              root / 'contracts' / 'pwa-update.json',
+          ]
+          for path in pwa_paths:
+              original_bytes = path.read_bytes()
+              Path('/tmp', f'webmcp-original-{path.name}').write_bytes(original_bytes)
+              value = json.loads(original_bytes.decode('utf-8'))
+              if value.get('mode') != 'product':
+                  raise SystemExit(f'expected product PWA contract before planning transition: {path}')
+              value['mode'] = 'planning'
+              path.write_text(json.dumps(value, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
 
           def key(target):
               return website.target_key(target)
@@ -97,7 +111,7 @@ jobs:
         run: python .template-composition/validate.py . --format json
       - name: Create canonical planning checkpoint
         run: python .template-composition/run_action.py create-planning-checkpoint webmcp-reader-publication
-      - name: Author product evidence from the validated planning target set
+      - name: Author product evidence and restore product PWA contracts
         run: |
           python - <<'PY'
           from __future__ import annotations
@@ -106,6 +120,9 @@ jobs:
           from pathlib import Path
 
           root = Path('.').resolve()
+          for name in ('pwa-manifest.json', 'pwa-offline.json', 'pwa-update.json'):
+              (root / 'contracts' / name).write_bytes(Path('/tmp', f'webmcp-original-{name}').read_bytes())
+
           evidence_path = root / 'contracts' / 'implementation-evidence.json'
           product = json.loads(Path('/tmp/webmcp-original-product-evidence.json').read_text(encoding='utf-8'))
           targets = json.loads(Path('/tmp/webmcp-new-targets.json').read_text(encoding='utf-8'))
