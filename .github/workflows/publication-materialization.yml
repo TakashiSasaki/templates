@@ -23,4 +23,8 @@ jobs:
           python-version: '3.12'
 
       - name: Run materialization regressions
-        run: python -m unittest tests.test_materialize_publication_assets --verbose
+        run: >-
+          python -m unittest
+          tests.test_materialize_publication_assets
+          tests.test_assembly_materialization_boundary
+          --verbose
