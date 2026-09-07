@@ -1,4 +1,4 @@
-name: WebMCP S1 product export
+name: WebMCP S1 product finalizer
 
 on:
   pull_request:
@@ -6,208 +6,155 @@ on:
       - .github/workflows/webmcp-s1-product-export.yml
 
 permissions:
-  contents: read
+  actions: read
+  contents: write
 
 jobs:
-  export:
+  finalize:
+    if: >-
+      github.event.pull_request.number == 765 &&
+      github.event.pull_request.head.ref == 'webmcp/s1-reader-docs' &&
+      github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - name: Check out exact pull request head
+      - name: Check out exact pull request branch
         uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          fetch-depth: 1
-          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+          persist-credentials: true
 
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.12.13'
+      - name: Verify finalizer provenance boundary
+        env:
+          EXPECTED_SOURCE_HEAD: 18b221a399373ad7794e416aee7a0b50ad8934ee
+          EVENT_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EVENT_HEAD"
+          mapfile -t changed < <(git diff --name-only "$EXPECTED_SOURCE_HEAD" HEAD)
+          test "${#changed[@]}" -eq 1
+          test "${changed[0]}" = ".github/workflows/webmcp-s1-product-export.yml"
+
+      - name: Download canonical product export
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARTIFACT_ID: '10007599880'
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/webmcp-s1-product-export
+          curl --fail-with-body --location \
+            --retry 3 --retry-all-errors \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}/zip" \
+            -o /tmp/webmcp-s1-product-export.zip
+          unzip -q /tmp/webmcp-s1-product-export.zip -d /tmp/webmcp-s1-product-export
+
+      - name: Verify canonical artifact byte identities
+        run: |
+          set -euo pipefail
+          cat > /tmp/webmcp-s1-expected.txt <<'EOF'
+          artifacts/lifecycle/006-webmcp-reader-publication-product/contracts/browser-identity.json 40ae870f5d8f909ce10ea25c44dbcf0c7fff397c 238
+          artifacts/lifecycle/006-webmcp-reader-publication-product/contracts/document-metadata.json 7641fdd55cbaea0201ddeaa979155ca573d2c0c0 39234
+          artifacts/lifecycle/006-webmcp-reader-publication-product/contracts/implementation-evidence.json 2b381fb89c1e5343b770c0a76f000ebfa3570433 517925
+          artifacts/lifecycle/006-webmcp-reader-publication-product/contracts/manifest.json 1af92e6152d4084248ca9d1a06ad3adf6c10cf65 7581
+          artifacts/lifecycle/006-webmcp-reader-publication-product/contracts/pwa-manifest.json 7ef9a5a37abec71c0809af053d8c965ce6ac4c34 1451
+          artifacts/lifecycle/006-webmcp-reader-publication-product/contracts/pwa-offline.json ed015b79c24f7f9aae1d2eea9b908dcb7a3e1e5f 18124
+          artifacts/lifecycle/006-webmcp-reader-publication-product/contracts/pwa-update.json b12243960b8ddd12dbb9c10b2155d0e11462415a 204
+          artifacts/lifecycle/006-webmcp-reader-publication-product/contracts/routes.json 1c2e4fd1bc8f0848097a1ef64ff2a71a065b9eb8 32130
+          artifacts/lifecycle/006-webmcp-reader-publication-product/contracts/site-discovery.json b41bb590a9dc6f3eb51251724e408fc175d5416c 4803
+          artifacts/lifecycle/006-webmcp-reader-publication-product/contracts/site-structure.json 5c2102f7cb96606fb71dd3e5b408343170c64947 28560
+          artifacts/lifecycle/006-webmcp-reader-publication-product/contracts/viewports.json f940e9e76a8907f5d84fdb325e15b862fd657a8a 485
+          artifacts/lifecycle/006-webmcp-reader-publication-product/manifest.json 311a3d90e0a27f49fbbc6bd44313496acff6e603 5633
+          artifacts/lifecycle/006-webmcp-reader-publication-product/schemas/browser-identity.schema.json b07cf72a093417dc74ee61bac5e103fb1e12549f 1418
+          artifacts/lifecycle/006-webmcp-reader-publication-product/schemas/document-metadata.schema.json 23f17754c1d0421953580c35f6c4edf741fab9d5 1486
+          artifacts/lifecycle/006-webmcp-reader-publication-product/schemas/implementation-evidence.schema.json b625b8dd455fd6f7f82583797955171e35a6588a 7863
+          artifacts/lifecycle/006-webmcp-reader-publication-product/schemas/lifecycle-checkpoints.schema.json a84b8e5004d05e96f91c1930f66bccb2d1489a60 1832
+          artifacts/lifecycle/006-webmcp-reader-publication-product/schemas/pwa-manifest.schema.json 41791ed933e9b38146d2e1a85a8d8d8014d313af 4792
+          artifacts/lifecycle/006-webmcp-reader-publication-product/schemas/pwa-offline.schema.json c5661ef6e2de2e9b863a098609e8fe4c162c4edf 3591
+          artifacts/lifecycle/006-webmcp-reader-publication-product/schemas/pwa-update.schema.json bb6ba96dafe43ee595db12c2994b0466e7a0dfe9 1989
+          artifacts/lifecycle/006-webmcp-reader-publication-product/schemas/routes.schema.json 93ba5cc30de6805848752e89652331072802ac24 2204
+          artifacts/lifecycle/006-webmcp-reader-publication-product/schemas/site-discovery.schema.json c4d57e89297088c7a49c000d920ec7b802cde6ea 1743
+          artifacts/lifecycle/006-webmcp-reader-publication-product/schemas/site-structure.schema.json 91d32836622998b4de68f0b5d44865c8c5b5e0ca 1233
+          artifacts/lifecycle/006-webmcp-reader-publication-product/schemas/viewports.schema.json 7b440afe0ac9482c59cf80bd36bf97f511855ee6 1440
+          artifacts/lifecycle/006-webmcp-reader-publication-product/validation.json cad74089272fc27413bf5d7714bd5cd3d233adca 57406
+          assets/reference-consumer.json 1708e1dc123672671650c5e7949ebe5e3c708eb5 19891
+          contracts/implementation-evidence.json 2b381fb89c1e5343b770c0a76f000ebfa3570433 517925
+          contracts/lifecycle-checkpoints.json cde29f293695b3d499ee2ac33fa72209d79e8ec4 2545
+          docs/policy-composition-coexistence.md cd474329b511ab80c0080a0605522cc7840a3e43 16519
+          translations/ja/docs/policy-composition-coexistence.md 1b1011579b01b29572585d39003b1f6e9bbaa3d2 18791
+          EOF
+
+          test "$(find /tmp/webmcp-s1-product-export -type f | wc -l)" -eq 29
+          while read -r path expected_sha expected_size; do
+            file="/tmp/webmcp-s1-product-export/$path"
+            test -f "$file"
+            test "$(stat -c%s "$file")" = "$expected_size"
+            actual_sha="$(git hash-object "$file")"
+            test "$actual_sha" = "$expected_sha" || {
+              echo "blob mismatch: $path expected=$expected_sha actual=$actual_sha" >&2
+              exit 1
+            }
+          done < /tmp/webmcp-s1-expected.txt
 
       - name: Install Site renderer dependency
-        run: python -m pip install PyYAML==6.0.3
-
-      - name: Replay and register the canonical planning checkpoint
         run: |
-          python - <<'PY'
-          from __future__ import annotations
+          python -m pip install PyYAML==6.0.3
 
-          import hashlib
-          import json
-          import shutil
-          from pathlib import Path
-
-          root = Path('.')
-          snapshot_root = root / 'artifacts/lifecycle/005-webmcp-reader-publication'
-          ledger_path = root / 'contracts/lifecycle-checkpoints.json'
-          manifest_path = snapshot_root / 'manifest.json'
-          manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
-          checkpoint_id = manifest['checkpointId']
-
-          current_root = Path('/tmp/webmcp-s1-current-authority')
-          current_root.mkdir(parents=True, exist_ok=True)
-          for item in manifest['files']:
-              relative = Path(item['path'])
-              source = root / relative
-              destination = current_root / relative
-              destination.parent.mkdir(parents=True, exist_ok=True)
-              shutil.copyfile(source, destination)
-
-              snapshot = snapshot_root / item['snapshotPath']
-              if hashlib.sha256(snapshot.read_bytes()).hexdigest() != item['sha256']:
-                  raise SystemExit(f'planning snapshot hash mismatch: {relative}')
-              shutil.copyfile(snapshot, source)
-
-          ledger = json.loads(ledger_path.read_text(encoding='utf-8'))
-          checkpoints = ledger['checkpoints']
-          if not any(entry.get('id') == checkpoint_id for entry in checkpoints):
-              expected_sequence = len(checkpoints) + 1
-              if manifest['sequence'] != expected_sequence:
-                  raise SystemExit(
-                      f'planning checkpoint sequence mismatch: manifest={manifest["sequence"]}, expected={expected_sequence}'
-                  )
-              checkpoints.append({
-                  'id': checkpoint_id,
-                  'sequence': manifest['sequence'],
-                  'phase': manifest['phase'],
-                  'changeKind': manifest['changeKind'],
-                  'parentId': manifest['parentId'],
-                  'snapshotPath': f'artifacts/lifecycle/{manifest["sequence"]:03d}-{checkpoint_id}',
-                  'manifestSha256': hashlib.sha256(manifest_path.read_bytes()).hexdigest(),
-                  'recordedAt': manifest['recordedAt'],
-              })
-          ledger_path.write_text(json.dumps(ledger, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
-          print(json.dumps({'planning_checkpoint': checkpoint_id, 'sequence': manifest['sequence']}, sort_keys=True))
-          PY
-
-      - name: Validate canonical planning state
-        run: python .template-composition/validate.py . --format json
-
-      - name: Restore implemented candidate and close WebMCP product evidence
+      - name: Apply and validate canonical product state
         run: |
-          python - <<'PY'
-          from __future__ import annotations
-
-          import copy
-          import json
-          import shutil
-          from pathlib import Path
-
-          root = Path('.')
-          snapshot_root = root / 'artifacts/lifecycle/005-webmcp-reader-publication'
-          current_root = Path('/tmp/webmcp-s1-current-authority')
-          manifest = json.loads((snapshot_root / 'manifest.json').read_text(encoding='utf-8'))
-
-          for item in manifest['files']:
-              relative = Path(item['path'])
-              shutil.copyfile(current_root / relative, root / relative)
-
-          product_path = root / 'contracts/implementation-evidence.json'
-          prior_product_path = root / 'artifacts/lifecycle/004-routes-v5-publication-product/contracts/implementation-evidence.json'
-          planning_path = snapshot_root / 'contracts/implementation-evidence.json'
-          product = json.loads(prior_product_path.read_text(encoding='utf-8'))
-          planning = json.loads(planning_path.read_text(encoding='utf-8'))
-
-          if product.get('mode') != 'product' or planning.get('mode') != 'planning':
-              raise SystemExit('unexpected implementation-evidence modes')
-
-          product_requirements = {entry['id']: entry for entry in product['requirements']}
-          product_records = {entry['id']: entry for entry in product['records']}
-          missing = [entry for entry in planning['requirements'] if entry['id'] not in product_requirements]
-          if len(missing) != 10:
-              raise SystemExit(f'expected exactly 10 new WebMCP requirements, found {len(missing)}')
-
-          templates: dict[str, dict] = {}
-          for record in product['records']:
-              target = record.get('target', {})
-              contract_id = target.get('contractId')
-              if contract_id and contract_id not in templates:
-                  templates[contract_id] = record
-
-          for requirement in missing:
-              requirement_id = requirement['id']
-              targets = requirement.get('targets')
-              if not isinstance(targets, list) or len(targets) != 1:
-                  raise SystemExit(f'{requirement_id}: expected exactly one planning target')
-              if requirement.get('requiredPositiveProofKinds') != ['end-to-end-test']:
-                  raise SystemExit(f'{requirement_id}: unexpected proof-kind requirement')
-
-              target = copy.deepcopy(targets[0])
-              contract_id = target.get('contractId')
-              template = templates.get(contract_id)
-              if template is None:
-                  raise SystemExit(f'{requirement_id}: no established product record template for {contract_id!r}')
-
-              record = copy.deepcopy(template)
-              record['id'] = requirement_id
-              record['target'] = target
-              record['implementationBoundary']['description'] = (
-                  f'Site publication assembly and browser implementation for {requirement_id}'
-              )
-
-              for field, suffix in (('positiveEvidence', 'positive'), ('negativeEvidence', 'negative')):
-                  proofs = record[field]
-                  if len(proofs) != 1 or proofs[0].get('kind') != 'end-to-end-test':
-                      raise SystemExit(
-                          f'{requirement_id}: established {field} template is not one browser end-to-end proof'
-                      )
-                  proofs[0]['id'] = f'{requirement_id}-{suffix}'
-
-              product_records[requirement_id] = record
-              # Preserve the exact planning intent in the product transition. The
-              # generic v6 schema permits omission, but lifecycle transition
-              # validation deliberately requires retained targets when planning
-              # declared them.
-              product_requirements[requirement_id] = {
-                  'id': requirement_id,
-                  'description': requirement['description'],
-                  'targets': copy.deepcopy(targets),
-                  'recordIds': [requirement_id],
-                  'requiredPositiveProofKinds': copy.deepcopy(requirement['requiredPositiveProofKinds']),
-              }
-
-          product['records'] = [product_records[key] for key in sorted(product_records)]
-          product['requirements'] = [product_requirements[key] for key in sorted(product_requirements)]
-          product_path.write_text(json.dumps(product, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
-          print(json.dumps({
-              'requirements': len(product['requirements']),
-              'records': len(product['records']),
-              'new': [entry['id'] for entry in missing],
-          }, sort_keys=True))
-          PY
-
-      - name: Validate product evidence before checkpoint
-        run: python .template-composition/validate.py . --format json
-
-      - name: Record canonical product checkpoint
-        run: >-
-          python .template-composition/checkpoint.py product
-          --id webmcp-reader-publication-product
-          --from webmcp-reader-publication
-
-      - name: Refresh self-consumer reader projections
-        run: python scripts/render_reference_consumer.py --write
-
-      - name: Verify final canonical state
-        run: |
+          set -euo pipefail
+          cp -a /tmp/webmcp-s1-product-export/. .
+          while read -r path expected_sha expected_size; do
+            actual_sha="$(git hash-object "$path")"
+            test "$actual_sha" = "$expected_sha" || {
+              echo "working-tree blob mismatch: $path expected=$expected_sha actual=$actual_sha" >&2
+              exit 1
+            }
+          done < /tmp/webmcp-s1-expected.txt
           python .template-composition/validate.py . --format json
           python scripts/render_reference_consumer.py
 
-      - name: Stage canonical export
+      - name: Reject unexpected working-tree changes
         run: |
-          mkdir -p /tmp/webmcp-s1-export/contracts /tmp/webmcp-s1-export/assets /tmp/webmcp-s1-export/docs /tmp/webmcp-s1-export/translations/ja/docs /tmp/webmcp-s1-export/artifacts/lifecycle
-          cp contracts/implementation-evidence.json /tmp/webmcp-s1-export/contracts/
-          cp contracts/lifecycle-checkpoints.json /tmp/webmcp-s1-export/contracts/
-          cp assets/reference-consumer.json /tmp/webmcp-s1-export/assets/
-          cp docs/policy-composition-coexistence.md /tmp/webmcp-s1-export/docs/
-          cp translations/ja/docs/policy-composition-coexistence.md /tmp/webmcp-s1-export/translations/ja/docs/
-          cp -a artifacts/lifecycle/006-webmcp-reader-publication-product /tmp/webmcp-s1-export/artifacts/lifecycle/
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import subprocess
 
-      - name: Upload canonical export
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
-        with:
-          name: webmcp-s1-product-export
-          path: /tmp/webmcp-s1-export
-          if-no-files-found: error
-          retention-days: 1
+          expected = {
+              line.split()[0]
+              for line in Path('/tmp/webmcp-s1-expected.txt').read_text().splitlines()
+              if line.strip()
+          }
+          raw = subprocess.check_output(['git', 'status', '--porcelain=v1', '-z'])
+          entries = [entry for entry in raw.decode().split('\0') if entry]
+          changed = set()
+          for entry in entries:
+              path = entry[3:]
+              if ' -> ' in path:
+                  path = path.split(' -> ', 1)[1]
+              changed.add(path)
+          unexpected = sorted(changed - expected)
+          if unexpected:
+              raise SystemExit(f'unexpected working-tree changes: {unexpected}')
+          if not changed:
+              raise SystemExit('canonical product state produced no repository changes')
+          print(f'validated {len(changed)} canonical changed paths')
+          PY
+
+      - name: Commit canonical S1 product checkpoint
+        env:
+          PR_BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          while read -r path _ _; do
+            git add -- "$path"
+          done < /tmp/webmcp-s1-expected.txt
+          git diff --cached --check
+          git commit -m 'Finalize WebMCP S1 product checkpoint'
+          git push origin "HEAD:${PR_BRANCH}"
