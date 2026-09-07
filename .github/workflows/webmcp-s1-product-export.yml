@@ -45,9 +45,6 @@ jobs:
           manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
           checkpoint_id = manifest['checkpointId']
 
-          # Preserve the current implemented candidate while replaying the immutable
-          # planning snapshot exactly. The product transition below restores these
-          # bytes before adding the 10 new evidence records.
           current_root = Path('/tmp/webmcp-s1-current-authority')
           current_root.mkdir(parents=True, exist_ok=True)
           for item in manifest['files']:
@@ -102,8 +99,6 @@ jobs:
           current_root = Path('/tmp/webmcp-s1-current-authority')
           manifest = json.loads((snapshot_root / 'manifest.json').read_text(encoding='utf-8'))
 
-          # Restore every implemented authority file that existed at the candidate
-          # head, but keep the now-registered root lifecycle ledger.
           for item in manifest['files']:
               relative = Path(item['path'])
               shutil.copyfile(current_root / relative, root / relative)
@@ -138,7 +133,7 @@ jobs:
               if requirement.get('requiredPositiveProofKinds') != ['end-to-end-test']:
                   raise SystemExit(f'{requirement_id}: unexpected proof-kind requirement')
 
-              target = targets[0]
+              target = copy.deepcopy(targets[0])
               contract_id = target.get('contractId')
               template = templates.get(contract_id)
               if template is None:
@@ -160,14 +155,16 @@ jobs:
                   proofs[0]['id'] = f'{requirement_id}-{suffix}'
 
               product_records[requirement_id] = record
-              # Product targets are optional in implementation-evidence v6; the
-              # immutable planning checkpoint retains exact target intent while the
-              # record reference closes the active product graph.
+              # Preserve the exact planning intent in the product transition. The
+              # generic v6 schema permits omission, but lifecycle transition
+              # validation deliberately requires retained targets when planning
+              # declared them.
               product_requirements[requirement_id] = {
                   'id': requirement_id,
                   'description': requirement['description'],
+                  'targets': copy.deepcopy(targets),
                   'recordIds': [requirement_id],
-                  'requiredPositiveProofKinds': requirement['requiredPositiveProofKinds'],
+                  'requiredPositiveProofKinds': copy.deepcopy(requirement['requiredPositiveProofKinds']),
               }
 
           product['records'] = [product_records[key] for key in sorted(product_records)]
