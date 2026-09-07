@@ -17,16 +17,7 @@ jobs:
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
           python-version: '3.12.13'
-      - run: python scripts/site_website_contract.py --write
-      - name: Upload canonical Site worksheets
-        uses: actions/upload-artifact@v4
-        with:
-          name: canonical-site-worksheets-${{ github.run_id }}
-          path: |
-            contracts/routes.json
-            contracts/site-structure.json
-            contracts/document-metadata.json
-            contracts/site-discovery.json
+      - run: python scripts/site_website_contract.py
       - run: python -m pip install PyYAML==6.0.3
       - run: python scripts/render_reference_consumer.py
       - run: python .template-composition/validate.py . --format json
