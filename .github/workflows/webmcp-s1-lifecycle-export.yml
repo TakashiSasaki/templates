@@ -1,0 +1,222 @@
+name: Export WebMCP S1 lifecycle transition
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out exact PR head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: '3.12.13'
+      - name: Author planning evidence from current Website target inventory
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+
+          import copy
+          import json
+          import sys
+          from pathlib import Path
+
+          root = Path('.').resolve()
+          sys.path.insert(0, str(root / 'scripts'))
+          import website_evidence_targets as website
+
+          evidence_path = root / 'contracts' / 'implementation-evidence.json'
+          original = json.loads(evidence_path.read_text(encoding='utf-8'))
+          if original.get('mode') != 'product':
+              raise SystemExit('expected current product evidence before WebMCP reader transition')
+
+          def key(target):
+              return website.target_key(target)
+
+          covered = {
+              key(target)
+              for requirement in original.get('requirements', [])
+              if isinstance(requirement, dict)
+              for target in requirement.get('targets', [])
+              if isinstance(target, dict)
+          }
+          missing = [target for target in website.expected_targets(root) if key(target) not in covered]
+          if len(missing) != 10:
+              raise SystemExit(f'expected exactly 10 new Website targets, got {len(missing)}: {missing!r}')
+          if not all(website.requires_browser_level_proof(target) for target in missing):
+              raise SystemExit('new WebMCP reader targets must all use browser-level proof')
+
+          def evidence_id(target):
+              return f"{target['contractId'].replace('_', '-')}-{target['itemId']}"
+
+          new_requirements = []
+          for target in missing:
+              identifier = evidence_id(target)
+              new_requirements.append({
+                  'id': identifier,
+                  'description': f'Site fulfills {identifier}',
+                  'targets': [target],
+                  'recordIds': [],
+                  'requiredPositiveProofKinds': ['end-to-end-test'],
+              })
+
+          planning = copy.deepcopy(original)
+          planning['mode'] = 'planning'
+          planning['commands'] = []
+          planning['releaseGates'] = []
+          planning['records'] = []
+          for requirement in planning['requirements']:
+              requirement['recordIds'] = []
+          planning['requirements'].extend(new_requirements)
+          planning['requirements'].sort(key=lambda item: item['id'])
+
+          evidence_path.write_text(
+              json.dumps(planning, indent=2, ensure_ascii=False) + '\n',
+              encoding='utf-8',
+          )
+          Path('/tmp/webmcp-original-product-evidence.json').write_text(
+              json.dumps(original, indent=2, ensure_ascii=False) + '\n',
+              encoding='utf-8',
+          )
+          Path('/tmp/webmcp-new-targets.json').write_text(
+              json.dumps(missing, indent=2, ensure_ascii=False) + '\n',
+              encoding='utf-8',
+          )
+          print('planning targets added:', ', '.join(evidence_id(target) for target in missing))
+          PY
+      - name: Validate planning state
+        run: python .template-composition/validate.py . --format json
+      - name: Create canonical planning checkpoint
+        run: python .template-composition/run_action.py create-planning-checkpoint webmcp-reader-publication
+      - name: Author product evidence from the validated planning target set
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+
+          import json
+          from pathlib import Path
+
+          root = Path('.').resolve()
+          evidence_path = root / 'contracts' / 'implementation-evidence.json'
+          product = json.loads(Path('/tmp/webmcp-original-product-evidence.json').read_text(encoding='utf-8'))
+          targets = json.loads(Path('/tmp/webmcp-new-targets.json').read_text(encoding='utf-8'))
+
+          def evidence_id(target):
+              return f"{target['contractId'].replace('_', '-')}-{target['itemId']}"
+
+          expected_result = (
+              'All reachable contract assertions pass; corrupted or unavailable states fail '
+              'or expose the required fallback.'
+          )
+          for target in targets:
+              identifier = evidence_id(target)
+              product['requirements'].append({
+                  'id': identifier,
+                  'description': f'Site fulfills {identifier}',
+                  'targets': [target],
+                  'recordIds': [identifier],
+                  'requiredPositiveProofKinds': ['end-to-end-test'],
+              })
+              product['records'].append({
+                  'id': identifier,
+                  'target': target,
+                  'implementationBoundary': {
+                      'status': 'verified',
+                      'description': f'Site publication assembly and browser implementation for {identifier}',
+                      'locator': 'scripts/assemble_publications_v3.py',
+                  },
+                  'releaseGateIds': ['site-reference'],
+                  'positiveEvidence': [{
+                      'id': f'{identifier}-positive',
+                      'status': 'verified',
+                      'kind': 'end-to-end-test',
+                      'description': 'Actual browser contract assertions.',
+                      'locator': 'scripts/check_reference_website.py',
+                      'commandId': 'website-browser',
+                      'expectedResult': expected_result,
+                  }],
+                  'negativeEvidence': [{
+                      'id': f'{identifier}-negative',
+                      'status': 'verified',
+                      'kind': 'end-to-end-test',
+                      'description': 'Browser corruption or network/update failure assertions.',
+                      'locator': 'scripts/check_reference_website.py',
+                      'commandId': 'website-browser',
+                      'expectedResult': expected_result,
+                  }],
+              })
+
+          product['requirements'].sort(key=lambda item: item['id'])
+          product['records'].sort(key=lambda item: item['id'])
+          evidence_path.write_text(
+              json.dumps(product, indent=2, ensure_ascii=False) + '\n',
+              encoding='utf-8',
+          )
+          PY
+      - name: Validate product state
+        run: python .template-composition/validate.py . --format json
+      - name: Create canonical product checkpoint
+        run: python .template-composition/run_action.py create-product-checkpoint webmcp-reader-publication-product webmcp-reader-publication
+      - name: Refresh public self-consumer projections
+        run: python scripts/render_reference_consumer.py --write
+      - name: Verify final generated state
+        run: |
+          python scripts/site_website_contract.py
+          python .template-composition/validate.py . --format json
+          python scripts/render_reference_consumer.py
+      - name: Collect changed tracked and generated files
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+
+          import shutil
+          import subprocess
+          from pathlib import Path
+
+          root = Path('.').resolve()
+          export = root / 'webmcp-s1-lifecycle-export'
+          export.mkdir()
+          raw = subprocess.check_output(
+              ['git', 'status', '--porcelain=v1', '-z', '--untracked-files=all'],
+              cwd=root,
+          )
+          entries = raw.decode('utf-8').split('\0')
+          paths = []
+          for entry in entries:
+              if not entry:
+                  continue
+              status = entry[:2]
+              path = entry[3:]
+              if ' -> ' in path:
+                  path = path.split(' -> ', 1)[1]
+              if path == '.github/workflows/webmcp-s1-lifecycle-export.yml':
+                  continue
+              if 'D' in status:
+                  raise SystemExit(f'unexpected deleted path: {path}')
+              source = root / path
+              if not source.is_file():
+                  raise SystemExit(f'changed path is not a regular file: {path}')
+              destination = export / path
+              destination.parent.mkdir(parents=True, exist_ok=True)
+              shutil.copyfile(source, destination)
+              paths.append(path)
+          (export / 'changed-files.txt').write_text('\n'.join(sorted(paths)) + '\n', encoding='utf-8')
+          print('exported changed files:')
+          print('\n'.join(sorted(paths)))
+          PY
+      - name: Upload lifecycle export
+        uses: actions/upload-artifact@v4
+        with:
+          name: webmcp-s1-lifecycle-${{ github.run_id }}
+          path: webmcp-s1-lifecycle-export
+          if-no-files-found: error
+          retention-days: 7
