@@ -17,25 +17,10 @@ jobs:
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
           python-version: '3.12.13'
-      - name: Emit canonical generated projections for connector application
-        run: |
-          python scripts/site_website_contract.py --write
-          python -m pip install PyYAML==6.0.3
-          python scripts/render_reference_consumer.py --write
-          for path in \
-            contracts/routes.json \
-            contracts/site-structure.json \
-            contracts/document-metadata.json \
-            contracts/site-discovery.json \
-            assets/reference-consumer.json \
-            docs/policy-composition-coexistence.md \
-            translations/ja/docs/policy-composition-coexistence.md; do
-            echo "BEGIN_CANONICAL ${path}"
-            base64 -w0 "${path}"
-            echo
-            echo "END_CANONICAL ${path}"
-          done
-          exit 1
+      - run: python scripts/site_website_contract.py
+      - run: python -m pip install PyYAML==6.0.3
+      - run: python scripts/render_reference_consumer.py
+      - run: python .template-composition/validate.py . --format json
   build:
     uses: ./.github/workflows/build-pages.yml
     with:
