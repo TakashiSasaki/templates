@@ -143,7 +143,9 @@ jobs:
               'artifacts/lifecycle/006-webmcp-reader-publication-product/.template-composition/lock.json',
               'artifacts/lifecycle/006-webmcp-reader-publication-product/.template-composition/validation-registry.json',
           })
-          raw = subprocess.check_output(['git', 'status', '--porcelain=v1', '-z'])
+          raw = subprocess.check_output([
+              'git', 'status', '--porcelain=v1', '-z', '--untracked-files=all'
+          ])
           entries = [entry for entry in raw.decode().split('\0') if entry]
           changed = set()
           for entry in entries:
