@@ -28,6 +28,52 @@ jobs:
       - name: Install Site renderer dependency
         run: python -m pip install PyYAML==6.0.3
 
+      - name: Restore and register the canonical planning checkpoint
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+
+          import hashlib
+          import json
+          import shutil
+          from pathlib import Path
+
+          root = Path('.')
+          snapshot_root = root / 'artifacts/lifecycle/005-webmcp-reader-publication'
+          snapshot_evidence = snapshot_root / 'contracts/implementation-evidence.json'
+          root_evidence = root / 'contracts/implementation-evidence.json'
+          ledger_path = root / 'contracts/lifecycle-checkpoints.json'
+          manifest_path = snapshot_root / 'manifest.json'
+
+          shutil.copyfile(snapshot_evidence, root_evidence)
+          ledger = json.loads(ledger_path.read_text(encoding='utf-8'))
+          manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
+          checkpoint_id = manifest['checkpointId']
+
+          checkpoints = ledger['checkpoints']
+          if not any(entry.get('id') == checkpoint_id for entry in checkpoints):
+              expected_sequence = len(checkpoints) + 1
+              if manifest['sequence'] != expected_sequence:
+                  raise SystemExit(
+                      f'planning checkpoint sequence mismatch: manifest={manifest["sequence"]}, expected={expected_sequence}'
+                  )
+              checkpoints.append({
+                  'id': checkpoint_id,
+                  'sequence': manifest['sequence'],
+                  'phase': manifest['phase'],
+                  'changeKind': manifest['changeKind'],
+                  'parentId': manifest['parentId'],
+                  'snapshotPath': f'artifacts/lifecycle/{manifest["sequence"]:03d}-{checkpoint_id}',
+                  'manifestSha256': hashlib.sha256(manifest_path.read_bytes()).hexdigest(),
+                  'recordedAt': manifest['recordedAt'],
+              })
+          ledger_path.write_text(json.dumps(ledger, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+          print(json.dumps({'planning_checkpoint': checkpoint_id, 'sequence': manifest['sequence']}, sort_keys=True))
+          PY
+
+      - name: Validate canonical planning state
+        run: python .template-composition/validate.py . --format json
+
       - name: Close planning requirements with established browser evidence pattern
         run: |
           python - <<'PY'
@@ -39,8 +85,9 @@ jobs:
 
           root = Path('.')
           product_path = root / 'contracts/implementation-evidence.json'
+          prior_product_path = root / 'artifacts/lifecycle/004-routes-v5-publication-product/contracts/implementation-evidence.json'
           planning_path = root / 'artifacts/lifecycle/005-webmcp-reader-publication/contracts/implementation-evidence.json'
-          product = json.loads(product_path.read_text(encoding='utf-8'))
+          product = json.loads(prior_product_path.read_text(encoding='utf-8'))
           planning = json.loads(planning_path.read_text(encoding='utf-8'))
 
           if product.get('mode') != 'product' or planning.get('mode') != 'planning':
@@ -76,19 +123,19 @@ jobs:
               record = copy.deepcopy(template)
               record['id'] = requirement_id
               record['target'] = target
-              boundary = record['implementationBoundary']
-              boundary['description'] = f'Site publication assembly and browser implementation for {requirement_id}'
+              record['implementationBoundary']['description'] = (
+                  f'Site publication assembly and browser implementation for {requirement_id}'
+              )
 
               for field, suffix in (('positiveEvidence', 'positive'), ('negativeEvidence', 'negative')):
                   proofs = record[field]
                   if len(proofs) != 1 or proofs[0].get('kind') != 'end-to-end-test':
-                      raise SystemExit(f'{requirement_id}: established {field} template is not one browser end-to-end proof')
+                      raise SystemExit(
+                          f'{requirement_id}: established {field} template is not one browser end-to-end proof'
+                      )
                   proofs[0]['id'] = f'{requirement_id}-{suffix}'
 
               product_records[requirement_id] = record
-              # Product-mode targets are intentionally optional in v6. The immutable
-              # planning checkpoint retains the exact target declaration; recordIds
-              # close the active product graph without duplicating that large target.
               product_requirements[requirement_id] = {
                   'id': requirement_id,
                   'description': requirement['description'],
