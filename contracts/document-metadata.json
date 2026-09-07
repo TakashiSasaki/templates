@@ -422,6 +422,46 @@
       "socialPreview": "none"
     },
     {
+      "pageId": "site-webmcp-guide",
+      "title": "WebMCP overview",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-webmcp-capability",
+      "title": "WebMCP provider contract",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-webmcp-tool-design",
+      "title": "WebMCP tool design",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-webmcp-security",
+      "title": "WebMCP security",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-webmcp-testing",
+      "title": "WebMCP testing",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
       "pageId": "composition-browser-interface",
       "title": "Standalone browser interface",
       "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
