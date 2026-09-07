@@ -9,6 +9,7 @@ EXPECTED_BASES = {
     "codex/site-composition-playground-v1-shell",
     "site",
 }
+EXPECTED_COMPOSITION_PROVIDER = "a739b3823660e3db742ff0e1e159d279126cba7c"
 
 
 def pull_request_bases(text: str) -> set[str]:
@@ -34,7 +35,7 @@ def main() -> int:
         raise AssertionError("cross-authority build no longer binds to the exact PR head")
     if "ref: ${{ github.event.pull_request.head.sha }}" not in text:
         raise AssertionError("cross-authority consumer checkout no longer binds to the exact PR head")
-    if "composition_ref: 223f97b37c07ada37acaa38a5ed4cc23c18b3c01" not in text:
+    if f"composition_ref: {EXPECTED_COMPOSITION_PROVIDER}" not in text:
         raise AssertionError("cross-authority candidate provider binding changed unexpectedly")
     print("Composition Playground cross-authority trigger contract passed")
     return 0
