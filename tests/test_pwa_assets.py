@@ -150,7 +150,7 @@ class PwaAssetTests(unittest.TestCase):
 
     def test_service_worker_uses_separate_shell_and_document_caches(self) -> None:
         worker = (ROOT / "assets/service-worker.js").read_text(encoding="utf-8")
-        self.assertIn('const CACHE_NAME = "templates-portal-shell-v4"', worker)
+        self.assertIn('const CACHE_NAME = "templates-portal-shell-v5"', worker)
         self.assertIn('const DOCUMENT_CACHE_NAME = "templates-portal-documents-v1"', worker)
         self.assertNotIn("const APP_SHELL", worker)
         self.assertNotIn('caches.match("/")', worker)
