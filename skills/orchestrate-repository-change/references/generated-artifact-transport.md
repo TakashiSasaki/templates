@@ -1,3 +1,4 @@
+<!-- agent-policy-generated: true -->
 # Generated artifact transport and mutation payload classification
 
 Repository-change orchestration must classify a payload before choosing how to mutate or transport it. The classification is provider-neutral and applies whether the change is implemented through a local checkout, an API/connector, a browser automation surface, or another repository mutation mechanism.
