@@ -7,6 +7,7 @@ It never writes provider-managed files, a lock, or Policy state.
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 from pathlib import Path
 
@@ -71,13 +72,20 @@ def main() -> int:
     parser.add_argument("--repository", type=Path, default=Path(__file__).resolve().parents[1])
     parser.add_argument("--write", action="store_true")
     args = parser.parse_args()
+    stale = False
     for path, value in documents(args.repository).items():
         content = json.dumps(value, indent=2, ensure_ascii=False) + "\n"
         target = args.repository / path
         if args.write:
             target.write_text(content)
         elif target.read_text() != content:
-            raise SystemExit(f"Site worksheet drift: {path}; run scripts/site_website_contract.py --write")
+            stale = True
+            encoded = base64.b64encode(content.encode("utf-8")).decode("ascii")
+            print(f"BEGIN_CANONICAL {path}")
+            print(encoded)
+            print(f"END_CANONICAL {path}")
+    if stale:
+        raise SystemExit("Site worksheet drift; run scripts/site_website_contract.py --write")
     return 0
 
 
