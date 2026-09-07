@@ -1,0 +1,142 @@
+name: WebMCP S1 product export
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/webmcp-s1-product-export.yml
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out exact pull request head
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12.13'
+
+      - name: Install Site renderer dependency
+        run: python -m pip install PyYAML==6.0.3
+
+      - name: Close planning requirements with established browser evidence pattern
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+
+          import copy
+          import json
+          from pathlib import Path
+
+          root = Path('.')
+          product_path = root / 'contracts/implementation-evidence.json'
+          planning_path = root / 'artifacts/lifecycle/005-webmcp-reader-publication/contracts/implementation-evidence.json'
+          product = json.loads(product_path.read_text(encoding='utf-8'))
+          planning = json.loads(planning_path.read_text(encoding='utf-8'))
+
+          if product.get('mode') != 'product' or planning.get('mode') != 'planning':
+              raise SystemExit('unexpected implementation-evidence modes')
+
+          product_requirements = {entry['id']: entry for entry in product['requirements']}
+          product_records = {entry['id']: entry for entry in product['records']}
+          missing = [entry for entry in planning['requirements'] if entry['id'] not in product_requirements]
+          if len(missing) != 10:
+              raise SystemExit(f'expected exactly 10 new WebMCP requirements, found {len(missing)}')
+
+          templates: dict[str, dict] = {}
+          for record in product['records']:
+              target = record.get('target', {})
+              contract_id = target.get('contractId')
+              if contract_id and contract_id not in templates:
+                  templates[contract_id] = record
+
+          for requirement in missing:
+              requirement_id = requirement['id']
+              targets = requirement.get('targets')
+              if not isinstance(targets, list) or len(targets) != 1:
+                  raise SystemExit(f'{requirement_id}: expected exactly one planning target')
+              if requirement.get('requiredPositiveProofKinds') != ['end-to-end-test']:
+                  raise SystemExit(f'{requirement_id}: unexpected proof-kind requirement')
+
+              target = targets[0]
+              contract_id = target.get('contractId')
+              template = templates.get(contract_id)
+              if template is None:
+                  raise SystemExit(f'{requirement_id}: no established product record template for {contract_id!r}')
+
+              record = copy.deepcopy(template)
+              record['id'] = requirement_id
+              record['target'] = target
+              boundary = record['implementationBoundary']
+              boundary['description'] = f'Site publication assembly and browser implementation for {requirement_id}'
+
+              for field, suffix in (('positiveEvidence', 'positive'), ('negativeEvidence', 'negative')):
+                  proofs = record[field]
+                  if len(proofs) != 1 or proofs[0].get('kind') != 'end-to-end-test':
+                      raise SystemExit(f'{requirement_id}: established {field} template is not one browser end-to-end proof')
+                  proofs[0]['id'] = f'{requirement_id}-{suffix}'
+
+              product_records[requirement_id] = record
+              # Product-mode targets are intentionally optional in v6. The immutable
+              # planning checkpoint retains the exact target declaration; recordIds
+              # close the active product graph without duplicating that large target.
+              product_requirements[requirement_id] = {
+                  'id': requirement_id,
+                  'description': requirement['description'],
+                  'recordIds': [requirement_id],
+                  'requiredPositiveProofKinds': requirement['requiredPositiveProofKinds'],
+              }
+
+          product['records'] = [product_records[key] for key in sorted(product_records)]
+          product['requirements'] = [product_requirements[key] for key in sorted(product_requirements)]
+          product_path.write_text(json.dumps(product, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+          print(json.dumps({
+              'requirements': len(product['requirements']),
+              'records': len(product['records']),
+              'new': [entry['id'] for entry in missing],
+          }, sort_keys=True))
+          PY
+
+      - name: Validate product evidence before checkpoint
+        run: python .template-composition/validate.py . --format json
+
+      - name: Record canonical product checkpoint
+        run: >-
+          python .template-composition/checkpoint.py product
+          --id webmcp-reader-publication-product
+          --from webmcp-reader-publication
+
+      - name: Refresh self-consumer reader projections
+        run: python scripts/render_reference_consumer.py --write
+
+      - name: Verify final canonical state
+        run: |
+          python .template-composition/validate.py . --format json
+          python scripts/render_reference_consumer.py
+
+      - name: Stage canonical export
+        run: |
+          mkdir -p /tmp/webmcp-s1-export/contracts /tmp/webmcp-s1-export/assets /tmp/webmcp-s1-export/docs /tmp/webmcp-s1-export/translations/ja/docs /tmp/webmcp-s1-export/artifacts/lifecycle
+          cp contracts/implementation-evidence.json /tmp/webmcp-s1-export/contracts/
+          cp contracts/lifecycle-checkpoints.json /tmp/webmcp-s1-export/contracts/
+          cp assets/reference-consumer.json /tmp/webmcp-s1-export/assets/
+          cp docs/policy-composition-coexistence.md /tmp/webmcp-s1-export/docs/
+          cp translations/ja/docs/policy-composition-coexistence.md /tmp/webmcp-s1-export/translations/ja/docs/
+          cp -a artifacts/lifecycle/006-webmcp-reader-publication-product /tmp/webmcp-s1-export/artifacts/lifecycle/
+
+      - name: Upload canonical export
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
+        with:
+          name: webmcp-s1-product-export
+          path: /tmp/webmcp-s1-export
+          if-no-files-found: error
+          retention-days: 1
