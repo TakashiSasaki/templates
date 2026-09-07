@@ -368,6 +368,41 @@
       "parentPageId": "site-portal-home"
     },
     {
+      "id": "site-webmcp-guide",
+      "routeId": "site-webmcp-guide",
+      "role": "content",
+      "title": "WebMCP overview",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-webmcp-capability",
+      "routeId": "composition-webmcp-capability",
+      "role": "content",
+      "title": "WebMCP provider contract",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-webmcp-tool-design",
+      "routeId": "composition-webmcp-tool-design",
+      "role": "content",
+      "title": "WebMCP tool design",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-webmcp-security",
+      "routeId": "composition-webmcp-security",
+      "role": "content",
+      "title": "WebMCP security",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-webmcp-testing",
+      "routeId": "composition-webmcp-testing",
+      "role": "content",
+      "title": "WebMCP testing",
+      "parentPageId": "site-portal-home"
+    },
+    {
       "id": "composition-browser-interface",
       "routeId": "composition-browser-interface",
       "role": "content",
@@ -806,6 +841,11 @@
     "composition-mcp-apps-interface",
     "composition-mcp-apps-guidance",
     "composition-mcp-apps-v2-migration",
+    "site-webmcp-guide",
+    "composition-webmcp-capability",
+    "composition-webmcp-tool-design",
+    "composition-webmcp-security",
+    "composition-webmcp-testing",
     "composition-browser-interface",
     "composition-pwa-capability",
     "composition-pwa-offline-v2-migration",
