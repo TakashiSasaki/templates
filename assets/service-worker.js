@@ -1,4 +1,4 @@
-const CACHE_NAME = "templates-portal-shell-v4";
+const CACHE_NAME = "templates-portal-shell-v5";
 const DOCUMENT_CACHE_NAME = "templates-portal-documents-v1";
 const GLOSSARY_CACHE_NAME = "templates-portal-glossary-v1";
 const GLOSSARY_MODEL_PATH = "/glossary/index.json";
@@ -36,7 +36,8 @@ const STATIC_ASSETS = [
   "/javascripts/search-history.js",
   "/javascripts/glossary-inline.js",
   "/javascripts/composition-playground.js",
-  "/javascripts/composition-playground-explain.js"
+  "/javascripts/composition-playground-explain.js",
+  "/javascripts/composition-playground-webmcp.js"
 ];
 const FRESHNESS_STATES = Object.freeze([
   "verified-current",
