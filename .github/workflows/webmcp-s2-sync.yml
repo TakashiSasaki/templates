@@ -1,0 +1,81 @@
+name: WebMCP S2 stacked sync
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/webmcp-s2-sync.yml
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    if: >-
+      github.event.pull_request.number == 766 &&
+      github.event.pull_request.head.ref == 'webmcp/s2-playground-tristate' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out exact S2 branch
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Verify sync provenance
+        env:
+          ORIGINAL_S2_HEAD: 45f63825ebdfc80fab2c09bf178cd49435dff3f3
+          EVENT_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EVENT_HEAD"
+          mapfile -t changed < <(git diff --name-only "$ORIGINAL_S2_HEAD" HEAD)
+          test "${#changed[@]}" -eq 1
+          test "${changed[0]}" = '.github/workflows/webmcp-s2-sync.yml'
+
+      - name: Merge final S1 candidate
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git fetch origin webmcp/s1-reader-docs
+          git merge --no-ff --no-edit origin/webmcp/s1-reader-docs
+
+      - name: Verify preserved S2 delta
+        run: |
+          set -euo pipefail
+          cat > "$RUNNER_TEMP/expected.txt" <<'EOF'
+          M	.github/workflows/site-composition-playground-cross-authority.yml
+          A	.github/workflows/webmcp-s2-sync.yml
+          A	assets/javascripts/composition-playground-webmcp.js
+          M	assets/service-worker.js
+          M	docs/composition-playground.md
+          M	reader-navigation-locales.json
+          M	scripts/assemble_publications_v3.py
+          A	scripts/check_composition_playground_webmcp_browser.py
+          D	scripts/publication_contract_v4.py
+          M	tests/test_glossary_inline_assets.py
+          M	tests/test_landing_page.py
+          A	tests/test_provider_publication_materialization.py
+          D	tests/test_publication_contract_v4.py
+          M	zensical.template.toml
+          EOF
+          git diff --name-status origin/webmcp/s1-reader-docs HEAD | LC_ALL=C sort > "$RUNNER_TEMP/actual.txt"
+          LC_ALL=C sort "$RUNNER_TEMP/expected.txt" -o "$RUNNER_TEMP/expected.txt"
+          diff -u "$RUNNER_TEMP/expected.txt" "$RUNNER_TEMP/actual.txt"
+          test "$(git rev-parse HEAD^2)" = "$(git rev-parse origin/webmcp/s1-reader-docs)"
+
+      - name: Run synchronization smoke tests
+        run: |
+          set -euo pipefail
+          python -I tests/test_composition_playground_cross_authority_workflow.py
+          python -I tests/test_provider_publication_materialization.py
+
+      - name: Push synchronized S2 branch
+        env:
+          PR_BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -euo pipefail
+          git push origin "HEAD:${PR_BRANCH}"
