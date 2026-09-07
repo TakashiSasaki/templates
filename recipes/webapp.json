@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "id": "webapp",
-  "summary": "Framework-neutral Web application core with routes, surfaces, UI states, viewports, contract evolution, and implementation evidence; release and application capabilities are explicit opt-ins.",
+  "summary": "Framework-neutral Web application core with routes, surfaces, UI states, viewports, contract evolution, and implementation evidence; release and application capabilities including WebMCP are explicit opt-ins.",
   "artifact": "artifact.webapp-core",
   "required_components": [],
   "default_components": [],
@@ -13,6 +13,7 @@
     "capability.runtime",
     "capability.service",
     "capability.web-interface",
+    "capability.webmcp",
     "lifecycle.release-bundle"
   ]
 }

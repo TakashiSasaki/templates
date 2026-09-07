@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://templates.moukaeritai.work/schemas/webmcp-interface.schema.json",
+  "title": "WebMCP interface contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schemaVersion", "profile", "browserContext", "registration", "exposure", "semanticEquivalence"],
+  "properties": {
+    "$schema": {"type": "string"},
+    "schemaVersion": {"const": 1},
+    "profile": {"const": "imperative"},
+    "browserContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["api", "secureContextRequired", "unsupportedBrowserBehavior"],
+      "properties": {
+        "api": {"const": "document.modelContext"},
+        "secureContextRequired": {"const": true},
+        "unsupportedBrowserBehavior": {"enum": ["feature-unavailable", "human-ui-fallback"]}
+      }
+    },
+    "registration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["lifetime", "staleRegistrationPrevention"],
+      "properties": {
+        "lifetime": {"const": "abort-signal"},
+        "staleRegistrationPrevention": {"const": "required"}
+      }
+    },
+    "exposure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "allowOrigins", "permissionsPolicyFeature"],
+      "properties": {
+        "mode": {"enum": ["same-origin", "cross-origin-allowlist"]},
+        "allowOrigins": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "format": "uri", "pattern": "^https://"}
+        },
+        "permissionsPolicyFeature": {"const": "tools"}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"mode": {"const": "same-origin"}}, "required": ["mode"]},
+          "then": {"properties": {"allowOrigins": {"maxItems": 0}}}
+        },
+        {
+          "if": {"properties": {"mode": {"const": "cross-origin-allowlist"}}, "required": ["mode"]},
+          "then": {"properties": {"allowOrigins": {"minItems": 1}}}
+        }
+      ]
+    },
+    "semanticEquivalence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sharedDomainOperationRequired", "authorizationBypassForbidden", "validationBypassForbidden", "confirmationBypassForbidden"],
+      "properties": {
+        "sharedDomainOperationRequired": {"const": true},
+        "authorizationBypassForbidden": {"const": true},
+        "validationBypassForbidden": {"const": true},
+        "confirmationBypassForbidden": {"const": true}
+      }
+    }
+  }
+}

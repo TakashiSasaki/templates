@@ -11,6 +11,7 @@
     "capability.runtime",
     "capability.service",
     "capability.web-interface",
+    "capability.webmcp",
     "foundation.web",
     "lifecycle.composition-state",
     "lifecycle.contract-evolution",

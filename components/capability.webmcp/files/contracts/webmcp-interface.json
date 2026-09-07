@@ -1,0 +1,25 @@
+{
+  "$schema": "../schemas/webmcp-interface.schema.json",
+  "schemaVersion": 1,
+  "profile": "imperative",
+  "browserContext": {
+    "api": "document.modelContext",
+    "secureContextRequired": true,
+    "unsupportedBrowserBehavior": "feature-unavailable"
+  },
+  "registration": {
+    "lifetime": "abort-signal",
+    "staleRegistrationPrevention": "required"
+  },
+  "exposure": {
+    "mode": "same-origin",
+    "allowOrigins": [],
+    "permissionsPolicyFeature": "tools"
+  },
+  "semanticEquivalence": {
+    "sharedDomainOperationRequired": true,
+    "authorizationBypassForbidden": true,
+    "validationBypassForbidden": true,
+    "confirmationBypassForbidden": true
+  }
+}
