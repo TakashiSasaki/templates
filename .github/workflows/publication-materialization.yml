@@ -1,0 +1,30 @@
+name: Publication materialization
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  materialization:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out exact pull request head
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Run materialization regressions
+        run: >-
+          python -m unittest
+          tests.test_materialize_publication_assets
+          tests.test_assembly_materialization_boundary
+          --verbose
