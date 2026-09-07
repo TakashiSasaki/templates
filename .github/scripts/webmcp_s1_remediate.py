@@ -130,7 +130,7 @@ def main() -> int:
     replace_once(
         translation_test,
         '            records = publish_translations(\n                {"site": (site_root, documents, assets)},\n                included_pages,\n                docs_root,\n                skip_stale=True,\n            )\n\n            self.assertEqual(len(records), 3)\n',
-        '            manifest = load_translation_manifest(\n                site_root / "translations" / "manifest.json",\n                "site translation manifest",\n                publication_root=site_root,\n            )\n            current_before_mutation = sum(\n                entry.is_current for entry in manifest.for_surface("reader")\n            )\n            records = publish_translations(\n                {"site": (site_root, documents, assets)},\n                included_pages,\n                docs_root,\n                skip_stale=True,\n            )\n\n            self.assertEqual(len(records), current_before_mutation - 1)\n',
+        '            manifest = load_translation_manifest(\n                site_root / "translations" / "manifest.json",\n                "site translation manifest",\n                publication_root=site_root,\n            )\n            expected_current = sum(\n                entry.is_current for entry in manifest.for_surface("reader")\n            )\n            records = publish_translations(\n                {"site": (site_root, documents, assets)},\n                included_pages,\n                docs_root,\n                skip_stale=True,\n            )\n\n            self.assertEqual(len(records), expected_current)\n',
     )
 
     run(
