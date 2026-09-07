@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import argparse
-import subprocess
 import sys
 from pathlib import Path
 
@@ -19,44 +18,7 @@ from scripts.assemble_publications import (
 )
 from scripts.publication_link_rewriter import rebase_publication_links
 
-__all__ = ["AssemblyError", "load_catalog", "main", "materialize_provider_publication_assets"]
-
-
-PLAYGROUND_PUBLICATION_MANIFEST = Path("generated/composition-playground-publication.json")
-PLAYGROUND_PUBLICATION_GENERATOR = Path("scripts/generate_composition_playground_publication.py")
-
-
-def materialize_provider_publication_assets(publication_roots: dict[str, Path]) -> None:
-    """Ask a pinned provider to materialize its own declared build products.
-
-    Site owns only orchestration here.  The generator, semantic revision manifest,
-    resolver behavior, and publication bytes remain entirely Composition-owned.
-    """
-    composition_root = publication_roots.get("composition")
-    if composition_root is None:
-        return
-    root = composition_root.resolve(strict=True)
-    manifest = root / PLAYGROUND_PUBLICATION_MANIFEST
-    if not manifest.is_file():
-        return
-    generator = root / PLAYGROUND_PUBLICATION_GENERATOR
-    if not generator.is_file():
-        raise AssemblyError(
-            "Composition declares Playground publication build products but has no provider generator"
-        )
-    result = subprocess.run(
-        [sys.executable, str(generator), "--output-dir", str(manifest.parent)],
-        cwd=root,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
-    if result.returncode != 0:
-        detail = (result.stderr or result.stdout).strip()
-        raise AssemblyError(
-            "Composition Playground publication materialization failed"
-            + (f": {detail}" if detail else "")
-        )
+__all__ = ["AssemblyError", "load_catalog", "main"]
 
 
 def main() -> int:
@@ -68,7 +30,6 @@ def main() -> int:
 
     try:
         publication_roots = parse_publications(args.publication)
-        materialize_provider_publication_assets(publication_roots)
         summary = assemble(publication_roots, args.site_root, args.output_root)
         rebased = rebase_publication_links(
             publication_roots,
