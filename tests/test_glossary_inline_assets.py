@@ -233,6 +233,7 @@ class GlossaryInlineAssetTests(unittest.TestCase):
                 "javascripts/glossary-inline.js",
                 "javascripts/composition-playground.js",
                 "javascripts/composition-playground-explain.js",
+                "javascripts/composition-playground-webmcp.js",
             ],
         )
         self.assertIn('"navigation.instant"', template)
