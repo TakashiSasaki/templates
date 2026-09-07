@@ -53,11 +53,16 @@ jobs:
       - name: Restore generic generated-publication boundary
         run: |
           set -euo pipefail
-          git restore --source=origin/webmcp/s1-reader-docs -- \
+          git restore --source=origin/webmcp/s1-reader-docs --staged --worktree -- \
             scripts/assemble_publications_v3.py \
             scripts/publication_contract_v4.py \
             tests/test_publication_contract_v4.py
           rm -f tests/test_provider_publication_materialization.py
+          git add -A -- \
+            scripts/assemble_publications_v3.py \
+            scripts/publication_contract_v4.py \
+            tests/test_publication_contract_v4.py \
+            tests/test_provider_publication_materialization.py
 
       - name: Verify preserved S2 delta
         run: |
