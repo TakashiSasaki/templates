@@ -1,0 +1,24 @@
+{
+  "$schema": "../schemas/viewports.schema.json",
+  "schemaVersion": 1,
+  "viewports": [
+    {
+      "id": "mobile",
+      "minWidthPx": 0,
+      "description": "360px handheld reader layout."
+    },
+    {
+      "id": "desktop",
+      "minWidthPx": 1280,
+      "description": "Desktop reader navigation."
+    }
+  ],
+  "inputCapabilities": [
+    "keyboard"
+  ],
+  "constraints": {
+    "zoomSupported": true,
+    "horizontalScrolling": "never",
+    "orientationIndependent": true
+  }
+}
