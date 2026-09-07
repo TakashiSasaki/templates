@@ -31,9 +31,13 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$EVENT_HEAD"
-          mapfile -t changed < <(git diff --name-only "$ORIGINAL_S2_HEAD" HEAD)
-          test "${#changed[@]}" -eq 1
-          test "${changed[0]}" = '.github/workflows/webmcp-s2-sync.yml'
+          cat > "$RUNNER_TEMP/expected-setup.txt" <<'EOF'
+          .github/workflows/webmcp-s2-sync.yml
+          tests/test_composition_playground_cross_authority_workflow.py
+          EOF
+          git diff --name-only "$ORIGINAL_S2_HEAD" HEAD | LC_ALL=C sort > "$RUNNER_TEMP/actual-setup.txt"
+          LC_ALL=C sort "$RUNNER_TEMP/expected-setup.txt" -o "$RUNNER_TEMP/expected-setup.txt"
+          diff -u "$RUNNER_TEMP/expected-setup.txt" "$RUNNER_TEMP/actual-setup.txt"
 
       - name: Merge final S1 candidate
         run: |
@@ -56,6 +60,7 @@ jobs:
           M	scripts/assemble_publications_v3.py
           A	scripts/check_composition_playground_webmcp_browser.py
           D	scripts/publication_contract_v4.py
+          M	tests/test_composition_playground_cross_authority_workflow.py
           M	tests/test_glossary_inline_assets.py
           M	tests/test_landing_page.py
           A	tests/test_provider_publication_materialization.py
