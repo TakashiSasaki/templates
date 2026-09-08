@@ -39,8 +39,9 @@ Combine fields where natural; omit inapplicable dimensions with an explanation w
 | Stability and qualification | Practical stability frontier, provisional candidates, intended qualification heads when required, and evidence binding status. |
 | Evidence | Evidence layer (local, environment-dependent, remote CI, independent review), exact executed command or workflow/check identity, bound SHA or artifact, run/evidence locator and provenance, observed result, limitations and applicability conditions (including relevant base, scope, configuration or environment). |
 | Review | Acquisition state and locator; distinguish whole-stack diagnostic audit from member/cumulative acceptance review. Reference the review-finding ledger and its known-material-findings status. |
-| Dependencies | Blockers, asynchronous dependencies and the concrete waiting condition that releases each dependency. |
-| Resume | Next safe action, stop boundary and remaining human action. |
+| Diagnosis and progress | Current objective/failure scope, `evidence_gap`, `current_hypothesis`, compact `attempted_paths`, `invalidated_paths` with reason/applicability/`retry_condition`, current strategy, `strategy_attempt_count`, strategies already exhausted, `strategy_switch_reason`, `diagnostic_budget`, `progress_frontier`, `last_material_progress`, and current external-wait/stall/block state when relevant. |
+| Dependencies | Blockers, asynchronous dependencies, the concrete waiting condition that releases each dependency, and any separately defined stale/timeout condition for opaque waits. |
+| Resume | `next_safe_action`, stop boundary and remaining human action. |
 
 Resolve the authoritative change-contract locator and recover its preserved invariants and required acceptance evidence before resuming dependent work or claiming completion. Observed Evidence results do not define the required acceptance baseline. If that contract is unavailable, mark the affected action blocked rather than reconstructing requirements from a green check.
 
@@ -49,6 +50,31 @@ Bind member identity to its repository namespace; a bare PR number, branch name 
 For an interrupted mutation, distinguish this operation's owned effects from pre-existing or concurrent changes. Record only material owned paths/objects and completed boundary state, not a command transcript. Reconcile actual effects before retry, cleanup or rollback; a general diff is not proof of ownership. If ownership or the completed boundary cannot be recovered, do not overwrite, delete or roll back uncertain changes. Record the unresolved unit and preserve unrelated state.
 
 Use `unknown`, `pending` and `not applicable` distinctly. An uninspected review surface is not evidence of zero findings. A CI observation needs its run locator and exact head binding, not just `CI: success`. Record observation time when freshness matters; do not turn this into a timestamp for every operation.
+
+## Anti-stall diagnostic state
+
+The anti-stall fields are the Work-ledger projection of the artifact-neutral requirements in `policy/core/repository-change-anti-stall.md`; they do not create a second diagnostic transcript or policy authority.
+
+Use `attempted_paths` as a **strategy-level summary** of evidence routes that matter for the next decision, not a record of every endpoint or call. Do not record call-by-call diagnostic history such as “call 1 / call 2 / call 3”. Keep only enough negative and positive capability state to prevent repeated dead-end exploration and to explain the current strategy.
+
+For each `invalidated_paths` entry, retain:
+
+- path/capability or evidence route;
+- observed invalidation reason;
+- `applicability` scope such as current runtime, session, connector capability set, or authorization context; and
+- `retry_condition`: concrete evidence of a relevant state change that would justify another attempt.
+
+An invalidated path is not eligible for retry merely because a new session began. On resume, **restore invalidated paths before retrying** any diagnostic route. Retry only when the recorded retry condition is satisfied by evidence such as a changed runtime, newly exposed connector capability, refreshed authorization, or independently observed network recovery.
+
+Track `strategy_attempt_count` against the deliberately selected strategy identity: objective, evidence source, diagnostic method, and hypothesis. Track observed failure mode per attempt for classification and retry reasoning; a changed failure outcome does not create a new strategy or reset its attempt count. Preserve **strategies already exhausted** and `strategy_switch_reason` so a successor can see why another evidence source or reproduction method was chosen. Recommended numeric baselines belong to the anti-stall policy; the ledger records the current budget state rather than inventing its own thresholds.
+
+`diagnostic_budget` must include the current global no-material-progress bound state required by Policy, plus any narrower counters useful to the active procedure. A successful call that only reproduces known information advances the no-material-progress budget even though no failure counter advances.
+
+`progress_frontier` and `last_material_progress` summarize the latest knowledge/repository/validation/review/qualification change. Tool activity without a decision-relevant delta does not move either field. The current orchestration state, when useful, distinguishes `external_wait`, `diagnostic_stall`, `blocked`, and `productive_parallel_work` rather than collapsing them into “waiting”.
+
+For `external_wait`, record why the dependency is legitimately pending and the concrete resume condition. The provider does not need to expose granular changing progress: an unchanged `pending` or `in_progress` status can remain an external wait when the dependency identity is valid and its release condition is concrete. Record a separate stale/timeout/failure condition when the wait can no longer be treated as legitimate; do not reinterpret opaque provider status as agent `diagnostic_stall` by itself.
+
+**Resume is not a restart.** Restore the current objective, failure scope, `evidence_gap`, `current_hypothesis`, invalidated paths, current strategy, strategies already exhausted, last material progress, and `next_safe_action` before new exploration. Selectively refresh only stale live facts whose binding matters to that safe action. If the checkpoint cannot establish whether a strategy was exhausted or a path was invalidated, preserve the uncertainty rather than silently assuming a clean diagnostic slate.
 
 ## Refresh and stale bindings
 
@@ -65,15 +91,17 @@ A construction head is not automatically a qualification head. Follow `pull-requ
 
 ## Review-finding relationship
 
-Keep finding details in the existing review-finding ledger defined by the bundled [review-finding ledger](../../pr-merge-gate/references/review-finding-ledger.md). The renderer imports this reference and its [disposition procedure](../../pr-merge-gate/references/review-feedback-disposition.md) from the canonical `pr-merge-gate` reference sources at the same toolchain revision; generated copies are not separately authored authority. The Work ledger records only the ledger reference, known-material-findings status and effect on next action, qualification, review acquisition or handoff. Do not duplicate disposition, repair reasoning, current-head validation or closure evidence as a second finding authority. Resolve disagreement by consulting the finding record and its evidence; a summary count cannot override it.
+Keep finding details in the existing review-finding ledger defined by the bundled [review-finding ledger](../../pr-merge-gate/references/review-finding-ledger.md). The renderer imports this reference and its [disposition procedure](../../pr-merge-gate/references/review-feedback-disposition.md) from the canonical `pr-merge-gate` reference sources at the same toolchain revision; generated copies are not separately authored authority. **The review finding ledger remains authoritative** for review finding identity, disposition and closure evidence. The Work ledger records only the ledger reference, known-material-findings status and effect on next action, qualification, review acquisition or handoff. Do not duplicate disposition, repair reasoning, current-head validation or closure evidence as a second finding authority. Resolve disagreement by consulting the finding record and its evidence; a summary count cannot override it.
 
 Before a new authorized review acquisition, apply the existing complete known-finding disposition and closure gate, including body-only findings. A repaired item may still be qualification-pending. A work checkpoint cannot declare that item closed for the boundary without the finding ledger's required current-head evidence. An interrupted request with uncertain delivery must be checked on the provider before any retry.
 
 ## Material checkpoints and next safe action
 
-Update the current resumable checkpoint after a material transition: scope change, member creation, semantic head mutation, topology/frontier change, validation/qualification completion, material finding discovery or closure, review acquisition, blocker change, or handoff. Consolidate compatible observations into that checkpoint; do not append a transcript of fetches, polls or every command. Execution-local state may change more frequently without provider writes.
+Update the current resumable checkpoint after a material transition: scope change, member creation, semantic head mutation, topology/frontier change, validation/qualification completion, material finding discovery or closure, review acquisition, blocker change, diagnostic strategy change that alters the recoverable evidence plan, or handoff. Consolidate compatible observations into that checkpoint; do not append a transcript of fetches, polls or every command. Execution-local state may change more frequently without provider writes.
 
-Determine the **next safe action** from the selected mode, actual dependencies and evidence applicability. Pending CI/review does not stop dependency-safe implementation on later members. A known prerequisite defect must not be propagated. When no useful authorized work remains while a result is pending, record the waiting condition and resume action; do not manufacture work or claim completion.
+Determine the **next safe action** from the selected mode, actual dependencies, evidence applicability, and current diagnostic state. Pending CI/review does not stop dependency-safe implementation on later members. A known prerequisite defect must not be propagated. A validated pending dependency with a concrete resume condition is `external_wait`, including when provider progress is opaque. While waiting, perform only `productive_parallel_work` that directly advances the completion frontier. When no useful authorized work remains while a result is pending, record the waiting condition and resume action; do not manufacture work or claim completion.
+
+When repeated activity does not move `last_material_progress` or `progress_frontier`, record `diagnostic_stall` and switch strategy under the anti-stall policy rather than continuing equivalent retrieval/discovery. Record `blocked` only after authorized, in-scope alternate strategies are exhausted or unavailable.
 
 At the selected completion / handoff boundary, reconstruct the report from the current checkpoint and linked evidence using [human-handoff](human-handoff.md) or the applicable merge gate. HANDOFF_READY requires the authorized work and validation to be complete and the required report to be reconstructible; it does not mean review complete or merge authorized. Preserve limitations and remaining human action explicitly.
 
