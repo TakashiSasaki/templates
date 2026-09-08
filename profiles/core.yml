@@ -14,3 +14,4 @@ policy_files:
   - policy/core/transaction-ownership.md
   - policy/core/truthful-reporting.md
   - policy/core/repository-change-completion.md
+  - policy/core/repository-change-anti-stall.md

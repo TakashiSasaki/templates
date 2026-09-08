@@ -23,12 +23,17 @@ def test_work_ledger_is_discoverable_and_distributed_without_runtime_artifact():
 def test_work_ledger_preserves_storage_and_acceptance_boundaries():
     text = (SKILL / "references/work-ledger.md").read_text().lower()
     for required in (
-        "repository-associated, but not repository-tracked by default",
+        "provider-side checkpoint is the default storage strategy",
+        "repository-tracked operational storage is optional",
         "canonical provider facts; ledger entries are observations",
         "not a new source of semantic acceptance policy",
         "neither replaces those artifacts nor establishes product acceptance",
-        "do not create a repository file solely",
-        "not a mandatory json/yaml artifact",
+        "do not mutate an implementation or qualification candidate solely",
+        "independent repository authority explicitly adopts it",
+        "dedicated operational branch or equivalent operational ref",
+        "must not establish acceptance",
+        "must not create or assume such a branch",
+        "does not impose a mandatory json/yaml artifact",
         "do not duplicate disposition, repair reasoning",
         "review-finding-ledger.md",
         "next safe action",

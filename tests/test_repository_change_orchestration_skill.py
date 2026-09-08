@@ -23,13 +23,25 @@ def test_orchestration_skill_is_generated_and_renderable() -> None:
         "references/stacked-pr-workflow.md",
         "references/human-handoff.md",
         "references/work-ledger.md",
+        "references/repository-tracked-work-ledger.md",
         "references/generated-artifact-transport.md",
         "references/review-finding-ledger.md",
         "references/review-feedback-disposition.md",
         "references/github-review-finding-representation.md",
+        "references/github-review-result-discovery.md",
     }
     assert GENERATED_MARKER in rendered["SKILL.md"]
     assert "name: orchestrate-repository-change" in rendered["SKILL.md"]
+    assert GENERATED_MARKER in rendered["references/github-review-result-discovery.md"]
+    assert "request-less cycle anchor" in rendered[
+        "references/github-review-result-discovery.md"
+    ]
+    assert "github-review-result-discovery.md" in rendered[
+        "references/review-feedback-disposition.md"
+    ]
+    assert "github-review-result-discovery.md" in rendered[
+        "references/github-review-finding-representation.md"
+    ]
 
 
 def test_orchestration_skill_preserves_acceptance_authority() -> None:
