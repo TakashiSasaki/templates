@@ -60,6 +60,16 @@ class AntiStallReaderProjectionTests(unittest.TestCase):
         ):
             self.assertIn(required, text)
 
+    def test_japanese_reference_translation_marks_policy_dependencies_as_staged(self) -> None:
+        text = _normalized(JAPANESE)
+        for required in (
+            "staged Policy candidate `#773 -> #774`",
+            "いずれの staged candidate set も含みません",
+            "Policy PR `#773 -> #774` とともに **staged**",
+            "promote または authorize することはありません",
+        ):
+            self.assertIn(required, text)
+
     def test_japanese_resume_and_finding_ledger_clauses_are_protected(self) -> None:
         text = _normalized(JAPANESE)
         self.assertIn("resume は investigation のやり直しではなく", text)
