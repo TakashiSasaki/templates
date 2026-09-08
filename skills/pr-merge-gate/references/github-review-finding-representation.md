@@ -2,6 +2,8 @@
 
 This reference is **non-normative GitHub integration guidance** for review acquisition and remediation. It does not define semantic review findings, change their severity, create merge authorization, or prescribe a repository-owned review-result schema. The canonical semantic rules remain under `policy/review/` and `policy/pull-request/`; the current GitHub API or connected-tool contract remains authoritative for request capabilities and fields.
 
+When determining whether an acquired or existing GitHub review is complete, problem-free, or contains findings, first apply `github-review-result-discovery.md`. That companion reference covers cross-surface discovery, request-purpose correlation, reactions, and revision applicability. This file only governs how findings should be represented after the logical review result has been reconstructed.
+
 ## Preserve independent remediation units
 
 When GitHub supports resolvable inline review threads and an independently actionable finding has an honest causal changed-line anchor, prefer representing that finding as its own resolvable inline thread.

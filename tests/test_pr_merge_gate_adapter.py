@@ -142,7 +142,8 @@ def test_adapter_final_refresh_is_invalidation_driven() -> None:
         "refresh invalidating live state",
         "current pr head equals the exact accepted head",
         "current target-branch head is unchanged or its movement has been evaluated",
-        "current material review state and unresolved review threads",
+        "current material review state across applicable review-result surfaces",
+        "unresolved finding dispositions",
         (
             "validate the binding facts of previously accepted scope, ci, and "
             "completed-review evidence"
@@ -211,8 +212,8 @@ def test_adapter_requires_exact_head_review_and_guarded_merge() -> None:
         "initiate review for the exact current head",
         "must name the exact sha",
         (
-            "a request, pending review, empty review list, or absence of findings "
-            "is not completed review evidence"
+            "a request, pending review, empty review list, clean review body, or "
+            "absence of findings on one surface is not completed review evidence"
         ),
         "current pr head equals the exact accepted head",
         "never omit `expected_head_sha`",

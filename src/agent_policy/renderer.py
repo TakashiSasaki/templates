@@ -25,6 +25,7 @@ SKILL_REFERENCE_IMPORTS = {
             "review-finding-ledger.md",
             "review-feedback-disposition.md",
             "github-review-finding-representation.md",
+            "github-review-result-discovery.md",
         )
     }
 }
