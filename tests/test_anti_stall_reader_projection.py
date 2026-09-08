@@ -34,7 +34,7 @@ class AntiStallReaderProjectionTests(unittest.TestCase):
         text = JAPANESE.read_text(encoding="utf-8")
         for required in (
             "anti-stall repository-change behavior",
-            "Policy が semantic authority",
+            "semantic authority は Policy が保持",
             "tool activity は material progress ではありません",
             "strategy switch",
             "invalidated path",
