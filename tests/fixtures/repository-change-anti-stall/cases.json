@@ -1,0 +1,42 @@
+[
+  {
+    "id": "A-repeated-log-retrieval",
+    "setup": "same CI log retrieval fails twice with the same objective, evidence source, method, and failure mode",
+    "expected": ["third identical retrieval is prohibited", "strategy switch is required"]
+  },
+  {
+    "id": "B-unavailable-cli",
+    "setup": "gh executable is not installed in the current runtime",
+    "expected": ["gh-cli is an invalidated path for the current runtime", "retry requires evidence of runtime capability change"]
+  },
+  {
+    "id": "C-unavailable-network",
+    "setup": "direct GitHub network access fails because DNS resolution is unavailable",
+    "expected": ["direct-github-network is invalidated for the current runtime", "select connector, artifact, diff, or reproduction strategy"]
+  },
+  {
+    "id": "D-no-progress-tool-activity",
+    "setup": "multiple capability discovery calls produce no new evidence and leave the same evidence gap",
+    "expected": ["discovery calls are not material progress", "stall check fires and strategy is reassessed"]
+  },
+  {
+    "id": "E-repeated-progress-reporting",
+    "setup": "two semantically equivalent progress updates are emitted without material progress",
+    "expected": ["repeated progress reporting is a stagnation signal", "reassess the evidence gap and strategy before another equivalent report"]
+  },
+  {
+    "id": "F-successful-external-wait",
+    "setup": "a long-running CI job continues to make normal observable progress",
+    "expected": ["classify as external_wait", "do not classify as diagnostic_stall"]
+  },
+  {
+    "id": "G-resume",
+    "setup": "a new session resumes from a durable Work ledger with invalidated paths and a next safe action",
+    "expected": ["restore invalidated and exhausted paths before retry", "do not restart investigation", "reconstruct next safe action"]
+  },
+  {
+    "id": "H-review-finding-separation",
+    "setup": "anti-stall state and unresolved review findings both affect orchestration",
+    "expected": ["Work ledger records orchestration effect and canonical reference only", "review finding ledger remains authoritative", "do not duplicate findings"]
+  }
+]
