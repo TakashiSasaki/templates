@@ -9,7 +9,7 @@ from agent_policy.policy_loader import load_rules, parse_policy
 
 ROOT = Path(__file__).resolve().parents[1]
 PROFILE = ROOT / "profiles/pull-request.yml"
-POLICY_DIR = ROOT / "policy/pull-request"
+POLICY_DIR = ROOT / "policy" / "pull-request"
 
 EXPECTED = [
     "pull-request.require-explicit-stacked-review-coverage",
@@ -21,6 +21,7 @@ EXPECTED = [
     "pull-request.require-independent-exact-head-review",
     "pull-request.bind-review-result-classification-to-applicable-cycle-and-revision",
     "pull-request.close-review-threads-before-merge",
+    "pull-request.use-staged-ci-with-preflight",
     "pull-request.require-exact-head-ci-evidence",
     "pull-request.fail-closed-on-unresolved-ci-discovery",
     "pull-request.reuse-valid-exact-head-evidence",
