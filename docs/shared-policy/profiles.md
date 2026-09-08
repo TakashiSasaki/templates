@@ -33,6 +33,8 @@ The policy context is the semantic authority boundary. A renderer presents the r
 
 Profiles are additive rule-selection bundles. They are not mutually exclusive operating modes, renderer choices, agent skills, provider integrations, or substitutes for repository-local policy. Selecting `review`, for example, adds shared review semantics to a context; it does not by itself create a review output or choose a provider integration.
 
+Interaction-surface procedures do not become shared policy merely because multiple consumers may want them. For example, conversation-session title behavior depends on a session-capable interaction surface and therefore belongs to the generated `title-conversation-session` Skill rather than a profile. Consumers that want that behavior select the Skill explicitly under `skills.enabled`; see [Configuration](../configuration.md).
+
 Profile list order is not a precedence mechanism. The loader expands each selected profile into shared rule modules and the resulting rules are ordered by rule metadata. Selecting profiles that introduce the same shared rule ID is rejected rather than silently choosing one copy.
 
 ## Choosing profiles
@@ -84,7 +86,15 @@ outputs:
     renderer: policy-context-md
 ```
 
-When automated pull-request review is required, enable the provider-neutral `pr-review` Skill separately under `skills.enabled`. Provider API serialization and submission remain integration concerns outside profile selection and semantic renderer authority.
+When automated pull-request review is required, enable the provider-neutral `pr-review` Skill separately under `skills.enabled`. Conversation-session naming is likewise selected separately:
+
+```yaml
+skills:
+  enabled:
+    - title-conversation-session
+```
+
+Generated Skills are operational or surface contracts, not shared semantic profiles. Provider API serialization and submission remain integration concerns outside profile selection and semantic renderer authority.
 
 ## Available profiles
 
