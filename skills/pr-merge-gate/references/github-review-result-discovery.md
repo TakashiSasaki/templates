@@ -4,15 +4,17 @@ This reference is **non-normative GitHub integration guidance** for applying the
 
 ## Observe the review cycle before classifying it
 
-For the review purpose being evaluated, identify the latest applicable review request and its request time, requested candidate identity when available, and provider surface. Do not select a request solely because it is the newest event: distinguish merge-acceptance, diagnostic whole-stack, security, and other explicitly different purposes.
+For the review purpose being evaluated, first determine whether an applicable review request exists. When one or more applicable requests exist, identify the latest applicable review request and its request time, requested candidate identity when available, and provider surface. Do not select a request solely because it is the newest event: distinguish merge-acceptance, diagnostic whole-stack, security, and other explicitly different purposes.
 
-Then inspect the GitHub surfaces that can carry review-result evidence for that cycle:
+When no applicable request exists but the provider or workflow exposes a completed independent review result, treat that completed result as a candidate request-less cycle anchor rather than making the evidence unclassifiable solely because acquisition was automatic or unsolicited. Accept that fallback only when the result's purpose, reviewer or review-system independence, completion state, and required candidate revision binding can all be established under the canonical applicability and review contracts. Do not synthesize a GitHub review-request event. If a later applicable request exists for the same purpose and candidate lineage, the normal latest-request supersession rule applies instead of the fallback.
+
+Then inspect the GitHub surfaces that can carry review-result evidence for the selected request-backed or request-less cycle:
 
 - submitted pull-request reviews and their bodies;
 - ordinary pull-request or issue comments;
 - inline review comments;
 - resolvable review threads, including their current resolved state and comments;
-- review-request / requested-reviewer state or timeline information when it helps identify the cycle;
+- review-request / requested-reviewer state or timeline information when it helps identify a request-backed cycle;
 - reactions on the pull request, review comments, or other relevant objects when the applicable workflow gives them semantic meaning;
 - provider-specific completion, failure, limitation, or acknowledgement signals exposed by the current integration.
 
@@ -20,7 +22,7 @@ The list is capability-aware rather than a permanent GitHub schema. Use the curr
 
 ## Reconstruct one logical result
 
-Do not stop after finding one submitted review. Correlate results by reviewer or review system, review purpose, request cycle, timestamps, source references, and revision bindings. A clean review body does not negate an actionable inline thread or ordinary comment. An empty thread list does not negate a body-only or comment-only finding.
+Do not stop after finding one submitted review. Correlate results by reviewer or review system, review purpose, request-backed or request-less cycle, timestamps, source references, and revision bindings. A clean review body does not negate an actionable inline thread or ordinary comment. An empty thread list does not negate a body-only or comment-only finding.
 
 Keep independently actionable findings independently dispositionable even when several are carried by one top-level body or ordinary comment. Use `github-review-finding-representation.md` for remediation-friendly representation guidance without redefining finding semantics.
 
@@ -47,4 +49,4 @@ The GitHub adapter may use the following provider-facing classifications while g
 - `REVIEW_EVIDENCE_STALE`;
 - `REVIEW_APPLICABILITY_UNKNOWN`.
 
-These are execution classifications, not new Policy authority. Project them into the canonical merge-gate authorization states only after the required discovery, purpose, revision, independence, and finding-disposition checks succeed.
+`REVIEW_NOT_REQUESTED` describes the absence of a request-backed cycle; it does not negate a separately established completed request-less review result. These are execution classifications, not new Policy authority. Project them into the canonical merge-gate authorization states only after the required discovery, purpose, revision, independence, and finding-disposition checks succeed.
