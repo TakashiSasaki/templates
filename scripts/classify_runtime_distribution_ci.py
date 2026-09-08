@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -13,7 +14,12 @@ else:
     import ci_change_classification as common  # noqa: E402
 
 DESCRIPTION = "Classify whether Policy requires the full runtime compatibility matrix."
-REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+_WORKSPACE = os.environ.get("GITHUB_WORKSPACE")
+REPOSITORY_ROOT = (
+    Path(_WORKSPACE).resolve()
+    if _WORKSPACE
+    else Path(__file__).resolve().parents[1]
+)
 ZERO_SHA = common.ZERO_SHA
 FULL_SHA = common.FULL_SHA
 ClassificationError = common.ClassificationError
