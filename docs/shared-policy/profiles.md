@@ -45,6 +45,7 @@ For a normal managed repository, start with `core` and `security-baseline`. Add 
 | Creating, updating, or closing pull-request work | `core`, `security-baseline`, `pull-request` |
 | Reviewing changes for blocking defects | `core`, `security-baseline`, `review` |
 | Receiving or staging externally produced artifacts | `core`, `security-baseline`, `external-artifact-intake` |
+| Naming substantial conversation sessions at completion or handoff | add `session-titles` to the applicable context |
 
 The `policy` branch itself demonstrates the distinction between pull-request work and review work: its `coding` context selects `pull-request`, while its `review` context selects `review`.
 
@@ -191,6 +192,17 @@ Included modules:
 - `policy/artifacts/staging-boundaries.md`
 - `policy/artifacts/transport-isolation.md`
 - `policy/artifacts/dependency-closure.md`
+
+<!-- PROFILE: session-titles -->
+### `session-titles`
+
+Use when a conversation-based agent should give substantial work sessions durable, outcome-oriented names at meaningful completion or handoff boundaries. The profile is intentionally optional and provider-neutral: it governs when to finalize a title, how the title must reflect the observed terminal state, and how title presentation remains separate from repository, validation, review, merge, and completion authority. If the interaction surface cannot persist a title directly, the policy permits a terminal title proposal instead of turning that presentation limitation into a work blocker.
+
+Included modules:
+
+- `policy/session-titles/terminal-boundary.md`
+- `policy/session-titles/outcome-fidelity.md`
+- `policy/session-titles/presentation-boundary.md`
 
 ## Profiles and repository-local policy
 
