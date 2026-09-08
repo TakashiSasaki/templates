@@ -42,22 +42,23 @@ When human-handoff is selected, stop at HANDOFF_READY after the authorized imple
 
 Use the focused procedures in references/pr-workflow-selection.md, references/serial-pr-workflow.md, references/stacked-pr-workflow.md, and references/human-handoff.md for the selected path.
 
-For the repository-change operational state model, read [Work ledger](references/work-ledger.md). It defines provider-side resumable checkpoints without creating acceptance authority.
+For the repository-change operational state model, read [Work ledger](references/work-ledger.md). Before resuming or checkpointing, **select the adopted Work-ledger storage strategy** from explicit task instruction, applicable repository-local policy, or another authoritative consumer adoption decision. Use an explicitly adopted isolated repository-tracked strategy according to [Isolated repository-tracked Work ledger](references/repository-tracked-work-ledger.md); otherwise provider-side PR/Issue checkpoints remain the default. Do not infer repository-tracked adoption merely because that optional procedure exists. The selected backend is operational state only and does not create acceptance authority.
 
 ## Resumable execution loop
 
 Use [Work ledger](references/work-ledger.md) as the operational index throughout the selected workflow:
 
-1. discover the canonical provider checkpoint or reconstruct it from live facts;
-2. refresh materially stale bindings needed for the next safe action, checking whether an interrupted mutation or review request already succeeded;
+1. discover the adopted Work-ledger storage strategy and its canonical checkpoint: use the explicitly adopted repository-tracked operational ref when one is authoritative for the consumer, otherwise use the canonical provider-side checkpoint or reconstruct it from live facts;
+2. refresh materially stale bindings needed for the next safe action, checking whether an interrupted mutation or review request already succeeded; when the selected backend is a shared repository-tracked ref, always resolve the live operational-ref head and bind checkpoint selection/loading to that immutable head before using recovered state, including under serialized ownership;
 3. determine the next safe action under the selected progression/completion modes and actual dependencies;
-4. perform useful authorized work, including dependency-safe descendant implementation while CI is pending;
-5. checkpoint material transitions on the canonical surface, referencing finding details in the existing review-finding ledger; and
-6. validate/qualify when the applicable boundary requires it, then continue or hand off.
+4. before executing a recovered non-idempotent external action on behalf of a shared repository-tracked backend, establish exclusive action ownership through authoritative serialized action ownership or an atomic/CAS checkpoint transition that claims that specific action; a worker that loses the claim must reload and must not execute the action;
+5. perform useful authorized work, including dependency-safe descendant implementation while CI is pending;
+6. checkpoint material transitions on the selected canonical operational surface, referencing finding details in the existing review-finding ledger; and
+7. validate/qualify when the applicable boundary requires it, then continue or hand off.
 
-Recover ordered members, their bases and exact heads before resuming a stack. Preserve completed semantic work when a head moves while marking affected exact-head evidence stale. Record asynchronous waiting conditions and the safe action they unblock. A missing or inaccessible durable checkpoint does not establish completed work: reconstruct what can be verified and report remaining uncertainty.
+Recover ordered members, their bases and exact heads before resuming a stack. Preserve completed semantic work when a head moves while marking affected exact-head evidence stale. Record asynchronous waiting conditions and the safe action they unblock. A missing or inaccessible durable checkpoint does not establish completed work: reconstruct what can be verified and report remaining uncertainty. Initial live operational-ref binding is mandatory even for a serialized writer. If concurrent writers remain possible after that binding and it moves during recovery, discard the stale recovery decision and restart checkpoint recovery from the new live head before following `next_safe_action` or performing an external mutation. Serialization may eliminate only later movement checks after a current live binding and action ownership are established; it never proves an unverified local ref is current.
 
-At completion, use the checkpoint and its linked evidence to reconstruct the required report. Follow references/human-handoff.md for HANDOFF_READY and the dedicated merge gate for agent-review-and-merge. Recheck the existing complete known-finding and live-identity gates before any authorized review acquisition. If the task requires immediate stop after the request, persist the preflight checkpoint first and let the request record be the acquisition event; do not perform a post-request provider write.
+At completion, use the checkpoint and its linked evidence to reconstruct the required report. Follow references/human-handoff.md for HANDOFF_READY and the dedicated merge gate for agent-review-and-merge. Recheck the existing complete known-finding and live-identity gates before any authorized review acquisition. If the task requires immediate stop after the request, persist the preflight checkpoint first and let the request record be the acquisition event; do not perform a post-request provider write. For a repository-tracked backend, that preflight checkpoint must also claim the specific non-idempotent request unless authoritative serialized action ownership already covers it.
 
 ## Anti-stall diagnostic control
 
@@ -91,7 +92,7 @@ During `external_wait`, productive_parallel_work may include downstream stacked-
 
 Progress reporting is knowledge-delta reporting. Prefer: what changed, what was learned, what remains unknown, why the strategy changed, and what comes next. Do not emit repeated variants of “checking logs” or “continuing diagnosis” when the underlying strategy and evidence gap have not changed.
 
-On resume, restore the Work ledger's invalidated and exhausted paths before diagnostic retry. Resume from the recorded progress frontier and next safe action; do not restart the investigation by default. Refresh only stale facts whose current binding matters to the next action.
+On resume, restore the Work ledger's invalidated and exhausted paths before diagnostic retry. Resume from the recorded progress frontier and next safe action; do not restart the investigation by default. Refresh only stale facts whose current binding matters to the next action. For an adopted shared repository-tracked backend, the operational-ref head is a mandatory read-side concurrency binding: always resolve it live before checkpoint selection/loading, including under serialized ownership. Before a recovered non-idempotent external action, require serialized action ownership or an atomic/CAS action claim; checkpoint-write CAS after the action is too late to prevent duplicate effects.
 
 ## 1. Establish the minimum sufficient snapshot
 
@@ -165,7 +166,7 @@ If a binding is uncertain, resolve that uncertainty before relying on the eviden
 
 When the provider or execution surface supports compare-and-swap, expected revision, ETag, immutable-head, version, generation, or equivalent write preconditions, use them to close races at mutation time.
 
-A guarded write does not eliminate semantic validation or live-state revalidation required by repository authority, including any required commit-boundary revalidation. It can eliminate only an additional read whose sole purpose is to detect the same race already covered by the write precondition and whose omission does not remove a required authority check.
+A guarded write does not eliminate semantic validation or live-state revalidation required by repository authority, including any required commit-boundary revalidation. It can eliminate only an additional read whose sole purpose is to detect the same race already covered by the write precondition and whose omission does not remove a required authority check. Guarded checkpoint writes also do not establish action ownership for an already-executed non-idempotent external effect; claim such an action before execution or use authoritative serialization that covers the action itself.
 
 If a guarded write is rejected, do not retry blindly. Refresh the state relevant to the rejection, determine which prior assumptions or evidence were invalidated, and continue from that point.
 
