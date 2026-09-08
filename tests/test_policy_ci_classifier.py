@@ -118,8 +118,8 @@ def test_policy_ci_records_and_uses_applicability_decisions() -> None:
         "Classify Policy CI verification",
         "scripts/classify_policy_ci.py",
         "Record Policy CI applicability",
-        "steps.classify.outputs.release_state_required == 'true'",
-        "steps.classify.outputs.trusted_review_required == 'true'",
+        "needs.preflight.outputs.release_state_required == 'true'",
+        "needs.preflight.outputs.trusted_review_required == 'true'",
     ):
         assert fragment in workflow
 
