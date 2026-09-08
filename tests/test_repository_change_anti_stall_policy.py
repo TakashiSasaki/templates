@@ -58,7 +58,13 @@ def test_bounded_retries_use_failure_classification_and_strategy_identity() -> N
 
 def test_invalidated_paths_require_evidenced_context_change() -> None:
     text = _policy()
-    for token in ("invalidated path", "retry_condition", "applicability", "changed runtime", "network recovery"):
+    for token in (
+        "invalidated path",
+        "retry_condition",
+        "applicability",
+        "changed runtime",
+        "network recovery",
+    ):
         assert token in text
 
 
@@ -77,7 +83,13 @@ def test_stagnation_and_reporting_have_bounded_baselines() -> None:
 
 def test_wait_stall_blocked_and_parallel_work_are_distinct() -> None:
     text = _policy()
-    for token in ("external_wait", "diagnostic_stall", "blocked", "productive_parallel_work", "completion frontier"):
+    for token in (
+        "external_wait",
+        "diagnostic_stall",
+        "blocked",
+        "productive_parallel_work",
+        "completion frontier",
+    ):
         assert token in text
 
 
