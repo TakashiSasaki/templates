@@ -31,6 +31,19 @@ def test_review_result_classification_is_bound_to_latest_applicable_cycle() -> N
         assert phrase in text
 
 
+def test_request_less_completed_review_can_define_cycle_when_fully_bound() -> None:
+    text = _text(RULE)
+    for phrase in (
+        "when no applicable review request exists",
+        "completed independent review result may itself define the current review cycle",
+        "do not invent a review-request event",
+        "fallback does not apply when a later applicable request exists",
+        "review purpose, reviewer or review-system independence, completion state",
+        "keep the affected completion or no-findings conclusion fail-closed",
+    ):
+        assert phrase in text
+
+
 def test_revision_applicability_is_fail_closed_and_exact_head_for_merge_acceptance() -> None:
     text = _text(RULE)
     for phrase in (
