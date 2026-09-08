@@ -70,10 +70,17 @@ jobs:
               && git show "$BASE_SHA:scripts/ci_change_classification.py" > "$classifier_dir/ci_change_classification.py"; then
               authority_source="base"
             else
-              cp scripts/classify_policy_ci.py "$classifier_dir/classify_policy_ci.py"
-              cp scripts/ci_change_classification.py "$classifier_dir/ci_change_classification.py"
-              force_full=true
-              authority_source="proposed-head-fallback-full"
+              authority_source="base-unavailable-full"
+              {
+                echo "authority_source=$authority_source"
+                echo "release_state_required=true"
+                echo "release_state_reason=base-classifier-unavailable"
+                echo "trusted_review_required=true"
+                echo "trusted_review_reason=base-classifier-unavailable"
+                echo "overall_reason=full"
+                echo "changed_count=unknown"
+              } >> "$GITHUB_OUTPUT"
+              exit 0
             fi
           else
             cp scripts/classify_policy_ci.py "$classifier_dir/classify_policy_ci.py"
