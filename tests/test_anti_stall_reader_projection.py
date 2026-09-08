@@ -27,9 +27,9 @@ class AntiStallReaderProjectionTests(unittest.TestCase):
         text = ENGLISH.read_text(encoding="utf-8")
         normalized = " ".join(text.split())
         self.assertIn("resume does not restart the investigation", normalized)
-        self.assertIn("retry condition", text)
-        self.assertIn("review-finding ledger remains authoritative", text)
-        self.assertIn("does not copy finding-level disposition", text)
+        self.assertIn("retry condition", normalized)
+        self.assertIn("review-finding ledger remains authoritative", normalized)
+        self.assertIn("does not copy finding-level disposition", normalized)
 
     def test_japanese_reference_translation_carries_the_same_boundary(self) -> None:
         text = JAPANESE.read_text(encoding="utf-8")
