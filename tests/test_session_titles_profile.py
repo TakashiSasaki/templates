@@ -15,15 +15,18 @@ EXPECTED_RULE_IDS = [
 ]
 
 
-def test_session_titles_profile_is_explicitly_selectable_and_not_core() -> None:
+def test_session_titles_profile_is_explicitly_selectable_and_not_implicit() -> None:
     selected = [
         path.relative_to(ROOT).as_posix()
         for path in profile_policy_paths("session-titles")
     ]
     assert selected == EXPECTED_MODULES
 
-    core_text = (ROOT / "profiles" / "core.yml").read_text(encoding="utf-8")
-    assert all(module not in core_text for module in EXPECTED_MODULES)
+    for profile_file in (ROOT / "profiles").glob("*.yml"):
+        if profile_file.stem == "session-titles":
+            continue
+        profile_text = profile_file.read_text(encoding="utf-8")
+        assert all(module not in profile_text for module in EXPECTED_MODULES)
 
     rules = load_rules(ROOT, ["session-titles"], [])
     assert [rule.id for rule in rules] == EXPECTED_RULE_IDS
