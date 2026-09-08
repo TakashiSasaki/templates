@@ -3,7 +3,7 @@
 
 ## Resumable stack checkpoint
 
-Apply [Work ledger](work-ledger.md) when constructing or resuming the stack. Preserve ordered PR/branch members, base and exact head bindings, semantic responsibility, cumulative scope, provisional state and the stability frontier on the canonical provider surface. Checkpoint member creation, justified head/topology movement and qualification completion. CI waiting does not block dependency-safe later implementation. On resume, refresh affected bindings and consult the referenced review-finding ledger before choosing the next safe action; do not reset completed semantic repairs solely because their qualification head changed.
+Apply [Work ledger](work-ledger.md) when constructing or resuming the stack. Preserve ordered PR/branch members, base and exact head bindings, semantic responsibility, cumulative scope, provisional state and the stability frontier on the **selected canonical operational surface**. Provider-side PR/Issue checkpointing remains the default; when the consumer or repository authority explicitly adopts the isolated repository-tracked backend, use that repository-tracked operational ref as the canonical stack checkpoint and do not maintain a competing provider-side canonical checkpoint. Checkpoint member creation, justified head/topology movement and qualification completion. CI waiting does not block dependency-safe later implementation. On resume, follow the selected backend's recovery/concurrency procedure, refresh affected provider bindings and consult the referenced review-finding ledger before choosing the next safe action; do not reset completed semantic repairs solely because their qualification head changed.
 
 Use this procedure when stacked-pr is selected.
 

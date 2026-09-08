@@ -5,6 +5,8 @@ from agent_policy.renderer import render_skill
 ROOT = Path(__file__).resolve().parents[1]
 SKILL = ROOT / "skills/orchestrate-repository-change"
 REFERENCE = SKILL / "references/repository-tracked-work-ledger.md"
+RATIONALE = ROOT / "docs/agent-work-orchestration.md"
+STACKED = SKILL / "references/stacked-pr-workflow.md"
 
 
 def test_repository_tracked_work_ledger_is_discoverable_and_distributed():
@@ -97,9 +99,25 @@ def test_recovered_non_idempotent_action_requires_pre_execution_ownership():
         "atomic/cas checkpoint transition",
         "records the specific action as claimed/in-progress",
         "worker that loses the claim cas must not execute the action",
-        "uncertain-after-interruption",
         "do not infer action ownership from merely having loaded the checkpoint",
         "preflight checkpoint must also establish the exclusive action claim",
+    ):
+        assert required in text
+
+
+def test_interrupted_action_claim_cannot_be_cleared_or_stolen_before_reconciliation():
+    text = REFERENCE.read_text().lower()
+    for required in (
+        (
+            "preserve that claim as `claimed/in-progress` or "
+            "`uncertain-after-interruption` while checking provider effects"
+        ),
+        "do not clear or steal the claim merely because the original worker is no longer active",
+        (
+            "transfer or expire action ownership only under an authoritative "
+            "repository/provider mechanism"
+        ),
+        "preserves the possibility that the external effect already occurred",
     ):
         assert required in text
 
@@ -152,3 +170,30 @@ def test_operational_state_does_not_gain_product_or_review_authority():
         "work ledger is not product lifecycle authority",
     ):
         assert required in text
+
+
+def test_rationale_describes_backend_selection_and_isolated_repository_storage():
+    text = RATIONALE.read_text().lower()
+    for required in (
+        "selectable storage backend",
+        "provider-side pr/issue checkpoints remain the default",
+        "explicitly adopts isolated repository-tracked operational state",
+        "selected canonical operational surface",
+        "support in policy is not adoption by a consumer",
+    ):
+        assert required in text
+
+
+def test_stacked_workflow_uses_the_selected_canonical_operational_surface():
+    rendered = render_skill("orchestrate-repository-change")
+    installed = rendered["references/stacked-pr-workflow.md"].lower()
+
+    for required in (
+        "selected canonical operational surface",
+        "provider-side pr/issue checkpointing remains the default",
+        "explicitly adopts the isolated repository-tracked backend",
+        "use that repository-tracked operational ref as the canonical stack checkpoint",
+        "do not maintain a competing provider-side canonical checkpoint",
+        "follow the selected backend's recovery/concurrency procedure",
+    ):
+        assert required in installed

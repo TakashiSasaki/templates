@@ -117,7 +117,6 @@ The focused-to-broad ordering is a practical sequencing heuristic rather than a 
 ## Work while evidence is in flight
 
 Asynchronous wait time can be used for bounded read-only work and dependency-safe later implementation that does not knowingly propagate a material defect. Examples include self-audit, reproductions, regression-test design, authority checks, and implementation above a stable prerequisite.
-
 The work must remain bounded by a concrete scope or trigger. An agent should not turn every wait into an open-ended search for hypothetical defects. Review latency alone is not a reason to mutate stable lower members or stop constructing safe later members.
 
 ## Guarded mutations
@@ -200,8 +199,10 @@ The dispatcher applies explicit task instruction before repository-local policy,
 
 ## Resumable Work ledger
 
-The Work ledger procedure at `skills/orchestrate-repository-change/references/work-ledger.md` ties the existing workflow state together as a provider-side operational projection. Use a discoverable stack-tip/standalone PR comment or tracking issue for durable checkpoints and execution-local state for frequent updates. Record material transitions, not every tool call. A progress-only repository commit would move the head and stale exact-head evidence; ordinary progress therefore remains outside the tracked source tree.
+The Work ledger procedure at `skills/orchestrate-repository-change/references/work-ledger.md` ties the existing workflow state together as an operational projection with a selectable storage backend. Provider-side PR/Issue checkpoints remain the default. When a consumer or independent repository authority explicitly adopts isolated repository-tracked operational state, use that selected operational ref instead of maintaining a competing provider-side checkpoint as the canonical resume surface. Execution-local state may supplement either backend for frequent ephemeral updates.
 
-Resume by discovering or reconstructing the checkpoint, refreshing affected live bindings, choosing the next safe action, performing useful work, and checkpointing material changes. Preserve semantic progress separately from final qualification. Link the existing review-finding ledger instead of duplicating finding dispositions or closure evidence. Provider facts and existing acceptance procedures retain authority.
+Repository-tracked storage is permitted only when it is independently addressable from implementation and qualification candidates. A progress-only commit on the implementation candidate would move the candidate head and stale exact-head evidence, so operational bookkeeping must not be committed there merely to record progress. An explicitly adopted isolated operational ref is different: its commits update only operational history and do not establish acceptance, product state, review disposition, or merge readiness.
 
-This procedure source can be developed independently of the repository's pinned self-host toolchain. Source changes do not silently promote the runtime or regenerate a consumer from an unreviewed candidate. Adoption remains a separate release/self-host boundary.
+Resume by discovering the adopted backend and its canonical checkpoint, resolving the live operational-ref binding when repository-tracked storage is selected, refreshing affected provider bindings, choosing the next safe action, performing useful work, and checkpointing material changes on the selected canonical operational surface. Preserve semantic progress separately from final qualification. Link the existing review-finding ledger instead of duplicating finding dispositions or closure evidence. Provider facts and existing acceptance procedures retain authority.
+
+This procedure source can be developed independently of the repository's pinned self-host toolchain. Source changes do not silently promote the runtime or regenerate a consumer from an unreviewed candidate. Repository-tracked operational storage itself also remains opt-in; support in Policy is not adoption by a consumer.
