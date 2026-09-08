@@ -33,10 +33,23 @@ def test_github_adapter_correlates_cycle_purpose_and_revision() -> None:
         "latest applicable review request",
         "do not select a request solely because it is the newest event",
         "merge-acceptance, diagnostic whole-stack, security",
-        "reviewer or review system, review purpose, request cycle",
+        "reviewer or review system, review purpose, request-backed or request-less cycle",
         "commit id, head sha, stack tip, or equivalent candidate identity",
         "classify the completed review as stale for exact-head merge acceptance",
         "classify applicability as unknown",
+    ):
+        assert phrase in text
+
+
+def test_github_adapter_accepts_fully_bound_request_less_completed_result() -> None:
+    text = _text(DISCOVERY)
+    for phrase in (
+        "when no applicable request exists",
+        "completed independent review result",
+        "candidate request-less cycle anchor",
+        "do not synthesize a github review-request event",
+        "later applicable request exists for the same purpose and candidate lineage",
+        "review_not_requested` describes the absence of a request-backed cycle",
     ):
         assert phrase in text
 
