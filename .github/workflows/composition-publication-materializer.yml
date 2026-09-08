@@ -1,0 +1,30 @@
+name: Composition publication materializer
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  materializer:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out exact pull request head
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Install locked validation dependencies
+        run: python -m pip install --requirement requirements-dev.lock --no-deps
+
+      - name: Run materializer regressions
+        run: python -I tests/test_publication_materializer.py
