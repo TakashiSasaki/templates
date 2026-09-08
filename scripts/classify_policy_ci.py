@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -13,7 +14,10 @@ else:
     import ci_change_classification as common  # noqa: E402
 
 DESCRIPTION = "Classify applicability of expensive Policy CI verification."
-REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+_WORKSPACE = os.environ.get("GITHUB_WORKSPACE")
+REPOSITORY_ROOT = (
+    Path(_WORKSPACE).resolve() if _WORKSPACE else Path(__file__).resolve().parents[1]
+)
 ZERO_SHA = common.ZERO_SHA
 ClassificationError = common.ClassificationError
 
