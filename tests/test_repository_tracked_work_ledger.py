@@ -25,7 +25,10 @@ def test_repository_tracked_strategy_requires_explicit_adoption_and_candidate_is
         "absence of a prohibition is not adoption",
         "provider-side pr/issue checkpoints remain the default",
         "updating operational state does not move a pr head",
-        "a commit that adds or refreshes a progress file on the implementation candidate itself is not isolated",
+        (
+            "a commit that adds or refreshes a progress file on the implementation "
+            "candidate itself is not isolated"
+        ),
         "not an acceptable substitute for isolation",
         "does not reserve those names",
         "no json/yaml schema is mandatory",
@@ -74,7 +77,10 @@ def test_cached_evidence_never_overrides_provider_truth_or_applicability():
         "live head moved to `b`",
         "head is unchanged but a relevant base",
         "never substitutes for the provider evidence locator",
-        "the ledger determines **what must be refreshed**; the provider determines **what is true**",
+        (
+            "the ledger determines **what must be refreshed**; the provider "
+            "determines **what is true**"
+        ),
         "inspect the provider effect before retrying",
         "do not create duplicate branches, prs, review requests, comments, merges, deployments",
     ):
