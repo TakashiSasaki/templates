@@ -52,8 +52,14 @@ def test_bounded_retries_use_failure_classification_and_strategy_identity() -> N
         "evidence unavailable",
         "semantic failure",
         "strategy switch",
+        "observed failure mode is an outcome",
     ):
         assert token in text
+    strategy_block = text.split("## strategy identity and repeated attempts", 1)[1].split(
+        "## invalidated paths", 1
+    )[0]
+    identity_block = strategy_block.split("observed failure mode is an outcome", 1)[0]
+    assert "- observed failure mode" not in identity_block
 
 
 def test_invalidated_paths_require_evidenced_context_change() -> None:
@@ -71,6 +77,8 @@ def test_invalidated_paths_require_evidenced_context_change() -> None:
 def test_stagnation_and_reporting_have_bounded_baselines() -> None:
     text = _policy()
     for token in (
+        "global no-material-progress bound",
+        "successful calls that only reproduce already-known information",
         "about 3 calls",
         "about 2 consecutive reports",
         "stagnation signal",
@@ -89,22 +97,27 @@ def test_wait_stall_blocked_and_parallel_work_are_distinct() -> None:
         "blocked",
         "productive_parallel_work",
         "completion frontier",
+        "concrete resume condition",
+        "unchanged `pending` or `in_progress` status",
+        "stale, timed out, failed",
     ):
         assert token in text
 
 
-def test_resume_state_is_compact_and_separate_from_review_findings() -> None:
+def test_resume_state_is_artifact_neutral_and_separate_from_review_findings() -> None:
     text = _policy()
     for token in (
+        "durable resume state",
         "current failure scope",
         "current evidence gap",
         "attempted paths",
         "exhausted strategies",
         "diagnostic budget state",
-        "must not record `call 1`",
-        "review finding ledger remains authoritative",
+        "call-by-call transcript",
+        "must not become a second finding authority",
     ):
         assert token in text
+    assert "work ledger" not in text
 
 
 def test_regression_matrix_contains_cases_a_through_h() -> None:
@@ -112,12 +125,15 @@ def test_regression_matrix_contains_cases_a_through_h() -> None:
     assert [case["id"][0] for case in cases] == list("ABCDEFGH")
     joined = json.dumps(cases).lower()
     for token in (
+        "evidence-unavailable failure class",
         "third identical retrieval is prohibited",
         "gh-cli",
         "direct-github-network",
-        "not material progress",
+        "successful calls that only reproduce already-known information",
+        "global no-material-progress bound",
         "stagnation signal",
         "external_wait",
+        "unchanged pending or in_progress status",
         "do not restart investigation",
         "review finding ledger remains authoritative",
     ):
