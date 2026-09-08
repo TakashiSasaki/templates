@@ -11,6 +11,18 @@ def _policy() -> str:
     return POLICY.read_text(encoding="utf-8").lower()
 
 
+def test_policy_has_required_core_metadata() -> None:
+    text = POLICY.read_text(encoding="utf-8")
+    assert text.startswith("---\n")
+    for token in (
+        "id: changes.prevent-diagnostic-stall",
+        "severity: mandatory",
+        "overridable: false",
+        "order: 520",
+    ):
+        assert token in text
+
+
 def test_core_profile_includes_anti_stall_policy() -> None:
     assert "policy/core/repository-change-anti-stall.md" in PROFILE.read_text(encoding="utf-8")
 
