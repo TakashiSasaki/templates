@@ -26,6 +26,8 @@ Repository-tracked operational storage is allowed only when independent reposito
 
 Repository-tracked operational state is still an observation cache / resumability checkpoint, not provider truth. Its revision is operational identity, not candidate identity. The implementation head and operational checkpoint head must remain independently addressable so operational writes cannot invalidate implementation qualification. A repository-tracked strategy may recommend a machine-readable representation, but this procedure does not impose a mandatory JSON/YAML artifact or serialization schema.
 
+When repository-tracked operational state is explicitly adopted, follow [Isolated repository-tracked Work ledger](repository-tracked-work-ledger.md) for adoption discovery, operational-ref isolation, current-checkpoint structure, compare-and-swap writes, minimal-frontier refresh, selective reconciliation, evidence reuse, interrupted-mutation recovery, and retention/security boundaries. Its branch names, paths, and serialization examples are non-mandatory.
+
 If durable storage is unavailable, retain execution-local state and report the durability limitation at handoff. Do not claim a durable checkpoint was saved when a write failed; persistence requirements explicitly imposed by the task remain unsatisfied.
 
 ## Minimum logical state
@@ -81,6 +83,8 @@ For `external_wait`, record why the dependency is legitimately pending and the c
 ## Refresh and stale bindings
 
 On discovery or resume, reconstruct the checkpoint if absent; then refresh materially stale facts needed for the next action. Preserve the starting snapshot separately from current observations. Verify observed member/base/dependency identities from the provider before relying on reconstructed topology. If the previous action may have succeeded before interruption, inspect its effect before retrying; do not create duplicate PRs, mutations or review requests.
+
+When an adopted repository-tracked checkpoint is available, use it to narrow discovery according to the two-phase resume procedure in [Isolated repository-tracked Work ledger](repository-tracked-work-ledger.md). Validate the minimal live frontier first; do not treat cached state as permission to skip provider identity, current head, or other bindings needed for the next safe action.
 
 Evaluate each observation by actual binding:
 
