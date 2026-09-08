@@ -94,7 +94,7 @@ def test_body_only_and_comment_only_findings_require_closure() -> None:
     assert "finding-level closure evidence" in skill
 
 
-def test_merge_gate_directly_lists_new_canonical_rules_and_unknown_applicability_block() -> None:
+def test_merge_gate_directly_lists_new_canonical_rules_and_review_absence_states() -> None:
     skill = _text(SKILL)
 
     assert "`pull-request.discover-review-results-across-applicable-surfaces`" in skill
@@ -103,4 +103,14 @@ def test_merge_gate_directly_lists_new_canonical_rules_and_unknown_applicability
         in skill
     )
     assert "`blocked_review_applicability_unknown`" in skill
-    assert "do not infer completion or `no findings` from a clean or empty surface" in skill
+    assert (
+        "when no applicable review request exists, no completed request-less result "
+        "is discovered, and no other applicable review-result evidence is present"
+        in skill
+    )
+    assert "confirmed absence is not `blocked_review_applicability_unknown`" in skill
+    assert (
+        "if applicable review-result evidence is discovered but its cycle, purpose, "
+        "or reviewed revision cannot be established"
+        in skill
+    )
