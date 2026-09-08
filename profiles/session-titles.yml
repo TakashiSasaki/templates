@@ -1,0 +1,4 @@
+policy_files:
+  - policy/session-titles/terminal-boundary.md
+  - policy/session-titles/outcome-fidelity.md
+  - policy/session-titles/presentation-boundary.md
