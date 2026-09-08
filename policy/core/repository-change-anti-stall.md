@@ -10,7 +10,7 @@ order: 520
 
 Repository-change orchestration MUST optimize for material progress, not visible tool activity. Repeated retrieval attempts, connector discovery, polling, or progress messages without a knowledge-state or repository-state delta are diagnostic activity, not progress.
 
-This policy defines bounded diagnostic exploration, invalidated-path memory, strategy switching, stagnation detection, progress reporting, waiting semantics, and resume requirements. The repository-change orchestrator and its Work ledger MUST implement these semantics without turning the ledger into an execution transcript or duplicating the review finding ledger.
+This policy defines bounded diagnostic exploration, invalidated-path memory, strategy switching, stagnation detection, progress reporting, waiting semantics, and artifact-neutral durable-resume requirements. Repository-change execution procedures and their provider-specific checkpoint mechanisms MUST implement these semantics without turning resume state into an execution transcript or duplicating review-finding authority.
 
 ## Material progress
 
@@ -32,17 +32,18 @@ Orchestration SHOULD track a compact `last_material_progress` and `progress_fron
 
 ## Strategy identity and repeated attempts
 
-A diagnostic strategy is identified by the combination of:
+A diagnostic strategy is identified by the combination of deliberately selected inputs:
 
 - objective;
 - evidence source;
-- diagnostic method;
-- relevant hypothesis; and
-- observed failure mode.
+- diagnostic method; and
+- relevant hypothesis.
+
+Observed failure mode is an outcome of an attempt, not part of strategy identity. Track it per attempt for failure classification and retry decisions without allowing a changed outcome to reset the strategy attempt count.
 
 Changing an endpoint name, response format, or connector action while pursuing the same evidence from the same source is ordinarily the same strategy. A **strategy switch** changes the evidence source, diagnostic method, or hypothesis in a way that can produce a new knowledge-state delta.
 
-Repeated failures MUST be bounded. As a baseline, two failures with the same objective, evidence source, method, and failure mode require a strategy reassessment; a third identical retrieval MUST NOT be issued merely because another equivalent API spelling might work.
+Repeated failures MUST be bounded. As a baseline, two failures using the same strategy with the same observed failure mode require a strategy reassessment; a third identical retrieval MUST NOT be issued merely because another equivalent API spelling might work.
 
 The baseline is not a universal hard-coded retry count. The agent MUST classify the failure before deciding whether another same-strategy attempt is justified:
 
@@ -85,13 +86,15 @@ Trying another endpoint that exposes the same unavailable evidence is not necess
 
 ## Diagnostic budget and stagnation detection
 
-Each diagnostic objective MUST have a bounded budget expressed in one or more dimensions, such as:
+Each diagnostic objective MUST have a global no-material-progress bound that advances for every diagnostic action that fails to move decision-relevant state, including successful calls that only reproduce already-known information. Implementations MAY also maintain narrower budgets such as:
 
 - same-source failures;
 - no-progress tool calls;
 - external round trips;
 - repeated semantically equivalent progress messages; and
 - optional elapsed diagnostic time when the environment can measure it reliably.
+
+A narrower counter MUST NOT be the only bound when other no-progress execution paths remain possible. Every applicable diagnostic path must eventually reach reassessment while the same evidence gap persists.
 
 Recommended baselines are:
 
@@ -130,18 +133,18 @@ Semantically equivalent consecutive reports such as “checking logs,” “chec
 
 Orchestration MUST distinguish these states:
 
-- `external_wait` — an external process such as CI or review is making normal observable progress and the agent is not diagnostically stuck;
+- `external_wait` — a required external dependency such as CI or review is validated as legitimately pending and has a concrete resume condition; granular or changing provider progress need not be observable;
 - `diagnostic_stall` — agent activity continues without material progress while an evidence gap remains;
 - `blocked` — no authorized, in-scope, materially different strategy remains after bounded reassessment;
 - `productive_parallel_work` — work performed while another dependency is pending that directly advances the declared completion frontier.
 
-A long-running CI job that is progressing normally is `external_wait`, not `diagnostic_stall`.
+A long-running CI job that is validly pending is `external_wait`, not `diagnostic_stall`, even when the provider exposes only an unchanged `pending` or `in_progress` status. Orchestration MUST separately define the condition that makes an opaque wait stale, timed out, failed, or otherwise eligible for reassessment; an unchanged status alone is not agent stall.
 
 Parallel work while waiting MUST directly advance completion. Appropriate examples include downstream stacked-branch preparation, PR-body synchronization, review-debt audit, exact-head applicability audit, deterministic test preparation, and known documentation synchronization. Unrelated architecture exploration, optional features, cleanup, or scope expansion MUST NOT be justified as parallel work merely because an external dependency is pending.
 
-## Work ledger and resume contract
+## Durable resume state
 
-The Work ledger MUST preserve enough anti-stall state to make resume different from restarting the investigation. At minimum, when relevant, a durable checkpoint SHOULD make recoverable:
+Any durable checkpoint used to resume repository-change work MUST preserve enough anti-stall state to make resume different from restarting the investigation. At minimum, when relevant, recoverable state SHOULD include:
 
 - current objective;
 - current failure scope;
@@ -157,9 +160,9 @@ The Work ledger MUST preserve enough anti-stall state to make resume different f
 - last material progress; and
 - next safe action.
 
-The ledger MUST NOT record `call 1`, `call 2`, `call 3` as a transcript. On resume, the agent MUST restore invalidated/exhausted paths before any diagnostic retry and MUST selectively refresh only facts whose freshness matters. A new session MUST NOT repeat an invalidated path without satisfying its retry condition.
+Durable resume state MUST NOT become a call-by-call transcript. On resume, orchestration MUST restore invalidated and exhausted paths before any diagnostic retry and MUST selectively refresh only facts whose freshness matters. A new session MUST NOT repeat an invalidated path without satisfying its retry condition.
 
-The review finding ledger remains authoritative for review findings. The Work ledger records only their orchestration effect, such as “review debt blocks final review request,” plus the canonical reference needed to recover the finding state.
+Review-finding identity, disposition, repair reasoning, qualification, and closure evidence remain owned by the applicable review procedure. Durable resume state may record only the review state needed for orchestration plus the canonical reference required to recover authoritative finding details; it MUST NOT become a second finding authority.
 
 ## Review and completion interaction
 
