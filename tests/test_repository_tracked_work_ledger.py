@@ -15,7 +15,7 @@ def test_repository_tracked_work_ledger_is_discoverable_and_distributed():
     assert "references/repository-tracked-work-ledger.md" in rendered
     installed = rendered["references/repository-tracked-work-ledger.md"].lower()
     assert "isolated repository-tracked work ledger" in installed
-    assert "provider-side checkpoints remain the default" in installed
+    assert "provider-side pr/issue checkpoints remain the default" in installed
 
 
 def test_repository_tracked_strategy_requires_explicit_adoption_and_candidate_isolation():
