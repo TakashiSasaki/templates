@@ -25,7 +25,8 @@ class AntiStallReaderProjectionTests(unittest.TestCase):
 
     def test_reader_projection_describes_resume_without_restarting_failed_exploration(self) -> None:
         text = ENGLISH.read_text(encoding="utf-8")
-        self.assertIn("resume does not restart the investigation", text)
+        normalized = " ".join(text.split())
+        self.assertIn("resume does not restart the investigation", normalized)
         self.assertIn("retry condition", text)
         self.assertIn("review-finding ledger remains authoritative", text)
         self.assertIn("does not copy finding-level disposition", text)
