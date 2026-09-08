@@ -17,7 +17,7 @@ Git history、pull request、CI run、review thread は重要な provider fact �
 
 これらは相互に関係しますが、どれか一つが他を暗黙に置き換えることはありません。
 
-**Publication status:** Requirement/Evidence と lifecycle の説明は現在選択されている Composition contract を反映し、review-finding model はすでに公開済みの Policy procedure です。Work-ledger の行は review 済みだが未マージの Policy candidate `#754 -> #755` を説明しています。この Site が現在公開している Policy revision は `c5a3294809a1066bf59b83f467f1d597f885289a` であり、この candidate は含まれません。したがって Work ledger はここでは staged architecture であり、現在公開済みの Policy authority ではありません。
+**Publication status:** Requirement/Evidence と lifecycle の説明は現在選択されている Composition contract を反映し、review-finding model はすでに公開済みの Policy procedure です。Work-ledger の行は review 済みだが未マージの Policy candidate `#754 -> #755` を説明しています。下記の anti-stall 節は別の staged Policy candidate `#773 -> #774` を projection しています。この Site が現在公開している Policy revision は `c5a3294809a1066bf59b83f467f1d597f885289a` であり、いずれの staged candidate set も含みません。したがって Work ledger candidate と anti-stall projection はここでは staged architecture であり、現在公開済みの Policy authority ではありません。
 
 ## Requirement と evidence: 現在の product state
 
@@ -48,6 +48,8 @@ Work ledger は agent transcript でもありません。すべての fetch、co
 ## anti-stall repository-change behavior
 
 この anti-stall repository-change behavior の semantic authority は Policy が保持します。この Site の節は Policy model の読者向け projection にすぎず、独自の retry threshold、failure class、orchestration semantics を定義しません。
+
+この説明は Policy PR `#773 -> #774` とともに **staged** です。Site が選択している published Policy revision にこれらの semantics が含まれるまでは、この節を現在公開済みの Policy artifact の semantics とみなしてはいけません。この読者向け文章を Site で公開しても、それ自体が staged Policy candidate を promote または authorize することはありません。
 
 中心となる区別は、tool activity は material progress ではありません、ということです。repository-change worker が evidence を取得し、capability を探索し、log を調査し、status を報告していても、objective に関する知識が変わっていない場合があります。繰り返し試行しても decision-relevant な knowledge state または repository state が変わらないなら、call 数を progress とみなさず現在の diagnostic strategy を再評価します。
 
