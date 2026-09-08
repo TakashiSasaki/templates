@@ -27,10 +27,12 @@ These records are related, but none should silently replace another.
 below reflect the currently selected Composition contracts, and the
 review-finding model is already published Policy procedure. The Work-ledger
 row describes the reviewed but unmerged Policy candidate in PRs `#754 -> #755`.
-The Site currently publishes Policy revision
-`c5a3294809a1066bf59b83f467f1d597f885289a`, which does not contain that
-candidate. Therefore Work ledger is staged architecture here, not current
-published Policy authority.
+The anti-stall section below projects the separate staged Policy candidates
+`#773 -> #774`. The Site currently publishes Policy revision
+`c5a3294809a1066bf59b83f467f1d597f885289a`, which contains neither staged
+candidate set. Therefore both the Work-ledger candidate and the anti-stall
+projection are staged architecture here, not current published Policy
+authority.
 
 ## Requirement and evidence: current product state
 
@@ -102,6 +104,12 @@ Policy remains the semantic authority for anti-stall repository-change
 behavior. This Site section is only a reader-facing projection of that Policy
 model and does not define independent retry thresholds, failure classes, or
 orchestration semantics.
+
+This explanation is **staged** with Policy PRs `#773 -> #774`. Until the Site's
+selected published Policy revision includes those semantics, readers should not
+attribute this section to the currently published Policy artifact. Site
+publication of this reader text does not itself promote or authorize the
+staged Policy candidate.
 
 The central distinction is that tool activity is not material progress. A
 repository-change worker may fetch evidence, discover capabilities, inspect
