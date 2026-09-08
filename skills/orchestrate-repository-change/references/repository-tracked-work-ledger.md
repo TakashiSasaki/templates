@@ -75,15 +75,19 @@ Do not use `force` ref movement to erase a concurrent checkpoint merely to simpl
 
 ## Resume protocol
 
-Resume is a cache-validation operation, not a complete rediscovery by default.
+Resume is a cache-validation operation, not a complete rediscovery by default. Read-side freshness of the shared operational ref is part of concurrency safety, not an optional deep refresh.
 
 ### Phase 1 — checkpoint recovery
 
 1. discover the adopted operational ref and active work scope;
-2. load the latest valid current checkpoint;
-3. recover the work identity, objective/scope, topology, last-known provider heads, evidence bindings, diagnostic negative-capability state, and `next_safe_action`;
-4. retain explicit `unknown`, `pending`, stale, and conflict states rather than filling gaps from assumption; and
-5. identify the minimum live facts whose current value can change the safety of the recorded next action.
+2. unless serialized ownership is positively established by an authoritative mechanism that excludes concurrent writers, resolve the current **live operational ref head before selecting or loading the checkpoint** and bind this recovery attempt to that immutable head;
+3. load the latest valid current checkpoint from that live immutable binding rather than from an unverified local or previously cached ref state;
+4. recover the work identity, objective/scope, topology, last-known provider heads, evidence bindings, diagnostic negative-capability state, and `next_safe_action`;
+5. retain explicit `unknown`, `pending`, stale, and conflict states rather than filling gaps from assumption;
+6. identify the minimum live facts whose current value can change the safety of the recorded next action; and
+7. before following `next_safe_action` or performing an external mutation, confirm that the operational-ref binding still names the live head when concurrent writers remain possible. If that binding moved, discard the stale recovery decision and restart Phase 1 from the new live head.
+
+A provider may combine live-head resolution and checkpoint retrieval when it guarantees that the checkpoint read is bound to the returned immutable ref head. That optimization may reduce round-trip depth; it must not weaken the binding.
 
 ### Phase 2 — minimal frontier refresh
 
@@ -94,7 +98,7 @@ Refresh the smallest live frontier needed to validate the checkpoint before broa
 - exact current member head;
 - applicable base/dependency identity or head when the next action depends on it;
 - current state of a specifically bound CI/review/deployment dependency; and
-- the operational ref head when another writer may have advanced it.
+- the live operational-ref binding established in Phase 1 when concurrent writers remain possible.
 
 Compare these live facts to the cached observations before opening deeper surfaces.
 
