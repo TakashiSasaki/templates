@@ -33,6 +33,8 @@ The policy context is the semantic authority boundary. A renderer presents the r
 
 Profiles are additive rule-selection bundles. They are not mutually exclusive operating modes, renderer choices, agent skills, provider integrations, or substitutes for repository-local policy. Selecting `review`, for example, adds shared review semantics to a context; it does not by itself create a review output or choose a provider integration.
 
+Interaction-surface procedures do not become shared policy merely because multiple consumers may want them. For example, conversation-session title behavior depends on a session-capable interaction surface and therefore belongs to the generated `title-conversation-session` Skill rather than a profile. Consumers that want that behavior select the Skill explicitly under `skills.enabled`; see [Configuration](../configuration.md).
+
 Profile list order is not a precedence mechanism. The loader expands each selected profile into shared rule modules and the resulting rules are ordered by rule metadata. Selecting profiles that introduce the same shared rule ID is rejected rather than silently choosing one copy.
 
 ## Choosing profiles
@@ -45,7 +47,6 @@ For a normal managed repository, start with `core` and `security-baseline`. Add 
 | Creating, updating, or closing pull-request work | `core`, `security-baseline`, `pull-request` |
 | Reviewing changes for blocking defects | `core`, `security-baseline`, `review` |
 | Receiving or staging externally produced artifacts | `core`, `security-baseline`, `external-artifact-intake` |
-| Naming substantial conversation sessions at completion or handoff | add `session-titles` to the applicable context |
 
 The `policy` branch itself demonstrates the distinction between pull-request work and review work: its `coding` context selects `pull-request`, while its `review` context selects `review`.
 
@@ -85,7 +86,15 @@ outputs:
     renderer: policy-context-md
 ```
 
-When automated pull-request review is required, enable the provider-neutral `pr-review` Skill separately under `skills.enabled`. Provider API serialization and submission remain integration concerns outside profile selection and semantic renderer authority.
+When automated pull-request review is required, enable the provider-neutral `pr-review` Skill separately under `skills.enabled`. Conversation-session naming is likewise selected separately:
+
+```yaml
+skills:
+  enabled:
+    - title-conversation-session
+```
+
+Generated Skills are operational or surface contracts, not shared semantic profiles. Provider API serialization and submission remain integration concerns outside profile selection and semantic renderer authority.
 
 ## Available profiles
 
@@ -192,17 +201,6 @@ Included modules:
 - `policy/artifacts/staging-boundaries.md`
 - `policy/artifacts/transport-isolation.md`
 - `policy/artifacts/dependency-closure.md`
-
-<!-- PROFILE: session-titles -->
-### `session-titles`
-
-Use when a conversation-based agent should give substantial work sessions durable, outcome-oriented names at meaningful completion or handoff boundaries. The profile is intentionally optional and provider-neutral: it governs when to finalize a title, how the title must reflect the observed terminal state, and how title presentation remains separate from repository, validation, review, merge, and completion authority. If the interaction surface cannot persist a title directly, the policy permits a terminal title proposal instead of turning that presentation limitation into a work blocker.
-
-Included modules:
-
-- `policy/session-titles/terminal-boundary.md`
-- `policy/session-titles/outcome-fidelity.md`
-- `policy/session-titles/presentation-boundary.md`
 
 ## Profiles and repository-local policy
 
