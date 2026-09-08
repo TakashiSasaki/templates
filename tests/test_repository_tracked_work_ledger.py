@@ -18,6 +18,23 @@ def test_repository_tracked_work_ledger_is_discoverable_and_distributed():
     assert "provider-side pr/issue checkpoints remain the default" in installed
 
 
+def test_top_level_skill_selects_the_explicitly_adopted_storage_backend():
+    rendered = render_skill("orchestrate-repository-change")
+    installed_skill = rendered["SKILL.md"].lower()
+
+    for required in (
+        "select the adopted work-ledger storage strategy",
+        "use the explicitly adopted repository-tracked operational ref",
+        "otherwise use the canonical provider-side checkpoint",
+        (
+            "resolve the live operational-ref head before selecting/loading the checkpoint "
+            "unless serialized ownership is positively established"
+        ),
+        "checkpoint material transitions on the selected canonical operational surface",
+    ):
+        assert required in installed_skill
+
+
 def test_repository_tracked_strategy_requires_explicit_adoption_and_candidate_isolation():
     text = REFERENCE.read_text().lower()
     for required in (
@@ -46,6 +63,19 @@ def test_repository_tracked_strategy_uses_guarded_shared_state():
         "append immutable successor checkpoints",
         "competing successors are a conflict",
         "do not use `force` ref movement",
+    ):
+        assert required in text
+
+
+def test_resume_binds_checkpoint_selection_to_the_live_operational_head():
+    text = REFERENCE.read_text().lower()
+    for required in (
+        "read-side freshness of the shared operational ref is part of concurrency safety",
+        "serialized ownership is positively established",
+        "live operational ref head before selecting or loading the checkpoint",
+        "load the latest valid current checkpoint from that live immutable binding",
+        "restart phase 1 from the new live head",
+        "checkpoint read is bound to the returned immutable ref head",
     ):
         assert required in text
 
