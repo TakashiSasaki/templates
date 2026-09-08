@@ -1,0 +1,15 @@
+---
+id: pull-request.use-staged-ci-with-preflight
+severity: mandatory
+overridable: true
+order: 971
+---
+# Structure CI as staged validation with an explicit preflight
+
+When repository validation contains checks with materially different cost, scope, or applicability, define an explicit staged CI model appropriate to that repository. Prefer these roles when they are meaningful: **CI preflight** for the cheapest deterministic checks that can reject an obviously invalid candidate; **core validation** for baseline correctness checks that are broadly applicable; **conditional integration** for integration, browser, cross-surface, compatibility, or similar checks whose applicability may depend on the proposed change; and **full qualification** for the broad authority-defined acceptance performed when a completion, merge, release, publication, or equivalent qualification boundary requires it. A repository may collapse or omit a stage when no meaningful distinction exists. Stage names describe validation role and execution cost, not importance.
+
+Place CI preflight before dependent expensive validation when the repository workflow can do so without weakening coverage or creating a larger delay than the work it avoids. A preflight failure must not be interpreted as permission to ignore the defect, and dependent expensive validation need not continue for a candidate already known to be invalid. Independent checks may still run in parallel when they provide useful evidence or parallel execution is operationally cheaper than serialization. Do not serialize CI merely to satisfy the taxonomy. When a newer candidate supersedes an older one, cancel or supersede expensive work whose evidence can no longer apply when the repository platform safely permits that cancellation.
+
+Treat **stage**, **applicability**, and **result** as separate dimensions. Passing CI preflight does not establish core, integration, full-qualification, merge-readiness, or release evidence. Passing an earlier stage must not substitute for an applicable later-stage verification. A classified `not-applicable` decision is applicability evidence rather than a passing result, and uncertain applicability must fail closed under the repository's exact-head CI policy. Staging must not suppress repository-required automatic checks contrary to the workflow or policy that owns those checks.
+
+During dependency-safe construction, use CI preflight, core validation, focused diagnostics, and applicable conditional integration to falsify defects early without intentionally turning every construction head into a final qualification identity. When an authority-defined revision-bound boundary is reached, stabilize the qualification head and acquire every applicable exact-revision verification required by that authority, including full qualification when that boundary requires it. Staged CI is an execution-efficiency discipline; it does not weaken exact-head evidence, independent review, release trust, provenance, publication, or other completion requirements.
