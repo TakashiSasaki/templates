@@ -59,6 +59,40 @@ Recover ordered members, their bases and exact heads before resuming a stack. Pr
 
 At completion, use the checkpoint and its linked evidence to reconstruct the required report. Follow references/human-handoff.md for HANDOFF_READY and the dedicated merge gate for agent-review-and-merge. Recheck the existing complete known-finding and live-identity gates before any authorized review acquisition. If the task requires immediate stop after the request, persist the preflight checkpoint first and let the request record be the acquisition event; do not perform a post-request provider write.
 
+## Anti-stall diagnostic control
+
+`policy/core/repository-change-anti-stall.md` is the normative authority for material progress, bounded attempts, invalidated paths, diagnostic budgets, strategy switching, progress reporting, waiting semantics, and artifact-neutral durable-resume behavior. This Skill projects that policy into the repository-change execution loop and Work ledger; it does not redefine its acceptance semantics.
+
+For each diagnostic objective:
+
+1. state the evidence gap and current hypothesis before broad capability discovery;
+2. use capability-first, bounded tool discovery to find the minimum action that can reduce that gap;
+3. after a diagnostic attempt, decide whether there was material progress: new evidence, hypothesis support/rejection, narrower failure scope, repository/validation/review state change, qualification-frontier movement, or a materially more specific next safe action;
+4. when no material state changed, increment the global no-material-progress budget and any applicable narrower strategy budget instead of treating the tool call as progress;
+5. remember invalidated paths with their reason, applicability, and evidenced retry condition; do not retry them in the same context merely because another endpoint spelling may exist; and
+6. when the current strategy budget is exhausted, switch diagnostic strategy to a materially different evidence source, reproduction method, or hypothesis.
+
+A strategy is ordinarily identified by the deliberately selected objective, evidence source, diagnostic method, and hypothesis. Track observed failure mode per attempt for classification and retry decisions, but do not treat a changed outcome as a new strategy or reset its attempt count. As a guardrail, two equivalent failures require reassessment; a third identical retrieval is prohibited unless the failure classification or execution context supplies concrete new retry evidence. Cheap deterministic correction, credible transient failure, authentication repair, unavailable capability, unavailable evidence, and semantic failure require different handling; do not encode the guardrail as a universal fixed retry count.
+
+The global no-material-progress budget advances even for successful calls that only reproduce already-known information. Perform a stall check after about three no-progress tool calls while the same evidence gap persists, or sooner when tool-name discovery dominates productive work. Two semantically equivalent progress reports without material progress are also a stagnation signal. These numbers trigger reassessment rather than define a stall: the controlling question is whether the knowledge, repository, validation, review, qualification, or next-action state changed.
+
+At a diagnostic-budget boundary, switch diagnostic strategy before giving up. Only classify the objective as `blocked` when no alternate authorized, in-scope strategy remains that can materially reduce the evidence gap. A change from raw CI logs to check annotations, focused source-delta reproduction, generated-artifact inspection, workflow-source analysis, or bounded bisect can be a real strategy switch; searching another API name for the same unavailable raw log ordinarily is not.
+
+Keep external dependency state distinct from agent diagnostic state:
+
+- `external_wait`: a required dependency such as CI, review, deployment, or publication is validated as legitimately pending and has a concrete resume condition; provider progress may be opaque or unchanged;
+- `diagnostic_stall`: agent activity continues while the same evidence gap persists without material progress;
+- `blocked`: alternate authorized in-scope strategies are exhausted or unavailable;
+- `productive_parallel_work`: authorized work performed during an external wait that directly advances the declared completion frontier.
+
+An unchanged provider `pending` or `in_progress` status can remain `external_wait` when dependency identity and resume condition are valid. Track a separate stale/timeout/failure transition for waits that cease to be legitimate; opaque progress alone is not agent stall.
+
+During `external_wait`, productive_parallel_work may include downstream stacked-branch construction, PR-body synchronization, review-debt audit, exact-head applicability audit, deterministic test preparation, and known documentation synchronization. Do not justify unrelated cleanup, optional features, architecture exploration, or scope expansion as wait-time work.
+
+Progress reporting is knowledge-delta reporting. Prefer: what changed, what was learned, what remains unknown, why the strategy changed, and what comes next. Do not emit repeated variants of “checking logs” or “continuing diagnosis” when the underlying strategy and evidence gap have not changed.
+
+On resume, restore the Work ledger's invalidated and exhausted paths before diagnostic retry. Resume from the recorded progress frontier and next safe action; do not restart the investigation by default. Refresh only stale facts whose current binding matters to the next action.
+
 ## 1. Establish the minimum sufficient snapshot
 
 Before mutating, identify the facts that determine the next safe action:
@@ -100,7 +134,7 @@ For pull-request merge acceptance, defer to the repository's pull-request policy
 
 ## 5. Use asynchronous wait time for bounded read-only work and dependency-safe construction
 
-While CI, review, publication, deployment, or another external result is in flight, continue useful work that does not invalidate the candidate under evaluation. CI waiting must not stop dependency-safe implementation on later members; record the dependency and provisional state in the Work ledger. For a frozen qualification candidate, suitable work includes:
+While CI, review, publication, deployment, or another external result is in flight, continue useful work that does not invalidate the candidate under evaluation. CI waiting must not stop dependency-safe implementation on later members; record the dependency and provisional state in the Work ledger. Treat a validated pending dependency with a concrete resume condition as `external_wait` even when the provider exposes only an unchanged `pending` or `in_progress` status. Track a separate stale/timeout/failure condition for the dependency instead of converting opaque progress into `diagnostic_stall`. Limit parallel activity to `productive_parallel_work` that advances the declared completion frontier. For a frozen qualification candidate, suitable work includes:
 
 - bounded read-only self-audit of the current candidate;
 - reproducing or falsifying suspected defects;
@@ -109,7 +143,7 @@ While CI, review, publication, deployment, or another external result is in flig
 - checking authority and invariant boundaries;
 - inventorying the next independent task when it does not change the current candidate.
 
-Do not turn wait time into an unbounded search for hypothetical defects. Stop a read-only audit when the agreed scope and relevant invariants have been evaluated or when additional investigation has no concrete trigger.
+Do not turn wait time into an unbounded search for hypothetical defects. Stop a read-only audit when the agreed scope and relevant invariants have been evaluated or when additional investigation has no concrete trigger. Do not expand into unrelated cleanup, optional features, or unrelated architecture work merely because an external dependency is pending.
 
 ## 6. Aggregate known actionable findings before mutating
 
