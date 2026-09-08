@@ -14,22 +14,23 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test:
+  preflight:
+    name: CI preflight
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    env:
-      PYTHONHOME: ""
-      PYTHONPATH: ""
-      PYTHONNOUSERSITE: "1"
-      PIP_PYTHON: ""
-      PIP_CACHE_DIR: ""
-      PIP_NO_CACHE_DIR: ""
-      PIP_QUIET: ""
-      PIP_LOG: ""
-      PIP_CONFIG_FILE: /dev/null
+    timeout-minutes: 5
+    outputs:
+      release_state_required: ${{ steps.classify.outputs.release_state_required }}
+      release_state_reason: ${{ steps.classify.outputs.release_state_reason }}
+      trusted_review_required: ${{ steps.classify.outputs.trusted_review_required }}
+      trusted_review_reason: ${{ steps.classify.outputs.trusted_review_reason }}
+      overall_reason: ${{ steps.classify.outputs.overall_reason }}
+      changed_count: ${{ steps.classify.outputs.changed_count }}
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
 
       - name: Fetch policy source history
         env:
@@ -42,12 +43,7 @@ jobs:
           else
             source_ref="$PUSH_REF"
           fi
-          if [ "$(git rev-parse --is-shallow-repository)" = "true" ]; then
-            shallow_args=(--unshallow)
-          else
-            shallow_args=()
-          fi
-          git fetch --no-tags "${shallow_args[@]}" origin \
+          git fetch --no-tags origin \
             "+${source_ref}:refs/remotes/origin/policy-source"
 
       - name: Classify Policy CI verification
@@ -94,6 +90,27 @@ jobs:
             --force-full "$force_full" \
             --github-output "$GITHUB_OUTPUT"
 
+      - name: Validate Policy CI applicability outputs
+        env:
+          RELEASE_REQUIRED: ${{ steps.classify.outputs.release_state_required }}
+          REVIEW_REQUIRED: ${{ steps.classify.outputs.trusted_review_required }}
+        run: |
+          for binding in \
+            "release_state_required=$RELEASE_REQUIRED" \
+            "trusted_review_required=$REVIEW_REQUIRED"
+          do
+            name="${binding%%=*}"
+            value="${binding#*=}"
+            case "$value" in
+              true|false)
+                ;;
+              *)
+                echo "::error title=Malformed Policy CI applicability output::${name} must be true or false; got '${value}'"
+                exit 1
+                ;;
+            esac
+          done
+
       - name: Record Policy CI applicability
         env:
           BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
@@ -108,6 +125,7 @@ jobs:
         run: |
           {
             echo "### Policy CI applicability"
+            echo "- stage: \`CI preflight\`"
             echo "- base: \`$BASE_SHA\`"
             echo "- head: \`$HEAD_SHA\`"
             echo "- classifier authority: \`$CLASSIFIER_AUTHORITY\`"
@@ -116,6 +134,49 @@ jobs:
             echo "- stable release verification: \`$RELEASE_REQUIRED\` ($RELEASE_REASON)"
             echo "- trusted review candidate verification: \`$REVIEW_REQUIRED\` ($REVIEW_REASON)"
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Create isolated preflight Python environment
+        run: python3 -I -m venv --without-pip .venv
+
+      - name: Compile Python sources
+        run: .venv/bin/python -m compileall -q src scripts skills/agent-policy/scripts
+
+  core:
+    name: core validation
+    needs:
+      - preflight
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      PYTHONHOME: ""
+      PYTHONPATH: ""
+      PYTHONNOUSERSITE: "1"
+      PIP_PYTHON: ""
+      PIP_CACHE_DIR: ""
+      PIP_NO_CACHE_DIR: ""
+      PIP_QUIET: ""
+      PIP_LOG: ""
+      PIP_CONFIG_FILE: /dev/null
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Fetch policy source history
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_NUMBER: ${{ github.event.number }}
+          PUSH_REF: ${{ github.ref }}
+        run: |
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            source_ref="refs/pull/${PR_NUMBER}/head"
+          else
+            source_ref="$PUSH_REF"
+          fi
+          git fetch --no-tags origin \
+            "+${source_ref}:refs/remotes/origin/policy-source"
 
       - name: Set up Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
@@ -139,14 +200,6 @@ jobs:
       - name: Verify installed dependency graph
         run: .venv/bin/python -m pip check
 
-      - name: Verify stable release synchronization
-        if: steps.classify.outputs.release_state_required == 'true'
-        run: env -u PIP_REQUIREMENT -u PIP_CONSTRAINT -u PIP_BUILD_CONSTRAINT -u PIP_REQUIRE_HASHES -u PIP_DRY_RUN -u PIP_NO_BINARY -u PIP_ONLY_BINARY -u PIP_PLATFORM -u PIP_PYTHON_VERSION -u PIP_IMPLEMENTATION -u PIP_ABI -u PIP_UPLOADED_PRIOR_TO -u PIP_INDEX_URL -u PIP_EXTRA_INDEX_URL -u PIP_NO_INDEX -u PIP_FIND_LINKS -u PIP_TARGET -u PIP_PREFIX -u PIP_ROOT -u PIP_USER -u PIP_PYTHON -u PIP_CACHE_DIR -u PIP_NO_CACHE_DIR -u PIP_QUIET -u PIP_EDITABLE -u PIP_GROUP -u PIP_REQUIREMENTS_FROM_SCRIPT -u PIP_REPORT -u PIP_CONFIG_SETTINGS -u PIP_IGNORE_REQUIRES_PYTHON -u PIP_LOG .venv/bin/python scripts/verify-release-state.py --git-ref refs/remotes/origin/policy-source
-
-      - name: Verify trusted review promotion candidate
-        if: steps.classify.outputs.trusted_review_required == 'true'
-        run: env -u PIP_REQUIREMENT -u PIP_CONSTRAINT -u PIP_BUILD_CONSTRAINT -u PIP_REQUIRE_HASHES -u PIP_DRY_RUN -u PIP_NO_BINARY -u PIP_ONLY_BINARY -u PIP_PLATFORM -u PIP_PYTHON_VERSION -u PIP_IMPLEMENTATION -u PIP_ABI -u PIP_UPLOADED_PRIOR_TO -u PIP_INDEX_URL -u PIP_EXTRA_INDEX_URL -u PIP_NO_INDEX -u PIP_FIND_LINKS -u PIP_TARGET -u PIP_PREFIX -u PIP_ROOT -u PIP_USER -u PIP_PYTHON -u PIP_CACHE_DIR -u PIP_NO_CACHE_DIR -u PIP_QUIET -u PIP_EDITABLE -u PIP_GROUP -u PIP_REQUIREMENTS_FROM_SCRIPT -u PIP_REPORT -u PIP_CONFIG_SETTINGS -u PIP_IGNORE_REQUIRES_PYTHON -u PIP_LOG .venv/bin/python scripts/verify_trusted_review_candidate.py --git-ref refs/remotes/origin/policy-source
-
       - name: Verify skill installer publication
         run: .venv/bin/python scripts/verify_skill_installer_release.py --git-ref refs/remotes/origin/policy-source
 
@@ -161,8 +214,13 @@ jobs:
       - name: Run tests
         run: .venv/bin/python -m pytest
 
-      - name: Compile Python sources
-        run: .venv/bin/python -m compileall -q src scripts skills/agent-policy/scripts
+      - name: Verify stable release synchronization
+        if: needs.preflight.outputs.release_state_required == 'true'
+        run: env -u PIP_REQUIREMENT -u PIP_CONSTRAINT -u PIP_BUILD_CONSTRAINT -u PIP_REQUIRE_HASHES -u PIP_DRY_RUN -u PIP_NO_BINARY -u PIP_ONLY_BINARY -u PIP_PLATFORM -u PIP_PYTHON_VERSION -u PIP_IMPLEMENTATION -u PIP_ABI -u PIP_UPLOADED_PRIOR_TO -u PIP_INDEX_URL -u PIP_EXTRA_INDEX_URL -u PIP_NO_INDEX -u PIP_FIND_LINKS -u PIP_TARGET -u PIP_PREFIX -u PIP_ROOT -u PIP_USER -u PIP_PYTHON -u PIP_CACHE_DIR -u PIP_NO_CACHE_DIR -u PIP_QUIET -u PIP_EDITABLE -u PIP_GROUP -u PIP_REQUIREMENTS_FROM_SCRIPT -u PIP_REPORT -u PIP_CONFIG_SETTINGS -u PIP_IGNORE_REQUIRES_PYTHON -u PIP_LOG .venv/bin/python scripts/verify-release-state.py --git-ref refs/remotes/origin/policy-source
+
+      - name: Verify trusted review promotion candidate
+        if: needs.preflight.outputs.trusted_review_required == 'true'
+        run: env -u PIP_REQUIREMENT -u PIP_CONSTRAINT -u PIP_BUILD_CONSTRAINT -u PIP_REQUIRE_HASHES -u PIP_DRY_RUN -u PIP_NO_BINARY -u PIP_ONLY_BINARY -u PIP_PLATFORM -u PIP_PYTHON_VERSION -u PIP_IMPLEMENTATION -u PIP_ABI -u PIP_UPLOADED_PRIOR_TO -u PIP_INDEX_URL -u PIP_EXTRA_INDEX_URL -u PIP_NO_INDEX -u PIP_FIND_LINKS -u PIP_TARGET -u PIP_PREFIX -u PIP_ROOT -u PIP_USER -u PIP_PYTHON -u PIP_CACHE_DIR -u PIP_NO_CACHE_DIR -u PIP_QUIET -u PIP_EDITABLE -u PIP_GROUP -u PIP_REQUIREMENTS_FROM_SCRIPT -u PIP_REPORT -u PIP_CONFIG_SETTINGS -u PIP_IGNORE_REQUIRES_PYTHON -u PIP_LOG .venv/bin/python scripts/verify_trusted_review_candidate.py --git-ref refs/remotes/origin/policy-source
 
       - name: Verify installed command
         run: .venv/bin/agent-policy --help
