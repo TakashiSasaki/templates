@@ -34,7 +34,8 @@ def test_strategy_identity_uses_selected_inputs_not_failure_outcomes() -> None:
     for text in (skill, ledger):
         assert "objective, evidence source, diagnostic method, and hypothesis" in text
         assert "failure mode per attempt" in text
-        assert "does not create a new strategy" in text
+    assert "do not treat a changed outcome as a new strategy" in skill
+    assert "does not create a new strategy" in ledger
 
 
 def test_no_progress_activity_triggers_bounded_reassessment() -> None:
