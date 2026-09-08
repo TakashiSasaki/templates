@@ -88,3 +88,13 @@ Avoid:
 ## Repository implementation guidance
 
 A repository implementing this model should make the stage and applicability decisions observable in workflow names, job summaries, or equivalent operational evidence. Prefer stable terminology such as `preflight`, `core`, `conditional integration`, and `full qualification` only when the jobs actually own those roles. If an existing job combines preflight checks with substantial core validation, rename it rather than implying that the whole job is a cheap preflight gate.
+
+## Dogfooding in this repository
+
+The Policy authority uses the same model for its own maintenance CI rather than treating the rule as consumer-only guidance.
+
+`Policy CI` has an explicit **CI preflight** job that binds the candidate/base inputs, performs the fail-closed Policy CI applicability classification, records the applicability decision, and compiles Python sources before dependency installation or the main test suite. Its dependent **core validation** job establishes the locked environment and runs installer synchronization, translation validation, static rules, and the full pytest suite. Stable-release synchronization and trusted-review candidate verification are conditional verification probes selected from the preflight applicability outputs; a skipped probe is therefore an applicability outcome, not a passing test.
+
+The independent `Policy runtime distribution` workflow retains its own classifier and compatibility matrix. It remains parallel to normal Policy CI rather than being serialized behind it, and `ci/full-compatibility` provides the repository-defined explicit broad compatibility checkpoint. This separation demonstrates that staged CI is a dependency and evidence model, not a requirement to place every repository check in one linear workflow.
+
+Both workflows use provider concurrency cancellation so that a superseded candidate does not continue consuming expensive validation when its result can no longer qualify the current head.
