@@ -112,3 +112,19 @@ Before deliberately starting a revision-bound evidence cycle, ask two questions:
 2. **Are any known prerequisite mutations still expected to change that identity or the material derived from it?**
 
 If no current boundary needs the immutable binding, keep the work provisional and continue focused validation. If a boundary does need it, stabilize the prerequisites, freeze the qualification head, and perform the required exact-revision qualification.
+
+## Applicability classification
+
+Required exact-head qualification does not mean every repository verification must execute for every candidate when repository authority has a safe way to prove that a verification is not applicable. Treat applicability classification as a separate evidence-producing step: bind the decision to the exact candidate and comparison inputs, the classifier or dependency-map definition, and the verification definition whose applicability is being decided.
+
+A classified `not-applicable` result is not a successful test result. It means the repository has current evidence that the verification does not apply to that candidate. If the diff, classifier inputs, dependency relation, or classifier definition cannot be established safely, classify conservatively and run the verification. Changes to classification controls must not silently use the changing classifier to exempt themselves.
+
+This distinction supports three useful execution modes without weakening acceptance:
+
+- focused **diagnostic** validation during construction, which is optimized for rapid falsification;
+- repository-defined **conditional automatic verification**, where a fail-closed applicability classifier can avoid work that provably does not apply; and
+- complete **qualification** at the revision-bound boundary, consisting of every check that is applicable under the current repository definition.
+
+Applicability decisions should be observable. Record the candidate/base bindings, classification mode, verification classes selected or omitted, and stable reasons for those decisions. These records are operational evidence and diagnostics, not new acceptance gates. An explicit repository-controlled full-verification checkpoint may override a selective result when broader qualification is desired.
+
+For pull-request-driven repositories, avoid duplicate automatic qualification when the same candidate would otherwise be validated once for a feature-branch push and again for the pull-request event without any change in the candidate. A repository may reserve push-triggered full qualification for its authority branch while using pull-request-triggered qualification for proposed changes, provided required checks remain observable on the proposed exact head and direct authority-branch changes still receive the required verification.
