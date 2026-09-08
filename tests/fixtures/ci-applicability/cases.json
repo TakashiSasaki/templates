@@ -1,0 +1,56 @@
+[
+  {
+    "name": "tests-only-change-skips-expensive-probes",
+    "paths": ["tests/test_unrelated_behavior.py"],
+    "release_state_required": false,
+    "trusted_review_required": false
+  },
+  {
+    "name": "documentation-only-change-skips-expensive-probes",
+    "paths": ["docs/maintainer.md"],
+    "release_state_required": false,
+    "trusted_review_required": false
+  },
+  {
+    "name": "policy-change-requires-current-trusted-review-probe",
+    "paths": ["policy/core/testing.md"],
+    "release_state_required": false,
+    "trusted_review_required": true
+  },
+  {
+    "name": "release-change-requires-both-probes",
+    "paths": ["release/toolchain.json"],
+    "release_state_required": true,
+    "trusted_review_required": true
+  },
+  {
+    "name": "runtime-source-change-requires-both-probes",
+    "paths": ["src/agent_policy/identity.py"],
+    "release_state_required": true,
+    "trusted_review_required": true
+  },
+  {
+    "name": "workflow-control-change-fails-closed",
+    "paths": [".github/workflows/ci.yml"],
+    "release_state_required": true,
+    "trusted_review_required": true
+  },
+  {
+    "name": "policy-classifier-self-change-fails-closed",
+    "paths": ["scripts/classify_policy_ci.py"],
+    "release_state_required": true,
+    "trusted_review_required": true
+  },
+  {
+    "name": "shared-classification-control-change-fails-closed",
+    "paths": ["scripts/ci_change_classification.py"],
+    "release_state_required": true,
+    "trusted_review_required": true
+  },
+  {
+    "name": "archive-attributes-require-trusted-review-probe",
+    "paths": [".gitattributes"],
+    "release_state_required": false,
+    "trusted_review_required": true
+  }
+]

@@ -76,11 +76,15 @@ def test_documentation_metadata_points_to_templates_policy() -> None:
     assert "https://github.com/TakashiSasaki/templates/commit/${info.commit}" in pwa_script
 
 
-def test_policy_ci_is_branch_portable_and_does_not_target_main() -> None:
+def test_policy_ci_qualifies_policy_pushes_and_pull_requests_without_targeting_main() -> None:
     workflow = WORKFLOW.read_text(encoding="utf-8")
 
     assert "name: Policy CI" in workflow
-    assert "on:\n  push:\n  pull_request:\n" in workflow
+    assert (
+        "on:\n  push:\n    branches: [policy]\n  pull_request:\n"
+        "    types: [opened, synchronize, reopened, labeled]\n"
+    ) in workflow
+    assert "ci/full-policy-verification" in workflow
     assert "branches: [main]" not in workflow
     assert "- main" not in workflow
     assert "ruff check src tests scripts" in workflow

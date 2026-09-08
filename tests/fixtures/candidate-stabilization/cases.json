@@ -1,0 +1,52 @@
+[
+  {
+    "name": "batch-known-compatible-repairs-before-requalification",
+    "required": {
+      "skills/pr-merge-gate/references/head-mutation-batching.md": [
+        "group only compatible repairs",
+        "apply one coherent mutation batch",
+        "do not intentionally reacquire merge-acceptance review between compatible repairs"
+      ]
+    }
+  },
+  {
+    "name": "keep-qualification-head-stable-while-evidence-is-in-flight",
+    "required": {
+      "skills/pr-merge-gate/references/head-mutation-batching.md": [
+        "treat that SHA as stable",
+        "Do not create no-op commits, cosmetic churn, speculative edits, or one-finding-at-a-time commits"
+      ]
+    }
+  },
+  {
+    "name": "final-review-follows-exact-head-ci",
+    "required": {
+      "skills/orchestrate-repository-change/references/stacked-pr-workflow.md": [
+        "freeze every stack member at its intended final candidate head",
+        "require all applicable required CI for those exact heads to have completed successfully",
+        "Pending required CI blocks the final review request"
+      ]
+    }
+  },
+  {
+    "name": "invalidation-is-selective",
+    "required": {
+      "skills/pr-merge-gate/references/head-mutation-batching.md": [
+        "evidence independent of the changed head remains reusable",
+        "reacquire every exact-head gate invalidated by the mutation"
+      ],
+      "policy/pull-request/exact-head-ci-evidence.md": [
+        "Reuse a previously established not-applicable decision only while every fact that binds that applicability evidence remains unchanged"
+      ]
+    }
+  },
+  {
+    "name": "safety-repair-is-not-delayed-for-batching",
+    "required": {
+      "skills/pr-merge-gate/references/head-mutation-batching.md": [
+        "Apply a head-changing repair immediately",
+        "concrete operational or safety risk"
+      ]
+    }
+  }
+]

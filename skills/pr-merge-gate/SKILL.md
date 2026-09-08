@@ -32,6 +32,7 @@ Apply every rule selected by `profiles/pull-request.yml`. At the current Policy 
 - `pull-request.require-independent-exact-head-review` — `policy/pull-request/independent-exact-head-review.md`
 - `pull-request.bind-review-result-classification-to-applicable-cycle-and-revision` — `policy/pull-request/review-result-applicability.md`
 - `pull-request.close-review-threads-before-merge` — `policy/pull-request/review-thread-closure.md`
+- `pull-request.use-staged-ci-with-preflight` — `policy/pull-request/staged-ci-and-preflight.md`
 - `pull-request.require-exact-head-ci-evidence` — `policy/pull-request/exact-head-ci-evidence.md`
 - `pull-request.fail-closed-on-unresolved-ci-discovery` — `policy/pull-request/ci-discovery-fail-closed.md`
 - `pull-request.reuse-valid-exact-head-evidence` — `policy/pull-request/reuse-valid-evidence.md`

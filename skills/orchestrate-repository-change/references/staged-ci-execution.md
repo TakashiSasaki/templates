@@ -1,0 +1,46 @@
+<!-- agent-policy-generated: true -->
+# Staged CI execution
+
+This reference projects the canonical `pull-request.use-staged-ci-with-preflight` rule into repository-change execution. It does not redefine CI authority, applicability, exact-head qualification, review, or merge requirements. Repository workflows and canonical Policy remain authoritative.
+
+## Inventory validation by role
+
+Before relying on a validation plan, identify the repository-defined checks that can affect the current scope and classify their execution role from what they actually verify rather than from their display name:
+
+- **CI preflight** — the cheapest deterministic checks that can reject an obviously invalid candidate before dependent expensive work;
+- **core validation** — broadly applicable baseline correctness;
+- **conditional integration** — integration, browser, cross-surface, materialization, compatibility, or similar checks whose applicability may vary by candidate; and
+- **full qualification** — broad authority-defined acceptance required at a merge, release, publication, handoff, or equivalent qualification boundary.
+
+A repository may collapse roles. Do not invent a preflight stage merely to satisfy this procedure, and do not call a substantial core or integration suite a preflight only because it runs first.
+
+## Execution sequence
+
+1. **Establish the candidate and validation inventory.** Bind the candidate/base facts needed by current workflow definitions and identify repository-required automatic checks before deciding what can be ordered or classified.
+2. **Use CI preflight for early falsification when available.** Run or observe the cheapest deterministic gate first when the execution surface permits that ordering without weakening coverage. If it fails, treat the candidate as known-invalid and repair the failure before deliberately launching dependent expensive work.
+3. **Complete core validation.** Passing preflight is not core evidence. Run or observe the broadly applicable baseline checks owned by repository authority.
+4. **Classify conditional applicability.** For expensive integration classes, use only repository-authorized changed-surface, dependency-map, classifier, or equivalent rules. Bind applicability to the exact inputs required by Policy. Unknown or unsafe classification fails closed. `not-applicable` is not pass evidence.
+5. **Run applicable conditional integration.** Do not skip an applicable browser, integration, compatibility, cross-authority, or materialization check because an earlier stage passed.
+6. **Keep provisional work productive.** Naturally triggered CI on a provisional candidate does not freeze it. While independent validation is pending, continue dependency-safe stacked work and other productive parallel work that does not invalidate the candidate or propagate a known defect.
+7. **Freeze at the authority boundary.** When merge acceptance, final whole-stack audit, release, publication, provenance, or another revision-bound operation requires a qualification head, stabilize prerequisites and freeze the intended candidate.
+8. **Complete exact-head qualification.** At the frozen boundary, require every applicable exact-head check currently owned by repository authority, including full qualification when that boundary requires it. Earlier-stage success cannot substitute for missing later-stage evidence.
+9. **Supersede stale expensive work.** When a newer candidate makes an in-flight expensive result unable to satisfy any current evidence requirement, cancel or supersede it when the provider safely supports that action. Preserve evidence whose bindings remain valid and invalidate only the affected evidence.
+
+## Parallelism and automatic CI
+
+The stage order expresses dependency and early-failure intent, not a requirement for a purely serial workflow. Independent checks may run in parallel when doing so shortens the critical path or is operationally cheaper. Repository-required automatic checks must not be suppressed merely to force staged execution; the repository workflow owns whether a check is unconditional, conditional, or explicitly triggered.
+
+When the agent controls only observation rather than job scheduling, apply the model to diagnosis and decision order: inspect preflight/core failures first, do not wait on an expensive downstream result to repair a candidate already known invalid, and do not misreport skipped or still-running later stages as successful.
+
+## Work-ledger projection
+
+For validation evidence that materially affects the next safe action, record enough state to reconstruct:
+
+- the validation role (`ci-preflight`, `core`, `conditional-integration`, or `full-qualification`) when the repository defines one;
+- exact candidate and relevant comparison/input bindings;
+- applicability and its evidence when classification is used;
+- workflow/check identity and run locator;
+- observed result and whether the evidence is diagnostic or qualification-bound; and
+- any supersession or invalidation condition.
+
+Do not create a second acceptance authority in the Work ledger. The stage label is operational metadata; the workflow, canonical Policy, and exact-head evidence remain authoritative.
