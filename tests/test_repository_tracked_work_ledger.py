@@ -26,10 +26,13 @@ def test_top_level_skill_selects_the_explicitly_adopted_storage_backend():
         "select the adopted work-ledger storage strategy",
         "use the explicitly adopted repository-tracked operational ref",
         "otherwise use the canonical provider-side checkpoint",
+        "always resolve the live operational-ref head",
+        "including under serialized ownership",
         (
-            "resolve the live operational-ref head before selecting/loading the checkpoint "
-            "unless serialized ownership is positively established"
+            "establish exclusive action ownership through authoritative serialized "
+            "action ownership or an atomic/cas checkpoint transition"
         ),
+        "a worker that loses the claim must reload and must not execute the action",
         "checkpoint material transitions on the selected canonical operational surface",
     ):
         assert required in installed_skill
@@ -71,11 +74,32 @@ def test_resume_binds_checkpoint_selection_to_the_live_operational_head():
     text = REFERENCE.read_text().lower()
     for required in (
         "read-side freshness of the shared operational ref is part of concurrency safety",
-        "serialized ownership is positively established",
-        "live operational ref head before selecting or loading the checkpoint",
+        (
+            "always resolve the current **live operational ref head before selecting or "
+            "loading the checkpoint**"
+        ),
+        "including when serialized writer ownership has already been established",
         "load the latest valid current checkpoint from that live immutable binding",
         "restart phase 1 from the new live head",
         "checkpoint read is bound to the returned immutable ref head",
+        "never eliminates the initial live-head resolution",
+    ):
+        assert required in text
+
+
+def test_recovered_non_idempotent_action_requires_pre_execution_ownership():
+    text = REFERENCE.read_text().lower()
+    for required in (
+        "action ownership before non-idempotent effects",
+        "checkpoint-write cas does not by itself prevent two workers",
+        "before executing a recovered `next_safe_action`",
+        "authoritative serialized-owner mechanism",
+        "atomic/cas checkpoint transition",
+        "records the specific action as claimed/in-progress",
+        "worker that loses the claim cas must not execute the action",
+        "uncertain-after-interruption",
+        "do not infer action ownership from merely having loaded the checkpoint",
+        "preflight checkpoint must also establish the exclusive action claim",
     ):
         assert required in text
 

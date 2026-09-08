@@ -73,6 +73,17 @@ When the provider cannot conditionally update the shared ref, use an established
 
 Do not use `force` ref movement to erase a concurrent checkpoint merely to simplify resumption. Preserve enough conflicting state to reconstruct ownership and provider truth.
 
+### Action ownership before non-idempotent effects
+
+Checkpoint-write CAS does not by itself prevent two workers from executing the same recovered external action before either one publishes a successor checkpoint. Before executing a recovered `next_safe_action` that can create or mutate provider state and is not proven idempotent, establish exclusive **action ownership** using one of these mechanisms:
+
+- an authoritative serialized-owner mechanism whose ownership covers the external action itself; or
+- an atomic/CAS checkpoint transition from the currently bound operational-ref head that records the specific action as claimed/in-progress and gives the successful claimant exclusive execution ownership.
+
+A worker that loses the claim CAS must not execute the action. It must reload the new live operational-ref head, reconcile the winner's state and provider effects, and recompute the next safe action. A read-only or proven-idempotent action does not require an action claim merely because it was recovered from a checkpoint.
+
+The action claim must identify the work scope and action strongly enough that another resumer can distinguish `unclaimed`, `claimed/in-progress`, `completed`, and `uncertain-after-interruption` states without replaying a transcript. After the external action completes, record its provider locator/result at the next material checkpoint when the task's stop boundary permits that write. If interruption occurs after the external effect but before completion is checkpointed, use the interrupted-mutation recovery procedure below before retrying.
+
 ## Resume protocol
 
 Resume is a cache-validation operation, not a complete rediscovery by default. Read-side freshness of the shared operational ref is part of concurrency safety, not an optional deep refresh.
@@ -80,14 +91,16 @@ Resume is a cache-validation operation, not a complete rediscovery by default. R
 ### Phase 1 — checkpoint recovery
 
 1. discover the adopted operational ref and active work scope;
-2. unless serialized ownership is positively established by an authoritative mechanism that excludes concurrent writers, resolve the current **live operational ref head before selecting or loading the checkpoint** and bind this recovery attempt to that immutable head;
+2. always resolve the current **live operational ref head before selecting or loading the checkpoint** and bind this recovery attempt to that immutable head, including when serialized writer ownership has already been established;
 3. load the latest valid current checkpoint from that live immutable binding rather than from an unverified local or previously cached ref state;
 4. recover the work identity, objective/scope, topology, last-known provider heads, evidence bindings, diagnostic negative-capability state, and `next_safe_action`;
 5. retain explicit `unknown`, `pending`, stale, and conflict states rather than filling gaps from assumption;
 6. identify the minimum live facts whose current value can change the safety of the recorded next action; and
-7. before following `next_safe_action` or performing an external mutation, confirm that the operational-ref binding still names the live head when concurrent writers remain possible. If that binding moved, discard the stale recovery decision and restart Phase 1 from the new live head.
+7. before following `next_safe_action` or performing an external mutation, confirm that the operational-ref binding still names the live head when concurrent writers remain possible. If that binding moved, discard the stale recovery decision and restart Phase 1 from the new live head. If authoritative serialized ownership excludes other writers after the initial live binding, that ownership may eliminate this later movement check; it never eliminates the initial live-head resolution.
 
 A provider may combine live-head resolution and checkpoint retrieval when it guarantees that the checkpoint read is bound to the returned immutable ref head. That optimization may reduce round-trip depth; it must not weaken the binding.
+
+Before executing a recovered non-idempotent external `next_safe_action`, apply the action-ownership protocol above. Do not infer action ownership from merely having loaded the checkpoint or from a later checkpoint-write CAS.
 
 ### Phase 2 — minimal frontier refresh
 
@@ -98,7 +111,7 @@ Refresh the smallest live frontier needed to validate the checkpoint before broa
 - exact current member head;
 - applicable base/dependency identity or head when the next action depends on it;
 - current state of a specifically bound CI/review/deployment dependency; and
-- the live operational-ref binding established in Phase 1 when concurrent writers remain possible.
+- the live operational-ref binding established in Phase 1.
 
 Compare these live facts to the cached observations before opening deeper surfaces.
 
@@ -132,6 +145,8 @@ If interruption may have occurred after an external mutation but before the chec
 
 Recover ownership and the completed boundary of the mutation from provider facts and recorded preflight/commit-boundary observations. Do not create duplicate branches, PRs, review requests, comments, merges, deployments, or destructive cleanup because the cache is stale.
 
+If an action claim exists but completion is not durably established, preserve that claim as `claimed/in-progress` or `uncertain-after-interruption` while checking provider effects. Do not clear or steal the claim merely because the original worker is no longer active. Transfer or expire action ownership only under an authoritative repository/provider mechanism that preserves the possibility that the external effect already occurred.
+
 If ownership remains ambiguous, preserve the uncertain state and block the destructive/repeated mutation rather than manufacturing a clean resume state.
 
 ## Retention and completion
@@ -140,4 +155,4 @@ At handoff or completion, retain whatever checkpoint is needed for the repositor
 
 Do not retain secrets, credentials, private tokens, unnecessary personal data, or raw transcripts merely because the operational ref is durable. Repository visibility and normal security policy apply to every committed operational artifact.
 
-If a task requires stopping immediately after a final review request, follow the canonical Work-ledger stop boundary: persist the preflight checkpoint before the request and use the provider request event as the durable acquisition event. Do not mutate the operational ref after the request merely to record that the request was sent.
+If a task requires stopping immediately after a final review request, follow the canonical Work-ledger stop boundary: persist the preflight checkpoint before the request and use the provider request event as the durable acquisition event. When the review request is non-idempotent, that preflight checkpoint must also establish the exclusive action claim for the specific request unless authoritative serialized action ownership already covers it. Do not mutate the operational ref after the request merely to record that the request was sent.
