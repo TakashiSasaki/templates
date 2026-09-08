@@ -126,7 +126,7 @@ Included modules:
 <!-- PROFILE: pull-request -->
 ### `pull-request`
 
-Use when the context owns pull-request lifecycle work. This profile is operational: it binds cumulative review coverage explicitly, distinguishes provisional construction heads from qualification heads so final revision-bound qualification is intentionally delayed until an authority-defined boundary requires it, requires target-branch freshness evaluation, revision-binding preflight before intentionally acquiring revision-bound review, disposition of known material findings before intentionally reacquiring merge-acceptance review, at least one completed independent review bound to the exact proposed head, review-thread closure, exact-head CI evidence, fail-closed handling while expected CI evidence is unresolved, reuse of still-valid acceptance evidence with selective invalidation, current mergeability, a final invalidation-focused live-state refresh, an immutable proposed-head guard for merge execution, and post-merge verification. Provider-specific APIs, field names, observation intervals, and retry mechanics belong to an adapter or repository-local policy rather than these shared semantics.
+Use when the context owns pull-request lifecycle work. This profile is operational: it binds cumulative review coverage explicitly, distinguishes provisional construction heads from qualification heads so final revision-bound qualification is intentionally delayed until an authority-defined boundary requires it, requires target-branch freshness evaluation, revision-binding preflight before intentionally acquiring revision-bound review, disposition of known material findings before intentionally reacquiring merge-acceptance review, cross-surface discovery of logical review results, at least one completed independent review bound to the exact proposed head, review-result applicability to the relevant request purpose, cycle, and revision, review-finding closure across thread and non-thread surfaces, exact-head CI evidence, fail-closed handling while expected CI evidence is unresolved, reuse of still-valid acceptance evidence with selective invalidation, current mergeability, a final invalidation-focused live-state refresh, an immutable proposed-head guard for merge execution, and post-merge verification. Provider-specific APIs, field names, observation intervals, and retry mechanics belong to an adapter or repository-local policy rather than these shared semantics.
 
 Included modules:
 
@@ -135,7 +135,9 @@ Included modules:
 - `policy/pull-request/target-branch-head-freshness.md`
 - `policy/pull-request/review-acquisition-preflight.md`
 - `policy/pull-request/review-reacquisition-after-disposition.md`
+- `policy/pull-request/review-result-discovery.md`
 - `policy/pull-request/independent-exact-head-review.md`
+- `policy/pull-request/review-result-applicability.md`
 - `policy/pull-request/review-thread-closure.md`
 - `policy/pull-request/exact-head-ci-evidence.md`
 - `policy/pull-request/ci-discovery-fail-closed.md`
