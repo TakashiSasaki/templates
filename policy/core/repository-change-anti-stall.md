@@ -1,3 +1,9 @@
+---
+id: changes.prevent-diagnostic-stall
+severity: mandatory
+overridable: false
+order: 520
+---
 # Repository-change anti-stall policy
 
 ## Purpose
