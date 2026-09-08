@@ -1,7 +1,7 @@
 [
   {
     "id": "A-repeated-log-retrieval",
-    "setup": "same CI log retrieval fails twice with the same objective, evidence source, method, and failure mode",
+    "setup": "the same CI log retrieval fails twice under an evidence-unavailable failure class with the same objective, evidence source, method, hypothesis, and failure mode, with no authorized transient retry evidence",
     "expected": ["third identical retrieval is prohibited", "strategy switch is required"]
   },
   {
@@ -16,8 +16,8 @@
   },
   {
     "id": "D-no-progress-tool-activity",
-    "setup": "multiple capability discovery calls produce no new evidence and leave the same evidence gap",
-    "expected": ["discovery calls are not material progress", "stall check fires and strategy is reassessed"]
+    "setup": "multiple diagnostic calls, including successful calls that only reproduce already-known information, leave the same evidence gap",
+    "expected": ["calls are not material progress", "global no-material-progress bound fires and strategy is reassessed"]
   },
   {
     "id": "E-repeated-progress-reporting",
@@ -26,17 +26,17 @@
   },
   {
     "id": "F-successful-external-wait",
-    "setup": "a long-running CI job continues to make normal observable progress",
-    "expected": ["classify as external_wait", "do not classify as diagnostic_stall"]
+    "setup": "a required CI job is validated as pending with a concrete resume condition while the provider exposes only an unchanged pending or in_progress status",
+    "expected": ["classify as external_wait", "do not classify as diagnostic_stall", "evaluate stale or timeout transition separately"]
   },
   {
     "id": "G-resume",
-    "setup": "a new session resumes from a durable Work ledger with invalidated paths and a next safe action",
+    "setup": "a new session resumes from durable checkpoint state with invalidated paths and a next safe action",
     "expected": ["restore invalidated and exhausted paths before retry", "do not restart investigation", "reconstruct next safe action"]
   },
   {
     "id": "H-review-finding-separation",
     "setup": "anti-stall state and unresolved review findings both affect orchestration",
-    "expected": ["Work ledger records orchestration effect and canonical reference only", "review finding ledger remains authoritative", "do not duplicate findings"]
+    "expected": ["durable resume state records orchestration effect and canonical reference only", "review finding ledger remains authoritative", "do not duplicate findings"]
   }
 ]
