@@ -33,6 +33,7 @@ jobs:
       required: ${{ steps.classify.outputs.required }}
       reason: ${{ steps.classify.outputs.reason }}
       changed_count: ${{ steps.classify.outputs.changed_count }}
+      authority_source: ${{ steps.classify.outputs.authority_source }}
     steps:
       - name: Check out repository history for change classification
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -43,15 +44,42 @@ jobs:
       - name: Classify runtime compatibility requirement
         id: classify
         env:
+          EVENT_NAME: ${{ github.event_name }}
           BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
           HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           FORCE_COMPATIBILITY: ${{ (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'ci/full-compatibility')) || startsWith(github.ref, 'refs/tags/policy-compatibility-') }}
-        run: >-
-          python3 -I scripts/classify_runtime_distribution_ci.py
-          --base "$BASE_SHA"
-          --head "$HEAD_SHA"
-          --force-compatibility "$FORCE_COMPATIBILITY"
-          --github-output "$GITHUB_OUTPUT"
+        run: |
+          set -euo pipefail
+          classifier_dir="$RUNNER_TEMP/runtime-ci-classifier-authority"
+          rm -rf "$classifier_dir"
+          mkdir -p "$classifier_dir"
+          authority_source="proposed-head"
+
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            if git show "$BASE_SHA:scripts/classify_runtime_distribution_ci.py" > "$classifier_dir/classify_runtime_distribution_ci.py" \
+              && git show "$BASE_SHA:scripts/ci_change_classification.py" > "$classifier_dir/ci_change_classification.py"; then
+              authority_source="base"
+            else
+              authority_source="base-unavailable-full"
+              {
+                echo "authority_source=$authority_source"
+                echo "required=true"
+                echo "reason=base-classifier-unavailable"
+                echo "changed_count=unknown"
+              } >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          else
+            cp scripts/classify_runtime_distribution_ci.py "$classifier_dir/classify_runtime_distribution_ci.py"
+            cp scripts/ci_change_classification.py "$classifier_dir/ci_change_classification.py"
+          fi
+
+          echo "authority_source=$authority_source" >> "$GITHUB_OUTPUT"
+          python3 -I "$classifier_dir/classify_runtime_distribution_ci.py" \
+            --base "$BASE_SHA" \
+            --head "$HEAD_SHA" \
+            --force-compatibility "$FORCE_COMPATIBILITY" \
+            --github-output "$GITHUB_OUTPUT"
 
   clean-install:
     name: ${{ matrix.platform.os }} / Python ${{ matrix.python-version }}
