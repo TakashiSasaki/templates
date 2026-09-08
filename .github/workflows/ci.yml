@@ -53,20 +53,45 @@ jobs:
       - name: Classify Policy CI verification
         id: classify
         env:
+          EVENT_NAME: ${{ github.event_name }}
           BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
           HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
-          FORCE_FULL: ${{ github.event_name == 'push' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'ci/full-policy-verification')) }}
-        run: >-
-          python3 -I scripts/classify_policy_ci.py
-          --base "$BASE_SHA"
-          --head "$HEAD_SHA"
-          --force-full "$FORCE_FULL"
-          --github-output "$GITHUB_OUTPUT"
+          FORCE_FULL_REQUESTED: ${{ github.event_name == 'push' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'ci/full-policy-verification')) }}
+        run: |
+          set -euo pipefail
+          classifier_dir="$RUNNER_TEMP/policy-ci-classifier-authority"
+          rm -rf "$classifier_dir"
+          mkdir -p "$classifier_dir"
+          force_full="$FORCE_FULL_REQUESTED"
+          authority_source="proposed-head"
+
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            if git show "$BASE_SHA:scripts/classify_policy_ci.py" > "$classifier_dir/classify_policy_ci.py" \
+              && git show "$BASE_SHA:scripts/ci_change_classification.py" > "$classifier_dir/ci_change_classification.py"; then
+              authority_source="base"
+            else
+              cp scripts/classify_policy_ci.py "$classifier_dir/classify_policy_ci.py"
+              cp scripts/ci_change_classification.py "$classifier_dir/ci_change_classification.py"
+              force_full=true
+              authority_source="proposed-head-fallback-full"
+            fi
+          else
+            cp scripts/classify_policy_ci.py "$classifier_dir/classify_policy_ci.py"
+            cp scripts/ci_change_classification.py "$classifier_dir/ci_change_classification.py"
+          fi
+
+          echo "authority_source=$authority_source" >> "$GITHUB_OUTPUT"
+          python3 -I "$classifier_dir/classify_policy_ci.py" \
+            --base "$BASE_SHA" \
+            --head "$HEAD_SHA" \
+            --force-full "$force_full" \
+            --github-output "$GITHUB_OUTPUT"
 
       - name: Record Policy CI applicability
         env:
           BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
           HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          CLASSIFIER_AUTHORITY: ${{ steps.classify.outputs.authority_source }}
           RELEASE_REQUIRED: ${{ steps.classify.outputs.release_state_required }}
           RELEASE_REASON: ${{ steps.classify.outputs.release_state_reason }}
           REVIEW_REQUIRED: ${{ steps.classify.outputs.trusted_review_required }}
@@ -78,6 +103,7 @@ jobs:
             echo "### Policy CI applicability"
             echo "- base: \`$BASE_SHA\`"
             echo "- head: \`$HEAD_SHA\`"
+            echo "- classifier authority: \`$CLASSIFIER_AUTHORITY\`"
             echo "- mode: \`$MODE\`"
             echo "- changed paths: \`$CHANGED_COUNT\`"
             echo "- stable release verification: \`$RELEASE_REQUIRED\` ($RELEASE_REASON)"
