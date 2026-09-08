@@ -2,15 +2,23 @@
 from __future__ import annotations
 
 import argparse
-import re
 import subprocess
 import sys
 from pathlib import Path
 
+if __package__:
+    from . import ci_change_classification as common
+else:
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import ci_change_classification as common  # noqa: E402
+
 DESCRIPTION = "Classify whether Policy requires the full runtime compatibility matrix."
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
-ZERO_SHA = "0" * 40
-FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
+ZERO_SHA = common.ZERO_SHA
+FULL_SHA = common.FULL_SHA
+ClassificationError = common.ClassificationError
+validate_sha = common.validate_sha
+is_safe_repository_path = common.is_safe_repository_path
 COMPATIBILITY_SENSITIVE_PREFIXES = (
     ".github/workflows/",
     "release/",
@@ -25,16 +33,6 @@ COMPATIBILITY_SENSITIVE_FILES = frozenset(
 )
 
 
-class ClassificationError(RuntimeError):
-    """Raised when a Git diff cannot be classified safely."""
-
-
-def is_safe_repository_path(path: str) -> bool:
-    if not path or path.startswith("/") or "\\" in path:
-        return False
-    return all(part not in {"", ".", ".."} for part in path.split("/"))
-
-
 def is_compatibility_sensitive_path(path: str) -> bool:
     """Return whether one path can affect Policy runtime portability."""
     if not is_safe_repository_path(path):
@@ -47,7 +45,6 @@ def is_compatibility_sensitive_path(path: str) -> bool:
 
 
 def classify_paths(paths: list[str]) -> tuple[bool, str]:
-    """Return (compatibility_required, stable_reason) for one changed-path set."""
     if not paths:
         return True, "no-changes"
     for path in paths:
@@ -56,38 +53,13 @@ def classify_paths(paths: list[str]) -> tuple[bool, str]:
     return False, "compatibility-insensitive-change"
 
 
-def validate_sha(value: str, label: str) -> None:
-    if not FULL_SHA.fullmatch(value):
-        raise ClassificationError(f"{label} must be a full lowercase Git SHA")
-
-
 def changed_paths(base: str, head: str) -> list[str]:
-    """Return all paths changed from base to head, treating renames as delete+add."""
-    validate_sha(base, "base")
-    validate_sha(head, "head")
-    result = subprocess.run(
-        [
-            "git",
-            "diff",
-            "--name-only",
-            "--no-renames",
-            "-z",
-            base,
-            head,
-            "--",
-        ],
-        cwd=REPOSITORY_ROOT,
-        capture_output=True,
-        check=False,
+    return common.changed_paths(
+        REPOSITORY_ROOT,
+        base,
+        head,
+        runner=subprocess.run,
     )
-    if result.returncode != 0:
-        stderr = result.stderr.decode("utf-8", errors="replace").strip()
-        raise ClassificationError(f"git diff failed: {stderr or result.returncode}")
-    try:
-        decoded = result.stdout.decode("utf-8")
-    except UnicodeDecodeError as exc:
-        raise ClassificationError("git diff returned a non-UTF-8 path") from exc
-    return [path for path in decoded.split("\0") if path]
 
 
 def write_github_output(path: Path, *, required: bool, reason: str, count: int) -> None:
