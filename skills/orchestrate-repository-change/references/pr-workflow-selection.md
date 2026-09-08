@@ -34,6 +34,12 @@ An explicitly authorized final whole-stack audit under human-handoff is diagnost
 
 Cumulative review is an optional evidence-coverage mechanism for a stack, not a property of stacked progression. A stacked member may instead rely on its own completed independent exact-head review. A tip-only review or approval event is not cumulative coverage for lower members.
 
+## Validation staging is orthogonal to PR strategy
+
+Progression and completion do not select the CI stage model. After choosing the repository-change strategy, apply [staged CI execution](staged-ci-execution.md) whenever the repository has validation checks with materially different cost, scope, or applicability. CI preflight, core validation, conditional integration, and full qualification describe validation roles; they do not select serial versus stacked progression and do not change the completion boundary.
+
+Use the repository's actual workflow definitions to decide which stages exist. Prefer cheap preflight failure detection before dependent expensive work when controllable, but preserve useful parallelism and repository-required automatic checks. During construction, preflight, core, and applicable conditional validation may proceed on provisional candidates without turning them into qualification heads. At the authority-defined qualification boundary, freeze the intended head and complete every applicable exact-head check, including full qualification when required.
+
 ## Pull-request boundary heuristic
 
 Choose a pull-request boundary when the separation improves the change as a reviewable, reversible, independently understandable unit. Evaluate the candidate boundary across these dimensions:
