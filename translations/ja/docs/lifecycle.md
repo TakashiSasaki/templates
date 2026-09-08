@@ -45,6 +45,18 @@ Work ledger は repository-associated ですが、通常は Git-tracked progress
 
 Work ledger は agent transcript でもありません。すべての fetch、command、poll を記録するのではなく、material state transition を checkpoint し、具体的な next safe action を保持します。
 
+## anti-stall repository-change behavior
+
+この anti-stall repository-change behavior の semantic authority は Policy が保持します。この Site の節は Policy model の読者向け projection にすぎず、独自の retry threshold、failure class、orchestration semantics を定義しません。
+
+中心となる区別は、tool activity は material progress ではありません、ということです。repository-change worker が evidence を取得し、capability を探索し、log を調査し、status を報告していても、objective に関する知識が変わっていない場合があります。繰り返し試行しても decision-relevant な knowledge state または repository state が変わらないなら、call 数を progress とみなさず現在の diagnostic strategy を再評価します。
+
+strategy switch は evidence gap の縮め方を実質的に変えるものです。たとえば evidence source、method、hypothesis の変更です。endpoint 名を変えたり、同じ unavailable retrieval を等価な path から繰り返したりするだけでは新しい strategy ではありません。invalidated path については、なぜ失敗したか、その判断がどこに applicability を持つか、再試行を合理化する retry condition は何かを Work ledger に保持します。これにより、中断後の新しい session が「新しい session だから」という理由だけで同じ dead end を再探索することを防ぎます。
+
+external wait と diagnostic stall も区別します。すでに実行中の CI check、review、その他 provider event が completion state を変え得るなら、それを待つこと自体は正当です。その待機中の parallel work は、同じ completion frontier を前進させる場合にだけ productive です。一方 diagnostic stall は、現在の evidence-gathering approach が material progress を生まなくなった状態であり、strategy を切り替えるか、許可された代替手段が残っていなければ blocked と判断します。
+
+resume のため Work ledger は evidence gap、current hypothesis、attempted / invalidated path、exhausted strategy、current strategy、diagnostic budget、progress frontier、last material progress、provider-bound qualification、next safe action を保持します。この model では resume は investigation のやり直しではなく、failed exploration の反復を避けるための compact operational state の復元です。review finding の詳細は別に保ち、review-finding ledger remains authoritative という境界を維持します。Work ledger は finding-level disposition や closure evidence を複製しません。
+
 ## Authority と storage の境界
 
 product state と worker state を分けると整理できます。
