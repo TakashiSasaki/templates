@@ -27,10 +27,12 @@ These records are related, but none should silently replace another.
 below reflect the currently selected Composition contracts, and the
 review-finding model is already published Policy procedure. The Work-ledger
 row describes the reviewed but unmerged Policy candidate in PRs `#754 -> #755`.
-The Site currently publishes Policy revision
-`c5a3294809a1066bf59b83f467f1d597f885289a`, which does not contain that
-candidate. Therefore Work ledger is staged architecture here, not current
-published Policy authority.
+The anti-stall section below projects the separate staged Policy candidates
+`#773 -> #774`. The Site currently publishes Policy revision
+`c5a3294809a1066bf59b83f467f1d597f885289a`, which contains neither staged
+candidate set. Therefore both the Work-ledger candidate and the anti-stall
+projection are staged architecture here, not current published Policy
+authority.
 
 ## Requirement and evidence: current product state
 
@@ -95,6 +97,52 @@ and bindings to those facts rather than overriding them.
 The Work ledger is also not an agent transcript. It should checkpoint material
 state transitions and preserve a concrete next safe action instead of logging
 every fetch, command, or poll.
+
+## Anti-stall repository-change behavior
+
+Policy remains the semantic authority for anti-stall repository-change
+behavior. This Site section is only a reader-facing projection of that Policy
+model and does not define independent retry thresholds, failure classes, or
+orchestration semantics.
+
+This explanation is **staged** with Policy PRs `#773 -> #774`. Until the Site's
+selected published Policy revision includes those semantics, readers should not
+attribute this section to the currently published Policy artifact. Site
+publication of this reader text does not itself promote or authorize the
+staged Policy candidate.
+
+The central distinction is that tool activity is not material progress. A
+repository-change worker may fetch evidence, discover capabilities, inspect
+logs, or report status without changing what is known about the objective. If
+repeated attempts do not produce a decision-relevant knowledge or repository
+state change, the worker must reassess the current diagnostic strategy rather
+than treating more calls as progress.
+
+A strategy switch changes something material about how the evidence gap is
+being reduced: for example, the evidence source, method, or hypothesis. Merely
+renaming an endpoint or repeating the same unavailable retrieval through an
+equivalent path is not a new strategy. When a path has been invalidated, the
+Work ledger records why it failed, where that conclusion applies, and the retry
+condition that would make it reasonable to try again. This prevents an
+interrupted session from rediscovering the same dead end simply because it is
+a new session.
+
+An external wait is also different from a diagnostic stall. Waiting for an
+already-running CI check, review, or other provider event can be legitimate
+when that event can change the completion state. While waiting, parallel work
+is productive only when it advances the same completion frontier. A diagnostic
+stall instead means that the current evidence-gathering approach is no longer
+producing material progress and should be switched or declared blocked when no
+allowed alternative remains.
+
+For resume, the Work ledger preserves the evidence gap, current hypothesis,
+attempted and invalidated paths, exhausted strategies, current strategy,
+diagnostic budget, progress frontier, last material progress, provider-bound
+qualification, and the next safe action. In that model, resume does not restart
+the investigation: it restores the compact operational state needed to avoid
+repeating failed exploration. Finding-level review state stays separate: the
+review-finding ledger remains authoritative, and the Work ledger does not copy
+finding-level disposition or closure evidence.
 
 ## Authority and storage boundary
 

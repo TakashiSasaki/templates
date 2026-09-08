@@ -17,7 +17,7 @@ Git history、pull request、CI run、review thread は重要な provider fact �
 
 これらは相互に関係しますが、どれか一つが他を暗黙に置き換えることはありません。
 
-**Publication status:** Requirement/Evidence と lifecycle の説明は現在選択されている Composition contract を反映し、review-finding model はすでに公開済みの Policy procedure です。Work-ledger の行は review 済みだが未マージの Policy candidate `#754 -> #755` を説明しています。この Site が現在公開している Policy revision は `c5a3294809a1066bf59b83f467f1d597f885289a` であり、この candidate は含まれません。したがって Work ledger はここでは staged architecture であり、現在公開済みの Policy authority ではありません。
+**Publication status:** Requirement/Evidence と lifecycle の説明は現在選択されている Composition contract を反映し、review-finding model はすでに公開済みの Policy procedure です。Work-ledger の行は review 済みだが未マージの Policy candidate `#754 -> #755` を説明しています。下記の anti-stall 節は別の staged Policy candidate `#773 -> #774` を projection しています。この Site が現在公開している Policy revision は `c5a3294809a1066bf59b83f467f1d597f885289a` であり、いずれの staged candidate set も含みません。したがって Work ledger candidate と anti-stall projection はここでは staged architecture であり、現在公開済みの Policy authority ではありません。
 
 ## Requirement と evidence: 現在の product state
 
@@ -44,6 +44,20 @@ Repository-change Work ledger はさらに別の目的を持ち、進行中 chan
 Work ledger は repository-associated ですが、通常は Git-tracked progress file にすべきではありません。progress の記録だけを目的とした commit は candidate SHA を動かし、その evidence を記録するためだけに exact-head CI/review evidence を stale にする可能性があります。provider-side PR/issue checkpoint なら source candidate を変えずに operational state を durable にできます。GitHub の commit、branch、PR、CI、review、merge object は canonical provider fact のままであり、Work ledger はそれらを上書きせず observation と binding を記録します。
 
 Work ledger は agent transcript でもありません。すべての fetch、command、poll を記録するのではなく、material state transition を checkpoint し、具体的な next safe action を保持します。
+
+## anti-stall repository-change behavior
+
+この anti-stall repository-change behavior の semantic authority は Policy が保持します。この Site の節は Policy model の読者向け projection にすぎず、独自の retry threshold、failure class、orchestration semantics を定義しません。
+
+この説明は Policy PR `#773 -> #774` とともに **staged** です。Site が選択している published Policy revision にこれらの semantics が含まれるまでは、この節を現在公開済みの Policy artifact の semantics とみなしてはいけません。この読者向け文章を Site で公開しても、それ自体が staged Policy candidate を promote または authorize することはありません。
+
+中心となる区別は、tool activity は material progress ではありません、ということです。repository-change worker が evidence を取得し、capability を探索し、log を調査し、status を報告していても、objective に関する知識が変わっていない場合があります。繰り返し試行しても decision-relevant な knowledge state または repository state が変わらないなら、call 数を progress とみなさず現在の diagnostic strategy を再評価します。
+
+strategy switch は evidence gap の縮め方を実質的に変えるものです。たとえば evidence source、method、hypothesis の変更です。endpoint 名を変えたり、同じ unavailable retrieval を等価な path から繰り返したりするだけでは新しい strategy ではありません。invalidated path については、なぜ失敗したか、その判断がどこに applicability を持つか、再試行を合理化する retry condition は何かを Work ledger に保持します。これにより、中断後の新しい session が「新しい session だから」という理由だけで同じ dead end を再探索することを防ぎます。
+
+external wait と diagnostic stall も区別します。すでに実行中の CI check、review、その他 provider event が completion state を変え得るなら、それを待つこと自体は正当です。その待機中の parallel work は、同じ completion frontier を前進させる場合にだけ productive です。一方 diagnostic stall は、現在の evidence-gathering approach が material progress を生まなくなった状態であり、strategy を切り替えるか、許可された代替手段が残っていなければ blocked と判断します。
+
+resume のため Work ledger は evidence gap、current hypothesis、attempted / invalidated path、exhausted strategy、current strategy、diagnostic budget、progress frontier、last material progress、provider-bound qualification、next safe action を保持します。この model では resume は investigation のやり直しではなく、failed exploration の反復を避けるための compact operational state の復元です。review finding の詳細は別に保ち、review-finding ledger remains authoritative という境界を維持します。Work ledger は finding-level disposition や closure evidence を複製しません。
 
 ## Authority と storage の境界
 
