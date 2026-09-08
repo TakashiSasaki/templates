@@ -140,6 +140,7 @@ Included modules:
 - `policy/pull-request/independent-exact-head-review.md`
 - `policy/pull-request/review-result-applicability.md`
 - `policy/pull-request/review-thread-closure.md`
+- `policy/pull-request/staged-ci-and-preflight.md`
 - `policy/pull-request/exact-head-ci-evidence.md`
 - `policy/pull-request/ci-discovery-fail-closed.md`
 - `policy/pull-request/reuse-valid-evidence.md`
