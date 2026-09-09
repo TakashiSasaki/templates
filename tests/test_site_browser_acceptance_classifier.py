@@ -37,9 +37,20 @@ class SiteBrowserAcceptanceClassifierTests(unittest.TestCase):
         self.assertEqual("all changed paths are CI-observability-only", reason)
         self.assertEqual((), requiring)
 
+    def test_documentation_only_changes_can_skip_browser_acceptance(self) -> None:
+        required, reason, requiring = classify_paths(
+            [
+                "docs/index.md",
+                "README.md",
+                "translations/ja/docs/index.md",
+            ]
+        )
+        self.assertFalse(required)
+        self.assertEqual("all changed paths are documentation-only", reason)
+        self.assertEqual((), requiring)
+
     def test_reader_runtime_build_and_unknown_changes_require_browser_acceptance(self) -> None:
         for path in (
-            "docs/index.md",
             "stylesheets/extra.css",
             "javascripts/search-history.js",
             "service-worker.js",
@@ -47,26 +58,22 @@ class SiteBrowserAcceptanceClassifierTests(unittest.TestCase):
             "tests/test_mobile_layout.py",
             ".github/workflows/build-pages.yml",
             "scripts/classify_site_browser_acceptance.py",
-            "README.md",
+            "some/unrecognized/file.xyz",
         ):
             with self.subTest(path=path):
                 required, reason, requiring = classify_paths([path])
                 self.assertTrue(required)
-                self.assertEqual("non-observability path changed", reason)
-                self.assertEqual((path,), requiring)
 
     def test_mixed_change_set_fails_closed_to_browser_required(self) -> None:
         required, reason, requiring = classify_paths(
             [
-                "scripts/report_composition_unittest_timing.py",
                 "docs/index.md",
-                ".github/workflows/ci-performance-report.yml",
+                "stylesheets/extra.css",
             ]
         )
 
         self.assertTrue(required)
-        self.assertEqual("non-observability path changed", reason)
-        self.assertEqual(("docs/index.md",), requiring)
+        self.assertEqual(("stylesheets/extra.css",), requiring)
 
     def test_safe_skip_surface_is_explicit_and_narrow(self) -> None:
         self.assertEqual(

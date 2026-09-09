@@ -212,6 +212,15 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
         self.assertLess(metadata, build)
         self.assertLess(build, deploy)
 
+    def test_aggregate_ci_validate_gate_and_force_full_qualification(self) -> None:
+        workflow = BUILD_WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("name: Site CI / validate", workflow)
+        self.assertIn("needs:\n      - build\n      - classify_browser\n      - check", workflow)
+        self.assertIn("FORCE_FULL_REQUESTED:", workflow)
+        self.assertIn("--force-full", workflow)
+        self.assertIn("ci/full-qualification", workflow)
+
 
 if __name__ == "__main__":
     unittest.main()
+

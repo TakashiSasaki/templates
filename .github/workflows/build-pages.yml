@@ -458,9 +458,12 @@ jobs:
 
       - name: Classify browser acceptance scope
         id: classify
+        env:
+          FORCE_FULL_REQUESTED: ${{ github.event_name == 'push' || (github.event_name == 'pull_request' && (contains(github.event.pull_request.labels.*.name, 'ci/full-qualification') || contains(github.event.pull_request.labels.*.name, 'ci/full-site-verification'))) }}
         run: |
           python -I scripts/classify_site_browser_acceptance.py \
             --changed-paths "$RUNNER_TEMP/site-browser-paths.txt" \
+            --force-full "${FORCE_FULL_REQUESTED:-false}" \
             --output "$GITHUB_OUTPUT"
 
       - name: Record browser acceptance selection
@@ -649,3 +652,30 @@ jobs:
           path: build/search-history
           if-no-files-found: warn
           retention-days: 7
+
+  validate:
+    name: Site CI / validate
+    if: >-
+      always() &&
+      github.repository == 'TakashiSasaki/templates' &&
+      github.event_name == 'pull_request' &&
+      inputs.site_ref == '' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    needs:
+      - build
+      - classify_browser
+      - check
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Verify build, classifier, and browser gate results
+        env:
+          BUILD_RESULT: ${{ needs.build.result }}
+          CLASSIFY_RESULT: ${{ needs.classify_browser.result }}
+          CHECK_RESULT: ${{ needs.check.result }}
+          BROWSER_REQUIRED: ${{ needs.classify_browser.outputs.required }}
+        run: |
+          test "$BUILD_RESULT" = success
+          test "$CLASSIFY_RESULT" = success
+          test "$CHECK_RESULT" = success
+          echo "Site CI aggregate gate passed (browser_required=$BROWSER_REQUIRED)"
+
