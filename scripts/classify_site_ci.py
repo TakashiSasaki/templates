@@ -99,6 +99,13 @@ BROWSER_EXACT_PATHS = frozenset(
         "scripts/check_glossary_locale_chrome.py",
         "scripts/check_search_history.py",
         "scripts/check_search_history_review_regressions.py",
+        "contracts/browser-identity.json",
+        "contracts/viewports.json",
+        "contracts/routes.json",
+        "contracts/site-structure.json",
+        "contracts/document-metadata.json",
+        "contracts/site-discovery.json",
+        "contracts/manifest.json",
     }
 )
 BROWSER_PREFIXES = (
@@ -191,6 +198,15 @@ REFERENCE_CONSUMER_EXACT_PATHS = frozenset(
         "scripts/check_reference_website.py",
         "scripts/check_reference_pwa.py",
         "scripts/site_website_contract.py",
+        "contracts/browser-identity.json",
+        "contracts/viewports.json",
+        "contracts/routes.json",
+        "contracts/site-structure.json",
+        "contracts/document-metadata.json",
+        "contracts/site-discovery.json",
+        "contracts/manifest.json",
+        "contracts/implementation-evidence.json",
+        "contracts/lifecycle-checkpoints.json",
     }
 )
 REFERENCE_CONSUMER_PREFIXES = ("tests/test_reference_",)

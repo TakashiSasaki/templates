@@ -325,6 +325,47 @@ class SiteCIClassifierTests(unittest.TestCase):
         decision = classify_paths(["docs/index.md"])
         self.assertFalse(decision.coexistence_required)
 
+    def test_browser_contracts_require_browser_and_reference_consumer(self) -> None:
+        browser_contracts = (
+            "contracts/viewports.json",
+            "contracts/browser-identity.json",
+            "contracts/routes.json",
+            "contracts/site-structure.json",
+            "contracts/document-metadata.json",
+            "contracts/site-discovery.json",
+            "contracts/manifest.json",
+        )
+        for contract_path in browser_contracts:
+            with self.subTest(contract=contract_path):
+                decision = classify_paths([contract_path])
+                self.assertTrue(decision.core_required)
+                self.assertTrue(decision.build_required)
+                self.assertTrue(decision.browser_required)
+                self.assertTrue(decision.reference_consumer_required)
+                self.assertFalse(decision.pwa_required)
+                self.assertFalse(decision.cross_authority_required)
+                self.assertFalse(decision.full_required)
+                self.assertTrue(decision.freshness_candidate_required)
+                self.assertEqual("browser-sensitive", decision.risk_class)
+
+    def test_consumer_evidence_contracts_require_reference_consumer(self) -> None:
+        for contract_path in (
+            "contracts/implementation-evidence.json",
+            "contracts/lifecycle-checkpoints.json",
+        ):
+            with self.subTest(contract=contract_path):
+                decision = classify_paths([contract_path])
+                self.assertTrue(decision.core_required)
+                self.assertTrue(decision.build_required)
+                self.assertFalse(decision.browser_required)
+                self.assertTrue(decision.reference_consumer_required)
+                self.assertFalse(decision.pwa_required)
+                self.assertFalse(decision.cross_authority_required)
+                self.assertFalse(decision.full_required)
+                self.assertTrue(decision.freshness_candidate_required)
+                self.assertEqual("runtime-sensitive", decision.risk_class)
+
 
 if __name__ == "__main__":
     unittest.main()
+
