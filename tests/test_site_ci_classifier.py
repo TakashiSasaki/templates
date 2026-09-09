@@ -107,8 +107,25 @@ class SiteCIClassifierTests(unittest.TestCase):
             ]
         )
         self.assertTrue(decision.core_required)
+        self.assertTrue(decision.build_required)
         self.assertTrue(decision.publication_required)
         self.assertFalse(decision.full_required)
+
+    def test_translation_manifest_requires_build_and_publication(self) -> None:
+        decision = classify_paths(["translations/manifest.json"])
+        self.assertTrue(decision.core_required)
+        self.assertTrue(decision.build_required)
+        self.assertTrue(decision.publication_required)
+        self.assertFalse(decision.full_required)
+        self.assertEqual("publication-sensitive", decision.risk_class)
+
+    def test_publication_freshness_contract_requires_candidate_build(self) -> None:
+        decision = classify_paths(["PUBLICATION_FRESHNESS.md"])
+        self.assertTrue(decision.core_required)
+        self.assertTrue(decision.build_required)
+        self.assertTrue(decision.publication_required)
+        self.assertFalse(decision.full_required)
+        self.assertEqual("publication-sensitive", decision.risk_class)
 
     def test_cross_authority_changes_require_cross_authority(self) -> None:
         decision = classify_paths(

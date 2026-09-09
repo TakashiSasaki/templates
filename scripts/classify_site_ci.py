@@ -62,10 +62,7 @@ DOC_EXACT_PATHS = frozenset(
         "GLOSSARY_INVENTORY.md",
         "FRESHNESS.md",
         "AGENTS.md",
-        "PUBLICATION_FRESHNESS.md",
-        "PUBLICATION_STAGING.md",
         "translations/README.md",
-        "translations/manifest.json",
     }
 )
 DOC_PREFIXES = (
@@ -150,6 +147,7 @@ PUBLICATION_EXACT_PATHS = frozenset(
         "site-manifest.json",
         "PUBLICATION_FRESHNESS.md",
         "PUBLICATION_STAGING.md",
+        "translations/manifest.json",
         "scripts/advance_publication_source.py",
         "scripts/resolve_publication_sources.py",
         "scripts/prepare_repository_tree_publication.py",
@@ -241,6 +239,8 @@ def is_observability_path(path: str) -> bool:
 
 
 def is_doc_path(path: str) -> bool:
+    if is_publication_path(path) or is_cross_authority_path(path):
+        return False
     return path in DOC_EXACT_PATHS or (
         any(path.startswith(prefix) for prefix in DOC_PREFIXES)
         and path.endswith(".md")
