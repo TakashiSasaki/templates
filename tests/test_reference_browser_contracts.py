@@ -154,6 +154,13 @@ class ReferenceBrowserContractTests(unittest.TestCase):
         from scripts.render_reference_consumer import outputs
         self.assertIn('id="self-hosting-reference-consumer"', outputs(ROOT)["translations/ja/docs/policy-composition-coexistence.md"])
 
+    def test_english_entry_links_to_generated_anchor(self):
+        landing = (ROOT / "docs/landing.md").read_text()
+        target = 'coexistence/#self-hosting-reference-consumer'
+        self.assertEqual(landing.count('href="' + target + '"'), 2)
+        from scripts.render_reference_consumer import outputs
+        self.assertIn('id="self-hosting-reference-consumer"', outputs(ROOT)["docs/policy-composition-coexistence.md"])
+
 
 if __name__ == "__main__":
     unittest.main()

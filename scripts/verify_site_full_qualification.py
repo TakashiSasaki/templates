@@ -31,7 +31,7 @@ REQUIRED_SUITES: list[tuple[str, str, Any]] = [
     (
         "construction_gate",
         "Site Construction CI validate gate",
-        lambda name: "Site Construction CI / validate" in name or "Site CI / validate" in name,
+        lambda name: name in ("Site Construction CI / validate", "Site CI / validate"),
     ),
     (
         "provider_coexistence",
@@ -175,12 +175,19 @@ def verify_qualification(
                 continue
 
             # Take the latest/most relevant run if multiple (e.g. retried)
-            # Prefer completed success over in-progress
-            best_match = matches[-1]
+            # Prefer completed success over in-progress; prefer in-progress over failure
+            best_match = None
             for m in matches:
                 if m.get("conclusion") == "success":
                     best_match = m
                     break
+            if best_match is None:
+                for m in matches:
+                    if m.get("status") in ("in_progress", "queued", "waiting", "pending"):
+                        best_match = m
+                        break
+            if best_match is None:
+                best_match = matches[-1]
 
             matched_results[key] = best_match
             status = best_match.get("status")

@@ -70,6 +70,24 @@ class VerifySiteFullQualificationTests(unittest.TestCase):
         self.assertEqual(1, result)
 
     @patch("scripts.verify_site_full_qualification.fetch_check_runs")
+    def test_reusable_workflow_prefixed_construction_gate_not_matched(self, mock_fetch) -> None:
+        # Reusable workflow caller prefix should NOT be matched by construction_gate
+        mock_runs = [
+            {
+                "id": 100,
+                "name": "Build exact cross-authority candidate / Site Construction CI / validate",
+                "status": "completed",
+                "conclusion": "skipped",
+            },
+        ]
+        mock_fetch.return_value = mock_runs
+        for key, description, predicate in REQUIRED_SUITES:
+            if key == "construction_gate":
+                self.assertFalse(predicate("Build exact cross-authority candidate / Site Construction CI / validate"))
+                self.assertTrue(predicate("Site Construction CI / validate"))
+                self.assertTrue(predicate("Site CI / validate"))
+
+    @patch("scripts.verify_site_full_qualification.fetch_check_runs")
     def test_incomplete_check_runs_timeout_returns_one(self, mock_fetch) -> None:
         mock_runs = [
             {"id": 1, "name": "build", "status": "in_progress", "conclusion": None},
