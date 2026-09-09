@@ -6,7 +6,10 @@ import unittest
 from pathlib import Path
 
 from scripts.materialize_publication_assets import (
+    STAMP_FILE,
+    _SUCCESSFUL_MATERIALIZATIONS,
     PublicationMaterializationError,
+    is_publication_materialized,
     materialize_publication,
 )
 
@@ -144,6 +147,79 @@ target.write_bytes(b'deterministic fixture output')
                 "declared asset source does not exist",
             ):
                 materialize_publication(root, "fixture")
+
+    def test_process_crossing_reuse_with_persistent_stamp(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.write_catalog(root, version=4, source_kind="generated")
+            self.write_materializer(root)
+
+            self.assertFalse(is_publication_materialized(root, "fixture"))
+            self.assertTrue(materialize_publication(root, "fixture"))
+            self.assertTrue(is_publication_materialized(root, "fixture"))
+            self.assertTrue((root / STAMP_FILE).is_file())
+            self.assertEqual("1", (root / "materializer-runs.txt").read_text(encoding="utf-8"))
+
+            # Simulate new process by clearing process-local in-memory cache
+            _SUCCESSFUL_MATERIALIZATIONS.clear()
+
+            # Second call in new process reuses persistent stamp without re-running materializer
+            self.assertFalse(materialize_publication(root, "fixture"))
+            self.assertEqual("1", (root / "materializer-runs.txt").read_text(encoding="utf-8"))
+
+    def test_persistent_stamp_invalidated_by_corrupted_generated_asset(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.write_catalog(root, version=4, source_kind="generated")
+            self.write_materializer(root)
+
+            self.assertTrue(materialize_publication(root, "fixture"))
+            self.assertEqual("1", (root / "materializer-runs.txt").read_text(encoding="utf-8"))
+
+            # Corrupt generated asset
+            (root / "generated" / "output.bin").write_bytes(b"tampered content")
+            _SUCCESSFUL_MATERIALIZATIONS.clear()
+
+            # Re-running materializer is triggered to recover valid state
+            self.assertTrue(materialize_publication(root, "fixture"))
+            self.assertEqual("2", (root / "materializer-runs.txt").read_text(encoding="utf-8"))
+            self.assertEqual(b"deterministic fixture output", (root / "generated" / "output.bin").read_bytes())
+
+    def test_persistent_stamp_invalidated_by_corrupted_stamp_json(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.write_catalog(root, version=4, source_kind="generated")
+            self.write_materializer(root)
+
+            self.assertTrue(materialize_publication(root, "fixture"))
+            self.assertEqual("1", (root / "materializer-runs.txt").read_text(encoding="utf-8"))
+
+            # Corrupt stamp file with malformed content
+            (root / STAMP_FILE).write_text("invalid-json{", encoding="utf-8")
+            _SUCCESSFUL_MATERIALIZATIONS.clear()
+
+            # Materializer re-runs and regenerates stamp
+            self.assertTrue(materialize_publication(root, "fixture"))
+            self.assertEqual("2", (root / "materializer-runs.txt").read_text(encoding="utf-8"))
+            self.assertTrue(is_publication_materialized(root, "fixture"))
+
+    def test_persistent_stamp_invalidated_by_materializer_script_change(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.write_catalog(root, version=4, source_kind="generated")
+            self.write_materializer(root)
+
+            self.assertTrue(materialize_publication(root, "fixture"))
+            self.assertEqual("1", (root / "materializer-runs.txt").read_text(encoding="utf-8"))
+
+            # Modify materializer script
+            mat = root / "scripts" / "materialize_publication.py"
+            mat.write_text(mat.read_text(encoding="utf-8") + "\n# updated\n", encoding="utf-8")
+            _SUCCESSFUL_MATERIALIZATIONS.clear()
+
+            # Materializer re-runs
+            self.assertTrue(materialize_publication(root, "fixture"))
+            self.assertEqual("2", (root / "materializer-runs.txt").read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":

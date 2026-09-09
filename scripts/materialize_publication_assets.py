@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 import os
 import subprocess
 import sys
@@ -34,6 +35,7 @@ from scripts.publication_contract_v4 import load_publication_catalog_v4  # noqa:
 
 MATERIALIZER = Path("scripts/materialize_publication.py")
 CATALOG = Path("docs/publication-catalog.json")
+STAMP_FILE = Path(".publication-materialization-stamp.json")
 MATERIALIZATION_CACHE_LIMIT = 8
 _SUCCESSFUL_MATERIALIZATIONS: OrderedDict[Path, str] = OrderedDict()
 
@@ -135,6 +137,138 @@ def _materialization_fingerprint(root: Path, materializer: Path) -> str:
     return digest.hexdigest()
 
 
+def _atomic_write_json(path: Path, data: dict[str, Any]) -> None:
+    text = json.dumps(data, indent=2, sort_keys=True) + "\n"
+    temp_path = path.with_name(f".{path.name}.tmp.{os.getpid()}")
+    try:
+        temp_path.write_text(text, encoding="utf-8")
+        temp_path.replace(path)
+    finally:
+        if temp_path.exists():
+            try:
+                temp_path.unlink()
+            except OSError:
+                pass
+
+
+def _provider_semantic_revision(root: Path) -> str:
+    manifest_path = root / "generated" / "composition-playground-publication.json"
+    if manifest_path.is_file() and not manifest_path.is_symlink():
+        try:
+            data = json.loads(manifest_path.read_text(encoding="utf-8"))
+            if isinstance(data, dict) and isinstance(data.get("semantic_revision"), str):
+                return data["semantic_revision"]
+        except Exception:
+            pass
+    try:
+        git_proc = subprocess.run(
+            ["git", "-C", str(root), "rev-parse", "HEAD"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if git_proc.returncode == 0:
+            sha = git_proc.stdout.strip()
+            if len(sha) == 40:
+                return sha
+    except Exception:
+        pass
+    return ""
+
+
+def _write_stamp(
+    root: Path,
+    label: str,
+    version: int,
+    fingerprint: str,
+    catalog: Any,
+) -> None:
+    generated_digests: dict[str, str] = {}
+    if version == 4:
+        for asset in catalog.generated_assets:
+            path = root / asset.source
+            if path.is_file() and not path.is_symlink():
+                generated_digests[asset.source.as_posix()] = hashlib.sha256(
+                    path.read_bytes()
+                ).hexdigest()
+    else:
+        for asset in catalog.assets:
+            path = root / asset.source
+            if (
+                asset.source.parts
+                and asset.source.parts[0] == "generated"
+                and path.is_file()
+                and not path.is_symlink()
+            ):
+                generated_digests[asset.source.as_posix()] = hashlib.sha256(
+                    path.read_bytes()
+                ).hexdigest()
+
+    semantic_rev = _provider_semantic_revision(root)
+    stamp_data = {
+        "stamp_version": 1,
+        "canonical_root": str(root.resolve(strict=True)),
+        "fingerprint": fingerprint,
+        "semantic_revision": semantic_rev,
+        "generated_digests": generated_digests,
+    }
+    _atomic_write_json(root / STAMP_FILE, stamp_data)
+
+
+def _validate_stamp(
+    root: Path,
+    label: str,
+    version: int,
+    fingerprint: str,
+) -> Any | None:
+    stamp_path = root / STAMP_FILE
+    if stamp_path.is_symlink() or not stamp_path.is_file():
+        return None
+    try:
+        data = json.loads(stamp_path.read_text(encoding="utf-8"))
+        if not isinstance(data, dict) or data.get("stamp_version") != 1:
+            return None
+        if data.get("canonical_root") != str(root.resolve(strict=True)):
+            return None
+        if data.get("fingerprint") != fingerprint:
+            return None
+        semantic_rev = _provider_semantic_revision(root)
+        if semantic_rev and data.get("semantic_revision") != semantic_rev:
+            return None
+        generated_digests = data.get("generated_digests")
+        if not isinstance(generated_digests, dict):
+            return None
+        for relative_path, expected_digest in generated_digests.items():
+            path = root / relative_path
+            if path.is_symlink() or not path.is_file():
+                return None
+            digest = hashlib.sha256(path.read_bytes()).hexdigest()
+            if digest != expected_digest:
+                return None
+        return _strict_catalog(root, label, version)
+    except Exception:
+        return None
+
+
+def is_publication_materialized(root: Path, label: str) -> bool:
+    """Report whether a provider has a valid, verified materialization stamp."""
+    try:
+        root = root.resolve(strict=True)
+        version = schema_version(root, label)
+        materializer = root / MATERIALIZER
+        if version == 4:
+            catalog = load_publication_catalog_v4(root, label=f"{label} catalog", phase="source")
+            if not catalog.generated_assets:
+                return True
+        else:
+            if not materializer.is_file():
+                return True
+        fingerprint = _materialization_fingerprint(root, materializer)
+        return _validate_stamp(root, label, version, fingerprint) is not None
+    except Exception:
+        return False
+
+
 def _remember_success(root: Path, fingerprint: str) -> None:
     _SUCCESSFUL_MATERIALIZATIONS[root] = fingerprint
     _SUCCESSFUL_MATERIALIZATIONS.move_to_end(root)
@@ -187,12 +321,20 @@ def _prepare_publication(root: Path, label: str) -> tuple[Any, bool]:
             # A generated product may have been removed or invalidated between
             # callers. Never let a cached success suppress recovery/failure.
             _SUCCESSFUL_MATERIALIZATIONS.pop(root, None)
+            (root / STAMP_FILE).unlink(missing_ok=True)
         else:
             _SUCCESSFUL_MATERIALIZATIONS.move_to_end(root)
             return catalog, False
 
+    # Check persistent stamp across process boundaries
+    stamped_catalog = _validate_stamp(root, label, version, fingerprint)
+    if stamped_catalog is not None:
+        _remember_success(root, fingerprint)
+        return stamped_catalog, False
+
     run_materializer(root, label)
     catalog = _strict_catalog(root, label, version)
+    _write_stamp(root, label, version, fingerprint, catalog)
     _remember_success(root, fingerprint)
     return catalog, True
 
