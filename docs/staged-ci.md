@@ -112,7 +112,7 @@ construction candidate (intermediate / active revision)
 2. **L1/L2 evidence ≠ L3 evidence**: Intermediate or conditional verification results can never substitute for authority-required full qualification.
 3. **Revision mutation invalidates qualification evidence**: If a qualification candidate changes or is superseded, prior revision-bound evidence becomes stale and cannot qualify the successor revision.
 4. **Do not block construction on heavy CI**: Expensive CI completion on an intermediate construction candidate must not delay dependency-safe downstream implementation or stacked progression.
-5. **Stack-tip qualification**: In a stacked change series, intermediate heads do not each require full qualification; stabilize the final stack tip as a qualification candidate and acquire full qualification there before human handoff or merge.
+5. **Stack-tip qualification**: In a stacked change series, intermediate heads do not each require full qualification; stabilize the final stack tip as a qualification candidate and acquire full qualification there before merge, an explicitly authorized audit, or another authority-defined checkpoint rather than treating human handoff itself as an implicit L3 boundary.
 
 ## Stacked PR and CI lifecycle integration
 
