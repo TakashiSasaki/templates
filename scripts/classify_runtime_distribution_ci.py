@@ -37,6 +37,41 @@ COMPATIBILITY_SENSITIVE_FILES = frozenset(
         "requirements-runtime.lock",
     }
 )
+RECOGNIZED_COMPATIBILITY_INSENSITIVE_PREFIXES = (
+    ".agents/",
+    ".review-authority/",
+    "docs/",
+    "overrides/",
+    "policy/",
+    "profiles/",
+    "repository-policy/",
+    "review-evals/",
+    "schemas/",
+    "skills/",
+    "templates/",
+    "tests/",
+    "translations/",
+)
+RECOGNIZED_COMPATIBILITY_INSENSITIVE_FILES = frozenset(
+    {
+        ".agent-policy.lock",
+        ".agent-policy.yml",
+        ".gitattributes",
+        ".gitignore",
+        "AGENTS.md",
+        "CHANGELOG.md",
+        "CONTRIBUTING.md",
+        "LICENSE",
+        "README.md",
+        "SECURITY.md",
+        "action.yml",
+        "mkdocs.yml",
+        "requirements-ci.lock",
+        "requirements-ci.txt",
+        "requirements-docs.lock",
+        "requirements-docs.txt",
+    }
+)
 
 
 def is_compatibility_sensitive_path(path: str) -> bool:
@@ -50,9 +85,27 @@ def is_compatibility_sensitive_path(path: str) -> bool:
     return any(path.startswith(prefix) for prefix in COMPATIBILITY_SENSITIVE_PREFIXES)
 
 
+def is_recognized_path(path: str) -> bool:
+    """Return whether a path belongs to known Policy repository surfaces."""
+    if is_compatibility_sensitive_path(path):
+        return True
+    if path in RECOGNIZED_COMPATIBILITY_INSENSITIVE_FILES:
+        return True
+    return any(
+        path.startswith(prefix)
+        for prefix in RECOGNIZED_COMPATIBILITY_INSENSITIVE_PREFIXES
+    )
+
+
 def classify_paths(paths: list[str]) -> tuple[bool, str]:
     if not paths:
         return True, "no-changes"
+    for path in paths:
+        if not is_safe_repository_path(path):
+            return True, "compatibility-sensitive-change"
+    for path in paths:
+        if not is_recognized_path(path):
+            return True, "unrecognized-path"
     for path in paths:
         if is_compatibility_sensitive_path(path):
             return True, "compatibility-sensitive-change"
