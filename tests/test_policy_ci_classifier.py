@@ -36,6 +36,16 @@ def test_unknown_or_unsafe_classification_fails_closed() -> None:
         assert decision.release_state_required is True
         assert decision.trusted_review_required is True
         assert decision.overall_reason == "full"
+        assert decision.release_state_reason == "unsafe-path"
+        assert decision.trusted_review_reason == "unsafe-path"
+
+    for path in ("new-top-level.file", "scripts/new_check.py"):
+        decision = policy_ci.classify_paths([path])
+        assert decision.release_state_required is True
+        assert decision.trusted_review_required is True
+        assert decision.overall_reason == "full"
+        assert decision.release_state_reason == "unrecognized-path"
+        assert decision.trusted_review_reason == "unrecognized-path"
 
 
 def test_explicit_full_checkpoint_overrides_selective_classification() -> None:

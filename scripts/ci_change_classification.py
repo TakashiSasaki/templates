@@ -17,7 +17,10 @@ POLICY_CI_CONTROL_PATHS = frozenset(
         "scripts/classify_policy_ci.py",
     }
 )
-POLICY_CI_CONTROL_PREFIXES = ("tests/fixtures/ci-applicability/",)
+POLICY_CI_CONTROL_PREFIXES = (
+    ".github/workflows/",
+    "tests/fixtures/ci-applicability/",
+)
 
 
 class ClassificationError(RuntimeError):

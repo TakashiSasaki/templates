@@ -43,29 +43,104 @@ is meaningful. It is not equivalent to `result = passed`.
 
 When applicability depends on changed paths, dependency maps, classifiers, or other repository-controlled logic, use the canonical exact-head CI applicability requirements: bind the decision to the relevant candidate and inputs, fail closed on ambiguity, and do not allow a changing classifier to silently self-exempt. An explicit full-verification checkpoint may override selective execution when repository authority requires broader evidence.
 
-## Construction and qualification
+## Risk/applicability classifier contract
 
-Staged CI aligns with the revision-bound qualification lifecycle.
+To safely use lightweight construction CI without weakening qualification, a repository classifier must satisfy the canonical **classifier contract**:
+
+| Property | Requirement | Rational |
+| --- | --- | --- |
+| **Base-authoritative** | Classifier logic resolves from target base (e.g. `origin/main` / `$BASE_SHA`) or an immutable control boundary (such as a protected reusable workflow or independent required check), not proposed code | Prevents untrusted changes from altering their own qualification rules; workflow mutations fail closed to full qualification |
+| **Deterministic** | Computed purely from exact repository-relative changed paths | Ensures consistent, reproducible decisions across environments |
+| **Fail-closed** | Unknown paths, missing diff, malformed input, or base lookup errors require full verification | Prevents silent verification bypass on anomalous conditions |
+| **Self-exemption prohibited** | Modifications to the classifier or CI control files force full/conservative verification | Prevents circular justification or weakened governance |
+| **CI workflow sensitive** | Modifications to `.github/workflows/**` require full/conservative verification | Ensures workflow mutations undergo comprehensive validation |
+| **Explicit escalation** | Manual triggers (`ci/full-*-verification` label, `workflow_dispatch`) force full verification | Allows maintainers to run complete suites on demand |
+
+### Standard risk classes
+
+Policy defines standard semantic risk classes. A repository maps its internal path tables to these categories:
 
 ```text
-construction / provisional candidate
-    ├── CI preflight
-    ├── core validation
-    └── applicable focused or conditional integration
-                 │
-                 ▼
-        stabilize prerequisites
-                 │
-                 ▼
-          freeze qualification head
-                 │
-                 ▼
-      all authority-required applicable
-        exact-head qualification evidence
-      including full qualification if required
+documentation-only        (L0/L1 only: formatting, link/nav validation)
+tests-only                (L0/L1 + focused test suite)
+content                   (L0/L1 + content assembly)
+runtime-sensitive         (L0/L1 + runtime unit & compatibility tests)
+browser-sensitive         (L0/L1 + browser & visual acceptance)
+publication-sensitive     (L0/L1 + publication materialization & schema checks)
+cross-authority-sensitive (L0/L1 + multi-authority integration tests)
+distribution-sensitive    (L0/L1 + packaging, installer, release matrix)
+ci-authority-sensitive    (Full qualification: workflow or classifier changed)
+unknown                   (Fail-closed: full qualification)
 ```
 
-Naturally triggered CI on a provisional head is useful diagnostic evidence. It does not itself turn that head into a qualification identity. Conversely, once a merge, review, release, publication, or other authority boundary requires exact-revision evidence, delaying full applicable qualification is no longer justified by the staging model.
+Policy governs the **semantic contract and guarantees** of the classifier; each individual repository remains authoritative for its concrete **path-to-class mappings**.
+
+
+## Construction candidate vs qualification candidate
+
+Staged CI defines two distinct candidate roles across the revision lifecycle:
+
+| Candidate role | Description | Validation requirement | Decision boundary |
+| --- | --- | --- | --- |
+| **Construction candidate** | Active development revision, iterative mutation, or stacked ancestor/intermediate head | CI preflight (L0), core validation (L1), and applicable conditional integration (L2) | Verifies development continuity; does **not** confer merge or release readiness |
+| **Qualification candidate** | Deliberately stabilized candidate revision frozen for decision-making | Full exact-head qualification (L3) plus all applicable lower stages | Authority-defined: pull-request merge, release, publication, deployment, or final whole-stack review |
+
+```text
+construction candidate (intermediate / active revision)
+    ├── L0 CI preflight
+    ├── L1 core validation
+    └── L2 applicable conditional integration
+                 │
+                 │ (continue dependency-safe work without waiting on heavy CI)
+                 ▼
+        stabilize prerequisites & stack
+                 │
+                 ▼
+       freeze qualification candidate (final stack tip / head)
+                 │
+                 ▼
+       L3 full qualification (exact-head evidence)
+         + all applicable lower stages
+                 │
+                 ▼
+      authority decision (merge / release / publication)
+```
+
+### Operational rules for candidate staging
+
+1. **L0/L1 green ≠ merge-ready**: A passing preflight or core validation proves only that the construction candidate does not possess obvious static or baseline defects. It never constitutes merge or release evidence.
+2. **L1/L2 evidence ≠ L3 evidence**: Intermediate or conditional verification results can never substitute for authority-required full qualification.
+3. **Revision mutation invalidates qualification evidence**: If a qualification candidate changes or is superseded, prior revision-bound evidence becomes stale and cannot qualify the successor revision.
+4. **Do not block construction on heavy CI**: Expensive CI completion on an intermediate construction candidate must not delay dependency-safe downstream implementation or stacked progression.
+5. **Stack-tip qualification**: In a stacked change series, intermediate heads do not each require full qualification; stabilize the final stack tip as a qualification candidate and acquire full qualification there before merge, an explicitly authorized audit, or another authority-defined checkpoint rather than treating human handoff itself as an implicit L3 boundary.
+
+## Stacked PR and CI lifecycle integration
+
+Staged CI integrates directly with stacked pull requests:
+
+```text
+Member 1 (P1)
+  │ lightweight construction CI (L0/L1)
+  ▼
+Member 2 (P2)
+  │ lightweight construction CI (L0/L1)
+  ▼
+Member 3 (P3 - Stack Tip)
+  │
+  ├─ move to stability frontier
+  ├─ freeze qualification head
+  ├─ applicable full qualification (L3)
+  ├─ whole-stack architecture review
+  ▼
+human handoff / bottom-up merge
+```
+
+### Key lifecycle rules
+
+- **Non-blocking intermediate progression**: Constructing descendant PRs does not wait for expensive CI on intermediate members. Intermediate heads use lightweight validation to ensure development integrity while keeping velocity high.
+- **Cancellation of obsolete head runs**: When a member receives a new commit SHA, any expensive in-flight CI runs on the obsolete predecessor head may be cancelled or superseded immediately.
+- **Review request on qualification candidate**: The formal review request (whether individual exact-head review or whole-stack audit) is issued only against the stabilized qualification head after all applicable required CI passes.
+- **Post-movement re-evaluation**: Any movement of a candidate head (e.g. rebase, repair, or base advance) invalidates previous revision-bound evidence and triggers fail-closed re-evaluation of CI applicability and review requirements.
 
 ## Superseded candidates
 

@@ -48,6 +48,13 @@ def test_unsafe_paths_and_empty_change_sets_fail_closed() -> None:
     assert reason == "no-changes"
 
 
+def test_unrecognized_paths_fail_closed() -> None:
+    for path in ("new-top-level.file", "scripts/new_data.txt", "unknown_dir/foo.json"):
+        required, reason = runtime_ci.classify_paths([path])
+        assert required is True
+        assert reason == "unrecognized-path"
+
+
 def test_non_runtime_policy_changes_skip_full_matrix() -> None:
     required, reason = runtime_ci.classify_paths(
         [
