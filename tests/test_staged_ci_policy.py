@@ -52,3 +52,20 @@ def test_staged_ci_documentation_is_reader_visible_and_rejects_false_preflight()
     assert "preflight passed` as shorthand for `ci passed" in docs
     assert "calling a high-cost core or integration suite a preflight" in docs
     assert "Staged CI and preflight: staged-ci.md" in nav
+
+
+def test_staged_ci_distinguishes_construction_and_qualification_candidates() -> None:
+    staged = STAGED_RULE.read_text(encoding="utf-8").lower()
+    defer = DEFER_RULE.read_text(encoding="utf-8").lower()
+    docs = DOCS.read_text(encoding="utf-8").lower()
+
+    for target in (staged, docs):
+        assert "construction candidate" in target
+        assert "qualification candidate" in target
+        assert "l0/l1 green ≠ merge-ready" in target
+        assert "do not stall dependency-safe construction" in target or "do not block construction on heavy ci" in target
+        assert "intermediate heads do not each require full qualification" in target or "stack-tip qualification" in target
+
+    assert "construction candidate" in defer
+    assert "qualification candidate" in defer
+

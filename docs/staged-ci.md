@@ -43,29 +43,43 @@ is meaningful. It is not equivalent to `result = passed`.
 
 When applicability depends on changed paths, dependency maps, classifiers, or other repository-controlled logic, use the canonical exact-head CI applicability requirements: bind the decision to the relevant candidate and inputs, fail closed on ambiguity, and do not allow a changing classifier to silently self-exempt. An explicit full-verification checkpoint may override selective execution when repository authority requires broader evidence.
 
-## Construction and qualification
+## Construction candidate vs qualification candidate
 
-Staged CI aligns with the revision-bound qualification lifecycle.
+Staged CI defines two distinct candidate roles across the revision lifecycle:
+
+| Candidate role | Description | Validation requirement | Decision boundary |
+| --- | --- | --- | --- |
+| **Construction candidate** | Active development revision, iterative mutation, or stacked ancestor/intermediate head | CI preflight (L0), core validation (L1), and applicable conditional integration (L2) | Verifies development continuity; does **not** confer merge or release readiness |
+| **Qualification candidate** | Deliberately stabilized candidate revision frozen for decision-making | Full exact-head qualification (L3) plus all applicable lower stages | Authority-defined: pull-request merge, release, publication, deployment, or final whole-stack review |
 
 ```text
-construction / provisional candidate
-    ├── CI preflight
-    ├── core validation
-    └── applicable focused or conditional integration
+construction candidate (intermediate / active revision)
+    ├── L0 CI preflight
+    ├── L1 core validation
+    └── L2 applicable conditional integration
+                 │
+                 │ (continue dependency-safe work without waiting on heavy CI)
+                 ▼
+        stabilize prerequisites & stack
                  │
                  ▼
-        stabilize prerequisites
+       freeze qualification candidate (final stack tip / head)
                  │
                  ▼
-          freeze qualification head
+       L3 full qualification (exact-head evidence)
+         + all applicable lower stages
                  │
                  ▼
-      all authority-required applicable
-        exact-head qualification evidence
-      including full qualification if required
+      authority decision (merge / release / publication)
 ```
 
-Naturally triggered CI on a provisional head is useful diagnostic evidence. It does not itself turn that head into a qualification identity. Conversely, once a merge, review, release, publication, or other authority boundary requires exact-revision evidence, delaying full applicable qualification is no longer justified by the staging model.
+### Operational rules for candidate staging
+
+1. **L0/L1 green ≠ merge-ready**: A passing preflight or core validation proves only that the construction candidate does not possess obvious static or baseline defects. It never constitutes merge or release evidence.
+2. **L1/L2 evidence ≠ L3 evidence**: Intermediate or conditional verification results can never substitute for authority-required full qualification.
+3. **Revision mutation invalidates qualification evidence**: If a qualification candidate changes or is superseded, prior revision-bound evidence becomes stale and cannot qualify the successor revision.
+4. **Do not block construction on heavy CI**: Expensive CI completion on an intermediate construction candidate must not delay dependency-safe downstream implementation or stacked progression.
+5. **Stack-tip qualification**: In a stacked change series, intermediate heads do not each require full qualification; stabilize the final stack tip as a qualification candidate and acquire full qualification there before human handoff or merge.
 
 ## Superseded candidates
 
