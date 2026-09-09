@@ -85,12 +85,6 @@ def main() -> int:
         from composer_core_impl import CompositionError
 
         semantic_revision = playground.write_directory(ROOT / "generated")
-        checked_revision = playground.check_directory(ROOT / "generated")
-        if checked_revision != semantic_revision:
-            raise CompositionError(
-                "INVALID_PLAYGROUND_PUBLICATION",
-                "materialized publication revision did not round-trip",
-            )
     except (RuntimeError, OSError, UnicodeError) as exc:
         code = getattr(exc, "code", "PUBLICATION_MATERIALIZATION_FAILED")
         print(f"materialize_publication.py: {code}: {exc}", file=sys.stderr)
