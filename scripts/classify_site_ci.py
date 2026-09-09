@@ -215,6 +215,7 @@ class ClassificationDecision:
     changed_count: int
     requiring_paths: tuple[str, ...]
     freshness_candidate_required: bool = True
+    coexistence_required: bool = False
 
     @property
     def required(self) -> bool:
@@ -304,6 +305,14 @@ def is_known_runtime_path(path: str) -> bool:
     )
 
 
+def is_coexistence_path(path: str) -> bool:
+    return (
+        path == ".github/workflows/provider-coexistence.yml"
+        or path == "publication-sources.json"
+        or path.endswith(".py")
+    )
+
+
 def classify_paths(
     paths: Iterable[str],
     *,
@@ -326,6 +335,7 @@ def classify_paths(
             cross_authority_required=True,
             publication_required=True,
             full_required=True,
+            coexistence_required=True,
             risk_class="ci-authority-sensitive",
             reason="explicit full qualification requested",
             changed_count=changed_count,
@@ -344,6 +354,7 @@ def classify_paths(
             cross_authority_required=True,
             publication_required=True,
             full_required=True,
+            coexistence_required=True,
             risk_class="ci-authority-sensitive",
             reason="CI workflow or classification controls changed",
             changed_count=changed_count,
@@ -374,6 +385,7 @@ def classify_paths(
             cross_authority_required=True,
             publication_required=True,
             full_required=True,
+            coexistence_required=True,
             risk_class="unknown",
             reason=f"unknown changed paths: {','.join(unknown_paths)}",
             changed_count=changed_count,
@@ -391,6 +403,7 @@ def classify_paths(
             cross_authority_required=False,
             publication_required=False,
             full_required=False,
+            coexistence_required=False,
             risk_class="observability-only",
             reason="all changed paths are CI-observability-only",
             changed_count=changed_count,
@@ -409,6 +422,7 @@ def classify_paths(
             cross_authority_required=False,
             publication_required=False,
             full_required=False,
+            coexistence_required=False,
             risk_class="documentation-only",
             reason="all changed paths are documentation-only",
             changed_count=changed_count,
@@ -420,6 +434,7 @@ def classify_paths(
     has_browser = has_pwa or any(is_browser_path(p) for p in normalized)
     has_cross_auth = any(is_cross_authority_path(p) for p in normalized)
     has_publication = has_cross_auth or any(is_publication_path(p) for p in normalized)
+    has_coex = has_cross_auth or any(is_coexistence_path(p) for p in normalized)
     has_ref_consumer = (
         has_pwa
         or has_browser
@@ -465,6 +480,7 @@ def classify_paths(
         cross_authority_required=has_cross_auth,
         publication_required=has_publication,
         full_required=False,
+        coexistence_required=has_coex,
         risk_class=risk_class,
         reason=f"capabilities required: {risk_class}",
         changed_count=changed_count,
@@ -484,6 +500,7 @@ def write_outputs(output: TextIO, decision: ClassificationDecision) -> None:
     output.write(f"cross_authority_required={b2s(decision.cross_authority_required)}\n")
     output.write(f"publication_required={b2s(decision.publication_required)}\n")
     output.write(f"full_required={b2s(decision.full_required)}\n")
+    output.write(f"coexistence_required={b2s(decision.coexistence_required)}\n")
     output.write(f"freshness_candidate_required={b2s(decision.freshness_candidate_required)}\n")
     output.write(f"required={b2s(decision.required)}\n")
     output.write(f"risk_class={decision.risk_class}\n")

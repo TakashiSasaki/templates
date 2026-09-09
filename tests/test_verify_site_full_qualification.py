@@ -1,14 +1,12 @@
 from __future__ import annotations
 
 import io
-import sys
 import unittest
 from unittest.mock import patch
 
 from scripts.verify_site_full_qualification import (
     EXTERNAL_WORKFLOW_PATHS,
     REQUIRED_SUITES,
-    RequiredSuite,
     evaluate_suites,
     verify_qualification,
 )
@@ -341,6 +339,55 @@ class VerifySiteFullQualificationTests(unittest.TestCase):
         stderr_output = stderr_capture.getvalue()
         self.assertIn("Full Qualification TIMED OUT waiting for: Direct Site assembly build", stderr_output)
         self.assertNotIn("Full Qualification FALSIFIED", stderr_output)
+
+    @patch("scripts.verify_site_full_qualification.fetch_run_jobs")
+    @patch("scripts.verify_site_full_qualification.fetch_workflow_runs")
+    def test_re_attempted_run_invalidates_cache_and_waits_for_completion(
+        self, mock_runs, mock_jobs
+    ) -> None:
+        cache: dict[tuple[int, int], list[dict]] = {}
+
+        # 1. First iteration: build run is completed (attempt 1)
+        runs_completed, jobs_completed = build_mock_hierarchy()
+        for r in runs_completed:
+            r["run_attempt"] = 1
+        mock_runs.return_value = runs_completed
+        mock_jobs.side_effect = lambda repo, run_id, token: jobs_completed.get(run_id, [])
+
+        evals, missing = evaluate_suites("TakashiSasaki/templates", "0123456789abcdef", "token", cache)
+        self.assertEqual("successful", evals["build"].state)
+        # Verify cache contains attempt 1
+        build_run_id = next(r["id"] for r in runs_completed if r["path"] == ".github/workflows/build-pages.yml")
+        self.assertIn((build_run_id, 1), cache)
+
+        # 2. Second iteration: build run is re-run (attempt 2, in_progress)
+        runs_reattempted, jobs_reattempted = build_mock_hierarchy(
+            status_overrides={"build": "in_progress"},
+            conclusion_overrides={"build": None},
+        )
+        for r in runs_reattempted:
+            r["run_attempt"] = 2
+        mock_runs.return_value = runs_reattempted
+        mock_jobs.side_effect = lambda repo, run_id, token: jobs_reattempted.get(run_id, [])
+
+        evals, missing = evaluate_suites("TakashiSasaki/templates", "0123456789abcdef", "token", cache)
+        # Attempt 1 must be purged, and state must be pending, not stale successful
+        self.assertNotIn((build_run_id, 1), cache)
+        self.assertEqual("pending", evals["build"].state)
+
+        # 3. Third iteration: attempt 2 completed with failure
+        runs_failed, jobs_failed = build_mock_hierarchy(
+            status_overrides={"build": "completed"},
+            conclusion_overrides={"build": "failure"},
+        )
+        for r in runs_failed:
+            r["run_attempt"] = 2
+        mock_runs.return_value = runs_failed
+        mock_jobs.side_effect = lambda repo, run_id, token: jobs_failed.get(run_id, [])
+
+        evals, missing = evaluate_suites("TakashiSasaki/templates", "0123456789abcdef", "token", cache)
+        self.assertEqual("failed", evals["build"].state)
+        self.assertIn((build_run_id, 2), cache)
 
 
 if __name__ == "__main__":

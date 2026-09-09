@@ -296,8 +296,34 @@ class SiteCIClassifierTests(unittest.TestCase):
             self.assertIn("build_required=false\n", content)
             self.assertIn("browser_required=false\n", content)
             self.assertIn("full_required=false\n", content)
+            self.assertIn("coexistence_required=false\n", content)
             self.assertIn("freshness_candidate_required=true\n", content)
             self.assertIn("risk_class=documentation-only\n", content)
+
+    def test_coexistence_required_for_full_and_python_paths(self) -> None:
+        # Full qualification paths must evaluate coexistence_required=True
+        for path in (
+            ".github/workflows/reference-consumer.yml",
+            "some/unknown/file.xyz",
+        ):
+            with self.subTest(path=path):
+                decision = classify_paths([path])
+                self.assertTrue(decision.full_required)
+                self.assertTrue(decision.coexistence_required)
+
+        # Python and provider lock paths must evaluate coexistence_required=True
+        for path in (
+            "scripts/resolve_publication_sources.py",
+            "publication-sources.json",
+            ".github/workflows/provider-coexistence.yml",
+        ):
+            with self.subTest(path=path):
+                decision = classify_paths([path])
+                self.assertTrue(decision.coexistence_required)
+
+        # Docs-only paths must evaluate coexistence_required=False
+        decision = classify_paths(["docs/index.md"])
+        self.assertFalse(decision.coexistence_required)
 
 
 if __name__ == "__main__":

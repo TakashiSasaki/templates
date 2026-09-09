@@ -226,7 +226,7 @@ def evaluate_suites(
     repo: str,
     head_sha: str,
     token: str,
-    completed_jobs_cache: dict[int, list[dict[str, Any]]],
+    completed_jobs_cache: dict[tuple[int, int], list[dict[str, Any]]],
 ) -> tuple[dict[str, SuiteEvaluation], list[str]]:
     """Evaluates all 19 suites against exact head workflow runs.
 
@@ -247,6 +247,7 @@ def evaluate_suites(
     ]
 
     evaluations: dict[str, SuiteEvaluation] = {}
+    transient_jobs_cache: dict[tuple[int, int], list[dict[str, Any]]] = {}
 
     for suite in REQUIRED_SUITES:
         matching_runs = runs_by_path.get(suite.workflow_path, [])
@@ -263,21 +264,35 @@ def evaluate_suites(
             )
             continue
 
-        # Sort runs: prefer pull_request event, then higher run ID (latest)
+        # Sort runs: prefer pull_request event, then higher run ID (latest), then run attempt
         selected_run = sorted(
             matching_runs,
-            key=lambda r: (r.get("event") == "pull_request", r.get("id", 0)),
+            key=lambda r: (
+                r.get("event") == "pull_request",
+                r.get("id", 0),
+                r.get("run_attempt", 1),
+            ),
         )[-1]
         run_id = selected_run["id"]
+        run_attempt = selected_run.get("run_attempt", 1)
         run_status = selected_run.get("status")
+        cache_key = (run_id, run_attempt)
 
-        # Fetch jobs (using cache if run is completed)
-        if run_id in completed_jobs_cache:
-            jobs = completed_jobs_cache[run_id]
+        # Fetch jobs (using cache if run is completed; invalidate if re-attempted/in-progress)
+        if run_status != "completed":
+            for k in list(completed_jobs_cache.keys()):
+                if (isinstance(k, tuple) and k[0] == run_id) or k == run_id:
+                    del completed_jobs_cache[k]
+            if cache_key in transient_jobs_cache:
+                jobs = transient_jobs_cache[cache_key]
+            else:
+                jobs = fetch_run_jobs(repo, run_id, token)
+                transient_jobs_cache[cache_key] = jobs
+        elif cache_key in completed_jobs_cache:
+            jobs = completed_jobs_cache[cache_key]
         else:
             jobs = fetch_run_jobs(repo, run_id, token)
-            if run_status == "completed":
-                completed_jobs_cache[run_id] = jobs
+            completed_jobs_cache[cache_key] = jobs
 
         # Find matching job
         target_names = (suite.job_name,) + suite.job_name_aliases
@@ -351,7 +366,7 @@ def verify_qualification(
     print(f"Required external workflow paths: {len(EXTERNAL_WORKFLOW_PATHS)}")
     print(f"Required L3 check suites: {len(REQUIRED_SUITES)}")
     deadline = time.time() + timeout_seconds
-    completed_jobs_cache: dict[int, list[dict[str, Any]]] = {}
+    completed_jobs_cache: dict[tuple[int, int], list[dict[str, Any]]] = {}
 
     while True:
         try:

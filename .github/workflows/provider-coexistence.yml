@@ -74,6 +74,24 @@ jobs:
             exit 0
           fi
 
+          # Evaluate unified Site CI classifier for automatic full qualification or cross-authority escalation
+          if git show "$BASE_SHA:scripts/classify_site_ci.py" > "$classifier_dir/classify_site_ci.py" 2>/dev/null; then
+            site_output="$RUNNER_TEMP/site-ci-output.txt"
+            python3 -I "$classifier_dir/classify_site_ci.py" \
+              --changed-paths "$RUNNER_TEMP/provider-coexistence-paths.txt" \
+              --force-full "$force_full" \
+              --output "$site_output"
+            full_req="$(grep '^full_required=' "$site_output" | cut -d= -f2 || echo "false")"
+            cross_req="$(grep '^cross_authority_required=' "$site_output" | cut -d= -f2 || echo "false")"
+            coex_req="$(grep '^coexistence_required=' "$site_output" | cut -d= -f2 || echo "")"
+            if [ "$full_req" = "true" ] || [ "$cross_req" = "true" ] || [ "$coex_req" = "true" ]; then
+              echo "required=true" >> "$GITHUB_OUTPUT"
+              echo "matched_count=all" >> "$GITHUB_OUTPUT"
+              echo "matched_paths=automatic-full-qualification" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+
           if git show "$BASE_SHA:scripts/classify_provider_coexistence.py" > "$classifier_dir/classify_provider_coexistence.py" 2>/dev/null; then
             python -I "$classifier_dir/classify_provider_coexistence.py" \
               --changed-paths "$RUNNER_TEMP/provider-coexistence-paths.txt" \
