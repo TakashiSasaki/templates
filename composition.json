@@ -5,7 +5,9 @@
     "include": [
       "capability.pwa"
     ],
-    "exclude": []
+    "exclude": [
+      "capability.webmcp"
+    ]
   },
   "parameters": {}
 }

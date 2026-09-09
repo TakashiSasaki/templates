@@ -2,7 +2,7 @@
   "schema_version": 2,
   "source": {
     "repository": "TakashiSasaki/templates",
-    "revision": "bd28b67ad97652182d6744ee38ef992349104961"
+    "revision": "a739b3823660e3db742ff0e1e159d279126cba7c"
   },
   "intent": {
     "recipe": "website",
@@ -10,12 +10,14 @@
       "include": [
         "capability.pwa"
       ],
-      "exclude": []
+      "exclude": [
+        "capability.webmcp"
+      ]
     },
     "parameters": {}
   },
-  "recipe_sha256": "55c48e76d6e934c5bf8feddc115c9a6777a77d3c44e226e233f176af7e915b31",
-  "configuration_sha256": "bc1876bf0970dd63e48a51bd5925f82648cb28cec0e22700d118728b5db01590",
+  "recipe_sha256": "e48ea5561bf226972048a7f5a0746a06974ab34c657b99e720d6330f0c0a7d66",
+  "configuration_sha256": "68c61762f2a2bf9f1bc0efde391ec43766aa8f8f253b59f86f3cd634266e7159",
   "resolved_components": [
     {
       "id": "artifact.website-core",

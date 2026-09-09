@@ -193,11 +193,13 @@ Site はこの boundary における repository integration / publication author
 
 この Site は、自ら提供する Composition と Policy を実際に採用しています。
 Website 製品は `website` recipe と `capability.pwa` を、保守作業は Policy を使います。
+この Website consumer は `capability.webmcp` を明示的に除外しており、provider
+として利用可能であること自体は adoption を意味しません。
 以下は正規の宣言から生成した関係です。
 
 | 関係 | 不変 revision | 意味 |
 | --- | --- | --- |
-| Composition consumer | `bd28b67ad97652182d6744ee38ef992349104961` | Website 契約と material の所有関係 |
+| Composition consumer | `a739b3823660e3db742ff0e1e159d279126cba7c` | Website 契約と material の所有関係 |
 | Policy consumer | `33a7ab809225c2a8b8dd2598ef04d0a39cf076a7` | 保守規範と生成された agent 指示 |
 | Composition publication | `a739b3823660e3db742ff0e1e159d279126cba7c` | 読者に公開する provider の内容 |
 | Policy publication | `c5a3294809a1066bf59b83f467f1d597f885289a` | 読者に公開する provider の内容 |

@@ -45,10 +45,20 @@ def explanation(data):
     c = data["composition"]["source"]["revision"]
     p = data["policy"]["toolchain"]["revision"]
     published = data["publication"]["publications"]
+    excluded = ", ".join(
+        f"`{component}`"
+        for component in data["composition"]["intent"]["components"].get("exclude", [])
+    )
+    exclusion = (
+        f"\nThe Website consumer explicitly excludes {excluded}; provider availability\n"
+        "therefore does not imply adoption."
+        if excluded
+        else ""
+    )
     return f"""## Self-hosting reference consumer
 
 This Site consumes the systems it provides. Its Website product uses the
-Composition `website` recipe and `capability.pwa`; its maintenance uses Policy.
+Composition `website` recipe and `capability.pwa`; its maintenance uses Policy.{exclusion}
 The relationships below are generated from their canonical declarations.
 
 | Relationship | Immutable revision | Meaning |
@@ -118,12 +128,22 @@ def explanation_ja(data):
     c = data["composition"]["source"]["revision"]
     p = data["policy"]["toolchain"]["revision"]
     published = data["publication"]["publications"]
+    excluded = "、".join(
+        f"`{component}`"
+        for component in data["composition"]["intent"]["components"].get("exclude", [])
+    )
+    exclusion = (
+        f"\nこの Website consumer は {excluded} を明示的に除外しており、provider\n"
+        "として利用可能であること自体は adoption を意味しません。"
+        if excluded
+        else ""
+    )
     return f'''<span id="self-hosting-reference-consumer"></span>
 
 ## 自己ホスティングの参照 consumer
 
 この Site は、自ら提供する Composition と Policy を実際に採用しています。
-Website 製品は `website` recipe と `capability.pwa` を、保守作業は Policy を使います。
+Website 製品は `website` recipe と `capability.pwa` を、保守作業は Policy を使います。{exclusion}
 以下は正規の宣言から生成した関係です。
 
 | 関係 | 不変 revision | 意味 |

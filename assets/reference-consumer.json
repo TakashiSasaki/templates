@@ -6,7 +6,7 @@
   "composition": {
     "source": {
       "repository": "TakashiSasaki/templates",
-      "revision": "bd28b67ad97652182d6744ee38ef992349104961"
+      "revision": "a739b3823660e3db742ff0e1e159d279126cba7c"
     },
     "intent": {
       "schema_version": 1,
@@ -15,7 +15,9 @@
         "include": [
           "capability.pwa"
         ],
-        "exclude": []
+        "exclude": [
+          "capability.webmcp"
+        ]
       },
       "parameters": {}
     },

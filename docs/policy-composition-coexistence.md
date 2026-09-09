@@ -189,11 +189,13 @@ Provider-internal changes that do not affect this surface remain independently r
 
 This Site consumes the systems it provides. Its Website product uses the
 Composition `website` recipe and `capability.pwa`; its maintenance uses Policy.
+The Website consumer explicitly excludes `capability.webmcp`; provider availability
+therefore does not imply adoption.
 The relationships below are generated from their canonical declarations.
 
 | Relationship | Immutable revision | Meaning |
 | --- | --- | --- |
-| Composition consumer | `bd28b67ad97652182d6744ee38ef992349104961` | Governs the Site Website contracts and material ownership |
+| Composition consumer | `a739b3823660e3db742ff0e1e159d279126cba7c` | Governs the Site Website contracts and material ownership |
 | Policy consumer | `33a7ab809225c2a8b8dd2598ef04d0a39cf076a7` | Governs Site maintenance and generated agent instructions |
 | Composition publication | `a739b3823660e3db742ff0e1e159d279126cba7c` | Provider material exposed to readers |
 | Policy publication | `c5a3294809a1066bf59b83f467f1d597f885289a` | Provider material exposed to readers |
