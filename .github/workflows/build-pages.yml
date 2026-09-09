@@ -4,6 +4,11 @@ on:
   pull_request:
     branches:
       - site
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - labeled
   workflow_call:
     inputs:
       site_ref:
@@ -44,7 +49,12 @@ concurrency:
 
 jobs:
   build:
-    if: github.repository == 'TakashiSasaki/templates'
+    if: >-
+      always() &&
+      github.repository == 'TakashiSasaki/templates' &&
+      (inputs.site_ref != '' || github.event_name != 'pull_request' || (needs.classify_browser.result == 'success' && needs.classify_browser.outputs.build_required == 'true'))
+    needs:
+      - classify_browser
     runs-on: ubuntu-24.04
 
     steps:
@@ -434,6 +444,15 @@ jobs:
       changed_count: ${{ steps.classify.outputs.changed_count }}
       requiring_count: ${{ steps.classify.outputs.requiring_count }}
       requiring_paths: ${{ steps.classify.outputs.requiring_paths }}
+      build_required: ${{ steps.classify.outputs.build_required }}
+      browser_required: ${{ steps.classify.outputs.browser_required }}
+      pwa_required: ${{ steps.classify.outputs.pwa_required }}
+      reference_consumer_required: ${{ steps.classify.outputs.reference_consumer_required }}
+      cross_authority_required: ${{ steps.classify.outputs.cross_authority_required }}
+      publication_required: ${{ steps.classify.outputs.publication_required }}
+      full_required: ${{ steps.classify.outputs.full_required }}
+      risk_class: ${{ steps.classify.outputs.risk_class }}
+      authority_source: ${{ steps.classify.outputs.authority_source }}
 
     steps:
       - name: Check out exact Site candidate for browser classification
@@ -459,8 +478,30 @@ jobs:
       - name: Classify browser acceptance scope
         id: classify
         env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           FORCE_FULL_REQUESTED: ${{ github.event_name == 'push' || (github.event_name == 'pull_request' && (contains(github.event.pull_request.labels.*.name, 'ci/full-qualification') || contains(github.event.pull_request.labels.*.name, 'ci/full-site-verification'))) }}
         run: |
+          set -euo pipefail
+          classifier_dir="$RUNNER_TEMP/site-ci-classifier-authority"
+          rm -rf "$classifier_dir"
+          mkdir -p "$classifier_dir"
+          force_full="${FORCE_FULL_REQUESTED:-false}"
+
+          if git show "$BASE_SHA:scripts/classify_site_ci.py" > "$classifier_dir/classify_site_ci.py" 2>/dev/null; then
+            echo "authority_source=base" >> "$GITHUB_OUTPUT"
+            python -I "$classifier_dir/classify_site_ci.py" \
+              --changed-paths "$RUNNER_TEMP/site-browser-paths.txt" \
+              --force-full "$force_full" \
+              --output "$GITHUB_OUTPUT"
+          else
+            echo "authority_source=base-unavailable-full" >> "$GITHUB_OUTPUT"
+            python -I scripts/classify_site_ci.py \
+              --changed-paths "$RUNNER_TEMP/site-browser-paths.txt" \
+              --force-full true \
+              --output "$GITHUB_OUTPUT"
+          fi
+
           python -I scripts/classify_site_browser_acceptance.py \
             --changed-paths "$RUNNER_TEMP/site-browser-paths.txt" \
             --force-full "${FORCE_FULL_REQUESTED:-false}" \
@@ -502,9 +543,21 @@ jobs:
           BUILD_RESULT: ${{ needs.build.result }}
           CLASSIFIER_RESULT: ${{ needs.classify_browser.result }}
           BROWSER_REQUIRED: ${{ needs.classify_browser.outputs.required }}
+          BUILD_REQUIRED: ${{ needs.classify_browser.outputs.build_required }}
         run: |
-          test "$BUILD_RESULT" = success
           test "$CLASSIFIER_RESULT" = success
+          case "$BUILD_REQUIRED" in
+            true)
+              test "$BUILD_RESULT" = success
+              ;;
+            false)
+              test "$BUILD_RESULT" = skipped
+              ;;
+            *)
+              echo "::error::Unexpected build requirement: $BUILD_REQUIRED"
+              exit 1
+              ;;
+          esac
           case "$BROWSER_REQUIRED" in
             true|false)
               ;;
@@ -518,13 +571,35 @@ jobs:
         env:
           BROWSER_REQUIRED: ${{ needs.classify_browser.outputs.required }}
           BROWSER_REASON: ${{ needs.classify_browser.outputs.reason }}
+          BUILD_REQUIRED: ${{ needs.classify_browser.outputs.build_required }}
         run: |
           {
             echo '### Site browser acceptance'
             echo
             echo "- required: \`$BROWSER_REQUIRED\`"
+            echo "- build_required: \`$BUILD_REQUIRED\`"
             echo "- reason: \`$BROWSER_REASON\`"
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Check out proposed Site revision for documentation validation
+        if: ${{ needs.classify_browser.outputs.build_required == 'false' }}
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Python for documentation validation
+        if: ${{ needs.classify_browser.outputs.build_required == 'false' }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Validate documentation structure, links, and translations
+        if: ${{ needs.classify_browser.outputs.build_required == 'false' }}
+        run: |
+          python -m pip install --requirement requirements.txt
+          python -m unittest tests.test_translation_manifest tests.test_translation_availability tests.test_translation_link_selection tests.test_site_links tests.test_public_url_boundary
 
       - name: Check out proposed Site revision
         if: ${{ needs.classify_browser.outputs.required == 'true' }}
@@ -672,10 +747,32 @@ jobs:
           BUILD_RESULT: ${{ needs.build.result }}
           CLASSIFY_RESULT: ${{ needs.classify_browser.result }}
           CHECK_RESULT: ${{ needs.check.result }}
+          BUILD_REQUIRED: ${{ needs.classify_browser.outputs.build_required }}
           BROWSER_REQUIRED: ${{ needs.classify_browser.outputs.required }}
+          FORCE_FULL: ${{ needs.classify_browser.outputs.full_required }}
         run: |
-          test "$BUILD_RESULT" = success
           test "$CLASSIFY_RESULT" = success
           test "$CHECK_RESULT" = success
-          echo "Site CI aggregate gate passed (browser_required=$BROWSER_REQUIRED)"
+          case "$FORCE_FULL" in
+            true)
+              test "$BUILD_RESULT" = success
+              test "$BROWSER_REQUIRED" = true
+              echo "Site CI full qualification aggregate gate passed"
+              ;;
+            false)
+              case "$BUILD_REQUIRED" in
+                true)
+                  test "$BUILD_RESULT" = success
+                  ;;
+                false)
+                  test "$BUILD_RESULT" = skipped
+                  ;;
+                *)
+                  echo "::error::Unexpected build requirement: $BUILD_REQUIRED"
+                  exit 1
+                  ;;
+              esac
+              echo "Site CI aggregate gate passed (build_required=$BUILD_REQUIRED, browser_required=$BROWSER_REQUIRED)"
+              ;;
+          esac
 

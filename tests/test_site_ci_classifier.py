@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import io
 import subprocess
 import sys
 import tempfile
@@ -8,16 +7,7 @@ import unittest
 from pathlib import Path
 
 from scripts.classify_site_ci import (
-    ClassificationDecision,
-    ClassificationError,
     classify_paths,
-    is_browser_path,
-    is_ci_control_path,
-    is_doc_path,
-    is_observability_path,
-    is_pwa_path,
-    normalize_path,
-    write_outputs,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -103,6 +93,8 @@ class SiteCIClassifierTests(unittest.TestCase):
     def test_ci_workflow_and_classifier_changes_fail_closed_to_full(self) -> None:
         for path in (
             ".github/workflows/build-pages.yml",
+            ".github/workflows/reference-consumer.yml",
+            ".github/workflows/site-composition-playground-cross-authority.yml",
             "scripts/classify_site_ci.py",
             "scripts/classify_site_browser_acceptance.py",
         ):
@@ -112,6 +104,31 @@ class SiteCIClassifierTests(unittest.TestCase):
                 self.assertTrue(decision.build_required)
                 self.assertTrue(decision.browser_required)
                 self.assertEqual("ci-authority-sensitive", decision.risk_class)
+
+    def test_ci_control_changes_cannot_self_exempt_even_with_docs(self) -> None:
+        decision = classify_paths(
+            [
+                "docs/index.md",
+                "README.md",
+                ".github/workflows/build-pages.yml",
+            ]
+        )
+        self.assertTrue(decision.full_required)
+        self.assertTrue(decision.build_required)
+        self.assertTrue(decision.browser_required)
+        self.assertEqual("ci-authority-sensitive", decision.risk_class)
+
+    def test_mixed_docs_and_browser_takes_strictest_scope(self) -> None:
+        decision = classify_paths(
+            [
+                "docs/index.md",
+                "stylesheets/extra.css",
+            ]
+        )
+        self.assertFalse(decision.full_required)
+        self.assertTrue(decision.build_required)
+        self.assertTrue(decision.browser_required)
+        self.assertEqual("browser-sensitive", decision.risk_class)
 
     def test_unknown_paths_fail_closed_to_full(self) -> None:
         decision = classify_paths(["some/random/unrecognized_file.xyz"])
