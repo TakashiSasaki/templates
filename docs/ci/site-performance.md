@@ -41,3 +41,8 @@ A single hosted-runner sample is not sufficient to claim an improvement; use rep
 ## Validation status
 
 The final candidate records the exact GitHub Actions run IDs and measured before/after samples in the pull request description after CI completion.
+
+## Lightweight documentation validation
+
+Pull requests modifying only documentation files bypass heavy artifact build and full browser test suites while retaining lightweight documentation structural validation.
+
