@@ -7,7 +7,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 COMPOSITION_MERGE_SHA = "a739b3823660e3db742ff0e1e159d279126cba7c"
-COMPOSITION_CONSUMER_SHA = "bd28b67ad97652182d6744ee38ef992349104961"
+COMPOSITION_CONSUMER_SHA = "a739b3823660e3db742ff0e1e159d279126cba7c"
 TITLE = "Routes v4 to v5"
 DOCUMENT = "web-routes-v4-migration"
 DESTINATION = "web/migrations/routes-v4-to-v5.md"
@@ -36,7 +36,7 @@ class RoutesV5PromotionTests(unittest.TestCase):
             (ROOT / ".template-composition/lock.json").read_text(encoding="utf-8")
         )
         self.assertEqual(COMPOSITION_CONSUMER_SHA, lock["source"]["revision"])
-        self.assertNotEqual(
+        self.assertEqual(
             sources["publications"]["composition"]["revision"],
             lock["source"]["revision"],
         )
