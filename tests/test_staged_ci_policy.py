@@ -63,8 +63,14 @@ def test_staged_ci_distinguishes_construction_and_qualification_candidates() -> 
         assert "construction candidate" in target
         assert "qualification candidate" in target
         assert "l0/l1 green ≠ merge-ready" in target
-        assert "do not stall dependency-safe construction" in target or "do not block construction on heavy ci" in target
-        assert "intermediate heads do not each require full qualification" in target or "stack-tip qualification" in target
+        assert (
+            "do not stall dependency-safe construction" in target
+            or "do not block construction on heavy ci" in target
+        )
+        assert (
+            "intermediate heads do not each require full qualification" in target
+            or "stack-tip qualification" in target
+        )
 
     assert "construction candidate" in defer
     assert "qualification candidate" in defer
