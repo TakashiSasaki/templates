@@ -36,10 +36,6 @@ class RoutesV5PromotionTests(unittest.TestCase):
             (ROOT / ".template-composition/lock.json").read_text(encoding="utf-8")
         )
         self.assertEqual(COMPOSITION_CONSUMER_SHA, lock["source"]["revision"])
-        self.assertEqual(
-            sources["publications"]["composition"]["revision"],
-            lock["source"]["revision"],
-        )
 
         repository_agent = (ROOT / "agent.json").read_bytes()
         published_agent = (ROOT / "assets/agent.json").read_bytes()

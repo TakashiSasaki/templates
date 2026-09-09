@@ -189,6 +189,8 @@ Provider-internal changes that do not affect this surface remain independently r
 
 This Site consumes the systems it provides. Its Website product uses the
 Composition `website` recipe and `capability.pwa`; its maintenance uses Policy.
+The Website consumer explicitly excludes `capability.webmcp`; provider availability
+therefore does not imply adoption.
 The relationships below are generated from their canonical declarations.
 
 | Relationship | Immutable revision | Meaning |
