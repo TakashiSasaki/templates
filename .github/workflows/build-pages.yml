@@ -675,7 +675,8 @@ jobs:
       - name: Install Japanese browser font
         if: ${{ needs.classify_browser.outputs.required == 'true' }}
         run: |
-          sudo apt-get update
+          sudo rm -f /etc/apt/sources.list.d/google-chrome.list
+          sudo apt-get update || true
           sudo apt-get install --yes --no-install-recommends fonts-ipafont-gothic
 
       - name: Check mobile layout geometry
