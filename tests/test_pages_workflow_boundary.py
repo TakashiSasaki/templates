@@ -231,6 +231,26 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
         self.assertIn("--force-full", workflow)
         self.assertIn("ci/full-qualification", workflow)
 
+    def test_forked_pull_requests_retain_conservative_build(self) -> None:
+        workflow = BUILD_WORKFLOW.read_text(encoding="utf-8")
+        build_block = workflow.split("\n  classify_browser:\n", maxsplit=1)[0]
+        self.assertIn(
+            "github.event.pull_request.head.repo.full_name != github.repository",
+            build_block,
+        )
+
+    def test_labeled_trigger_is_gated_on_qualification_labels(self) -> None:
+        import yaml
+        workflow_data = yaml.safe_load(BUILD_WORKFLOW.read_text(encoding="utf-8"))
+        jobs = workflow_data["jobs"]
+        for job_key in ("build", "classify_browser", "check", "validate"):
+            with self.subTest(job=job_key):
+                self.assertIn(job_key, jobs)
+                job_if = jobs[job_key].get("if", "")
+                self.assertIn("github.event.action != 'labeled'", job_if)
+                self.assertIn("ci/full-qualification", job_if)
+                self.assertIn("ci/full-site-verification", job_if)
+
 
 if __name__ == "__main__":
     unittest.main()

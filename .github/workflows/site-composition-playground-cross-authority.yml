@@ -22,6 +22,11 @@ concurrency:
 jobs:
   classify:
     name: Classify cross-authority acceptance requirement
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.event.action != 'labeled' ||
+      github.event.label.name == 'ci/full-qualification' ||
+      github.event.label.name == 'ci/full-site-verification'
     runs-on: ubuntu-24.04
     timeout-minutes: 2
     outputs:

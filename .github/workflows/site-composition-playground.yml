@@ -18,6 +18,11 @@ concurrency:
 jobs:
   consumer:
     name: projection consumer
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.event.action != 'labeled' ||
+      github.event.label.name == 'ci/full-qualification' ||
+      github.event.label.name == 'ci/full-site-verification'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:

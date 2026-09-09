@@ -52,7 +52,14 @@ jobs:
     if: >-
       always() &&
       github.repository == 'TakashiSasaki/templates' &&
-      (inputs.site_ref != '' || github.event_name != 'pull_request' || (needs.classify_browser.result == 'success' && needs.classify_browser.outputs.build_required == 'true'))
+      (github.event_name != 'pull_request' ||
+       github.event.action != 'labeled' ||
+       github.event.label.name == 'ci/full-qualification' ||
+       github.event.label.name == 'ci/full-site-verification') &&
+      (inputs.site_ref != '' ||
+       github.event_name != 'pull_request' ||
+       github.event.pull_request.head.repo.full_name != github.repository ||
+       (needs.classify_browser.result == 'success' && needs.classify_browser.outputs.build_required == 'true'))
     needs:
       - classify_browser
     runs-on: ubuntu-24.04
@@ -436,7 +443,10 @@ jobs:
       github.repository == 'TakashiSasaki/templates' &&
       github.event_name == 'pull_request' &&
       inputs.site_ref == '' &&
-      github.event.pull_request.head.repo.full_name == github.repository
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      (github.event.action != 'labeled' ||
+       github.event.label.name == 'ci/full-qualification' ||
+       github.event.label.name == 'ci/full-site-verification')
     runs-on: ubuntu-24.04
     outputs:
       required: ${{ steps.classify.outputs.required }}
@@ -540,7 +550,10 @@ jobs:
       github.repository == 'TakashiSasaki/templates' &&
       github.event_name == 'pull_request' &&
       inputs.site_ref == '' &&
-      github.event.pull_request.head.repo.full_name == github.repository
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      (github.event.action != 'labeled' ||
+       github.event.label.name == 'ci/full-qualification' ||
+       github.event.label.name == 'ci/full-site-verification')
     needs:
       - build
       - classify_browser
@@ -753,7 +766,10 @@ jobs:
       github.repository == 'TakashiSasaki/templates' &&
       github.event_name == 'pull_request' &&
       inputs.site_ref == '' &&
-      github.event.pull_request.head.repo.full_name == github.repository
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      (github.event.action != 'labeled' ||
+       github.event.label.name == 'ci/full-qualification' ||
+       github.event.label.name == 'ci/full-site-verification')
     needs:
       - build
       - classify_browser

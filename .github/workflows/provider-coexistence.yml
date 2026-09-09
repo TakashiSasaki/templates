@@ -21,7 +21,12 @@ concurrency:
 jobs:
   classify:
     name: Classify provider coexistence scope
-    if: github.repository == 'TakashiSasaki/templates'
+    if: >-
+      github.repository == 'TakashiSasaki/templates' &&
+      (github.event_name != 'pull_request' ||
+       github.event.action != 'labeled' ||
+       github.event.label.name == 'ci/full-qualification' ||
+       github.event.label.name == 'ci/full-site-verification')
     runs-on: ubuntu-24.04
     outputs:
       required: ${{ steps.classify.outputs.required }}
@@ -171,7 +176,13 @@ jobs:
 
   gate:
     name: Provider coexistence gate
-    if: ${{ always() && github.repository == 'TakashiSasaki/templates' }}
+    if: >-
+      always() &&
+      github.repository == 'TakashiSasaki/templates' &&
+      (github.event_name != 'pull_request' ||
+       github.event.action != 'labeled' ||
+       github.event.label.name == 'ci/full-qualification' ||
+       github.event.label.name == 'ci/full-site-verification')
     needs:
       - classify
       - coexistence

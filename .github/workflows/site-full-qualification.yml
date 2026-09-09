@@ -23,6 +23,11 @@ concurrency:
 jobs:
   classify:
     name: Classify full qualification requirement
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.event.action != 'labeled' ||
+      github.event.label.name == 'ci/full-qualification' ||
+      github.event.label.name == 'ci/full-site-verification'
     runs-on: ubuntu-24.04
     outputs:
       full_required: ${{ steps.classify.outputs.full_required }}
