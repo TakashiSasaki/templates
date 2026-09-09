@@ -55,9 +55,7 @@ def explanation(data):
         if excluded
         else ""
     )
-    return f"""<span id="self-hosting-reference-consumer"></span>
-
-## Self-hosting reference consumer
+    return f"""## Self-hosting reference consumer
 
 This Site consumes the systems it provides. Its Website product uses the
 Composition `website` recipe and `capability.pwa`; its maintenance uses Policy.{exclusion}

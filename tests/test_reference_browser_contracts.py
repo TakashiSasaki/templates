@@ -159,7 +159,7 @@ class ReferenceBrowserContractTests(unittest.TestCase):
         target = 'coexistence/#self-hosting-reference-consumer'
         self.assertEqual(landing.count('href="' + target + '"'), 2)
         from scripts.render_reference_consumer import outputs
-        self.assertIn('id="self-hosting-reference-consumer"', outputs(ROOT)["docs/policy-composition-coexistence.md"])
+        self.assertIn('## Self-hosting reference consumer', outputs(ROOT)["docs/policy-composition-coexistence.md"])
 
     def test_coexistence_translation_manifest_is_fresh(self):
         from scripts.translation_manifest import load_translation_manifest
