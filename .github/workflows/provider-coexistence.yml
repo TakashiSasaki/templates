@@ -5,6 +5,11 @@ on:
     branches:
       - site
       - codex/site-composition-playground-v1-shell
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - labeled
 
 permissions:
   contents: read
@@ -46,10 +51,33 @@ jobs:
 
       - name: Classify provider coexistence scope
         id: classify
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          FORCE_FULL_REQUESTED: ${{ github.event_name == 'push' || (github.event_name == 'pull_request' && (contains(github.event.pull_request.labels.*.name, 'ci/full-qualification') || contains(github.event.pull_request.labels.*.name, 'ci/full-site-verification'))) }}
         run: |
-          python scripts/classify_provider_coexistence.py \
-            --changed-paths "$RUNNER_TEMP/provider-coexistence-paths.txt" \
-            --output "$GITHUB_OUTPUT"
+          set -euo pipefail
+          classifier_dir="$RUNNER_TEMP/site-ci-classifier-authority"
+          rm -rf "$classifier_dir"
+          mkdir -p "$classifier_dir"
+          force_full="${FORCE_FULL_REQUESTED:-false}"
+
+          if [ "$force_full" = "true" ]; then
+            echo "required=true" >> "$GITHUB_OUTPUT"
+            echo "matched_count=all" >> "$GITHUB_OUTPUT"
+            echo "matched_paths=forced-full" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if git show "$BASE_SHA:scripts/classify_provider_coexistence.py" > "$classifier_dir/classify_provider_coexistence.py" 2>/dev/null; then
+            python -I "$classifier_dir/classify_provider_coexistence.py" \
+              --changed-paths "$RUNNER_TEMP/provider-coexistence-paths.txt" \
+              --output "$GITHUB_OUTPUT"
+          else
+            echo "required=true" >> "$GITHUB_OUTPUT"
+            echo "matched_count=all" >> "$GITHUB_OUTPUT"
+            echo "matched_paths=base-unavailable-full" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Report classification
         env:

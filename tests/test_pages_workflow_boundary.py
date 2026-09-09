@@ -74,10 +74,11 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
         self.assertIn("python-version: '3.12.13'", classifier_block)
         self.assertIn("git diff --name-only --no-renames", classifier_block)
         self.assertIn("test -s \"$RUNNER_TEMP/site-browser-paths.txt\"", classifier_block)
-        self.assertIn(
-            "python -I scripts/classify_site_browser_acceptance.py",
-            classifier_block,
-        )
+        self.assertIn("git show \"$BASE_SHA:scripts/classify_site_ci.py\"", classifier_block)
+        self.assertIn("python -I \"$classifier_dir/classify_site_ci.py\"", classifier_block)
+        self.assertNotIn("python -I scripts/classify_site_browser_acceptance.py", classifier_block)
+        self.assertNotIn("python -I scripts/classify_site_ci.py", classifier_block)
+        self.assertIn("authority_source=\"base-unavailable-full\"", classifier_block)
         self.assertIn("required: ${{ steps.classify.outputs.required }}", classifier_block)
         self.assertIn("reason: ${{ steps.classify.outputs.reason }}", classifier_block)
 
@@ -114,13 +115,23 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
             "Check Site search history",
             "Check review regressions for Site search history",
         )
+        pwa_steps = {
+            "Check PWA freshness lifecycle",
+            "Check localized PWA freshness chrome",
+            "Check PWA document commit correlation",
+            "Check PWA slow-network convergence",
+            "Check PWA freshness capability messaging",
+        }
+        pwa_condition = "if: ${{ needs.classify_browser.outputs.required == 'true' && (needs.classify_browser.outputs.pwa_required == 'true' || needs.classify_browser.outputs.full_required == 'true') }}"
+
         for index, step_name in enumerate(heavy_steps):
             with self.subTest(step=step_name):
                 marker = f"      - name: {step_name}\n"
                 start = check_block.index(marker) + len(marker)
                 next_step = check_block.find("\n      - name:", start)
                 step_body = check_block[start:] if next_step == -1 else check_block[start:next_step]
-                self.assertIn(required_condition, step_body)
+                expected_condition = pwa_condition if step_name in pwa_steps else required_condition
+                self.assertIn(expected_condition, step_body)
 
         for evidence_step in (
             "Upload mobile visual evidence",
@@ -214,7 +225,7 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
 
     def test_aggregate_ci_validate_gate_and_force_full_qualification(self) -> None:
         workflow = BUILD_WORKFLOW.read_text(encoding="utf-8")
-        self.assertIn("name: Site CI / validate", workflow)
+        self.assertIn("name: Site Construction CI / validate", workflow)
         self.assertIn("needs:\n      - build\n      - classify_browser\n      - check", workflow)
         self.assertIn("FORCE_FULL_REQUESTED:", workflow)
         self.assertIn("--force-full", workflow)

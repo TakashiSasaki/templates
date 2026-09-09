@@ -60,6 +60,7 @@ class SiteCIClassifierTests(unittest.TestCase):
         self.assertTrue(decision.core_required)
         self.assertTrue(decision.build_required)
         self.assertTrue(decision.browser_required)
+        self.assertTrue(decision.reference_consumer_required)
         self.assertFalse(decision.pwa_required)
         self.assertFalse(decision.cross_authority_required)
         self.assertEqual("browser-sensitive", decision.risk_class)
@@ -75,7 +76,28 @@ class SiteCIClassifierTests(unittest.TestCase):
         self.assertTrue(decision.build_required)
         self.assertTrue(decision.browser_required)
         self.assertTrue(decision.pwa_required)
+        self.assertTrue(decision.reference_consumer_required)
         self.assertEqual("pwa-sensitive", decision.risk_class)
+
+    def test_build_contracts_require_reference_consumer(self) -> None:
+        decision = classify_paths(["scripts/site_website_contract.py"])
+        self.assertTrue(decision.core_required)
+        self.assertTrue(decision.build_required)
+        self.assertTrue(decision.reference_consumer_required)
+        self.assertFalse(decision.browser_required)
+        self.assertFalse(decision.full_required)
+
+    def test_publication_paths_require_publication_workflow(self) -> None:
+        decision = classify_paths(
+            [
+                "scripts/prepare_repository_tree_publication.py",
+                "site-manifest.json",
+                "PUBLICATION_FRESHNESS.md",
+            ]
+        )
+        self.assertTrue(decision.core_required)
+        self.assertTrue(decision.publication_required)
+        self.assertFalse(decision.full_required)
 
     def test_cross_authority_changes_require_cross_authority(self) -> None:
         decision = classify_paths(
@@ -95,8 +117,11 @@ class SiteCIClassifierTests(unittest.TestCase):
             ".github/workflows/build-pages.yml",
             ".github/workflows/reference-consumer.yml",
             ".github/workflows/site-composition-playground-cross-authority.yml",
+            ".github/workflows/site-full-qualification.yml",
             "scripts/classify_site_ci.py",
             "scripts/classify_site_browser_acceptance.py",
+            "scripts/verify_site_full_qualification.py",
+            "tests/test_site_ci_classifier.py",
         ):
             with self.subTest(path=path):
                 decision = classify_paths([path])

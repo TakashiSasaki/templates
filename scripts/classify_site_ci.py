@@ -31,6 +31,7 @@ CI_CONTROL_EXACT_PATHS = frozenset(
         "scripts/classify_site_browser_acceptance.py",
         "scripts/classify_provider_coexistence.py",
         "scripts/classify_publication_freshness.py",
+        "scripts/verify_site_full_qualification.py",
     }
 )
 CI_CONTROL_PREFIXES = (
@@ -38,6 +39,7 @@ CI_CONTROL_PREFIXES = (
     "tests/test_site_ci_classifier",
     "tests/test_site_browser_acceptance_classifier",
     "tests/test_pages_workflow_boundary",
+    "tests/test_verify_site_full_qualification",
 )
 
 # CI Observability surfaces that do not alter the generated Site or browser runtime.
@@ -135,6 +137,41 @@ CROSS_AUTHORITY_PREFIXES = (
     "tests/test_composer_",
 )
 
+# Publication materialization, freshness, and staging surfaces.
+PUBLICATION_EXACT_PATHS = frozenset(
+    {
+        "publication-sources.json",
+        "publication-staging.json",
+        "composition.json",
+        "site-manifest.json",
+        "PUBLICATION_FRESHNESS.md",
+        "PUBLICATION_STAGING.md",
+        "scripts/advance_publication_source.py",
+        "scripts/resolve_publication_sources.py",
+        "scripts/prepare_repository_tree_publication.py",
+        "scripts/materialize_publication_assets.py",
+        "scripts/materialize_publication_staging.py",
+        "scripts/validate_provider_coexistence.py",
+        "scripts/classify_publication_freshness.py",
+        "scripts/write_publication_provenance.py",
+        "scripts/publication_contract.py",
+        "scripts/publication_contract_v4.py",
+        "scripts/publication_link_rewriter.py",
+        "scripts/assemble_publications_v3.py",
+        "scripts/publish_provider_translations.py",
+        "scripts/generate_repository_trees_composition.py",
+    }
+)
+PUBLICATION_PREFIXES = (
+    ".template-composition/",
+    "tests/test_provider_coexistence_",
+    "tests/test_publication_",
+    "tests/test_coexistence_",
+    "tests/test_assembly_materialization_",
+    "tests/test_composer_",
+    "tests/test_materialize_publication_",
+)
+
 # Reference consumer surfaces.
 REFERENCE_CONSUMER_EXACT_PATHS = frozenset(
     {
@@ -142,6 +179,7 @@ REFERENCE_CONSUMER_EXACT_PATHS = frozenset(
         "scripts/render_reference_consumer.py",
         "scripts/check_reference_website.py",
         "scripts/check_reference_pwa.py",
+        "scripts/site_website_contract.py",
     }
 )
 REFERENCE_CONSUMER_PREFIXES = ("tests/test_reference_",)
@@ -223,6 +261,12 @@ def is_cross_authority_path(path: str) -> bool:
     )
 
 
+def is_publication_path(path: str) -> bool:
+    return path in PUBLICATION_EXACT_PATHS or any(
+        path.startswith(prefix) for prefix in PUBLICATION_PREFIXES
+    )
+
+
 def is_reference_consumer_path(path: str) -> bool:
     return path in REFERENCE_CONSUMER_EXACT_PATHS or any(
         path.startswith(prefix) for prefix in REFERENCE_CONSUMER_PREFIXES
@@ -295,6 +339,7 @@ def classify_paths(
             or is_pwa_path(p)
             or is_browser_path(p)
             or is_cross_authority_path(p)
+            or is_publication_path(p)
             or is_reference_consumer_path(p)
             or is_known_runtime_path(p)
         )
@@ -354,10 +399,27 @@ def classify_paths(
     has_pwa = any(is_pwa_path(p) for p in normalized)
     has_browser = has_pwa or any(is_browser_path(p) for p in normalized)
     has_cross_auth = any(is_cross_authority_path(p) for p in normalized)
-    has_ref_consumer = any(is_reference_consumer_path(p) for p in normalized)
+    has_publication = has_cross_auth or any(is_publication_path(p) for p in normalized)
+    has_ref_consumer = (
+        has_pwa
+        or has_browser
+        or any(is_reference_consumer_path(p) for p in normalized)
+        or any(
+            p in {
+                "zensical.template.toml",
+                "site-manifest.json",
+                "publication-sources.json",
+                "composition.json",
+                "scripts/site_website_contract.py",
+            }
+            for p in normalized
+        )
+        or any(p.startswith(".template-composition/") for p in normalized)
+    )
     has_runtime = (
         has_browser
         or has_cross_auth
+        or has_publication
         or has_ref_consumer
         or any(is_known_runtime_path(p) for p in normalized)
     )
@@ -367,6 +429,8 @@ def classify_paths(
     risk_class = "runtime-sensitive"
     if has_cross_auth:
         risk_class = "cross-authority-sensitive"
+    elif has_publication:
+        risk_class = "publication-sensitive"
     elif has_pwa:
         risk_class = "pwa-sensitive"
     elif has_browser:
@@ -379,7 +443,7 @@ def classify_paths(
         pwa_required=has_pwa,
         reference_consumer_required=has_ref_consumer,
         cross_authority_required=has_cross_auth,
-        publication_required=has_cross_auth,
+        publication_required=has_publication,
         full_required=False,
         risk_class=risk_class,
         reason=f"capabilities required: {risk_class}",

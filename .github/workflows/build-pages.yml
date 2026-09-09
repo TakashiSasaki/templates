@@ -495,17 +495,26 @@ jobs:
               --force-full "$force_full" \
               --output "$GITHUB_OUTPUT"
           else
-            echo "authority_source=base-unavailable-full" >> "$GITHUB_OUTPUT"
-            python -I scripts/classify_site_ci.py \
-              --changed-paths "$RUNNER_TEMP/site-browser-paths.txt" \
-              --force-full true \
-              --output "$GITHUB_OUTPUT"
+            authority_source="base-unavailable-full"
+            {
+              echo "authority_source=$authority_source"
+              echo "core_required=true"
+              echo "build_required=true"
+              echo "browser_required=true"
+              echo "pwa_required=true"
+              echo "reference_consumer_required=true"
+              echo "cross_authority_required=true"
+              echo "publication_required=true"
+              echo "full_required=true"
+              echo "required=true"
+              echo "risk_class=ci-authority-sensitive"
+              echo "reason=base-classifier-unavailable-full"
+              echo "changed_count=unknown"
+              echo "requiring_count=unknown"
+              echo "requiring_paths=all"
+            } >> "$GITHUB_OUTPUT"
+            exit 0
           fi
-
-          python -I scripts/classify_site_browser_acceptance.py \
-            --changed-paths "$RUNNER_TEMP/site-browser-paths.txt" \
-            --force-full "${FORCE_FULL_REQUESTED:-false}" \
-            --output "$GITHUB_OUTPUT"
 
       - name: Record browser acceptance selection
         env:
@@ -544,6 +553,7 @@ jobs:
           CLASSIFIER_RESULT: ${{ needs.classify_browser.result }}
           BROWSER_REQUIRED: ${{ needs.classify_browser.outputs.required }}
           BUILD_REQUIRED: ${{ needs.classify_browser.outputs.build_required }}
+          PWA_REQUIRED: ${{ needs.classify_browser.outputs.pwa_required }}
         run: |
           test "$CLASSIFIER_RESULT" = success
           case "$BUILD_REQUIRED" in
@@ -563,6 +573,14 @@ jobs:
               ;;
             *)
               echo "::error::Unexpected browser acceptance classification: $BROWSER_REQUIRED"
+              exit 1
+              ;;
+          esac
+          case "$PWA_REQUIRED" in
+            true|false)
+              ;;
+            *)
+              echo "::error::Unexpected PWA acceptance classification: $PWA_REQUIRED"
               exit 1
               ;;
           esac
@@ -662,35 +680,35 @@ jobs:
             --output build/mobile-visual/glossary-locale-chrome.json
 
       - name: Check PWA freshness lifecycle
-        if: ${{ needs.classify_browser.outputs.required == 'true' }}
+        if: ${{ needs.classify_browser.outputs.required == 'true' && (needs.classify_browser.outputs.pwa_required == 'true' || needs.classify_browser.outputs.full_required == 'true') }}
         run: |
           python scripts/check_pwa_freshness.py \
             --site-root build/site \
             --output build/mobile-visual/pwa-freshness.json
 
       - name: Check localized PWA freshness chrome
-        if: ${{ needs.classify_browser.outputs.required == 'true' }}
+        if: ${{ needs.classify_browser.outputs.required == 'true' && (needs.classify_browser.outputs.pwa_required == 'true' || needs.classify_browser.outputs.full_required == 'true') }}
         run: |
           python scripts/check_pwa_locale_chrome.py \
             --site-root build/site \
             --output build/mobile-visual/pwa-locale-chrome.json
 
       - name: Check PWA document commit correlation
-        if: ${{ needs.classify_browser.outputs.required == 'true' }}
+        if: ${{ needs.classify_browser.outputs.required == 'true' && (needs.classify_browser.outputs.pwa_required == 'true' || needs.classify_browser.outputs.full_required == 'true') }}
         run: |
           python scripts/check_pwa_commit_regressions.py \
             --site-root build/site \
             --output build/mobile-visual/pwa-document-commit.json
 
       - name: Check PWA slow-network convergence
-        if: ${{ needs.classify_browser.outputs.required == 'true' }}
+        if: ${{ needs.classify_browser.outputs.required == 'true' && (needs.classify_browser.outputs.pwa_required == 'true' || needs.classify_browser.outputs.full_required == 'true') }}
         run: |
           python scripts/check_pwa_slow_convergence.py \
             --site-root build/site \
             --output build/mobile-visual/pwa-slow-convergence.json
 
       - name: Check PWA freshness capability messaging
-        if: ${{ needs.classify_browser.outputs.required == 'true' }}
+        if: ${{ needs.classify_browser.outputs.required == 'true' && (needs.classify_browser.outputs.pwa_required == 'true' || needs.classify_browser.outputs.full_required == 'true') }}
         run: |
           python scripts/check_pwa_capabilities.py \
             --site-root build/site \
@@ -729,7 +747,7 @@ jobs:
           retention-days: 7
 
   validate:
-    name: Site CI / validate
+    name: Site Construction CI / validate
     if: >-
       always() &&
       github.repository == 'TakashiSasaki/templates' &&
@@ -757,7 +775,7 @@ jobs:
             true)
               test "$BUILD_RESULT" = success
               test "$BROWSER_REQUIRED" = true
-              echo "Site CI full qualification aggregate gate passed"
+              echo "Site Construction CI gate passed (full qualification mode)"
               ;;
             false)
               case "$BUILD_REQUIRED" in
@@ -772,7 +790,7 @@ jobs:
                   exit 1
                   ;;
               esac
-              echo "Site CI aggregate gate passed (build_required=$BUILD_REQUIRED, browser_required=$BROWSER_REQUIRED)"
+              echo "Site Construction CI aggregate gate passed (build_required=$BUILD_REQUIRED, browser_required=$BROWSER_REQUIRED)"
               ;;
           esac
 

@@ -91,10 +91,15 @@ class PublicationFreshnessWorkflowTests(unittest.TestCase):
         )
         self.assertIn('test -s "$RUNNER_TEMP/publication-freshness-paths.txt"', run)
         self.assertIn(
-            "python -I site-source/scripts/classify_site_browser_acceptance.py",
+            'git -C site-source show "$BASE_SHA:scripts/classify_site_ci.py"',
             run,
         )
-        self.assertIn('--output "$GITHUB_OUTPUT"', run)
+        self.assertIn('python3 -I "$classifier_dir/classify_site_ci.py"', run)
+        self.assertNotIn(
+            "site-source/scripts/classify_site_browser_acceptance.py",
+            run,
+        )
+        self.assertIn("authority_source=base-unavailable-full", run)
 
         selection_report = steps["Report candidate build selection"]
         selection_run = selection_report["run"]
