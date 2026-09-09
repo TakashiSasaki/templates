@@ -177,6 +177,38 @@ class SiteCIClassifierTests(unittest.TestCase):
         self.assertTrue(decision.publication_required)
         self.assertEqual("cross-authority-sensitive", decision.risk_class)
 
+    def test_cross_authority_playground_scripts_require_cross_authority(self) -> None:
+        scripts = (
+            "scripts/check_composition_playground_cross_authority.py",
+            "scripts/check_composition_playground_webmcp_browser.py",
+            "scripts/check_composition_playground_latest_five_browser.py",
+            "scripts/check_composition_playground_final_browser.py",
+            "scripts/check_composition_playground_final_grid_browser.py",
+        )
+        for ca_script in scripts:
+            with self.subTest(script=ca_script):
+                decision = classify_paths([ca_script])
+                self.assertTrue(decision.core_required)
+                self.assertTrue(decision.build_required)
+                self.assertTrue(decision.browser_required)
+                self.assertTrue(decision.cross_authority_required)
+                self.assertTrue(decision.publication_required)
+                self.assertTrue(decision.reference_consumer_required)
+                self.assertTrue(decision.freshness_candidate_required)
+                self.assertFalse(decision.full_required)
+                self.assertEqual("cross-authority-sensitive", decision.risk_class)
+
+        decision = classify_paths(
+            ["tests/test_composition_playground_cross_authority_workflow.py"]
+        )
+        self.assertTrue(decision.core_required)
+        self.assertTrue(decision.build_required)
+        self.assertTrue(decision.cross_authority_required)
+        self.assertTrue(decision.publication_required)
+        self.assertFalse(decision.browser_required)
+        self.assertFalse(decision.full_required)
+        self.assertEqual("cross-authority-sensitive", decision.risk_class)
+
     def test_ci_workflow_and_classifier_changes_fail_closed_to_full(self) -> None:
         for path in (
             ".github/workflows/build-pages.yml",

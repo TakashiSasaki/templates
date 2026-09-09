@@ -130,6 +130,11 @@ CROSS_AUTHORITY_EXACT_PATHS = frozenset(
         "scripts/publication_contract.py",
         "scripts/publication_contract_v4.py",
         "scripts/publication_link_rewriter.py",
+        "scripts/check_composition_playground_cross_authority.py",
+        "scripts/check_composition_playground_webmcp_browser.py",
+        "scripts/check_composition_playground_latest_five_browser.py",
+        "scripts/check_composition_playground_final_browser.py",
+        "scripts/check_composition_playground_final_grid_browser.py",
     }
 )
 CROSS_AUTHORITY_PREFIXES = (
@@ -139,6 +144,7 @@ CROSS_AUTHORITY_PREFIXES = (
     "tests/test_coexistence_",
     "tests/test_assembly_materialization_",
     "tests/test_composer_",
+    "tests/test_composition_playground_cross_authority",
 )
 
 # Publication materialization, freshness, and staging surfaces.

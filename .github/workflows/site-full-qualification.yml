@@ -23,10 +23,13 @@ jobs:
   classify:
     name: Classify full qualification requirement
     if: >-
-      github.event_name != 'pull_request' ||
-      github.event.action != 'labeled' ||
-      github.event.label.name == 'ci/full-qualification' ||
-      github.event.label.name == 'ci/full-site-verification'
+      github.repository == 'TakashiSasaki/templates' &&
+      (github.event_name != 'pull_request' ||
+       github.event.pull_request.head.repo.full_name == github.repository) &&
+      (github.event_name != 'pull_request' ||
+       github.event.action != 'labeled' ||
+       github.event.label.name == 'ci/full-qualification' ||
+       github.event.label.name == 'ci/full-site-verification')
     runs-on: ubuntu-24.04
     outputs:
       full_required: ${{ steps.classify.outputs.full_required }}
@@ -81,7 +84,13 @@ jobs:
   validate:
     name: Site Full Qualification / validate
     needs: classify
-    if: ${{ always() && needs.classify.result == 'success' && needs.classify.outputs.full_required == 'true' }}
+    if: >-
+      always() &&
+      github.repository == 'TakashiSasaki/templates' &&
+      needs.classify.result == 'success' &&
+      needs.classify.outputs.full_required == 'true' &&
+      (github.event_name != 'pull_request' ||
+       github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
