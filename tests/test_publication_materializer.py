@@ -122,6 +122,12 @@ class PublicationMaterializerTests(unittest.TestCase):
                 playground_pub.check_directory(directory)
             self.assertEqual("INVALID_PLAYGROUND_PUBLICATION", ctx.exception.code)
 
+    def test_materializer_script_defines_descriptor_contract(self) -> None:
+        source = (ROOT / "scripts" / "materialize_publication.py").read_text(encoding="utf-8")
+        self.assertIn('"provider": "composition"', source)
+        self.assertIn('"semantic_revision": semantic_revision', source)
+        self.assertIn('"publication-descriptor.json"', source)
+
 
 if __name__ == "__main__":
     unittest.main()
