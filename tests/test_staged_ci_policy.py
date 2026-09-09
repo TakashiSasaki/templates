@@ -69,3 +69,30 @@ def test_staged_ci_distinguishes_construction_and_qualification_candidates() -> 
     assert "construction candidate" in defer
     assert "qualification candidate" in defer
 
+
+def test_ci_applicability_classifier_contract_is_canonical() -> None:
+    exact = EXACT_HEAD_RULE.read_text(encoding="utf-8").lower()
+    docs = DOCS.read_text(encoding="utf-8").lower()
+
+    for target in (exact, docs):
+        assert "classifier contract" in target
+        assert "base-authoritative" in target
+        assert "deterministic" in target
+        assert "fail-closed" in target
+        assert "self-exempt" in target
+        assert "explicit escalation" in target
+        for risk_class in (
+            "documentation-only",
+            "tests-only",
+            "content",
+            "runtime-sensitive",
+            "browser-sensitive",
+            "publication-sensitive",
+            "cross-authority-sensitive",
+            "distribution-sensitive",
+            "ci-authority-sensitive",
+            "unknown",
+        ):
+            assert risk_class in target
+
+

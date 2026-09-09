@@ -43,6 +43,39 @@ is meaningful. It is not equivalent to `result = passed`.
 
 When applicability depends on changed paths, dependency maps, classifiers, or other repository-controlled logic, use the canonical exact-head CI applicability requirements: bind the decision to the relevant candidate and inputs, fail closed on ambiguity, and do not allow a changing classifier to silently self-exempt. An explicit full-verification checkpoint may override selective execution when repository authority requires broader evidence.
 
+## Risk/applicability classifier contract
+
+To safely use lightweight construction CI without weakening qualification, a repository classifier must satisfy the canonical **classifier contract**:
+
+| Property | Requirement | Rational |
+| --- | --- | --- |
+| **Base-authoritative** | Classifier logic resolves from target base (e.g. `origin/main` / `$BASE_SHA`), not proposed head | Prevents untrusted changes from altering their own qualification rules |
+| **Deterministic** | Computed purely from exact repository-relative changed paths | Ensures consistent, reproducible decisions across environments |
+| **Fail-closed** | Unknown paths, missing diff, malformed input, or base lookup errors require full verification | Prevents silent verification bypass on anomalous conditions |
+| **Self-exemption prohibited** | Modifications to the classifier or CI control files force full/conservative verification | Prevents circular justification or weakened governance |
+| **CI workflow sensitive** | Modifications to `.github/workflows/**` require full/conservative verification | Ensures workflow mutations undergo comprehensive validation |
+| **Explicit escalation** | Manual triggers (`ci/full-*-verification` label, `workflow_dispatch`) force full verification | Allows maintainers to run complete suites on demand |
+
+### Standard risk classes
+
+Policy defines standard semantic risk classes. A repository maps its internal path tables to these categories:
+
+```text
+documentation-only        (L0/L1 only: formatting, link/nav validation)
+tests-only                (L0/L1 + focused test suite)
+content                   (L0/L1 + content assembly)
+runtime-sensitive         (L0/L1 + runtime unit & compatibility tests)
+browser-sensitive         (L0/L1 + browser & visual acceptance)
+publication-sensitive     (L0/L1 + publication materialization & schema checks)
+cross-authority-sensitive (L0/L1 + multi-authority integration tests)
+distribution-sensitive    (L0/L1 + packaging, installer, release matrix)
+ci-authority-sensitive    (Full qualification: workflow or classifier changed)
+unknown                   (Fail-closed: full qualification)
+```
+
+Policy governs the **semantic contract and guarantees** of the classifier; each individual repository remains authoritative for its concrete **path-to-class mappings**.
+
+
 ## Construction candidate vs qualification candidate
 
 Staged CI defines two distinct candidate roles across the revision lifecycle:
