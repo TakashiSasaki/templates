@@ -181,6 +181,43 @@ class ProviderCoexistenceClassifierTests(unittest.TestCase):
             )
             self.assertFalse(output.exists())
 
+    def test_force_full_override(self) -> None:
+        required, matched = classify_paths(["docs/index.md"], force_full=True)
+        self.assertTrue(required)
+        self.assertEqual(matched, ("forced-full",))
+
+    def test_cli_force_full(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            changed = root / "changed.txt"
+            output = root / "github-output.txt"
+            changed.write_text("docs/index.md\n", encoding="utf-8")
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(CLASSIFIER),
+                    "--changed-paths",
+                    str(changed),
+                    "--force-full",
+                    "true",
+                    "--output",
+                    str(output),
+                ],
+                cwd=ROOT,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(
+                output.read_text(encoding="utf-8"),
+                "required=true\n"
+                "matched_count=1\n"
+                "matched_paths=forced-full\n",
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

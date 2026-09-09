@@ -6,6 +6,7 @@ on:
       - opened
       - synchronize
       - reopened
+      - labeled
 
 permissions:
   contents: read
@@ -15,8 +16,63 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  classify:
+    name: Classify Playground consumer requirement
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.event.action != 'labeled' ||
+      github.event.label.name == 'ci/full-qualification' ||
+      github.event.label.name == 'ci/full-site-verification'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    outputs:
+      required: ${{ steps.classify.outputs.browser_required }}
+      reason: ${{ steps.classify.outputs.reason }}
+    steps:
+      - name: Check out repository history for change classification
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12.13'
+      - name: Classify Playground consumer requirement
+        id: classify
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          FORCE_FULL_REQUESTED: ${{ github.event_name == 'push' || (github.event_name == 'pull_request' && (contains(github.event.pull_request.labels.*.name, 'ci/full-qualification') || contains(github.event.pull_request.labels.*.name, 'ci/full-site-verification'))) }}
+        run: |
+          set -euo pipefail
+          classifier_dir="$RUNNER_TEMP/site-ci-classifier-authority"
+          rm -rf "$classifier_dir"
+          mkdir -p "$classifier_dir"
+          force_full="${FORCE_FULL_REQUESTED:-false}"
+          git diff --name-only --no-renames "$BASE_SHA" "$HEAD_SHA" > "$RUNNER_TEMP/changed-paths.txt"
+          if git show "$BASE_SHA:scripts/classify_site_ci.py" > "$classifier_dir/classify_site_ci.py" 2>/dev/null; then
+            output_file="$RUNNER_TEMP/site-ci-output.txt"
+            python3 -I "$classifier_dir/classify_site_ci.py" \
+              --changed-paths "$RUNNER_TEMP/changed-paths.txt" \
+              --force-full "$force_full" \
+              --output "$output_file"
+            req="$(grep '^browser_required=' "$output_file" | cut -d= -f2)"
+            reason="$(grep '^reason=' "$output_file" | cut -d= -f2)"
+            echo "browser_required=$req" >> "$GITHUB_OUTPUT"
+            echo "reason=$reason" >> "$GITHUB_OUTPUT"
+          else
+            echo "browser_required=true" >> "$GITHUB_OUTPUT"
+            echo "reason=base-classifier-unavailable" >> "$GITHUB_OUTPUT"
+          fi
+
   consumer:
     name: projection consumer
+    needs: classify
+    if: >-
+      always() &&
+      needs.classify.result == 'success' &&
+      needs.classify.outputs.required == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:

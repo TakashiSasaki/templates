@@ -5,6 +5,11 @@ on:
     branches:
       - site
       - codex/site-composition-playground-v1-shell
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - labeled
 
 permissions:
   contents: read
@@ -16,7 +21,12 @@ concurrency:
 jobs:
   classify:
     name: Classify provider coexistence scope
-    if: github.repository == 'TakashiSasaki/templates'
+    if: >-
+      github.repository == 'TakashiSasaki/templates' &&
+      (github.event_name != 'pull_request' ||
+       github.event.action != 'labeled' ||
+       github.event.label.name == 'ci/full-qualification' ||
+       github.event.label.name == 'ci/full-site-verification')
     runs-on: ubuntu-24.04
     outputs:
       required: ${{ steps.classify.outputs.required }}
@@ -46,10 +56,51 @@ jobs:
 
       - name: Classify provider coexistence scope
         id: classify
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          FORCE_FULL_REQUESTED: ${{ github.event_name == 'push' || (github.event_name == 'pull_request' && (contains(github.event.pull_request.labels.*.name, 'ci/full-qualification') || contains(github.event.pull_request.labels.*.name, 'ci/full-site-verification'))) }}
         run: |
-          python scripts/classify_provider_coexistence.py \
-            --changed-paths "$RUNNER_TEMP/provider-coexistence-paths.txt" \
-            --output "$GITHUB_OUTPUT"
+          set -euo pipefail
+          classifier_dir="$RUNNER_TEMP/site-ci-classifier-authority"
+          rm -rf "$classifier_dir"
+          mkdir -p "$classifier_dir"
+          force_full="${FORCE_FULL_REQUESTED:-false}"
+
+          if [ "$force_full" = "true" ]; then
+            echo "required=true" >> "$GITHUB_OUTPUT"
+            echo "matched_count=all" >> "$GITHUB_OUTPUT"
+            echo "matched_paths=forced-full" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Evaluate unified Site CI classifier for automatic full qualification or cross-authority escalation
+          if git show "$BASE_SHA:scripts/classify_site_ci.py" > "$classifier_dir/classify_site_ci.py" 2>/dev/null; then
+            site_output="$RUNNER_TEMP/site-ci-output.txt"
+            python3 -I "$classifier_dir/classify_site_ci.py" \
+              --changed-paths "$RUNNER_TEMP/provider-coexistence-paths.txt" \
+              --force-full "$force_full" \
+              --output "$site_output"
+            full_req="$(grep '^full_required=' "$site_output" | cut -d= -f2 || echo "false")"
+            cross_req="$(grep '^cross_authority_required=' "$site_output" | cut -d= -f2 || echo "false")"
+            coex_req="$(grep '^coexistence_required=' "$site_output" | cut -d= -f2 || echo "")"
+            if [ "$full_req" = "true" ] || [ "$cross_req" = "true" ] || [ "$coex_req" = "true" ]; then
+              echo "required=true" >> "$GITHUB_OUTPUT"
+              echo "matched_count=all" >> "$GITHUB_OUTPUT"
+              echo "matched_paths=automatic-full-qualification" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+
+          if git show "$BASE_SHA:scripts/classify_provider_coexistence.py" > "$classifier_dir/classify_provider_coexistence.py" 2>/dev/null; then
+            python -I "$classifier_dir/classify_provider_coexistence.py" \
+              --changed-paths "$RUNNER_TEMP/provider-coexistence-paths.txt" \
+              --output "$GITHUB_OUTPUT"
+          else
+            echo "required=true" >> "$GITHUB_OUTPUT"
+            echo "matched_count=all" >> "$GITHUB_OUTPUT"
+            echo "matched_paths=base-unavailable-full" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Report classification
         env:
@@ -143,7 +194,13 @@ jobs:
 
   gate:
     name: Provider coexistence gate
-    if: ${{ always() && github.repository == 'TakashiSasaki/templates' }}
+    if: >-
+      always() &&
+      github.repository == 'TakashiSasaki/templates' &&
+      (github.event_name != 'pull_request' ||
+       github.event.action != 'labeled' ||
+       github.event.label.name == 'ci/full-qualification' ||
+       github.event.label.name == 'ci/full-site-verification')
     needs:
       - classify
       - coexistence

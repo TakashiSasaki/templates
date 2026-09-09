@@ -4,6 +4,11 @@ on:
   pull_request:
     branches:
       - site
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - labeled
   workflow_call:
     inputs:
       site_ref:
@@ -44,7 +49,19 @@ concurrency:
 
 jobs:
   build:
-    if: github.repository == 'TakashiSasaki/templates'
+    if: >-
+      always() &&
+      github.repository == 'TakashiSasaki/templates' &&
+      (github.event_name != 'pull_request' ||
+       github.event.action != 'labeled' ||
+       github.event.label.name == 'ci/full-qualification' ||
+       github.event.label.name == 'ci/full-site-verification') &&
+      (inputs.site_ref != '' ||
+       github.event_name != 'pull_request' ||
+       github.event.pull_request.head.repo.full_name != github.repository ||
+       (needs.classify_browser.result == 'success' && needs.classify_browser.outputs.build_required == 'true'))
+    needs:
+      - classify_browser
     runs-on: ubuntu-24.04
 
     steps:
@@ -426,7 +443,10 @@ jobs:
       github.repository == 'TakashiSasaki/templates' &&
       github.event_name == 'pull_request' &&
       inputs.site_ref == '' &&
-      github.event.pull_request.head.repo.full_name == github.repository
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      (github.event.action != 'labeled' ||
+       github.event.label.name == 'ci/full-qualification' ||
+       github.event.label.name == 'ci/full-site-verification')
     runs-on: ubuntu-24.04
     outputs:
       required: ${{ steps.classify.outputs.required }}
@@ -434,6 +454,15 @@ jobs:
       changed_count: ${{ steps.classify.outputs.changed_count }}
       requiring_count: ${{ steps.classify.outputs.requiring_count }}
       requiring_paths: ${{ steps.classify.outputs.requiring_paths }}
+      build_required: ${{ steps.classify.outputs.build_required }}
+      browser_required: ${{ steps.classify.outputs.browser_required }}
+      pwa_required: ${{ steps.classify.outputs.pwa_required }}
+      reference_consumer_required: ${{ steps.classify.outputs.reference_consumer_required }}
+      cross_authority_required: ${{ steps.classify.outputs.cross_authority_required }}
+      publication_required: ${{ steps.classify.outputs.publication_required }}
+      full_required: ${{ steps.classify.outputs.full_required }}
+      risk_class: ${{ steps.classify.outputs.risk_class }}
+      authority_source: ${{ steps.classify.outputs.authority_source }}
 
     steps:
       - name: Check out exact Site candidate for browser classification
@@ -458,10 +487,44 @@ jobs:
 
       - name: Classify browser acceptance scope
         id: classify
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          FORCE_FULL_REQUESTED: ${{ github.event_name == 'push' || (github.event_name == 'pull_request' && (contains(github.event.pull_request.labels.*.name, 'ci/full-qualification') || contains(github.event.pull_request.labels.*.name, 'ci/full-site-verification'))) }}
         run: |
-          python -I scripts/classify_site_browser_acceptance.py \
-            --changed-paths "$RUNNER_TEMP/site-browser-paths.txt" \
-            --output "$GITHUB_OUTPUT"
+          set -euo pipefail
+          classifier_dir="$RUNNER_TEMP/site-ci-classifier-authority"
+          rm -rf "$classifier_dir"
+          mkdir -p "$classifier_dir"
+          force_full="${FORCE_FULL_REQUESTED:-false}"
+
+          if git show "$BASE_SHA:scripts/classify_site_ci.py" > "$classifier_dir/classify_site_ci.py" 2>/dev/null; then
+            echo "authority_source=base" >> "$GITHUB_OUTPUT"
+            python -I "$classifier_dir/classify_site_ci.py" \
+              --changed-paths "$RUNNER_TEMP/site-browser-paths.txt" \
+              --force-full "$force_full" \
+              --output "$GITHUB_OUTPUT"
+          else
+            authority_source="base-unavailable-full"
+            {
+              echo "authority_source=$authority_source"
+              echo "core_required=true"
+              echo "build_required=true"
+              echo "browser_required=true"
+              echo "pwa_required=true"
+              echo "reference_consumer_required=true"
+              echo "cross_authority_required=true"
+              echo "publication_required=true"
+              echo "full_required=true"
+              echo "required=true"
+              echo "risk_class=ci-authority-sensitive"
+              echo "reason=base-classifier-unavailable-full"
+              echo "changed_count=unknown"
+              echo "requiring_count=unknown"
+              echo "requiring_paths=all"
+            } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
 
       - name: Record browser acceptance selection
         env:
@@ -487,7 +550,10 @@ jobs:
       github.repository == 'TakashiSasaki/templates' &&
       github.event_name == 'pull_request' &&
       inputs.site_ref == '' &&
-      github.event.pull_request.head.repo.full_name == github.repository
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      (github.event.action != 'labeled' ||
+       github.event.label.name == 'ci/full-qualification' ||
+       github.event.label.name == 'ci/full-site-verification')
     needs:
       - build
       - classify_browser
@@ -499,9 +565,22 @@ jobs:
           BUILD_RESULT: ${{ needs.build.result }}
           CLASSIFIER_RESULT: ${{ needs.classify_browser.result }}
           BROWSER_REQUIRED: ${{ needs.classify_browser.outputs.required }}
+          BUILD_REQUIRED: ${{ needs.classify_browser.outputs.build_required }}
+          PWA_REQUIRED: ${{ needs.classify_browser.outputs.pwa_required }}
         run: |
-          test "$BUILD_RESULT" = success
           test "$CLASSIFIER_RESULT" = success
+          case "$BUILD_REQUIRED" in
+            true)
+              test "$BUILD_RESULT" = success
+              ;;
+            false)
+              test "$BUILD_RESULT" = skipped
+              ;;
+            *)
+              echo "::error::Unexpected build requirement: $BUILD_REQUIRED"
+              exit 1
+              ;;
+          esac
           case "$BROWSER_REQUIRED" in
             true|false)
               ;;
@@ -510,18 +589,48 @@ jobs:
               exit 1
               ;;
           esac
+          case "$PWA_REQUIRED" in
+            true|false)
+              ;;
+            *)
+              echo "::error::Unexpected PWA acceptance classification: $PWA_REQUIRED"
+              exit 1
+              ;;
+          esac
 
       - name: Record browser acceptance outcome
         env:
           BROWSER_REQUIRED: ${{ needs.classify_browser.outputs.required }}
           BROWSER_REASON: ${{ needs.classify_browser.outputs.reason }}
+          BUILD_REQUIRED: ${{ needs.classify_browser.outputs.build_required }}
         run: |
           {
             echo '### Site browser acceptance'
             echo
             echo "- required: \`$BROWSER_REQUIRED\`"
+            echo "- build_required: \`$BUILD_REQUIRED\`"
             echo "- reason: \`$BROWSER_REASON\`"
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Check out proposed Site revision for documentation validation
+        if: ${{ needs.classify_browser.outputs.build_required == 'false' }}
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Python for documentation validation
+        if: ${{ needs.classify_browser.outputs.build_required == 'false' }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Validate documentation structure, links, and translations
+        if: ${{ needs.classify_browser.outputs.build_required == 'false' }}
+        run: |
+          python -m pip install --requirement requirements.txt
+          python -m unittest tests.test_translation_manifest tests.test_translation_availability tests.test_translation_link_selection tests.test_site_links tests.test_public_url_boundary
 
       - name: Check out proposed Site revision
         if: ${{ needs.classify_browser.outputs.required == 'true' }}
@@ -566,7 +675,8 @@ jobs:
       - name: Install Japanese browser font
         if: ${{ needs.classify_browser.outputs.required == 'true' }}
         run: |
-          sudo apt-get update
+          sudo rm -f /etc/apt/sources.list.d/google-chrome.list
+          sudo apt-get update || true
           sudo apt-get install --yes --no-install-recommends fonts-ipafont-gothic
 
       - name: Check mobile layout geometry
@@ -584,35 +694,35 @@ jobs:
             --output build/mobile-visual/glossary-locale-chrome.json
 
       - name: Check PWA freshness lifecycle
-        if: ${{ needs.classify_browser.outputs.required == 'true' }}
+        if: ${{ needs.classify_browser.outputs.required == 'true' && (needs.classify_browser.outputs.pwa_required == 'true' || needs.classify_browser.outputs.full_required == 'true') }}
         run: |
           python scripts/check_pwa_freshness.py \
             --site-root build/site \
             --output build/mobile-visual/pwa-freshness.json
 
       - name: Check localized PWA freshness chrome
-        if: ${{ needs.classify_browser.outputs.required == 'true' }}
+        if: ${{ needs.classify_browser.outputs.required == 'true' && (needs.classify_browser.outputs.pwa_required == 'true' || needs.classify_browser.outputs.full_required == 'true') }}
         run: |
           python scripts/check_pwa_locale_chrome.py \
             --site-root build/site \
             --output build/mobile-visual/pwa-locale-chrome.json
 
       - name: Check PWA document commit correlation
-        if: ${{ needs.classify_browser.outputs.required == 'true' }}
+        if: ${{ needs.classify_browser.outputs.required == 'true' && (needs.classify_browser.outputs.pwa_required == 'true' || needs.classify_browser.outputs.full_required == 'true') }}
         run: |
           python scripts/check_pwa_commit_regressions.py \
             --site-root build/site \
             --output build/mobile-visual/pwa-document-commit.json
 
       - name: Check PWA slow-network convergence
-        if: ${{ needs.classify_browser.outputs.required == 'true' }}
+        if: ${{ needs.classify_browser.outputs.required == 'true' && (needs.classify_browser.outputs.pwa_required == 'true' || needs.classify_browser.outputs.full_required == 'true') }}
         run: |
           python scripts/check_pwa_slow_convergence.py \
             --site-root build/site \
             --output build/mobile-visual/pwa-slow-convergence.json
 
       - name: Check PWA freshness capability messaging
-        if: ${{ needs.classify_browser.outputs.required == 'true' }}
+        if: ${{ needs.classify_browser.outputs.required == 'true' && (needs.classify_browser.outputs.pwa_required == 'true' || needs.classify_browser.outputs.full_required == 'true') }}
         run: |
           python scripts/check_pwa_capabilities.py \
             --site-root build/site \
@@ -649,3 +759,55 @@ jobs:
           path: build/search-history
           if-no-files-found: warn
           retention-days: 7
+
+  validate:
+    name: Site Construction CI / validate
+    if: >-
+      always() &&
+      github.repository == 'TakashiSasaki/templates' &&
+      github.event_name == 'pull_request' &&
+      inputs.site_ref == '' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      (github.event.action != 'labeled' ||
+       github.event.label.name == 'ci/full-qualification' ||
+       github.event.label.name == 'ci/full-site-verification')
+    needs:
+      - build
+      - classify_browser
+      - check
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Verify build, classifier, and browser gate results
+        env:
+          BUILD_RESULT: ${{ needs.build.result }}
+          CLASSIFY_RESULT: ${{ needs.classify_browser.result }}
+          CHECK_RESULT: ${{ needs.check.result }}
+          BUILD_REQUIRED: ${{ needs.classify_browser.outputs.build_required }}
+          BROWSER_REQUIRED: ${{ needs.classify_browser.outputs.required }}
+          FORCE_FULL: ${{ needs.classify_browser.outputs.full_required }}
+        run: |
+          test "$CLASSIFY_RESULT" = success
+          test "$CHECK_RESULT" = success
+          case "$FORCE_FULL" in
+            true)
+              test "$BUILD_RESULT" = success
+              test "$BROWSER_REQUIRED" = true
+              echo "Site Construction CI gate passed (full qualification mode)"
+              ;;
+            false)
+              case "$BUILD_REQUIRED" in
+                true)
+                  test "$BUILD_RESULT" = success
+                  ;;
+                false)
+                  test "$BUILD_RESULT" = skipped
+                  ;;
+                *)
+                  echo "::error::Unexpected build requirement: $BUILD_REQUIRED"
+                  exit 1
+                  ;;
+              esac
+              echo "Site Construction CI aggregate gate passed (build_required=$BUILD_REQUIRED, browser_required=$BROWSER_REQUIRED)"
+              ;;
+          esac
+
