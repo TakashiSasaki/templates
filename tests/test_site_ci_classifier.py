@@ -65,6 +65,17 @@ class SiteCIClassifierTests(unittest.TestCase):
         self.assertFalse(decision.cross_authority_required)
         self.assertEqual("browser-sensitive", decision.risk_class)
 
+    def test_playground_assets_and_scripts_require_browser(self) -> None:
+        decision = classify_paths(
+            [
+                "assets/javascripts/composition-playground-explain.js",
+                "scripts/check_composition_playground_browser.py",
+            ]
+        )
+        self.assertTrue(decision.core_required)
+        self.assertTrue(decision.browser_required)
+        self.assertEqual("browser-sensitive", decision.risk_class)
+
     def test_pwa_changes_require_pwa_and_browser(self) -> None:
         decision = classify_paths(
             [

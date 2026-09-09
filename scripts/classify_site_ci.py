@@ -102,11 +102,15 @@ BROWSER_EXACT_PATHS = frozenset(
     }
 )
 BROWSER_PREFIXES = (
+    "assets/javascripts/",
+    "assets/stylesheets/",
     "stylesheets/",
     "javascripts/",
+    "scripts/check_composition_playground_",
     "tests/test_mobile_",
     "tests/test_search_",
     "tests/test_system_chrome_",
+    "tests/composition-playground",
 )
 
 # Publication, schema, and cross-authority integration surfaces.
