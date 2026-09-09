@@ -161,6 +161,19 @@ class ReferenceBrowserContractTests(unittest.TestCase):
         from scripts.render_reference_consumer import outputs
         self.assertIn('id="self-hosting-reference-consumer"', outputs(ROOT)["docs/policy-composition-coexistence.md"])
 
+    def test_coexistence_translation_manifest_is_fresh(self):
+        from scripts.translation_manifest import load_translation_manifest
+        manifest = load_translation_manifest(
+            ROOT / "translations" / "manifest.json",
+            "site translation manifest",
+            publication_root=ROOT,
+        )
+        entry = next(
+            e for e in manifest.for_surface("reader")
+            if e.canonical == Path("docs/policy-composition-coexistence.md") or e.canonical.as_posix() == "docs/policy-composition-coexistence.md"
+        )
+        self.assertTrue(entry.is_current, f"Expected {entry.canonical} translation to be current, but was stale ({entry.canonical_blob_sha} vs {entry.current_blob_sha})")
+
 
 if __name__ == "__main__":
     unittest.main()
