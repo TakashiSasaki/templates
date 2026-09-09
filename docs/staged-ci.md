@@ -114,6 +114,34 @@ construction candidate (intermediate / active revision)
 4. **Do not block construction on heavy CI**: Expensive CI completion on an intermediate construction candidate must not delay dependency-safe downstream implementation or stacked progression.
 5. **Stack-tip qualification**: In a stacked change series, intermediate heads do not each require full qualification; stabilize the final stack tip as a qualification candidate and acquire full qualification there before human handoff or merge.
 
+## Stacked PR and CI lifecycle integration
+
+Staged CI integrates directly with stacked pull requests:
+
+```text
+Member 1 (P1)
+  │ lightweight construction CI (L0/L1)
+  ▼
+Member 2 (P2)
+  │ lightweight construction CI (L0/L1)
+  ▼
+Member 3 (P3 - Stack Tip)
+  │
+  ├─ move to stability frontier
+  ├─ freeze qualification head
+  ├─ applicable full qualification (L3)
+  ├─ whole-stack architecture review
+  ▼
+human handoff / bottom-up merge
+```
+
+### Key lifecycle rules
+
+- **Non-blocking intermediate progression**: Constructing descendant PRs does not wait for expensive CI on intermediate members. Intermediate heads use lightweight validation to ensure development integrity while keeping velocity high.
+- **Cancellation of obsolete head runs**: When a member receives a new commit SHA, any expensive in-flight CI runs on the obsolete predecessor head may be cancelled or superseded immediately.
+- **Review request on qualification candidate**: The formal review request (whether individual exact-head review or whole-stack audit) is issued only against the stabilized qualification head after all applicable required CI passes.
+- **Post-movement re-evaluation**: Any movement of a candidate head (e.g. rebase, repair, or base advance) invalidates previous revision-bound evidence and triggers fail-closed re-evaluation of CI applicability and review requirements.
+
 ## Superseded candidates
 
 When a new candidate head makes an in-flight expensive run incapable of satisfying any current evidence requirement, cancel or supersede that work when the CI platform safely permits it. Preserve reusable evidence whose bindings remain valid; invalidate only evidence affected by the head or input change. This complements candidate stabilization and mutation batching rather than replacing them.

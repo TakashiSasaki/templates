@@ -49,3 +49,21 @@ def test_main_orchestrator_reaches_strategy_selection_and_preserves_focused_to_b
     assert "references/pr-workflow-selection.md" in text
     assert "validate from focused to broad unless parallelism is cheaper" in text
     assert "never skip a required expensive check merely because a cheaper check passed" in text
+
+
+def test_stacked_pr_ci_lifecycle_integration() -> None:
+    staged = STAGED.read_text(encoding="utf-8").lower()
+    docs = (ROOT / "docs" / "staged-ci.md").read_text(encoding="utf-8").lower()
+
+    for target in (staged, docs):
+        assert "stacked" in target
+        assert "qualification candidate" in target or "qualification head" in target
+        assert "freeze" in target
+
+    assert "keep provisional work productive across stacked progression" in staged
+    assert "without waiting for expensive or full qualification ci" in staged
+    assert "supersede stale expensive work on obsolete heads" in staged
+    assert "if a candidate head moves or mutates, re-evaluate ci and review applicability" in staged
+    assert "non-blocking intermediate progression" in docs
+    assert "cancellation of obsolete head runs" in docs
+
