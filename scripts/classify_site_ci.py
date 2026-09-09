@@ -91,6 +91,7 @@ PWA_PREFIXES = ("tests/test_pwa_",)
 BROWSER_EXACT_PATHS = frozenset(
     {
         "zensical.template.toml",
+        "requirements-visual.txt",
         "scripts/check_mobile_layout.py",
         "scripts/check_mobile_layout_core.py",
         "scripts/check_glossary_locale_chrome.py",
