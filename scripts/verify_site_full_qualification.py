@@ -20,107 +20,148 @@ import json
 import os
 import sys
 import time
-import urllib.request
 import urllib.error
-from typing import Any
+import urllib.request
+from typing import Any, NamedTuple
 
-# Suite key -> human description and check-run name match predicate
-REQUIRED_SUITES: list[tuple[str, str, Any]] = [
-    ("build", "Direct Site assembly build", lambda name: name == "build"),
-    ("check", "Direct Site browser and PWA check", lambda name: name == "check"),
-    (
-        "construction_gate",
-        "Site Construction CI validate gate",
-        lambda name: name in ("Site Construction CI / validate", "Site CI / validate"),
+
+class RequiredSuite(NamedTuple):
+    key: str
+    description: str
+    workflow_path: str
+    job_name: str
+    job_name_aliases: tuple[str, ...] = ()
+
+
+REQUIRED_SUITES: list[RequiredSuite] = [
+    RequiredSuite(
+        key="build",
+        description="Direct Site assembly build",
+        workflow_path=".github/workflows/build-pages.yml",
+        job_name="build",
     ),
-    (
-        "provider_coexistence",
-        "Validate exact provider coexistence",
-        lambda name: name == "Validate exact provider coexistence",
+    RequiredSuite(
+        key="check",
+        description="Direct Site browser and PWA check",
+        workflow_path=".github/workflows/build-pages.yml",
+        job_name="check",
     ),
-    (
-        "provider_coexistence_gate",
-        "Provider coexistence gate",
-        lambda name: name == "Provider coexistence gate",
+    RequiredSuite(
+        key="construction_gate",
+        description="Site Construction CI validate gate",
+        workflow_path=".github/workflows/build-pages.yml",
+        job_name="Site Construction CI / validate",
+        job_name_aliases=("Site CI / validate",),
     ),
-    (
-        "ref_consumer_composition",
-        "Reference consumer composition validation",
-        lambda name: name == "composition",
+    RequiredSuite(
+        key="provider_coexistence",
+        description="Validate exact provider coexistence",
+        workflow_path=".github/workflows/provider-coexistence.yml",
+        job_name="Validate exact provider coexistence",
     ),
-    (
-        "ref_consumer_build",
-        "Reference consumer site build",
-        lambda name: name == "build / build",
+    RequiredSuite(
+        key="provider_coexistence_gate",
+        description="Provider coexistence gate",
+        workflow_path=".github/workflows/provider-coexistence.yml",
+        job_name="Provider coexistence gate",
     ),
-    (
-        "ref_consumer_browser",
-        "Reference consumer browser & PWA acceptance",
-        lambda name: name == "browser",
+    RequiredSuite(
+        key="ref_consumer_composition",
+        description="Reference consumer composition validation",
+        workflow_path=".github/workflows/reference-consumer.yml",
+        job_name="composition",
     ),
-    (
-        "pub_freshness_resolve",
-        "Publication freshness resolve",
-        lambda name: name == "resolve",
+    RequiredSuite(
+        key="ref_consumer_build",
+        description="Reference consumer site build",
+        workflow_path=".github/workflows/reference-consumer.yml",
+        job_name="build / build",
     ),
-    (
-        "pub_freshness_build",
-        "Publication freshness candidate build",
-        lambda name: name == "Build with current Composition HEAD / build",
+    RequiredSuite(
+        key="ref_consumer_browser",
+        description="Reference consumer browser & PWA acceptance",
+        workflow_path=".github/workflows/reference-consumer.yml",
+        job_name="browser",
     ),
-    (
-        "pub_freshness_report",
-        "Publication freshness report",
-        lambda name: name == "report",
+    RequiredSuite(
+        key="pub_freshness_resolve",
+        description="Publication freshness resolve",
+        workflow_path=".github/workflows/check-publication-freshness.yml",
+        job_name="resolve",
     ),
-    (
-        "pub_materialization",
-        "Publication materialization regressions",
-        lambda name: name == "materialization",
+    RequiredSuite(
+        key="pub_freshness_build",
+        description="Publication freshness candidate build",
+        workflow_path=".github/workflows/check-publication-freshness.yml",
+        job_name="Build with current Composition HEAD / build",
     ),
-    (
-        "pub_contract",
-        "Publication contract v4 regressions",
-        lambda name: name == "contract",
+    RequiredSuite(
+        key="pub_freshness_report",
+        description="Publication freshness report",
+        workflow_path=".github/workflows/check-publication-freshness.yml",
+        job_name="report",
     ),
-    (
-        "cross_auth_build",
-        "Cross-authority candidate build",
-        lambda name: name == "Build exact cross-authority candidate / build",
+    RequiredSuite(
+        key="pub_materialization",
+        description="Publication materialization regressions",
+        workflow_path=".github/workflows/publication-materialization.yml",
+        job_name="materialization",
     ),
-    (
-        "cross_auth_consumer",
-        "Real producer to Chromium consumer",
-        lambda name: name == "Real producer to Chromium consumer",
+    RequiredSuite(
+        key="pub_contract",
+        description="Publication contract v4 regressions",
+        workflow_path=".github/workflows/publication-contract-v4.yml",
+        job_name="contract",
     ),
-    (
-        "playground_consumer",
-        "Site Composition Playground consumer",
-        lambda name: name == "projection consumer",
+    RequiredSuite(
+        key="cross_auth_build",
+        description="Cross-authority candidate build",
+        workflow_path=".github/workflows/site-composition-playground-cross-authority.yml",
+        job_name="Build exact cross-authority candidate / build",
     ),
-    (
-        "playground_explain",
-        "Site Composition Playground explainability",
-        lambda name: name == "projection explanations and browser acceptance",
+    RequiredSuite(
+        key="cross_auth_consumer",
+        description="Real producer to Chromium consumer",
+        workflow_path=".github/workflows/site-composition-playground-cross-authority.yml",
+        job_name="Real producer to Chromium consumer",
     ),
-    (
-        "validate_website",
-        "Validate website contract",
-        lambda name: name == "validate-website",
+    RequiredSuite(
+        key="playground_consumer",
+        description="Site Composition Playground consumer",
+        workflow_path=".github/workflows/site-composition-playground.yml",
+        job_name="projection consumer",
     ),
-    (
-        "policy",
-        "Check agent policy",
-        lambda name: name == "policy",
+    RequiredSuite(
+        key="playground_explain",
+        description="Site Composition Playground explainability",
+        workflow_path=".github/workflows/site-composition-playground-explain.yml",
+        job_name="projection explanations and browser acceptance",
+    ),
+    RequiredSuite(
+        key="validate_website",
+        description="Validate website contract",
+        workflow_path=".github/workflows/validate-website.yml",
+        job_name="validate-website",
+    ),
+    RequiredSuite(
+        key="policy",
+        description="Check agent policy",
+        workflow_path=".github/workflows/check-agent-policy.yml",
+        job_name="policy",
     ),
 ]
 
+EXTERNAL_WORKFLOW_PATHS: tuple[str, ...] = tuple(dict.fromkeys(s.workflow_path for s in REQUIRED_SUITES))
+assert ".github/workflows/site-full-qualification.yml" not in EXTERNAL_WORKFLOW_PATHS, (
+    "Site full qualification must not depend on itself"
+)
 
-def fetch_check_runs(repo: str, head_sha: str, token: str) -> list[dict[str, Any]]:
-    check_runs: list[dict[str, Any]] = []
+
+def fetch_workflow_runs(repo: str, head_sha: str, token: str) -> list[dict[str, Any]]:
+    runs: list[dict[str, Any]] = []
     page = 1
     while True:
-        url = f"https://api.github.com/repos/{repo}/commits/{head_sha}/check-runs?per_page=100&page={page}"
+        url = f"https://api.github.com/repos/{repo}/actions/runs?head_sha={head_sha}&per_page=100&page={page}"
         req = urllib.request.Request(url)
         req.add_header("Accept", "application/vnd.github+json")
         req.add_header("User-Agent", "site-full-qualification-verifier")
@@ -130,97 +171,241 @@ def fetch_check_runs(repo: str, head_sha: str, token: str) -> list[dict[str, Any
             with urllib.request.urlopen(req, timeout=30) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
         except urllib.error.HTTPError as exc:
-            print(f"GitHub API error fetching check runs: {exc.code} {exc.reason}", file=sys.stderr)
+            print(f"GitHub API error fetching workflow runs: {exc.code} {exc.reason}", file=sys.stderr)
             raise
 
-        runs = data.get("check_runs", [])
-        if not runs:
+        batch = data.get("workflow_runs", [])
+        if not batch:
             break
-        check_runs.extend(runs)
-        if len(runs) < 100:
+        runs.extend(batch)
+        if len(batch) < 100:
             break
         page += 1
-    return check_runs
+    return runs
+
+
+def fetch_run_jobs(repo: str, run_id: int, token: str) -> list[dict[str, Any]]:
+    jobs: list[dict[str, Any]] = []
+    page = 1
+    while True:
+        url = f"https://api.github.com/repos/{repo}/actions/runs/{run_id}/jobs?per_page=100&page={page}"
+        req = urllib.request.Request(url)
+        req.add_header("Accept", "application/vnd.github+json")
+        req.add_header("User-Agent", "site-full-qualification-verifier")
+        if token:
+            req.add_header("Authorization", f"Bearer {token}")
+        try:
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+        except urllib.error.HTTPError as exc:
+            print(f"GitHub API error fetching run jobs for {run_id}: {exc.code} {exc.reason}", file=sys.stderr)
+            raise
+
+        batch = data.get("jobs", [])
+        if not batch:
+            break
+        jobs.extend(batch)
+        if len(batch) < 100:
+            break
+        page += 1
+    return jobs
+
+
+class SuiteEvaluation(NamedTuple):
+    suite: RequiredSuite
+    state: str  # "successful", "pending", "failed", "skipped", "cancelled", "missing"
+    status: str | None
+    conclusion: str | None
+    job_id: int | None
+    run_id: int | None
+    html_url: str | None
+    workflow_path: str
+
+
+def evaluate_suites(
+    repo: str,
+    head_sha: str,
+    token: str,
+    completed_jobs_cache: dict[int, list[dict[str, Any]]],
+) -> tuple[dict[str, SuiteEvaluation], list[str]]:
+    """Evaluates all 19 suites against exact head workflow runs.
+
+    Returns (evaluations_by_key, missing_external_workflow_paths).
+    """
+    runs = fetch_workflow_runs(repo, head_sha, token)
+
+    # Group runs by workflow path
+    runs_by_path: dict[str, list[dict[str, Any]]] = {}
+    for r in runs:
+        path = r.get("path")
+        if path:
+            runs_by_path.setdefault(path, []).append(r)
+
+    # Check for missing external workflows
+    missing_workflows = [
+        path for path in EXTERNAL_WORKFLOW_PATHS if path not in runs_by_path
+    ]
+
+    evaluations: dict[str, SuiteEvaluation] = {}
+
+    for suite in REQUIRED_SUITES:
+        matching_runs = runs_by_path.get(suite.workflow_path, [])
+        if not matching_runs:
+            evaluations[suite.key] = SuiteEvaluation(
+                suite=suite,
+                state="missing",
+                status=None,
+                conclusion=None,
+                job_id=None,
+                run_id=None,
+                html_url=None,
+                workflow_path=suite.workflow_path,
+            )
+            continue
+
+        # Sort runs: prefer pull_request event, then higher run ID (latest)
+        selected_run = sorted(
+            matching_runs,
+            key=lambda r: (r.get("event") == "pull_request", r.get("id", 0)),
+        )[-1]
+        run_id = selected_run["id"]
+        run_status = selected_run.get("status")
+
+        # Fetch jobs (using cache if run is completed)
+        if run_id in completed_jobs_cache:
+            jobs = completed_jobs_cache[run_id]
+        else:
+            jobs = fetch_run_jobs(repo, run_id, token)
+            if run_status == "completed":
+                completed_jobs_cache[run_id] = jobs
+
+        # Find matching job
+        target_names = (suite.job_name,) + suite.job_name_aliases
+        matched_job = next((j for j in jobs if j.get("name") in target_names), None)
+
+        if matched_job is None:
+            # Job not yet started / queued in workflow
+            if run_status in ("queued", "in_progress", "waiting", "pending"):
+                evaluations[suite.key] = SuiteEvaluation(
+                    suite=suite,
+                    state="pending",
+                    status="queued",
+                    conclusion=None,
+                    job_id=None,
+                    run_id=run_id,
+                    html_url=selected_run.get("html_url"),
+                    workflow_path=suite.workflow_path,
+                )
+            else:
+                # Workflow completed without producing the job
+                evaluations[suite.key] = SuiteEvaluation(
+                    suite=suite,
+                    state="missing",
+                    status="completed",
+                    conclusion="missing",
+                    job_id=None,
+                    run_id=run_id,
+                    html_url=selected_run.get("html_url"),
+                    workflow_path=suite.workflow_path,
+                )
+            continue
+
+        job_status = matched_job.get("status")
+        job_conclusion = matched_job.get("conclusion")
+        job_id = matched_job.get("id")
+        html_url = matched_job.get("html_url")
+
+        if job_status in ("queued", "in_progress", "waiting", "pending") or job_status != "completed":
+            state = "pending"
+        elif job_conclusion == "success":
+            state = "successful"
+        elif job_conclusion == "skipped":
+            state = "skipped"
+        elif job_conclusion == "cancelled":
+            state = "cancelled"
+        else:
+            state = "failed"
+
+        evaluations[suite.key] = SuiteEvaluation(
+            suite=suite,
+            state=state,
+            status=job_status,
+            conclusion=job_conclusion,
+            job_id=job_id,
+            run_id=run_id,
+            html_url=html_url,
+            workflow_path=suite.workflow_path,
+        )
+
+    return evaluations, missing_workflows
 
 
 def verify_qualification(
     repo: str,
     head_sha: str,
     token: str,
-    timeout_seconds: int = 2100,
+    timeout_seconds: int = 2400,
     poll_interval_seconds: int = 20,
 ) -> int:
     print(f"Starting Site Full Qualification verification for {repo} at {head_sha}")
+    print(f"Required external workflow paths: {len(EXTERNAL_WORKFLOW_PATHS)}")
+    print(f"Required L3 check suites: {len(REQUIRED_SUITES)}")
     deadline = time.time() + timeout_seconds
+    completed_jobs_cache: dict[int, list[dict[str, Any]]] = {}
 
     while True:
         try:
-            check_runs = fetch_check_runs(repo, head_sha, token)
+            evaluations, missing_workflows = evaluate_suites(
+                repo, head_sha, token, completed_jobs_cache
+            )
         except Exception as exc:
-            print(f"Transient error fetching check runs: {exc}", file=sys.stderr)
+            print(f"Transient error querying GitHub API: {exc}", file=sys.stderr)
             if time.time() >= deadline:
+                print("\n❌ Full Qualification TIMED OUT with API error", file=sys.stderr)
                 return 1
             time.sleep(poll_interval_seconds)
             continue
 
-        matched_results: dict[str, dict[str, Any]] = {}
-        all_completed = True
-        has_failure = False
+        failed_items = [ev for ev in evaluations.values() if ev.state in ("failed", "skipped", "cancelled")]
+        pending_items = [ev for ev in evaluations.values() if ev.state in ("pending", "missing")]
+        successful_items = [ev for ev in evaluations.values() if ev.state == "successful"]
 
-        for key, description, predicate in REQUIRED_SUITES:
-            # Find the best match among check runs for this exact head
-            matches = [cr for cr in check_runs if predicate(cr.get("name", ""))]
-            if not matches:
-                all_completed = False
-                continue
-
-            # Take the latest/most relevant run if multiple (e.g. retried)
-            # Prefer completed success over in-progress; prefer in-progress over failure
-            best_match = None
-            for m in matches:
-                if m.get("conclusion") == "success":
-                    best_match = m
-                    break
-            if best_match is None:
-                for m in matches:
-                    if m.get("status") in ("in_progress", "queued", "waiting", "pending"):
-                        best_match = m
-                        break
-            if best_match is None:
-                best_match = matches[-1]
-
-            matched_results[key] = best_match
-            status = best_match.get("status")
-            conclusion = best_match.get("conclusion")
-
-            if status != "completed":
-                all_completed = False
-            elif conclusion != "success":
-                # Explicit failure
-                has_failure = True
-
-        if has_failure:
+        # Fatal failure condition: any required suite has failed, cancelled, or skipped
+        if failed_items:
             print("\n❌ Full Qualification FALSIFIED: one or more required L3 checks failed:", file=sys.stderr)
-            for key, description, _ in REQUIRED_SUITES:
-                cr = matched_results.get(key)
-                if cr and cr.get("conclusion") != "success":
-                    print(f"  - {description} ({cr.get('name')}): status={cr.get('status')} conclusion={cr.get('conclusion')} url={cr.get('html_url')}", file=sys.stderr)
+            for ev in failed_items:
+                print(
+                    f"  - [{ev.state.upper()}] {ev.suite.description} (workflow: {ev.suite.workflow_path}, job: {ev.suite.job_name}): status={ev.status} conclusion={ev.conclusion} url={ev.html_url}",
+                    file=sys.stderr,
+                )
+            if pending_items:
+                print("\nPending checks at time of failure:", file=sys.stderr)
+                for ev in pending_items:
+                    print(f"  - {ev.suite.description} (workflow: {ev.suite.workflow_path}): state={ev.state}", file=sys.stderr)
             return 1
 
-        if all_completed and len(matched_results) == len(REQUIRED_SUITES):
+        # Success condition: all 19 suites are successful and no missing external workflows
+        if len(successful_items) == len(REQUIRED_SUITES) and not missing_workflows:
             print("\n✅ All required L3 Full Qualification suites COMPLETED and GREEN:")
-            print("| Stage / Role | Check Run Name | ID | Status | Conclusion |")
-            print("| --- | --- | --- | --- | --- |")
-            for key, description, _ in REQUIRED_SUITES:
-                cr = matched_results[key]
-                print(f"| {description} | {cr.get('name')} | {cr.get('id')} | {cr.get('status')} | {cr.get('conclusion')} |")
+            print("| Stage / Role | Workflow | Check Run / Job Name | Run ID | Status | Conclusion |")
+            print("| --- | --- | --- | --- | --- | --- |")
+            for suite in REQUIRED_SUITES:
+                ev = evaluations[suite.key]
+                print(f"| {suite.description} | {suite.workflow_path} | {suite.job_name} | {ev.run_id} | {ev.status} | {ev.conclusion} |")
             return 0
 
-        remaining = [description for key, description, _ in REQUIRED_SUITES if key not in matched_results or matched_results[key].get("status") != "completed"]
-        print(f"[{time.strftime('%X')}] Waiting for {len(remaining)} checks to complete: {', '.join(remaining[:3])}{'...' if len(remaining) > 3 else ''}")
+        # Pending condition: wait for remaining checks
+        remaining_descriptions = [ev.suite.description for ev in pending_items]
+        if missing_workflows:
+            remaining_descriptions.extend([f"workflow {p}" for p in missing_workflows])
+        summary = ", ".join(remaining_descriptions[:3])
+        if len(remaining_descriptions) > 3:
+            summary += f"... (+{len(remaining_descriptions) - 3} more)"
+        print(f"[{time.strftime('%X')}] Waiting for {len(remaining_descriptions)} checks to complete: {summary}")
 
         if time.time() >= deadline:
-            print(f"\n❌ Full Qualification TIMED OUT waiting for: {', '.join(remaining)}", file=sys.stderr)
+            joined = ', '.join(remaining_descriptions)
+            print(f"\n❌ Full Qualification TIMED OUT waiting for: {joined}", file=sys.stderr)
             return 1
 
         time.sleep(poll_interval_seconds)
@@ -231,7 +416,7 @@ def main() -> int:
     parser.add_argument("--repo", required=True, help="GitHub repository (owner/name)")
     parser.add_argument("--head-sha", required=True, help="Exact PR head SHA")
     parser.add_argument("--token", default=os.environ.get("GITHUB_TOKEN", ""), help="GitHub API token")
-    parser.add_argument("--timeout-seconds", type=int, default=2100, help="Max seconds to wait")
+    parser.add_argument("--timeout-seconds", type=int, default=2400, help="Max seconds to wait")
     parser.add_argument("--poll-interval-seconds", type=int, default=20, help="Poll interval in seconds")
     args = parser.parse_args()
 

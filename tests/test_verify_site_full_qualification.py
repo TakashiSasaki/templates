@@ -1,50 +1,120 @@
 from __future__ import annotations
 
+import io
+import sys
 import unittest
 from unittest.mock import patch
 
-from scripts.verify_site_full_qualification import REQUIRED_SUITES, verify_qualification
+from scripts.verify_site_full_qualification import (
+    EXTERNAL_WORKFLOW_PATHS,
+    REQUIRED_SUITES,
+    RequiredSuite,
+    evaluate_suites,
+    verify_qualification,
+)
+
+
+def build_mock_hierarchy(
+    *,
+    status_overrides: dict[str, str] | None = None,
+    conclusion_overrides: dict[str, str | None] | None = None,
+    missing_suites: set[str] | None = None,
+    missing_workflow_paths: set[str] | None = None,
+    extra_jobs_by_path: dict[str, list[dict]] | None = None,
+):
+    """Builds realistic workflow_runs and run_jobs structures matching GitHub Actions API."""
+    status_overrides = status_overrides or {}
+    conclusion_overrides = conclusion_overrides or {}
+    missing_suites = missing_suites or set()
+    missing_workflow_paths = missing_workflow_paths or set()
+    extra_jobs_by_path = extra_jobs_by_path or {}
+
+    runs = []
+    jobs_by_run_id = {}
+
+    # Assign distinct integer run IDs to workflow paths
+    path_to_run_id = {}
+    for i, path in enumerate(EXTERNAL_WORKFLOW_PATHS, start=1000):
+        if path in missing_workflow_paths:
+            continue
+        path_to_run_id[path] = i
+        runs.append({
+            "id": i,
+            "name": path.split("/")[-1].replace(".yml", ""),
+            "path": path,
+            "status": "completed",
+            "conclusion": "success",
+            "event": "pull_request",
+            "html_url": f"https://github.com/TakashiSasaki/templates/actions/runs/{i}",
+        })
+        jobs_by_run_id[i] = []
+
+    # Populate jobs for each suite
+    for suite in REQUIRED_SUITES:
+        if suite.key in missing_suites:
+            continue
+        run_id = path_to_run_id.get(suite.workflow_path)
+        if run_id is None:
+            continue
+        status = status_overrides.get(suite.key, "completed")
+        conclusion = conclusion_overrides.get(suite.key, "success" if status == "completed" else None)
+        jobs_by_run_id[run_id].append({
+            "id": hash(suite.key) & 0x7FFFFFFF,
+            "name": suite.job_name,
+            "status": status,
+            "conclusion": conclusion,
+            "html_url": f"https://github.com/TakashiSasaki/templates/actions/runs/{run_id}/jobs/{hash(suite.key) & 0x7FFFFFFF}",
+        })
+
+    # Add extra jobs to specific workflow paths (for collision testing)
+    for path, extra_jobs in extra_jobs_by_path.items():
+        run_id = path_to_run_id.get(path)
+        if run_id is not None:
+            jobs_by_run_id[run_id].extend(extra_jobs)
+
+    # Sync workflow run status with its jobs (realistic GitHub Actions semantics)
+    for run in runs:
+        run_id = run["id"]
+        run_jobs = jobs_by_run_id.get(run_id, [])
+        if any(j.get("status") != "completed" for j in run_jobs):
+            run["status"] = "in_progress"
+            run["conclusion"] = None
+        else:
+            run["status"] = "completed"
+            if any(j.get("conclusion") == "failure" for j in run_jobs):
+                run["conclusion"] = "failure"
+            elif all(j.get("conclusion") == "success" for j in run_jobs):
+                run["conclusion"] = "success"
+
+    return runs, jobs_by_run_id
 
 
 class VerifySiteFullQualificationTests(unittest.TestCase):
     def test_required_suites_count(self) -> None:
         self.assertEqual(19, len(REQUIRED_SUITES))
-        keys = [k for k, _, _ in REQUIRED_SUITES]
+        keys = [s.key for s in REQUIRED_SUITES]
         self.assertEqual(len(keys), len(set(keys)), "Suite keys must be unique")
 
-    @patch("scripts.verify_site_full_qualification.fetch_check_runs")
-    def test_all_green_check_runs_returns_zero(self, mock_fetch) -> None:
-        mock_runs = []
-        for key, description, predicate in REQUIRED_SUITES:
-            sample_name = {
-                "build": "build",
-                "check": "check",
-                "construction_gate": "Site Construction CI / validate",
-                "provider_coexistence": "Validate exact provider coexistence",
-                "provider_coexistence_gate": "Provider coexistence gate",
-                "ref_consumer_composition": "composition",
-                "ref_consumer_build": "build / build",
-                "ref_consumer_browser": "browser",
-                "pub_freshness_resolve": "resolve",
-                "pub_freshness_build": "Build with current Composition HEAD / build",
-                "pub_freshness_report": "report",
-                "pub_materialization": "materialization",
-                "pub_contract": "contract",
-                "cross_auth_build": "Build exact cross-authority candidate / build",
-                "cross_auth_consumer": "Real producer to Chromium consumer",
-                "playground_consumer": "projection consumer",
-                "playground_explain": "projection explanations and browser acceptance",
-                "validate_website": "validate-website",
-                "policy": "policy",
-            }[key]
-            mock_runs.append({
-                "id": hash(key),
-                "name": sample_name,
-                "status": "completed",
-                "conclusion": "success",
-            })
+    def test_no_aggregate_self_dependency(self) -> None:
+        self.assertNotIn(
+            ".github/workflows/site-full-qualification.yml",
+            EXTERNAL_WORKFLOW_PATHS,
+            "Site full qualification must not depend on itself",
+        )
+        for suite in REQUIRED_SUITES:
+            self.assertNotEqual(
+                ".github/workflows/site-full-qualification.yml",
+                suite.workflow_path,
+                "No required suite can belong to site-full-qualification.yml",
+            )
 
-        mock_fetch.return_value = mock_runs
+    @patch("scripts.verify_site_full_qualification.fetch_run_jobs")
+    @patch("scripts.verify_site_full_qualification.fetch_workflow_runs")
+    def test_all_green_exact_head_l3_checks_returns_zero(self, mock_runs, mock_jobs) -> None:
+        runs, jobs_by_id = build_mock_hierarchy()
+        mock_runs.return_value = runs
+        mock_jobs.side_effect = lambda repo, run_id, token: jobs_by_id.get(run_id, [])
+
         result = verify_qualification(
             repo="TakashiSasaki/templates",
             head_sha="0123456789abcdef",
@@ -54,12 +124,28 @@ class VerifySiteFullQualificationTests(unittest.TestCase):
         )
         self.assertEqual(0, result)
 
-    @patch("scripts.verify_site_full_qualification.fetch_check_runs")
-    def test_failed_check_run_returns_one(self, mock_fetch) -> None:
-        mock_runs = [
-            {"id": 1, "name": "build", "status": "completed", "conclusion": "failure", "html_url": "http://fail"},
-        ]
-        mock_fetch.return_value = mock_runs
+    @patch("scripts.verify_site_full_qualification.fetch_run_jobs")
+    @patch("scripts.verify_site_full_qualification.fetch_workflow_runs")
+    def test_direct_construction_gate_success_nested_reusable_construction_gate_skipped(
+        self, mock_runs, mock_jobs
+    ) -> None:
+        # Cross-authority workflow calls build-pages.yml as reusable workflow, producing
+        # a skipped nested job "Build exact cross-authority candidate / Site Construction CI / validate"
+        extra = {
+            ".github/workflows/site-composition-playground-cross-authority.yml": [
+                {
+                    "id": 99999,
+                    "name": "Build exact cross-authority candidate / Site Construction CI / validate",
+                    "status": "completed",
+                    "conclusion": "skipped",
+                    "html_url": "http://skipped-nested",
+                }
+            ]
+        }
+        runs, jobs_by_id = build_mock_hierarchy(extra_jobs_by_path=extra)
+        mock_runs.return_value = runs
+        mock_jobs.side_effect = lambda repo, run_id, token: jobs_by_id.get(run_id, [])
+
         result = verify_qualification(
             repo="TakashiSasaki/templates",
             head_sha="0123456789abcdef",
@@ -67,32 +153,50 @@ class VerifySiteFullQualificationTests(unittest.TestCase):
             timeout_seconds=1,
             poll_interval_seconds=0,
         )
-        self.assertEqual(1, result)
+        # Must succeed because construction_gate is queried from build-pages.yml, NOT cross-authority
+        self.assertEqual(0, result)
 
-    @patch("scripts.verify_site_full_qualification.fetch_check_runs")
-    def test_reusable_workflow_prefixed_construction_gate_not_matched(self, mock_fetch) -> None:
-        # Reusable workflow caller prefix should NOT be matched by construction_gate
-        mock_runs = [
-            {
-                "id": 100,
-                "name": "Build exact cross-authority candidate / Site Construction CI / validate",
-                "status": "completed",
-                "conclusion": "skipped",
-            },
-        ]
-        mock_fetch.return_value = mock_runs
-        for key, description, predicate in REQUIRED_SUITES:
-            if key == "construction_gate":
-                self.assertFalse(predicate("Build exact cross-authority candidate / Site Construction CI / validate"))
-                self.assertTrue(predicate("Site Construction CI / validate"))
-                self.assertTrue(predicate("Site CI / validate"))
+    @patch("scripts.verify_site_full_qualification.fetch_run_jobs")
+    @patch("scripts.verify_site_full_qualification.fetch_workflow_runs")
+    def test_same_job_name_in_two_workflows_selects_correct_identity(
+        self, mock_runs, mock_jobs
+    ) -> None:
+        # Both build-pages.yml and another workflow contain a job named "build",
+        # but the second one has conclusion="failure"
+        extra = {
+            ".github/workflows/reference-consumer.yml": [
+                {
+                    "id": 88888,
+                    "name": "build",
+                    "status": "completed",
+                    "conclusion": "failure",
+                    "html_url": "http://unrelated-fail",
+                }
+            ]
+        }
+        runs, jobs_by_id = build_mock_hierarchy(extra_jobs_by_path=extra)
+        mock_runs.return_value = runs
+        mock_jobs.side_effect = lambda repo, run_id, token: jobs_by_id.get(run_id, [])
 
-    @patch("scripts.verify_site_full_qualification.fetch_check_runs")
-    def test_incomplete_check_runs_timeout_returns_one(self, mock_fetch) -> None:
-        mock_runs = [
-            {"id": 1, "name": "build", "status": "in_progress", "conclusion": None},
-        ]
-        mock_fetch.return_value = mock_runs
+        result = verify_qualification(
+            repo="TakashiSasaki/templates",
+            head_sha="0123456789abcdef",
+            token="dummy",
+            timeout_seconds=1,
+            poll_interval_seconds=0,
+        )
+        # Must succeed because "build" suite is bound to build-pages.yml, not reference-consumer.yml
+        self.assertEqual(0, result)
+
+    @patch("scripts.verify_site_full_qualification.fetch_run_jobs")
+    @patch("scripts.verify_site_full_qualification.fetch_workflow_runs")
+    def test_required_check_missing_returns_one(self, mock_runs, mock_jobs) -> None:
+        # A required workflow path is entirely missing
+        missing_wf = {".github/workflows/validate-website.yml"}
+        runs, jobs_by_id = build_mock_hierarchy(missing_workflow_paths=missing_wf)
+        mock_runs.return_value = runs
+        mock_jobs.side_effect = lambda repo, run_id, token: jobs_by_id.get(run_id, [])
+
         result = verify_qualification(
             repo="TakashiSasaki/templates",
             head_sha="0123456789abcdef",
@@ -101,6 +205,142 @@ class VerifySiteFullQualificationTests(unittest.TestCase):
             poll_interval_seconds=0,
         )
         self.assertEqual(1, result)
+
+    @patch("scripts.verify_site_full_qualification.fetch_run_jobs")
+    @patch("scripts.verify_site_full_qualification.fetch_workflow_runs")
+    def test_required_check_failure_returns_one(self, mock_runs, mock_jobs) -> None:
+        runs, jobs_by_id = build_mock_hierarchy(
+            status_overrides={"build": "completed"},
+            conclusion_overrides={"build": "failure"},
+        )
+        mock_runs.return_value = runs
+        mock_jobs.side_effect = lambda repo, run_id, token: jobs_by_id.get(run_id, [])
+
+        stderr_capture = io.StringIO()
+        with patch("sys.stderr", stderr_capture):
+            result = verify_qualification(
+                repo="TakashiSasaki/templates",
+                head_sha="0123456789abcdef",
+                token="dummy",
+                timeout_seconds=1,
+                poll_interval_seconds=0,
+            )
+        self.assertEqual(1, result)
+        self.assertIn("Full Qualification FALSIFIED", stderr_capture.getvalue())
+        self.assertIn("[FAILED] Direct Site assembly build", stderr_capture.getvalue())
+
+    @patch("scripts.verify_site_full_qualification.fetch_run_jobs")
+    @patch("scripts.verify_site_full_qualification.fetch_workflow_runs")
+    def test_required_check_cancelled_returns_one(self, mock_runs, mock_jobs) -> None:
+        runs, jobs_by_id = build_mock_hierarchy(
+            status_overrides={"check": "completed"},
+            conclusion_overrides={"check": "cancelled"},
+        )
+        mock_runs.return_value = runs
+        mock_jobs.side_effect = lambda repo, run_id, token: jobs_by_id.get(run_id, [])
+
+        stderr_capture = io.StringIO()
+        with patch("sys.stderr", stderr_capture):
+            result = verify_qualification(
+                repo="TakashiSasaki/templates",
+                head_sha="0123456789abcdef",
+                token="dummy",
+                timeout_seconds=1,
+                poll_interval_seconds=0,
+            )
+        self.assertEqual(1, result)
+        self.assertIn("Full Qualification FALSIFIED", stderr_capture.getvalue())
+        self.assertIn("[CANCELLED] Direct Site browser and PWA check", stderr_capture.getvalue())
+
+    @patch("scripts.verify_site_full_qualification.fetch_run_jobs")
+    @patch("scripts.verify_site_full_qualification.fetch_workflow_runs")
+    def test_required_check_skipped_returns_one(self, mock_runs, mock_jobs) -> None:
+        runs, jobs_by_id = build_mock_hierarchy(
+            status_overrides={"ref_consumer_browser": "completed"},
+            conclusion_overrides={"ref_consumer_browser": "skipped"},
+        )
+        mock_runs.return_value = runs
+        mock_jobs.side_effect = lambda repo, run_id, token: jobs_by_id.get(run_id, [])
+
+        stderr_capture = io.StringIO()
+        with patch("sys.stderr", stderr_capture):
+            result = verify_qualification(
+                repo="TakashiSasaki/templates",
+                head_sha="0123456789abcdef",
+                token="dummy",
+                timeout_seconds=1,
+                poll_interval_seconds=0,
+            )
+        self.assertEqual(1, result)
+        self.assertIn("Full Qualification FALSIFIED", stderr_capture.getvalue())
+        self.assertIn("[SKIPPED] Reference consumer browser & PWA acceptance", stderr_capture.getvalue())
+
+    @patch("scripts.verify_site_full_qualification.fetch_run_jobs")
+    @patch("scripts.verify_site_full_qualification.fetch_workflow_runs")
+    def test_required_check_pending_then_success_waits_then_passes(
+        self, mock_runs, mock_jobs
+    ) -> None:
+        runs_pending, jobs_pending = build_mock_hierarchy(
+            status_overrides={"cross_auth_consumer": "in_progress"},
+            conclusion_overrides={"cross_auth_consumer": None},
+        )
+        runs_success, jobs_success = build_mock_hierarchy(
+            status_overrides={"cross_auth_consumer": "completed"},
+            conclusion_overrides={"cross_auth_consumer": "success"},
+        )
+
+        call_count = 0
+
+        def mock_runs_fn(repo, head_sha, token):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                return runs_pending
+            return runs_success
+
+        def mock_jobs_fn(repo, run_id, token):
+            if call_count == 1:
+                return jobs_pending.get(run_id, [])
+            return jobs_success.get(run_id, [])
+
+        mock_runs.side_effect = mock_runs_fn
+        mock_jobs.side_effect = mock_jobs_fn
+
+        result = verify_qualification(
+            repo="TakashiSasaki/templates",
+            head_sha="0123456789abcdef",
+            token="dummy",
+            timeout_seconds=5,
+            poll_interval_seconds=0,
+        )
+        self.assertEqual(0, result)
+        self.assertGreaterEqual(call_count, 2)
+
+    @patch("scripts.verify_site_full_qualification.fetch_run_jobs")
+    @patch("scripts.verify_site_full_qualification.fetch_workflow_runs")
+    def test_pending_until_timeout_reports_timeout_not_test_failure(
+        self, mock_runs, mock_jobs
+    ) -> None:
+        runs, jobs_by_id = build_mock_hierarchy(
+            status_overrides={"build": "in_progress"},
+            conclusion_overrides={"build": None},
+        )
+        mock_runs.return_value = runs
+        mock_jobs.side_effect = lambda repo, run_id, token: jobs_by_id.get(run_id, [])
+
+        stderr_capture = io.StringIO()
+        with patch("sys.stderr", stderr_capture):
+            result = verify_qualification(
+                repo="TakashiSasaki/templates",
+                head_sha="0123456789abcdef",
+                token="dummy",
+                timeout_seconds=0,
+                poll_interval_seconds=0,
+            )
+        self.assertEqual(1, result)
+        stderr_output = stderr_capture.getvalue()
+        self.assertIn("Full Qualification TIMED OUT waiting for: Direct Site assembly build", stderr_output)
+        self.assertNotIn("Full Qualification FALSIFIED", stderr_output)
 
 
 if __name__ == "__main__":
