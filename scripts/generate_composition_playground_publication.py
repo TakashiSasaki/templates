@@ -170,7 +170,13 @@ def publication_payloads(*, semantic_revision: str, semantic_objects: Mapping[st
     # rebinding the provenance label therefore preserves the canonical semantic
     # source while remaining valid in fetch-depth:1 consumer checkouts.
     base_projection = _bind_semantic_revision(build_projection(), semantic_revision)
-    intent_projection = _bind_semantic_revision(build_intent_projection(), semantic_revision)
+    intent_projection = _bind_semantic_revision(
+        build_intent_projection(
+            base_projection=base_projection,
+            source_revision=semantic_revision,
+        ),
+        semantic_revision,
+    )
     base = render_projection(base_projection)
     intent = (json.dumps(intent_projection, indent=2, sort_keys=False) + "\n").encode()
     return {BASE_NAME: compress_payload(base), INTENT_NAME: compress_payload(intent)}
