@@ -62,6 +62,9 @@ jobs:
           authority_source="proposed-head"
 
           if [ "$EVENT_NAME" = "pull_request" ]; then
+            if ! git diff --quiet "$BASE_SHA" -- .github/workflows/ci.yml; then
+              force_full="true"
+            fi
             if git show "$BASE_SHA:scripts/classify_policy_ci.py" > "$classifier_dir/classify_policy_ci.py" \
               && git show "$BASE_SHA:scripts/ci_change_classification.py" > "$classifier_dir/ci_change_classification.py"; then
               authority_source="base"

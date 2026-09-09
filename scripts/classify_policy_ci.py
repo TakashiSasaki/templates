@@ -58,6 +58,20 @@ TRUSTED_REVIEW_FILES = frozenset(
         "scripts/verify_trusted_review_candidate.py",
     }
 )
+RECOGNIZED_UNAFFECTED_PREFIXES = (
+    "docs/",
+    "tests/",
+    "translations/",
+)
+RECOGNIZED_UNAFFECTED_FILES = frozenset(
+    {
+        ".gitignore",
+        "CONTRIBUTING.md",
+        "LICENSE",
+        "README.md",
+        "SECURITY.md",
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -73,6 +87,20 @@ def _matches(path: str, *, prefixes: tuple[str, ...], files: frozenset[str]) -> 
     return path in files or any(path.startswith(prefix) for prefix in prefixes)
 
 
+def _is_recognized(path: str) -> bool:
+    return (
+        _matches(path, prefixes=RELEASE_STATE_PREFIXES, files=RELEASE_STATE_FILES)
+        or _matches(path, prefixes=TRUSTED_REVIEW_PREFIXES, files=TRUSTED_REVIEW_FILES)
+        or _matches(
+            path,
+            prefixes=RECOGNIZED_UNAFFECTED_PREFIXES,
+            files=RECOGNIZED_UNAFFECTED_FILES,
+        )
+        or path in common.POLICY_CI_CONTROL_PATHS
+        or any(path.startswith(prefix) for prefix in common.POLICY_CI_CONTROL_PREFIXES)
+    )
+
+
 def classify_paths(paths: list[str], *, force_full: bool = False) -> Decision:
     if force_full:
         return Decision(True, "explicit-checkpoint", True, "explicit-checkpoint", "full")
@@ -86,6 +114,14 @@ def classify_paths(paths: list[str], *, force_full: bool = False) -> Decision:
             "classification-control-change",
             True,
             "classification-control-change",
+            "full",
+        )
+    if any(not _is_recognized(path) for path in paths):
+        return Decision(
+            True,
+            "unrecognized-path",
+            True,
+            "unrecognized-path",
             "full",
         )
 

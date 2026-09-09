@@ -52,5 +52,17 @@
     "paths": [".gitattributes"],
     "release_state_required": false,
     "trusted_review_required": true
+  },
+  {
+    "name": "unrecognized-top-level-file-fails-closed",
+    "paths": ["new-top-level.file"],
+    "release_state_required": true,
+    "trusted_review_required": true
+  },
+  {
+    "name": "unrecognized-script-fails-closed",
+    "paths": ["scripts/new_check.py"],
+    "release_state_required": true,
+    "trusted_review_required": true
   }
 ]

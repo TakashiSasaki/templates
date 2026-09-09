@@ -49,7 +49,7 @@ To safely use lightweight construction CI without weakening qualification, a rep
 
 | Property | Requirement | Rational |
 | --- | --- | --- |
-| **Base-authoritative** | Classifier logic resolves from target base (e.g. `origin/main` / `$BASE_SHA`), not proposed head | Prevents untrusted changes from altering their own qualification rules |
+| **Base-authoritative** | Classifier logic resolves from target base (e.g. `origin/main` / `$BASE_SHA`) or an immutable control boundary (such as a protected reusable workflow or independent required check), not proposed code | Prevents untrusted changes from altering their own qualification rules; workflow mutations fail closed to full qualification |
 | **Deterministic** | Computed purely from exact repository-relative changed paths | Ensures consistent, reproducible decisions across environments |
 | **Fail-closed** | Unknown paths, missing diff, malformed input, or base lookup errors require full verification | Prevents silent verification bypass on anomalous conditions |
 | **Self-exemption prohibited** | Modifications to the classifier or CI control files force full/conservative verification | Prevents circular justification or weakened governance |
