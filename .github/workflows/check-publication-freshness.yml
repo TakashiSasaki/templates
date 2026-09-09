@@ -109,7 +109,16 @@ jobs:
               --changed-paths "$RUNNER_TEMP/publication-freshness-paths.txt" \
               --force-full "$force_full" \
               --output "$output_file"
-            req="$(grep '^publication_required=' "$output_file" | cut -d= -f2)"
+            if grep -q '^freshness_candidate_required=' "$output_file"; then
+              req="$(grep '^freshness_candidate_required=' "$output_file" | cut -d= -f2)"
+            else
+              risk_class="$(grep '^risk_class=' "$output_file" | cut -d= -f2)"
+              if [ "$risk_class" = "observability-only" ]; then
+                req="false"
+              else
+                req="true"
+              fi
+            fi
             reason="$(grep '^reason=' "$output_file" | cut -d= -f2)"
             echo "required=$req" >> "$GITHUB_OUTPUT"
             echo "reason=$reason" >> "$GITHUB_OUTPUT"

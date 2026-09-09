@@ -73,6 +73,8 @@ DOC_PREFIXES = (
 # PWA-sensitive surfaces.
 PWA_EXACT_PATHS = frozenset(
     {
+        "assets/service-worker.js",
+        "assets/javascripts/pwa.js",
         "service-worker.js",
         "scripts/check_pwa_freshness.py",
         "scripts/check_pwa_capabilities.py",
@@ -206,11 +208,17 @@ class ClassificationDecision:
     reason: str
     changed_count: int
     requiring_paths: tuple[str, ...]
+    freshness_candidate_required: bool = True
 
     @property
     def required(self) -> bool:
         """Alias for browser_required for backward compatibility."""
         return self.browser_required
+
+    @property
+    def freshness_required(self) -> bool:
+        """Alias for freshness_candidate_required."""
+        return self.freshness_candidate_required
 
 
 def normalize_path(value: str) -> str:
@@ -381,6 +389,7 @@ def classify_paths(
             reason="all changed paths are CI-observability-only",
             changed_count=changed_count,
             requiring_paths=(),
+            freshness_candidate_required=False,
         )
 
     # 4. Documentation-only paths
@@ -469,6 +478,7 @@ def write_outputs(output: TextIO, decision: ClassificationDecision) -> None:
     output.write(f"cross_authority_required={b2s(decision.cross_authority_required)}\n")
     output.write(f"publication_required={b2s(decision.publication_required)}\n")
     output.write(f"full_required={b2s(decision.full_required)}\n")
+    output.write(f"freshness_candidate_required={b2s(decision.freshness_candidate_required)}\n")
     output.write(f"required={b2s(decision.required)}\n")
     output.write(f"risk_class={decision.risk_class}\n")
     output.write(f"reason={decision.reason}\n")

@@ -30,6 +30,7 @@ class SiteCIClassifierTests(unittest.TestCase):
         self.assertFalse(decision.pwa_required)
         self.assertFalse(decision.cross_authority_required)
         self.assertFalse(decision.full_required)
+        self.assertFalse(decision.freshness_candidate_required)
         self.assertEqual("observability-only", decision.risk_class)
 
     def test_docs_only_changes_skip_build_and_browser(self) -> None:
@@ -101,6 +102,19 @@ class SiteCIClassifierTests(unittest.TestCase):
         self.assertTrue(decision.reference_consumer_required)
         self.assertEqual("pwa-sensitive", decision.risk_class)
 
+    def test_actual_pwa_assets_require_pwa_and_browser(self) -> None:
+        for pwa_path in ("assets/service-worker.js", "assets/javascripts/pwa.js"):
+            with self.subTest(path=pwa_path):
+                decision = classify_paths([pwa_path])
+                self.assertTrue(decision.core_required)
+                self.assertTrue(decision.build_required)
+                self.assertTrue(decision.browser_required)
+                self.assertTrue(decision.pwa_required)
+                self.assertTrue(decision.reference_consumer_required)
+                self.assertTrue(decision.freshness_candidate_required)
+                self.assertFalse(decision.full_required)
+                self.assertEqual("pwa-sensitive", decision.risk_class)
+
     def test_build_contracts_require_reference_consumer(self) -> None:
         decision = classify_paths(["scripts/site_website_contract.py"])
         self.assertTrue(decision.core_required)
@@ -135,8 +149,20 @@ class SiteCIClassifierTests(unittest.TestCase):
         self.assertTrue(decision.core_required)
         self.assertTrue(decision.build_required)
         self.assertTrue(decision.publication_required)
-        self.assertFalse(decision.full_required)
         self.assertEqual("publication-sensitive", decision.risk_class)
+
+    def test_unlisted_runtime_build_inputs_require_freshness_candidate_build(self) -> None:
+        decision = classify_paths(
+            ["scripts/generate_repository_file_previews_composition.py"]
+        )
+        self.assertTrue(decision.core_required)
+        self.assertTrue(decision.build_required)
+        self.assertFalse(decision.browser_required)
+        self.assertFalse(decision.pwa_required)
+        self.assertFalse(decision.publication_required)
+        self.assertFalse(decision.full_required)
+        self.assertTrue(decision.freshness_candidate_required)
+        self.assertEqual("runtime-sensitive", decision.risk_class)
 
     def test_cross_authority_changes_require_cross_authority(self) -> None:
         decision = classify_paths(
@@ -238,6 +264,7 @@ class SiteCIClassifierTests(unittest.TestCase):
             self.assertIn("build_required=false\n", content)
             self.assertIn("browser_required=false\n", content)
             self.assertIn("full_required=false\n", content)
+            self.assertIn("freshness_candidate_required=true\n", content)
             self.assertIn("risk_class=documentation-only\n", content)
 
 
