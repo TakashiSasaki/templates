@@ -41,7 +41,7 @@ Qualification evidence is stale and must be reacquired upon concrete invalidatio
 - breach or destruction of an exact-head, exact-tree, or immutable binding; or
 - change in qualification input.
 
-History-only evolution—such as ancestor pull-request landing, history-only rebase, tree-identical head movement, or commit-graph reorganization—does not automatically invalidate qualification evidence solely because the commit SHA changed. However, when evidence is exact-revision-bound, that binding semantics must be respected; an identical tree alone does not waive explicit exact-commit or merge-result bindings. Tree-and-context-bound evidence may survive a history-only head change only after all declared bindings are positively re-established for the successor candidate.
+History-only evolution—such as ancestor pull-request landing, history-only rebase, tree-identical head movement, or commit-graph reorganization—does not automatically invalidate qualification evidence solely because the commit SHA changed. However, when evidence is exact-revision-bound—for example, to an exact commit SHA or provider-required merge-result identity—that binding semantics must be respected; an identical tree alone does not waive explicit exact-commit or merge-result bindings. Tree-and-context-bound evidence may survive a history-only head change only after all declared bindings are positively re-established for the successor candidate.
 
 When evidence becomes stale, running the full validation or CI suite is not the default. Selective invalidation requires identifying the affected validation or binding and rerun only what is required to restore qualification.
 
