@@ -36,6 +36,18 @@ jobs:
           path = Path('/tmp/pr790-remediate.py')
           text = path.read_text(encoding='utf-8')
           text = text.replace('PurePosixPath(".")', "PurePosixPath('.')")
+          text = text.replace('if count != 5:', 'if count != 2:', 1)
+          needle = "path.write_text(text, encoding='utf-8')"
+          insertion = '''prepare_old = "        pre_run_input_worktree_fingerprint,\\n        pre_run_untracked_paths,\\n        output_roots,\\n        label,\\n        boundary="
+prepare_new = "        pre_run_input_worktree_fingerprint,\\n        pre_run_untracked_paths,\\n        output_roots,\\n        tracked_output_roots,\\n        label,\\n        boundary="
+prepare_count = text.count(prepare_old)
+if prepare_count != 3:
+    raise SystemExit(f'expected three prepare input-state call sites, got {prepare_count}')
+text = text.replace(prepare_old, prepare_new)
+path.write_text(text, encoding='utf-8')'''
+          if text.count(needle) < 1:
+              raise SystemExit('source write marker missing')
+          text = text.replace(needle, insertion, 1)
           path.write_text(text, encoding='utf-8')
           PY
           python /tmp/pr790-remediate.py
