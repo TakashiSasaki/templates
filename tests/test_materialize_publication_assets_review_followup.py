@@ -155,6 +155,10 @@ class PublicationMaterializationReviewFollowupTests(unittest.TestCase):
 
             with patch.object(
                 materialization,
+                "_provider_git_untracked_paths",
+                return_value=(),
+            ), patch.object(
+                materialization,
                 "_provider_git_worktree_fingerprint",
                 return_value="c" * 64,
             ), patch.object(
@@ -179,12 +183,16 @@ class PublicationMaterializationReviewFollowupTests(unittest.TestCase):
 
             with patch.object(
                 materialization,
+                "_provider_git_untracked_paths",
+                return_value=(),
+            ), patch.object(
+                materialization,
                 "_provider_git_worktree_fingerprint",
                 return_value="c" * 64,
             ), patch.object(
                 materialization,
                 "_provider_git_identity",
-                side_effect=[revision_a, revision_a, revision_a, revision_b],
+                side_effect=[revision_a, revision_a, revision_a, revision_a, revision_b],
             ):
                 with self.assertRaisesRegex(
                     PublicationMaterializationError,
@@ -362,6 +370,77 @@ class PublicationMaterializationReviewFollowupTests(unittest.TestCase):
 
             self.assertTrue(is_publication_materialized(root, "fixture"))
             self.assertFalse(materialize_publication(root, "fixture"))
+
+
+    def test_materializer_run_is_bound_to_pre_run_tracked_and_untracked_inputs(self) -> None:
+        for tracked in (True, False):
+            with self.subTest(tracked=tracked), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+                subprocess.run(["git", "config", "user.name", "Test"], cwd=root, check=True)
+                subprocess.run(
+                    ["git", "config", "user.email", "test@example.com"],
+                    cwd=root,
+                    check=True,
+                )
+                materializer = self.write_v4_provider(root)
+                materializer.write_text(
+                    "from __future__ import annotations\n"
+                    "import argparse\n"
+                    "from pathlib import Path\n"
+                    "parser = argparse.ArgumentParser()\n"
+                    "parser.add_argument('--source-root', type=Path, required=True)\n"
+                    "args = parser.parse_args()\n"
+                    "source = args.source_root / 'generator-input.txt'\n"
+                    "payload = source.read_bytes()\n"
+                    "out = args.source_root / 'generated' / 'output.bin'\n"
+                    "out.parent.mkdir(parents=True, exist_ok=True)\n"
+                    "out.write_bytes(payload)\n"
+                    "source.write_bytes(b'revision-b')\n",
+                    encoding="utf-8",
+                )
+                source = root / "generator-input.txt"
+                if tracked:
+                    source.write_bytes(b"revision-a")
+                subprocess.run(["git", "add", "."], cwd=root, check=True)
+                subprocess.run(["git", "commit", "-q", "-m", "initial"], cwd=root, check=True)
+                if not tracked:
+                    source.write_bytes(b"revision-a")
+
+                with self.assertRaisesRegex(
+                    PublicationMaterializationError,
+                    "worktree changed while the materializer was running",
+                ):
+                    materialize_publication(root, "fixture")
+
+                self.assertEqual(b"revision-a", (root / "generated" / "output.bin").read_bytes())
+                self.assertEqual(b"revision-b", source.read_bytes())
+                self.assertFalse((root / STAMP_FILE).exists())
+
+    def test_stamp_hash_fails_if_enumerated_output_vanishes(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.write_v4_provider(root)
+            original = materialization._enumerate_stamp_asset_files
+
+            def enumerate_then_remove(source_root: Path, source: str, field: str) -> list[Path]:
+                files = original(source_root, source, field)
+                self.assertTrue(files)
+                files[0].unlink()
+                return files
+
+            with patch.object(
+                materialization,
+                "_enumerate_stamp_asset_files",
+                side_effect=enumerate_then_remove,
+            ):
+                with self.assertRaisesRegex(
+                    PublicationMaterializationError,
+                    "no longer a regular non-symlink file",
+                ):
+                    materialize_publication(root, "fixture")
+
+            self.assertFalse((root / STAMP_FILE).exists())
 
 
 if __name__ == "__main__":

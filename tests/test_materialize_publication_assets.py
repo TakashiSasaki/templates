@@ -67,6 +67,8 @@ target.write_bytes(b'deterministic fixture output')
         subprocess.run(["git", "init", "-q"], cwd=root, check=True)
         subprocess.run(["git", "config", "user.name", "Test"], cwd=root, check=True)
         subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=root, check=True)
+        # The run counter is test instrumentation, not a provider input or output.
+        (root / ".gitignore").write_text("materializer-runs.txt\n", encoding="utf-8")
         subprocess.run(["git", "add", "."], cwd=root, check=True)
         subprocess.run(["git", "commit", "-q", "-m", "init"], cwd=root, check=True)
 
@@ -316,6 +318,7 @@ target.write_bytes(b'deterministic fixture output')
             subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=root, check=True)
             self.write_catalog(root, version=4, source_kind="generated")
             self.write_materializer(root)
+            (root / ".gitignore").write_text("materializer-runs.txt\n", encoding="utf-8")
             subprocess.run(["git", "add", "."], cwd=root, check=True)
             subprocess.run(["git", "commit", "-q", "-m", "init"], cwd=root, check=True)
 

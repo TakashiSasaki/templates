@@ -222,7 +222,60 @@ def _provider_git_identity(root: Path) -> str:
     return ""
 
 
-def _provider_git_worktree_fingerprint(root: Path, git_revision: str) -> str:
+def _provider_worktree_pathspecs(
+    excluded_roots: tuple[PurePosixPath, ...],
+) -> list[str]:
+    pathspecs = ["."]
+    for excluded in excluded_roots:
+        pathspecs.append(f":(top,literal,exclude){excluded.as_posix()}")
+    return pathspecs
+
+
+def _provider_git_untracked_paths(
+    root: Path,
+    git_revision: str,
+    *,
+    excluded_roots: tuple[PurePosixPath, ...] = (),
+) -> tuple[bytes, ...]:
+    if not git_revision:
+        return ()
+    canonical_root = root.resolve(strict=True)
+    proc = subprocess.run(
+        [
+            "git",
+            "-C",
+            str(canonical_root),
+            "ls-files",
+            "--others",
+            "--exclude-standard",
+            "-z",
+            "--",
+            *_provider_worktree_pathspecs(excluded_roots),
+        ],
+        capture_output=True,
+        check=False,
+    )
+    if proc.returncode != 0:
+        raise PublicationMaterializationError(
+            f"unable to enumerate untracked Git worktree state for provider at {canonical_root}"
+        )
+    stamp_bytes = os.fsencode(STAMP_FILE.as_posix())
+    return tuple(
+        sorted(
+            raw_path
+            for raw_path in proc.stdout.split(b"\0")
+            if raw_path and raw_path != stamp_bytes
+        )
+    )
+
+
+def _provider_git_worktree_fingerprint(
+    root: Path,
+    git_revision: str,
+    *,
+    excluded_roots: tuple[PurePosixPath, ...] = (),
+    untracked_paths: tuple[bytes, ...] | None = None,
+) -> str:
     """Bind reuse to Git-visible tracked and untracked worktree content."""
     if not git_revision:
         return ""
@@ -239,7 +292,7 @@ def _provider_git_worktree_fingerprint(root: Path, git_revision: str) -> str:
                 "--no-textconv",
                 git_revision,
                 "--",
-                ".",
+                *_provider_worktree_pathspecs(excluded_roots),
             ],
             capture_output=True,
             check=False,
@@ -249,25 +302,14 @@ def _provider_git_worktree_fingerprint(root: Path, git_revision: str) -> str:
                 f"unable to fingerprint tracked Git worktree state for provider at {canonical_root}"
             )
 
-        untracked_proc = subprocess.run(
-            [
-                "git",
-                "-C",
-                str(canonical_root),
-                "ls-files",
-                "--others",
-                "--exclude-standard",
-                "-z",
-                "--",
-                ".",
-            ],
-            capture_output=True,
-            check=False,
-        )
-        if untracked_proc.returncode != 0:
-            raise PublicationMaterializationError(
-                f"unable to enumerate untracked Git worktree state for provider at {canonical_root}"
+        if untracked_paths is None:
+            untracked_paths = _provider_git_untracked_paths(
+                root,
+                git_revision,
+                excluded_roots=excluded_roots,
             )
+        else:
+            untracked_paths = tuple(sorted(untracked_paths))
 
         digest = hashlib.sha256()
         digest.update(b"git-revision\0")
@@ -275,7 +317,7 @@ def _provider_git_worktree_fingerprint(root: Path, git_revision: str) -> str:
         digest.update(b"\0tracked-diff\0")
         digest.update(diff_proc.stdout)
         stamp_bytes = os.fsencode(STAMP_FILE.as_posix())
-        for raw_path in sorted(path for path in untracked_proc.stdout.split(b"\0") if path):
+        for raw_path in untracked_paths:
             if raw_path == stamp_bytes:
                 continue
             relative = Path(os.fsdecode(raw_path))
@@ -315,6 +357,46 @@ def _provider_semantic_revision(root: Path) -> str:
         except Exception:
             pass
     return ""
+
+
+def _materializer_output_roots(
+    root: Path,
+    version: int,
+    source_catalog: Any | None,
+) -> tuple[PurePosixPath, ...]:
+    if version == 4:
+        assert source_catalog is not None
+        return tuple(PurePosixPath(asset.source) for asset in source_catalog.generated_assets)
+
+    try:
+        data = read_json_object(root / CATALOG, "publication catalog")
+    except PublicationContractError as exc:
+        raise PublicationMaterializationError(str(exc)) from exc
+
+    roots: list[PurePosixPath] = []
+
+    def add_source(value: Any) -> None:
+        if not isinstance(value, str) or not value or "\\" in value or ":" in value or "\0" in value:
+            return
+        parsed = PurePosixPath(value)
+        if parsed.is_absolute() or any(
+            part in ("", ".", "..") or part.casefold() == ".git"
+            for part in parsed.parts
+        ):
+            return
+        if parsed not in roots:
+            roots.append(parsed)
+
+    for collection in ("documents", "assets"):
+        raw_items = data.get(collection)
+        if isinstance(raw_items, list):
+            for raw in raw_items:
+                if isinstance(raw, dict):
+                    add_source(raw.get("source"))
+    glossary = data.get("glossary")
+    if isinstance(glossary, dict):
+        add_source(glossary.get("source"))
+    return tuple(roots)
 
 
 def _check_reserved_stamp_collision(catalog: Any, label: str) -> None:
@@ -413,6 +495,31 @@ def _assert_provider_reuse_identity(
             )
 
 
+def _assert_materializer_input_state(
+    root: Path,
+    expected_git_revision: str,
+    expected_worktree_fingerprint: str,
+    pre_run_untracked_paths: tuple[bytes, ...],
+    output_roots: tuple[PurePosixPath, ...],
+    label: str,
+    *,
+    boundary: str,
+) -> None:
+    _assert_git_identity(root, expected_git_revision, label, boundary=boundary)
+    if expected_git_revision:
+        current = _provider_git_worktree_fingerprint(
+            root,
+            expected_git_revision,
+            excluded_roots=output_roots,
+            untracked_paths=pre_run_untracked_paths,
+        )
+        if current != expected_worktree_fingerprint:
+            raise PublicationMaterializationError(
+                f"{label}: provider Git worktree changed {boundary}; "
+                "retry after obtaining a stable provider checkout"
+            )
+
+
 def _enumerate_stamp_asset_files(root: Path, source: str, field: str) -> list[Path]:
     try:
         return asset_files(root, source, field)
@@ -422,6 +529,25 @@ def _enumerate_stamp_asset_files(root: Path, source: str, field: str) -> list[Pa
         ) from exc
 
 
+def _hash_stamp_file(root: Path, path: Path, field: str) -> str:
+    if path.is_symlink() or not path.is_file():
+        try:
+            relative = path.relative_to(root).as_posix()
+        except ValueError:
+            relative = str(path)
+        raise PublicationMaterializationError(
+            f"{field}: enumerated materialized file is no longer a regular "
+            f"non-symlink file: {relative}"
+        )
+    try:
+        payload = path.read_bytes()
+    except OSError as exc:
+        raise PublicationMaterializationError(
+            f"{field}: unable to hash materialized file {path}: {exc}"
+        ) from exc
+    return hashlib.sha256(payload).hexdigest()
+
+
 def _write_stamp(
     root: Path,
     label: str,
@@ -429,6 +555,9 @@ def _write_stamp(
     fingerprint: str,
     catalog: Any,
     git_revision: str = "",
+    input_worktree_fingerprint: str = "",
+    input_untracked_paths: tuple[bytes, ...] = (),
+    output_roots: tuple[PurePosixPath, ...] = (),
 ) -> str:
     generated_digests: dict[str, str] = {}
     if version == 4:
@@ -439,10 +568,11 @@ def _write_stamp(
             field = f"{label} generated asset {asset.source}"
             files = _enumerate_stamp_asset_files(root, asset.source, field)
             for p in sorted(files):
-                if p.is_file() and not p.is_symlink():
-                    generated_digests[p.relative_to(root).as_posix()] = hashlib.sha256(
-                        p.read_bytes()
-                    ).hexdigest()
+                generated_digests[p.relative_to(root).as_posix()] = _hash_stamp_file(
+                    root,
+                    p,
+                    field,
+                )
     else:
         for asset in catalog.assets:
             path = root / asset.source
@@ -451,10 +581,11 @@ def _write_stamp(
             field = f"{label} asset {asset.source}"
             files = _enumerate_stamp_asset_files(root, asset.source, field)
             for p in sorted(files):
-                if p.is_file() and not p.is_symlink():
-                    generated_digests[p.relative_to(root).as_posix()] = hashlib.sha256(
-                        p.read_bytes()
-                    ).hexdigest()
+                generated_digests[p.relative_to(root).as_posix()] = _hash_stamp_file(
+                    root,
+                    p,
+                    field,
+                )
         for doc in catalog.documents:
             p = root / doc.source
             if p.is_file() and not p.is_symlink():
@@ -479,6 +610,19 @@ def _write_stamp(
         "semantic_revision": semantic_rev,
         "generated_digests": generated_digests,
     }
+
+    # Preserve the source worktree state that authorized this materialization all
+    # the way through the atomic stamp publication boundary. Declared publication
+    # outputs are excluded because the materializer owns those paths.
+    _assert_materializer_input_state(
+        root,
+        git_revision,
+        input_worktree_fingerprint,
+        input_untracked_paths,
+        output_roots,
+        label,
+        boundary="before materialization stamp commit",
+    )
 
     # The catalog, digests, semantic revision and worktree fingerprint above are
     # post-materialization reads. Revalidate them at the atomic publication boundary.
@@ -699,15 +843,36 @@ def _prepare_publication(root: Path, label: str) -> tuple[Any, bool]:
                 "relocate or remove it before running the materializer"
             )
 
-    # Record identity before execution and require the entire materialization,
-    # validation and stamp-publication sequence to remain on that exact checkout.
+    # Record the exact source state before execution. Declared publication outputs
+    # are excluded because the materializer is expected to create or replace them.
+    # Fixing the pre-existing untracked path set keeps newly created build byproducts
+    # from being mistaken for concurrently mutated source inputs.
     pre_run_git_revision = _provider_git_identity(root)
+    output_roots = _materializer_output_roots(
+        root,
+        version,
+        catalog if version == 4 else None,
+    )
+    pre_run_untracked_paths = _provider_git_untracked_paths(
+        root,
+        pre_run_git_revision,
+        excluded_roots=output_roots,
+    )
+    pre_run_input_worktree_fingerprint = _provider_git_worktree_fingerprint(
+        root,
+        pre_run_git_revision,
+        excluded_roots=output_roots,
+        untracked_paths=pre_run_untracked_paths,
+    )
 
     run_materializer(root, label)
 
-    _assert_git_identity(
+    _assert_materializer_input_state(
         root,
         pre_run_git_revision,
+        pre_run_input_worktree_fingerprint,
+        pre_run_untracked_paths,
+        output_roots,
         label,
         boundary="while the materializer was running",
     )
@@ -721,6 +886,9 @@ def _prepare_publication(root: Path, label: str) -> tuple[Any, bool]:
         fingerprint,
         catalog,
         git_revision=pre_run_git_revision,
+        input_worktree_fingerprint=pre_run_input_worktree_fingerprint,
+        input_untracked_paths=pre_run_untracked_paths,
+        output_roots=output_roots,
     )
 
     # A checkout mutation after the atomic stamp replacement must not be reported as
@@ -729,6 +897,15 @@ def _prepare_publication(root: Path, label: str) -> tuple[Any, bool]:
         root,
         pre_run_git_revision,
         stamped_worktree_fingerprint,
+        label,
+        boundary="before returning materialization success",
+    )
+    _assert_materializer_input_state(
+        root,
+        pre_run_git_revision,
+        pre_run_input_worktree_fingerprint,
+        pre_run_untracked_paths,
+        output_roots,
         label,
         boundary="before returning materialization success",
     )
