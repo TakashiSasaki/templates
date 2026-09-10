@@ -1,0 +1,99 @@
+name: PR 790 fresh-untracked remediation
+
+on:
+  push:
+    branches:
+      - perf/site-provider-materialization-phase
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.event.head_commit.message == 'Stage fresh-untracked materialization regression fix'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: perf/site-provider-materialization-phase
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Close fresh-untracked input-state gap
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('scripts/materialize_publication_assets.py')
+          text = path.read_text(encoding='utf-8')
+
+          old = '''def _assert_materializer_input_state(\n    root: Path,\n    expected_git_revision: str,\n    expected_worktree_fingerprint: str,\n    pre_run_untracked_paths: tuple[bytes, ...],\n    output_roots: tuple[PurePosixPath, ...],\n'''
+          new = '''def _assert_materializer_input_state(\n    root: Path,\n    expected_git_revision: str,\n    expected_worktree_fingerprint: str,\n    output_roots: tuple[PurePosixPath, ...],\n'''
+          assert text.count(old) == 1
+          text = text.replace(old, new, 1)
+
+          old = '''            excluded_roots=output_roots,\n            untracked_paths=pre_run_untracked_paths,\n        )\n'''
+          new = '''            excluded_roots=output_roots,\n        )\n'''
+          assert text.count(old) >= 1
+          text = text.replace(old, new)
+
+          old = '''    input_worktree_fingerprint: str = "",\n    input_untracked_paths: tuple[bytes, ...] = (),\n    output_roots: tuple[PurePosixPath, ...] = (),\n'''
+          new = '''    input_worktree_fingerprint: str = "",\n    output_roots: tuple[PurePosixPath, ...] = (),\n'''
+          assert text.count(old) == 1
+          text = text.replace(old, new, 1)
+
+          old = '''        input_worktree_fingerprint,\n        input_untracked_paths,\n        output_roots,\n'''
+          new = '''        input_worktree_fingerprint,\n        output_roots,\n'''
+          assert text.count(old) == 1
+          text = text.replace(old, new, 1)
+
+          old = '''    # Fixing the pre-existing untracked path set keeps newly created build byproducts\n    # from being mistaken for concurrently mutated source inputs.\n    pre_run_git_revision = _provider_git_identity(root)\n'''
+          new = '''    # Any new untracked path outside those declared outputs is part of the provider\n    # source state and must invalidate this materialization attempt.\n    pre_run_git_revision = _provider_git_identity(root)\n'''
+          assert text.count(old) == 1
+          text = text.replace(old, new, 1)
+
+          old = '''    pre_run_untracked_paths = _provider_git_untracked_paths(\n        root,\n        pre_run_git_revision,\n        excluded_roots=output_roots,\n    )\n    pre_run_input_worktree_fingerprint = _provider_git_worktree_fingerprint(\n        root,\n        pre_run_git_revision,\n        excluded_roots=output_roots,\n        untracked_paths=pre_run_untracked_paths,\n    )\n'''
+          new = '''    pre_run_input_worktree_fingerprint = _provider_git_worktree_fingerprint(\n        root,\n        pre_run_git_revision,\n        excluded_roots=output_roots,\n    )\n'''
+          assert text.count(old) == 1
+          text = text.replace(old, new, 1)
+
+          old = '''        pre_run_input_worktree_fingerprint,\n        pre_run_untracked_paths,\n        output_roots,\n'''
+          new = '''        pre_run_input_worktree_fingerprint,\n        output_roots,\n'''
+          assert text.count(old) == 2
+          text = text.replace(old, new)
+
+          old = '''        input_worktree_fingerprint=pre_run_input_worktree_fingerprint,\n        input_untracked_paths=pre_run_untracked_paths,\n        output_roots=output_roots,\n'''
+          new = '''        input_worktree_fingerprint=pre_run_input_worktree_fingerprint,\n        output_roots=output_roots,\n'''
+          assert text.count(old) == 1
+          text = text.replace(old, new, 1)
+          path.write_text(text, encoding='utf-8')
+
+          test_path = Path('tests/test_materialize_publication_assets_review_followup.py')
+          tests = test_path.read_text(encoding='utf-8')
+          marker = '\n    def test_stamp_hash_fails_if_enumerated_output_vanishes(self) -> None:\n'
+          assert tests.count(marker) == 1
+          addition = '''\n    def test_materializer_cannot_create_new_untracked_non_output_state(self) -> None:\n        with tempfile.TemporaryDirectory() as directory:\n            root = Path(directory)\n            materializer = self.write_v4_provider(root)\n            materializer.write_text(\n                "from __future__ import annotations\\n"\n                "import argparse\\n"\n                "from pathlib import Path\\n"\n                "parser = argparse.ArgumentParser()\\n"\n                "parser.add_argument('--source-root', type=Path, required=True)\\n"\n                "args = parser.parse_args()\\n"\n                "out = args.source_root / 'generated' / 'output.bin'\\n"\n                "out.parent.mkdir(parents=True, exist_ok=True)\\n"\n                "out.write_bytes(b'deterministic-output')\\n"\n                "(args.source_root / 'unexpected-input-state.txt').write_text('new', encoding='utf-8')\\n",\n                encoding="utf-8",\n            )\n            self.initialize_git_checkout(root)\n\n            with self.assertRaisesRegex(\n                PublicationMaterializationError,\n                "worktree changed while the materializer was running",\n            ):\n                materialize_publication(root, "fixture")\n\n            self.assertTrue((root / "unexpected-input-state.txt").is_file())\n            self.assertFalse((root / STAMP_FILE).exists())\n'''
+          tests = tests.replace(marker, addition + marker, 1)
+          test_path.write_text(tests, encoding='utf-8')
+          PY
+      - name: Run focused regression suite
+        run: >-
+          python -m unittest
+          tests.test_materialize_publication_assets
+          tests.test_materialize_publication_assets_review_followup
+          tests.test_assembly_materialization_boundary
+          --verbose
+      - name: Commit fix and remove helper
+        shell: bash
+        run: |
+          rm .github/workflows/pr790-fresh-untracked-remediation.yml
+          git config user.name 'TakashiSasaki'
+          git config user.email '556958+TakashiSasaki@users.noreply.github.com'
+          git add scripts/materialize_publication_assets.py \
+            tests/test_materialize_publication_assets_review_followup.py \
+            .github/workflows/pr790-fresh-untracked-remediation.yml
+          git commit -m 'Detect fresh untracked materializer state changes'
+          git push origin HEAD:perf/site-provider-materialization-phase
