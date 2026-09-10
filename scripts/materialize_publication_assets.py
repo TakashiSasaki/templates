@@ -27,6 +27,7 @@ if __package__ in (None, ""):
 
 from scripts.publication_contract import (  # noqa: E402
     PublicationContractError,
+    asset_files,
     load_publication_catalog,
     parse_name,
     read_json_object,
@@ -151,15 +152,7 @@ def _atomic_write_json(path: Path, data: dict[str, Any]) -> None:
                 pass
 
 
-def _provider_semantic_revision(root: Path) -> str:
-    manifest_path = root / "generated" / "composition-playground-publication.json"
-    if manifest_path.is_file() and not manifest_path.is_symlink():
-        try:
-            data = json.loads(manifest_path.read_text(encoding="utf-8"))
-            if isinstance(data, dict) and isinstance(data.get("semantic_revision"), str):
-                return data["semantic_revision"]
-        except Exception:
-            pass
+def _provider_git_identity(root: Path) -> str:
     try:
         git_proc = subprocess.run(
             ["git", "-C", str(root), "rev-parse", "HEAD"],
@@ -169,10 +162,22 @@ def _provider_semantic_revision(root: Path) -> str:
         )
         if git_proc.returncode == 0:
             sha = git_proc.stdout.strip()
-            if len(sha) == 40:
-                return sha
+            if len(sha) == 40 and all(c in "0123456789abcdefABCDEF" for c in sha):
+                return sha.lower()
     except Exception:
         pass
+    return ""
+
+
+def _provider_semantic_revision(root: Path) -> str:
+    manifest_path = root / "generated" / "composition-playground-publication.json"
+    if manifest_path.is_file() and not manifest_path.is_symlink():
+        try:
+            data = json.loads(manifest_path.read_text(encoding="utf-8"))
+            if isinstance(data, dict) and isinstance(data.get("semantic_revision"), str):
+                return data["semantic_revision"]
+        except Exception:
+            pass
     return ""
 
 
@@ -186,29 +191,37 @@ def _write_stamp(
     generated_digests: dict[str, str] = {}
     if version == 4:
         for asset in catalog.generated_assets:
-            path = root / asset.source
-            if path.is_file() and not path.is_symlink():
-                generated_digests[asset.source.as_posix()] = hashlib.sha256(
-                    path.read_bytes()
-                ).hexdigest()
+            field = f"{label} generated asset {asset.source}"
+            try:
+                files = asset_files(root, asset.source, field)
+            except Exception:
+                continue
+            for path in sorted(files):
+                if path.is_file() and not path.is_symlink():
+                    generated_digests[path.relative_to(root).as_posix()] = hashlib.sha256(
+                        path.read_bytes()
+                    ).hexdigest()
     else:
         for asset in catalog.assets:
-            path = root / asset.source
-            if (
-                asset.source.parts
-                and asset.source.parts[0] == "generated"
-                and path.is_file()
-                and not path.is_symlink()
-            ):
-                generated_digests[asset.source.as_posix()] = hashlib.sha256(
-                    path.read_bytes()
-                ).hexdigest()
+            if asset.source.parts and asset.source.parts[0] == "generated":
+                field = f"{label} asset {asset.source}"
+                try:
+                    files = asset_files(root, asset.source, field)
+                except Exception:
+                    continue
+                for path in sorted(files):
+                    if path.is_file() and not path.is_symlink():
+                        generated_digests[path.relative_to(root).as_posix()] = hashlib.sha256(
+                            path.read_bytes()
+                        ).hexdigest()
 
+    git_revision = _provider_git_identity(root)
     semantic_rev = _provider_semantic_revision(root)
     stamp_data = {
         "stamp_version": 1,
         "canonical_root": str(root.resolve(strict=True)),
         "fingerprint": fingerprint,
+        "git_revision": git_revision,
         "semantic_revision": semantic_rev,
         "generated_digests": generated_digests,
     }
@@ -232,6 +245,9 @@ def _validate_stamp(
             return None
         if data.get("fingerprint") != fingerprint:
             return None
+        git_revision = _provider_git_identity(root)
+        if data.get("git_revision", "") != git_revision:
+            return None
         semantic_rev = _provider_semantic_revision(root)
         if semantic_rev and data.get("semantic_revision") != semantic_rev:
             return None
@@ -245,7 +261,24 @@ def _validate_stamp(
             digest = hashlib.sha256(path.read_bytes()).hexdigest()
             if digest != expected_digest:
                 return None
-        return _strict_catalog(root, label, version)
+        catalog = _strict_catalog(root, label, version)
+        if catalog is None:
+            return None
+        current_generated_files: set[str] = set()
+        if version == 4:
+            for asset in catalog.generated_assets:
+                files = asset_files(root, asset.source, f"{label} generated asset {asset.source}")
+                for path in files:
+                    current_generated_files.add(path.relative_to(root).as_posix())
+        else:
+            for asset in catalog.assets:
+                if asset.source.parts and asset.source.parts[0] == "generated":
+                    files = asset_files(root, asset.source, f"{label} asset {asset.source}")
+                    for path in files:
+                        current_generated_files.add(path.relative_to(root).as_posix())
+        if set(generated_digests.keys()) != current_generated_files:
+            return None
+        return catalog
     except Exception:
         return None
 
