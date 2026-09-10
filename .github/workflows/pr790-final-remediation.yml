@@ -1,0 +1,408 @@
+name: PR 790 final review remediation
+
+on:
+  push:
+    branches:
+      - perf/site-provider-materialization-phase
+    paths:
+      - .github/workflows/pr790-final-remediation.yml
+
+permissions:
+  contents: write
+
+jobs:
+  remediate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: perf/site-provider-materialization-phase
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Apply focused remediation
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          source_path = Path('scripts/materialize_publication_assets.py')
+          source = source_path.read_text(encoding='utf-8')
+
+          old = '''def _atomic_write_json(path: Path, data: dict[str, Any]) -> None:
+              text = json.dumps(data, indent=2, sort_keys=True) + "\\n"
+              temp_path = path.with_name(f".{path.name}.tmp.{os.getpid()}")
+              try:
+                  temp_path.write_text(text, encoding="utf-8")
+                  temp_path.replace(path)
+              finally:
+                  if temp_path.exists():
+                      try:
+                          temp_path.unlink()
+                      except OSError:
+                          pass
+          '''
+          new = '''def _atomic_write_json(path: Path, data: dict[str, Any]) -> None:
+              """Atomically publish JSON without replacing a concurrently-created path."""
+              text = json.dumps(data, indent=2, sort_keys=True) + "\\n"
+              temp_path = path.with_name(f".{path.name}.tmp.{os.getpid()}")
+              try:
+                  temp_path.write_text(text, encoding="utf-8")
+                  try:
+                      # Hard-linking a fully written temporary file is an atomic
+                      # no-clobber publish on the same filesystem: if a provider or
+                      # concurrent process created the reserved path after preflight,
+                      # FileExistsError preserves that path instead of replacing it.
+                      os.link(temp_path, path)
+                  except FileExistsError as exc:
+                      raise PublicationMaterializationError(
+                          f"{path.name} appeared before materialization stamp commit; "
+                          "refusing to overwrite it"
+                      ) from exc
+                  except OSError as exc:
+                      raise PublicationMaterializationError(
+                          f"unable to publish materialization stamp without overwriting "
+                          f"{path}: {exc}"
+                      ) from exc
+              finally:
+                  if temp_path.exists():
+                      try:
+                          temp_path.unlink()
+                      except OSError:
+                          pass
+          '''
+          if old not in source:
+              raise SystemExit('atomic write block not found')
+          source = source.replace(old, new, 1)
+
+          old = '''def _assert_materializer_input_state(
+              root: Path,
+              expected_git_revision: str,
+              expected_worktree_fingerprint: str,
+              pre_run_untracked_paths: tuple[bytes, ...],
+              output_roots: tuple[PurePosixPath, ...],
+              label: str,
+              *,
+              boundary: str,
+          ) -> None:
+              _assert_git_identity(root, expected_git_revision, label, boundary=boundary)
+              if expected_git_revision:
+                  current = _provider_git_worktree_fingerprint(
+                      root,
+                      expected_git_revision,
+                      excluded_roots=output_roots,
+                      untracked_paths=pre_run_untracked_paths,
+                  )
+                  if current != expected_worktree_fingerprint:
+                      raise PublicationMaterializationError(
+                          f"{label}: provider Git worktree changed {boundary}; "
+                          "retry after obtaining a stable provider checkout"
+                      )
+          '''
+          new = '''def _assert_materializer_input_state(
+              root: Path,
+              expected_git_revision: str,
+              expected_worktree_fingerprint: str,
+              pre_run_untracked_paths: tuple[bytes, ...],
+              output_roots: tuple[PurePosixPath, ...],
+              label: str,
+              *,
+              boundary: str,
+          ) -> None:
+              _assert_git_identity(root, expected_git_revision, label, boundary=boundary)
+              if expected_git_revision:
+                  # Re-enumerate the live untracked set at every boundary. Hashing
+                  # only the pre-run names would make a newly appearing source path
+                  # invisible even though it can change generator semantics.
+                  current_untracked_paths = _provider_git_untracked_paths(
+                      root,
+                      expected_git_revision,
+                      excluded_roots=output_roots,
+                  )
+                  if current_untracked_paths != pre_run_untracked_paths:
+                      raise PublicationMaterializationError(
+                          f"{label}: provider Git worktree changed {boundary}; "
+                          "retry after obtaining a stable provider checkout"
+                      )
+                  current = _provider_git_worktree_fingerprint(
+                      root,
+                      expected_git_revision,
+                      excluded_roots=output_roots,
+                      untracked_paths=current_untracked_paths,
+                  )
+                  if current != expected_worktree_fingerprint:
+                      raise PublicationMaterializationError(
+                          f"{label}: provider Git worktree changed {boundary}; "
+                          "retry after obtaining a stable provider checkout"
+                      )
+          '''
+          if old not in source:
+              raise SystemExit('input-state block not found')
+          source = source.replace(old, new, 1)
+
+          old = '''    _assert_output_snapshot(
+              root,
+              label,
+              version,
+              catalog,
+              generated_digests,
+              boundary="before materialization stamp commit",
+          )
+              _atomic_write_json(root / STAMP_FILE, stamp_data)
+          '''
+          new = '''    _assert_output_snapshot(
+              root,
+              label,
+              version,
+              catalog,
+              generated_digests,
+              boundary="before materialization stamp commit",
+          )
+              # The output snapshot can take long enough for source inputs to move.
+              # Re-check the complete source identity after hashing outputs so the
+              # stamp is never published from a mixed input/output observation.
+              _assert_materializer_input_state(
+                  root,
+                  git_revision,
+                  input_worktree_fingerprint,
+                  input_untracked_paths,
+                  output_roots,
+                  label,
+                  boundary="after output snapshot before materialization stamp commit",
+              )
+              _assert_provider_reuse_identity(
+                  root,
+                  git_revision,
+                  git_worktree_fingerprint,
+                  label,
+                  boundary="after output snapshot before materialization stamp commit",
+              )
+              _assert_materialization_fingerprint(
+                  root,
+                  fingerprint,
+                  label,
+                  boundary="after output snapshot before materialization stamp commit",
+              )
+              _atomic_write_json(root / STAMP_FILE, stamp_data)
+          '''
+          if old not in source:
+              raise SystemExit('stamp commit boundary block not found')
+          source = source.replace(old, new, 1)
+
+          old = '''        _assert_output_snapshot(
+              root,
+              label,
+              version,
+              catalog,
+              generated_digests,
+              boundary="while accepting materialization stamp",
+          )
+              return catalog
+          '''
+          new = '''        _assert_output_snapshot(
+              root,
+              label,
+              version,
+              catalog,
+              generated_digests,
+              boundary="while accepting materialization stamp",
+          )
+              # Treat input and output validation as one stable observation window:
+              # source identity is checked both before and after the output snapshot.
+              _assert_provider_reuse_identity(
+                  root,
+                  git_revision,
+                  git_worktree_fingerprint,
+                  label,
+                  boundary="after output snapshot while validating materialization stamp",
+              )
+              _assert_materialization_fingerprint(
+                  root,
+                  fingerprint,
+                  label,
+                  boundary="after output snapshot while accepting materialization stamp",
+              )
+              return catalog
+          '''
+          if old not in source:
+              raise SystemExit('stamp acceptance block not found')
+          source = source.replace(old, new, 1)
+
+          old = '''    _assert_output_snapshot(
+              root,
+              label,
+              version,
+              catalog,
+              stamped_output_digests,
+              boundary="before returning materialization success",
+          )
+          
+              _remember_success(root, run_fingerprint)
+          '''
+          new = '''    _assert_output_snapshot(
+              root,
+              label,
+              version,
+              catalog,
+              stamped_output_digests,
+              boundary="before returning materialization success",
+          )
+              _assert_provider_reuse_identity(
+                  root,
+                  pre_run_git_revision,
+                  stamped_worktree_fingerprint,
+                  label,
+                  boundary="after output snapshot before returning materialization success",
+              )
+              _assert_materializer_input_state(
+                  root,
+                  pre_run_git_revision,
+                  pre_run_input_worktree_fingerprint,
+                  pre_run_untracked_paths,
+                  output_roots,
+                  label,
+                  boundary="after output snapshot before returning materialization success",
+              )
+              _assert_materialization_fingerprint(
+                  root,
+                  run_fingerprint,
+                  label,
+                  boundary="after output snapshot before returning materialization success",
+              )
+          
+              _remember_success(root, run_fingerprint)
+          '''
+          if old not in source:
+              raise SystemExit('success boundary block not found')
+          source = source.replace(old, new, 1)
+          source_path.write_text(source, encoding='utf-8')
+
+          test_path = Path('tests/test_materialize_publication_assets_review_followup.py')
+          tests = test_path.read_text(encoding='utf-8')
+          old_side_effect = '''                side_effect=[revision_a, revision_a, revision_a, revision_a, revision_b],
+          '''
+          new_side_effect = '''                side_effect=[revision_a] * 7 + [revision_b],
+          '''
+          if old_side_effect not in tests:
+              raise SystemExit('success identity side-effect fixture not found')
+          tests = tests.replace(old_side_effect, new_side_effect, 1)
+
+          marker = '''
+          
+          if __name__ == "__main__":
+              unittest.main()
+          '''
+          addition = r'''
+              def test_new_untracked_source_path_during_materialization_aborts(self) -> None:
+                  with tempfile.TemporaryDirectory() as directory:
+                      root = Path(directory)
+                      materializer = self.write_v4_provider(root)
+                      materializer.write_text(
+                          "from __future__ import annotations\n"
+                          "import argparse\n"
+                          "from pathlib import Path\n"
+                          "parser = argparse.ArgumentParser()\n"
+                          "parser.add_argument('--source-root', type=Path, required=True)\n"
+                          "args = parser.parse_args()\n"
+                          "out = args.source_root / 'generated' / 'output.bin'\n"
+                          "out.parent.mkdir(parents=True, exist_ok=True)\n"
+                          "out.write_bytes(b'deterministic-output')\n"
+                          "(args.source_root / 'late-source.txt').write_text('late', encoding='utf-8')\n",
+                          encoding="utf-8",
+                      )
+                      self.initialize_git_checkout(root)
+          
+                      with self.assertRaisesRegex(
+                          PublicationMaterializationError,
+                          "worktree changed while the materializer was running",
+                      ):
+                          materialize_publication(root, "fixture")
+          
+                      self.assertTrue((root / "late-source.txt").is_file())
+                      self.assertFalse((root / STAMP_FILE).exists())
+          
+              def test_inputs_are_rechecked_after_final_output_snapshot(self) -> None:
+                  with tempfile.TemporaryDirectory() as directory:
+                      root = Path(directory)
+                      materializer = self.write_v4_provider(root)
+                      self.initialize_git_checkout(root)
+                      self.assertTrue(materialize_publication(root, "fixture"))
+          
+                      original = materialization._snapshot_materialized_outputs
+                      mutated = False
+          
+                      def mutate_input_after_snapshot(*args, **kwargs):
+                          nonlocal mutated
+                          observed = original(*args, **kwargs)
+                          if not mutated:
+                              materializer.write_text(
+                                  materializer.read_text(encoding="utf-8") + "\n# late input mutation\n",
+                                  encoding="utf-8",
+                              )
+                              mutated = True
+                          return observed
+          
+                      with patch.object(
+                          materialization,
+                          "_snapshot_materialized_outputs",
+                          side_effect=mutate_input_after_snapshot,
+                      ):
+                          self.assertFalse(is_publication_materialized(root, "fixture"))
+                      self.assertTrue(mutated)
+          
+              def test_stamp_commit_preserves_path_created_by_materializer(self) -> None:
+                  with tempfile.TemporaryDirectory() as directory:
+                      root = Path(directory)
+                      materializer = self.write_v4_provider(root)
+                      materializer.write_text(
+                          "from __future__ import annotations\n"
+                          "import argparse\n"
+                          "from pathlib import Path\n"
+                          "parser = argparse.ArgumentParser()\n"
+                          "parser.add_argument('--source-root', type=Path, required=True)\n"
+                          "args = parser.parse_args()\n"
+                          "out = args.source_root / 'generated' / 'output.bin'\n"
+                          "out.parent.mkdir(parents=True, exist_ok=True)\n"
+                          "out.write_bytes(b'deterministic-output')\n"
+                          "stamp = args.source_root / '.publication-materialization-stamp.json'\n"
+                          "stamp.write_text('{\\\"provider\\\": \\\"owned\\\"}\\n', encoding='utf-8')\n",
+                          encoding="utf-8",
+                      )
+                      self.initialize_git_checkout(root)
+          
+                      with self.assertRaisesRegex(
+                          PublicationMaterializationError,
+                          "appeared before materialization stamp commit",
+                      ):
+                          materialize_publication(root, "fixture")
+          
+                      stamp = root / STAMP_FILE
+                      self.assertEqual(
+                          '{"provider": "owned"}\n',
+                          stamp.read_text(encoding="utf-8"),
+                      )
+          '''
+          if marker not in tests:
+              raise SystemExit('test module footer not found')
+          tests = tests.replace(marker, addition + marker, 1)
+          test_path.write_text(tests, encoding='utf-8')
+          PY
+
+      - name: Run focused regressions
+        run: >-
+          python -m unittest
+          tests.test_materialize_publication_assets
+          tests.test_materialize_publication_assets_review_followup
+          tests.test_assembly_materialization_boundary
+          --verbose
+      - name: Commit remediation and remove temporary workflow
+        shell: bash
+        run: |
+          rm .github/workflows/pr790-final-remediation.yml
+          git config user.name "Takashi SASAKI"
+          git config user.email "takashi316@gmail.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "Close final materialization snapshot races"
+          git push origin HEAD:perf/site-provider-materialization-phase
