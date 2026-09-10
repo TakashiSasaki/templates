@@ -28,6 +28,7 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
+          import base64
 
           path = Path('scripts/materialize_publication_assets.py')
           text = path.read_text(encoding='utf-8')
@@ -62,8 +63,8 @@ jobs:
               '''def _materializer_output_roots(\n    root: Path,\n    version: int,\n    source_catalog: Any | None,\n    *,\n    for_tracked: bool = False,\n) -> tuple[PurePosixPath, ...]:\n''',
           )
           replace_once(
-              '''            candidate = parsed.parent if parsed.parent != PurePosixPath('.') else parsed\n''',
-              '''            candidate = (\n                parsed\n                if for_tracked\n                else (parsed.parent if parsed.parent != PurePosixPath('.') else parsed)\n            )\n''',
+              '''            candidate = parsed.parent if parsed.parent != PurePosixPath(".") else parsed\n''',
+              '''            candidate = (\n                parsed\n                if for_tracked\n                else (parsed.parent if parsed.parent != PurePosixPath(".") else parsed)\n            )\n''',
           )
           replace_once(
               '''    generated_root = PurePosixPath("generated")\n    if generated_root not in roots:\n        roots.append(generated_root)\n    return tuple(roots)\n''',
@@ -133,119 +134,7 @@ jobs:
           marker = '\nif __name__ == "__main__":\n'
           if tests.count(marker) != 1:
               raise SystemExit('test insertion marker not unique')
-          additions = r'''
-    def test_tracked_sibling_of_generated_output_remains_an_input(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            materializer = self.write_v4_provider(root)
-            tracked_input = root / "generated" / "input.bin"
-            tracked_input.parent.mkdir(parents=True, exist_ok=True)
-            tracked_input.write_bytes(b"A")
-            materializer.write_text(
-                "from __future__ import annotations\n"
-                "import argparse\n"
-                "from pathlib import Path\n"
-                "parser = argparse.ArgumentParser()\n"
-                "parser.add_argument('--source-root', type=Path, required=True)\n"
-                "args = parser.parse_args()\n"
-                "source = args.source_root / 'generated' / 'input.bin'\n"
-                "payload = source.read_bytes()\n"
-                "out = args.source_root / 'generated' / 'output.bin'\n"
-                "out.write_bytes(payload)\n"
-                "source.write_bytes(b'B')\n",
-                encoding="utf-8",
-            )
-            self.initialize_git_checkout(root)
-
-            with self.assertRaisesRegex(
-                PublicationMaterializationError,
-                "worktree changed while the materializer was running",
-            ):
-                materialize_publication(root, "fixture")
-
-            self.assertEqual(b"A", (root / "generated" / "output.bin").read_bytes())
-            self.assertEqual(b"B", tracked_input.read_bytes())
-            self.assertFalse((root / STAMP_FILE).exists())
-
-    def test_semantic_revision_is_rechecked_after_output_snapshot_on_acceptance(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            materializer = self.write_v4_provider(root)
-            manifest = root / "generated" / "composition-playground-publication.json"
-            (root / ".gitignore").write_text(
-                "generated/composition-playground-publication.json\n",
-                encoding="utf-8",
-            )
-            materializer.write_text(
-                materializer.read_text(encoding="utf-8")
-                + "manifest = args.source_root / 'generated' / 'composition-playground-publication.json'\n"
-                + "manifest.write_text('{"semantic_revision": "A"}', encoding='utf-8')\n",
-                encoding="utf-8",
-            )
-            self.initialize_git_checkout(root)
-            self.assertTrue(materialize_publication(root, "fixture"))
-            self.assertTrue(is_publication_materialized(root, "fixture"))
-
-            original = materialization._snapshot_materialized_outputs
-            mutated = False
-
-            def mutate_after_output_snapshot(*args, **kwargs):
-                nonlocal mutated
-                observed = original(*args, **kwargs)
-                if not mutated:
-                    manifest.write_text('{"semantic_revision": "B"}', encoding="utf-8")
-                    mutated = True
-                return observed
-
-            with patch.object(
-                materialization,
-                "_snapshot_materialized_outputs",
-                side_effect=mutate_after_output_snapshot,
-            ):
-                self.assertFalse(is_publication_materialized(root, "fixture"))
-            self.assertTrue(mutated)
-
-    def test_semantic_revision_is_rechecked_after_output_snapshot_on_stamp_commit(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            materializer = self.write_v4_provider(root)
-            manifest = root / "generated" / "composition-playground-publication.json"
-            (root / ".gitignore").write_text(
-                "generated/composition-playground-publication.json\n",
-                encoding="utf-8",
-            )
-            materializer.write_text(
-                materializer.read_text(encoding="utf-8")
-                + "manifest = args.source_root / 'generated' / 'composition-playground-publication.json'\n"
-                + "manifest.write_text('{"semantic_revision": "A"}', encoding='utf-8')\n",
-                encoding="utf-8",
-            )
-            self.initialize_git_checkout(root)
-            original = materialization._snapshot_materialized_outputs
-            snapshots = 0
-
-            def mutate_during_commit_snapshot(*args, **kwargs):
-                nonlocal snapshots
-                observed = original(*args, **kwargs)
-                snapshots += 1
-                if snapshots == 2:
-                    manifest.write_text('{"semantic_revision": "B"}', encoding="utf-8")
-                return observed
-
-            with patch.object(
-                materialization,
-                "_snapshot_materialized_outputs",
-                side_effect=mutate_during_commit_snapshot,
-            ):
-                with self.assertRaisesRegex(
-                    PublicationMaterializationError,
-                    "semantic revision changed after output snapshot before materialization stamp commit",
-                ):
-                    materialize_publication(root, "fixture")
-            self.assertGreaterEqual(snapshots, 2)
-            self.assertFalse((root / STAMP_FILE).exists())
-
-'''
+          additions = base64.b64decode('CiAgICBkZWYgdGVzdF90cmFja2VkX3NpYmxpbmdfb2ZfZ2VuZXJhdGVkX291dHB1dF9yZW1haW5zX2FuX2lucHV0KHNlbGYpIC0+IE5vbmU6CiAgICAgICAgd2l0aCB0ZW1wZmlsZS5UZW1wb3JhcnlEaXJlY3RvcnkoKSBhcyBkaXJlY3Rvcnk6CiAgICAgICAgICAgIHJvb3QgPSBQYXRoKGRpcmVjdG9yeSkKICAgICAgICAgICAgbWF0ZXJpYWxpemVyID0gc2VsZi53cml0ZV92NF9wcm92aWRlcihyb290KQogICAgICAgICAgICB0cmFja2VkX2lucHV0ID0gcm9vdCAvICJnZW5lcmF0ZWQiIC8gImlucHV0LmJpbiIKICAgICAgICAgICAgdHJhY2tlZF9pbnB1dC5wYXJlbnQubWtkaXIocGFyZW50cz1UcnVlLCBleGlzdF9vaz1UcnVlKQogICAgICAgICAgICB0cmFja2VkX2lucHV0LndyaXRlX2J5dGVzKGJiIkEiKQogICAgICAgICAgICBtYXRlcmlhbGl6ZXIud3JpdGVfdGV4dCgKICAgICAgICAgICAgICAgICJmcm9tIF9fZnV0dXJlX18gaW1wb3J0IGFubm90YXRpb25zXG4iCiAgICAgICAgICAgICAgICAiaW1wb3J0IGFyZ3BhcnNlXG4iCiAgICAgICAgICAgICAgICAiZnJvbSBwYXRobGliIGltcG9ydCBQYXRoXG4iCiAgICAgICAgICAgICAgICAicGFyc2VyID0gYXJncGFyc2UuQXJndW1lbnRQYXJzZXIoKVxuIgogICAgICAgICAgICAgICAgInBhcnNlci5hZGRfYXJndW1lbnQoJy0tc291cmNlLXJvb3QnLCB0eXBlPVBhdGgsIHJlcXVpcmVkPVRydWUpXG4iCiAgICAgICAgICAgICAgICAiYXJncyA9IHBhcnNlci5wYXJzZV9hcmdzKClcbiIKICAgICAgICAgICAgICAgICJzb3VyY2UgPSBhcmdzLnNvdXJjZV9yb290IC8gJ2dlbmVyYXRlZCcgLyAnaW5wdXQuYmluJ1xuIgogICAgICAgICAgICAgICAgInBheWxvYWQgPSBzb3VyY2UucmVhZF9ieXRlcygpXG4iCiAgICAgICAgICAgICAgICAib3V0ID0gYXJncy5zb3VyY2Vfcm9vdCAvICdnZW5lcmF0ZWQnIC8gJ291dHB1dC5iaW4nXG4iCiAgICAgICAgICAgICAgICAib3V0LndyaXRlX2J5dGVzKHBheWxvYWQpXG4iCiAgICAgICAgICAgICAgICAic291cmNlLndyaXRlX2J5dGVzKGInQicpXG4iLAogICAgICAgICAgICAgICAgZW5jb2Rpbmc9InV0Zi04IiwKICAgICAgICAgICAgKQogICAgICAgICAgICBzZWxmLmluaXRpYWxpemVfZ2l0X2NoZWNrb3V0KHJvb3QpCgogICAgICAgICAgICB3aXRoIHNlbGYuYXNzZXJ0UmFpc2VzUmVnZXgoCiAgICAgICAgICAgICAgICBQdWJsaWNhdGlvbk1hdGVyaWFsaXphdGlvbkVycm9yLAogICAgICAgICAgICAgICAgIndvcmt0cmVlIGNoYW5nZWQgd2hpbGUgdGhlIG1hdGVyaWFsaXplciB3YXMgcnVubmluZyIsCiAgICAgICAgICAgICk6CiAgICAgICAgICAgICAgICBtYXRlcmlhbGl6ZV9wdWJsaWNhdGlvbihyb290LCAiZml4dHVyZSIpCgogICAgICAgICAgICBzZWxmLmFzc2VydEVxdWFsKGJiIkEiLCAocm9vdCAvICJnZW5lcmF0ZWQiIC8gIm91dHB1dC5iaW4iKS5yZWFkX2J5dGVzKCkpCiAgICAgICAgICAgIHNlbGYuYXNzZXJ0RXF1YWwoYiJCIiwgdHJhY2tlZF9pbnB1dC5yZWFkX2J5dGVzKCkpCiAgICAgICAgICAgIHNlbGYuYXNzZXJ0RmFsc2UoKHJvb3QgLyBTVEFNUF9GSUxFKS5leGlzdHMoKSkKCiAgICBkZWYgdGVzdF9zZW1hbnRpY19yZXZpc2lvbl9pc19yZWNoZWNrZWRfYWZ0ZXJfb3V0cHV0X3NuYXBzaG90X29uX2FjY2VwdGFuY2Uoc2VsZikgLT4gTm9uZToKICAgICAgICB3aXRoIHRlbXBmaWxlLlRlbXBvcmFyeURpcmVjdG9yeSgpIGFzIGRpcmVjdG9yeToKICAgICAgICAgICAgcm9vdCA9IFBhdGgoZGlyZWN0b3J5KQogICAgICAgICAgICBtYXRlcmlhbGl6ZXIgPSBzZWxmLndyaXRlX3Y0X3Byb3ZpZGVyKHJvb3QpCiAgICAgICAgICAgIG1hbmlmZXN0ID0gcm9vdCAvICJnZW5lcmF0ZWQiIC8gImNvbXBvc2l0aW9uLXBsYXlncm91bmQtcHVibGljYXRpb24uanNvbiIKICAgICAgICAgICAgKHJvb3QgLyAiLmdpdGlnbm9yZSIpLndyaXRlX3RleHQoCiAgICAgICAgICAgICAgICAiZ2VuZXJhdGVkL2NvbXBvc2l0aW9uLXBsYXlncm91bmQtcHVibGljYXRpb24uanNvblxuIiwKICAgICAgICAgICAgICAgIGVuY29kaW5nPSJ1dGYtOCIsCiAgICAgICAgICAgICkKICAgICAgICAgICAgbWF0ZXJpYWxpemVyLndyaXRlX3RleHQoCiAgICAgICAgICAgICAgICBtYXRlcmlhbGl6ZXIucmVhZF90ZXh0KGVuY29kaW5nPSJ1dGYtOCIpCiAgICAgICAgICAgICAgICArICJtYW5pZmVzdCA9IGFyZ3Muc291cmNlX3Jvb3QgLyAnZ2VuZXJhdGVkJyAvICdjb21wb3NpdGlvbi1wbGF5Z3JvdW5kLXB1YmxpY2F0aW9uLmpzb24nXG4iCiAgICAgICAgICAgICAgICArICJtYW5pZmVzdC53cml0ZV90ZXh0KCd7XCJzZW1hbnRpY19yZXZpc2lvblwiOiBcIkFcIn0nLCBlbmNvZGluZz0ndXRmLTgnKVxuIiwKICAgICAgICAgICAgICAgIGVuY29kaW5nPSJ1dGYtOCIsCiAgICAgICAgICAgICkKICAgICAgICAgICAgc2VsZi5pbml0aWFsaXplX2dpdF9jaGVja291dChyb290KQogICAgICAgICAgICBzZWxmLmFzc2VydFRydWUobWF0ZXJpYWxpemVfcHVibGljYXRpb24ocm9vdCwgImZpeHR1cmUiKSkKICAgICAgICAgICAgc2VsZi5hc3NlcnRUcnVlKGlzX3B1YmxpY2F0aW9uX21hdGVyaWFsaXplZChyb290LCAiZml4dHVyZSIpKQoKICAgICAgICAgICAgb3JpZ2luYWwgPSBtYXRlcmlhbGl6YXRpb24uX3NuYXBzaG90X21hdGVyaWFsaXplZF9vdXRwdXRzCiAgICAgICAgICAgIG11dGF0ZWQgPSBGYWxzZQoKICAgICAgICAgICAgZGVmIG11dGF0ZV9hZnRlcl9vdXRwdXRfc25hcHNob3QoKmFyZ3MsICoqa3dhcmdzKToKICAgICAgICAgICAgICAgIG5vbmxvY2FsIG11dGF0ZWQKICAgICAgICAgICAgICAgIG9ic2VydmVkID0gb3JpZ2luYWwoKmFyZ3MsICoqa3dhcmdzKQogICAgICAgICAgICAgICAgaWYgbm90IG11dGF0ZWQ6CiAgICAgICAgICAgICAgICAgICAgbWFuaWZlc3Qud3JpdGVfdGV4dCgneyJzZW1hbnRpY19yZXZpc2lvbiI6ICJCIn0nLCBlbmNvZGluZz0idXRmLTgiKQogICAgICAgICAgICAgICAgICAgIG11dGF0ZWQgPSBUcnVlCiAgICAgICAgICAgICAgICByZXR1cm4gb2JzZXJ2ZWQKCiAgICAgICAgICAgIHdpdGggcGF0Y2gub2JqZWN0KAogICAgICAgICAgICAgICAgbWF0ZXJpYWxpemF0aW9uLAogICAgICAgICAgICAgICAgIl9zbmFwc2hvdF9tYXRlcmlhbGl6ZWRfb3V0cHV0cyIsCiAgICAgICAgICAgICAgICBzaWRlX2VmZmVjdD1tdXRhdGVfYWZ0ZXJfb3V0cHV0X3NuYXBzaG90LAogICAgICAgICAgICApOgogICAgICAgICAgICAgICAgc2VsZi5hc3NlcnRGYWxzZShpc19wdWJsaWNhdGlvbl9tYXRlcmlhbGl6ZWQocm9vdCwgImZpeHR1cmUiKSkKICAgICAgICAgICAgc2VsZi5hc3NlcnRUcnVlKG11dGF0ZWQpCgogICAgZGVmIHRlc3Rfc2VtYW50aWNfcmV2aXNpb25faXNfcmVjaGVja2VkX2FmdGVyX291dHB1dF9zbmFwc2hvdF9vbl9zdGFtcF9jb21taXQoc2VsZikgLT4gTm9uZToKICAgICAgICB3aXRoIHRlbXBmaWxlLlRlbXBvcmFyeURpcmVjdG9yeSgpIGFzIGRpcmVjdG9yeToKICAgICAgICAgICAgcm9vdCA9IFBhdGgoZGlyZWN0b3J5KQogICAgICAgICAgICBtYXRlcmlhbGl6ZXIgPSBzZWxmLndyaXRlX3Y0X3Byb3ZpZGVyKHJvb3QpCiAgICAgICAgICAgIG1hbmlmZXN0ID0gcm9vdCAvICJnZW5lcmF0ZWQiIC8gImNvbXBvc2l0aW9uLXBsYXlncm91bmQtcHVibGljYXRpb24uanNvbiIKICAgICAgICAgICAgKHJvb3QgLyAiLmdpdGlnbm9yZSIpLndyaXRlX3RleHQoCiAgICAgICAgICAgICAgICAiZ2VuZXJhdGVkL2NvbXBvc2l0aW9uLXBsYXlncm91bmQtcHVibGljYXRpb24uanNvblxuIiwKICAgICAgICAgICAgICAgIGVuY29kaW5nPSJ1dGYtOCIsCiAgICAgICAgICAgICkKICAgICAgICAgICAgbWF0ZXJpYWxpemVyLndyaXRlX3RleHQoCiAgICAgICAgICAgICAgICBtYXRlcmlhbGl6ZXIucmVhZF90ZXh0KGVuY29kaW5nPSJ1dGYtOCIpCiAgICAgICAgICAgICAgICArICJtYW5pZmVzdCA9IGFyZ3Muc291cmNlX3Jvb3QgLyAnZ2VuZXJhdGVkJyAvICdjb21wb3NpdGlvbi1wbGF5Z3JvdW5kLXB1YmxpY2F0aW9uLmpzb24nXG4iCiAgICAgICAgICAgICAgICArICJtYW5pZmVzdC53cml0ZV90ZXh0KCd7XCJzZW1hbnRpY19yZXZpc2lvblwiOiBcIkFcIn0nLCBlbmNvZGluZz0ndXRmLTgnKVxuIiwKICAgICAgICAgICAgICAgIGVuY29kaW5nPSJ1dGYtOCIsCiAgICAgICAgICAgICkKICAgICAgICAgICAgc2VsZi5pbml0aWFsaXplX2dpdF9jaGVja291dChyb290KQogICAgICAgICAgICBvcmlnaW5hbCA9IG1hdGVyaWFsaXphdGlvbi5fc25hcHNob3RfbWF0ZXJpYWxpemVkX291dHB1dHMKICAgICAgICAgICAgc25hcHNob3RzID0gMAoKICAgICAgICAgICAgZGVmIG11dGF0ZV9kdXJpbmdfY29tbWl0X3NuYXBzaG90KCphcmdzLCAqKmt3YXJncyk6CiAgICAgICAgICAgICAgICBub25sb2NhbCBzbmFwc2hvdHMKICAgICAgICAgICAgICAgIG9ic2VydmVkID0gb3JpZ2luYWwoKmFyZ3MsICoqa3dhcmdzKQogICAgICAgICAgICAgICAgc25hcHNob3RzICs9IDEKICAgICAgICAgICAgICAgIGlmIHNuYXBzaG90cyA9PSAyOgogICAgICAgICAgICAgICAgICAgIG1hbmlmZXN0LndyaXRlX3RleHQoJ3sic2VtYW50aWNfcmV2aXNpb24iOiAiQiJ9JywgZW5jb2Rpbmc9InV0Zi04IikKICAgICAgICAgICAgICAgIHJldHVybiBvYnNlcnZlZAoKICAgICAgICAgICAgd2l0aCBwYXRjaC5vYmplY3QoCiAgICAgICAgICAgICAgICBtYXRlcmlhbGl6YXRpb24sCiAgICAgICAgICAgICAgICAiX3NuYXBzaG90X21hdGVyaWFsaXplZF9vdXRwdXRzIiwKICAgICAgICAgICAgICAgIHNpZGVfZWZmZWN0PW11dGF0ZV9kdXJpbmdfY29tbWl0X3NuYXBzaG90LAogICAgICAgICAgICApOgogICAgICAgICAgICAgICAgd2l0aCBzZWxmLmFzc2VydFJhaXNlc1JlZ2V4KAogICAgICAgICAgICAgICAgICAgIFB1YmxpY2F0aW9uTWF0ZXJpYWxpemF0aW9uRXJyb3IsCiAgICAgICAgICAgICAgICAgICAgInNlbWFudGljIHJldmlzaW9uIGNoYW5nZWQgYWZ0ZXIgb3V0cHV0IHNuYXBzaG90IGJlZm9yZSBtYXRlcmlhbGl6YXRpb24gc3RhbXAgY29tbWl0IiwKICAgICAgICAgICAgICAgICk6CiAgICAgICAgICAgICAgICAgICAgbWF0ZXJpYWxpemVfcHVibGljYXRpb24ocm9vdCwgImZpeHR1cmUiKQogICAgICAgICAgICBzZWxmLmFzc2VydEdyZWF0ZXJFcXVhbChzbmFwc2hvdHMsIDIpCiAgICAgICAgICAgIHNlbGYuYXNzZXJ0RmFsc2UoKHJvb3QgLyBTVEFNUF9GSUxFKS5leGlzdHMoKSkK').decode('utf-8')
           tests = tests.replace(marker, '\n' + additions + marker, 1)
           test_path.write_text(tests, encoding='utf-8')
           PY
