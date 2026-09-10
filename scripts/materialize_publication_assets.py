@@ -199,9 +199,9 @@ def _check_reserved_stamp_collision(catalog: Any, label: str) -> None:
                 f"{label} document source collides with reserved stamp path: {doc.source}"
             )
     for asset in getattr(catalog, "assets", ()):
-        if PurePosixPath(asset.source) == reserved or PurePosixPath(asset.destination) == reserved:
+        if PurePosixPath(asset.source) == reserved:
             raise PublicationMaterializationError(
-                f"{label} asset collides with reserved stamp path: {reserved}"
+                f"{label} asset source collides with reserved stamp path: {reserved}"
             )
 
 
@@ -314,8 +314,18 @@ def _validate_stamp(
         if data.get("fingerprint") != fingerprint:
             return None
         git_revision = _provider_git_identity(root)
-        if data.get("git_revision", "") != git_revision:
-            return None
+        if git_revision:
+            if data.get("git_revision", "") != git_revision:
+                return None
+        else:
+            # An extracted/non-Git provider has no stable identity that can bind
+            # ancillary generator inputs across processes. Its on-disk stamp may
+            # support validation only while this process still owns the matching
+            # successful-materialization cache entry; a fresh process must rerun.
+            if data.get("git_revision", "") != "":
+                return None
+            if _SUCCESSFUL_MATERIALIZATIONS.get(root) != fingerprint:
+                return None
         semantic_rev = _provider_semantic_revision(root)
         if semantic_rev and data.get("semantic_revision") != semantic_rev:
             return None
