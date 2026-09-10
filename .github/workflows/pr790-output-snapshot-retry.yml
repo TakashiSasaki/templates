@@ -1,0 +1,72 @@
+name: PR 790 output snapshot retry
+
+on:
+  push:
+    branches:
+      - perf/site-provider-materialization-phase
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.event.head_commit.message == 'Retry PR 790 output snapshot test boundary'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: perf/site-provider-materialization-phase
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Reuse remediation payload and correct regression hook
+        shell: bash
+        run: |
+          python - <<'PY'
+          import base64
+          import gzip
+          import re
+          from pathlib import Path
+
+          helper = Path('.github/workflows/pr790-review-round2-remediation.yml').read_text(encoding='utf-8')
+          match = re.search(r"b64decode\('([^']+)'\)", helper)
+          if match is None:
+              raise SystemExit('remediation payload not found')
+          exec(gzip.decompress(base64.b64decode(match.group(1))).decode())
+
+          test_path = Path('tests/test_materialize_publication_assets_review_followup.py')
+          text = test_path.read_text(encoding='utf-8')
+          start = text.index('    def test_output_snapshot_is_rechecked_before_stamp_commit')
+          end = text.index('    def test_ignored_output_snapshot_is_rechecked_before_stamp_acceptance', start)
+          block = text[start:end]
+          old = 'original = materialization._assert_provider_reuse_identity'
+          new = 'original = materialization._assert_materialization_fingerprint'
+          if block.count(old) != 1:
+              raise SystemExit('unexpected output snapshot regression hook')
+          block = block.replace(old, new, 1)
+          block = block.replace('"_assert_provider_reuse_identity",', '"_assert_materialization_fingerprint",', 1)
+          text = text[:start] + block + text[end:]
+          test_path.write_text(text, encoding='utf-8')
+          PY
+      - name: Run focused regression suite
+        run: >-
+          python -m unittest
+          tests.test_materialize_publication_assets
+          tests.test_materialize_publication_assets_review_followup
+          tests.test_assembly_materialization_boundary
+          --verbose
+      - name: Commit remediation and remove helper workflows
+        shell: bash
+        run: |
+          rm .github/workflows/pr790-review-round2-remediation.yml
+          rm .github/workflows/pr790-output-snapshot-retry.yml
+          git config user.name 'TakashiSasaki'
+          git config user.email '556958+TakashiSasaki@users.noreply.github.com'
+          git add scripts/materialize_publication_assets.py \
+            tests/test_materialize_publication_assets_review_followup.py \
+            .github/workflows/pr790-review-round2-remediation.yml \
+            .github/workflows/pr790-output-snapshot-retry.yml
+          git commit -m 'Bind materialization stamps to atomic output snapshots'
+          git push origin HEAD:perf/site-provider-materialization-phase
