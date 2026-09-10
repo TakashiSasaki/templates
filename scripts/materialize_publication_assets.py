@@ -259,10 +259,10 @@ def is_publication_materialized(root: Path, label: str) -> bool:
         if version == 4:
             catalog = load_publication_catalog_v4(root, label=f"{label} catalog", phase="source")
             if not catalog.generated_assets:
-                return True
+                return _strict_catalog(root, label, version) is not None
         else:
             if not materializer.is_file():
-                return True
+                return _strict_catalog(root, label, version) is not None
         fingerprint = _materialization_fingerprint(root, materializer)
         return _validate_stamp(root, label, version, fingerprint) is not None
     except Exception:

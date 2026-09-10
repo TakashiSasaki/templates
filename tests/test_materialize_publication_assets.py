@@ -142,11 +142,19 @@ target.write_bytes(b'deterministic fixture output')
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             self.write_catalog(root, version=3, source_kind=None)
+            self.assertFalse(is_publication_materialized(root, "fixture"))
             with self.assertRaisesRegex(
                 PublicationMaterializationError,
                 "declared asset source does not exist",
             ):
                 materialize_publication(root, "fixture")
+
+            # When the required asset exists, is_publication_materialized returns True
+            (root / "README.md").write_text("content", encoding="utf-8")
+            out = root / "generated" / "output.bin"
+            out.parent.mkdir(parents=True, exist_ok=True)
+            out.write_bytes(b"content")
+            self.assertTrue(is_publication_materialized(root, "fixture"))
 
     def test_process_crossing_reuse_with_persistent_stamp(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
