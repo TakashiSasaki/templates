@@ -28,38 +28,35 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
+          from textwrap import dedent
 
           def replace_between(text: str, start: str, end: str, replacement: str) -> str:
               i = text.index(start)
               j = text.index(end, i)
-              return text[:i] + replacement.rstrip() + "\n\n" + text[j:]
+              return text[:i] + dedent(replacement).rstrip() + "\n\n" + text[j:]
 
-          def transform_function(text: str, start: str, end: str, needle: str, replacement: str) -> str:
+          def insert_before_in_function(text: str, start: str, end: str, needle: str, insertion: str) -> str:
               i = text.index(start)
               j = text.index(end, i)
               body = text[i:j]
-              count = body.count(needle)
-              if count != 1:
-                  raise SystemExit(f"{start.strip()}: expected one local anchor, found {count}")
-              body = body.replace(needle, replacement, 1)
+              if body.count(needle) != 1:
+                  raise SystemExit(f"{start.strip()}: local anchor count={body.count(needle)}")
+              body = body.replace(needle, insertion + needle, 1)
               return text[:i] + body + text[j:]
 
           source_path = Path('scripts/materialize_publication_assets.py')
           source = source_path.read_text(encoding='utf-8')
 
-          source = replace_between(
-              source,
+          source = replace_between(source,
               'def _atomic_write_json(path: Path, data: dict[str, Any]) -> None:\n',
-              'def _provider_git_identity(root: Path) -> str:\n',
-              '''def _atomic_write_json(path: Path, data: dict[str, Any]) -> None:
+              'def _provider_git_identity(root: Path) -> str:\n', r'''
+          def _atomic_write_json(path: Path, data: dict[str, Any]) -> None:
               """Atomically publish JSON without replacing a concurrently-created path."""
-              text = json.dumps(data, indent=2, sort_keys=True) + "\\n"
+              text = json.dumps(data, indent=2, sort_keys=True) + "\n"
               temp_path = path.with_name(f".{path.name}.tmp.{os.getpid()}")
               try:
                   temp_path.write_text(text, encoding="utf-8")
                   try:
-                      # A hard link publishes a fully written file atomically while
-                      # preserving any provider/concurrent file that won the target.
                       os.link(temp_path, path)
                   except FileExistsError as exc:
                       raise PublicationMaterializationError(
@@ -68,8 +65,7 @@ jobs:
                       ) from exc
                   except OSError as exc:
                       raise PublicationMaterializationError(
-                          f"unable to publish materialization stamp without overwriting "
-                          f"{path}: {exc}"
+                          f"unable to publish materialization stamp without overwriting {path}: {exc}"
                       ) from exc
               finally:
                   if temp_path.exists():
@@ -77,14 +73,12 @@ jobs:
                           temp_path.unlink()
                       except OSError:
                           pass
-              ''',
-          )
+          ''')
 
-          source = replace_between(
-              source,
+          source = replace_between(source,
               'def _assert_materializer_input_state(\n',
-              'def _enumerate_stamp_asset_files(root: Path, source: str, field: str) -> list[Path]:\n',
-              '''def _assert_materializer_input_state(
+              'def _enumerate_stamp_asset_files(root: Path, source: str, field: str) -> list[Path]:\n', r'''
+          def _assert_materializer_input_state(
               root: Path,
               expected_git_revision: str,
               expected_worktree_fingerprint: str,
@@ -117,108 +111,34 @@ jobs:
                           f"{label}: provider Git worktree changed {boundary}; "
                           "retry after obtaining a stable provider checkout"
                       )
-              ''',
-          )
+          ''')
 
-          stamp_checks = '''    _assert_materializer_input_state(
-              root,
-              git_revision,
-              input_worktree_fingerprint,
-              input_untracked_paths,
-              output_roots,
-              label,
-              boundary="after output snapshot before materialization stamp commit",
-          )
-              _assert_provider_reuse_identity(
-              root,
-              git_revision,
-              git_worktree_fingerprint,
-              label,
-              boundary="after output snapshot before materialization stamp commit",
-          )
-              _assert_materialization_fingerprint(
-              root,
-              fingerprint,
-              label,
-              boundary="after output snapshot before materialization stamp commit",
-          )
-          '''
-          source = transform_function(
-              source,
-              'def _write_stamp(\n',
-              'def _validate_stamp(\n',
+          source = insert_before_in_function(
+              source, 'def _write_stamp(\n', 'def _validate_stamp(\n',
               '    _atomic_write_json(root / STAMP_FILE, stamp_data)\n',
-              stamp_checks + '    _atomic_write_json(root / STAMP_FILE, stamp_data)\n',
-          )
+              '''    _assert_materializer_input_state(\n        root,\n        git_revision,\n        input_worktree_fingerprint,\n        input_untracked_paths,\n        output_roots,\n        label,\n        boundary="after output snapshot before materialization stamp commit",\n    )\n    _assert_provider_reuse_identity(\n        root,\n        git_revision,\n        git_worktree_fingerprint,\n        label,\n        boundary="after output snapshot before materialization stamp commit",\n    )\n    _assert_materialization_fingerprint(\n        root,\n        fingerprint,\n        label,\n        boundary="after output snapshot before materialization stamp commit",\n    )\n''')
 
-          acceptance_checks = '''        _assert_provider_reuse_identity(
-              root,
-              git_revision,
-              git_worktree_fingerprint,
-              label,
-              boundary="after output snapshot while validating materialization stamp",
-          )
-              _assert_materialization_fingerprint(
-              root,
-              fingerprint,
-              label,
-              boundary="after output snapshot while accepting materialization stamp",
-          )
-          '''
-          source = transform_function(
-              source,
-              'def _validate_stamp(\n',
-              'def is_publication_materialized(',
+          source = insert_before_in_function(
+              source, 'def _validate_stamp(\n', 'def is_publication_materialized(',
               '        return catalog\n',
-              acceptance_checks + '        return catalog\n',
-          )
+              '''        _assert_provider_reuse_identity(\n            root,\n            git_revision,\n            git_worktree_fingerprint,\n            label,\n            boundary="after output snapshot while validating materialization stamp",\n        )\n        _assert_materialization_fingerprint(\n            root,\n            fingerprint,\n            label,\n            boundary="after output snapshot while accepting materialization stamp",\n        )\n''')
 
-          success_checks = '''    _assert_provider_reuse_identity(
-              root,
-              pre_run_git_revision,
-              stamped_worktree_fingerprint,
-              label,
-              boundary="after output snapshot before returning materialization success",
-          )
-              _assert_materializer_input_state(
-              root,
-              pre_run_git_revision,
-              pre_run_input_worktree_fingerprint,
-              pre_run_untracked_paths,
-              output_roots,
-              label,
-              boundary="after output snapshot before returning materialization success",
-          )
-              _assert_materialization_fingerprint(
-              root,
-              run_fingerprint,
-              label,
-              boundary="after output snapshot before returning materialization success",
-          )
-          '''
-          source = transform_function(
-              source,
-              'def _prepare_publication(',
-              'def load_materialized_publication_catalog(',
+          source = insert_before_in_function(
+              source, 'def _prepare_publication(', 'def load_materialized_publication_catalog(',
               '    _remember_success(root, run_fingerprint)\n',
-              success_checks + '    _remember_success(root, run_fingerprint)\n',
-          )
+              '''    _assert_provider_reuse_identity(\n        root,\n        pre_run_git_revision,\n        stamped_worktree_fingerprint,\n        label,\n        boundary="after output snapshot before returning materialization success",\n    )\n    _assert_materializer_input_state(\n        root,\n        pre_run_git_revision,\n        pre_run_input_worktree_fingerprint,\n        pre_run_untracked_paths,\n        output_roots,\n        label,\n        boundary="after output snapshot before returning materialization success",\n    )\n    _assert_materialization_fingerprint(\n        root,\n        run_fingerprint,\n        label,\n        boundary="after output snapshot before returning materialization success",\n    )\n''')
           source_path.write_text(source, encoding='utf-8')
 
-          test_path = Path('tests/test_materialize_publication_assets_review_followup.py')
-          tests = test_path.read_text(encoding='utf-8')
-          old_side_effect = '                side_effect=[revision_a, revision_a, revision_a, revision_a, revision_b],\n'
-          if tests.count(old_side_effect) != 1:
-              raise SystemExit(f'success identity fixture: expected one anchor, found {tests.count(old_side_effect)}')
-          tests = tests.replace(
-              old_side_effect,
-              '                side_effect=[revision_a] * 7 + [revision_b],\n',
-              1,
-          )
+          tests_path = Path('tests/test_materialize_publication_assets_review_followup.py')
+          tests = tests_path.read_text(encoding='utf-8')
+          old = '                side_effect=[revision_a, revision_a, revision_a, revision_a, revision_b],\n'
+          if tests.count(old) != 1:
+              raise SystemExit(f'identity fixture anchor count={tests.count(old)}')
+          tests = tests.replace(old, '                side_effect=[revision_a] * 7 + [revision_b],\n', 1)
 
           footer = '\n\nif __name__ == "__main__":\n    unittest.main()'
           if tests.count(footer) != 1:
-              raise SystemExit(f'test footer: expected one anchor, found {tests.count(footer)}')
+              raise SystemExit(f'footer anchor count={tests.count(footer)}')
           additions = r'''
 
               def test_new_untracked_source_path_during_materialization_aborts(self) -> None:
@@ -239,44 +159,30 @@ jobs:
                           encoding="utf-8",
                       )
                       self.initialize_git_checkout(root)
-          
-                      with self.assertRaisesRegex(
-                          PublicationMaterializationError,
-                          "worktree changed while the materializer was running",
-                      ):
+                      with self.assertRaisesRegex(PublicationMaterializationError, "worktree changed while the materializer was running"):
                           materialize_publication(root, "fixture")
                       self.assertTrue((root / "late-source.txt").is_file())
                       self.assertFalse((root / STAMP_FILE).exists())
-          
+
               def test_inputs_are_rechecked_after_final_output_snapshot(self) -> None:
                   with tempfile.TemporaryDirectory() as directory:
                       root = Path(directory)
                       materializer = self.write_v4_provider(root)
                       self.initialize_git_checkout(root)
                       self.assertTrue(materialize_publication(root, "fixture"))
-          
                       original = materialization._snapshot_materialized_outputs
                       mutated = False
-          
                       def mutate_input_after_snapshot(*args, **kwargs):
                           nonlocal mutated
                           observed = original(*args, **kwargs)
                           if not mutated:
-                              materializer.write_text(
-                                  materializer.read_text(encoding="utf-8") + "\n# late input mutation\n",
-                                  encoding="utf-8",
-                              )
+                              materializer.write_text(materializer.read_text(encoding="utf-8") + "\n# late input mutation\n", encoding="utf-8")
                               mutated = True
                           return observed
-          
-                      with patch.object(
-                          materialization,
-                          "_snapshot_materialized_outputs",
-                          side_effect=mutate_input_after_snapshot,
-                      ):
+                      with patch.object(materialization, "_snapshot_materialized_outputs", side_effect=mutate_input_after_snapshot):
                           self.assertFalse(is_publication_materialized(root, "fixture"))
                       self.assertTrue(mutated)
-          
+
               def test_stamp_commit_preserves_path_created_by_materializer(self) -> None:
                   with tempfile.TemporaryDirectory() as directory:
                       root = Path(directory)
@@ -296,21 +202,16 @@ jobs:
                           encoding="utf-8",
                       )
                       self.initialize_git_checkout(root)
-          
-                      with self.assertRaisesRegex(
-                          PublicationMaterializationError,
-                          "appeared before materialization stamp commit",
-                      ):
+                      with self.assertRaisesRegex(PublicationMaterializationError, "appeared before materialization stamp commit"):
                           materialize_publication(root, "fixture")
-                      stamp = root / STAMP_FILE
-                      self.assertEqual(
-                          '{"provider": "owned"}\n',
-                          stamp.read_text(encoding="utf-8"),
-                      )
+                      self.assertEqual('{"provider": "owned"}\n', (root / STAMP_FILE).read_text(encoding="utf-8"))
           '''
           tests = tests.replace(footer, additions.rstrip() + footer, 1)
-          test_path.write_text(tests, encoding='utf-8')
+          tests_path.write_text(tests, encoding='utf-8')
           PY
+
+      - name: Syntax check
+        run: python -m py_compile scripts/materialize_publication_assets.py tests/test_materialize_publication_assets_review_followup.py
 
       - name: Run focused regressions
         run: >-
