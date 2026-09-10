@@ -39,6 +39,17 @@ CATALOG = Path("docs/publication-catalog.json")
 STAMP_FILE = Path(".publication-materialization-stamp.json")
 MATERIALIZATION_CACHE_LIMIT = 8
 _SUCCESSFUL_MATERIALIZATIONS: OrderedDict[Path, str] = OrderedDict()
+_STAMP_KEYS = frozenset(
+    {
+        "stamp_version",
+        "canonical_root",
+        "fingerprint",
+        "git_revision",
+        "git_worktree_fingerprint",
+        "semantic_revision",
+        "generated_digests",
+    }
+)
 
 
 class PublicationMaterializationError(RuntimeError):
@@ -211,6 +222,89 @@ def _provider_git_identity(root: Path) -> str:
     return ""
 
 
+def _provider_git_worktree_fingerprint(root: Path, git_revision: str) -> str:
+    """Bind reuse to Git-visible tracked and untracked worktree content."""
+    if not git_revision:
+        return ""
+    canonical_root = root.resolve(strict=True)
+    try:
+        diff_proc = subprocess.run(
+            [
+                "git",
+                "-C",
+                str(canonical_root),
+                "diff",
+                "--binary",
+                "--no-ext-diff",
+                "--no-textconv",
+                git_revision,
+                "--",
+                ".",
+            ],
+            capture_output=True,
+            check=False,
+        )
+        if diff_proc.returncode != 0:
+            raise PublicationMaterializationError(
+                f"unable to fingerprint tracked Git worktree state for provider at {canonical_root}"
+            )
+
+        untracked_proc = subprocess.run(
+            [
+                "git",
+                "-C",
+                str(canonical_root),
+                "ls-files",
+                "--others",
+                "--exclude-standard",
+                "-z",
+                "--",
+                ".",
+            ],
+            capture_output=True,
+            check=False,
+        )
+        if untracked_proc.returncode != 0:
+            raise PublicationMaterializationError(
+                f"unable to enumerate untracked Git worktree state for provider at {canonical_root}"
+            )
+
+        digest = hashlib.sha256()
+        digest.update(b"git-revision\0")
+        digest.update(git_revision.encode("ascii"))
+        digest.update(b"\0tracked-diff\0")
+        digest.update(diff_proc.stdout)
+        stamp_bytes = os.fsencode(STAMP_FILE.as_posix())
+        for raw_path in sorted(path for path in untracked_proc.stdout.split(b"\0") if path):
+            if raw_path == stamp_bytes:
+                continue
+            relative = Path(os.fsdecode(raw_path))
+            path = canonical_root / relative
+            digest.update(b"\0untracked\0")
+            digest.update(raw_path)
+            digest.update(b"\0")
+            try:
+                if path.is_symlink():
+                    digest.update(b"symlink\0")
+                    digest.update(os.fsencode(os.readlink(path)))
+                elif path.is_file():
+                    digest.update(b"file\0")
+                    digest.update(path.read_bytes())
+                else:
+                    digest.update(b"other\0")
+            except OSError as exc:
+                raise PublicationMaterializationError(
+                    f"unable to fingerprint untracked provider path {path}: {exc}"
+                ) from exc
+        return digest.hexdigest()
+    except PublicationMaterializationError:
+        raise
+    except Exception as exc:
+        raise PublicationMaterializationError(
+            f"unable to determine Git worktree fingerprint for provider at {canonical_root}: {exc}"
+        ) from exc
+
+
 def _provider_semantic_revision(root: Path) -> str:
     manifest_path = root / "generated" / "composition-playground-publication.json"
     if manifest_path.is_file() and not manifest_path.is_symlink():
@@ -237,12 +331,59 @@ def _check_reserved_stamp_collision(catalog: Any, label: str) -> None:
             )
 
 
-def _is_owned_stamp(data: Any) -> bool:
-    """Return whether parsed metadata is unquestionably our v1 stamp."""
-    if not isinstance(data, dict):
+def _is_sha256(value: Any) -> bool:
+    return (
+        isinstance(value, str)
+        and len(value) == 64
+        and all(c in "0123456789abcdefABCDEF" for c in value)
+    )
+
+
+def _is_git_revision(value: Any) -> bool:
+    return isinstance(value, str) and (
+        value == ""
+        or (
+            len(value) in (40, 64)
+            and all(c in "0123456789abcdefABCDEF" for c in value)
+        )
+    )
+
+
+def _is_owned_stamp(data: Any, root: Path) -> bool:
+    """Return whether parsed metadata is unquestionably our v1 stamp for root."""
+    if not isinstance(data, dict) or set(data) != _STAMP_KEYS:
         return False
-    stamp_version = data.get("stamp_version")
-    return type(stamp_version) is int and stamp_version == 1
+    if type(data.get("stamp_version")) is not int or data["stamp_version"] != 1:
+        return False
+    try:
+        canonical_root = str(root.resolve(strict=True))
+    except (OSError, RuntimeError):
+        return False
+    if data.get("canonical_root") != canonical_root:
+        return False
+    if not _is_sha256(data.get("fingerprint")):
+        return False
+    git_revision = data.get("git_revision")
+    if not _is_git_revision(git_revision):
+        return False
+    worktree_fingerprint = data.get("git_worktree_fingerprint")
+    if git_revision:
+        if not _is_sha256(worktree_fingerprint):
+            return False
+    elif worktree_fingerprint != "":
+        return False
+    if not isinstance(data.get("semantic_revision"), str):
+        return False
+    generated_digests = data.get("generated_digests")
+    if not isinstance(generated_digests, dict):
+        return False
+    for relative_path, digest in generated_digests.items():
+        if not isinstance(relative_path, str) or not relative_path or not _is_sha256(digest):
+            return False
+        parsed = PurePosixPath(relative_path)
+        if parsed.is_absolute() or ".." in parsed.parts:
+            return False
+    return True
 
 
 def _assert_git_identity(root: Path, expected: str, label: str, *, boundary: str) -> None:
@@ -254,6 +395,33 @@ def _assert_git_identity(root: Path, expected: str, label: str, *, boundary: str
         )
 
 
+def _assert_provider_reuse_identity(
+    root: Path,
+    expected_git_revision: str,
+    expected_worktree_fingerprint: str,
+    label: str,
+    *,
+    boundary: str,
+) -> None:
+    _assert_git_identity(root, expected_git_revision, label, boundary=boundary)
+    if expected_git_revision:
+        current_worktree = _provider_git_worktree_fingerprint(root, expected_git_revision)
+        if current_worktree != expected_worktree_fingerprint:
+            raise PublicationMaterializationError(
+                f"{label}: provider Git worktree changed {boundary}; "
+                "retry after obtaining a stable provider checkout"
+            )
+
+
+def _enumerate_stamp_asset_files(root: Path, source: str, field: str) -> list[Path]:
+    try:
+        return asset_files(root, source, field)
+    except Exception as exc:
+        raise PublicationMaterializationError(
+            f"{field}: unable to enumerate materialized files for stamp: {exc}"
+        ) from exc
+
+
 def _write_stamp(
     root: Path,
     label: str,
@@ -261,7 +429,7 @@ def _write_stamp(
     fingerprint: str,
     catalog: Any,
     git_revision: str = "",
-) -> None:
+) -> str:
     generated_digests: dict[str, str] = {}
     if version == 4:
         for asset in catalog.generated_assets:
@@ -269,10 +437,7 @@ def _write_stamp(
             if asset.optional and not path.exists():
                 continue
             field = f"{label} generated asset {asset.source}"
-            try:
-                files = asset_files(root, asset.source, field)
-            except Exception:
-                continue
+            files = _enumerate_stamp_asset_files(root, asset.source, field)
             for p in sorted(files):
                 if p.is_file() and not p.is_symlink():
                     generated_digests[p.relative_to(root).as_posix()] = hashlib.sha256(
@@ -284,10 +449,7 @@ def _write_stamp(
             if asset.optional and not path.exists():
                 continue
             field = f"{label} asset {asset.source}"
-            try:
-                files = asset_files(root, asset.source, field)
-            except Exception:
-                continue
+            files = _enumerate_stamp_asset_files(root, asset.source, field)
             for p in sorted(files):
                 if p.is_file() and not p.is_symlink():
                     generated_digests[p.relative_to(root).as_posix()] = hashlib.sha256(
@@ -307,25 +469,28 @@ def _write_stamp(
                 ).hexdigest()
 
     semantic_rev = _provider_semantic_revision(root)
+    git_worktree_fingerprint = _provider_git_worktree_fingerprint(root, git_revision)
     stamp_data = {
         "stamp_version": 1,
         "canonical_root": str(root.resolve(strict=True)),
         "fingerprint": fingerprint,
         "git_revision": git_revision,
+        "git_worktree_fingerprint": git_worktree_fingerprint,
         "semantic_revision": semantic_rev,
         "generated_digests": generated_digests,
     }
 
-    # The catalog, digests and semantic revision above are all post-materialization
-    # reads. Bind those reads to the same provider checkout immediately before the
-    # atomic stamp publication boundary.
-    _assert_git_identity(
+    # The catalog, digests, semantic revision and worktree fingerprint above are
+    # post-materialization reads. Revalidate them at the atomic publication boundary.
+    _assert_provider_reuse_identity(
         root,
         git_revision,
+        git_worktree_fingerprint,
         label,
         boundary="before materialization stamp commit",
     )
     _atomic_write_json(root / STAMP_FILE, stamp_data)
+    return git_worktree_fingerprint
 
 
 def _validate_stamp(
@@ -339,9 +504,7 @@ def _validate_stamp(
         return None
     try:
         data = json.loads(stamp_path.read_text(encoding="utf-8"))
-        if not _is_owned_stamp(data):
-            return None
-        if data.get("canonical_root") != str(root.resolve(strict=True)):
+        if not _is_owned_stamp(data, root):
             return None
         if data.get("fingerprint") != fingerprint:
             return None
@@ -349,12 +512,18 @@ def _validate_stamp(
         if git_revision:
             if data.get("git_revision", "") != git_revision:
                 return None
+            git_worktree_fingerprint = _provider_git_worktree_fingerprint(root, git_revision)
+            if data.get("git_worktree_fingerprint") != git_worktree_fingerprint:
+                return None
         else:
             # An extracted/non-Git provider has no stable identity that can bind
             # ancillary generator inputs across processes. Its on-disk stamp may
             # support validation only while this process still owns the matching
             # successful-materialization cache entry; a fresh process must rerun.
+            git_worktree_fingerprint = ""
             if data.get("git_revision", "") != "":
+                return None
+            if data.get("git_worktree_fingerprint") != "":
                 return None
             if _SUCCESSFUL_MATERIALIZATIONS.get(root) != fingerprint:
                 return None
@@ -403,11 +572,12 @@ def _validate_stamp(
         if set(generated_digests.keys()) != current_generated_files:
             return None
 
-        # Validation itself can race a checkout advance. Re-check the identity after
+        # Validation itself can race HEAD or worktree mutation. Re-check both after
         # all artifact/catalog reads and immediately before accepting the stamp.
-        _assert_git_identity(
+        _assert_provider_reuse_identity(
             root,
             git_revision,
+            git_worktree_fingerprint,
             label,
             boundary="while validating materialization stamp",
         )
@@ -521,7 +691,7 @@ def _prepare_publication(root: Path, label: str) -> tuple[Any, bool]:
                 f"{label}: {STAMP_FILE} already exists but its contents cannot be parsed; "
                 "relocate or remove it before running the materializer"
             ) from exc
-        if _is_owned_stamp(raw):
+        if _is_owned_stamp(raw, root):
             stamp_path.unlink(missing_ok=True)
         else:
             raise PublicationMaterializationError(
@@ -544,14 +714,21 @@ def _prepare_publication(root: Path, label: str) -> tuple[Any, bool]:
 
     catalog = _strict_catalog(root, label, version)
     _check_reserved_stamp_collision(catalog, label)
-    _write_stamp(root, label, version, fingerprint, catalog, git_revision=pre_run_git_revision)
+    stamped_worktree_fingerprint = _write_stamp(
+        root,
+        label,
+        version,
+        fingerprint,
+        catalog,
+        git_revision=pre_run_git_revision,
+    )
 
-    # A HEAD change after the atomic stamp replacement must not be reported as a
-    # successful materialization by this caller. A later consumer would reject the
-    # stale stamp through `_validate_stamp`; this closes the current-call boundary too.
-    _assert_git_identity(
+    # A checkout mutation after the atomic stamp replacement must not be reported as
+    # a successful materialization by this caller. Later consumers also reject it.
+    _assert_provider_reuse_identity(
         root,
         pre_run_git_revision,
+        stamped_worktree_fingerprint,
         label,
         boundary="before returning materialization success",
     )
