@@ -38,6 +38,18 @@ Performance comparisons must distinguish:
 A single hosted-runner sample is not sufficient to claim an improvement; use repeated samples and report median and P90 where available. The final browser acceptance records the installed system Chrome version and the managed-Chromium exception for PWA worker lifecycle.
 
 
+## Provider publication materialization lifecycle
+
+Provider publications pass through an explicit, authority-preserving lifecycle in Pages CI:
+
+1. **Source state**: the provider checkout owns its catalog, inputs, and optional `scripts/materialize_publication.py`; Site does not implement provider generator semantics.
+2. **Explicit phase**: `.github/workflows/build-pages.yml` materializes providers before integration tests, assembly, and translation publication. The provider entrypoint runs in isolated Python mode with bytecode writes disabled.
+3. **Stable state**: `.publication-materialization-stamp.json` binds the canonical root, exact Git revision when available, Git-visible tracked/untracked source state, catalog/materializer fingerprint, provider-owned semantic revision from `publication-descriptor.json` or `generated/publication-descriptor.json`, and SHA-256 snapshots of materialized products.
+4. **Boundary revalidation**: source identity, semantic identity, and outputs are rechecked at stamp acceptance, stamp commit, and success return. Observed changes fail closed.
+5. **Process-crossing reuse**: downstream processes validate the persistent stamp; missing, stale, malformed, or corrupted state cannot silently authorize reuse.
+6. **Authority boundary**: Composition owns generation, semantic identity, descriptors, and products. Site owns generic orchestration, contract validation, and reuse verification and does not parse Composition-specific generated manifests.
+
+
 ## Validation status
 
 The final candidate records the exact GitHub Actions run IDs and measured before/after samples in the pull request description after CI completion.
