@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   patch:
-    if: github.event.head_commit.message == 'Run final PR 790 review remediation'
+    if: github.event.head_commit.message == 'Retry final PR 790 remediation from known-good patch payload'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -31,12 +31,22 @@ jobs:
           import base64
           import gzip
           import re
+          import subprocess
           from pathlib import Path
 
-          # Reuse the previously validated implementation-patch payload from the
-          # temporary workflow. Its prior run reached the focused test suite; only
-          # three legacy fixtures needed alignment with the stricter source-state guard.
-          workflow = Path('.github/workflows/pr790-review-remediation.yml').read_text(encoding='utf-8')
+          # Commit 42783810 contains the remediation payload whose runner reached
+          # the focused suite successfully. Reuse that exact payload, then align
+          # only the three legacy fixtures exposed by the stricter source-state guard.
+          workflow = subprocess.run(
+              [
+                  'git',
+                  'show',
+                  '4278381016e1c9aa19c9421469880faf04bf773c:.github/workflows/pr790-review-remediation.yml',
+              ],
+              capture_output=True,
+              text=True,
+              check=True,
+          ).stdout
           match = re.search(r"payload = ('[^'\n]+')", workflow)
           assert match, 'embedded remediation payload not found'
           payload = ast.literal_eval(match.group(1))
@@ -81,6 +91,11 @@ jobs:
                   '                "_provider_git_worktree_fingerprint",\n'
               )
               block = block.replace(needle, replacement, 1)
+              if name == 'test_git_identity_is_rechecked_before_success_returns':
+                  old = '                side_effect=[revision_a, revision_a, revision_a, revision_b],\n'
+                  new = '                side_effect=[revision_a, revision_a, revision_a, revision_a, revision_b],\n'
+                  assert block.count(old) == 1
+                  block = block.replace(old, new, 1)
               text = text[:function_start] + block + text[function_end:]
           followup.write_text(text, encoding='utf-8')
           PY
