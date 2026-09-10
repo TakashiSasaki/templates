@@ -28,6 +28,7 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
+          import textwrap
 
           source = Path('scripts/materialize_publication_assets.py')
           text = source.read_text(encoding='utf-8')
@@ -47,42 +48,43 @@ jobs:
           marker = '\nif __name__ == "__main__":\n    unittest.main()\n'
           if text.count(marker) != 1:
               raise SystemExit('test module footer not found exactly once')
-          method = r'''
+          method = textwrap.indent(textwrap.dedent(r'''
 
-              def test_isolated_materializer_disables_bytecode_writes(self) -> None:
-                  with tempfile.TemporaryDirectory() as directory:
-                      root = Path(directory)
-                      materializer = self.write_v4_provider(root)
-                      helper = root / "scripts" / "provider_helper.py"
-                      helper.write_text("PAYLOAD = b'from-helper'\n", encoding="utf-8")
-                      materializer.write_text(
-                          "from __future__ import annotations\n"
-                          "import argparse\n"
-                          "import sys\n"
-                          "from pathlib import Path\n"
-                          "sys.path.insert(0, str(Path(__file__).resolve().parent))\n"
-                          "import provider_helper\n"
-                          "parser = argparse.ArgumentParser()\n"
-                          "parser.add_argument('--source-root', type=Path, required=True)\n"
-                          "args = parser.parse_args()\n"
-                          "out = args.source_root / 'generated' / 'output.bin'\n"
-                          "out.parent.mkdir(parents=True, exist_ok=True)\n"
-                          "out.write_bytes(provider_helper.PAYLOAD)\n",
-                          encoding="utf-8",
-                      )
-                      self.initialize_git_checkout(root)
+          def test_isolated_materializer_disables_bytecode_writes(self) -> None:
+              with tempfile.TemporaryDirectory() as directory:
+                  root = Path(directory)
+                  materializer = self.write_v4_provider(root)
+                  helper = root / "scripts" / "provider_helper.py"
+                  helper.write_text("PAYLOAD = b'from-helper'\n", encoding="utf-8")
+                  materializer.write_text(
+                      "from __future__ import annotations\n"
+                      "import argparse\n"
+                      "import sys\n"
+                      "from pathlib import Path\n"
+                      "sys.path.insert(0, str(Path(__file__).resolve().parent))\n"
+                      "import provider_helper\n"
+                      "parser = argparse.ArgumentParser()\n"
+                      "parser.add_argument('--source-root', type=Path, required=True)\n"
+                      "args = parser.parse_args()\n"
+                      "out = args.source_root / 'generated' / 'output.bin'\n"
+                      "out.parent.mkdir(parents=True, exist_ok=True)\n"
+                      "out.write_bytes(provider_helper.PAYLOAD)\n",
+                      encoding="utf-8",
+                  )
+                  self.initialize_git_checkout(root)
 
-                      self.assertTrue(materialize_publication(root, "fixture"))
-                      self.assertEqual(
-                          b"from-helper",
-                          (root / "generated" / "output.bin").read_bytes(),
-                      )
-                      self.assertFalse((root / "scripts" / "__pycache__").exists())
-          '''
-          # The raw string is indented to survive YAML; normalize it to class-method indentation.
-          method = '\n'.join(line[10:] if line.startswith('          ') else line for line in method.splitlines())
+                  self.assertTrue(materialize_publication(root, "fixture"))
+                  self.assertEqual(
+                      b"from-helper",
+                      (root / "generated" / "output.bin").read_bytes(),
+                  )
+                  self.assertFalse((root / "scripts" / "__pycache__").exists())
+          '''), "    ")
           tests.write_text(text.replace(marker, method + marker), encoding='utf-8')
           PY
+
+      - name: Syntax check
+        run: python -m py_compile scripts/materialize_publication_assets.py tests/test_materialize_publication_assets_review_followup.py
 
       - name: Run focused regressions
         run: python -m unittest tests.test_materialize_publication_assets tests.test_materialize_publication_assets_review_followup tests.test_assembly_materialization_boundary --verbose
