@@ -140,7 +140,7 @@ human handoff / bottom-up merge
 - **Non-blocking intermediate progression**: Constructing descendant PRs does not wait for expensive CI on intermediate members. Intermediate heads use lightweight validation to ensure development integrity while keeping velocity high.
 - **Cancellation of obsolete head runs**: When a member receives a new commit SHA, any expensive in-flight CI runs on the obsolete predecessor head may be cancelled or superseded immediately.
 - **Review request on qualification candidate**: The formal review request (whether individual exact-head review or whole-stack audit) is issued only against the stabilized qualification head after all applicable required CI passes.
-- **Post-movement re-evaluation**: Any movement of a candidate head (e.g. rebase, repair, or base advance) invalidates previous revision-bound evidence and triggers fail-closed re-evaluation of CI applicability and review requirements.
+- **Post-movement applicability evaluation**: When an ancestor merges or a candidate moves, evaluate whether existing qualification evidence remains applicable under the canonical qualification evidence reuse policy before scheduling new CI. Merge progression does not itself invalidate qualification evidence when the candidate tree and required bindings remain unchanged. Invalidate and reacquire only affected validations; full CI rerun is not the default.
 
 ## Superseded candidates
 

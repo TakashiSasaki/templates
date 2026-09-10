@@ -6,7 +6,7 @@ order: 972
 ---
 # Require exact-head CI evidence before merge
 
-Before declaring a pull request merge-ready or merging it, identify the checks that are applicable to the current proposed head from the current repository workflow and validation definitions. Rely only on CI or validation evidence that applies to that exact head commit. A successful result for an older head is historical evidence and must not satisfy the current merge gate.
+Before declaring a pull request merge-ready or merging it, identify the checks that are applicable to the current proposed head from the current repository workflow and validation definitions. Rely only on CI or validation evidence that applies to that exact head commit, or qualification evidence whose applicability to the current candidate tree and bindings is established under the canonical qualification evidence reuse rules. A successful result for an older head is historical evidence and must not satisfy the current merge gate unless qualification applicability evaluation confirms that merge progression or history-only evolution preserved the candidate tree and required bindings without invalidation.
 
 When the repository uses staged CI, the stage taxonomy does not reduce this requirement. Passing CI preflight, core validation, or another earlier stage must not substitute for an applicable later-stage verification. Qualification for the current proposed head consists of every check that current repository authority requires and establishes as applicable at that boundary, including conditional integration and full qualification when required.
 
