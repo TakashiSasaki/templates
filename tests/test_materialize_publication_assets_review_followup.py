@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -167,6 +168,64 @@ class PublicationMaterializationReviewFollowupTests(unittest.TestCase):
             materialization._SUCCESSFUL_MATERIALIZATIONS.clear()
             self.assertFalse(is_publication_materialized(root, "fixture"))
             self.assertTrue(materialize_publication(root, "fixture"))
+
+    def test_enclosing_git_repository_is_not_provider_identity(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            outer = Path(directory)
+            subprocess.run(["git", "init", "-q"], cwd=outer, check=True)
+            subprocess.run(["git", "config", "user.name", "Test"], cwd=outer, check=True)
+            subprocess.run(
+                ["git", "config", "user.email", "test@example.com"],
+                cwd=outer,
+                check=True,
+            )
+            root = outer / "provider"
+            root.mkdir()
+            self.write_v4_provider(root)
+            ancillary = root / "generator-input.txt"
+            ancillary.write_text("revision-a\n", encoding="utf-8")
+            subprocess.run(["git", "add", "."], cwd=outer, check=True)
+            subprocess.run(["git", "commit", "-q", "-m", "outer"], cwd=outer, check=True)
+
+            self.assertEqual("", materialization._provider_git_identity(root))
+            self.assertTrue(materialize_publication(root, "fixture"))
+            materialization._SUCCESSFUL_MATERIALIZATIONS.clear()
+
+            # The enclosing repository HEAD is unchanged, but it must not authorize
+            # cross-process stamp reuse for this nested non-repository provider root.
+            ancillary.write_text("revision-b\n", encoding="utf-8")
+            self.assertFalse(is_publication_materialized(root, "fixture"))
+            self.assertTrue(materialize_publication(root, "fixture"))
+
+    def test_git_identity_is_rechecked_before_stamp_acceptance(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+            subprocess.run(["git", "config", "user.name", "Test"], cwd=root, check=True)
+            subprocess.run(
+                ["git", "config", "user.email", "test@example.com"],
+                cwd=root,
+                check=True,
+            )
+            self.write_v4_provider(root)
+            subprocess.run(["git", "add", "."], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-q", "-m", "initial"], cwd=root, check=True)
+            self.assertTrue(materialize_publication(root, "fixture"))
+
+            revision = subprocess.run(
+                ["git", "rev-parse", "HEAD"],
+                cwd=root,
+                capture_output=True,
+                text=True,
+                check=True,
+            ).stdout.strip().lower()
+            advanced = "b" * len(revision)
+            with patch.object(
+                materialization,
+                "_provider_git_identity",
+                side_effect=[revision, advanced],
+            ):
+                self.assertFalse(is_publication_materialized(root, "fixture"))
 
     def test_reserved_stamp_destination_is_not_a_provider_source_collision(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
