@@ -23,8 +23,9 @@ A repository may collapse roles. Do not invent a preflight stage merely to satis
 5. **Run applicable conditional integration.** Do not skip an applicable browser, integration, compatibility, cross-authority, or materialization check because an earlier stage passed.
 6. **Keep provisional work productive across stacked progression.** Naturally triggered CI on a provisional candidate does not freeze it. While validation is pending on an intermediate construction candidate, continue dependency-safe downstream implementation without waiting for expensive or full qualification CI. Do not deliberately propagate known material defects.
 7. **Freeze at the authority boundary.** When merge acceptance, final whole-stack audit, release, publication, provenance, or another revision-bound operation requires a qualification head, stabilize prerequisites, establish the stack stability frontier, and freeze the intended candidate revision as the qualification candidate. Final review requests must only be issued against this stabilized qualification head.
-8. **Complete exact-head qualification.** At the frozen boundary, require every applicable exact-head check currently owned by repository authority, including full qualification when that boundary requires it. Earlier-stage success cannot substitute for missing later-stage evidence. If a candidate head moves or mutates, re-evaluate CI and review applicability for affected revisions; prior revision-bound evidence becomes stale.
+8. **Complete qualification and keep review independent.** At the frozen boundary, require every applicable qualification check currently owned by repository authority, including full qualification when that boundary requires it. Earlier-stage success cannot substitute for missing later-stage evidence. If a candidate head moves or mutates, exact-head review evidence for the prior head is stale and must be reacquired under the repository's review policy. Independently re-evaluate CI/qualification evidence using its declared binding class: exact-revision-bound and unknown evidence becomes stale on head movement, while explicitly tree-and-context-bound qualification evidence may remain applicable across merge progression or history-only evolution only when the candidate tree and every required non-tree binding are positively re-established. This exception applies to CI/qualification evidence only; never reuse prior exact-head review merely because the tree is unchanged.
 9. **Supersede stale expensive work on obsolete heads.** When a newer candidate makes an in-flight expensive run on an obsolete head incapable of satisfying any current evidence requirement, cancel or supersede that work when the CI provider safely permits it. Preserve evidence whose bindings remain valid and invalidate only the affected evidence.
+10. **Evaluate qualification applicability across stacked landing.** When an ancestor member merges or candidate history evolves, perform an explicit qualification applicability check before scheduling new validation. Categorize existing qualification checks into `applicable`, `stale`, or `unknown` (fail-closed). Reuse applicable evidence, reacquire only what is required to restore qualification, and avoid blind full-suite reruns.
 
 ## Parallelism and automatic CI
 
@@ -37,10 +38,11 @@ When the agent controls only observation rather than job scheduling, apply the m
 For validation evidence that materially affects the next safe action, record enough state to reconstruct:
 
 - the validation role (`ci-preflight`, `core`, `conditional-integration`, or `full-qualification`) when the repository defines one;
-- exact candidate and relevant comparison/input bindings;
-- applicability and its evidence when classification is used;
+- qualification candidate, qualification head, qualified tree identity, and evidence binding;
+- applicability state (`applicable`, `stale`, or `unknown`), invalidation reason, and reuse decision;
+- validation requiring reacquisition, and next safe landing action;
 - workflow/check identity and run locator;
 - observed result and whether the evidence is diagnostic or qualification-bound; and
 - any supersession or invalidation condition.
 
-Do not create a second acceptance authority in the Work ledger. The stage label is operational metadata; the workflow, canonical Policy, and exact-head evidence remain authoritative.
+Do not create a second acceptance authority in the Work ledger. The stage label is operational metadata; the workflow, canonical Policy, exact-head review requirements, and exact-head/evidence-binding rules remain authoritative. A ledger-derived next action may invoke the merge gate after qualification evidence is ready, but the ledger itself must never declare a member authorized to land.

@@ -46,4 +46,47 @@ For agent-review-and-merge, if cumulative coverage is incomplete or the provider
 
 For human-handoff, construct and validate the ordered stack and do not acquire merge-acceptance review by default. If an explicit task instruction requires one final whole-stack architecture audit before handoff, issue only that authorized audit after the complete stack is stabilized, all applicable required CI for every exact final member head has completed successfully, and the same canonical complete-ledger reacquisition gate above has been satisfied. Recheck that gate immediately before reviewer invocation; if any known material finding lacks a current-head validated repair or evidence-backed no-change disposition plus required closure evidence, do not request the audit. Record that gate result as part of the audit-request evidence so the request is auditable. Do not treat the audit as per-member merge evidence, do not wait for its completion unless explicitly required, and do not use it to authorize a merge. Then stop at HANDOFF_READY with the whole stack open and unmerged.
 
+## Stacked pull-request landing and qualification evidence reuse
+
+When landing stacked pull requests base-to-tip, mechanical full CI reruns on each member after each merge introduce severe execution latency and wasteful pipeline re-execution. Orchestration implements the canonical policy principle:
+
+> **Merge progression does not itself invalidate qualification evidence. A change to the qualified candidate state or to an evidence binding does.**
+
+### Standard landing procedure
+
+During sequential landing of an ordered stack, execute the following procedure for each member:
+
+1. **Land current stack member**: Merge the current stack member using the authorized merge procedure.
+2. **Refresh next member's live state**: Fetch and observe the live state of the next member.
+3. **Verify member preconditions**: Check target base, current head, mergeability, effective candidate tree, and provider required-check policies.
+4. **Compare existing qualification evidence bindings**: Inspect existing qualification runs and verify whether their candidate tree, environment, workflow, and context bindings match the current candidate.
+5. **Evaluate applicability per evidence item**: Categorize each qualification check into `applicable`, `stale`, or `unknown`. An `unknown` outcome must fail closed and be treated as stale.
+6. **Reuse applicable evidence**: Rely on existing applicable qualification evidence whose candidate tree and required bindings remain unchanged.
+7. **Reacquire only stale / unknown evidence**: Selectively schedule or execute only the validations whose bindings or tree were invalidated or unknown.
+8. **Progress to next member**: Once all required qualification conditions for the member are satisfied, proceed to landing or merge authorization, then repeat the sequence for the subsequent stack member.
+
+### Anti-pattern to avoid
+
+Do **not** adopt the blind full-suite rerun pattern:
+
+```text
+merge A
+  -> rerun every CI on B
+  -> wait
+  -> merge B
+  -> rerun every CI on C
+  -> wait
+  -> ...
+```
+
+Instead, apply selective qualification applicability evaluation:
+
+```text
+merge A
+  -> refresh B
+  -> evaluate existing evidence applicability
+  -> rerun only invalidated qualification
+  -> continue
+```
+
 When a lower member is later merged, retarget or re-evaluate later members as required. Do not mechanically discard every unaffected evidence item, do not rewrite an upper head solely because its lower base merged when applicability remains established, and do not reuse evidence when a changed binding or applicability is unknown.
