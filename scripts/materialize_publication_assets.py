@@ -205,6 +205,23 @@ def _check_reserved_stamp_collision(catalog: Any, label: str) -> None:
             )
 
 
+def _is_owned_stamp(data: Any) -> bool:
+    """Return whether parsed metadata is unquestionably our v1 stamp."""
+    if not isinstance(data, dict):
+        return False
+    stamp_version = data.get("stamp_version")
+    return type(stamp_version) is int and stamp_version == 1
+
+
+def _assert_git_identity(root: Path, expected: str, label: str, *, boundary: str) -> None:
+    current = _provider_git_identity(root)
+    if current != expected:
+        raise PublicationMaterializationError(
+            f"{label}: provider Git HEAD changed {boundary} "
+            f"({expected!r} → {current!r}); retry from an immutable checkout"
+        )
+
+
 def _write_stamp(
     root: Path,
     label: str,
@@ -266,6 +283,16 @@ def _write_stamp(
         "semantic_revision": semantic_rev,
         "generated_digests": generated_digests,
     }
+
+    # The catalog, digests and semantic revision above are all post-materialization
+    # reads. Bind those reads to the same provider checkout immediately before the
+    # atomic stamp publication boundary.
+    _assert_git_identity(
+        root,
+        git_revision,
+        label,
+        boundary="before materialization stamp commit",
+    )
     _atomic_write_json(root / STAMP_FILE, stamp_data)
 
 
@@ -280,7 +307,7 @@ def _validate_stamp(
         return None
     try:
         data = json.loads(stamp_path.read_text(encoding="utf-8"))
-        if not isinstance(data, dict) or data.get("stamp_version") != 1:
+        if not _is_owned_stamp(data):
             return None
         if data.get("canonical_root") != str(root.resolve(strict=True)):
             return None
@@ -344,20 +371,25 @@ def is_publication_materialized(root: Path, label: str) -> bool:
         root = root.resolve(strict=True)
         version = schema_version(root, label)
         materializer = root / MATERIALIZER
+
+        # Readiness must never be more permissive than the real preparation path.
+        # Check the symlink guard before branching on schema or generation state so
+        # every live or dangling materializer symlink is rejected consistently.
+        if materializer.is_symlink():
+            return False
+
         if version == 4:
             catalog = load_publication_catalog_v4(root, label=f"{label} catalog", phase="source")
             if not catalog.generated_assets:
-                if materializer.exists() and (
-                    materializer.is_symlink() or not materializer.is_file()
-                ):
+                if materializer.exists() and not materializer.is_file():
                     return False
                 catalog = _strict_catalog(root, label, version)
                 if catalog is not None:
                     _check_reserved_stamp_collision(catalog, label)
                 return catalog is not None
-        else:
-            if materializer.is_symlink():
+            if not materializer.is_file():
                 return False
+        else:
             if not materializer.is_file():
                 catalog = _strict_catalog(root, label, version)
                 if catalog is not None:
@@ -395,8 +427,8 @@ def _prepare_publication(root: Path, label: str) -> tuple[Any, bool]:
             raise PublicationMaterializationError(
                 f"{label} declares generated publication assets but has no {MATERIALIZER}"
             )
-        if materializer.exists() and (
-            materializer.is_symlink() or not materializer.is_file()
+        if materializer.is_symlink() or (
+            materializer.exists() and not materializer.is_file()
         ):
             raise PublicationMaterializationError(
                 f"{label} materializer must be a regular non-symlink file"
@@ -423,46 +455,56 @@ def _prepare_publication(root: Path, label: str) -> tuple[Any, bool]:
 
     _SUCCESSFUL_MATERIALIZATIONS.pop(root, None)
 
-    # Finding 1: Only delete the stamp if it looks like our own stamp (or is absent).
-    # A pre-existing provider-owned file at the stamp path must not be silently destroyed.
+    # Only delete metadata whose ownership is established beyond ambiguity.
     stamp_path = root / STAMP_FILE
-    if stamp_path.exists() and not stamp_path.is_symlink():
+    if stamp_path.is_symlink():
+        raise PublicationMaterializationError(
+            f"{label}: {STAMP_FILE} already exists as a symbolic link; "
+            "relocate or remove it before running the materializer"
+        )
+    if stamp_path.exists():
         try:
             raw = json.loads(stamp_path.read_text(encoding="utf-8"))
-        except Exception:
-            # Malformed or unreadable — ownership cannot be established; fail closed.
+        except Exception as exc:
             raise PublicationMaterializationError(
                 f"{label}: {STAMP_FILE} already exists but its contents cannot be parsed; "
                 "relocate or remove it before running the materializer"
-            )
-        if isinstance(raw, dict) and raw.get("stamp_version") == 1:
+            ) from exc
+        if _is_owned_stamp(raw):
             stamp_path.unlink(missing_ok=True)
         else:
             raise PublicationMaterializationError(
                 f"{label}: {STAMP_FILE} already exists and is not a materialization stamp; "
                 "relocate or remove it before running the materializer"
             )
-    else:
-        stamp_path.unlink(missing_ok=True)
 
-    # Finding 2: Record git identity before the materializer runs, then verify
-    # it hasn't changed. This prevents a TOCTOU where the provider HEAD advances
-    # mid-run and the stamp binds post-run revision B to pre-run outputs from A.
+    # Record identity before execution and require the entire materialization,
+    # validation and stamp-publication sequence to remain on that exact checkout.
     pre_run_git_revision = _provider_git_identity(root)
 
     run_materializer(root, label)
 
-    post_run_git_revision = _provider_git_identity(root)
-    if pre_run_git_revision != post_run_git_revision:
-        raise PublicationMaterializationError(
-            f"{label}: provider Git HEAD changed while the materializer was running "
-            f"({pre_run_git_revision!r} → {post_run_git_revision!r}); "
-            "retry from an immutable checkout"
-        )
+    _assert_git_identity(
+        root,
+        pre_run_git_revision,
+        label,
+        boundary="while the materializer was running",
+    )
 
     catalog = _strict_catalog(root, label, version)
     _check_reserved_stamp_collision(catalog, label)
     _write_stamp(root, label, version, fingerprint, catalog, git_revision=pre_run_git_revision)
+
+    # A HEAD change after the atomic stamp replacement must not be reported as a
+    # successful materialization by this caller. A later consumer would reject the
+    # stale stamp through `_validate_stamp`; this closes the current-call boundary too.
+    _assert_git_identity(
+        root,
+        pre_run_git_revision,
+        label,
+        boundary="before returning materialization success",
+    )
+
     _remember_success(root, fingerprint)
     return catalog, True
 
