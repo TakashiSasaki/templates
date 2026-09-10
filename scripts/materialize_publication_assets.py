@@ -364,14 +364,18 @@ def _provider_git_worktree_fingerprint(
 
 
 def _provider_semantic_revision(root: Path) -> str:
-    manifest_path = root / "generated" / "composition-playground-publication.json"
-    if manifest_path.is_file() and not manifest_path.is_symlink():
+    # Semantic identity is provider-owned metadata. Site knows only generic
+    # descriptor locations, not Composition-specific generated formats.
+    for relative in (Path("publication-descriptor.json"), Path("generated/publication-descriptor.json")):
+        descriptor_path = root / relative
+        if descriptor_path.is_symlink() or not descriptor_path.is_file():
+            continue
         try:
-            data = json.loads(manifest_path.read_text(encoding="utf-8"))
-            if isinstance(data, dict) and isinstance(data.get("semantic_revision"), str):
-                return data["semantic_revision"]
-        except Exception:
-            pass
+            data = json.loads(descriptor_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError):
+            continue
+        if isinstance(data, dict) and isinstance(data.get("semantic_revision"), str):
+            return data["semantic_revision"]
     return ""
 
 
