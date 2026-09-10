@@ -63,6 +63,13 @@ target.write_bytes(b'deterministic fixture output')
 """
         path.write_text(body, encoding="utf-8")
 
+    def initialize_git_checkout(self, root: Path) -> None:
+        subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+        subprocess.run(["git", "config", "user.name", "Test"], cwd=root, check=True)
+        subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=root, check=True)
+        subprocess.run(["git", "add", "."], cwd=root, check=True)
+        subprocess.run(["git", "commit", "-q", "-m", "init"], cwd=root, check=True)
+
     def test_v4_generated_asset_materializes_then_passes_strict_validation(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -162,6 +169,7 @@ target.write_bytes(b'deterministic fixture output')
             root = Path(directory)
             self.write_catalog(root, version=4, source_kind="generated")
             self.write_materializer(root)
+            self.initialize_git_checkout(root)
 
             self.assertFalse(is_publication_materialized(root, "fixture"))
             self.assertTrue(materialize_publication(root, "fixture"))
@@ -169,10 +177,10 @@ target.write_bytes(b'deterministic fixture output')
             self.assertTrue((root / STAMP_FILE).is_file())
             self.assertEqual("1", (root / "materializer-runs.txt").read_text(encoding="utf-8"))
 
-            # Simulate new process by clearing process-local in-memory cache
+            # Simulate new process by clearing process-local in-memory cache.
             _SUCCESSFUL_MATERIALIZATIONS.clear()
 
-            # Second call in new process reuses persistent stamp without re-running materializer
+            # A Git-bound persistent stamp remains reusable across processes.
             self.assertFalse(materialize_publication(root, "fixture"))
             self.assertEqual("1", (root / "materializer-runs.txt").read_text(encoding="utf-8"))
 
@@ -181,15 +189,17 @@ target.write_bytes(b'deterministic fixture output')
             root = Path(directory)
             self.write_catalog(root, version=4, source_kind="generated")
             self.write_materializer(root)
+            self.initialize_git_checkout(root)
 
             self.assertTrue(materialize_publication(root, "fixture"))
             self.assertEqual("1", (root / "materializer-runs.txt").read_text(encoding="utf-8"))
 
-            # Corrupt generated asset
+            # Corrupt generated asset.
             (root / "generated" / "output.bin").write_bytes(b"tampered content")
             _SUCCESSFUL_MATERIALIZATIONS.clear()
 
-            # Re-running materializer is triggered to recover valid state
+            # Re-running materializer is triggered by digest validation, not merely
+            # by loss of process-local state.
             self.assertTrue(materialize_publication(root, "fixture"))
             self.assertEqual("2", (root / "materializer-runs.txt").read_text(encoding="utf-8"))
             self.assertEqual(b"deterministic fixture output", (root / "generated" / "output.bin").read_bytes())
@@ -226,16 +236,18 @@ target.write_bytes(b'deterministic fixture output')
             root = Path(directory)
             self.write_catalog(root, version=4, source_kind="generated")
             self.write_materializer(root)
+            self.initialize_git_checkout(root)
 
             self.assertTrue(materialize_publication(root, "fixture"))
             self.assertEqual("1", (root / "materializer-runs.txt").read_text(encoding="utf-8"))
 
-            # Modify materializer script
+            # Modify materializer script.
             mat = root / "scripts" / "materialize_publication.py"
             mat.write_text(mat.read_text(encoding="utf-8") + "\n# updated\n", encoding="utf-8")
             _SUCCESSFUL_MATERIALIZATIONS.clear()
 
-            # Materializer re-runs
+            # Fingerprint invalidation must force a second materialization even
+            # though the exact Git HEAD identity remains unchanged.
             self.assertTrue(materialize_publication(root, "fixture"))
             self.assertEqual("2", (root / "materializer-runs.txt").read_text(encoding="utf-8"))
 
@@ -280,6 +292,7 @@ target.write_bytes(b'deterministic fixture output')
                 "(out / 'b.bin').write_bytes(b'beta')\n",
                 encoding="utf-8",
             )
+            self.initialize_git_checkout(root)
 
             self.assertFalse(is_publication_materialized(root, "fixture"))
             self.assertTrue(materialize_publication(root, "fixture"))
@@ -289,7 +302,8 @@ target.write_bytes(b'deterministic fixture output')
             self.assertIn("generated/bundle/a.bin", stamp_data["generated_digests"])
             self.assertIn("generated/bundle/b.bin", stamp_data["generated_digests"])
 
-            # Delete one file in the directory (partial deletion)
+            # Delete one file in the directory (partial deletion) after dropping
+            # process-local state so persistent digest verification is exercised.
             _SUCCESSFUL_MATERIALIZATIONS.clear()
             (root / "generated" / "bundle" / "b.bin").unlink()
             self.assertFalse(is_publication_materialized(root, "fixture"))
@@ -312,11 +326,11 @@ target.write_bytes(b'deterministic fixture output')
             git_proc = subprocess.run(["git", "rev-parse", "HEAD"], cwd=root, capture_output=True, text=True, check=True)
             self.assertEqual(git_proc.stdout.strip().lower(), stamp_data["git_revision"])
 
-            # Commit advance in the provider repository
+            # Commit advance in the provider repository.
             subprocess.run(["git", "commit", "-q", "--allow-empty", "-m", "advance"], cwd=root, check=True)
             _SUCCESSFUL_MATERIALIZATIONS.clear()
 
-            # Stamp is bound to previous git HEAD, so is_publication_materialized fails
+            # Stamp is bound to previous git HEAD, so is_publication_materialized fails.
             self.assertFalse(is_publication_materialized(root, "fixture"))
             self.assertTrue(materialize_publication(root, "fixture"))
             self.assertTrue(is_publication_materialized(root, "fixture"))
@@ -352,7 +366,7 @@ target.write_bytes(b'deterministic fixture output')
             stamp_data = json.loads((root / STAMP_FILE).read_text(encoding="utf-8"))
             self.assertIn("dist/output.bin", stamp_data["generated_digests"])
 
-            # Tampering with dist/output.bin invalidates stamp
+            # Tampering with dist/output.bin invalidates stamp.
             (root / "dist" / "output.bin").write_bytes(b"tampered")
             self.assertFalse(is_publication_materialized(root, "fixture"))
 
@@ -401,9 +415,9 @@ target.write_bytes(b'deterministic fixture output')
             self.assertTrue(materialize_publication(root, "fixture"))
             self.assertEqual("1", (root / "materializer-runs.txt").read_text(encoding="utf-8"))
 
-            # Tamper with generated asset without clearing _SUCCESSFUL_MATERIALIZATIONS
+            # Tamper with generated asset without clearing _SUCCESSFUL_MATERIALIZATIONS.
             (root / "generated" / "output.bin").write_bytes(b"tampered")
-            # Next call must detect the invalid stamp and re-run materializer
+            # Next call must detect the invalid stamp and re-run materializer.
             self.assertTrue(materialize_publication(root, "fixture"))
             self.assertEqual("2", (root / "materializer-runs.txt").read_text(encoding="utf-8"))
 
@@ -421,9 +435,24 @@ target.write_bytes(b'deterministic fixture output')
             path = root / "docs" / "publication-catalog.json"
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(json.dumps(catalog), encoding="utf-8")
-            self.write_materializer(root)
 
-            with self.assertRaises(PublicationMaterializationError):
+            materializer = root / "scripts" / "materialize_publication.py"
+            materializer.parent.mkdir(parents=True, exist_ok=True)
+            materializer.write_text(
+                "import argparse\n"
+                "from pathlib import Path\n"
+                "parser = argparse.ArgumentParser()\n"
+                "parser.add_argument('--source-root', type=Path, required=True)\n"
+                "args = parser.parse_args()\n"
+                "target = args.source_root / '.publication-materialization-stamp.json'\n"
+                "target.write_text('provider output', encoding='utf-8')\n",
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(
+                PublicationMaterializationError,
+                "asset source collides with reserved stamp path",
+            ):
                 materialize_publication(root, "fixture")
 
     def test_git_identity_supports_sha256(self) -> None:
@@ -445,7 +474,7 @@ target.write_bytes(b'deterministic fixture output')
             self.assertEqual(64, len(stamp_data["git_revision"]))
             self.assertTrue(is_publication_materialized(root, "fixture"))
 
-            # Advance HEAD
+            # Advance HEAD.
             subprocess.run(["git", "commit", "-q", "--allow-empty", "-m", "advance"], cwd=root, check=True)
             self.assertFalse(is_publication_materialized(root, "fixture"))
 
@@ -472,14 +501,12 @@ target.write_bytes(b'deterministic fixture output')
     def test_v4_no_generated_assets_with_symlink_materializer_reports_not_materialized(
         self,
     ) -> None:
-        """Finding 4: is_publication_materialized returns False when the materializer path
-        exists but is a symlink, even for a v4 catalog with no generated assets."""
+        """A valid v4 no-generation catalog is ready until a materializer symlink appears."""
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            # Build a v4 catalog with no generated assets (source_kind=static).
             (root / "README.md").write_text("# Fixture\n", encoding="utf-8")
-            static_asset = root / "static.bin"
-            static_asset.write_bytes(b"static")
+            tracked_asset = root / "tracked.bin"
+            tracked_asset.write_bytes(b"tracked")
             catalog = {
                 "schema_version": 4,
                 "documents": [
@@ -487,17 +514,20 @@ target.write_bytes(b'deterministic fixture output')
                 ],
                 "assets": [
                     {
-                        "source": "static.bin",
-                        "destination": "runtime/static.bin",
+                        "source": "tracked.bin",
+                        "destination": "runtime/tracked.bin",
                         "optional": False,
-                        "source_kind": "static",
+                        "source_kind": "tracked",
                     }
                 ],
             }
             catalog_path = root / "docs" / "publication-catalog.json"
             catalog_path.parent.mkdir(parents=True, exist_ok=True)
             catalog_path.write_text(json.dumps(catalog), encoding="utf-8")
-            # Place a symlink at the materializer path.
+
+            # Prove the fixture is valid and ready before introducing the symlink.
+            self.assertTrue(is_publication_materialized(root, "fixture"))
+
             materializer_dir = root / "scripts"
             materializer_dir.mkdir(parents=True, exist_ok=True)
             symlink_target = root / "dummy_target.py"
