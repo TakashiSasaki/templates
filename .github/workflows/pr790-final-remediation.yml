@@ -34,10 +34,15 @@ jobs:
               j = text.index(end, i)
               return text[:i] + replacement.rstrip() + "\n\n" + text[j:]
 
-          def replace_once(text: str, old: str, new: str, label: str) -> str:
-              if text.count(old) != 1:
-                  raise SystemExit(f"{label}: expected one anchor, found {text.count(old)}")
-              return text.replace(old, new, 1)
+          def transform_function(text: str, start: str, end: str, needle: str, replacement: str) -> str:
+              i = text.index(start)
+              j = text.index(end, i)
+              body = text[i:j]
+              count = body.count(needle)
+              if count != 1:
+                  raise SystemExit(f"{start.strip()}: expected one local anchor, found {count}")
+              body = body.replace(needle, replacement, 1)
+              return text[:i] + body + text[j:]
 
           source_path = Path('scripts/materialize_publication_assets.py')
           source = source_path.read_text(encoding='utf-8')
@@ -115,143 +120,106 @@ jobs:
               ''',
           )
 
-          old = '''    _assert_output_snapshot(
+          stamp_checks = '''    _assert_materializer_input_state(
               root,
+              git_revision,
+              input_worktree_fingerprint,
+              input_untracked_paths,
+              output_roots,
               label,
-              version,
-              catalog,
-              generated_digests,
-              boundary="before materialization stamp commit",
+              boundary="after output snapshot before materialization stamp commit",
           )
-              _atomic_write_json(root / STAMP_FILE, stamp_data)
-          '''
-          new = '''    _assert_output_snapshot(
+              _assert_provider_reuse_identity(
               root,
+              git_revision,
+              git_worktree_fingerprint,
               label,
-              version,
-              catalog,
-              generated_digests,
-              boundary="before materialization stamp commit",
+              boundary="after output snapshot before materialization stamp commit",
+          )
+              _assert_materialization_fingerprint(
+              root,
+              fingerprint,
+              label,
+              boundary="after output snapshot before materialization stamp commit",
+          )
+          '''
+          source = transform_function(
+              source,
+              'def _write_stamp(\n',
+              'def _validate_stamp(\n',
+              '    _atomic_write_json(root / STAMP_FILE, stamp_data)\n',
+              stamp_checks + '    _atomic_write_json(root / STAMP_FILE, stamp_data)\n',
+          )
+
+          acceptance_checks = '''        _assert_provider_reuse_identity(
+              root,
+              git_revision,
+              git_worktree_fingerprint,
+              label,
+              boundary="after output snapshot while validating materialization stamp",
+          )
+              _assert_materialization_fingerprint(
+              root,
+              fingerprint,
+              label,
+              boundary="after output snapshot while accepting materialization stamp",
+          )
+          '''
+          source = transform_function(
+              source,
+              'def _validate_stamp(\n',
+              'def is_publication_materialized(',
+              '        return catalog\n',
+              acceptance_checks + '        return catalog\n',
+          )
+
+          success_checks = '''    _assert_provider_reuse_identity(
+              root,
+              pre_run_git_revision,
+              stamped_worktree_fingerprint,
+              label,
+              boundary="after output snapshot before returning materialization success",
           )
               _assert_materializer_input_state(
-                  root,
-                  git_revision,
-                  input_worktree_fingerprint,
-                  input_untracked_paths,
-                  output_roots,
-                  label,
-                  boundary="after output snapshot before materialization stamp commit",
-              )
-              _assert_provider_reuse_identity(
-                  root,
-                  git_revision,
-                  git_worktree_fingerprint,
-                  label,
-                  boundary="after output snapshot before materialization stamp commit",
-              )
+              root,
+              pre_run_git_revision,
+              pre_run_input_worktree_fingerprint,
+              pre_run_untracked_paths,
+              output_roots,
+              label,
+              boundary="after output snapshot before returning materialization success",
+          )
               _assert_materialization_fingerprint(
-                  root,
-                  fingerprint,
-                  label,
-                  boundary="after output snapshot before materialization stamp commit",
-              )
-              _atomic_write_json(root / STAMP_FILE, stamp_data)
-          '''
-          source = replace_once(source, old, new, 'stamp commit boundary')
-
-          old = '''        _assert_output_snapshot(
               root,
+              run_fingerprint,
               label,
-              version,
-              catalog,
-              generated_digests,
-              boundary="while accepting materialization stamp",
+              boundary="after output snapshot before returning materialization success",
           )
-              return catalog
           '''
-          new = '''        _assert_output_snapshot(
-              root,
-              label,
-              version,
-              catalog,
-              generated_digests,
-              boundary="while accepting materialization stamp",
+          source = transform_function(
+              source,
+              'def _prepare_publication(',
+              'def load_materialized_publication_catalog(',
+              '    _remember_success(root, run_fingerprint)\n',
+              success_checks + '    _remember_success(root, run_fingerprint)\n',
           )
-              _assert_provider_reuse_identity(
-                  root,
-                  git_revision,
-                  git_worktree_fingerprint,
-                  label,
-                  boundary="after output snapshot while validating materialization stamp",
-              )
-              _assert_materialization_fingerprint(
-                  root,
-                  fingerprint,
-                  label,
-                  boundary="after output snapshot while accepting materialization stamp",
-              )
-              return catalog
-          '''
-          source = replace_once(source, old, new, 'stamp acceptance boundary')
-
-          old = '''    _assert_output_snapshot(
-              root,
-              label,
-              version,
-              catalog,
-              stamped_output_digests,
-              boundary="before returning materialization success",
-          )
-          
-              _remember_success(root, run_fingerprint)
-          '''
-          new = '''    _assert_output_snapshot(
-              root,
-              label,
-              version,
-              catalog,
-              stamped_output_digests,
-              boundary="before returning materialization success",
-          )
-              _assert_provider_reuse_identity(
-                  root,
-                  pre_run_git_revision,
-                  stamped_worktree_fingerprint,
-                  label,
-                  boundary="after output snapshot before returning materialization success",
-              )
-              _assert_materializer_input_state(
-                  root,
-                  pre_run_git_revision,
-                  pre_run_input_worktree_fingerprint,
-                  pre_run_untracked_paths,
-                  output_roots,
-                  label,
-                  boundary="after output snapshot before returning materialization success",
-              )
-              _assert_materialization_fingerprint(
-                  root,
-                  run_fingerprint,
-                  label,
-                  boundary="after output snapshot before returning materialization success",
-              )
-          
-              _remember_success(root, run_fingerprint)
-          '''
-          source = replace_once(source, old, new, 'success boundary')
           source_path.write_text(source, encoding='utf-8')
 
           test_path = Path('tests/test_materialize_publication_assets_review_followup.py')
           tests = test_path.read_text(encoding='utf-8')
-          tests = replace_once(
-              tests,
-              '                side_effect=[revision_a, revision_a, revision_a, revision_a, revision_b],\n',
+          old_side_effect = '                side_effect=[revision_a, revision_a, revision_a, revision_a, revision_b],\n'
+          if tests.count(old_side_effect) != 1:
+              raise SystemExit(f'success identity fixture: expected one anchor, found {tests.count(old_side_effect)}')
+          tests = tests.replace(
+              old_side_effect,
               '                side_effect=[revision_a] * 7 + [revision_b],\n',
-              'success identity fixture',
+              1,
           )
 
           footer = '\n\nif __name__ == "__main__":\n    unittest.main()'
-          addition = r'''
+          if tests.count(footer) != 1:
+              raise SystemExit(f'test footer: expected one anchor, found {tests.count(footer)}')
+          additions = r'''
 
               def test_new_untracked_source_path_during_materialization_aborts(self) -> None:
                   with tempfile.TemporaryDirectory() as directory:
@@ -340,9 +308,7 @@ jobs:
                           stamp.read_text(encoding="utf-8"),
                       )
           '''
-          if tests.count(footer) != 1:
-              raise SystemExit(f'test footer: expected one anchor, found {tests.count(footer)}')
-          tests = tests.replace(footer, addition.rstrip() + footer, 1)
+          tests = tests.replace(footer, additions.rstrip() + footer, 1)
           test_path.write_text(tests, encoding='utf-8')
           PY
 
