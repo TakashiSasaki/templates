@@ -499,7 +499,6 @@ def _assert_materializer_input_state(
     root: Path,
     expected_git_revision: str,
     expected_worktree_fingerprint: str,
-    pre_run_untracked_paths: tuple[bytes, ...],
     output_roots: tuple[PurePosixPath, ...],
     label: str,
     *,
@@ -511,7 +510,6 @@ def _assert_materializer_input_state(
             root,
             expected_git_revision,
             excluded_roots=output_roots,
-            untracked_paths=pre_run_untracked_paths,
         )
         if current != expected_worktree_fingerprint:
             raise PublicationMaterializationError(
@@ -556,7 +554,6 @@ def _write_stamp(
     catalog: Any,
     git_revision: str = "",
     input_worktree_fingerprint: str = "",
-    input_untracked_paths: tuple[bytes, ...] = (),
     output_roots: tuple[PurePosixPath, ...] = (),
 ) -> str:
     generated_digests: dict[str, str] = {}
@@ -618,7 +615,6 @@ def _write_stamp(
         root,
         git_revision,
         input_worktree_fingerprint,
-        input_untracked_paths,
         output_roots,
         label,
         boundary="before materialization stamp commit",
@@ -845,24 +841,18 @@ def _prepare_publication(root: Path, label: str) -> tuple[Any, bool]:
 
     # Record the exact source state before execution. Declared publication outputs
     # are excluded because the materializer is expected to create or replace them.
-    # Fixing the pre-existing untracked path set keeps newly created build byproducts
-    # from being mistaken for concurrently mutated source inputs.
+    # Any new untracked path outside those declared outputs is part of the provider
+    # source state and must invalidate this materialization attempt.
     pre_run_git_revision = _provider_git_identity(root)
     output_roots = _materializer_output_roots(
         root,
         version,
         catalog if version == 4 else None,
     )
-    pre_run_untracked_paths = _provider_git_untracked_paths(
-        root,
-        pre_run_git_revision,
-        excluded_roots=output_roots,
-    )
     pre_run_input_worktree_fingerprint = _provider_git_worktree_fingerprint(
         root,
         pre_run_git_revision,
         excluded_roots=output_roots,
-        untracked_paths=pre_run_untracked_paths,
     )
 
     run_materializer(root, label)
@@ -871,7 +861,6 @@ def _prepare_publication(root: Path, label: str) -> tuple[Any, bool]:
         root,
         pre_run_git_revision,
         pre_run_input_worktree_fingerprint,
-        pre_run_untracked_paths,
         output_roots,
         label,
         boundary="while the materializer was running",
@@ -887,7 +876,6 @@ def _prepare_publication(root: Path, label: str) -> tuple[Any, bool]:
         catalog,
         git_revision=pre_run_git_revision,
         input_worktree_fingerprint=pre_run_input_worktree_fingerprint,
-        input_untracked_paths=pre_run_untracked_paths,
         output_roots=output_roots,
     )
 
@@ -904,7 +892,6 @@ def _prepare_publication(root: Path, label: str) -> tuple[Any, bool]:
         root,
         pre_run_git_revision,
         pre_run_input_worktree_fingerprint,
-        pre_run_untracked_paths,
         output_roots,
         label,
         boundary="before returning materialization success",

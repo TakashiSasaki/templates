@@ -417,6 +417,34 @@ class PublicationMaterializationReviewFollowupTests(unittest.TestCase):
                 self.assertEqual(b"revision-b", source.read_bytes())
                 self.assertFalse((root / STAMP_FILE).exists())
 
+    def test_materializer_cannot_create_new_untracked_non_output_state(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            materializer = self.write_v4_provider(root)
+            materializer.write_text(
+                "from __future__ import annotations\n"
+                "import argparse\n"
+                "from pathlib import Path\n"
+                "parser = argparse.ArgumentParser()\n"
+                "parser.add_argument('--source-root', type=Path, required=True)\n"
+                "args = parser.parse_args()\n"
+                "out = args.source_root / 'generated' / 'output.bin'\n"
+                "out.parent.mkdir(parents=True, exist_ok=True)\n"
+                "out.write_bytes(b'deterministic-output')\n"
+                "(args.source_root / 'unexpected-input-state.txt').write_text('new', encoding='utf-8')\n",
+                encoding="utf-8",
+            )
+            self.initialize_git_checkout(root)
+
+            with self.assertRaisesRegex(
+                PublicationMaterializationError,
+                "worktree changed while the materializer was running",
+            ):
+                materialize_publication(root, "fixture")
+
+            self.assertTrue((root / "unexpected-input-state.txt").is_file())
+            self.assertFalse((root / STAMP_FILE).exists())
+
     def test_stamp_hash_fails_if_enumerated_output_vanishes(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
