@@ -194,7 +194,9 @@ target.write_bytes(b'deterministic fixture output')
             self.assertEqual("2", (root / "materializer-runs.txt").read_text(encoding="utf-8"))
             self.assertEqual(b"deterministic fixture output", (root / "generated" / "output.bin").read_bytes())
 
-    def test_persistent_stamp_invalidated_by_corrupted_stamp_json(self) -> None:
+    def test_corrupted_stamp_json_raises_rather_than_deleting(self) -> None:
+        """Finding A: A malformed stamp file is preserved and raises an error rather than
+        being silently deleted (ownership cannot be established from unreadable content)."""
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             self.write_catalog(root, version=4, source_kind="generated")
@@ -203,14 +205,21 @@ target.write_bytes(b'deterministic fixture output')
             self.assertTrue(materialize_publication(root, "fixture"))
             self.assertEqual("1", (root / "materializer-runs.txt").read_text(encoding="utf-8"))
 
-            # Corrupt stamp file with malformed content
-            (root / STAMP_FILE).write_text("invalid-json{", encoding="utf-8")
+            # Corrupt the stamp file with malformed JSON.
+            stamp_path = root / STAMP_FILE
+            stamp_path.write_text("invalid-json{", encoding="utf-8")
             _SUCCESSFUL_MATERIALIZATIONS.clear()
 
-            # Materializer re-runs and regenerates stamp
-            self.assertTrue(materialize_publication(root, "fixture"))
-            self.assertEqual("2", (root / "materializer-runs.txt").read_text(encoding="utf-8"))
-            self.assertTrue(is_publication_materialized(root, "fixture"))
+            # Must raise, not silently delete and re-run.
+            with self.assertRaisesRegex(
+                PublicationMaterializationError,
+                "cannot be parsed",
+            ):
+                materialize_publication(root, "fixture")
+            # File must still be on disk.
+            self.assertTrue(stamp_path.exists())
+            # Materializer must not have run again.
+            self.assertEqual("1", (root / "materializer-runs.txt").read_text(encoding="utf-8"))
 
     def test_persistent_stamp_invalidated_by_materializer_script_change(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -495,6 +504,27 @@ target.write_bytes(b'deterministic fixture output')
             symlink_target.write_text("", encoding="utf-8")
             (materializer_dir / "materialize_publication.py").symlink_to(symlink_target)
 
+            self.assertFalse(is_publication_materialized(root, "fixture"))
+
+    def test_v3_symlink_materializer_reports_not_materialized(self) -> None:
+        """Finding B: For v3 providers, a symlink at the materializer path causes
+        is_publication_materialized to return False, matching _prepare_publication behaviour."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.write_catalog(root, version=3, source_kind=None)
+            # Create required asset so strict catalog validation passes.
+            (root / "README.md").write_text("content", encoding="utf-8")
+            out = root / "generated" / "output.bin"
+            out.parent.mkdir(parents=True, exist_ok=True)
+            out.write_bytes(b"content")
+            # Place a dangling symlink at the materializer path.
+            materializer_dir = root / "scripts"
+            materializer_dir.mkdir(parents=True, exist_ok=True)
+            (materializer_dir / "materialize_publication.py").symlink_to(
+                root / "nonexistent_target.py"
+            )
+
+            # Must return False, not True (symlink ≠ absent, symlink ≠ valid materializer).
             self.assertFalse(is_publication_materialized(root, "fixture"))
 
     def test_v3_stamp_binds_document_and_glossary_bytes(self) -> None:

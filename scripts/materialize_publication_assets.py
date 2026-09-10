@@ -356,6 +356,8 @@ def is_publication_materialized(root: Path, label: str) -> bool:
                     _check_reserved_stamp_collision(catalog, label)
                 return catalog is not None
         else:
+            if materializer.is_symlink():
+                return False
             if not materializer.is_file():
                 catalog = _strict_catalog(root, label, version)
                 if catalog is not None:
@@ -427,18 +429,19 @@ def _prepare_publication(root: Path, label: str) -> tuple[Any, bool]:
     if stamp_path.exists() and not stamp_path.is_symlink():
         try:
             raw = json.loads(stamp_path.read_text(encoding="utf-8"))
-            if isinstance(raw, dict) and raw.get("stamp_version") == 1:
-                stamp_path.unlink(missing_ok=True)
-            else:
-                raise PublicationMaterializationError(
-                    f"{label}: {STAMP_FILE} already exists and is not a materialization stamp; "
-                    "relocate or remove it before running the materializer"
-                )
-        except PublicationMaterializationError:
-            raise
         except Exception:
-            # Unreadable/malformed stamp — treat as ours and remove it.
+            # Malformed or unreadable — ownership cannot be established; fail closed.
+            raise PublicationMaterializationError(
+                f"{label}: {STAMP_FILE} already exists but its contents cannot be parsed; "
+                "relocate or remove it before running the materializer"
+            )
+        if isinstance(raw, dict) and raw.get("stamp_version") == 1:
             stamp_path.unlink(missing_ok=True)
+        else:
+            raise PublicationMaterializationError(
+                f"{label}: {STAMP_FILE} already exists and is not a materialization stamp; "
+                "relocate or remove it before running the materializer"
+            )
     else:
         stamp_path.unlink(missing_ok=True)
 
