@@ -37,8 +37,48 @@ def decode_transition(projection: dict[str, Any], encoded: int) -> dict[str, Any
     return {"valid": False, "error": errors[error_index], "outcome_id": None}
 
 
-def build_intent_projection(*, source_revision: str | None = None) -> dict[str, Any]:
-    base = build_projection(source_revision=source_revision)
+def build_intent_projection(
+    *,
+    source_revision: str | None = None,
+    base_projection: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    if base_projection is not None:
+        if not isinstance(base_projection, dict):
+            raise CompositionError(
+                "INVALID_PLAYGROUND_PROJECTION",
+                "supplied base projection must be a dictionary",
+            )
+        if base_projection.get("projection_id") != "composition-playground-v1":
+            raise CompositionError(
+                "INVALID_PLAYGROUND_PROJECTION",
+                f"supplied base projection id is invalid: {base_projection.get('projection_id')!r}",
+            )
+        base_source = base_projection.get("source")
+        if not isinstance(base_source, dict):
+            raise CompositionError(
+                "INVALID_PLAYGROUND_PROJECTION",
+                "supplied base projection has no source object",
+            )
+        base_revision = base_source.get("revision")
+        if not isinstance(base_revision, str):
+            raise CompositionError(
+                "INVALID_PLAYGROUND_PROJECTION",
+                "supplied base projection has invalid source revision",
+            )
+        if source_revision is not None and source_revision != base_revision:
+            raise CompositionError(
+                "INVALID_PLAYGROUND_PROJECTION",
+                f"supplied base projection revision {base_revision} does not match explicit source revision {source_revision}",
+            )
+        for key in ("recipes", "outcomes"):
+            if key not in base_projection:
+                raise CompositionError(
+                    "INVALID_PLAYGROUND_PROJECTION",
+                    f"supplied base projection is missing required member: {key}",
+                )
+        base = base_projection
+    else:
+        base = build_projection(source_revision=source_revision)
     state = load_source_state()
     outcomes = {tuple(row["resolved_components"]): row["index"] for row in base["outcomes"]}
     errors: list[dict[str, str]] = []

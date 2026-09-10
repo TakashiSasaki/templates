@@ -16,6 +16,7 @@ if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
 import generate_composition_playground as playground  # noqa: E402
+import generate_composition_playground_intent as playground_intent  # noqa: E402
 import generate_composition_playground_publication as publication  # noqa: E402
 from composer_core_impl import CompositionError  # noqa: E402
 
@@ -109,6 +110,65 @@ class CompositionPlaygroundPublicationTests(unittest.TestCase):
             with self.assertRaises(CompositionError) as context:
                 publication.semantic_revision_from_manifest(target)
         self.assertEqual("INVALID_PLAYGROUND_PUBLICATION", context.exception.code)
+
+    def test_intent_projection_consumes_matching_base_projection(self) -> None:
+        semantic_revision = publication.semantic_revision_from_manifest(GENERATED)
+        base = publication._bind_semantic_revision(playground.build_projection(), semantic_revision)
+        intent = playground_intent.build_intent_projection(
+            base_projection=base,
+            source_revision=semantic_revision,
+        )
+        self.assertEqual("composition-playground-intent-v1", intent["projection_id"])
+        self.assertEqual(semantic_revision, intent["source"]["revision"])
+        self.assertEqual(base["projection_id"], intent["resolution_projection_id"])
+
+    def test_intent_projection_rejects_mismatched_or_malformed_base_projection(self) -> None:
+        with self.assertRaises(CompositionError) as ctx:
+            playground_intent.build_intent_projection(base_projection="not-a-dict")  # type: ignore[arg-type]
+        self.assertEqual("INVALID_PLAYGROUND_PROJECTION", ctx.exception.code)
+
+        with self.assertRaises(CompositionError) as ctx:
+            playground_intent.build_intent_projection(base_projection={"projection_id": "wrong-id"})
+        self.assertEqual("INVALID_PLAYGROUND_PROJECTION", ctx.exception.code)
+
+        with self.assertRaises(CompositionError) as ctx:
+            playground_intent.build_intent_projection(
+                base_projection={"projection_id": "composition-playground-v1", "source": {}}
+            )
+        self.assertEqual("INVALID_PLAYGROUND_PROJECTION", ctx.exception.code)
+
+        with self.assertRaises(CompositionError) as ctx:
+            playground_intent.build_intent_projection(
+                source_revision="a" * 40,
+                base_projection={
+                    "projection_id": "composition-playground-v1",
+                    "source": {"revision": "b" * 40},
+                    "recipes": [],
+                    "outcomes": [],
+                },
+            )
+        self.assertEqual("INVALID_PLAYGROUND_PROJECTION", ctx.exception.code)
+
+    def test_one_publication_build_performs_one_base_projection_computation(self) -> None:
+        semantic_revision = publication.semantic_revision_from_manifest(GENERATED)
+        semantic_objects = publication.semantic_objects_from_manifest(GENERATED)
+        build_projection_count = 0
+        real_build_projection = publication.build_projection
+
+        def counted_build_projection(*args, **kwargs):
+            nonlocal build_projection_count
+            build_projection_count += 1
+            return real_build_projection(*args, **kwargs)
+
+        with mock.patch.object(publication, "build_projection", side_effect=counted_build_projection):
+            payloads = publication.publication_payloads(
+                semantic_revision=semantic_revision,
+                semantic_objects=semantic_objects,
+            )
+
+        self.assertEqual(1, build_projection_count)
+        self.assertIn(publication.BASE_NAME, payloads)
+        self.assertIn(publication.INTENT_NAME, payloads)
 
 
 if __name__ == "__main__":
