@@ -18,6 +18,20 @@ class SiteCompositionMaterializationCrossAuthorityWorkflowTests(unittest.TestCas
         self.assertIn("      - site", text)
         self.assertIn("uses: ./.github/workflows/build-pages.yml", text)
 
+    def test_build_pages_materializes_before_site_assembly_tests(self) -> None:
+        workflow = ROOT / ".github" / "workflows" / "build-pages.yml"
+        self.assertTrue(workflow.is_file(), "reusable Pages workflow must exist")
+        text = workflow.read_text(encoding="utf-8")
+        materialize = "      - name: Materialize provider publications\n"
+        assembly_tests = "      - name: Run site assembly tests\n"
+        self.assertEqual(1, text.count(materialize), "materialization phase must be unique")
+        self.assertEqual(1, text.count(assembly_tests), "site assembly test phase must be unique")
+        self.assertLess(
+            text.index(materialize),
+            text.index(assembly_tests),
+            "provider materialization must precede test discovery so CI cannot silently skip unmaterialized provider integrations",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
