@@ -108,6 +108,7 @@ def run_materializer(root: Path, label: str) -> None:
         [
             sys.executable,
             "-I",
+            "-B",
             str(materializer),
             "--source-root",
             str(root),

@@ -754,5 +754,36 @@ class PublicationMaterializationReviewFollowupTests(unittest.TestCase):
             self.assertGreaterEqual(snapshots, 2)
             self.assertFalse((root / STAMP_FILE).exists())
 
+
+    def test_isolated_materializer_disables_bytecode_writes(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            materializer = self.write_v4_provider(root)
+            helper = root / "scripts" / "provider_helper.py"
+            helper.write_text("PAYLOAD = b'from-helper'\n", encoding="utf-8")
+            materializer.write_text(
+                "from __future__ import annotations\n"
+                "import argparse\n"
+                "import sys\n"
+                "from pathlib import Path\n"
+                "sys.path.insert(0, str(Path(__file__).resolve().parent))\n"
+                "import provider_helper\n"
+                "parser = argparse.ArgumentParser()\n"
+                "parser.add_argument('--source-root', type=Path, required=True)\n"
+                "args = parser.parse_args()\n"
+                "out = args.source_root / 'generated' / 'output.bin'\n"
+                "out.parent.mkdir(parents=True, exist_ok=True)\n"
+                "out.write_bytes(provider_helper.PAYLOAD)\n",
+                encoding="utf-8",
+            )
+            self.initialize_git_checkout(root)
+
+            self.assertTrue(materialize_publication(root, "fixture"))
+            self.assertEqual(
+                b"from-helper",
+                (root / "generated" / "output.bin").read_bytes(),
+            )
+            self.assertFalse((root / "scripts" / "__pycache__").exists())
+
 if __name__ == "__main__":
     unittest.main()
