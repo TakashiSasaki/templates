@@ -23,34 +23,8 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Extract and apply corrected remediation payload
-        shell: bash
-        run: |
-          awk '
-            /^          python - <<'\''PY'\''$/ { capture=1; next }
-            capture && /^          PY$/ { exit }
-            capture { sub(/^          /, ""); print }
-          ' .github/workflows/pr790-final-review-remediation.yml > /tmp/pr790-remediate.py
-          python - <<'PY'
-          from pathlib import Path
-          path = Path('/tmp/pr790-remediate.py')
-          text = path.read_text(encoding='utf-8')
-          text = text.replace('PurePosixPath(".")', "PurePosixPath('.')")
-          text = text.replace('if count != 5:', 'if count != 2:', 1)
-          needle = "path.write_text(text, encoding='utf-8')"
-          insertion = '''prepare_old = "        pre_run_input_worktree_fingerprint,\\n        pre_run_untracked_paths,\\n        output_roots,\\n        label,\\n        boundary="
-prepare_new = "        pre_run_input_worktree_fingerprint,\\n        pre_run_untracked_paths,\\n        output_roots,\\n        tracked_output_roots,\\n        label,\\n        boundary="
-prepare_count = text.count(prepare_old)
-if prepare_count != 3:
-    raise SystemExit(f'expected three prepare input-state call sites, got {prepare_count}')
-text = text.replace(prepare_old, prepare_new)
-path.write_text(text, encoding='utf-8')'''
-          if text.count(needle) < 1:
-              raise SystemExit('source write marker missing')
-          text = text.replace(needle, insertion, 1)
-          path.write_text(text, encoding='utf-8')
-          PY
-          python /tmp/pr790-remediate.py
+      - name: Apply review remediation
+        run: python .github/pr790_remediate.py
 
       - name: Syntax check
         run: python -m py_compile scripts/materialize_publication_assets.py tests/test_materialize_publication_assets_review_followup.py
@@ -58,12 +32,13 @@ path.write_text(text, encoding='utf-8')'''
       - name: Run focused regressions
         run: python -m unittest tests.test_materialize_publication_assets tests.test_materialize_publication_assets_review_followup tests.test_assembly_materialization_boundary --verbose
 
-      - name: Commit remediation and remove temporary workflows
+      - name: Commit remediation and remove temporary files
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add scripts/materialize_publication_assets.py tests/test_materialize_publication_assets_review_followup.py
+          git rm .github/pr790_remediate.py
           git rm .github/workflows/pr790-final-review-remediation.yml
           git rm .github/workflows/pr790-final-review-remediation-retry.yml
           git diff --cached --check
