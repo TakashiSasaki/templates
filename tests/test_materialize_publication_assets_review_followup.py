@@ -58,6 +58,24 @@ class PublicationMaterializationReviewFollowupTests(unittest.TestCase):
         )
         return materializer
 
+    def initialize_git_checkout(self, root: Path) -> str:
+        subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+        subprocess.run(["git", "config", "user.name", "Test"], cwd=root, check=True)
+        subprocess.run(
+            ["git", "config", "user.email", "test@example.com"],
+            cwd=root,
+            check=True,
+        )
+        subprocess.run(["git", "add", "."], cwd=root, check=True)
+        subprocess.run(["git", "commit", "-q", "-m", "initial"], cwd=root, check=True)
+        return subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip().lower()
+
     def test_reserved_stamp_symlink_is_preserved_and_rejected(self) -> None:
         for dangling in (False, True):
             with self.subTest(dangling=dangling), tempfile.TemporaryDirectory() as directory:
@@ -112,6 +130,22 @@ class PublicationMaterializationReviewFollowupTests(unittest.TestCase):
 
             self.assertEqual(original, stamp.read_text(encoding="utf-8"))
 
+    def test_incomplete_integer_v1_stamp_does_not_establish_ownership(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.write_v4_provider(root)
+            stamp = root / STAMP_FILE
+            original = '{"stamp_version": 1, "provider": "owned"}\n'
+            stamp.write_text(original, encoding="utf-8")
+
+            with self.assertRaisesRegex(
+                PublicationMaterializationError,
+                "is not a materialization stamp",
+            ):
+                materialize_publication(root, "fixture")
+
+            self.assertEqual(original, stamp.read_text(encoding="utf-8"))
+
     def test_git_identity_is_rechecked_at_stamp_commit_boundary(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -120,6 +154,10 @@ class PublicationMaterializationReviewFollowupTests(unittest.TestCase):
             revision_b = "b" * 40
 
             with patch.object(
+                materialization,
+                "_provider_git_worktree_fingerprint",
+                return_value="c" * 64,
+            ), patch.object(
                 materialization,
                 "_provider_git_identity",
                 side_effect=[revision_a, revision_a, revision_b],
@@ -140,6 +178,10 @@ class PublicationMaterializationReviewFollowupTests(unittest.TestCase):
             revision_b = "b" * 40
 
             with patch.object(
+                materialization,
+                "_provider_git_worktree_fingerprint",
+                return_value="c" * 64,
+            ), patch.object(
                 materialization,
                 "_provider_git_identity",
                 side_effect=[revision_a, revision_a, revision_a, revision_b],
@@ -200,25 +242,10 @@ class PublicationMaterializationReviewFollowupTests(unittest.TestCase):
     def test_git_identity_is_rechecked_before_stamp_acceptance(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            subprocess.run(["git", "init", "-q"], cwd=root, check=True)
-            subprocess.run(["git", "config", "user.name", "Test"], cwd=root, check=True)
-            subprocess.run(
-                ["git", "config", "user.email", "test@example.com"],
-                cwd=root,
-                check=True,
-            )
             self.write_v4_provider(root)
-            subprocess.run(["git", "add", "."], cwd=root, check=True)
-            subprocess.run(["git", "commit", "-q", "-m", "initial"], cwd=root, check=True)
+            revision = self.initialize_git_checkout(root)
             self.assertTrue(materialize_publication(root, "fixture"))
 
-            revision = subprocess.run(
-                ["git", "rev-parse", "HEAD"],
-                cwd=root,
-                capture_output=True,
-                text=True,
-                check=True,
-            ).stdout.strip().lower()
             advanced = "b" * len(revision)
             with patch.object(
                 materialization,
@@ -226,6 +253,84 @@ class PublicationMaterializationReviewFollowupTests(unittest.TestCase):
                 side_effect=[revision, advanced],
             ):
                 self.assertFalse(is_publication_materialized(root, "fixture"))
+
+    def test_git_stamp_reuse_is_bound_to_dirty_worktree_content(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            materializer = self.write_v4_provider(root)
+            primary = root / "generator-input.txt"
+            primary.write_text("A", encoding="utf-8")
+            materializer.write_text(
+                "from __future__ import annotations\n"
+                "import argparse\n"
+                "from pathlib import Path\n"
+                "parser = argparse.ArgumentParser()\n"
+                "parser.add_argument('--source-root', type=Path, required=True)\n"
+                "args = parser.parse_args()\n"
+                "primary = (args.source_root / 'generator-input.txt').read_text(encoding='utf-8')\n"
+                "secondary_path = args.source_root / 'untracked-input.txt'\n"
+                "secondary = secondary_path.read_text(encoding='utf-8') if secondary_path.exists() else ''\n"
+                "out = args.source_root / 'generated' / 'output.bin'\n"
+                "out.parent.mkdir(parents=True, exist_ok=True)\n"
+                "out.write_bytes((primary + secondary).encode('utf-8'))\n",
+                encoding="utf-8",
+            )
+            revision = self.initialize_git_checkout(root)
+
+            self.assertTrue(materialize_publication(root, "fixture"))
+            self.assertEqual(b"A", (root / "generated" / "output.bin").read_bytes())
+            materialization._SUCCESSFUL_MATERIALIZATIONS.clear()
+
+            # A tracked dirty input changes without advancing HEAD. Persistent reuse
+            # must fail and rematerialization must observe the new bytes.
+            primary.write_text("B", encoding="utf-8")
+            self.assertEqual(
+                revision,
+                subprocess.run(
+                    ["git", "rev-parse", "HEAD"],
+                    cwd=root,
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                ).stdout.strip().lower(),
+            )
+            self.assertFalse(is_publication_materialized(root, "fixture"))
+            self.assertTrue(materialize_publication(root, "fixture"))
+            self.assertEqual(b"B", (root / "generated" / "output.bin").read_bytes())
+            materialization._SUCCESSFUL_MATERIALIZATIONS.clear()
+
+            # An ordinary untracked generator input must also invalidate the stamp
+            # while the exact Git HEAD remains unchanged.
+            (root / "untracked-input.txt").write_text("C", encoding="utf-8")
+            self.assertFalse(is_publication_materialized(root, "fixture"))
+            self.assertTrue(materialize_publication(root, "fixture"))
+            self.assertEqual(b"BC", (root / "generated" / "output.bin").read_bytes())
+
+    def test_stamp_asset_enumeration_failure_aborts_materialization(self) -> None:
+        for version in (3, 4):
+            with self.subTest(version=version), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                self.write_v4_provider(root)
+                if version == 3:
+                    catalog_path = root / "docs" / "publication-catalog.json"
+                    catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
+                    catalog["schema_version"] = 3
+                    for asset in catalog["assets"]:
+                        asset.pop("source_kind", None)
+                    catalog_path.write_text(json.dumps(catalog), encoding="utf-8")
+
+                with patch.object(
+                    materialization,
+                    "asset_files",
+                    side_effect=RuntimeError("forced enumeration failure"),
+                ):
+                    with self.assertRaisesRegex(
+                        PublicationMaterializationError,
+                        "unable to enumerate materialized files for stamp",
+                    ):
+                        materialize_publication(root, "fixture")
+
+                self.assertFalse((root / STAMP_FILE).exists())
 
     def test_reserved_stamp_destination_is_not_a_provider_source_collision(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
