@@ -19,7 +19,7 @@ import os
 import subprocess
 import sys
 from collections import OrderedDict
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 if __package__ in (None, ""):
@@ -153,6 +153,7 @@ def _atomic_write_json(path: Path, data: dict[str, Any]) -> None:
 
 
 def _provider_git_identity(root: Path) -> str:
+    is_git_repo = (root / ".git").exists()
     try:
         git_proc = subprocess.run(
             ["git", "-C", str(root), "rev-parse", "HEAD"],
@@ -162,10 +163,19 @@ def _provider_git_identity(root: Path) -> str:
         )
         if git_proc.returncode == 0:
             sha = git_proc.stdout.strip()
-            if len(sha) == 40 and all(c in "0123456789abcdefABCDEF" for c in sha):
+            if len(sha) in (40, 64) and all(c in "0123456789abcdefABCDEF" for c in sha):
                 return sha.lower()
-    except Exception:
-        pass
+        if is_git_repo:
+            raise PublicationMaterializationError(
+                f"unable to determine Git HEAD identity for provider at {root}"
+            )
+    except PublicationMaterializationError:
+        raise
+    except Exception as exc:
+        if is_git_repo:
+            raise PublicationMaterializationError(
+                f"unable to determine Git HEAD identity for provider at {root}: {exc}"
+            ) from exc
     return ""
 
 
@@ -181,6 +191,20 @@ def _provider_semantic_revision(root: Path) -> str:
     return ""
 
 
+def _check_reserved_stamp_collision(catalog: Any, label: str) -> None:
+    reserved = PurePosixPath(STAMP_FILE.as_posix())
+    for doc in getattr(catalog, "documents", ()):
+        if PurePosixPath(doc.source) == reserved:
+            raise PublicationMaterializationError(
+                f"{label} document source collides with reserved stamp path: {doc.source}"
+            )
+    for asset in getattr(catalog, "assets", ()):
+        if PurePosixPath(asset.source) == reserved or PurePosixPath(asset.destination) == reserved:
+            raise PublicationMaterializationError(
+                f"{label} asset collides with reserved stamp path: {reserved}"
+            )
+
+
 def _write_stamp(
     root: Path,
     label: str,
@@ -191,29 +215,34 @@ def _write_stamp(
     generated_digests: dict[str, str] = {}
     if version == 4:
         for asset in catalog.generated_assets:
+            path = root / asset.source
+            if asset.optional and not path.exists():
+                continue
             field = f"{label} generated asset {asset.source}"
             try:
                 files = asset_files(root, asset.source, field)
             except Exception:
                 continue
-            for path in sorted(files):
-                if path.is_file() and not path.is_symlink():
-                    generated_digests[path.relative_to(root).as_posix()] = hashlib.sha256(
-                        path.read_bytes()
+            for p in sorted(files):
+                if p.is_file() and not p.is_symlink():
+                    generated_digests[p.relative_to(root).as_posix()] = hashlib.sha256(
+                        p.read_bytes()
                     ).hexdigest()
     else:
         for asset in catalog.assets:
-            if asset.source.parts and asset.source.parts[0] == "generated":
-                field = f"{label} asset {asset.source}"
-                try:
-                    files = asset_files(root, asset.source, field)
-                except Exception:
-                    continue
-                for path in sorted(files):
-                    if path.is_file() and not path.is_symlink():
-                        generated_digests[path.relative_to(root).as_posix()] = hashlib.sha256(
-                            path.read_bytes()
-                        ).hexdigest()
+            path = root / asset.source
+            if asset.optional and not path.exists():
+                continue
+            field = f"{label} asset {asset.source}"
+            try:
+                files = asset_files(root, asset.source, field)
+            except Exception:
+                continue
+            for p in sorted(files):
+                if p.is_file() and not p.is_symlink():
+                    generated_digests[p.relative_to(root).as_posix()] = hashlib.sha256(
+                        p.read_bytes()
+                    ).hexdigest()
 
     git_revision = _provider_git_identity(root)
     semantic_rev = _provider_semantic_revision(root)
@@ -264,18 +293,24 @@ def _validate_stamp(
         catalog = _strict_catalog(root, label, version)
         if catalog is None:
             return None
+        _check_reserved_stamp_collision(catalog, label)
         current_generated_files: set[str] = set()
         if version == 4:
             for asset in catalog.generated_assets:
+                path = root / asset.source
+                if asset.optional and not path.exists():
+                    continue
                 files = asset_files(root, asset.source, f"{label} generated asset {asset.source}")
-                for path in files:
-                    current_generated_files.add(path.relative_to(root).as_posix())
+                for p in files:
+                    current_generated_files.add(p.relative_to(root).as_posix())
         else:
             for asset in catalog.assets:
-                if asset.source.parts and asset.source.parts[0] == "generated":
-                    files = asset_files(root, asset.source, f"{label} asset {asset.source}")
-                    for path in files:
-                        current_generated_files.add(path.relative_to(root).as_posix())
+                path = root / asset.source
+                if asset.optional and not path.exists():
+                    continue
+                files = asset_files(root, asset.source, f"{label} asset {asset.source}")
+                for p in files:
+                    current_generated_files.add(p.relative_to(root).as_posix())
         if set(generated_digests.keys()) != current_generated_files:
             return None
         return catalog
@@ -292,10 +327,16 @@ def is_publication_materialized(root: Path, label: str) -> bool:
         if version == 4:
             catalog = load_publication_catalog_v4(root, label=f"{label} catalog", phase="source")
             if not catalog.generated_assets:
-                return _strict_catalog(root, label, version) is not None
+                catalog = _strict_catalog(root, label, version)
+                if catalog is not None:
+                    _check_reserved_stamp_collision(catalog, label)
+                return catalog is not None
         else:
             if not materializer.is_file():
-                return _strict_catalog(root, label, version) is not None
+                catalog = _strict_catalog(root, label, version)
+                if catalog is not None:
+                    _check_reserved_stamp_collision(catalog, label)
+                return catalog is not None
         fingerprint = _materialization_fingerprint(root, materializer)
         return _validate_stamp(root, label, version, fingerprint) is not None
     except Exception:
@@ -344,29 +385,22 @@ def _prepare_publication(root: Path, label: str) -> tuple[Any, bool]:
         needs_materialization = materializer.is_file()
 
     if not needs_materialization:
-        return _strict_catalog(root, label, version), False
+        catalog = _strict_catalog(root, label, version)
+        _check_reserved_stamp_collision(catalog, label)
+        return catalog, False
 
     fingerprint = _materialization_fingerprint(root, materializer)
-    if _SUCCESSFUL_MATERIALIZATIONS.get(root) == fingerprint:
-        try:
-            catalog = _strict_catalog(root, label, version)
-        except PublicationMaterializationError:
-            # A generated product may have been removed or invalidated between
-            # callers. Never let a cached success suppress recovery/failure.
-            _SUCCESSFUL_MATERIALIZATIONS.pop(root, None)
-            (root / STAMP_FILE).unlink(missing_ok=True)
-        else:
-            _SUCCESSFUL_MATERIALIZATIONS.move_to_end(root)
-            return catalog, False
-
-    # Check persistent stamp across process boundaries
     stamped_catalog = _validate_stamp(root, label, version, fingerprint)
     if stamped_catalog is not None:
         _remember_success(root, fingerprint)
         return stamped_catalog, False
 
+    _SUCCESSFUL_MATERIALIZATIONS.pop(root, None)
+    (root / STAMP_FILE).unlink(missing_ok=True)
+
     run_materializer(root, label)
     catalog = _strict_catalog(root, label, version)
+    _check_reserved_stamp_collision(catalog, label)
     _write_stamp(root, label, version, fingerprint, catalog)
     _remember_success(root, fingerprint)
     return catalog, True

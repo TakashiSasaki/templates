@@ -312,6 +312,134 @@ target.write_bytes(b'deterministic fixture output')
             self.assertTrue(materialize_publication(root, "fixture"))
             self.assertTrue(is_publication_materialized(root, "fixture"))
 
+    def test_v3_materializer_hashes_all_assets(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "README.md").write_text("# Fixture\n", encoding="utf-8")
+            catalog = {
+                "schema_version": 3,
+                "documents": [{"id": "overview", "source": "README.md", "optional": False, "home": True}],
+                "assets": [{"source": "dist/output.bin", "destination": "runtime/output.bin", "optional": False}],
+            }
+            path = root / "docs" / "publication-catalog.json"
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps(catalog), encoding="utf-8")
+
+            mat = root / "scripts" / "materialize_publication.py"
+            mat.parent.mkdir(parents=True, exist_ok=True)
+            mat.write_text(
+                "import argparse\n"
+                "from pathlib import Path\n"
+                "parser = argparse.ArgumentParser()\n"
+                "parser.add_argument('--source-root', type=Path, required=True)\n"
+                "args = parser.parse_args()\n"
+                "out = args.source_root / 'dist' / 'output.bin'\n"
+                "out.parent.mkdir(parents=True, exist_ok=True)\n"
+                "out.write_bytes(b'v3-materialized-bytes')\n",
+                encoding="utf-8",
+            )
+
+            self.assertTrue(materialize_publication(root, "fixture"))
+            stamp_data = json.loads((root / STAMP_FILE).read_text(encoding="utf-8"))
+            self.assertIn("dist/output.bin", stamp_data["generated_digests"])
+
+            # Tampering with dist/output.bin invalidates stamp
+            (root / "dist" / "output.bin").write_bytes(b"tampered")
+            self.assertFalse(is_publication_materialized(root, "fixture"))
+
+    def test_v4_absent_optional_generated_asset(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "README.md").write_text("# Fixture\n", encoding="utf-8")
+            catalog = {
+                "schema_version": 4,
+                "documents": [{"id": "overview", "source": "README.md", "optional": False, "home": True}],
+                "assets": [
+                    {"source": "generated/required.bin", "destination": "runtime/required.bin", "optional": False, "source_kind": "generated"},
+                    {"source": "generated/optional.bin", "destination": "runtime/optional.bin", "optional": True, "source_kind": "generated"},
+                ],
+            }
+            path = root / "docs" / "publication-catalog.json"
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps(catalog), encoding="utf-8")
+
+            mat = root / "scripts" / "materialize_publication.py"
+            mat.parent.mkdir(parents=True, exist_ok=True)
+            mat.write_text(
+                "import argparse\n"
+                "from pathlib import Path\n"
+                "parser = argparse.ArgumentParser()\n"
+                "parser.add_argument('--source-root', type=Path, required=True)\n"
+                "args = parser.parse_args()\n"
+                "out = args.source_root / 'generated' / 'required.bin'\n"
+                "out.parent.mkdir(parents=True, exist_ok=True)\n"
+                "out.write_bytes(b'required-bytes')\n",
+                encoding="utf-8",
+            )
+
+            self.assertTrue(materialize_publication(root, "fixture"))
+            self.assertTrue(is_publication_materialized(root, "fixture"))
+            stamp_data = json.loads((root / STAMP_FILE).read_text(encoding="utf-8"))
+            self.assertIn("generated/required.bin", stamp_data["generated_digests"])
+            self.assertNotIn("generated/optional.bin", stamp_data["generated_digests"])
+
+    def test_memory_cache_validates_stamp(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.write_catalog(root, version=4, source_kind="generated")
+            self.write_materializer(root)
+
+            self.assertTrue(materialize_publication(root, "fixture"))
+            self.assertEqual("1", (root / "materializer-runs.txt").read_text(encoding="utf-8"))
+
+            # Tamper with generated asset without clearing _SUCCESSFUL_MATERIALIZATIONS
+            (root / "generated" / "output.bin").write_bytes(b"tampered")
+            # Next call must detect the invalid stamp and re-run materializer
+            self.assertTrue(materialize_publication(root, "fixture"))
+            self.assertEqual("2", (root / "materializer-runs.txt").read_text(encoding="utf-8"))
+
+    def test_reserved_stamp_path_collision_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "README.md").write_text("# Fixture\n", encoding="utf-8")
+            catalog = {
+                "schema_version": 4,
+                "documents": [{"id": "overview", "source": "README.md", "optional": False, "home": True}],
+                "assets": [
+                    {"source": ".publication-materialization-stamp.json", "destination": "runtime/stamp.json", "optional": False, "source_kind": "generated"}
+                ],
+            }
+            path = root / "docs" / "publication-catalog.json"
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps(catalog), encoding="utf-8")
+            self.write_materializer(root)
+
+            with self.assertRaises(PublicationMaterializationError):
+                materialize_publication(root, "fixture")
+
+    def test_git_identity_supports_sha256(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            try:
+                subprocess.run(["git", "init", "-q", "--object-format=sha256"], cwd=root, check=True)
+            except subprocess.CalledProcessError:
+                self.skipTest("git sha256 object format not supported by local git")
+            subprocess.run(["git", "config", "user.name", "Test"], cwd=root, check=True)
+            subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=root, check=True)
+            self.write_catalog(root, version=4, source_kind="generated")
+            self.write_materializer(root)
+            subprocess.run(["git", "add", "."], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-q", "-m", "init"], cwd=root, check=True)
+
+            self.assertTrue(materialize_publication(root, "fixture"))
+            stamp_data = json.loads((root / STAMP_FILE).read_text(encoding="utf-8"))
+            self.assertEqual(64, len(stamp_data["git_revision"]))
+            self.assertTrue(is_publication_materialized(root, "fixture"))
+
+            # Advance HEAD
+            subprocess.run(["git", "commit", "-q", "--allow-empty", "-m", "advance"], cwd=root, check=True)
+            self.assertFalse(is_publication_materialized(root, "fixture"))
+
 
 if __name__ == "__main__":
     unittest.main()
