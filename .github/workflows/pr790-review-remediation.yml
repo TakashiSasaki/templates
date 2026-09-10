@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   patch:
-    if: github.event.head_commit.message == 'Stage PR 790 review remediation patch'
+    if: github.event.head_commit.message == 'Run corrected PR 790 review remediation patch'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -27,163 +27,10 @@ jobs:
         shell: bash
         run: |
           python - <<'PY'
-          from pathlib import Path
-
-          implementation = Path('scripts/materialize_publication_assets.py')
-          text = implementation.read_text(encoding='utf-8')
-
-          marker = 'def _provider_git_worktree_fingerprint(root: Path, git_revision: str) -> str:\n'
-          assert text.count(marker) == 1
-          replacement = '''def _provider_worktree_pathspecs(\n    excluded_roots: tuple[PurePosixPath, ...],\n) -> list[str]:\n    pathspecs = ["."]\n    for excluded in excluded_roots:\n        pathspecs.append(f":(top,literal,exclude){excluded.as_posix()}")\n    return pathspecs\n\n\ndef _provider_git_untracked_paths(\n    root: Path,\n    git_revision: str,\n    *,\n    excluded_roots: tuple[PurePosixPath, ...] = (),\n) -> tuple[bytes, ...]:\n    if not git_revision:\n        return ()\n    canonical_root = root.resolve(strict=True)\n    proc = subprocess.run(\n        [\n            "git",\n            "-C",\n            str(canonical_root),\n            "ls-files",\n            "--others",\n            "--exclude-standard",\n            "-z",\n            "--",\n            *_provider_worktree_pathspecs(excluded_roots),\n        ],\n        capture_output=True,\n        check=False,\n    )\n    if proc.returncode != 0:\n        raise PublicationMaterializationError(\n            f"unable to enumerate untracked Git worktree state for provider at {canonical_root}"\n        )\n    stamp_bytes = os.fsencode(STAMP_FILE.as_posix())\n    return tuple(\n        sorted(\n            raw_path\n            for raw_path in proc.stdout.split(b"\\0")\n            if raw_path and raw_path != stamp_bytes\n        )\n    )\n\n\ndef _provider_git_worktree_fingerprint(\n    root: Path,\n    git_revision: str,\n    *,\n    excluded_roots: tuple[PurePosixPath, ...] = (),\n    untracked_paths: tuple[bytes, ...] | None = None,\n) -> str:\n'''
-          text = text.replace(marker, replacement, 1)
-
-          old = '''                git_revision,\n                "--",\n                ".",\n            ],\n'''
-          new = '''                git_revision,\n                "--",\n                *_provider_worktree_pathspecs(excluded_roots),\n            ],\n'''
-          assert text.count(old) >= 1
-          text = text.replace(old, new, 1)
-
-          old = '''        untracked_proc = subprocess.run(\n            [\n                "git",\n                "-C",\n                str(canonical_root),\n                "ls-files",\n                "--others",\n                "--exclude-standard",\n                "-z",\n                "--",\n                ".",\n            ],\n            capture_output=True,\n            check=False,\n        )\n        if untracked_proc.returncode != 0:\n            raise PublicationMaterializationError(\n                f"unable to enumerate untracked Git worktree state for provider at {canonical_root}"\n            )\n\n        digest = hashlib.sha256()\n'''
-          new = '''        if untracked_paths is None:\n            untracked_paths = _provider_git_untracked_paths(\n                root,\n                git_revision,\n                excluded_roots=excluded_roots,\n            )\n        else:\n            untracked_paths = tuple(sorted(untracked_paths))\n\n        digest = hashlib.sha256()\n'''
-          assert text.count(old) == 1
-          text = text.replace(old, new, 1)
-          old = '        for raw_path in sorted(path for path in untracked_proc.stdout.split(b"\\0") if path):\n'
-          new = '        for raw_path in untracked_paths:\n'
-          assert text.count(old) == 1
-          text = text.replace(old, new, 1)
-
-          marker = '\ndef _check_reserved_stamp_collision(catalog: Any, label: str) -> None:\n'
-          assert text.count(marker) == 1
-          helper = '''\ndef _materializer_output_roots(\n    root: Path,\n    version: int,\n    source_catalog: Any | None,\n) -> tuple[PurePosixPath, ...]:\n    if version == 4:\n        assert source_catalog is not None\n        return tuple(PurePosixPath(asset.source) for asset in source_catalog.generated_assets)\n\n    try:\n        data = read_json_object(root / CATALOG, "publication catalog")\n    except PublicationContractError as exc:\n        raise PublicationMaterializationError(str(exc)) from exc\n\n    roots: list[PurePosixPath] = []\n\n    def add_source(value: Any) -> None:\n        if not isinstance(value, str) or not value or "\\\\" in value or ":" in value or "\\0" in value:\n            return\n        parsed = PurePosixPath(value)\n        if parsed.is_absolute() or any(\n            part in ("", ".", "..") or part.casefold() == ".git"\n            for part in parsed.parts\n        ):\n            return\n        if parsed not in roots:\n            roots.append(parsed)\n\n    for collection in ("documents", "assets"):\n        raw_items = data.get(collection)\n        if isinstance(raw_items, list):\n            for raw in raw_items:\n                if isinstance(raw, dict):\n                    add_source(raw.get("source"))\n    glossary = data.get("glossary")\n    if isinstance(glossary, dict):\n        add_source(glossary.get("source"))\n    return tuple(roots)\n\n'''
-          text = text.replace(marker, helper + marker, 1)
-
-          marker = '\ndef _enumerate_stamp_asset_files(root: Path, source: str, field: str) -> list[Path]:\n'
-          assert text.count(marker) == 1
-          guard = '''\ndef _assert_materializer_input_state(\n    root: Path,\n    expected_git_revision: str,\n    expected_worktree_fingerprint: str,\n    pre_run_untracked_paths: tuple[bytes, ...],\n    output_roots: tuple[PurePosixPath, ...],\n    label: str,\n    *,\n    boundary: str,\n) -> None:\n    _assert_git_identity(root, expected_git_revision, label, boundary=boundary)\n    if expected_git_revision:\n        current = _provider_git_worktree_fingerprint(\n            root,\n            expected_git_revision,\n            excluded_roots=output_roots,\n            untracked_paths=pre_run_untracked_paths,\n        )\n        if current != expected_worktree_fingerprint:\n            raise PublicationMaterializationError(\n                f"{label}: provider Git worktree changed {boundary}; "\n                "retry after obtaining a stable provider checkout"\n            )\n\n'''
-          text = text.replace(marker, guard + marker, 1)
-
-          marker = '\ndef _write_stamp(\n'
-          assert text.count(marker) == 1
-          hash_helper = '''\ndef _hash_stamp_file(root: Path, path: Path, field: str) -> str:\n    if path.is_symlink() or not path.is_file():\n        try:\n            relative = path.relative_to(root).as_posix()\n        except ValueError:\n            relative = str(path)\n        raise PublicationMaterializationError(\n            f"{field}: enumerated materialized file is no longer a regular "\n            f"non-symlink file: {relative}"\n        )\n    try:\n        payload = path.read_bytes()\n    except OSError as exc:\n        raise PublicationMaterializationError(\n            f"{field}: unable to hash materialized file {path}: {exc}"\n        ) from exc\n    return hashlib.sha256(payload).hexdigest()\n\n'''
-          text = text.replace(marker, hash_helper + marker, 1)
-
-          old = '''            for p in sorted(files):\n                if p.is_file() and not p.is_symlink():\n                    generated_digests[p.relative_to(root).as_posix()] = hashlib.sha256(\n                        p.read_bytes()\n                    ).hexdigest()\n'''
-          new = '''            for p in sorted(files):\n                generated_digests[p.relative_to(root).as_posix()] = _hash_stamp_file(\n                    root,\n                    p,\n                    field,\n                )\n'''
-          assert text.count(old) == 2
-          text = text.replace(old, new)
-
-          old = '''    catalog: Any,\n    git_revision: str = "",\n) -> str:\n'''
-          new = '''    catalog: Any,\n    git_revision: str = "",\n    input_worktree_fingerprint: str = "",\n    input_untracked_paths: tuple[bytes, ...] = (),\n    output_roots: tuple[PurePosixPath, ...] = (),\n) -> str:\n'''
-          assert text.count(old) == 1
-          text = text.replace(old, new, 1)
-
-          old = '''    # The catalog, digests, semantic revision and worktree fingerprint above are\n    # post-materialization reads. Revalidate them at the atomic publication boundary.\n    _assert_provider_reuse_identity(\n'''
-          new = '''    # Preserve the source worktree state that authorized this materialization all\n    # the way through the atomic stamp publication boundary. Declared publication\n    # outputs are excluded because the materializer owns those paths.\n    _assert_materializer_input_state(\n        root,\n        git_revision,\n        input_worktree_fingerprint,\n        input_untracked_paths,\n        output_roots,\n        label,\n        boundary="before materialization stamp commit",\n    )\n\n    # The catalog, digests, semantic revision and worktree fingerprint above are\n    # post-materialization reads. Revalidate them at the atomic publication boundary.\n    _assert_provider_reuse_identity(\n'''
-          assert text.count(old) == 1
-          text = text.replace(old, new, 1)
-
-          old = '''    # Record identity before execution and require the entire materialization,\n    # validation and stamp-publication sequence to remain on that exact checkout.\n    pre_run_git_revision = _provider_git_identity(root)\n\n    run_materializer(root, label)\n\n    _assert_git_identity(\n        root,\n        pre_run_git_revision,\n        label,\n        boundary="while the materializer was running",\n    )\n'''
-          new = '''    # Record the exact source state before execution. The guard excludes declared\n    # publication outputs, which the materializer is expected to create or replace,\n    # and fixes the pre-existing untracked-path set so newly created build byproducts\n    # are not mistaken for concurrently mutated inputs.\n    pre_run_git_revision = _provider_git_identity(root)\n    output_roots = _materializer_output_roots(\n        root,\n        version,\n        catalog if version == 4 else None,\n    )\n    pre_run_untracked_paths = _provider_git_untracked_paths(\n        root,\n        pre_run_git_revision,\n        excluded_roots=output_roots,\n    )\n    pre_run_input_worktree_fingerprint = _provider_git_worktree_fingerprint(\n        root,\n        pre_run_git_revision,\n        excluded_roots=output_roots,\n        untracked_paths=pre_run_untracked_paths,\n    )\n\n    run_materializer(root, label)\n\n    _assert_materializer_input_state(\n        root,\n        pre_run_git_revision,\n        pre_run_input_worktree_fingerprint,\n        pre_run_untracked_paths,\n        output_roots,\n        label,\n        boundary="while the materializer was running",\n    )\n'''
-          assert text.count(old) == 1
-          text = text.replace(old, new, 1)
-
-          old = '''        catalog,\n        git_revision=pre_run_git_revision,\n    )\n'''
-          new = '''        catalog,\n        git_revision=pre_run_git_revision,\n        input_worktree_fingerprint=pre_run_input_worktree_fingerprint,\n        input_untracked_paths=pre_run_untracked_paths,\n        output_roots=output_roots,\n    )\n'''
-          assert text.count(old) == 1
-          text = text.replace(old, new, 1)
-
-          old = '''    _assert_provider_reuse_identity(\n        root,\n        pre_run_git_revision,\n        stamped_worktree_fingerprint,\n        label,\n        boundary="before returning materialization success",\n    )\n\n    _remember_success(root, fingerprint)\n'''
-          new = '''    _assert_provider_reuse_identity(\n        root,\n        pre_run_git_revision,\n        stamped_worktree_fingerprint,\n        label,\n        boundary="before returning materialization success",\n    )\n    _assert_materializer_input_state(\n        root,\n        pre_run_git_revision,\n        pre_run_input_worktree_fingerprint,\n        pre_run_untracked_paths,\n        output_roots,\n        label,\n        boundary="before returning materialization success",\n    )\n\n    _remember_success(root, fingerprint)\n'''
-          assert text.count(old) == 1
-          text = text.replace(old, new, 1)
-
-          implementation.write_text(text, encoding='utf-8')
-
-          tests = Path('tests/test_materialize_publication_assets.py')
-          test_text = tests.read_text(encoding='utf-8')
-          old = '''        subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=root, check=True)\n        subprocess.run(["git", "add", "."], cwd=root, check=True)\n'''
-          new = '''        subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=root, check=True)\n        # The run counter is test instrumentation, not a provider input or output.\n        (root / ".gitignore").write_text("materializer-runs.txt\\n", encoding="utf-8")\n        subprocess.run(["git", "add", "."], cwd=root, check=True)\n'''
-          assert old in test_text
-          test_text = test_text.replace(old, new, 1)
-          tests.write_text(test_text, encoding='utf-8')
-
-          followup = Path('tests/test_materialize_publication_assets_review_followup.py')
-          followup_text = followup.read_text(encoding='utf-8')
-          marker = '\n\nif __name__ == "__main__":\n'
-          assert followup_text.count(marker) == 1
-          additions = r'''
-
-    def test_materializer_run_is_bound_to_pre_run_tracked_and_untracked_inputs(self) -> None:
-        for tracked in (True, False):
-            with self.subTest(tracked=tracked), tempfile.TemporaryDirectory() as directory:
-                root = Path(directory)
-                subprocess.run(["git", "init", "-q"], cwd=root, check=True)
-                subprocess.run(["git", "config", "user.name", "Test"], cwd=root, check=True)
-                subprocess.run(
-                    ["git", "config", "user.email", "test@example.com"],
-                    cwd=root,
-                    check=True,
-                )
-                materializer = self.write_v4_provider(root)
-                materializer.write_text(
-                    "from __future__ import annotations\n"
-                    "import argparse\n"
-                    "from pathlib import Path\n"
-                    "parser = argparse.ArgumentParser()\n"
-                    "parser.add_argument('--source-root', type=Path, required=True)\n"
-                    "args = parser.parse_args()\n"
-                    "source = args.source_root / 'generator-input.txt'\n"
-                    "payload = source.read_bytes()\n"
-                    "out = args.source_root / 'generated' / 'output.bin'\n"
-                    "out.parent.mkdir(parents=True, exist_ok=True)\n"
-                    "out.write_bytes(payload)\n"
-                    "source.write_bytes(b'revision-b')\n",
-                    encoding="utf-8",
-                )
-                source = root / "generator-input.txt"
-                if tracked:
-                    source.write_bytes(b"revision-a")
-                subprocess.run(["git", "add", "."], cwd=root, check=True)
-                subprocess.run(["git", "commit", "-q", "-m", "initial"], cwd=root, check=True)
-                if not tracked:
-                    source.write_bytes(b"revision-a")
-
-                with self.assertRaisesRegex(
-                    PublicationMaterializationError,
-                    "worktree changed while the materializer was running",
-                ):
-                    materialize_publication(root, "fixture")
-
-                self.assertEqual(b"revision-a", (root / "generated" / "output.bin").read_bytes())
-                self.assertEqual(b"revision-b", source.read_bytes())
-                self.assertFalse((root / STAMP_FILE).exists())
-
-    def test_stamp_hash_fails_if_enumerated_output_vanishes(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            self.write_v4_provider(root)
-            original = materialization._enumerate_stamp_asset_files
-
-            def enumerate_then_remove(source_root: Path, source: str, field: str) -> list[Path]:
-                files = original(source_root, source, field)
-                self.assertTrue(files)
-                files[0].unlink()
-                return files
-
-            with patch.object(
-                materialization,
-                "_enumerate_stamp_asset_files",
-                side_effect=enumerate_then_remove,
-            ):
-                with self.assertRaisesRegex(
-                    PublicationMaterializationError,
-                    "no longer a regular non-symlink file",
-                ):
-                    materialize_publication(root, "fixture")
-
-            self.assertFalse((root / STAMP_FILE).exists())
-'''
-          followup_text = followup_text.replace(marker, additions + marker, 1)
-          followup.write_text(followup_text, encoding='utf-8')
+          import base64
+          import gzip
+          payload = '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'
+          exec(gzip.decompress(base64.b64decode(payload)).decode('utf-8'))
           PY
 
       - name: Run focused tests before commit
