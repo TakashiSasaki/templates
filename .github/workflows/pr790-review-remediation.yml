@@ -1,0 +1,208 @@
+name: PR 790 review remediation patch
+
+on:
+  push:
+    branches:
+      - perf/site-provider-materialization-phase
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.event.head_commit.message == 'Stage PR 790 review remediation patch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: perf/site-provider-materialization-phase
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Apply review remediation
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          implementation = Path('scripts/materialize_publication_assets.py')
+          text = implementation.read_text(encoding='utf-8')
+
+          marker = 'def _provider_git_worktree_fingerprint(root: Path, git_revision: str) -> str:\n'
+          assert text.count(marker) == 1
+          replacement = '''def _provider_worktree_pathspecs(\n    excluded_roots: tuple[PurePosixPath, ...],\n) -> list[str]:\n    pathspecs = ["."]\n    for excluded in excluded_roots:\n        pathspecs.append(f":(top,literal,exclude){excluded.as_posix()}")\n    return pathspecs\n\n\ndef _provider_git_untracked_paths(\n    root: Path,\n    git_revision: str,\n    *,\n    excluded_roots: tuple[PurePosixPath, ...] = (),\n) -> tuple[bytes, ...]:\n    if not git_revision:\n        return ()\n    canonical_root = root.resolve(strict=True)\n    proc = subprocess.run(\n        [\n            "git",\n            "-C",\n            str(canonical_root),\n            "ls-files",\n            "--others",\n            "--exclude-standard",\n            "-z",\n            "--",\n            *_provider_worktree_pathspecs(excluded_roots),\n        ],\n        capture_output=True,\n        check=False,\n    )\n    if proc.returncode != 0:\n        raise PublicationMaterializationError(\n            f"unable to enumerate untracked Git worktree state for provider at {canonical_root}"\n        )\n    stamp_bytes = os.fsencode(STAMP_FILE.as_posix())\n    return tuple(\n        sorted(\n            raw_path\n            for raw_path in proc.stdout.split(b"\\0")\n            if raw_path and raw_path != stamp_bytes\n        )\n    )\n\n\ndef _provider_git_worktree_fingerprint(\n    root: Path,\n    git_revision: str,\n    *,\n    excluded_roots: tuple[PurePosixPath, ...] = (),\n    untracked_paths: tuple[bytes, ...] | None = None,\n) -> str:\n'''
+          text = text.replace(marker, replacement, 1)
+
+          old = '''                git_revision,\n                "--",\n                ".",\n            ],\n'''
+          new = '''                git_revision,\n                "--",\n                *_provider_worktree_pathspecs(excluded_roots),\n            ],\n'''
+          assert text.count(old) >= 1
+          text = text.replace(old, new, 1)
+
+          old = '''        untracked_proc = subprocess.run(\n            [\n                "git",\n                "-C",\n                str(canonical_root),\n                "ls-files",\n                "--others",\n                "--exclude-standard",\n                "-z",\n                "--",\n                ".",\n            ],\n            capture_output=True,\n            check=False,\n        )\n        if untracked_proc.returncode != 0:\n            raise PublicationMaterializationError(\n                f"unable to enumerate untracked Git worktree state for provider at {canonical_root}"\n            )\n\n        digest = hashlib.sha256()\n'''
+          new = '''        if untracked_paths is None:\n            untracked_paths = _provider_git_untracked_paths(\n                root,\n                git_revision,\n                excluded_roots=excluded_roots,\n            )\n        else:\n            untracked_paths = tuple(sorted(untracked_paths))\n\n        digest = hashlib.sha256()\n'''
+          assert text.count(old) == 1
+          text = text.replace(old, new, 1)
+          old = '        for raw_path in sorted(path for path in untracked_proc.stdout.split(b"\\0") if path):\n'
+          new = '        for raw_path in untracked_paths:\n'
+          assert text.count(old) == 1
+          text = text.replace(old, new, 1)
+
+          marker = '\ndef _check_reserved_stamp_collision(catalog: Any, label: str) -> None:\n'
+          assert text.count(marker) == 1
+          helper = '''\ndef _materializer_output_roots(\n    root: Path,\n    version: int,\n    source_catalog: Any | None,\n) -> tuple[PurePosixPath, ...]:\n    if version == 4:\n        assert source_catalog is not None\n        return tuple(PurePosixPath(asset.source) for asset in source_catalog.generated_assets)\n\n    try:\n        data = read_json_object(root / CATALOG, "publication catalog")\n    except PublicationContractError as exc:\n        raise PublicationMaterializationError(str(exc)) from exc\n\n    roots: list[PurePosixPath] = []\n\n    def add_source(value: Any) -> None:\n        if not isinstance(value, str) or not value or "\\\\" in value or ":" in value or "\\0" in value:\n            return\n        parsed = PurePosixPath(value)\n        if parsed.is_absolute() or any(\n            part in ("", ".", "..") or part.casefold() == ".git"\n            for part in parsed.parts\n        ):\n            return\n        if parsed not in roots:\n            roots.append(parsed)\n\n    for collection in ("documents", "assets"):\n        raw_items = data.get(collection)\n        if isinstance(raw_items, list):\n            for raw in raw_items:\n                if isinstance(raw, dict):\n                    add_source(raw.get("source"))\n    glossary = data.get("glossary")\n    if isinstance(glossary, dict):\n        add_source(glossary.get("source"))\n    return tuple(roots)\n\n'''
+          text = text.replace(marker, helper + marker, 1)
+
+          marker = '\ndef _enumerate_stamp_asset_files(root: Path, source: str, field: str) -> list[Path]:\n'
+          assert text.count(marker) == 1
+          guard = '''\ndef _assert_materializer_input_state(\n    root: Path,\n    expected_git_revision: str,\n    expected_worktree_fingerprint: str,\n    pre_run_untracked_paths: tuple[bytes, ...],\n    output_roots: tuple[PurePosixPath, ...],\n    label: str,\n    *,\n    boundary: str,\n) -> None:\n    _assert_git_identity(root, expected_git_revision, label, boundary=boundary)\n    if expected_git_revision:\n        current = _provider_git_worktree_fingerprint(\n            root,\n            expected_git_revision,\n            excluded_roots=output_roots,\n            untracked_paths=pre_run_untracked_paths,\n        )\n        if current != expected_worktree_fingerprint:\n            raise PublicationMaterializationError(\n                f"{label}: provider Git worktree changed {boundary}; "\n                "retry after obtaining a stable provider checkout"\n            )\n\n'''
+          text = text.replace(marker, guard + marker, 1)
+
+          marker = '\ndef _write_stamp(\n'
+          assert text.count(marker) == 1
+          hash_helper = '''\ndef _hash_stamp_file(root: Path, path: Path, field: str) -> str:\n    if path.is_symlink() or not path.is_file():\n        try:\n            relative = path.relative_to(root).as_posix()\n        except ValueError:\n            relative = str(path)\n        raise PublicationMaterializationError(\n            f"{field}: enumerated materialized file is no longer a regular "\n            f"non-symlink file: {relative}"\n        )\n    try:\n        payload = path.read_bytes()\n    except OSError as exc:\n        raise PublicationMaterializationError(\n            f"{field}: unable to hash materialized file {path}: {exc}"\n        ) from exc\n    return hashlib.sha256(payload).hexdigest()\n\n'''
+          text = text.replace(marker, hash_helper + marker, 1)
+
+          old = '''            for p in sorted(files):\n                if p.is_file() and not p.is_symlink():\n                    generated_digests[p.relative_to(root).as_posix()] = hashlib.sha256(\n                        p.read_bytes()\n                    ).hexdigest()\n'''
+          new = '''            for p in sorted(files):\n                generated_digests[p.relative_to(root).as_posix()] = _hash_stamp_file(\n                    root,\n                    p,\n                    field,\n                )\n'''
+          assert text.count(old) == 2
+          text = text.replace(old, new)
+
+          old = '''    catalog: Any,\n    git_revision: str = "",\n) -> str:\n'''
+          new = '''    catalog: Any,\n    git_revision: str = "",\n    input_worktree_fingerprint: str = "",\n    input_untracked_paths: tuple[bytes, ...] = (),\n    output_roots: tuple[PurePosixPath, ...] = (),\n) -> str:\n'''
+          assert text.count(old) == 1
+          text = text.replace(old, new, 1)
+
+          old = '''    # The catalog, digests, semantic revision and worktree fingerprint above are\n    # post-materialization reads. Revalidate them at the atomic publication boundary.\n    _assert_provider_reuse_identity(\n'''
+          new = '''    # Preserve the source worktree state that authorized this materialization all\n    # the way through the atomic stamp publication boundary. Declared publication\n    # outputs are excluded because the materializer owns those paths.\n    _assert_materializer_input_state(\n        root,\n        git_revision,\n        input_worktree_fingerprint,\n        input_untracked_paths,\n        output_roots,\n        label,\n        boundary="before materialization stamp commit",\n    )\n\n    # The catalog, digests, semantic revision and worktree fingerprint above are\n    # post-materialization reads. Revalidate them at the atomic publication boundary.\n    _assert_provider_reuse_identity(\n'''
+          assert text.count(old) == 1
+          text = text.replace(old, new, 1)
+
+          old = '''    # Record identity before execution and require the entire materialization,\n    # validation and stamp-publication sequence to remain on that exact checkout.\n    pre_run_git_revision = _provider_git_identity(root)\n\n    run_materializer(root, label)\n\n    _assert_git_identity(\n        root,\n        pre_run_git_revision,\n        label,\n        boundary="while the materializer was running",\n    )\n'''
+          new = '''    # Record the exact source state before execution. The guard excludes declared\n    # publication outputs, which the materializer is expected to create or replace,\n    # and fixes the pre-existing untracked-path set so newly created build byproducts\n    # are not mistaken for concurrently mutated inputs.\n    pre_run_git_revision = _provider_git_identity(root)\n    output_roots = _materializer_output_roots(\n        root,\n        version,\n        catalog if version == 4 else None,\n    )\n    pre_run_untracked_paths = _provider_git_untracked_paths(\n        root,\n        pre_run_git_revision,\n        excluded_roots=output_roots,\n    )\n    pre_run_input_worktree_fingerprint = _provider_git_worktree_fingerprint(\n        root,\n        pre_run_git_revision,\n        excluded_roots=output_roots,\n        untracked_paths=pre_run_untracked_paths,\n    )\n\n    run_materializer(root, label)\n\n    _assert_materializer_input_state(\n        root,\n        pre_run_git_revision,\n        pre_run_input_worktree_fingerprint,\n        pre_run_untracked_paths,\n        output_roots,\n        label,\n        boundary="while the materializer was running",\n    )\n'''
+          assert text.count(old) == 1
+          text = text.replace(old, new, 1)
+
+          old = '''        catalog,\n        git_revision=pre_run_git_revision,\n    )\n'''
+          new = '''        catalog,\n        git_revision=pre_run_git_revision,\n        input_worktree_fingerprint=pre_run_input_worktree_fingerprint,\n        input_untracked_paths=pre_run_untracked_paths,\n        output_roots=output_roots,\n    )\n'''
+          assert text.count(old) == 1
+          text = text.replace(old, new, 1)
+
+          old = '''    _assert_provider_reuse_identity(\n        root,\n        pre_run_git_revision,\n        stamped_worktree_fingerprint,\n        label,\n        boundary="before returning materialization success",\n    )\n\n    _remember_success(root, fingerprint)\n'''
+          new = '''    _assert_provider_reuse_identity(\n        root,\n        pre_run_git_revision,\n        stamped_worktree_fingerprint,\n        label,\n        boundary="before returning materialization success",\n    )\n    _assert_materializer_input_state(\n        root,\n        pre_run_git_revision,\n        pre_run_input_worktree_fingerprint,\n        pre_run_untracked_paths,\n        output_roots,\n        label,\n        boundary="before returning materialization success",\n    )\n\n    _remember_success(root, fingerprint)\n'''
+          assert text.count(old) == 1
+          text = text.replace(old, new, 1)
+
+          implementation.write_text(text, encoding='utf-8')
+
+          tests = Path('tests/test_materialize_publication_assets.py')
+          test_text = tests.read_text(encoding='utf-8')
+          old = '''        subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=root, check=True)\n        subprocess.run(["git", "add", "."], cwd=root, check=True)\n'''
+          new = '''        subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=root, check=True)\n        # The run counter is test instrumentation, not a provider input or output.\n        (root / ".gitignore").write_text("materializer-runs.txt\\n", encoding="utf-8")\n        subprocess.run(["git", "add", "."], cwd=root, check=True)\n'''
+          assert old in test_text
+          test_text = test_text.replace(old, new, 1)
+          tests.write_text(test_text, encoding='utf-8')
+
+          followup = Path('tests/test_materialize_publication_assets_review_followup.py')
+          followup_text = followup.read_text(encoding='utf-8')
+          marker = '\n\nif __name__ == "__main__":\n'
+          assert followup_text.count(marker) == 1
+          additions = r'''
+
+    def test_materializer_run_is_bound_to_pre_run_tracked_and_untracked_inputs(self) -> None:
+        for tracked in (True, False):
+            with self.subTest(tracked=tracked), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+                subprocess.run(["git", "config", "user.name", "Test"], cwd=root, check=True)
+                subprocess.run(
+                    ["git", "config", "user.email", "test@example.com"],
+                    cwd=root,
+                    check=True,
+                )
+                materializer = self.write_v4_provider(root)
+                materializer.write_text(
+                    "from __future__ import annotations\n"
+                    "import argparse\n"
+                    "from pathlib import Path\n"
+                    "parser = argparse.ArgumentParser()\n"
+                    "parser.add_argument('--source-root', type=Path, required=True)\n"
+                    "args = parser.parse_args()\n"
+                    "source = args.source_root / 'generator-input.txt'\n"
+                    "payload = source.read_bytes()\n"
+                    "out = args.source_root / 'generated' / 'output.bin'\n"
+                    "out.parent.mkdir(parents=True, exist_ok=True)\n"
+                    "out.write_bytes(payload)\n"
+                    "source.write_bytes(b'revision-b')\n",
+                    encoding="utf-8",
+                )
+                source = root / "generator-input.txt"
+                if tracked:
+                    source.write_bytes(b"revision-a")
+                subprocess.run(["git", "add", "."], cwd=root, check=True)
+                subprocess.run(["git", "commit", "-q", "-m", "initial"], cwd=root, check=True)
+                if not tracked:
+                    source.write_bytes(b"revision-a")
+
+                with self.assertRaisesRegex(
+                    PublicationMaterializationError,
+                    "worktree changed while the materializer was running",
+                ):
+                    materialize_publication(root, "fixture")
+
+                self.assertEqual(b"revision-a", (root / "generated" / "output.bin").read_bytes())
+                self.assertEqual(b"revision-b", source.read_bytes())
+                self.assertFalse((root / STAMP_FILE).exists())
+
+    def test_stamp_hash_fails_if_enumerated_output_vanishes(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.write_v4_provider(root)
+            original = materialization._enumerate_stamp_asset_files
+
+            def enumerate_then_remove(source_root: Path, source: str, field: str) -> list[Path]:
+                files = original(source_root, source, field)
+                self.assertTrue(files)
+                files[0].unlink()
+                return files
+
+            with patch.object(
+                materialization,
+                "_enumerate_stamp_asset_files",
+                side_effect=enumerate_then_remove,
+            ):
+                with self.assertRaisesRegex(
+                    PublicationMaterializationError,
+                    "no longer a regular non-symlink file",
+                ):
+                    materialize_publication(root, "fixture")
+
+            self.assertFalse((root / STAMP_FILE).exists())
+'''
+          followup_text = followup_text.replace(marker, additions + marker, 1)
+          followup.write_text(followup_text, encoding='utf-8')
+          PY
+
+      - name: Run focused tests before commit
+        run: >-
+          python -m unittest
+          tests.test_materialize_publication_assets
+          tests.test_materialize_publication_assets_review_followup
+          tests.test_assembly_materialization_boundary
+          --verbose
+
+      - name: Commit remediation and remove patch workflow
+        shell: bash
+        run: |
+          rm .github/workflows/pr790-review-remediation.yml
+          git config user.name 'TakashiSasaki'
+          git config user.email '556958+TakashiSasaki@users.noreply.github.com'
+          git add scripts/materialize_publication_assets.py \
+            tests/test_materialize_publication_assets.py \
+            tests/test_materialize_publication_assets_review_followup.py \
+            .github/workflows/pr790-review-remediation.yml
+          git commit -m 'Address latest materialization race findings'
+          git push origin HEAD:perf/site-provider-materialization-phase
