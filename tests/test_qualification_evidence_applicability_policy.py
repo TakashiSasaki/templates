@@ -45,7 +45,10 @@ def test_binding_classification_reconciles_head_movement_rules() -> None:
         assert "exact-revision-bound" in target
 
     assert "ordinary successful ci result is never inferred" in reuse_text
-    assert "ordinary ci success with no explicit binding classification is **unknown**" in exact_text
+    assert (
+        "ordinary ci success with no explicit binding classification is **unknown**"
+        in exact_text
+    )
     assert "head-sha-only change" in staged_policy
     assert "unclassified/unknown evidence stale" in staged_policy
     assert "proposed-head change makes prior exact-head review stale" in staged_policy
@@ -218,7 +221,10 @@ def evaluate_qualification_applicability(
         return "stale"
     if candidate.cross_authority_rev != evidence.bound_cross_authority_rev:
         return "stale"
-    if evidence.binding_class == "exact-revision" and candidate.head_sha != evidence.bound_head_sha:
+    if (
+        evidence.binding_class == "exact-revision"
+        and candidate.head_sha != evidence.bound_head_sha
+    ):
         return "stale"
     return "applicable"
 
