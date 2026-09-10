@@ -417,7 +417,7 @@ class PublicationMaterializationReviewFollowupTests(unittest.TestCase):
                 self.assertEqual(b"revision-b", source.read_bytes())
                 self.assertFalse((root / STAMP_FILE).exists())
 
-    def test_materializer_cannot_create_new_untracked_non_output_state(self) -> None:
+    def test_materializer_may_create_new_generated_byproduct(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             materializer = self.write_v4_provider(root)
@@ -431,19 +431,14 @@ class PublicationMaterializationReviewFollowupTests(unittest.TestCase):
                 "out = args.source_root / 'generated' / 'output.bin'\n"
                 "out.parent.mkdir(parents=True, exist_ok=True)\n"
                 "out.write_bytes(b'deterministic-output')\n"
-                "(args.source_root / 'unexpected-input-state.txt').write_text('new', encoding='utf-8')\n",
+                "(args.source_root / 'generated' / 'provider-manifest.json').write_text('{}', encoding='utf-8')\n",
                 encoding="utf-8",
             )
             self.initialize_git_checkout(root)
 
-            with self.assertRaisesRegex(
-                PublicationMaterializationError,
-                "worktree changed while the materializer was running",
-            ):
-                materialize_publication(root, "fixture")
-
-            self.assertTrue((root / "unexpected-input-state.txt").is_file())
-            self.assertFalse((root / STAMP_FILE).exists())
+            self.assertTrue(materialize_publication(root, "fixture"))
+            self.assertTrue((root / "generated" / "provider-manifest.json").is_file())
+            self.assertTrue(is_publication_materialized(root, "fixture"))
 
     def test_stamp_hash_fails_if_enumerated_output_vanishes(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -468,6 +463,117 @@ class PublicationMaterializationReviewFollowupTests(unittest.TestCase):
                 ):
                     materialize_publication(root, "fixture")
 
+            self.assertFalse((root / STAMP_FILE).exists())
+
+
+    def test_output_snapshot_is_rechecked_before_stamp_commit(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.write_v4_provider(root)
+            (root / ".gitignore").write_text("generated/\n", encoding="utf-8")
+            self.initialize_git_checkout(root)
+            original = materialization._snapshot_materialized_outputs
+            snapshots = 0
+
+            def mutate_after_first_snapshot(*args, **kwargs):
+                nonlocal snapshots
+                observed = original(*args, **kwargs)
+                snapshots += 1
+                if snapshots == 1:
+                    (root / "generated" / "output.bin").write_bytes(b"late-mutation")
+                return observed
+
+            with patch.object(
+                materialization,
+                "_snapshot_materialized_outputs",
+                side_effect=mutate_after_first_snapshot,
+            ):
+                with self.assertRaisesRegex(
+                    PublicationMaterializationError,
+                    "output snapshot changed before materialization stamp commit",
+                ):
+                    materialize_publication(root, "fixture")
+            self.assertGreaterEqual(snapshots, 2)
+            self.assertFalse((root / STAMP_FILE).exists())
+
+    def test_ignored_output_snapshot_is_rechecked_before_stamp_acceptance(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.write_v4_provider(root)
+            (root / ".gitignore").write_text("generated/\n", encoding="utf-8")
+            self.initialize_git_checkout(root)
+            self.assertTrue(materialize_publication(root, "fixture"))
+            original = materialization._assert_provider_reuse_identity
+            mutated = False
+
+            def mutate_at_acceptance(*args, **kwargs):
+                nonlocal mutated
+                original(*args, **kwargs)
+                if kwargs.get("boundary") == "while validating materialization stamp" and not mutated:
+                    (root / "generated" / "output.bin").write_bytes(b"late-mutation")
+                    mutated = True
+
+            with patch.object(
+                materialization,
+                "_assert_provider_reuse_identity",
+                side_effect=mutate_at_acceptance,
+            ):
+                self.assertFalse(is_publication_materialized(root, "fixture"))
+
+    def test_materialization_fingerprint_is_recaptured_with_pre_run_snapshot(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            materializer = self.write_v4_provider(root)
+            self.initialize_git_checkout(root)
+            replacement = materializer.read_text(encoding="utf-8").replace(
+                "deterministic-output",
+                "replacement-output",
+            )
+
+            def invalidate_old_stamp(*args, **kwargs):
+                materializer.write_text(replacement, encoding="utf-8")
+                return None
+
+            with patch.object(
+                materialization,
+                "_validate_stamp",
+                side_effect=invalidate_old_stamp,
+            ):
+                self.assertTrue(materialize_publication(root, "fixture"))
+
+            self.assertEqual(b"replacement-output", (root / "generated" / "output.bin").read_bytes())
+            self.assertTrue(is_publication_materialized(root, "fixture"))
+
+    def test_v3_required_document_disappearance_aborts_stamping(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.write_v4_provider(root)
+            catalog_path = root / "docs" / "publication-catalog.json"
+            catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
+            catalog["schema_version"] = 3
+            for asset in catalog["assets"]:
+                asset.pop("source_kind", None)
+            catalog_path.write_text(json.dumps(catalog), encoding="utf-8")
+            original = materialization._check_reserved_stamp_collision
+            removed = False
+
+            def remove_required_document(parsed_catalog, label):
+                nonlocal removed
+                original(parsed_catalog, label)
+                if not removed:
+                    (root / "README.md").unlink()
+                    removed = True
+
+            with patch.object(
+                materialization,
+                "_check_reserved_stamp_collision",
+                side_effect=remove_required_document,
+            ):
+                with self.assertRaisesRegex(
+                    PublicationMaterializationError,
+                    "document README.md.*no longer a regular non-symlink file",
+                ):
+                    materialize_publication(root, "fixture")
             self.assertFalse((root / STAMP_FILE).exists())
 
 

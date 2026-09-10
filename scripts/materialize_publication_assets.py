@@ -396,6 +396,14 @@ def _materializer_output_roots(
     glossary = data.get("glossary")
     if isinstance(glossary, dict):
         add_source(glossary.get("source"))
+
+    # Schema v3 cannot classify source/output lifecycle. The conventional
+    # materializer bridge treats generated/ as materializer-owned state so
+    # deterministic regeneration is not mistaken for concurrent source mutation.
+    # Declared publication products remain independently digest-bound.
+    generated_root = PurePosixPath("generated")
+    if generated_root not in roots:
+        roots.append(generated_root)
     return tuple(roots)
 
 
@@ -477,6 +485,21 @@ def _assert_git_identity(root: Path, expected: str, label: str, *, boundary: str
         )
 
 
+def _assert_materialization_fingerprint(
+    root: Path,
+    expected: str,
+    label: str,
+    *,
+    boundary: str,
+) -> None:
+    current = _materialization_fingerprint(root, root / MATERIALIZER)
+    if current != expected:
+        raise PublicationMaterializationError(
+            f"{label}: publication materialization fingerprint changed {boundary}; "
+            "retry after obtaining a stable provider source snapshot"
+        )
+
+
 def _assert_provider_reuse_identity(
     root: Path,
     expected_git_revision: str,
@@ -499,6 +522,7 @@ def _assert_materializer_input_state(
     root: Path,
     expected_git_revision: str,
     expected_worktree_fingerprint: str,
+    pre_run_untracked_paths: tuple[bytes, ...],
     output_roots: tuple[PurePosixPath, ...],
     label: str,
     *,
@@ -510,6 +534,7 @@ def _assert_materializer_input_state(
             root,
             expected_git_revision,
             excluded_roots=output_roots,
+            untracked_paths=pre_run_untracked_paths,
         )
         if current != expected_worktree_fingerprint:
             raise PublicationMaterializationError(
@@ -546,6 +571,64 @@ def _hash_stamp_file(root: Path, path: Path, field: str) -> str:
     return hashlib.sha256(payload).hexdigest()
 
 
+def _snapshot_materialized_outputs(
+    root: Path,
+    label: str,
+    version: int,
+    catalog: Any,
+) -> dict[str, str]:
+    digests: dict[str, str] = {}
+    if version == 4:
+        for asset in catalog.generated_assets:
+            path = root / asset.source
+            if asset.optional and not path.exists() and not path.is_symlink():
+                continue
+            field = f"{label} generated asset {asset.source}"
+            for candidate in sorted(_enumerate_stamp_asset_files(root, asset.source, field)):
+                digests[candidate.relative_to(root).as_posix()] = _hash_stamp_file(
+                    root, candidate, field
+                )
+        return digests
+
+    for asset in catalog.assets:
+        path = root / asset.source
+        if asset.optional and not path.exists() and not path.is_symlink():
+            continue
+        field = f"{label} asset {asset.source}"
+        for candidate in sorted(_enumerate_stamp_asset_files(root, asset.source, field)):
+            digests[candidate.relative_to(root).as_posix()] = _hash_stamp_file(
+                root, candidate, field
+            )
+    for doc in catalog.documents:
+        path = root / doc.source
+        if doc.optional and not path.exists() and not path.is_symlink():
+            continue
+        field = f"{label} document {doc.source}"
+        digests[path.relative_to(root).as_posix()] = _hash_stamp_file(root, path, field)
+    if catalog.glossary_source is not None:
+        path = root / catalog.glossary_source
+        field = f"{label} glossary {catalog.glossary_source}"
+        digests[path.relative_to(root).as_posix()] = _hash_stamp_file(root, path, field)
+    return digests
+
+
+def _assert_output_snapshot(
+    root: Path,
+    label: str,
+    version: int,
+    catalog: Any,
+    expected: dict[str, str],
+    *,
+    boundary: str,
+) -> None:
+    current = _snapshot_materialized_outputs(root, label, version, catalog)
+    if current != expected:
+        raise PublicationMaterializationError(
+            f"{label}: materialized output snapshot changed {boundary}; "
+            "retry after obtaining stable publication outputs"
+        )
+
+
 def _write_stamp(
     root: Path,
     label: str,
@@ -554,47 +637,10 @@ def _write_stamp(
     catalog: Any,
     git_revision: str = "",
     input_worktree_fingerprint: str = "",
+    input_untracked_paths: tuple[bytes, ...] = (),
     output_roots: tuple[PurePosixPath, ...] = (),
-) -> str:
-    generated_digests: dict[str, str] = {}
-    if version == 4:
-        for asset in catalog.generated_assets:
-            path = root / asset.source
-            if asset.optional and not path.exists():
-                continue
-            field = f"{label} generated asset {asset.source}"
-            files = _enumerate_stamp_asset_files(root, asset.source, field)
-            for p in sorted(files):
-                generated_digests[p.relative_to(root).as_posix()] = _hash_stamp_file(
-                    root,
-                    p,
-                    field,
-                )
-    else:
-        for asset in catalog.assets:
-            path = root / asset.source
-            if asset.optional and not path.exists():
-                continue
-            field = f"{label} asset {asset.source}"
-            files = _enumerate_stamp_asset_files(root, asset.source, field)
-            for p in sorted(files):
-                generated_digests[p.relative_to(root).as_posix()] = _hash_stamp_file(
-                    root,
-                    p,
-                    field,
-                )
-        for doc in catalog.documents:
-            p = root / doc.source
-            if p.is_file() and not p.is_symlink():
-                generated_digests[p.relative_to(root).as_posix()] = hashlib.sha256(
-                    p.read_bytes()
-                ).hexdigest()
-        if catalog.glossary_source is not None:
-            p = root / catalog.glossary_source
-            if p.is_file() and not p.is_symlink():
-                generated_digests[p.relative_to(root).as_posix()] = hashlib.sha256(
-                    p.read_bytes()
-                ).hexdigest()
+) -> tuple[str, dict[str, str]]:
+    generated_digests = _snapshot_materialized_outputs(root, label, version, catalog)
 
     semantic_rev = _provider_semantic_revision(root)
     git_worktree_fingerprint = _provider_git_worktree_fingerprint(root, git_revision)
@@ -615,6 +661,7 @@ def _write_stamp(
         root,
         git_revision,
         input_worktree_fingerprint,
+        input_untracked_paths,
         output_roots,
         label,
         boundary="before materialization stamp commit",
@@ -629,8 +676,22 @@ def _write_stamp(
         label,
         boundary="before materialization stamp commit",
     )
+    _assert_materialization_fingerprint(
+        root,
+        fingerprint,
+        label,
+        boundary="before materialization stamp commit",
+    )
+    _assert_output_snapshot(
+        root,
+        label,
+        version,
+        catalog,
+        generated_digests,
+        boundary="before materialization stamp commit",
+    )
     _atomic_write_json(root / STAMP_FILE, stamp_data)
-    return git_worktree_fingerprint
+    return git_worktree_fingerprint, generated_digests
 
 
 def _validate_stamp(
@@ -720,6 +781,20 @@ def _validate_stamp(
             git_worktree_fingerprint,
             label,
             boundary="while validating materialization stamp",
+        )
+        _assert_materialization_fingerprint(
+            root,
+            fingerprint,
+            label,
+            boundary="while accepting materialization stamp",
+        )
+        _assert_output_snapshot(
+            root,
+            label,
+            version,
+            catalog,
+            generated_digests,
+            boundary="while accepting materialization stamp",
         )
         return catalog
     except Exception:
@@ -849,11 +924,18 @@ def _prepare_publication(root: Path, label: str) -> tuple[Any, bool]:
         version,
         catalog if version == 4 else None,
     )
-    pre_run_input_worktree_fingerprint = _provider_git_worktree_fingerprint(
+    pre_run_untracked_paths = _provider_git_untracked_paths(
         root,
         pre_run_git_revision,
         excluded_roots=output_roots,
     )
+    pre_run_input_worktree_fingerprint = _provider_git_worktree_fingerprint(
+        root,
+        pre_run_git_revision,
+        excluded_roots=output_roots,
+        untracked_paths=pre_run_untracked_paths,
+    )
+    run_fingerprint = _materialization_fingerprint(root, materializer)
 
     run_materializer(root, label)
 
@@ -861,21 +943,29 @@ def _prepare_publication(root: Path, label: str) -> tuple[Any, bool]:
         root,
         pre_run_git_revision,
         pre_run_input_worktree_fingerprint,
+        pre_run_untracked_paths,
         output_roots,
+        label,
+        boundary="while the materializer was running",
+    )
+    _assert_materialization_fingerprint(
+        root,
+        run_fingerprint,
         label,
         boundary="while the materializer was running",
     )
 
     catalog = _strict_catalog(root, label, version)
     _check_reserved_stamp_collision(catalog, label)
-    stamped_worktree_fingerprint = _write_stamp(
+    stamped_worktree_fingerprint, stamped_output_digests = _write_stamp(
         root,
         label,
         version,
-        fingerprint,
+        run_fingerprint,
         catalog,
         git_revision=pre_run_git_revision,
         input_worktree_fingerprint=pre_run_input_worktree_fingerprint,
+        input_untracked_paths=pre_run_untracked_paths,
         output_roots=output_roots,
     )
 
@@ -892,12 +982,27 @@ def _prepare_publication(root: Path, label: str) -> tuple[Any, bool]:
         root,
         pre_run_git_revision,
         pre_run_input_worktree_fingerprint,
+        pre_run_untracked_paths,
         output_roots,
         label,
         boundary="before returning materialization success",
     )
+    _assert_materialization_fingerprint(
+        root,
+        run_fingerprint,
+        label,
+        boundary="before returning materialization success",
+    )
+    _assert_output_snapshot(
+        root,
+        label,
+        version,
+        catalog,
+        stamped_output_digests,
+        boundary="before returning materialization success",
+    )
 
-    _remember_success(root, fingerprint)
+    _remember_success(root, run_fingerprint)
     return catalog, True
 
 
