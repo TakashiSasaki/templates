@@ -642,5 +642,117 @@ class PublicationMaterializationReviewFollowupTests(unittest.TestCase):
                 materialize_publication(root, "fixture")
             self.assertEqual('{"provider": "owned"}\n', (root / STAMP_FILE).read_text(encoding="utf-8"))
 
+
+    def test_tracked_sibling_of_generated_output_remains_an_input(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            materializer = self.write_v4_provider(root)
+            tracked_input = root / "generated" / "input.bin"
+            tracked_input.parent.mkdir(parents=True, exist_ok=True)
+            tracked_input.write_bytes(b"A")
+            materializer.write_text(
+                "from __future__ import annotations\n"
+                "import argparse\n"
+                "from pathlib import Path\n"
+                "parser = argparse.ArgumentParser()\n"
+                "parser.add_argument('--source-root', type=Path, required=True)\n"
+                "args = parser.parse_args()\n"
+                "source = args.source_root / 'generated' / 'input.bin'\n"
+                "payload = source.read_bytes()\n"
+                "out = args.source_root / 'generated' / 'output.bin'\n"
+                "out.write_bytes(payload)\n"
+                "source.write_bytes(b'B')\n",
+                encoding="utf-8",
+            )
+            self.initialize_git_checkout(root)
+
+            with self.assertRaisesRegex(
+                PublicationMaterializationError,
+                "worktree changed while the materializer was running",
+            ):
+                materialize_publication(root, "fixture")
+
+            self.assertEqual(b"A", (root / "generated" / "output.bin").read_bytes())
+            self.assertEqual(b"B", tracked_input.read_bytes())
+            self.assertFalse((root / STAMP_FILE).exists())
+
+    def test_semantic_revision_is_rechecked_after_output_snapshot_on_acceptance(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            materializer = self.write_v4_provider(root)
+            manifest = root / "generated" / "composition-playground-publication.json"
+            (root / ".gitignore").write_text(
+                "generated/composition-playground-publication.json\n",
+                encoding="utf-8",
+            )
+            materializer.write_text(
+                materializer.read_text(encoding="utf-8")
+                + "manifest = args.source_root / 'generated' / 'composition-playground-publication.json'\n"
+                + "manifest.write_text('{\"semantic_revision\": \"A\"}', encoding='utf-8')\n",
+                encoding="utf-8",
+            )
+            self.initialize_git_checkout(root)
+            self.assertTrue(materialize_publication(root, "fixture"))
+            self.assertTrue(is_publication_materialized(root, "fixture"))
+
+            original = materialization._snapshot_materialized_outputs
+            mutated = False
+
+            def mutate_after_output_snapshot(*args, **kwargs):
+                nonlocal mutated
+                observed = original(*args, **kwargs)
+                if not mutated:
+                    manifest.write_text('{"semantic_revision": "B"}', encoding="utf-8")
+                    mutated = True
+                return observed
+
+            with patch.object(
+                materialization,
+                "_snapshot_materialized_outputs",
+                side_effect=mutate_after_output_snapshot,
+            ):
+                self.assertFalse(is_publication_materialized(root, "fixture"))
+            self.assertTrue(mutated)
+
+    def test_semantic_revision_is_rechecked_after_output_snapshot_on_stamp_commit(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            materializer = self.write_v4_provider(root)
+            manifest = root / "generated" / "composition-playground-publication.json"
+            (root / ".gitignore").write_text(
+                "generated/composition-playground-publication.json\n",
+                encoding="utf-8",
+            )
+            materializer.write_text(
+                materializer.read_text(encoding="utf-8")
+                + "manifest = args.source_root / 'generated' / 'composition-playground-publication.json'\n"
+                + "manifest.write_text('{\"semantic_revision\": \"A\"}', encoding='utf-8')\n",
+                encoding="utf-8",
+            )
+            self.initialize_git_checkout(root)
+            original = materialization._snapshot_materialized_outputs
+            snapshots = 0
+
+            def mutate_during_commit_snapshot(*args, **kwargs):
+                nonlocal snapshots
+                observed = original(*args, **kwargs)
+                snapshots += 1
+                if snapshots == 2:
+                    manifest.write_text('{"semantic_revision": "B"}', encoding="utf-8")
+                return observed
+
+            with patch.object(
+                materialization,
+                "_snapshot_materialized_outputs",
+                side_effect=mutate_during_commit_snapshot,
+            ):
+                with self.assertRaisesRegex(
+                    PublicationMaterializationError,
+                    "semantic revision changed after output snapshot before materialization stamp commit",
+                ):
+                    materialize_publication(root, "fixture")
+            self.assertGreaterEqual(snapshots, 2)
+            self.assertFalse((root / STAMP_FILE).exists())
+
 if __name__ == "__main__":
     unittest.main()

@@ -286,12 +286,16 @@ def _provider_git_worktree_fingerprint(
     *,
     excluded_roots: tuple[PurePosixPath, ...] = (),
     untracked_paths: tuple[bytes, ...] | None = None,
+    tracked_excluded_roots: tuple[PurePosixPath, ...] | None = None,
 ) -> str:
     """Bind reuse to Git-visible tracked and untracked worktree content."""
     if not git_revision:
         return ""
     canonical_root = root.resolve(strict=True)
     try:
+        tracked_roots = (
+            excluded_roots if tracked_excluded_roots is None else tracked_excluded_roots
+        )
         diff_proc = subprocess.run(
             [
                 "git",
@@ -303,7 +307,7 @@ def _provider_git_worktree_fingerprint(
                 "--no-textconv",
                 git_revision,
                 "--",
-                *_provider_worktree_pathspecs(excluded_roots),
+                *_provider_worktree_pathspecs(tracked_roots),
             ],
             capture_output=True,
             check=False,
@@ -370,17 +374,38 @@ def _provider_semantic_revision(root: Path) -> str:
     return ""
 
 
+def _assert_semantic_revision(
+    root: Path,
+    expected: str,
+    label: str,
+    *,
+    boundary: str,
+) -> None:
+    current = _provider_semantic_revision(root)
+    if current != expected:
+        raise PublicationMaterializationError(
+            f"{label}: provider semantic revision changed {boundary} "
+            f"({expected!r} → {current!r}); retry after obtaining stable provider metadata"
+        )
+
+
 def _materializer_output_roots(
     root: Path,
     version: int,
     source_catalog: Any | None,
+    *,
+    for_tracked: bool = False,
 ) -> tuple[PurePosixPath, ...]:
     if version == 4:
         assert source_catalog is not None
         roots: list[PurePosixPath] = []
         for asset in source_catalog.generated_assets:
             parsed = PurePosixPath(asset.source)
-            candidate = parsed.parent if parsed.parent != PurePosixPath('.') else parsed
+            candidate = (
+                parsed
+                if for_tracked
+                else (parsed.parent if parsed.parent != PurePosixPath('.') else parsed)
+            )
             if candidate not in roots:
                 roots.append(candidate)
         return tuple(roots)
@@ -414,9 +439,10 @@ def _materializer_output_roots(
     if isinstance(glossary, dict):
         add_source(glossary.get("source"))
 
-    generated_root = PurePosixPath("generated")
-    if generated_root not in roots:
-        roots.append(generated_root)
+    if not for_tracked:
+        generated_root = PurePosixPath("generated")
+        if generated_root not in roots:
+            roots.append(generated_root)
     return tuple(roots)
 
 
@@ -538,6 +564,7 @@ def _assert_materializer_input_state(
     expected_worktree_fingerprint: str,
     pre_run_untracked_paths: tuple[bytes, ...],
     output_roots: tuple[PurePosixPath, ...],
+    tracked_output_roots: tuple[PurePosixPath, ...],
     label: str,
     *,
     boundary: str,
@@ -559,6 +586,7 @@ def _assert_materializer_input_state(
             expected_git_revision,
             excluded_roots=output_roots,
             untracked_paths=current_untracked_paths,
+            tracked_excluded_roots=tracked_output_roots,
         )
         if current != expected_worktree_fingerprint:
             raise PublicationMaterializationError(
@@ -662,7 +690,8 @@ def _write_stamp(
     input_worktree_fingerprint: str = "",
     input_untracked_paths: tuple[bytes, ...] = (),
     output_roots: tuple[PurePosixPath, ...] = (),
-) -> tuple[str, dict[str, str]]:
+    tracked_output_roots: tuple[PurePosixPath, ...] = (),
+) -> tuple[str, dict[str, str], str]:
     generated_digests = _snapshot_materialized_outputs(root, label, version, catalog)
 
     semantic_rev = _provider_semantic_revision(root)
@@ -686,6 +715,7 @@ def _write_stamp(
         input_worktree_fingerprint,
         input_untracked_paths,
         output_roots,
+        tracked_output_roots,
         label,
         boundary="before materialization stamp commit",
     )
@@ -719,6 +749,7 @@ def _write_stamp(
         input_worktree_fingerprint,
         input_untracked_paths,
         output_roots,
+        tracked_output_roots,
         label,
         boundary="after output snapshot before materialization stamp commit",
     )
@@ -735,8 +766,14 @@ def _write_stamp(
         label,
         boundary="after output snapshot before materialization stamp commit",
     )
+    _assert_semantic_revision(
+        root,
+        semantic_rev,
+        label,
+        boundary="after output snapshot before materialization stamp commit",
+    )
     _atomic_write_json(root / STAMP_FILE, stamp_data)
-    return git_worktree_fingerprint, generated_digests
+    return git_worktree_fingerprint, generated_digests, semantic_rev
 
 
 def _validate_stamp(
@@ -774,7 +811,7 @@ def _validate_stamp(
             if _SUCCESSFUL_MATERIALIZATIONS.get(root) != fingerprint:
                 return None
         semantic_rev = _provider_semantic_revision(root)
-        if semantic_rev and data.get("semantic_revision") != semantic_rev:
+        if data.get("semantic_revision") != semantic_rev:
             return None
         generated_digests = data.get("generated_digests")
         if not isinstance(generated_digests, dict):
@@ -851,6 +888,12 @@ def _validate_stamp(
         _assert_materialization_fingerprint(
             root,
             fingerprint,
+            label,
+            boundary="after output snapshot while accepting materialization stamp",
+        )
+        _assert_semantic_revision(
+            root,
+            semantic_rev,
             label,
             boundary="after output snapshot while accepting materialization stamp",
         )
@@ -982,6 +1025,12 @@ def _prepare_publication(root: Path, label: str) -> tuple[Any, bool]:
         version,
         catalog if version == 4 else None,
     )
+    tracked_output_roots = _materializer_output_roots(
+        root,
+        version,
+        catalog if version == 4 else None,
+        for_tracked=True,
+    )
     pre_run_untracked_paths = _provider_git_untracked_paths(
         root,
         pre_run_git_revision,
@@ -992,6 +1041,7 @@ def _prepare_publication(root: Path, label: str) -> tuple[Any, bool]:
         pre_run_git_revision,
         excluded_roots=output_roots,
         untracked_paths=pre_run_untracked_paths,
+        tracked_excluded_roots=tracked_output_roots,
     )
     run_fingerprint = _materialization_fingerprint(root, materializer)
 
@@ -1003,6 +1053,7 @@ def _prepare_publication(root: Path, label: str) -> tuple[Any, bool]:
         pre_run_input_worktree_fingerprint,
         pre_run_untracked_paths,
         output_roots,
+        tracked_output_roots,
         label,
         boundary="while the materializer was running",
     )
@@ -1015,7 +1066,11 @@ def _prepare_publication(root: Path, label: str) -> tuple[Any, bool]:
 
     catalog = _strict_catalog(root, label, version)
     _check_reserved_stamp_collision(catalog, label)
-    stamped_worktree_fingerprint, stamped_output_digests = _write_stamp(
+    (
+        stamped_worktree_fingerprint,
+        stamped_output_digests,
+        stamped_semantic_revision,
+    ) = _write_stamp(
         root,
         label,
         version,
@@ -1025,6 +1080,7 @@ def _prepare_publication(root: Path, label: str) -> tuple[Any, bool]:
         input_worktree_fingerprint=pre_run_input_worktree_fingerprint,
         input_untracked_paths=pre_run_untracked_paths,
         output_roots=output_roots,
+        tracked_output_roots=tracked_output_roots,
     )
 
     # A checkout mutation after the atomic stamp replacement must not be reported as
@@ -1042,6 +1098,7 @@ def _prepare_publication(root: Path, label: str) -> tuple[Any, bool]:
         pre_run_input_worktree_fingerprint,
         pre_run_untracked_paths,
         output_roots,
+        tracked_output_roots,
         label,
         boundary="before returning materialization success",
     )
@@ -1073,12 +1130,19 @@ def _prepare_publication(root: Path, label: str) -> tuple[Any, bool]:
         pre_run_input_worktree_fingerprint,
         pre_run_untracked_paths,
         output_roots,
+        tracked_output_roots,
         label,
         boundary="after output snapshot before returning materialization success",
     )
     _assert_materialization_fingerprint(
         root,
         run_fingerprint,
+        label,
+        boundary="after output snapshot before returning materialization success",
+    )
+    _assert_semantic_revision(
+        root,
+        stamped_semantic_revision,
         label,
         boundary="after output snapshot before returning materialization success",
     )
