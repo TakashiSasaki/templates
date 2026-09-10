@@ -17,7 +17,12 @@ def test_title_conversation_session_skill_has_surface_and_authority_boundaries()
     assert "established terminal boundary" in skill
     assert "Do not imply completion, merge, deployment, review completion" in skill
     assert "authorized title-persistence mechanism" in skill
+    assert "persist the raw title text" in skill
+    assert "Do not add Markdown fences, backticks, or presentation-only wrappers" in skill
     assert "permits free-form presentation" in skill
+    assert "fenced code blocks, or an equivalent code-output block" in skill
+    assert "render the proposed title inside that code-style block" in skill
+    assert "present the title as plain text instead" in skill
     assert "omit title output rather than violating a fixed response schema" in skill
     assert "Do not invent a persistence API" in skill
     assert "must not change the established work state" in skill

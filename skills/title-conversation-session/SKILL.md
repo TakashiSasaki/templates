@@ -30,8 +30,8 @@ Use the interaction's established language and naming conventions unless the use
 
 Evaluate the active surface before attempting delivery:
 
-1. If the surface exposes an authorized title-persistence mechanism and its use is permitted, persist the title through that mechanism.
-2. Otherwise, if the surface permits free-form presentation in the current or terminal response, present the same text as a title proposal.
+1. If the surface exposes an authorized title-persistence mechanism and its use is permitted, persist the raw title text through that mechanism. Do not add Markdown fences, backticks, or presentation-only wrappers to the persisted title value.
+2. Otherwise, if the surface permits free-form presentation in the current or terminal response, present the same title text as a title proposal. When the surface supports presentation styling, fenced code blocks, or an equivalent code-output block, render the proposed title inside that code-style block. If code-style block presentation is unavailable but free-form text is permitted, present the title as plain text instead.
 3. Otherwise, omit title output rather than violating a fixed response schema, protocol contract, or other surface constraint.
 
 Do not invent a persistence API, assume a provider-specific command, or encode title metadata into an unrelated field. Failure or absence of a persistence/presentation mechanism must not change the established work state, reopen completed work, block an otherwise valid handoff or completion boundary, or justify a false completion claim.
