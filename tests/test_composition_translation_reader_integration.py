@@ -9,6 +9,7 @@ from pathlib import Path, PurePosixPath
 from scripts import publish_translations as translation_publisher
 from scripts.assemble_publications import load_manifest, pages
 from scripts.assemble_publications_v3 import load_catalog
+from scripts.materialize_publication_assets import is_publication_materialized
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -223,6 +224,8 @@ class CompositionTranslationReaderIntegrationTests(unittest.TestCase):
         provider = ROOT.parent / "composition-source"
         if not provider.is_dir():
             self.skipTest("Composition provider checkout is only available in Pages CI")
+        if not is_publication_materialized(provider, "composition"):
+            self.skipTest("Composition provider is not materialized; run materialize_publication_assets.py first")
 
         documents, assets = load_catalog("composition", provider.resolve(strict=True))
         _, navigation = load_manifest(ROOT / "site-manifest.json")

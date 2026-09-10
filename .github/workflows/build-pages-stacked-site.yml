@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - "site-*"
+      - "perf/site-*"
 
 permissions:
   contents: read

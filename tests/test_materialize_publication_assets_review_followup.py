@@ -680,14 +680,14 @@ class PublicationMaterializationReviewFollowupTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             materializer = self.write_v4_provider(root)
-            manifest = root / "generated" / "composition-playground-publication.json"
+            manifest = root / "generated" / "publication-descriptor.json"
             (root / ".gitignore").write_text(
-                "generated/composition-playground-publication.json\n",
+                "generated/publication-descriptor.json\n",
                 encoding="utf-8",
             )
             materializer.write_text(
                 materializer.read_text(encoding="utf-8")
-                + "manifest = args.source_root / 'generated' / 'composition-playground-publication.json'\n"
+                + "manifest = args.source_root / 'generated' / 'publication-descriptor.json'\n"
                 + "manifest.write_text('{\"semantic_revision\": \"A\"}', encoding='utf-8')\n",
                 encoding="utf-8",
             )
@@ -718,14 +718,14 @@ class PublicationMaterializationReviewFollowupTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             materializer = self.write_v4_provider(root)
-            manifest = root / "generated" / "composition-playground-publication.json"
+            manifest = root / "generated" / "publication-descriptor.json"
             (root / ".gitignore").write_text(
-                "generated/composition-playground-publication.json\n",
+                "generated/publication-descriptor.json\n",
                 encoding="utf-8",
             )
             materializer.write_text(
                 materializer.read_text(encoding="utf-8")
-                + "manifest = args.source_root / 'generated' / 'composition-playground-publication.json'\n"
+                + "manifest = args.source_root / 'generated' / 'publication-descriptor.json'\n"
                 + "manifest.write_text('{\"semantic_revision\": \"A\"}', encoding='utf-8')\n",
                 encoding="utf-8",
             )
@@ -784,6 +784,28 @@ class PublicationMaterializationReviewFollowupTests(unittest.TestCase):
                 (root / "generated" / "output.bin").read_bytes(),
             )
             self.assertFalse((root / "scripts" / "__pycache__").exists())
+
+
+    def test_semantic_revision_uses_provider_owned_descriptor_only(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            materializer = self.write_v4_provider(root)
+            materializer.write_text(
+                "import argparse, json\nfrom pathlib import Path\n"
+                "p=argparse.ArgumentParser(); p.add_argument('--source-root',type=Path,required=True); a=p.parse_args()\n"
+                "g=a.source_root/'generated'; g.mkdir(parents=True,exist_ok=True)\n"
+                "(g/'output.bin').write_bytes(b'deterministic-output')\n"
+                "(g/'publication-descriptor.json').write_text(json.dumps({'schema_version':1,'provider':'fixture','semantic_revision':'provider-semantic'}),encoding='utf-8')\n",
+                encoding="utf-8",
+            )
+            internal = root / "generated" / "composition-playground-publication.json"
+            internal.parent.mkdir(parents=True, exist_ok=True)
+            internal.write_text(json.dumps({"semantic_revision": "composition-internal"}), encoding="utf-8")
+            self.assertTrue(materialize_publication(root, "fixture"))
+            stamp = json.loads((root / STAMP_FILE).read_text(encoding="utf-8"))
+            self.assertEqual("provider-semantic", stamp["semantic_revision"])
+            (root / "generated" / "publication-descriptor.json").unlink()
+            self.assertFalse(is_publication_materialized(root, "fixture"))
 
 if __name__ == "__main__":
     unittest.main()

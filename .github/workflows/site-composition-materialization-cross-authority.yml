@@ -1,0 +1,30 @@
+name: Site Composition materialization cross-authority acceptance
+
+on:
+  pull_request:
+    branches:
+      - site
+      - "perf/site-*"
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: site-composition-materialization-cross-authority-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  build_candidate:
+    name: Build exact cross-authority materialization candidate
+    if: >-
+      github.repository == 'TakashiSasaki/templates' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    uses: ./.github/workflows/build-pages.yml
+    with:
+      site_ref: ${{ github.event.pull_request.head.sha }}
+      composition_ref: 96bc8a81e2949a17a2c8965fe476c1fd4cba78ac
