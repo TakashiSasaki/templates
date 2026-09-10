@@ -149,19 +149,30 @@ def _materialization_fingerprint(root: Path, materializer: Path) -> str:
     return digest.hexdigest()
 
 
+
 def _atomic_write_json(path: Path, data: dict[str, Any]) -> None:
+    """Atomically publish JSON without replacing a concurrently-created path."""
     text = json.dumps(data, indent=2, sort_keys=True) + "\n"
     temp_path = path.with_name(f".{path.name}.tmp.{os.getpid()}")
     try:
         temp_path.write_text(text, encoding="utf-8")
-        temp_path.replace(path)
+        try:
+            os.link(temp_path, path)
+        except FileExistsError as exc:
+            raise PublicationMaterializationError(
+                f"{path.name} appeared before materialization stamp commit; "
+                "refusing to overwrite it"
+            ) from exc
+        except OSError as exc:
+            raise PublicationMaterializationError(
+                f"unable to publish materialization stamp without overwriting {path}: {exc}"
+            ) from exc
     finally:
         if temp_path.exists():
             try:
                 temp_path.unlink()
             except OSError:
                 pass
-
 
 def _provider_git_identity(root: Path) -> str:
     canonical_root = root.resolve(strict=True)
@@ -366,7 +377,13 @@ def _materializer_output_roots(
 ) -> tuple[PurePosixPath, ...]:
     if version == 4:
         assert source_catalog is not None
-        return tuple(PurePosixPath(asset.source) for asset in source_catalog.generated_assets)
+        roots: list[PurePosixPath] = []
+        for asset in source_catalog.generated_assets:
+            parsed = PurePosixPath(asset.source)
+            candidate = parsed.parent if parsed.parent != PurePosixPath('.') else parsed
+            if candidate not in roots:
+                roots.append(candidate)
+        return tuple(roots)
 
     try:
         data = read_json_object(root / CATALOG, "publication catalog")
@@ -397,10 +414,6 @@ def _materializer_output_roots(
     if isinstance(glossary, dict):
         add_source(glossary.get("source"))
 
-    # Schema v3 cannot classify source/output lifecycle. The conventional
-    # materializer bridge treats generated/ as materializer-owned state so
-    # deterministic regeneration is not mistaken for concurrent source mutation.
-    # Declared publication products remain independently digest-bound.
     generated_root = PurePosixPath("generated")
     if generated_root not in roots:
         roots.append(generated_root)
@@ -518,6 +531,7 @@ def _assert_provider_reuse_identity(
             )
 
 
+
 def _assert_materializer_input_state(
     root: Path,
     expected_git_revision: str,
@@ -530,18 +544,27 @@ def _assert_materializer_input_state(
 ) -> None:
     _assert_git_identity(root, expected_git_revision, label, boundary=boundary)
     if expected_git_revision:
+        current_untracked_paths = _provider_git_untracked_paths(
+            root,
+            expected_git_revision,
+            excluded_roots=output_roots,
+        )
+        if current_untracked_paths != pre_run_untracked_paths:
+            raise PublicationMaterializationError(
+                f"{label}: provider Git worktree changed {boundary}; "
+                "retry after obtaining a stable provider checkout"
+            )
         current = _provider_git_worktree_fingerprint(
             root,
             expected_git_revision,
             excluded_roots=output_roots,
-            untracked_paths=pre_run_untracked_paths,
+            untracked_paths=current_untracked_paths,
         )
         if current != expected_worktree_fingerprint:
             raise PublicationMaterializationError(
                 f"{label}: provider Git worktree changed {boundary}; "
                 "retry after obtaining a stable provider checkout"
             )
-
 
 def _enumerate_stamp_asset_files(root: Path, source: str, field: str) -> list[Path]:
     try:
@@ -690,6 +713,28 @@ def _write_stamp(
         generated_digests,
         boundary="before materialization stamp commit",
     )
+    _assert_materializer_input_state(
+        root,
+        git_revision,
+        input_worktree_fingerprint,
+        input_untracked_paths,
+        output_roots,
+        label,
+        boundary="after output snapshot before materialization stamp commit",
+    )
+    _assert_provider_reuse_identity(
+        root,
+        git_revision,
+        git_worktree_fingerprint,
+        label,
+        boundary="after output snapshot before materialization stamp commit",
+    )
+    _assert_materialization_fingerprint(
+        root,
+        fingerprint,
+        label,
+        boundary="after output snapshot before materialization stamp commit",
+    )
     _atomic_write_json(root / STAMP_FILE, stamp_data)
     return git_worktree_fingerprint, generated_digests
 
@@ -795,6 +840,19 @@ def _validate_stamp(
             catalog,
             generated_digests,
             boundary="while accepting materialization stamp",
+        )
+        _assert_provider_reuse_identity(
+            root,
+            git_revision,
+            git_worktree_fingerprint,
+            label,
+            boundary="after output snapshot while validating materialization stamp",
+        )
+        _assert_materialization_fingerprint(
+            root,
+            fingerprint,
+            label,
+            boundary="after output snapshot while accepting materialization stamp",
         )
         return catalog
     except Exception:
@@ -1002,6 +1060,28 @@ def _prepare_publication(root: Path, label: str) -> tuple[Any, bool]:
         boundary="before returning materialization success",
     )
 
+    _assert_provider_reuse_identity(
+        root,
+        pre_run_git_revision,
+        stamped_worktree_fingerprint,
+        label,
+        boundary="after output snapshot before returning materialization success",
+    )
+    _assert_materializer_input_state(
+        root,
+        pre_run_git_revision,
+        pre_run_input_worktree_fingerprint,
+        pre_run_untracked_paths,
+        output_roots,
+        label,
+        boundary="after output snapshot before returning materialization success",
+    )
+    _assert_materialization_fingerprint(
+        root,
+        run_fingerprint,
+        label,
+        boundary="after output snapshot before returning materialization success",
+    )
     _remember_success(root, run_fingerprint)
     return catalog, True
 

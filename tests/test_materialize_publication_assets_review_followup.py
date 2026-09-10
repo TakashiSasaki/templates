@@ -192,7 +192,7 @@ class PublicationMaterializationReviewFollowupTests(unittest.TestCase):
             ), patch.object(
                 materialization,
                 "_provider_git_identity",
-                side_effect=[revision_a, revision_a, revision_a, revision_a, revision_b],
+                side_effect=[revision_a] * 7 + [revision_b],
             ):
                 with self.assertRaisesRegex(
                     PublicationMaterializationError,
@@ -576,6 +576,71 @@ class PublicationMaterializationReviewFollowupTests(unittest.TestCase):
                     materialize_publication(root, "fixture")
             self.assertFalse((root / STAMP_FILE).exists())
 
+
+    def test_new_untracked_source_path_during_materialization_aborts(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            materializer = self.write_v4_provider(root)
+            materializer.write_text(
+                "from __future__ import annotations\n"
+                "import argparse\n"
+                "from pathlib import Path\n"
+                "parser = argparse.ArgumentParser()\n"
+                "parser.add_argument('--source-root', type=Path, required=True)\n"
+                "args = parser.parse_args()\n"
+                "out = args.source_root / 'generated' / 'output.bin'\n"
+                "out.parent.mkdir(parents=True, exist_ok=True)\n"
+                "out.write_bytes(b'deterministic-output')\n"
+                "(args.source_root / 'late-source.txt').write_text('late', encoding='utf-8')\n",
+                encoding="utf-8",
+            )
+            self.initialize_git_checkout(root)
+            with self.assertRaisesRegex(PublicationMaterializationError, "worktree changed while the materializer was running"):
+                materialize_publication(root, "fixture")
+            self.assertTrue((root / "late-source.txt").is_file())
+            self.assertFalse((root / STAMP_FILE).exists())
+
+    def test_inputs_are_rechecked_after_final_output_snapshot(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            materializer = self.write_v4_provider(root)
+            self.initialize_git_checkout(root)
+            self.assertTrue(materialize_publication(root, "fixture"))
+            original = materialization._snapshot_materialized_outputs
+            mutated = False
+            def mutate_input_after_snapshot(*args, **kwargs):
+                nonlocal mutated
+                observed = original(*args, **kwargs)
+                if not mutated:
+                    materializer.write_text(materializer.read_text(encoding="utf-8") + "\n# late input mutation\n", encoding="utf-8")
+                    mutated = True
+                return observed
+            with patch.object(materialization, "_snapshot_materialized_outputs", side_effect=mutate_input_after_snapshot):
+                self.assertFalse(is_publication_materialized(root, "fixture"))
+            self.assertTrue(mutated)
+
+    def test_stamp_commit_preserves_path_created_by_materializer(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            materializer = self.write_v4_provider(root)
+            materializer.write_text(
+                "from __future__ import annotations\n"
+                "import argparse\n"
+                "from pathlib import Path\n"
+                "parser = argparse.ArgumentParser()\n"
+                "parser.add_argument('--source-root', type=Path, required=True)\n"
+                "args = parser.parse_args()\n"
+                "out = args.source_root / 'generated' / 'output.bin'\n"
+                "out.parent.mkdir(parents=True, exist_ok=True)\n"
+                "out.write_bytes(b'deterministic-output')\n"
+                "stamp = args.source_root / '.publication-materialization-stamp.json'\n"
+                "stamp.write_text('{\\\"provider\\\": \\\"owned\\\"}\\n', encoding='utf-8')\n",
+                encoding="utf-8",
+            )
+            self.initialize_git_checkout(root)
+            with self.assertRaisesRegex(PublicationMaterializationError, "appeared before materialization stamp commit"):
+                materialize_publication(root, "fixture")
+            self.assertEqual('{"provider": "owned"}\n', (root / STAMP_FILE).read_text(encoding="utf-8"))
 
 if __name__ == "__main__":
     unittest.main()
