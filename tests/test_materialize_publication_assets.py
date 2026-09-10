@@ -440,6 +440,156 @@ target.write_bytes(b'deterministic fixture output')
             subprocess.run(["git", "commit", "-q", "--allow-empty", "-m", "advance"], cwd=root, check=True)
             self.assertFalse(is_publication_materialized(root, "fixture"))
 
+    def test_preexisting_non_stamp_file_at_stamp_path_raises(self) -> None:
+        """Finding 1: A provider-owned file at the stamp path is not silently deleted."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.write_catalog(root, version=4, source_kind="generated")
+            self.write_materializer(root)
+            # Place an unrecognized (non-stamp) file at the reserved stamp path.
+            stamp_path = root / STAMP_FILE
+            stamp_path.write_text(
+                json.dumps({"some": "provider data", "stamp_version": "not-an-int"}),
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(
+                PublicationMaterializationError,
+                "is not a materialization stamp",
+            ):
+                materialize_publication(root, "fixture")
+            # The provider-owned file must still be on disk.
+            self.assertTrue(stamp_path.exists())
+
+    def test_v4_no_generated_assets_with_symlink_materializer_reports_not_materialized(
+        self,
+    ) -> None:
+        """Finding 4: is_publication_materialized returns False when the materializer path
+        exists but is a symlink, even for a v4 catalog with no generated assets."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            # Build a v4 catalog with no generated assets (source_kind=static).
+            (root / "README.md").write_text("# Fixture\n", encoding="utf-8")
+            static_asset = root / "static.bin"
+            static_asset.write_bytes(b"static")
+            catalog = {
+                "schema_version": 4,
+                "documents": [
+                    {"id": "overview", "source": "README.md", "optional": False, "home": True}
+                ],
+                "assets": [
+                    {
+                        "source": "static.bin",
+                        "destination": "runtime/static.bin",
+                        "optional": False,
+                        "source_kind": "static",
+                    }
+                ],
+            }
+            catalog_path = root / "docs" / "publication-catalog.json"
+            catalog_path.parent.mkdir(parents=True, exist_ok=True)
+            catalog_path.write_text(json.dumps(catalog), encoding="utf-8")
+            # Place a symlink at the materializer path.
+            materializer_dir = root / "scripts"
+            materializer_dir.mkdir(parents=True, exist_ok=True)
+            symlink_target = root / "dummy_target.py"
+            symlink_target.write_text("", encoding="utf-8")
+            (materializer_dir / "materialize_publication.py").symlink_to(symlink_target)
+
+            self.assertFalse(is_publication_materialized(root, "fixture"))
+
+    def test_v3_stamp_binds_document_and_glossary_bytes(self) -> None:
+        """Finding 3: For v3 providers, document and glossary file bytes are hashed into
+        the stamp so tampering with either invalidates it."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            # Build a v3 catalog with a document and glossary (.yml required by contract).
+            doc_path = root / "README.md"
+            doc_path.write_text("# Original\n", encoding="utf-8")
+            glossary_path = root / "glossary.yml"
+            glossary_path.write_text("entries: []\n", encoding="utf-8")
+            catalog = {
+                "schema_version": 3,
+                "documents": [
+                    {"id": "overview", "source": "README.md", "optional": False, "home": True}
+                ],
+                "assets": [
+                    {"source": "generated/output.bin", "destination": "runtime/output.bin", "optional": False}
+                ],
+                "glossary": {"source": "glossary.yml"},
+            }
+            catalog_dir = root / "docs"
+            catalog_dir.mkdir(parents=True, exist_ok=True)
+            (catalog_dir / "publication-catalog.json").write_text(
+                json.dumps(catalog), encoding="utf-8"
+            )
+            # Write a v3-style materializer that creates the generated asset.
+            scripts_dir = root / "scripts"
+            scripts_dir.mkdir(parents=True, exist_ok=True)
+            (scripts_dir / "materialize_publication.py").write_text(
+                "import argparse; from pathlib import Path; "
+                "p = argparse.ArgumentParser(); p.add_argument('--source-root', type=Path); "
+                "a = p.parse_args(); "
+                "out = a.source_root / 'generated' / 'output.bin'; "
+                "out.parent.mkdir(parents=True, exist_ok=True); "
+                "out.write_bytes(b'v3 output')\n",
+                encoding="utf-8",
+            )
+
+            self.assertTrue(materialize_publication(root, "fixture"))
+            stamp_data = json.loads((root / STAMP_FILE).read_text(encoding="utf-8"))
+            self.assertIn("README.md", stamp_data["generated_digests"])
+            self.assertIn("glossary.yml", stamp_data["generated_digests"])
+            self.assertTrue(is_publication_materialized(root, "fixture"))
+
+            # Tamper with the document — stamp must be invalidated.
+            doc_path.write_text("# Tampered\n", encoding="utf-8")
+            self.assertFalse(is_publication_materialized(root, "fixture"))
+
+            # Re-materialize with the tampered document to create a new valid stamp.
+            self.assertTrue(materialize_publication(root, "fixture"))
+            self.assertTrue(is_publication_materialized(root, "fixture"))
+
+            # Now tamper with the glossary — stamp must also be invalidated.
+            glossary_path.write_text("entries: [tampered: true]\n", encoding="utf-8")
+            self.assertFalse(is_publication_materialized(root, "fixture"))
+
+    def test_git_head_change_during_materialization_raises(self) -> None:
+        """Finding 2: Provider Git HEAD advancing while the materializer runs raises an error."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            try:
+                subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+            except subprocess.CalledProcessError:
+                self.skipTest("git not available")
+            subprocess.run(["git", "config", "user.name", "Test"], cwd=root, check=True)
+            subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=root, check=True)
+
+            self.write_catalog(root, version=4, source_kind="generated")
+            # Create a materializer that advances HEAD mid-run.
+            path = root / "scripts" / "materialize_publication.py"
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(
+                "import argparse, subprocess, sys\n"
+                "from pathlib import Path\n"
+                "p = argparse.ArgumentParser()\n"
+                "p.add_argument('--source-root', type=Path)\n"
+                "a = p.parse_args()\n"
+                "out = a.source_root / 'generated' / 'output.bin'\n"
+                "out.parent.mkdir(parents=True, exist_ok=True)\n"
+                "out.write_bytes(b'output')\n"
+                "subprocess.run(['git', 'commit', '-q', '--allow-empty', '-m', 'advance'], "
+                "cwd=a.source_root, check=True)\n",
+                encoding="utf-8",
+            )
+            subprocess.run(["git", "add", "."], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-q", "-m", "init"], cwd=root, check=True)
+
+            with self.assertRaisesRegex(
+                PublicationMaterializationError,
+                "provider Git HEAD changed while the materializer was running",
+            ):
+                materialize_publication(root, "fixture")
+
 
 if __name__ == "__main__":
     unittest.main()

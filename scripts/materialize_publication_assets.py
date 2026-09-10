@@ -211,6 +211,7 @@ def _write_stamp(
     version: int,
     fingerprint: str,
     catalog: Any,
+    git_revision: str = "",
 ) -> None:
     generated_digests: dict[str, str] = {}
     if version == 4:
@@ -243,8 +244,19 @@ def _write_stamp(
                     generated_digests[p.relative_to(root).as_posix()] = hashlib.sha256(
                         p.read_bytes()
                     ).hexdigest()
+        for doc in catalog.documents:
+            p = root / doc.source
+            if p.is_file() and not p.is_symlink():
+                generated_digests[p.relative_to(root).as_posix()] = hashlib.sha256(
+                    p.read_bytes()
+                ).hexdigest()
+        if catalog.glossary_source is not None:
+            p = root / catalog.glossary_source
+            if p.is_file() and not p.is_symlink():
+                generated_digests[p.relative_to(root).as_posix()] = hashlib.sha256(
+                    p.read_bytes()
+                ).hexdigest()
 
-    git_revision = _provider_git_identity(root)
     semantic_rev = _provider_semantic_revision(root)
     stamp_data = {
         "stamp_version": 1,
@@ -311,6 +323,14 @@ def _validate_stamp(
                 files = asset_files(root, asset.source, f"{label} asset {asset.source}")
                 for p in files:
                     current_generated_files.add(p.relative_to(root).as_posix())
+            for doc in catalog.documents:
+                p = root / doc.source
+                if p.is_file() and not p.is_symlink():
+                    current_generated_files.add(p.relative_to(root).as_posix())
+            if catalog.glossary_source is not None:
+                p = root / catalog.glossary_source
+                if p.is_file() and not p.is_symlink():
+                    current_generated_files.add(p.relative_to(root).as_posix())
         if set(generated_digests.keys()) != current_generated_files:
             return None
         return catalog
@@ -327,6 +347,10 @@ def is_publication_materialized(root: Path, label: str) -> bool:
         if version == 4:
             catalog = load_publication_catalog_v4(root, label=f"{label} catalog", phase="source")
             if not catalog.generated_assets:
+                if materializer.exists() and (
+                    materializer.is_symlink() or not materializer.is_file()
+                ):
+                    return False
                 catalog = _strict_catalog(root, label, version)
                 if catalog is not None:
                     _check_reserved_stamp_collision(catalog, label)
@@ -396,12 +420,46 @@ def _prepare_publication(root: Path, label: str) -> tuple[Any, bool]:
         return stamped_catalog, False
 
     _SUCCESSFUL_MATERIALIZATIONS.pop(root, None)
-    (root / STAMP_FILE).unlink(missing_ok=True)
+
+    # Finding 1: Only delete the stamp if it looks like our own stamp (or is absent).
+    # A pre-existing provider-owned file at the stamp path must not be silently destroyed.
+    stamp_path = root / STAMP_FILE
+    if stamp_path.exists() and not stamp_path.is_symlink():
+        try:
+            raw = json.loads(stamp_path.read_text(encoding="utf-8"))
+            if isinstance(raw, dict) and raw.get("stamp_version") == 1:
+                stamp_path.unlink(missing_ok=True)
+            else:
+                raise PublicationMaterializationError(
+                    f"{label}: {STAMP_FILE} already exists and is not a materialization stamp; "
+                    "relocate or remove it before running the materializer"
+                )
+        except PublicationMaterializationError:
+            raise
+        except Exception:
+            # Unreadable/malformed stamp — treat as ours and remove it.
+            stamp_path.unlink(missing_ok=True)
+    else:
+        stamp_path.unlink(missing_ok=True)
+
+    # Finding 2: Record git identity before the materializer runs, then verify
+    # it hasn't changed. This prevents a TOCTOU where the provider HEAD advances
+    # mid-run and the stamp binds post-run revision B to pre-run outputs from A.
+    pre_run_git_revision = _provider_git_identity(root)
 
     run_materializer(root, label)
+
+    post_run_git_revision = _provider_git_identity(root)
+    if pre_run_git_revision != post_run_git_revision:
+        raise PublicationMaterializationError(
+            f"{label}: provider Git HEAD changed while the materializer was running "
+            f"({pre_run_git_revision!r} → {post_run_git_revision!r}); "
+            "retry from an immutable checkout"
+        )
+
     catalog = _strict_catalog(root, label, version)
     _check_reserved_stamp_collision(catalog, label)
-    _write_stamp(root, label, version, fingerprint, catalog)
+    _write_stamp(root, label, version, fingerprint, catalog, git_revision=pre_run_git_revision)
     _remember_success(root, fingerprint)
     return catalog, True
 
