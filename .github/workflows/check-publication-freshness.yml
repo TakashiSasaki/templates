@@ -11,6 +11,11 @@ on:
     branches:
       - site
       - codex/site-composition-playground-v1-shell
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - labeled
     paths:
       - '.github/workflows/check-publication-freshness.yml'
       - '.github/workflows/build-pages.yml'
@@ -34,7 +39,12 @@ concurrency:
 
 jobs:
   resolve:
-    if: github.repository == 'TakashiSasaki/templates'
+    if: >-
+      github.repository == 'TakashiSasaki/templates' &&
+      (github.event_name != 'pull_request' ||
+       github.event.action != 'labeled' ||
+       github.event.label.name == 'ci/full-qualification' ||
+       github.event.label.name == 'ci/full-site-verification')
     runs-on: ubuntu-latest
     outputs:
       site_revision: ${{ steps.site_revision.outputs.sha }}
@@ -71,6 +81,7 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          FORCE_FULL_REQUESTED: ${{ github.event_name == 'push' || (github.event_name == 'pull_request' && (contains(github.event.pull_request.labels.*.name, 'ci/full-qualification') || contains(github.event.pull_request.labels.*.name, 'ci/full-site-verification'))) }}
         run: |
           if [ "$EVENT_NAME" != pull_request ]; then
             {
@@ -79,15 +90,44 @@ jobs:
               echo 'changed_count=0'
               echo 'requiring_count=0'
               echo 'requiring_paths=none'
+              echo 'authority_source=manual-or-scheduled'
             } >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
           git -C site-source diff --name-only --no-renames "$BASE_SHA" "$HEAD_SHA" > "$RUNNER_TEMP/publication-freshness-paths.txt"
           test -s "$RUNNER_TEMP/publication-freshness-paths.txt"
-          python -I site-source/scripts/classify_site_browser_acceptance.py \
-            --changed-paths "$RUNNER_TEMP/publication-freshness-paths.txt" \
-            --output "$GITHUB_OUTPUT"
+
+          classifier_dir="$RUNNER_TEMP/site-ci-classifier-authority"
+          rm -rf "$classifier_dir"
+          mkdir -p "$classifier_dir"
+          force_full="${FORCE_FULL_REQUESTED:-false}"
+
+          if git -C site-source show "$BASE_SHA:scripts/classify_site_ci.py" > "$classifier_dir/classify_site_ci.py" 2>/dev/null; then
+            output_file="$RUNNER_TEMP/site-ci-output.txt"
+            python3 -I "$classifier_dir/classify_site_ci.py" \
+              --changed-paths "$RUNNER_TEMP/publication-freshness-paths.txt" \
+              --force-full "$force_full" \
+              --output "$output_file"
+            if grep -q '^freshness_candidate_required=' "$output_file"; then
+              req="$(grep '^freshness_candidate_required=' "$output_file" | cut -d= -f2)"
+            else
+              risk_class="$(grep '^risk_class=' "$output_file" | cut -d= -f2)"
+              if [ "$risk_class" = "observability-only" ]; then
+                req="false"
+              else
+                req="true"
+              fi
+            fi
+            reason="$(grep '^reason=' "$output_file" | cut -d= -f2)"
+            echo "required=$req" >> "$GITHUB_OUTPUT"
+            echo "reason=$reason" >> "$GITHUB_OUTPUT"
+            echo "authority_source=base" >> "$GITHUB_OUTPUT"
+          else
+            echo "required=true" >> "$GITHUB_OUTPUT"
+            echo "reason=base-classifier-unavailable-full" >> "$GITHUB_OUTPUT"
+            echo "authority_source=base-unavailable-full" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Resolve reviewed publication lock
         id: publication_refs

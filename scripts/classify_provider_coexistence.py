@@ -50,10 +50,16 @@ def requires_provider_coexistence(path: str) -> bool:
     return _requires_provider_coexistence(normalize_path(path))
 
 
-def classify_paths(paths: Iterable[str]) -> tuple[bool, tuple[str, ...]]:
+def classify_paths(
+    paths: Iterable[str],
+    *,
+    force_full: bool = False,
+) -> tuple[bool, tuple[str, ...]]:
     normalized = tuple(normalize_path(path) for path in paths)
     if not normalized:
         raise ClassificationError("at least one changed path is required")
+    if force_full:
+        return True, ("forced-full",)
     matched = tuple(
         sorted(
             {
@@ -79,6 +85,11 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--changed-paths", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument(
+        "--force-full",
+        type=lambda v: str(v).lower() in {"true", "1", "yes"},
+        default=False,
+    )
     return parser.parse_args()
 
 
@@ -86,7 +97,7 @@ def main() -> int:
     args = parse_args()
     try:
         paths = args.changed_paths.read_text(encoding="utf-8").splitlines()
-        required, matched = classify_paths(paths)
+        required, matched = classify_paths(paths, force_full=args.force_full)
         with args.output.open("a", encoding="utf-8") as output:
             write_outputs(output, required=required, matched=matched)
     except (OSError, UnicodeError, ClassificationError) as exc:
