@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import gzip
 import json
+import os
 import re
 import subprocess
 import sys
@@ -211,15 +212,68 @@ def check_directory(directory: Path, *, semantic_revision: str | None = None) ->
     return revision
 
 
+def _atomic_write(path: Path, data: bytes) -> None:
+    temp_path = path.with_name(f".{path.name}.tmp.{os.getpid()}")
+    try:
+        temp_path.write_bytes(data)
+        os.replace(temp_path, path)
+    finally:
+        if temp_path.exists():
+            try:
+                temp_path.unlink()
+            except OSError:
+                pass
+
+
+def validate_written_payloads(
+    directory: Path,
+    expected_payloads: Mapping[str, bytes],
+    expected_revision: str,
+) -> None:
+    manifest_revision = semantic_revision_from_manifest(directory)
+    if manifest_revision != expected_revision:
+        raise CompositionError(
+            "INVALID_PLAYGROUND_PUBLICATION",
+            "materialized manifest revision does not match expected semantic revision",
+        )
+    for name, expected_bytes in expected_payloads.items():
+        path = directory / name
+        if path.is_symlink() or not path.is_file():
+            raise CompositionError(
+                "INVALID_PLAYGROUND_PUBLICATION",
+                f"materialized publication asset must be a regular file: {path}",
+            )
+        try:
+            current_bytes = path.read_bytes()
+        except OSError as exc:
+            raise CompositionError(
+                "READ_FAILED",
+                f"cannot read materialized publication asset {path}: {exc}",
+            ) from exc
+        if current_bytes != expected_bytes:
+            raise CompositionError(
+                "CORRUPT_PLAYGROUND_PUBLICATION",
+                f"materialized asset bytes do not match verified payload: {path}",
+            )
+        revision = semantic_revision_from_gzip(path)
+        if revision != expected_revision:
+            raise CompositionError(
+                "INVALID_PLAYGROUND_PUBLICATION",
+                f"materialized asset revision {revision} does not match expected {expected_revision}: {path}",
+            )
+
+
 def write_directory(directory: Path, *, semantic_revision: str | None = None) -> str:
     directory.mkdir(parents=True, exist_ok=True)
     revision = resolve_revision(directory, semantic_revision)
     semantic_objects = semantic_objects_from_manifest(directory)
-    for name, payload in publication_payloads(
+    payloads = publication_payloads(
         semantic_revision=revision,
         semantic_objects=semantic_objects,
-    ).items():
-        (directory / name).write_bytes(payload)
+    )
+    for name, payload in payloads.items():
+        _atomic_write(directory / name, payload)
+    validate_written_payloads(directory, payloads, revision)
     return revision
 
 

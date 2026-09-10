@@ -12,6 +12,8 @@ from __future__ import annotations
 
 import argparse
 import importlib.util
+import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -85,12 +87,22 @@ def main() -> int:
         from composer_core_impl import CompositionError
 
         semantic_revision = playground.write_directory(ROOT / "generated")
-        checked_revision = playground.check_directory(ROOT / "generated")
-        if checked_revision != semantic_revision:
-            raise CompositionError(
-                "INVALID_PLAYGROUND_PUBLICATION",
-                "materialized publication revision did not round-trip",
-            )
+        descriptor = {
+            "schema_version": 1,
+            "provider": "composition",
+            "semantic_revision": semantic_revision,
+        }
+        descriptor_path = ROOT / "generated" / "publication-descriptor.json"
+        temp_descriptor = descriptor_path.with_name(f".{descriptor_path.name}.tmp.{os.getpid()}")
+        try:
+            temp_descriptor.write_text(json.dumps(descriptor, indent=2) + "\n", encoding="utf-8")
+            temp_descriptor.replace(descriptor_path)
+        finally:
+            if temp_descriptor.exists():
+                try:
+                    temp_descriptor.unlink()
+                except OSError:
+                    pass
     except (RuntimeError, OSError, UnicodeError) as exc:
         code = getattr(exc, "code", "PUBLICATION_MATERIALIZATION_FAILED")
         print(f"materialize_publication.py: {code}: {exc}", file=sys.stderr)
