@@ -153,10 +153,43 @@ def _atomic_write_json(path: Path, data: dict[str, Any]) -> None:
 
 
 def _provider_git_identity(root: Path) -> str:
-    is_git_repo = (root / ".git").exists()
+    canonical_root = root.resolve(strict=True)
+    git_marker = canonical_root / ".git"
     try:
+        top_proc = subprocess.run(
+            ["git", "-C", str(canonical_root), "rev-parse", "--show-toplevel"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if top_proc.returncode != 0:
+            if git_marker.exists():
+                raise PublicationMaterializationError(
+                    f"unable to determine Git top-level for provider at {canonical_root}"
+                )
+            return ""
+
+        try:
+            git_top = Path(top_proc.stdout.strip()).resolve(strict=True)
+        except (OSError, RuntimeError) as exc:
+            if git_marker.exists():
+                raise PublicationMaterializationError(
+                    f"unable to resolve Git top-level for provider at {canonical_root}: {exc}"
+                ) from exc
+            return ""
+
+        # `git -C <path> rev-parse` searches enclosing repositories. A provider
+        # directory nested inside another checkout is not thereby revision-bound;
+        # only a repository whose top-level is exactly the provider root is stable.
+        if git_top != canonical_root:
+            if git_marker.exists():
+                raise PublicationMaterializationError(
+                    f"provider Git top-level {git_top} does not match provider root {canonical_root}"
+                )
+            return ""
+
         git_proc = subprocess.run(
-            ["git", "-C", str(root), "rev-parse", "HEAD"],
+            ["git", "-C", str(canonical_root), "rev-parse", "HEAD"],
             capture_output=True,
             text=True,
             check=False,
@@ -165,16 +198,15 @@ def _provider_git_identity(root: Path) -> str:
             sha = git_proc.stdout.strip()
             if len(sha) in (40, 64) and all(c in "0123456789abcdefABCDEF" for c in sha):
                 return sha.lower()
-        if is_git_repo:
-            raise PublicationMaterializationError(
-                f"unable to determine Git HEAD identity for provider at {root}"
-            )
+        raise PublicationMaterializationError(
+            f"unable to determine Git HEAD identity for provider at {canonical_root}"
+        )
     except PublicationMaterializationError:
         raise
     except Exception as exc:
-        if is_git_repo:
+        if git_marker.exists():
             raise PublicationMaterializationError(
-                f"unable to determine Git HEAD identity for provider at {root}: {exc}"
+                f"unable to determine Git HEAD identity for provider at {canonical_root}: {exc}"
             ) from exc
     return ""
 
@@ -370,6 +402,15 @@ def _validate_stamp(
                     current_generated_files.add(p.relative_to(root).as_posix())
         if set(generated_digests.keys()) != current_generated_files:
             return None
+
+        # Validation itself can race a checkout advance. Re-check the identity after
+        # all artifact/catalog reads and immediately before accepting the stamp.
+        _assert_git_identity(
+            root,
+            git_revision,
+            label,
+            boundary="while validating materialization stamp",
+        )
         return catalog
     except Exception:
         return None
