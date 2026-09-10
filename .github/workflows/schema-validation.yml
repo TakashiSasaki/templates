@@ -85,6 +85,9 @@ jobs:
       - name: Verify dependency graph
         run: .venv/bin/python -m pip check
 
+      - name: Materialize Composition publication
+        run: .venv/bin/python -I scripts/materialize_publication.py --source-root .
+
       - name: Validate Site-owned publication contract
         run: .venv/bin/python -I "$SITE_PUBLICATION_PROTOCOL_ROOT/scripts/publication_contract.py" --source-root .
 
