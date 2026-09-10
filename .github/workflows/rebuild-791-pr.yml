@@ -1,0 +1,108 @@
+name: PR-triggered rebuild of PR 791
+
+on:
+  pull_request:
+    branches:
+      - perf/site-provider-materialization-phase
+
+permissions:
+  contents: write
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: rebuild/site-publication-consumer-reuse
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Reconstruct S2 on current S1
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin perf/site-publication-consumer-reuse
+          for p in \
+            .github/workflows/build-pages-stacked-site.yml \
+            .github/workflows/site-composition-materialization-cross-authority.yml \
+            tests/test_catalog_architecture_translation_integration.py \
+            tests/test_composer_mvp_translation_integration.py \
+            tests/test_composition_model_translation_integration.py \
+            tests/test_composition_translation_reader_integration.py \
+            tests/test_generated_contract_manifest_translation_integration.py \
+            tests/test_site_composition_materialization_cross_authority_workflow.py; do
+            mkdir -p "$(dirname "$p")"
+            git show "origin/perf/site-publication-consumer-reuse:$p" > "$p"
+          done
+          python - <<'PY'
+          from pathlib import Path
+          import textwrap
+
+          source = Path('scripts/materialize_publication_assets.py')
+          text = source.read_text(encoding='utf-8')
+          old = '''def _provider_semantic_revision(root: Path) -> str:\n    manifest_path = root / "generated" / "composition-playground-publication.json"\n    if manifest_path.is_file() and not manifest_path.is_symlink():\n        try:\n            data = json.loads(manifest_path.read_text(encoding="utf-8"))\n            if isinstance(data, dict) and isinstance(data.get("semantic_revision"), str):\n                return data["semantic_revision"]\n        except Exception:\n            pass\n    return ""\n'''
+          new = '''def _provider_semantic_revision(root: Path) -> str:\n    # Semantic identity is provider-owned metadata. Site knows only generic\n    # descriptor locations, not Composition-specific generated formats.\n    for relative in (Path("publication-descriptor.json"), Path("generated/publication-descriptor.json")):\n        descriptor_path = root / relative\n        if descriptor_path.is_symlink() or not descriptor_path.is_file():\n            continue\n        try:\n            data = json.loads(descriptor_path.read_text(encoding="utf-8"))\n        except (OSError, UnicodeError, json.JSONDecodeError):\n            continue\n        if isinstance(data, dict) and isinstance(data.get("semantic_revision"), str):\n            return data["semantic_revision"]\n    return ""\n'''
+          if text.count(old) != 1:
+              raise SystemExit(f'legacy semantic reader count={text.count(old)}')
+          source.write_text(text.replace(old, new), encoding='utf-8')
+
+          tests = Path('tests/test_materialize_publication_assets_review_followup.py')
+          text = tests.read_text(encoding='utf-8')
+          footer = '\nif __name__ == "__main__":\n    unittest.main()\n'
+          method = textwrap.indent(textwrap.dedent(r'''
+
+          def test_semantic_revision_uses_provider_owned_descriptor_only(self) -> None:
+              with tempfile.TemporaryDirectory() as directory:
+                  root = Path(directory)
+                  materializer = self.write_v4_provider(root)
+                  materializer.write_text(
+                      "import argparse, json\nfrom pathlib import Path\n"
+                      "p=argparse.ArgumentParser(); p.add_argument('--source-root',type=Path,required=True); a=p.parse_args()\n"
+                      "g=a.source_root/'generated'; g.mkdir(parents=True,exist_ok=True)\n"
+                      "(g/'output.bin').write_bytes(b'deterministic-output')\n"
+                      "(g/'publication-descriptor.json').write_text(json.dumps({'schema_version':1,'provider':'fixture','semantic_revision':'provider-semantic'}),encoding='utf-8')\n",
+                      encoding="utf-8",
+                  )
+                  internal = root / "generated" / "composition-playground-publication.json"
+                  internal.parent.mkdir(parents=True, exist_ok=True)
+                  internal.write_text(json.dumps({"semantic_revision": "composition-internal"}), encoding="utf-8")
+                  self.assertTrue(materialize_publication(root, "fixture"))
+                  stamp = json.loads((root / STAMP_FILE).read_text(encoding="utf-8"))
+                  self.assertEqual("provider-semantic", stamp["semantic_revision"])
+                  (root / "generated" / "publication-descriptor.json").unlink()
+                  self.assertFalse(is_publication_materialized(root, "fixture"))
+          '''), '    ')
+          if text.count(footer) != 1:
+              raise SystemExit('test footer not found')
+          tests.write_text(text.replace(footer, method + footer), encoding='utf-8')
+
+          docs = Path('docs/ci/site-performance.md')
+          text = docs.read_text(encoding='utf-8')
+          heading = '## Provider publication materialization lifecycle'
+          section = '''## Provider publication materialization lifecycle\n\nProvider publications pass through an explicit, authority-preserving lifecycle in Pages CI:\n\n1. **Source state**: the provider checkout owns its catalog, inputs, and optional `scripts/materialize_publication.py`; Site does not implement provider generator semantics.\n2. **Explicit phase**: `.github/workflows/build-pages.yml` materializes providers before integration tests, assembly, and translation publication. The provider entrypoint runs in isolated Python mode with bytecode writes disabled.\n3. **Stable state**: `.publication-materialization-stamp.json` binds the canonical root, exact Git revision when available, Git-visible tracked/untracked source state, catalog/materializer fingerprint, provider-owned semantic revision from `publication-descriptor.json` or `generated/publication-descriptor.json`, and SHA-256 snapshots of materialized products.\n4. **Boundary revalidation**: source identity, semantic identity, and outputs are rechecked at stamp acceptance, stamp commit, and success return. Observed changes fail closed.\n5. **Process-crossing reuse**: downstream processes validate the persistent stamp; missing, stale, malformed, or corrupted state cannot silently authorize reuse.\n6. **Authority boundary**: Composition owns generation, semantic identity, descriptors, and products. Site owns generic orchestration, contract validation, and reuse verification and does not parse Composition-specific generated manifests.\n\n'''
+          if heading in text:
+              start = text.index(heading); end = text.find('\n## ', start + len(heading))
+              text = text[:start] + section + (text[end+1:] if end != -1 else '')
+          else:
+              marker = '\n## Validation status\n'
+              if marker not in text: raise SystemExit('validation heading not found')
+              text = text.replace(marker, '\n' + section + marker, 1)
+          docs.write_text(text, encoding='utf-8')
+          PY
+      - name: Focused qualification
+        run: |
+          python -m py_compile scripts/materialize_publication_assets.py tests/test_materialize_publication_assets_review_followup.py tests/test_site_composition_materialization_cross_authority_workflow.py
+          python -m unittest tests.test_materialize_publication_assets tests.test_materialize_publication_assets_review_followup tests.test_assembly_materialization_boundary tests.test_site_composition_materialization_cross_authority_workflow tests.test_catalog_architecture_translation_integration tests.test_composer_mvp_translation_integration tests.test_composition_model_translation_integration tests.test_composition_translation_reader_integration tests.test_generated_contract_manifest_translation_integration --verbose
+      - name: Commit clean reconstructed S2
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/workflows/build-pages-stacked-site.yml .github/workflows/site-composition-materialization-cross-authority.yml docs/ci/site-performance.md scripts/materialize_publication_assets.py tests
+          git rm .github/workflows/rebuild-791.yml .github/workflows/rebuild-791-pr.yml
+          git diff --cached --check
+          git commit -m "Rebuild Site publication consumer reuse on current materialization base"
+          git push origin HEAD:rebuild/site-publication-consumer-reuse
