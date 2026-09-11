@@ -73,7 +73,8 @@ def test_discover_valid_contract_returns_hub_and_orphan(tmp_path: Path) -> None:
     schemas_dir.mkdir(parents=True)
     repo_root = Path(__file__).resolve().parents[1]
     (schemas_dir / "repository-topology.schema.json").write_text(
-        (repo_root / "src/agent_policy/_topology_contract/schemas/repository-topology.schema.json").read_text(encoding="utf-8"),
+        (repo_root / "src/agent_policy/_topology_contract/schemas"
+         / "repository-topology.schema.json").read_text(encoding="utf-8"),
         encoding="utf-8",
     )
 
