@@ -41,6 +41,7 @@ An exclusion does not suppress a known reader-facing requirement: the existing C
 The current explicit exclusions are:
 
 - operational consumer-agent instructions (`components/artifact.skill-core/files/AGENTS.md`);
+- supplemental WebMCP selection notes (`docs/guides/webmcp-capability.md`), because the canonical reader-facing capability authority is `components/capability.webmcp/files/WEBMCP.md` and is indexed from `docs/index.md`;
 - the stage-specific PR2 and PR3 authority-migration notes (`docs/migrations/pr2-skill-capabilities.md` and `docs/migrations/pr3-webapp-lifecycle.md`), which are retained as Composition authority maintenance provenance while the consolidated history and immutable PR records form the reader-facing history surface;
 - non-production executable-fixture guidance (`examples/README.md`);
 - repository-level immutable installer publication guidance (`release/README.md`), which documents operational release identities while reader-facing installation guidance is assembled separately by Site;
