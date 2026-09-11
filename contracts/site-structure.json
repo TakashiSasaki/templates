@@ -452,6 +452,20 @@
       "parentPageId": "site-portal-home"
     },
     {
+      "id": "composition-topology-contract",
+      "routeId": "composition-topology-contract",
+      "role": "content",
+      "title": "Topology contract",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-repository-topology-architecture",
+      "routeId": "composition-repository-topology-architecture",
+      "role": "content",
+      "title": "Topology architecture",
+      "parentPageId": "site-portal-home"
+    },
+    {
       "id": "site-lifecycle-overview",
       "routeId": "site-lifecycle-overview",
       "role": "content",
@@ -853,6 +867,8 @@
     "composition-web-interface-v2-migration",
     "composition-service-interface",
     "composition-service-interface-v2-migration",
+    "composition-topology-contract",
+    "composition-repository-topology-architecture",
     "site-lifecycle-overview",
     "composition-composition-state",
     "composition-contract-evolution",

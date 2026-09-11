@@ -707,6 +707,28 @@
       }
     },
     {
+      "id": "composition-topology-contract",
+      "path": "/topology/contract/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-repository-topology-architecture",
+      "path": "/topology/architecture/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
       "id": "site-lifecycle-overview",
       "path": "/lifecycle/",
       "canonical": true,
