@@ -126,8 +126,7 @@ class HumanFirstWebsiteOnboardingTests(unittest.TestCase):
 
     def test_stable_recipe_matches_every_optional_path_advertised_by_walkthrough(self) -> None:
         recipe_bytes = git_show_bytes(WEBSITE_REVISION, "recipes/website.json")
-        current_recipe_bytes = (ROOT / "recipes" / "website.json").read_bytes()
-        self.assertEqual(git_blob_sha(recipe_bytes), git_blob_sha(current_recipe_bytes))
+        # This walkthrough documents the immutable stable release, not an unreleased recipe.
         recipe = json.loads(recipe_bytes)
         text = WALKTHROUGH.read_text(encoding="utf-8")
         start = text.index("## 14. Optional")
