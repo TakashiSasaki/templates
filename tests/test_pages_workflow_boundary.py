@@ -226,7 +226,9 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
     def test_aggregate_ci_validate_gate_and_force_full_qualification(self) -> None:
         workflow = BUILD_WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("name: Site Construction CI / validate", workflow)
-        self.assertIn("needs:\n      - build\n      - classify_browser\n      - check", workflow)
+        self.assertIn("needs:\n      - build\n      - classify_browser\n      - check\n      - core_tests", workflow)
+        self.assertIn("test \"$CORE_TESTS_RESULT\" = success", workflow)
+        self.assertIn("python scripts/run_core_tests.py", workflow)
         self.assertIn("FORCE_FULL_REQUESTED:", workflow)
         self.assertIn("--force-full", workflow)
         self.assertIn("ci/full-qualification", workflow)
@@ -243,7 +245,7 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
         import yaml
         workflow_data = yaml.safe_load(BUILD_WORKFLOW.read_text(encoding="utf-8"))
         jobs = workflow_data["jobs"]
-        for job_key in ("build", "classify_browser", "check", "validate"):
+        for job_key in ("build", "classify_browser", "check", "core_tests", "validate"):
             with self.subTest(job=job_key):
                 self.assertIn(job_key, jobs)
                 job_if = jobs[job_key].get("if", "")

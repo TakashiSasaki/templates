@@ -618,25 +618,6 @@ jobs:
             echo "- reason: \`$BROWSER_REASON\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Check out proposed Site revision for documentation validation
-        if: ${{ needs.classify_browser.outputs.build_required == 'false' }}
-        uses: actions/checkout@v7
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          fetch-depth: 1
-          persist-credentials: false
-
-      - name: Set up Python for documentation validation
-        if: ${{ needs.classify_browser.outputs.build_required == 'false' }}
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.12'
-
-      - name: Validate documentation structure, links, and translations
-        if: ${{ needs.classify_browser.outputs.build_required == 'false' }}
-        run: |
-          python -m pip install --requirement requirements.txt
-          python -m unittest tests.test_translation_manifest tests.test_translation_availability tests.test_translation_link_selection tests.test_site_links tests.test_public_url_boundary
 
       - name: Check out proposed Site revision
         if: ${{ needs.classify_browser.outputs.required == 'true' }}
@@ -766,6 +747,39 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
+  core_tests:
+    name: Core repository unit and contract validation
+    if: >-
+      always() &&
+      github.repository == 'TakashiSasaki/templates' &&
+      inputs.site_ref == '' &&
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      (github.event.action != 'labeled' ||
+       github.event.label.name == 'ci/full-qualification' ||
+       github.event.label.name == 'ci/full-site-verification')
+    needs:
+      - classify_browser
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out site candidate
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: python -m pip install --requirement requirements.txt
+
+      - name: Run core unit and contract validation
+        run: python scripts/run_core_tests.py --verbose
+
   validate:
     name: Site Construction CI / validate
     if: >-
@@ -781,6 +795,7 @@ jobs:
       - build
       - classify_browser
       - check
+      - core_tests
     runs-on: ubuntu-24.04
     steps:
       - name: Verify build, classifier, and browser gate results
@@ -788,11 +803,13 @@ jobs:
           BUILD_RESULT: ${{ needs.build.result }}
           CLASSIFY_RESULT: ${{ needs.classify_browser.result }}
           CHECK_RESULT: ${{ needs.check.result }}
+          CORE_TESTS_RESULT: ${{ needs.core_tests.result }}
           BUILD_REQUIRED: ${{ needs.classify_browser.outputs.build_required }}
           BROWSER_REQUIRED: ${{ needs.classify_browser.outputs.required }}
           FORCE_FULL: ${{ needs.classify_browser.outputs.full_required }}
         run: |
           test "$CLASSIFY_RESULT" = success
+          test "$CORE_TESTS_RESULT" = success
           test "$CHECK_RESULT" = success
           case "$FORCE_FULL" in
             true)
