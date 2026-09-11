@@ -32,6 +32,7 @@ CI_CONTROL_EXACT_PATHS = frozenset(
         "scripts/classify_provider_coexistence.py",
         "scripts/classify_publication_freshness.py",
         "scripts/verify_site_full_qualification.py",
+        "scripts/run_core_tests.py",
     }
 )
 CI_CONTROL_PREFIXES = (
@@ -40,6 +41,7 @@ CI_CONTROL_PREFIXES = (
     "tests/test_site_browser_acceptance_classifier",
     "tests/test_pages_workflow_boundary",
     "tests/test_verify_site_full_qualification",
+    "tests/test_run_core_tests",
 )
 
 # CI Observability surfaces that do not alter the generated Site or browser runtime.
@@ -95,12 +97,7 @@ PWA_EXACT_PATHS = frozenset(
 PWA_PREFIXES = ("tests/test_pwa_",)
 
 # Core-only surfaces that only affect fast L1 unit/contract test execution.
-CORE_ONLY_EXACT_PATHS = frozenset(
-    {
-        "scripts/run_core_tests.py",
-        "tests/test_run_core_tests.py",
-    }
-)
+CORE_ONLY_EXACT_PATHS: frozenset[str] = frozenset()
 CORE_ONLY_PREFIXES: tuple[str, ...] = ()
 
 # Browser, visual layout, CSS, JS, and search-sensitive surfaces.

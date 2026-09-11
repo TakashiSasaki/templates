@@ -25,6 +25,26 @@ import urllib.request
 from datetime import datetime
 from typing import Any, NamedTuple
 
+# Workflows that subscribe to `pull_request: types: [labeled]` and are newly
+# triggered on explicit qualification label application.
+# Workflows not in this set (e.g. provider-managed workflows like validate-website.yml)
+# only run on push/pull_request opened/synchronize/reopened; their exact-head runs
+# are preserved across label-triggered qualification evaluations.
+LABELED_DISPATCHED_WORKFLOW_PATHS: frozenset[str] = frozenset(
+    {
+        ".github/workflows/build-pages.yml",
+        ".github/workflows/check-publication-freshness.yml",
+        ".github/workflows/provider-coexistence.yml",
+        ".github/workflows/reference-consumer.yml",
+        ".github/workflows/site-composition-playground.yml",
+        ".github/workflows/site-composition-playground-explain.yml",
+        ".github/workflows/site-composition-playground-cross-authority.yml",
+        ".github/workflows/site-full-qualification.yml",
+        ".github/workflows/publication-materialization.yml",
+        ".github/workflows/publication-contract-v4.yml",
+        ".github/workflows/check-agent-policy.yml",
+    }
+)
 
 class RequiredSuite(NamedTuple):
     key: str
@@ -281,7 +301,7 @@ def evaluate_suites(
     for r in runs:
         if min_run_id is not None and r.get("id", 0) < min_run_id:
             continue
-        if epoch_timestamp is not None:
+        if epoch_timestamp is not None and r.get("path") in LABELED_DISPATCHED_WORKFLOW_PATHS:
             created_at_str = r.get("created_at")
             if created_at_str:
                 try:

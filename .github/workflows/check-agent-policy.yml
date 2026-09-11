@@ -1,12 +1,27 @@
 name: Check Site agent policy
 on:
   pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - labeled
   push:
     branches: [site]
 permissions:
   contents: read
+
+concurrency:
+  group: check-agent-policy-${{ (github.event.action == 'labeled' && github.event.label.name != 'ci/full-qualification' && github.event.label.name != 'ci/full-site-verification') && format('unrelated-label-{0}', github.run_id) || (github.event.pull_request.number || github.ref) }}
+  cancel-in-progress: true
+
 jobs:
   policy:
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.event.action != 'labeled' ||
+      github.event.label.name == 'ci/full-qualification' ||
+      github.event.label.name == 'ci/full-site-verification'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
