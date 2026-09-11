@@ -30,6 +30,15 @@ When repository-tracked operational state is explicitly adopted, follow [Isolate
 
 If durable storage is unavailable, retain execution-local state and report the durability limitation at handoff. Do not claim a durable checkpoint was saved when a write failed; persistence requirements explicitly imposed by the task remain unsatisfied.
 
+## Hub-and-Orphan topology tracking
+
+When `contracts/repository-topology.json` declares a `hub-and-orphan` topology:
+
+1. **Topology registration**: Record the discovered topology kind (`hub-and-orphan`), hub projection branch (`main`), and registered component authorities (branch, mount path, role).
+2. **Authority-isolated mutations**: Every planned mutation unit MUST designate its target component authority. Component source and test mutations MUST target branches branched from the component's authority orphan branch (`branch == mountPath`). Direct mutation of component files on the hub projection branch is prohibited.
+3. **Projection synchronization ordering**: Units updating submodule projection pointers on the hub branch MUST declare explicit dependencies on the merged/landed state of the component authority PR (`authority-to-hub` direction).
+4. **Interrupted mutation recovery**: On resume, verify whether orphan branches were created, whether component PRs landed, and whether the hub submodule pointer was updated. Reconcile component authority state before scheduling hub projection updates.
+
 ## Minimum logical state
 
 Combine fields where natural; omit inapplicable dimensions with an explanation when omission could be mistaken for missing work. These are logical groups, not a serialization schema.
@@ -38,8 +47,8 @@ Combine fields where natural; omit inapplicable dimensions with an explanation w
 | --- | --- |
 | Change contract | Objective, scope/non-goals, preserved behavior/invariants, required acceptance criteria and evidence, progression and completion modes; alternatively an authoritative change-contract locator carrying those requirements. |
 | Authority snapshot | For each authority: provider host/namespace, stable repository ID when available plus current qualified locator, branch, starting revision, current observed revision and last live refresh. |
-| Topology | Repository-qualified PR/branch members, stable PR ID when available, base, exact observed head, dependency, semantic responsibility and cumulative scope. Keep unrelated authority histories separate. |
-| Mutation plan | Coherent mutation units, affected authority, planned/in-progress/complete/deferred state, owned paths/provider objects and completed effects; retain relevant preflight/commit-boundary observations for an interrupted unit. |
+| Topology | Repository-qualified PR/branch members, stable PR ID when available, base, exact observed head, dependency, semantic responsibility and cumulative scope. Keep unrelated authority histories separate. Under Hub-and-Orphan topology, record discovered topology kind, hub projection branch, component authorities, and verify component branch-mount equality without leaf namespace collisions. |
+| Mutation plan | Coherent mutation units, affected authority, planned/in-progress/complete/deferred state, owned paths/provider objects and completed effects; under Hub-and-Orphan topology, enforce that component mutations target component authority orphan branches, direct hub mutations for component paths are forbidden, and hub submodule projections advance strictly after component authority landing. Retain relevant preflight/commit-boundary observations for an interrupted unit. |
 | Stability and qualification | Practical stability frontier, provisional candidates, intended qualification heads when required, qualification candidate and qualified tree identity, and evidence binding status. |
 | Evidence | Evidence layer (local, environment-dependent, remote CI, independent review), exact executed command or workflow/check identity, bound SHA or artifact, run/evidence locator and provenance, observed result, limitations and applicability conditions (including relevant base, scope, configuration, environment, applicability state, invalidation reason, reuse decision, and validation requiring reacquisition). |
 | Review | Acquisition state and locator; distinguish whole-stack diagnostic audit from member/cumulative acceptance review. Reference the review-finding ledger and its known-material-findings status. |

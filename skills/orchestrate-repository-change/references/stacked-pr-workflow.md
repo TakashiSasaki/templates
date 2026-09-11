@@ -18,6 +18,17 @@ Construct an explicit dependency topology in which every member has one coherent
 
 Do not deliberately propagate a known material defect into later members. A later member may depend on an earlier open PR, but the dependency must remain explicit.
 
+## Stacked PRs under Hub-and-Orphan topology
+
+When operating in a repository using `hub-and-orphan` topology:
+
+1. **Intra-authority stacking**: Stacked PR sequences exist strictly *within* a single component authority's history. Each member branch in the stack is rooted in the component's authority orphan branch (e.g. `feat/<comp>-part1` branched from `<comp>`, `feat/<comp>-part2` branched from `feat/<comp>-part1`).
+2. **Cross-component independence**: Never create a single PR or Git commit branch that spans multiple component orphan histories. Unrelated authority branches share no common ancestor; cross-component dependencies must be expressed as explicit external candidate bindings (such as candidate commit SHAs or pins in schema/recipe contracts), not Git ancestry.
+3. **Landing and projection advance**:
+   - Each component stack lands base-to-tip into its respective component authority orphan branch.
+   - After component authority branches advance to their target landing heads, the hub projection (`main`) is updated via submodule pointer advances (`authority-to-hub`).
+   - The hub branch is never mutated to land intermediate, unmerged component candidate commits.
+
 ## Stability frontier
 
 Track a practical stability frontier through the ordered stack. A member is at the stability frontier when, based on currently known work, no further head change is planned unless a new material defect, authority decision, scope correction, conflict, or other justified mutation appears. This is a planning state for controlling descendant churn. It does not mean the member is merged, reviewed, approved, immutable forever, or independently merge-ready.
