@@ -2,7 +2,7 @@
   "schema_version": 2,
   "projection_id": "composition-playground-v1",
   "intent_projection_id": "composition-playground-intent-v1",
-  "semantic_revision": "10c527c0540968538359b1e9bffaba9896f071f9",
+  "semantic_revision": "c53b5842e40cec5c1c5a800eb867c89fe9b46a7f",
   "semantic_objects": {
     "catalog": "d074528133f83610b6e6a7177e958c1f2bca4672",
     "recipes": "f05746cc0dbde26114742b30282a09d6a3d27415",
