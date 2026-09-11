@@ -118,7 +118,7 @@
     },
     "id": {
       "type": "string",
-      "pattern": "^(foundation|artifact|capability|lifecycle)\\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+      "pattern": "^(foundation|artifact|capability|lifecycle|topology)\\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
     },
     "version": {
       "type": "integer",
@@ -133,7 +133,7 @@
       "uniqueItems": true,
       "items": {
         "type": "string",
-        "pattern": "^(foundation|artifact|capability|lifecycle)\\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+        "pattern": "^(foundation|artifact|capability|lifecycle|topology)\\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
       }
     },
     "conflicts": {
@@ -141,7 +141,7 @@
       "uniqueItems": true,
       "items": {
         "type": "string",
-        "pattern": "^(foundation|artifact|capability|lifecycle)\\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+        "pattern": "^(foundation|artifact|capability|lifecycle|topology)\\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
       }
     },
     "contract_registrations": {
@@ -213,7 +213,8 @@
         "foundation",
         "artifact",
         "capability",
-        "lifecycle"
+        "lifecycle",
+        "topology"
       ]
     }
   },
@@ -233,6 +234,20 @@
         "properties": {
           "id": {
             "pattern": "^artifact\\."
+          },
+          "requires": {
+            "items": {
+              "not": {
+                "pattern": "^topology\\."
+              }
+            }
+          },
+          "conflicts": {
+            "items": {
+              "not": {
+                "pattern": "^topology\\."
+              }
+            }
           }
         }
       }
@@ -252,6 +267,20 @@
         "properties": {
           "id": {
             "pattern": "^capability\\."
+          },
+          "requires": {
+            "items": {
+              "not": {
+                "pattern": "^artifact\\."
+              }
+            }
+          },
+          "conflicts": {
+            "items": {
+              "not": {
+                "pattern": "^artifact\\."
+              }
+            }
           }
         }
       }
@@ -271,6 +300,53 @@
         "properties": {
           "id": {
             "pattern": "^lifecycle\\."
+          },
+          "requires": {
+            "items": {
+              "not": {
+                "pattern": "^artifact\\."
+              }
+            }
+          },
+          "conflicts": {
+            "items": {
+              "not": {
+                "pattern": "^artifact\\."
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "component_role": {
+            "const": "topology"
+          }
+        },
+        "required": [
+          "component_role"
+        ]
+      },
+      "then": {
+        "properties": {
+          "id": {
+            "pattern": "^topology\\."
+          },
+          "requires": {
+            "items": {
+              "not": {
+                "pattern": "^artifact\\."
+              }
+            }
+          },
+          "conflicts": {
+            "items": {
+              "not": {
+                "pattern": "^artifact\\."
+              }
+            }
           }
         }
       }

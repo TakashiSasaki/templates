@@ -6,14 +6,14 @@
   "semantic_objects": {
     "catalog": "d074528133f83610b6e6a7177e958c1f2bca4672",
     "recipes": "f05746cc0dbde26114742b30282a09d6a3d27415",
-    "components": "2d988c098f01d45d729e64120d79e03da482b5ee",
-    "schemas/catalog.schema.json": "d18a8192e978a13808b54b40c364c591caefcc05",
-    "schemas/component.schema.json": "7d0998d60aa192c0a680523d4c016fa50e104e73",
-    "schemas/recipe.schema.json": "6626d472b57344ba8a6f149d8f4c90ede85ca505",
-    "schemas/composition-config.schema.json": "6085dde5f0cefa67b8f74ab5df79c080f26be9b3",
-    "schemas/composition-playground-projection.schema.json": "d928a53c93d0ce540d2d0b474eefe6a746c7fdba",
+    "components": "520686f578db25d4365956973bebb5edcefca484",
+    "schemas/catalog.schema.json": "9290bb5f191168b2e536f95a9cd3090bbe7130a5",
+    "schemas/component.schema.json": "36c70b846e39c89b6afa8a1ea4931e0c1ec887b3",
+    "schemas/recipe.schema.json": "8515cd9281fc9e06c6ad38c6101d129906f9407a",
+    "schemas/composition-config.schema.json": "b912af02ebcb0d61fde127695587fc09e4788ec1",
+    "schemas/composition-playground-projection.schema.json": "8224587909d6e7207723089aaaf071cc528a8139",
     "scripts/composer_core.py": "ccfc0e00b40ae42c92f2b6b1ce30a1b0899441a8",
-    "scripts/composer_core_impl.py": "5d3a80926aa21e7ac59f9703effeae38eee5ffbe",
+    "scripts/composer_core_impl.py": "eaa29fc9e25c3d7a48c4059b7acdc7d0f1b59abc",
     "scripts/generate_composition_playground.py": "c2aff6c7cf2cf7d1975d2003d3e0399144888367"
   },
   "assets": [

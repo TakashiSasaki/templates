@@ -132,9 +132,9 @@ python scripts/compose.py inspect --target /repo
 }
 ```
 
-`recipe` は production recipe を選択します。`components.include` / `exclude` は exposed `capability.*` / `lifecycle.*` を指定できます。set は disjoint、required component は exclude 不可、dependency closure に excluded component を含められません。
+`recipe` は production recipe を選択します。`components.include` / `exclude` は exposed `capability.*` / `lifecycle.*` / `topology.*` を指定できます。set は disjoint、required component は exclude 不可、dependency closure に excluded component を含められません。resolved composition で選択できる `topology.*` component は高々1つです。
 
-`parameters` は selected component ID を key とする object です。現在の production revision では parameter-specific materialization behavior はありませんが、parameter object は lock-v2 intent に normalize されるため変更には explicit `upgrade` が必要です。
+`parameters` は selected `artifact.*` / `capability.*` / `lifecycle.*` / `topology.*` component ID を key とする object です。現在の production revision では parameter-specific materialization behavior はありませんが、parameter object は lock-v2 intent に normalize されるため変更には explicit `upgrade` が必要です。
 
 ## Lock schema v2
 

@@ -34,7 +34,7 @@
       "uniqueItems": true,
       "items": {
         "type": "string",
-        "pattern": "^(capability|lifecycle)\\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+        "pattern": "^(capability|lifecycle|topology)\\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
       }
     },
     "default_components": {
@@ -42,7 +42,7 @@
       "uniqueItems": true,
       "items": {
         "type": "string",
-        "pattern": "^(capability|lifecycle)\\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+        "pattern": "^(capability|lifecycle|topology)\\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
       }
     },
     "optional_components": {
@@ -50,7 +50,7 @@
       "uniqueItems": true,
       "items": {
         "type": "string",
-        "pattern": "^(capability|lifecycle)\\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+        "pattern": "^(capability|lifecycle|topology)\\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
       }
     }
   }

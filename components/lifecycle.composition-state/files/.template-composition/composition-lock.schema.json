@@ -60,7 +60,7 @@
               "uniqueItems": true,
               "items": {
                 "type": "string",
-                "pattern": "^(capability|lifecycle)\\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+                "pattern": "^(capability|lifecycle|topology)\\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
               }
             },
             "exclude": {
@@ -68,7 +68,7 @@
               "uniqueItems": true,
               "items": {
                 "type": "string",
-                "pattern": "^(capability|lifecycle)\\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+                "pattern": "^(capability|lifecycle|topology)\\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
               }
             }
           }
@@ -76,7 +76,7 @@
         "parameters": {
           "type": "object",
           "propertyNames": {
-            "pattern": "^(artifact|capability|lifecycle)\\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+            "pattern": "^(artifact|capability|lifecycle|topology)\\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
           },
           "additionalProperties": {
             "type": "object"
@@ -110,6 +110,24 @@
       },
       "minContains": 1,
       "maxContains": 1,
+      "allOf": [
+        {
+          "contains": {
+            "type": "object",
+            "required": [
+              "id"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^topology\\."
+              }
+            }
+          },
+          "minContains": 0,
+          "maxContains": 1
+        }
+      ],
       "items": {
         "type": "object",
         "additionalProperties": false,
@@ -121,7 +139,7 @@
         "properties": {
           "id": {
             "type": "string",
-            "pattern": "^(foundation|artifact|capability|lifecycle)\\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+            "pattern": "^(foundation|artifact|capability|lifecycle|topology)\\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
           },
           "version": {
             "type": "integer",
@@ -154,7 +172,7 @@
           },
           "component": {
             "type": "string",
-            "pattern": "^(foundation|artifact|capability|lifecycle)\\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+            "pattern": "^(foundation|artifact|capability|lifecycle|topology)\\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
           },
           "ownership": {
             "enum": [
