@@ -75,6 +75,11 @@ PWA_EXACT_PATHS = frozenset(
     {
         "assets/service-worker.js",
         "assets/javascripts/pwa.js",
+        "assets/app.webmanifest",
+        "assets/icon-180.png",
+        "assets/icon-192.png",
+        "assets/icon-512.png",
+        "assets/icon.svg",
         "service-worker.js",
         "scripts/check_pwa_freshness.py",
         "scripts/check_pwa_capabilities.py",
@@ -89,11 +94,21 @@ PWA_EXACT_PATHS = frozenset(
 )
 PWA_PREFIXES = ("tests/test_pwa_",)
 
+# Core-only surfaces that only affect fast L1 unit/contract test execution.
+CORE_ONLY_EXACT_PATHS = frozenset(
+    {
+        "scripts/run_core_tests.py",
+        "tests/test_run_core_tests.py",
+    }
+)
+CORE_ONLY_PREFIXES: tuple[str, ...] = ()
+
 # Browser, visual layout, CSS, JS, and search-sensitive surfaces.
 BROWSER_EXACT_PATHS = frozenset(
     {
         "zensical.template.toml",
         "requirements-visual.txt",
+        "assets/site-chrome-locales.json",
         "scripts/check_mobile_layout.py",
         "scripts/check_mobile_layout_core.py",
         "scripts/check_glossary_locale_chrome.py",
@@ -111,6 +126,7 @@ BROWSER_EXACT_PATHS = frozenset(
 BROWSER_PREFIXES = (
     "assets/javascripts/",
     "assets/stylesheets/",
+    "assets/images/",
     "stylesheets/",
     "javascripts/",
     "scripts/check_composition_playground_",
@@ -118,6 +134,59 @@ BROWSER_PREFIXES = (
     "tests/test_search_",
     "tests/test_system_chrome_",
     "tests/composition-playground",
+)
+
+# Known site build and generator surfaces.
+BUILD_EXACT_PATHS = frozenset(
+    {
+        "requirements.txt",
+        "site-manifest.json",
+        "reader-navigation-locales.json",
+        "reference-consumer.json",
+        "assets/agent.json",
+        "assets/schemas/agent-bootstrap.schema.json",
+        "scripts/assemble_publications.py",
+        "scripts/check_public_url_boundary.py",
+        "scripts/check_repository_browser_filter.py",
+        "scripts/finalize_glossary_annotations.py",
+        "scripts/finalize_guided_locales.py",
+        "scripts/finalize_site_metadata.py",
+        "scripts/finalize_translation_reader.py",
+        "scripts/generate_agent_bootstrap.py",
+        "scripts/generate_freshness_metadata.py",
+        "scripts/generate_glossary.py",
+        "scripts/generate_glossary_viewer.py",
+        "scripts/generate_index_navigation.py",
+        "scripts/generate_index_navigation_base.py",
+        "scripts/generate_index_navigation_locale_viewer.py",
+        "scripts/generate_index_navigation_locales.py",
+        "scripts/generate_index_navigation_viewer.py",
+        "scripts/generate_repository_browser.py",
+        "scripts/generate_repository_browser_composition.py",
+        "scripts/generate_repository_file_previews.py",
+        "scripts/generate_repository_file_previews_composition.py",
+        "scripts/generate_repository_trees.py",
+        "scripts/glossary.py",
+        "scripts/glossary_annotation.py",
+        "scripts/prepare_site_metadata.py",
+        "scripts/publish_translations.py",
+        "scripts/reader_navigation_locales.py",
+        "scripts/render_website_metadata.py",
+        "scripts/run_composition_navigation.py",
+        "scripts/site_build_profile.py",
+        "scripts/site_chrome_locales.py",
+        "scripts/translation_coverage.py",
+        "scripts/translation_fragment_reconciliation.py",
+        "scripts/translation_link_identity.py",
+        "scripts/translation_link_selection.py",
+        "scripts/translation_manifest.py",
+        "scripts/translation_reader_metadata.py",
+        "scripts/validate_site_links.py",
+        "scripts/validate_translation_pairs.py",
+        "scripts/validate_website_contracts.py",
+        "scripts/validate_website_evidence.py",
+        "scripts/website_evidence_targets.py",
+    }
 )
 
 # Publication, schema, and cross-authority integration surfaces.
@@ -309,15 +378,18 @@ def is_reference_consumer_path(path: str) -> bool:
     )
 
 
+def is_core_only_path(path: str) -> bool:
+    return path in CORE_ONLY_EXACT_PATHS or any(
+        path.startswith(prefix) for prefix in CORE_ONLY_PREFIXES
+    )
+
+
 def is_known_runtime_path(path: str) -> bool:
     return (
-        path.startswith("scripts/")
-        or path.startswith("tests/")
-        or path.startswith("contracts/")
-        or path.startswith("components/")
-        or path == "requirements.txt"
-        or path.startswith("requirements-")
-        or path == "site-manifest.json"
+        path in BUILD_EXACT_PATHS
+        or (path.startswith("schemas/") and path.endswith(".json"))
+        or (path.startswith("tests/test_") and path.endswith(".py"))
+        or path.startswith("tests/fixtures/")
     )
 
 
@@ -380,8 +452,10 @@ def classify_paths(
     # 2. Check for unknown paths -> fail closed
     def is_known(p: str) -> bool:
         return (
-            is_observability_path(p)
+            is_ci_control_path(p)
+            or is_observability_path(p)
             or is_doc_path(p)
+            or is_core_only_path(p)
             or is_pwa_path(p)
             or is_browser_path(p)
             or is_cross_authority_path(p)
@@ -446,6 +520,25 @@ def classify_paths(
             freshness_candidate_required=False,
         )
 
+    # 4b. Core-only validation paths
+    if all(is_core_only_path(p) or is_observability_path(p) or is_doc_path(p) for p in normalized) and any(is_core_only_path(p) for p in normalized):
+        return ClassificationDecision(
+            core_required=True,
+            build_required=False,
+            browser_required=False,
+            pwa_required=False,
+            reference_consumer_required=False,
+            cross_authority_required=False,
+            publication_required=False,
+            full_required=False,
+            coexistence_required=False,
+            risk_class="core-only",
+            reason="all changed paths are core-validation-only",
+            changed_count=changed_count,
+            requiring_paths=tuple(sorted(p for p in normalized if is_core_only_path(p))),
+            freshness_candidate_required=False,
+        )
+
     # 5. Mixed / Specific capability matching
     has_pwa = any(is_pwa_path(p) for p in normalized)
     has_browser = has_pwa or any(is_browser_path(p) for p in normalized)
@@ -476,7 +569,15 @@ def classify_paths(
         or any(is_known_runtime_path(p) for p in normalized)
     )
 
-    requiring = tuple(sorted(p for p in normalized if not is_observability_path(p) and not is_doc_path(p)))
+    requiring = tuple(
+        sorted(
+            p
+            for p in normalized
+            if not is_observability_path(p)
+            and not is_doc_path(p)
+            and not is_core_only_path(p)
+        )
+    )
 
     risk_class = "runtime-sensitive"
     if has_cross_auth:

@@ -366,6 +366,94 @@ class SiteCIClassifierTests(unittest.TestCase):
                 self.assertTrue(decision.freshness_candidate_required)
                 self.assertEqual("runtime-sensitive", decision.risk_class)
 
+    def test_known_core_only_scripts_skip_heavy_build_and_browser(self) -> None:
+        for path in ("scripts/run_core_tests.py", "tests/test_run_core_tests.py"):
+            with self.subTest(path=path):
+                decision = classify_paths([path])
+                self.assertTrue(decision.core_required)
+                self.assertFalse(decision.build_required)
+                self.assertFalse(decision.browser_required)
+                self.assertFalse(decision.pwa_required)
+                self.assertFalse(decision.reference_consumer_required)
+                self.assertFalse(decision.cross_authority_required)
+                self.assertFalse(decision.publication_required)
+                self.assertFalse(decision.full_required)
+                self.assertFalse(decision.coexistence_required)
+                self.assertFalse(decision.freshness_candidate_required)
+                self.assertEqual("core-only", decision.risk_class)
+
+    def test_known_build_only_scripts_require_build_but_skip_browser(self) -> None:
+        for script_path in (
+            "scripts/generate_repository_browser.py",
+            "scripts/generate_index_navigation.py",
+            "scripts/finalize_site_metadata.py",
+            "scripts/site_build_profile.py",
+        ):
+            with self.subTest(script=script_path):
+                decision = classify_paths([script_path])
+                self.assertTrue(decision.core_required)
+                self.assertTrue(decision.build_required)
+                self.assertFalse(decision.browser_required)
+                self.assertFalse(decision.pwa_required)
+                self.assertFalse(decision.publication_required)
+                self.assertFalse(decision.cross_authority_required)
+                self.assertFalse(decision.full_required)
+                self.assertTrue(decision.freshness_candidate_required)
+                self.assertEqual("runtime-sensitive", decision.risk_class)
+
+    def test_pwa_icon_assets_require_pwa_and_browser(self) -> None:
+        for icon_path in (
+            "assets/icon-180.png",
+            "assets/icon-192.png",
+            "assets/icon-512.png",
+            "assets/icon.svg",
+            "assets/app.webmanifest",
+        ):
+            with self.subTest(icon=icon_path):
+                decision = classify_paths([icon_path])
+                self.assertTrue(decision.core_required)
+                self.assertTrue(decision.build_required)
+                self.assertTrue(decision.browser_required)
+                self.assertTrue(decision.pwa_required)
+                self.assertFalse(decision.full_required)
+                self.assertEqual("pwa-sensitive", decision.risk_class)
+
+    def test_unknown_new_script_fails_closed_to_full(self) -> None:
+        decision = classify_paths(["scripts/new_generator.py"])
+        self.assertTrue(decision.full_required)
+        self.assertTrue(decision.build_required)
+        self.assertTrue(decision.browser_required)
+        self.assertTrue(decision.pwa_required)
+        self.assertTrue(decision.cross_authority_required)
+        self.assertTrue(decision.publication_required)
+        self.assertTrue(decision.coexistence_required)
+        self.assertEqual("unknown", decision.risk_class)
+        self.assertIn("unknown changed paths: scripts/new_generator.py", decision.reason)
+
+    def test_unknown_new_contract_fails_closed_to_full(self) -> None:
+        decision = classify_paths(["contracts/new-runtime.json"])
+        self.assertTrue(decision.full_required)
+        self.assertTrue(decision.build_required)
+        self.assertTrue(decision.browser_required)
+        self.assertTrue(decision.pwa_required)
+        self.assertTrue(decision.cross_authority_required)
+        self.assertTrue(decision.publication_required)
+        self.assertTrue(decision.coexistence_required)
+        self.assertEqual("unknown", decision.risk_class)
+        self.assertIn("unknown changed paths: contracts/new-runtime.json", decision.reason)
+
+    def test_unknown_top_level_file_fails_closed_to_full(self) -> None:
+        decision = classify_paths(["new-top-level-file.xyz"])
+        self.assertTrue(decision.full_required)
+        self.assertTrue(decision.build_required)
+        self.assertTrue(decision.browser_required)
+        self.assertTrue(decision.pwa_required)
+        self.assertTrue(decision.cross_authority_required)
+        self.assertTrue(decision.publication_required)
+        self.assertTrue(decision.coexistence_required)
+        self.assertEqual("unknown", decision.risk_class)
+        self.assertIn("unknown changed paths: new-top-level-file.xyz", decision.reason)
+
 
 if __name__ == "__main__":
     unittest.main()
