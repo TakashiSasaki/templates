@@ -25,18 +25,11 @@ class PublicationFreshnessWorkflowTests(unittest.TestCase):
             ["site", "codex/site-composition-playground-v1-shell"],
             pull_request["branches"],
         )
-        expected_paths = {
-            ".github/workflows/check-publication-freshness.yml",
-            ".github/workflows/build-pages.yml",
-            "PUBLICATION_FRESHNESS.md",
-            "publication-sources.json",
-            "site-manifest.json",
-            "scripts/**",
-            "tests/**",
-            "requirements.txt",
-            "zensical.template.toml",
-        }
-        self.assertEqual(expected_paths, set(pull_request["paths"]))
+        self.assertEqual(
+            ["opened", "synchronize", "reopened", "labeled"],
+            pull_request["types"],
+        )
+        self.assertNotIn("paths", pull_request)
         self.assertEqual("23 17 * * *", triggers["schedule"][0]["cron"])
         self.assertIn("workflow_dispatch", triggers)
 

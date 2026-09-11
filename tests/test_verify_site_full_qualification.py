@@ -36,6 +36,7 @@ def build_mock_hierarchy(
         if path in missing_workflow_paths:
             continue
         path_to_run_id[path] = i
+        created_at = "2026-09-11T10:00:00Z"
         runs.append({
             "id": i,
             "name": path.split("/")[-1].replace(".yml", ""),
@@ -43,6 +44,7 @@ def build_mock_hierarchy(
             "status": "completed",
             "conclusion": "success",
             "event": "pull_request",
+            "created_at": created_at,
             "html_url": f"https://github.com/TakashiSasaki/templates/actions/runs/{i}",
         })
         jobs_by_run_id[i] = []
@@ -388,6 +390,113 @@ class VerifySiteFullQualificationTests(unittest.TestCase):
         evals, missing = evaluate_suites("TakashiSasaki/templates", "0123456789abcdef", "token", cache)
         self.assertEqual("failed", evals["build"].state)
         self.assertIn((build_run_id, 2), cache)
+
+    @patch("scripts.verify_site_full_qualification.fetch_run_jobs")
+    @patch("scripts.verify_site_full_qualification.fetch_workflow_runs")
+    def test_historical_run_before_qualification_trigger_rejected_verifier_waits(
+        self, mock_runs, mock_jobs
+    ) -> None:
+        # All runs are created at 2026-09-11T09:00:00Z (historical, e.g. 1 hour old)
+        runs, jobs_by_id = build_mock_hierarchy()
+        for r in runs:
+            r["created_at"] = "2026-09-11T09:00:00Z"
+        mock_runs.return_value = runs
+        mock_jobs.side_effect = lambda repo, run_id, token: jobs_by_id.get(run_id, [])
+
+        stderr_capture = io.StringIO()
+        with patch("sys.stderr", stderr_capture):
+            result = verify_qualification(
+                repo="TakashiSasaki/templates",
+                head_sha="0123456789abcdef",
+                token="dummy",
+                qualification_trigger_time="2026-09-11T10:00:00Z",
+                timeout_seconds=0,
+                poll_interval_seconds=0,
+            )
+        self.assertEqual(1, result)
+        self.assertIn("Full Qualification TIMED OUT", stderr_capture.getvalue())
+
+    @patch("scripts.verify_site_full_qualification.fetch_run_jobs")
+    @patch("scripts.verify_site_full_qualification.fetch_workflow_runs")
+    def test_new_qualification_run_after_trigger_accepted_once_completed(
+        self, mock_runs, mock_jobs
+    ) -> None:
+        # All runs created after the trigger time (2026-09-11T10:01:00Z > 2026-09-11T10:00:00Z)
+        runs, jobs_by_id = build_mock_hierarchy()
+        for r in runs:
+            r["created_at"] = "2026-09-11T10:01:00Z"
+        mock_runs.return_value = runs
+        mock_jobs.side_effect = lambda repo, run_id, token: jobs_by_id.get(run_id, [])
+
+        result = verify_qualification(
+            repo="TakashiSasaki/templates",
+            head_sha="0123456789abcdef",
+            token="dummy",
+            qualification_trigger_time="2026-09-11T10:00:00Z",
+            timeout_seconds=1,
+            poll_interval_seconds=0,
+        )
+        self.assertEqual(0, result)
+
+    @patch("scripts.verify_site_full_qualification.fetch_run_info")
+    @patch("scripts.verify_site_full_qualification.fetch_run_jobs")
+    @patch("scripts.verify_site_full_qualification.fetch_workflow_runs")
+    def test_qualification_run_id_derives_trigger_epoch_with_tolerance(
+        self, mock_runs, mock_jobs, mock_info
+    ) -> None:
+        # Qualification runner run ID has created_at 2026-09-11T10:00:00Z
+        # Sibling runs created at 2026-09-11T09:59:30Z (within 60s tolerance) should be accepted
+        # Stale run from 2026-09-11T08:00:00Z should be rejected
+        mock_info.return_value = {"id": 12345, "created_at": "2026-09-11T10:00:00Z"}
+
+        runs, jobs_by_id = build_mock_hierarchy()
+        for r in runs:
+            r["created_at"] = "2026-09-11T09:59:30Z"
+        # Make one workflow run ancient (stale)
+        for r in runs:
+            if r["path"] == ".github/workflows/validate-website.yml":
+                r["created_at"] = "2026-09-11T08:00:00Z"
+
+        mock_runs.return_value = runs
+        mock_jobs.side_effect = lambda repo, run_id, token: jobs_by_id.get(run_id, [])
+
+        stderr_capture = io.StringIO()
+        with patch("sys.stderr", stderr_capture):
+            result = verify_qualification(
+                repo="TakashiSasaki/templates",
+                head_sha="0123456789abcdef",
+                token="dummy",
+                qualification_run_id=12345,
+                timeout_seconds=0,
+                poll_interval_seconds=0,
+            )
+        self.assertEqual(1, result)
+        self.assertIn("Full Qualification TIMED OUT", stderr_capture.getvalue())
+        self.assertIn("Validate website contract", stderr_capture.getvalue())
+
+    @patch("scripts.verify_site_full_qualification.fetch_run_jobs")
+    @patch("scripts.verify_site_full_qualification.fetch_workflow_runs")
+    def test_min_run_id_filters_older_runs(
+        self, mock_runs, mock_jobs
+    ) -> None:
+        runs, jobs_by_id = build_mock_hierarchy()
+        # All runs in build_mock_hierarchy start from id=1000
+        # If min_run_id=1005, runs with id < 1005 are excluded
+        mock_runs.return_value = runs
+        mock_jobs.side_effect = lambda repo, run_id, token: jobs_by_id.get(run_id, [])
+
+        stderr_capture = io.StringIO()
+        with patch("sys.stderr", stderr_capture):
+            result = verify_qualification(
+                repo="TakashiSasaki/templates",
+                head_sha="0123456789abcdef",
+                token="dummy",
+                min_run_id=1005,
+                timeout_seconds=0,
+                poll_interval_seconds=0,
+            )
+        self.assertEqual(1, result)
+        self.assertIn("Full Qualification TIMED OUT", stderr_capture.getvalue())
 
 
 if __name__ == "__main__":
