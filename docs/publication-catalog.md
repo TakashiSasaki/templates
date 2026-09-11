@@ -93,17 +93,18 @@ The glossary file is encoded as strict JSON, which is a valid YAML 1.2 subset. T
 
 ## Local validation
 
-The reviewed shared protocol is not copied into Composition. To reproduce CI, obtain `scripts/publication_contract.py` from Site commit `3ae5d1e60c65e7a8ebf5f9af0436044484e42983` in a separate checkout and point Composition at that checkout:
+The reviewed shared protocol is not copied into Composition. To reproduce CI, obtain `scripts/publication_contract.py` from Site commit `3ae5d1e60c65e7a8ebf5f9af0436044484e42983` in a separate checkout and point Composition at that checkout. On a fresh Composition checkout, materialize the provider-owned generated publication assets before running either publication validator:
 
 ```sh
 export SITE_PUBLICATION_PROTOCOL_ROOT=/path/to/reviewed-site-protocol-checkout
+python -I scripts/materialize_publication.py --source-root .
 python -I "$SITE_PUBLICATION_PROTOCOL_ROOT/scripts/publication_contract.py" --source-root .
 python -I scripts/validate_publication.py
 python -I scripts/verify_composition_skill_installer_release.py --git-ref HEAD
 python -m unittest discover -s tests -v
 ```
 
-The Site-owned step validates the generic schema-v3 publication protocol. `scripts/validate_publication.py` then dynamically loads that same reviewed module to consume its validated `PublicationCatalog` object and applies only Composition-owned declarations, Markdown classification, reader/machine authority coverage, and glossary semantics. The installer-release verifier independently binds publication metadata back to immutable Git history.
+The Composition-owned materialization step creates the declared generated publication assets from canonical provider state. The Site-owned step then validates the generic schema-v3 publication protocol. `scripts/validate_publication.py` dynamically loads that same reviewed module to consume its validated `PublicationCatalog` object and applies only Composition-owned declarations, Markdown classification, reader/machine authority coverage, and glossary semantics. The installer-release verifier independently binds publication metadata back to immutable Git history.
 
 A pin update must be deliberate and reviewed. Composition CI must continue to use a 40-character full commit SHA and must not silently follow `site`, a tag, or a pull-request merge ref.
 
