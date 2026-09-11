@@ -7,7 +7,7 @@
   "authorities": {
     "composition": {
       "role": "artifact-capability-lifecycle-semantics",
-      "publication_revision": "a739b3823660e3db742ff0e1e159d279126cba7c",
+      "publication_revision": "f4049bd5dcdbf12e8cbd668f7017a344c0bcb19f",
       "overview_document_id": "composition:overview",
       "publication_catalog_path": "docs/publication-catalog.json"
     },
@@ -58,7 +58,7 @@
     }
   },
   "composition": {
-    "publication_revision": "a739b3823660e3db742ff0e1e159d279126cba7c",
+    "publication_revision": "f4049bd5dcdbf12e8cbd668f7017a344c0bcb19f",
     "installer": {
       "repository": "TakashiSasaki/templates",
       "revision": "60bb93751f0163d7c523a06a32c2fefb562ee7e3",
