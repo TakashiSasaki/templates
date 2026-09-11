@@ -370,15 +370,14 @@ def normalized_public_path(encoded_path: str) -> str:
     return _remove_dot_segments_preserving_empty(decoded_path)
 
 
+CONTENT_ID_RE = re.compile(r'\bid\s*=\s*["\']([^"\']+)["\']', re.IGNORECASE)
+
+
 def parse_page(path: Path, site_root: Path, base_url: str) -> HtmlPage:
     try:
         text = path.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError) as exc:
         raise SiteLinkError(f"Unable to read generated HTML {path}: {exc}") from exc
-
-    parser = PageParser()
-    parser.feed(text)
-    parser.close()
 
     relative_path = PurePosixPath(path.relative_to(site_root).as_posix())
     base_parts = urlsplit(base_url)
@@ -386,6 +385,36 @@ def parse_page(path: Path, site_root: Path, base_url: str) -> HtmlPage:
     public_url = urlunsplit(
         (base_parts.scheme, base_parts.netloc, public_path, "", "")
     )
+
+    parts = relative_path.parts
+    # Fast path for leaf file preview HTML documents: they contain no outgoing links
+    # and no anchor targets referenced across pages.
+    if len(parts) >= 2 and parts[:2] == ("repository-trees", "previews"):
+        return HtmlPage(
+            path=path,
+            relative_path=relative_path,
+            public_url=public_url,
+            ids=frozenset(),
+            links=(),
+        )
+
+    # Fast path for immutable repository source viewers: all links inside <main>
+    # are local line number anchors (#L<num>) which are skipped by link validation.
+    # We extract all id attributes structurally via regex to satisfy target anchor
+    # resolution without invoking full HTMLParser tokenization across megabytes of code.
+    if len(parts) == 4 and parts[0] == "files" and parts[2] == "content":
+        extracted_ids = frozenset(CONTENT_ID_RE.findall(text))
+        return HtmlPage(
+            path=path,
+            relative_path=relative_path,
+            public_url=public_url,
+            ids=extracted_ids,
+            links=(),
+        )
+
+    parser = PageParser()
+    parser.feed(text)
+    parser.close()
     return HtmlPage(
         path=path,
         relative_path=relative_path,

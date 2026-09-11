@@ -287,6 +287,10 @@ def head_close_offset(source: str, path: Path) -> int:
     )
 
 
+HEAD_START_PATTERN = re.compile(r"<head\b", re.IGNORECASE)
+HEAD_CLOSE_PATTERN = re.compile(r"</head\s*>", re.IGNORECASE)
+
+
 def _annotate_site_revision_structurally(
     source: str,
     revision: str,
@@ -295,6 +299,44 @@ def _annotate_site_revision_structurally(
     """Annotate one document and return its parsed freshness contract."""
     revision = validate_revision(revision, "site")
 
+    # Fast structural boundary scan: when exactly one closing </head> tag exists
+    # and no further <head> tag appears, feed only the head prefix to HTMLParser.
+    head_close_matches = list(HEAD_CLOSE_PATTERN.finditer(source))
+    if len(head_close_matches) == 1 and not HEAD_START_PATTERN.search(
+        source[head_close_matches[0].end():]
+    ):
+        head_sub = source[: head_close_matches[0].end()]
+        parser = FreshnessDocumentParser()
+        parser.feed(head_sub)
+        parser.close()
+        # Verify parser saw the head boundaries within the prefix
+        if len(parser.head_starts) == 1 and len(parser.head_ends) == 1:
+            head_end = parsed_head_close_offset(
+                head_sub,
+                path,
+                parser.head_starts,
+                parser.head_ends,
+            )
+            metas = revision_metas(parser.metas)
+            if len(metas) > 1:
+                raise FreshnessMetadataError(
+                    f"{path}: expected at most one {SITE_REVISION_META_NAME} meta element"
+                )
+            if metas:
+                if metas[0].get("content") != revision:
+                    raise FreshnessMetadataError(
+                        f"{path}: existing {SITE_REVISION_META_NAME} metadata conflicts with build revision"
+                    )
+                return source, metas, head_end
+
+            tag = (
+                f'<meta name="{SITE_REVISION_META_NAME}" '
+                f'content="{html.escape(revision, quote=True)}">\n'
+            )
+            updated = source[:head_end] + tag + source[head_end:]
+            return updated, [{"name": SITE_REVISION_META_NAME, "content": revision}], head_end
+
+    # Complete document fallback for ambiguous or malformed head structures
     parser = FreshnessDocumentParser()
     parser.feed(source)
     parser.close()
