@@ -128,3 +128,115 @@ This distinction supports three useful execution modes without weakening accepta
 Applicability decisions should be observable. Record the candidate/base bindings, classification mode, verification classes selected or omitted, and stable reasons for those decisions. These records are operational evidence and diagnostics, not new acceptance gates. An explicit repository-controlled full-verification checkpoint may override a selective result when broader qualification is desired.
 
 For pull-request-driven repositories, avoid duplicate automatic qualification when the same candidate would otherwise be validated once for a feature-branch push and again for the pull-request event without any change in the candidate. A repository may reserve push-triggered full qualification for its authority branch while using pull-request-triggered qualification for proposed changes, provided required checks remain observable on the proposed exact head and direct authority-branch changes still receive the required verification.
+
+## Qualification evidence applicability and reuse during stacked landing
+
+When landing stacked pull requests base-to-tip sequentially, mechanical full CI reruns on each member after each merge introduce significant latency and resource waste. Policy establishes the canonical principle governing evidence validity during stacked landing:
+
+> **Merge progression does not itself invalidate qualification evidence. A change to the qualified candidate state or to an evidence binding does.**
+
+This principle ensures that existing verification evidence is rigorously evaluated for continued applicability to the current candidate. If evidence remains valid, it is reused; if it has become invalid, only the affected validations are reacquired.
+
+### Qualification applicability check
+
+Before scheduling new CI or validation runs during stacked landing, evaluate existing qualification evidence against the candidate. The applicability check compares at least:
+
+1. **Qualification candidate**: the logical candidate revision and its role.
+2. **Current head**: the current commit SHA of the proposed branch.
+3. **Effective tree identity**: the Git tree SHA of the candidate worktree.
+4. **Base evolution**: whether the target base moved and how the base was integrated.
+5. **Validation-run bound identity**: the specific candidate identity, comparison inputs, and environment to which the validation run was bound.
+6. **Exact-head and exact-tree bindings**: whether the check required exact-commit or exact-tree equivalence.
+7. **Provider revision**: the revision of external or host provider integrations.
+8. **Cross-authority revision**: the revision of referenced external authority repositories.
+9. **Generated or materialized state**: whether generated outputs, projections, or schemas match the source definition.
+10. **Dependency, lockfile, and toolchain identity**: whether dependency specifications, locked packages, or compiler/runtime toolchains changed.
+11. **Validation workflow identity**: whether `.github/workflows/**` or underlying test scripts were modified.
+12. **Repository required-check policy**: whether branch protection, rulesets, or required merge-result checks enforce mandatory fresh execution.
+
+The applicability check produces one of three distinct outcomes:
+
+| Outcome | Meaning | Action |
+| --- | --- | --- |
+| **`applicable`** | The effective candidate tree and all required evidence bindings are intact and unchanged. | Reuse the existing qualification evidence without re-executing CI. |
+| **`stale`** | A tree change, conflict resolution, binding breach, or dependency/workflow modification invalidated the check. | Invalidate the affected evidence and selectively reacquire only the necessary validation. |
+| **`unknown`** | Applicability cannot be verified with certainty or bindings are ambiguous. | **Fail closed**: treat evidence as stale and reacquire. Unknown is never treated as applicable (unknown must never be treated as applicable). |
+
+### Conditions for evidence reuse
+
+Existing qualification evidence may be reused when all of the following conditions are satisfied:
+
+- The effective candidate tree is identical to the qualified candidate tree.
+- No conflict resolution occurred during ancestor landing or rebase.
+- Generated or materialized output is unchanged.
+- Dependencies, lockfiles, and toolchain definitions are unchanged.
+- The validation workflow identity is unchanged.
+- Provider and cross-authority revisions are unchanged.
+- Exact-head, exact-tree, and all other bindings required by the evidence continue to hold.
+- Repository provider rulesets, branch protection, or required merge-result policies do not mandate a fresh check.
+
+### Concrete invalidation triggers
+
+Qualification evidence is marked `stale` upon any of the following events:
+
+- **Conflict resolution**: any non-trivial or content-modifying merge or rebase resolution.
+- **Effective tree change**: any difference in the resulting Git tree object.
+- **Generated or materialized output change**: any delta in generated files, documentation builds, or lockfiles.
+- **Dependency, lockfile, or toolchain change**: any modification to dependencies, package versions, or build environments.
+- **Validation workflow change**: changes to the workflow or script definitions that generated the evidence.
+- **Provider revision change**: updates to external provider plugins, actions, or hosting configurations.
+- **Cross-authority revision change**: changes in referenced authority branches or submodules.
+- **Breach of exact-head, exact-tree, or immutable bindings**: invalidation of explicit constraints demanded by the check.
+- **Qualification input change**: any modification to inputs declared by the validation contract.
+
+### History-only changes
+
+History-only evolution—including ancestor pull-request landing, history-only rebases, tree-identical head movement, and commit-graph restructuring—does not automatically invalidate qualification evidence solely because the commit SHA changed. 
+
+However, if an evidence item explicitly binds to an exact commit SHA (for example, a cryptographic commit signature check, commit-message linter, or provenance binding that embeds the commit hash), that binding semantics must be respected. Tree identity alone does not waive explicit exact-commit bindings.
+
+### Selective invalidation vs full CI rerun
+
+When evidence becomes stale, **running the full validation or CI suite is not the default**. 
+
+The workflow must isolate the affected validation or binding and **rerun only what is required to restore qualification**. Unaffected validations whose bindings remain intact continue to be reused.
+
+### Review evidence boundary
+
+> **Reuse of qualification or CI evidence does not by itself imply reuse of review evidence. Review applicability continues to follow the repository's existing review policy.**
+
+Qualification evidence and review evidence serve distinct governance roles. Even when CI evidence remains applicable across tree-identical history evolution, merge-acceptance review requirements remain governed by the repository's review policy (such as `pull-request.require-independent-exact-head-review` and `pull-request.bind-review-result-classification-to-applicable-cycle-and-revision`).
+
+---
+
+### Acceptance scenarios and examples
+
+#### Case A — Ancestor merge, tree unchanged
+In an ordered stack `A -> B -> C`, candidate `C` had full integrated qualification CI completed prior to landing. Member `A` is merged into the base branch. Member `B`'s base is updated to the newly landed `A`. The effective candidate tree of `B` and its required evidence bindings are unchanged.
+- **Evaluation**: The ancestor merge alone does not invalidate `B`'s qualification evidence.
+- **Expected action**: Do not rerun the full CI suite on `B`. Reuse applicable qualification evidence and proceed.
+
+#### Case B — History changes, tree unchanged
+A stack member undergoes a history-only rebase or parent commit advance, resulting in a new commit SHA. However, the Git tree identity and all relevant evidence bindings are identical.
+- **Evaluation**: A commit SHA change alone does not trigger full requalification.
+- **Expected action**: Reuse applicable qualification evidence whose tree and context bindings hold. If an exact-commit binding exists (e.g. commit linting), rerun only that specific check.
+
+#### Case C — Conflict resolution
+Following ancestor landing, updating the next stack member requires conflict resolution that modifies files in the candidate tree.
+- **Evaluation**: The effective tree changed, invalidating previous qualification evidence bound to the prior tree.
+- **Expected action**: Mark the affected qualification evidence as stale. Reacquire the affected validation runs.
+
+#### Case D — Cross-authority or provider revision changes
+A candidate's local source tree appears unchanged, but an external provider revision or cross-authority binding (e.g. toolchain revision or submodule pointer) changed.
+- **Evaluation**: The cross-authority evidence binding is broken and marked stale.
+- **Expected action**: Rerun the corresponding cross-authority integration validation without running unrelated unaffected suites.
+
+#### Case E — Validation workflow changed
+The pull request modifies `.github/workflows/ci.yml` or the classifier script that generates the evidence.
+- **Evaluation**: Evidence generated by the previous workflow definition cannot be reused to qualify the new workflow.
+- **Expected action**: Mark prior evidence stale and execute the updated validation workflow.
+
+#### Case F — Repository provider requires fresh merge-result check
+Repository branch protection or ruleset configuration enforces required status checks evaluated specifically on the fresh merge commit or head ref before merge authorization.
+- **Evaluation**: Hosting platform enforcement takes precedence over policy reuse optimizations.
+- **Expected action**: Execute the required checks mandated by the platform ruleset to satisfy the provider merge gate.
