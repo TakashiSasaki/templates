@@ -63,6 +63,7 @@
 - [MCP transport guidance](../../../components/capability.mcp/files/docs/mcp-transports.md) — stdio と Streamable HTTP の guidance を説明します。
 - [MCP Apps extension](../../../components/capability.mcp-apps/files/MCP_APPS.md) — Host/View bridge、resources、sandbox、fallback contract を説明します。
 - [MCP Apps guidance](../../../components/capability.mcp-apps/files/docs/mcp-apps.md) — MCP Apps の implementation guidance を説明します。
+- [WebMCP browser capability](../../../components/capability.webmcp/files/WEBMCP.md) — canonical な browser-exposed MCP capability contract、selection boundary、runtime behavior、security expectation を説明します。
 - [Standalone browser interface](../../../components/capability.web-interface/files/WEB_INTERFACE.md) — browser-facing routing、security、health、failure semantics を説明します。
 - [Headless service interface](../../../components/capability.service/files/SERVICE_INTERFACE.md) — non-browser service behavior、health、security、lifecycle を説明します。
 
