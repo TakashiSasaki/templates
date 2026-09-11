@@ -1,3 +1,4 @@
+<!-- agent-policy-generated: true -->
 # Repository topology discovery and fail-closed operational procedure
 
 This reference defines the authoritative operational procedure for discovering repository topology before mutation, planning, or PR orchestration.
