@@ -31,7 +31,7 @@
   const PROJECTION_ID = "composition-playground-v1";
   const BUILD_PROVENANCE_SCHEMA_VERSION = 2;
   const FULL_SHA = /^[0-9a-f]{40}$/;
-  const COMPONENT_ROLES = Object.freeze(["foundation", "artifact", "capability", "lifecycle"]);
+  const COMPONENT_ROLES = Object.freeze(["foundation", "artifact", "capability", "lifecycle", "topology"]);
   const EXPECTED_REASON_BITS = Object.freeze({
     recipe_artifact: 1,
     recipe_required: 2,
@@ -124,7 +124,7 @@
   }
 
   function componentId(value, name) {
-    if (typeof value !== "string" || !/^(foundation|artifact|capability|lifecycle)\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(value)) {
+    if (typeof value !== "string" || !/^(foundation|artifact|capability|lifecycle|topology)\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(value)) {
       throw new ProjectionError("MALFORMED_PROJECTION", `${name} must be a valid component id`);
     }
     return value;
