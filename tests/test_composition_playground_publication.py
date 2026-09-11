@@ -26,7 +26,7 @@ CLASSIFICATION = ROOT / "docs" / "publication-classification.json"
 DOCS_INDEX = ROOT / "docs" / "index.md"
 SCHEMA_VALIDATION = ROOT / ".github" / "workflows" / "schema-validation.yml"
 REFERENCE_CONSUMER_PUBLICATION = ROOT / ".github" / "workflows" / "reference-consumer-publication.yml"
-EXPECTED_SITE_COMPATIBILITY_REVISION = "9a8b7e0e029ef439b84e630ee6937f7d24ee3eea"
+EXPECTED_SITE_COMPATIBILITY_REVISION = "961014d00cb28f5cc3ee5e162b6eae4323df470a"
 
 
 class CompositionPlaygroundPublicationTests(unittest.TestCase):
