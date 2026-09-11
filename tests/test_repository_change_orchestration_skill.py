@@ -24,6 +24,7 @@ def test_orchestration_skill_is_generated_and_renderable() -> None:
         "references/human-handoff.md",
         "references/work-ledger.md",
         "references/repository-tracked-work-ledger.md",
+        "references/repository-topology-discovery.md",
         "references/generated-artifact-transport.md",
         "references/staged-ci-execution.md",
         "references/review-finding-ledger.md",

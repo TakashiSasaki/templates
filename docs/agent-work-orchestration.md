@@ -208,3 +208,9 @@ Repository-tracked storage is permitted only when it is independently addressabl
 Resume by discovering the adopted backend and its canonical checkpoint, resolving the live operational-ref binding when repository-tracked storage is selected, refreshing affected provider bindings, choosing the next safe action, performing useful work, and checkpointing material changes on the selected canonical operational surface. Preserve semantic progress separately from final qualification. Link the existing review-finding ledger instead of duplicating finding dispositions or closure evidence. Provider facts and existing acceptance procedures retain authority.
 
 This procedure source can be developed independently of the repository's pinned self-host toolchain. Source changes do not silently promote the runtime or regenerate a consumer from an unreviewed candidate. Repository-tracked operational storage itself also remains opt-in; support in Policy is not adoption by a consumer.
+
+## Repository topology discovery
+
+Before planning or executing repository changes, the agent must discover and validate the repository topology using `contracts/repository-topology.json` (see `skills/orchestrate-repository-change/references/repository-topology-discovery.md`).
+
+When an explicit topology such as `hub-and-orphan` is defined, the agent must fail closed upon any contract violation, branch-to-mount mismatch, or direct mutation attempt on the hub projection branch. Mutations must target component authority orphan branches, with hub projections updated only after component authority advances.
