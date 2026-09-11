@@ -5,6 +5,7 @@ on:
     branches:
       - codex/site-composition-playground-v1-shell
       - site
+      - 'feat/site-*'
     types:
       - opened
       - synchronize

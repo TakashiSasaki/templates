@@ -61,6 +61,46 @@
       "snapshotPath": "artifacts/lifecycle/006-webmcp-reader-publication-product",
       "manifestSha256": "2b434f5636675eeacc0d6c4a9676f68a64c953abfada439b1306449ed31ea2a1",
       "recordedAt": "2026-09-07T06:58:33.856899Z"
+    },
+    {
+      "id": "topology-publication-remediation",
+      "sequence": 7,
+      "phase": "planning",
+      "changeKind": "specification-change",
+      "parentId": "webmcp-reader-publication-product",
+      "snapshotPath": "artifacts/lifecycle/007-topology-publication-remediation",
+      "manifestSha256": "5e2203e246437b1ff536430db4e042b403dab7c757b35c2a88447fbfda80c287",
+      "recordedAt": "2026-09-11T23:43:59.555231Z"
+    },
+    {
+      "id": "topology-publication-remediation-product",
+      "sequence": 8,
+      "phase": "product",
+      "changeKind": "specification-change",
+      "parentId": "topology-publication-remediation",
+      "snapshotPath": "artifacts/lifecycle/008-topology-publication-remediation-product",
+      "manifestSha256": "3c10eceba4ada27893a6868a7fe9188ce02aab90e8cd641c68237d67cf9f94b8",
+      "recordedAt": "2026-09-11T23:44:34.964249Z"
+    },
+    {
+      "id": "topology-consumer-overview-remediation",
+      "sequence": 9,
+      "phase": "planning",
+      "changeKind": "specification-change",
+      "parentId": "topology-publication-remediation-product",
+      "snapshotPath": "artifacts/lifecycle/009-topology-consumer-overview-remediation",
+      "manifestSha256": "acdd54017dd8e0ca560cf1e91d25b3124953ea07b00faa49fe1d3f3cde7543ce",
+      "recordedAt": "2026-09-11T23:46:47.317709Z"
+    },
+    {
+      "id": "topology-consumer-overview-remediation-product",
+      "sequence": 10,
+      "phase": "product",
+      "changeKind": "specification-change",
+      "parentId": "topology-consumer-overview-remediation",
+      "snapshotPath": "artifacts/lifecycle/010-topology-consumer-overview-remediation-product",
+      "manifestSha256": "5c5f8aa08dfe96393a1de3552c16a1ccbeb366411d8688a044b31dca353cac57",
+      "recordedAt": "2026-09-11T23:47:19.259777Z"
     }
   ]
 }

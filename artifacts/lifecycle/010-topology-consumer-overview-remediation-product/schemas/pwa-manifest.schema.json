@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schemaVersion", "mode"],
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[a-z][a-z0-9-]*(?![\\s\\S])"},
+    "nonBlankText": {"type": "string", "minLength": 1, "pattern": "[^\\u0000-\\u0020\\u007F-\\u00A0\\u00AD\\u034F\\u061C\\u115F\\u1160\\u1680\\u17B4\\u17B5\\u180B-\\u180F\\u2000-\\u200F\\u2028-\\u202F\\u205F-\\u206F\\u2800\\u3000\\u3164\\uFE00-\\uFE0F\\uFEFF\\uFFA0\\uFFF0-\\uFFFF𓑁𓑂𝅙]"},
+    "absolutePath": {"type": "string", "pattern": "^/(?!\\.{1,2}(?:/|$))(?:[A-Za-z0-9._~-]+(?:/(?!\\.{1,2}(?:/|$))[A-Za-z0-9._~-]+)*)?(?![\\s\\S])"},
+    "scopePath": {"type": "string", "pattern": "^/(?:[A-Za-z0-9._~-]+/)*(?![\\s\\S])"},
+    "sizeToken": {"type": "string", "pattern": "^(any|[1-9][0-9]*x[1-9][0-9]*)$"},
+    "rasterSizeToken": {"type": "string", "pattern": "^[1-9][0-9]*x[1-9][0-9]*$"},
+    "icon": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "href", "mediaType", "sizes", "purposes"],
+      "properties": {
+        "id": {"$ref": "#/$defs/identifier"},
+        "href": {"$ref": "#/$defs/nonBlankText"},
+        "mediaType": {"type": "string", "pattern": "^image/[A-Za-z0-9][A-Za-z0-9.+-]*$"},
+        "sizes": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/sizeToken"}},
+        "purposes": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"enum": ["any", "maskable", "monochrome"]}}
+      }
+    },
+    "homeScreenIcon": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["relation", "href", "mediaType", "sizes"],
+      "properties": {
+        "relation": {"const": "apple-touch-icon"},
+        "href": {"$ref": "#/$defs/nonBlankText"},
+        "mediaType": {"type": "string", "pattern": "^image/[A-Za-z0-9][A-Za-z0-9.+-]*$"},
+        "sizes": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/rasterSizeToken"}}
+      }
+    }
+  },
+  "properties": {
+    "$schema": {"const": "../schemas/pwa-manifest.schema.json"},
+    "schemaVersion": {"const": 1},
+    "mode": {"enum": ["template", "planning", "product"]},
+    "manifestPath": {"$ref": "#/$defs/absolutePath"},
+    "manifestLinkRequired": {"const": true},
+    "secureContextRequired": {"const": true},
+    "name": {"$ref": "#/$defs/nonBlankText"},
+    "shortName": {"$ref": "#/$defs/nonBlankText"},
+    "startRouteId": {"$ref": "#/$defs/identifier"},
+    "scope": {"$ref": "#/$defs/scopePath"},
+    "display": {"enum": ["browser", "minimal-ui", "standalone", "fullscreen"]},
+    "orientation": {"enum": ["any", "natural", "landscape", "landscape-primary", "landscape-secondary", "portrait", "portrait-primary", "portrait-secondary"]},
+    "icons": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/icon"}},
+    "vectorIconPolicy": {"const": "prefer-svg-when-compatible"},
+    "vectorIconException": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/nonBlankText"}]},
+    "platformCompatibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["android", "ios"],
+      "properties": {
+        "android": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["requiredRasterSizes", "maskableIconRequired"],
+          "properties": {
+            "requiredRasterSizes": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/rasterSizeToken"}},
+            "maskableIconRequired": {"type": "boolean"}
+          }
+        },
+        "ios": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["homeScreenIcon"],
+          "properties": {"homeScreenIcon": {"$ref": "#/$defs/homeScreenIcon"}}
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"mode": {"const": "template"}}, "required": ["mode"]},
+      "then": {"not": {"anyOf": [{"required": ["manifestPath"]}, {"required": ["manifestLinkRequired"]}, {"required": ["secureContextRequired"]}, {"required": ["name"]}, {"required": ["shortName"]}, {"required": ["startRouteId"]}, {"required": ["scope"]}, {"required": ["display"]}, {"required": ["orientation"]}, {"required": ["icons"]}, {"required": ["vectorIconPolicy"]}, {"required": ["vectorIconException"]}, {"required": ["platformCompatibility"]}]}}
+    },
+    {
+      "if": {"properties": {"mode": {"enum": ["planning", "product"]}}, "required": ["mode"]},
+      "then": {"required": ["manifestPath", "manifestLinkRequired", "secureContextRequired", "name", "shortName", "startRouteId", "scope", "display", "orientation", "icons", "vectorIconPolicy", "vectorIconException", "platformCompatibility"]}
+    }
+  ]
+}

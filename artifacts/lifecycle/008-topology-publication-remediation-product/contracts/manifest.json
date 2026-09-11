@@ -1,0 +1,222 @@
+{
+  "$schema": "../schemas/contract-manifest.schema.json",
+  "schemaVersion": 1,
+  "versionHistory": [
+    {
+      "version": 1,
+      "changeType": "initial"
+    }
+  ],
+  "contracts": [
+    {
+      "id": "browser_identity",
+      "document": "contracts/browser-identity.json",
+      "schema": "schemas/browser-identity.schema.json",
+      "migrationSlug": "browser-identity",
+      "documentSchemaVersion": 1,
+      "versionHistory": [
+        {
+          "version": 1,
+          "changeType": "initial"
+        }
+      ],
+      "purpose": "Declare browser identity and favicon relationships shared by Web products without selecting a rendering framework or product artifact."
+    },
+    {
+      "id": "document_metadata",
+      "document": "contracts/document-metadata.json",
+      "schema": "schemas/document-metadata.schema.json",
+      "migrationSlug": "document-metadata",
+      "documentSchemaVersion": 1,
+      "versionHistory": [
+        {
+          "version": 1,
+          "changeType": "initial"
+        }
+      ],
+      "purpose": "Declare site identity and per-page observable document title, description, language, canonical-path, indexability, and social-preview intent."
+    },
+    {
+      "id": "implementation_evidence",
+      "document": "contracts/implementation-evidence.json",
+      "schema": "schemas/implementation-evidence.schema.json",
+      "migrationSlug": "implementation-evidence",
+      "documentSchemaVersion": 6,
+      "versionHistory": [
+        {
+          "version": 1,
+          "changeType": "initial"
+        },
+        {
+          "version": 2,
+          "changeType": "breaking",
+          "migration": "docs/migrations/implementation-evidence-v1-to-v2.md"
+        },
+        {
+          "version": 3,
+          "changeType": "breaking",
+          "migration": "docs/migrations/implementation-evidence-v2-to-v3.md"
+        },
+        {
+          "version": 4,
+          "changeType": "breaking",
+          "migration": "docs/migrations/implementation-evidence-v3-to-v4.md"
+        },
+        {
+          "version": 5,
+          "changeType": "breaking",
+          "migration": "docs/migrations/implementation-evidence-v4-to-v5.md"
+        },
+        {
+          "version": 6,
+          "changeType": "breaking",
+          "migration": "docs/migrations/implementation-evidence-v5-to-v6.md"
+        }
+      ],
+      "purpose": "Map target-bound explicit product requirements and artifact-defined contract targets to implementation boundaries, execution-capability-bound positive/negative proofs, repository harnesses, authoritative commands, and release gates."
+    },
+    {
+      "id": "lifecycle_checkpoints",
+      "document": "contracts/lifecycle-checkpoints.json",
+      "schema": "schemas/lifecycle-checkpoints.schema.json",
+      "migrationSlug": "lifecycle-checkpoints",
+      "documentSchemaVersion": 1,
+      "versionHistory": [
+        {
+          "version": 1,
+          "changeType": "initial"
+        }
+      ],
+      "purpose": "Record ordered validated planning/product checkpoint manifests without treating wall-clock timestamps as chronology authority."
+    },
+    {
+      "id": "pwa_manifest",
+      "document": "contracts/pwa-manifest.json",
+      "schema": "schemas/pwa-manifest.schema.json",
+      "migrationSlug": "pwa-manifest",
+      "documentSchemaVersion": 1,
+      "versionHistory": [
+        {
+          "version": 1,
+          "changeType": "initial"
+        }
+      ],
+      "purpose": "Declare Web App Manifest installability semantics, launch/scope binding, and Android/iOS application-icon compatibility intent without freezing browser-vendor promotion heuristics."
+    },
+    {
+      "id": "pwa_offline",
+      "document": "contracts/pwa-offline.json",
+      "schema": "schemas/pwa-offline.schema.json",
+      "migrationSlug": "pwa-offline",
+      "documentSchemaVersion": 2,
+      "versionHistory": [
+        {
+          "version": 1,
+          "changeType": "initial"
+        },
+        {
+          "version": 2,
+          "changeType": "breaking",
+          "migration": "docs/migrations/pwa-offline-v1-to-v2.md"
+        }
+      ],
+      "purpose": "Declare offline-capable controlled Web routes, route-scoped cached-content behavior, explicit caller-visible network-loss and freshness presentation obligations, and mutation behavior without depending on artifact-specific surface or UI-state vocabularies."
+    },
+    {
+      "id": "pwa_update",
+      "document": "contracts/pwa-update.json",
+      "schema": "schemas/pwa-update.schema.json",
+      "migrationSlug": "pwa-update",
+      "documentSchemaVersion": 2,
+      "versionHistory": [
+        {
+          "version": 1,
+          "changeType": "initial"
+        },
+        {
+          "version": 2,
+          "changeType": "breaking",
+          "migration": "docs/migrations/pwa-update-v1-to-v2.md"
+        }
+      ],
+      "purpose": "Declare observable PWA update detection, activation, unsaved-work handling, and caller-visible update presentation obligations independently of artifact-specific UI-state contracts."
+    },
+    {
+      "id": "routes",
+      "document": "contracts/routes.json",
+      "schema": "schemas/routes.schema.json",
+      "migrationSlug": "routes",
+      "documentSchemaVersion": 5,
+      "versionHistory": [
+        {
+          "version": 1,
+          "changeType": "initial"
+        },
+        {
+          "version": 2,
+          "changeType": "breaking",
+          "migration": "docs/migrations/routes-v1-to-v2.md"
+        },
+        {
+          "version": 3,
+          "changeType": "breaking",
+          "migration": "docs/migrations/routes-v2-to-v3.md"
+        },
+        {
+          "version": 4,
+          "changeType": "breaking",
+          "migration": "docs/migrations/routes-v3-to-v4.md"
+        },
+        {
+          "version": 5,
+          "changeType": "additive",
+          "migration": "docs/migrations/routes-v4-to-v5.md"
+        }
+      ],
+      "purpose": "Declare canonical Web paths, aliases, deep-link expectations, and generic browser navigation/accessibility semantics without application state or authorization behavior."
+    },
+    {
+      "id": "site_discovery",
+      "document": "contracts/site-discovery.json",
+      "schema": "schemas/site-discovery.schema.json",
+      "migrationSlug": "site-discovery",
+      "documentSchemaVersion": 1,
+      "versionHistory": [
+        {
+          "version": 1,
+          "changeType": "initial"
+        }
+      ],
+      "purpose": "Declare canonical-origin, robots, sitemap, and feed discovery obligations and bind the sitemap inventory to indexable Website pages."
+    },
+    {
+      "id": "site_structure",
+      "document": "contracts/site-structure.json",
+      "schema": "schemas/site-structure.schema.json",
+      "migrationSlug": "site-structure",
+      "documentSchemaVersion": 1,
+      "versionHistory": [
+        {
+          "version": 1,
+          "changeType": "initial"
+        }
+      ],
+      "purpose": "Declare the Website page inventory, shared-route bindings, home page, parent hierarchy, and primary navigation without introducing Web application surfaces or UI states."
+    },
+    {
+      "id": "viewports",
+      "document": "contracts/viewports.json",
+      "schema": "schemas/viewports.schema.json",
+      "migrationSlug": "viewports",
+      "documentSchemaVersion": 1,
+      "versionHistory": [
+        {
+          "version": 1,
+          "changeType": "initial"
+        }
+      ],
+      "purpose": "Declare shared browser viewport and input-accessibility expectations for Web products."
+    }
+  ],
+  "retiredContracts": []
+}

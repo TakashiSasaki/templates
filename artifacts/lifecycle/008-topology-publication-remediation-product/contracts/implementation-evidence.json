@@ -9523,84 +9523,6 @@
           "expectedResult": "All reachable contract assertions pass; corrupted or unavailable states fail or expose the required fallback."
         }
       ]
-    },
-    {
-      "id": "document-metadata-site-repository-topology-overview",
-      "target": {
-        "kind": "contract-item",
-        "contractId": "document_metadata",
-        "itemKind": "page-metadata",
-        "itemId": "site-repository-topology-overview"
-      },
-      "implementationBoundary": {
-        "status": "verified",
-        "description": "Site publication assembly and browser implementation for document-metadata-site-repository-topology-overview",
-        "locator": "scripts/assemble_publications_v3.py"
-      },
-      "releaseGateIds": [
-        "site-reference"
-      ],
-      "positiveEvidence": [
-        {
-          "id": "document-metadata-site-repository-topology-overview-positive",
-          "status": "verified",
-          "kind": "end-to-end-test",
-          "description": "Actual browser contract assertions.",
-          "locator": "scripts/check_reference_website.py",
-          "commandId": "website-browser",
-          "expectedResult": "All reachable contract assertions pass; corrupted or unavailable states fail or expose the required fallback."
-        }
-      ],
-      "negativeEvidence": [
-        {
-          "id": "document-metadata-site-repository-topology-overview-negative",
-          "status": "verified",
-          "kind": "end-to-end-test",
-          "description": "Browser corruption or network/update failure assertions.",
-          "locator": "scripts/check_reference_website.py",
-          "commandId": "website-browser",
-          "expectedResult": "All reachable contract assertions pass; corrupted or unavailable states fail or expose the required fallback."
-        }
-      ]
-    },
-    {
-      "id": "site-structure-site-repository-topology-overview",
-      "target": {
-        "kind": "contract-item",
-        "contractId": "site_structure",
-        "itemKind": "page",
-        "itemId": "site-repository-topology-overview"
-      },
-      "implementationBoundary": {
-        "status": "verified",
-        "description": "Site publication assembly and browser implementation for site-structure-site-repository-topology-overview",
-        "locator": "scripts/assemble_publications_v3.py"
-      },
-      "releaseGateIds": [
-        "site-reference"
-      ],
-      "positiveEvidence": [
-        {
-          "id": "site-structure-site-repository-topology-overview-positive",
-          "status": "verified",
-          "kind": "end-to-end-test",
-          "description": "Actual browser contract assertions.",
-          "locator": "scripts/check_reference_website.py",
-          "commandId": "website-browser",
-          "expectedResult": "All reachable contract assertions pass; corrupted or unavailable states fail or expose the required fallback."
-        }
-      ],
-      "negativeEvidence": [
-        {
-          "id": "site-structure-site-repository-topology-overview-negative",
-          "status": "verified",
-          "kind": "end-to-end-test",
-          "description": "Browser corruption or network/update failure assertions.",
-          "locator": "scripts/check_reference_website.py",
-          "commandId": "website-browser",
-          "expectedResult": "All reachable contract assertions pass; corrupted or unavailable states fail or expose the required fallback."
-        }
-      ]
     }
   ],
   "requirements": [
@@ -13973,42 +13895,6 @@
       ],
       "recordIds": [
         "site-structure-composition-topology-contract"
-      ],
-      "requiredPositiveProofKinds": [
-        "end-to-end-test"
-      ]
-    },
-    {
-      "id": "document-metadata-site-repository-topology-overview",
-      "description": "Site fulfills document-metadata-site-repository-topology-overview",
-      "targets": [
-        {
-          "kind": "contract-item",
-          "contractId": "document_metadata",
-          "itemKind": "page-metadata",
-          "itemId": "site-repository-topology-overview"
-        }
-      ],
-      "recordIds": [
-        "document-metadata-site-repository-topology-overview"
-      ],
-      "requiredPositiveProofKinds": [
-        "end-to-end-test"
-      ]
-    },
-    {
-      "id": "site-structure-site-repository-topology-overview",
-      "description": "Site fulfills site-structure-site-repository-topology-overview",
-      "targets": [
-        {
-          "kind": "contract-item",
-          "contractId": "site_structure",
-          "itemKind": "page",
-          "itemId": "site-repository-topology-overview"
-        }
-      ],
-      "recordIds": [
-        "site-structure-site-repository-topology-overview"
       ],
       "requiredPositiveProofKinds": [
         "end-to-end-test"
