@@ -1,0 +1,19 @@
+{
+  "$schema": "../schemas/repository-topology.schema.json",
+  "schemaVersion": 1,
+  "topologyKind": "hub-and-orphan",
+  "hub": {
+    "branch": "main",
+    "role": "discovery-projection",
+    "directMutationForbidden": true
+  },
+  "submoduleProjection": {
+    "selfReferencing": true,
+    "mountRule": "branch-name-equals-mount-path"
+  },
+  "synchronization": {
+    "direction": "authority-to-hub",
+    "authorityMustAdvanceBeforeProjection": true
+  },
+  "components": []
+}

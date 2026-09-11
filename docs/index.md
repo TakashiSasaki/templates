@@ -73,6 +73,11 @@
 - [Release evidence](../components/lifecycle.release-evidence/files/docs/architecture/release-evidence.md) — revision-bound execution provenance and release decisions.
 - [Release bundle](../components/lifecycle.release-bundle/files/docs/architecture/release-bundle.md) — deterministic digest-closed handoff.
 
+## Repository topology
+
+- [Repository topology contract](../components/topology.hub-and-orphan/files/TOPOLOGY.md) — Hub-and-Orphan topology invariants, read-only discovery projection, orphan component authorities, branch-equals-mount-path, leaf-only namespace, and authority-to-hub synchronization.
+- [Repository topology architecture](../components/topology.hub-and-orphan/files/docs/architecture/repository-topology.md) — architectural details and operational invariants of the Hub-and-Orphan pattern.
+
 ## Historical provenance
 
 - [Composition authority migration](migrations/composition-authority-migration.md) — consolidated chronology of the authority cutover, provider migration, branch retirement, and immutable PR provenance. Stage-specific implementation notes are retained only for repository maintenance and are not reader publication pages.

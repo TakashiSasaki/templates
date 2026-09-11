@@ -45,6 +45,14 @@ lifecycle component は product workflow に応じて選択します。`skill` r
 | revision-bound release evidence production | `lifecycle.release-evidence` (`skill`) | release evidence -> release execution -> implementation evidence -> contract evolution |
 | deterministic release bundle と one-command release orchestration | `lifecycle.release-bundle` (`skill`、`website`、`webapp`) | release bundle -> release evidence -> release execution -> implementation evidence -> contract evolution |
 
+### リポジトリトポロジの選択
+
+デフォルトの単一 worktree リポジトリレイアウトではなく、明示的なマルチブランチまたは投影構造が必要な場合にリポジトリトポロジを選択します。
+
+| 必要なもの | Include | 自動追加 | 提供するもの |
+| --- | --- | --- | --- |
+| 読み取り専用自己参照サブモジュール Hub 投影を持つ rootless コンポーネントブランチ | `topology.hub-and-orphan` | — | 機械可読なリポジトリトポロジ契約、Hub 投影不変条件、および branch-equals-mount-path 検証 |
+
 最小 Website は空の include list を使用し、`foundation.web`、Website contract、implementation-evidence / contract-evolution support を受け取りますが、PWA/runtime/release material は含みません。
 
 ```json
@@ -160,4 +168,4 @@ unmanaged target では initial composition は managed-state transition を推�
 
 ### コンポーネントロールと直接選択
 
-recipe は1つの artifact を選択し、optional な capability または lifecycle component を公開します。`foundation` role の component は artifact component の依存関係です。自動解決され、recipe option には現れず、consumer が直接 include する target でもありません。四つの role のメンタルモデルは [Composition concepts](../docs/guides/composition-concepts.md) を参照してください。
+recipe は1つの artifact を選択し、optional な capability、lifecycle、または topology component を公開します。`foundation` role の component は artifact component の依存関係です。自動解決され、recipe option には現れず、consumer が直接 include する target でもありません。五つの role のメンタルモデルは [Composition concepts](../docs/guides/composition-concepts.md) を参照してください。

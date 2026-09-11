@@ -15,7 +15,7 @@
       "canonical": "catalog/README.md",
       "language": "ja",
       "translation": "translations/ja/catalog/README.md",
-      "canonical_blob_sha": "a7dc01ec98637ac5f66da349f4496bd8a9d7cf6f",
+      "canonical_blob_sha": "792ea9d3a0d1c0e903ea4be81b74f46bde5aedc5",
       "surfaces": [
         "reader"
       ]
@@ -141,7 +141,7 @@
       "canonical": "docs/index.md",
       "language": "ja",
       "translation": "translations/ja/docs/index.md",
-      "canonical_blob_sha": "af96bb7a6d14d408ea2a9bc4a991052e5d605257",
+      "canonical_blob_sha": "3313ecf7c5bc6dc64565e9a3867297e7d44dc808",
       "surfaces": [
         "reader",
         "guided"

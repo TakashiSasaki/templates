@@ -75,6 +75,11 @@
 - [Release evidence](../../../components/lifecycle.release-evidence/files/docs/architecture/release-evidence.md) — revision-bound execution provenance と release decisions を説明します。
 - [Release bundle](../../../components/lifecycle.release-bundle/files/docs/architecture/release-bundle.md) — deterministic digest-closed handoff を説明します。
 
+## リポジトリトポロジ
+
+- [Repository topology contract](../../../components/topology.hub-and-orphan/files/TOPOLOGY.md) — Hub-and-Orphan トポロジ不変条件、読み取り専用 discovery 投影、orphan コンポーネント権威、branch-equals-mount-path、leaf-only 名前空間、および権威から Hub への同期を説明します。
+- [Repository topology architecture](../../../components/topology.hub-and-orphan/files/docs/architecture/repository-topology.md) — Hub-and-Orphan パターンのアーキテクチャ詳細および運用不変条件を説明します。
+
 ## Historical provenance
 
 - [Composition authority migration](../../../docs/migrations/composition-authority-migration.md) — authority cutover、provider migration、branch retirement、immutable PR provenance の統合 chronology です。

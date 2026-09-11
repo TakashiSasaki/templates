@@ -16,6 +16,7 @@
     "lifecycle.implementation-evidence",
     "lifecycle.release-bundle",
     "lifecycle.release-evidence",
-    "lifecycle.release-execution"
+    "lifecycle.release-execution",
+    "topology.hub-and-orphan"
   ]
 }

@@ -4,9 +4,9 @@
   "intent_projection_id": "composition-playground-intent-v1",
   "semantic_revision": "10c527c0540968538359b1e9bffaba9896f071f9",
   "semantic_objects": {
-    "catalog": "d074528133f83610b6e6a7177e958c1f2bca4672",
-    "recipes": "f05746cc0dbde26114742b30282a09d6a3d27415",
-    "components": "520686f578db25d4365956973bebb5edcefca484",
+    "catalog": "c4ee45bbe9ac7c3d1947d65020434c6ad839913a",
+    "recipes": "931ddf419fbdf0259892cad75f38f8d30693468d",
+    "components": "12d7a3a585db239bcb648f1ed60848ecaf25b21f",
     "schemas/catalog.schema.json": "9290bb5f191168b2e536f95a9cd3090bbe7130a5",
     "schemas/component.schema.json": "36c70b846e39c89b6afa8a1ea4931e0c1ec887b3",
     "schemas/recipe.schema.json": "8515cd9281fc9e06c6ad38c6101d129906f9407a",

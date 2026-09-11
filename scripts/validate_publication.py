@@ -33,6 +33,7 @@ READER_BASENAMES = {
     "PWA.md",
     "WEB_INTERFACE.md",
     "SERVICE_INTERFACE.md",
+    "TOPOLOGY.md",
 }
 IGNORED_ROOT_MARKDOWN_DISCOVERY_DIRS = {
     ".git",

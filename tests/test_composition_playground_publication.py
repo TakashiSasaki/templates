@@ -98,7 +98,7 @@ class CompositionPlaygroundPublicationTests(unittest.TestCase):
         self.assertEqual("composition-playground-intent-v1", intent_projection["projection_id"])
         self.assertEqual(semantic_revision, base_projection["source"]["revision"])
         self.assertEqual(semantic_revision, intent_projection["source"]["revision"])
-        self.assertEqual(2624, sum(recipe["case_count"] for recipe in base_projection["recipes"]))
+        self.assertEqual(5248, sum(recipe["case_count"] for recipe in base_projection["recipes"]))
         self.assertLess(len(base), 131_072)
         self.assertLess(len(intent), 131_072)
 

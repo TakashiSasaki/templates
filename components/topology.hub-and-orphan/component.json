@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "id": "topology.hub-and-orphan",
+  "component_role": "topology",
+  "version": 1,
+  "summary": "Hub-and-Orphan repository topology declaring the Hub branch as a read-only discovery projection and orphan branches as independent component authorities with self-referencing submodules.",
+  "requires": [],
+  "conflicts": [],
+  "contract_registrations": [
+    {
+      "id": "repository_topology",
+      "document": "contracts/repository-topology.json",
+      "schema": "schemas/repository-topology.schema.json",
+      "migration_slug": "repository-topology",
+      "document_schema_version": 1,
+      "version_history": [
+        {
+          "version": 1,
+          "change_type": "initial"
+        }
+      ],
+      "purpose": "Declare the repository topology, Hub projection role, orphan component branch authorities, mount paths, leaf-only namespace invariant, and authority-to-hub synchronization contract."
+    }
+  ],
+  "materials": [
+    {
+      "source": "files/TOPOLOGY.md",
+      "destination": "TOPOLOGY.md",
+      "ownership": "seed"
+    },
+    {
+      "source": "files/contracts/repository-topology.json",
+      "destination": "contracts/repository-topology.json",
+      "ownership": "seed"
+    },
+    {
+      "source": "files/schemas/repository-topology.schema.json",
+      "destination": "schemas/repository-topology.schema.json",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/docs/architecture/repository-topology.md",
+      "destination": "docs/architecture/repository-topology.md",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/.template-composition/validators/validate_repository_topology.py",
+      "destination": ".template-composition/validators/validate_repository_topology.py",
+      "ownership": "managed"
+    }
+  ]
+}

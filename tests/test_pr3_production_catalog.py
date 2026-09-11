@@ -270,6 +270,7 @@ class PR3ProductionCatalogTests(unittest.TestCase):
                 "capability.web-interface",
                 "capability.webmcp",
                 "lifecycle.release-bundle",
+                "topology.hub-and-orphan",
             ],
         )
         closure = self.resolve({recipe["artifact"]})
