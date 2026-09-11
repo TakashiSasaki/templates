@@ -156,6 +156,9 @@ def verify_github_descendant(
     )
 
 
+_VERIFIED_GIT_AUTHORITIES: set[tuple[Path, str]] = set()
+
+
 @dataclass(frozen=True)
 class GitSourceContext:
     """Reviewed-checkout source context used by Composition authority maintainers."""
@@ -210,6 +213,9 @@ class GitSourceContext:
                 "SOURCE_OUTSIDE_REPOSITORY",
                 f"source authority is outside the composition checkout: {path}",
             ) from exc
+        key = (self.root, relative)
+        if key in _VERIFIED_GIT_AUTHORITIES:
+            return
         if path.is_symlink() or not path.is_file():
             raise SourceContextError(
                 "INVALID_SOURCE_AUTHORITY",
@@ -228,6 +234,7 @@ class GitSourceContext:
                 "source authority is not tracked by the bound Git revision: "
                 f"{relative}",
             )
+        _VERIFIED_GIT_AUTHORITIES.add(key)
 
     def verify_descendant(self, old_revision: str, new_revision: str) -> None:
         if FULL_SHA.fullmatch(old_revision) is None:
