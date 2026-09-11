@@ -27,4 +27,4 @@ jobs:
     uses: ./.github/workflows/build-pages.yml
     with:
       site_ref: ${{ github.event.pull_request.head.sha }}
-      composition_ref: 96bc8a81e2949a17a2c8965fe476c1fd4cba78ac
+      composition_ref: 3863269bed2dd8bf4c7ebd8e329847841ca3179c
