@@ -141,7 +141,7 @@
       "canonical": "docs/index.md",
       "language": "ja",
       "translation": "translations/ja/docs/index.md",
-      "canonical_blob_sha": "7a8b73f981983b748d88a17e7ae20d5667bcaab0",
+      "canonical_blob_sha": "af96bb7a6d14d408ea2a9bc4a991052e5d605257",
       "surfaces": [
         "reader",
         "guided"
@@ -151,7 +151,7 @@
       "canonical": "docs/publication-catalog.md",
       "language": "ja",
       "translation": "translations/ja/docs/publication-catalog.md",
-      "canonical_blob_sha": "01ef1e213a26944fe6761f39518b1165a9666d26",
+      "canonical_blob_sha": "4381431386e7d4f9c7629417f3bca9017c30d0c5",
       "surfaces": [
         "reader"
       ]

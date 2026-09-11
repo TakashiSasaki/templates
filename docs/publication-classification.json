@@ -14,6 +14,10 @@
       "reason": "Consumer coding-agent instructions copied into concrete Skill repositories are operational artifact material, not reader-facing Composition publication."
     },
     {
+      "source": "docs/guides/webmcp-capability.md",
+      "reason": "Repository-local supplemental WebMCP selection notes duplicate the canonical reader-facing capability contract and guidance under components/capability.webmcp, so they remain maintenance guidance rather than a second reader authority."
+    },
+    {
       "source": "docs/migrations/pr2-skill-capabilities.md",
       "reason": "Stage-specific authority-migration provenance is retained for Composition authority maintenance but is redundant with the consolidated migration history and immutable PR record, so it is not part of the reader-facing publication."
     },

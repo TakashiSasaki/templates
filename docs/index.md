@@ -61,6 +61,7 @@
 - [MCP transport guidance](../components/capability.mcp/files/docs/mcp-transports.md) — stdio and Streamable HTTP guidance.
 - [MCP Apps extension](../components/capability.mcp-apps/files/MCP_APPS.md) — Host/View bridge, resources, sandbox, and fallback contract.
 - [MCP Apps guidance](../components/capability.mcp-apps/files/docs/mcp-apps.md) — implementation guidance for MCP Apps.
+- [WebMCP browser capability](../components/capability.webmcp/files/WEBMCP.md) — canonical browser-exposed MCP capability contract, selection boundary, runtime behavior, and security expectations.
 - [Standalone browser interface](../components/capability.web-interface/files/WEB_INTERFACE.md) — browser-facing routing, security, health, and failure semantics.
 - [Headless service interface](../components/capability.service/files/SERVICE_INTERFACE.md) — non-browser service behavior, health, security, and lifecycle.
 
