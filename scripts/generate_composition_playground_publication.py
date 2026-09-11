@@ -100,7 +100,7 @@ def read_publication_manifest(directory: Path) -> dict[str, object]:
     path = directory / MANIFEST_NAME
     try:
         value = load_json_bytes(path.read_bytes(), label=str(path))
-    except (OSError, TypeError, json.JSONDecodeError) as exc:
+    except (OSError, TypeError, json.JSONDecodeError, CompositionError) as exc:
         raise CompositionError(
             "INVALID_PLAYGROUND_PUBLICATION",
             f"cannot read Playground publication manifest {path}: {exc}",
