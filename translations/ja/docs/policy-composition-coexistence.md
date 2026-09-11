@@ -234,7 +234,7 @@ Composition と Policy はそれぞれ自分の state を検証し、Site は実
 既存 Website の開発履歴を後から作るものではありません。契約検証だけで公開済みや
 release-ready とは判断せず、未実施のブラウザ証拠は deferred として明示します。
 
-現在の台帳は verified 458 件、deferred 20 件です。
+現在の台帳は verified 470 件、deferred 20 件です。
 これはカバレッジ項目数であり、独立したテスト数やリリース認定ではありません。
 PWA 試験は実際の worker コードと制御された試験用ページを使い、Website 試験は
 配信された manifest と icon ファイルを確認します。実製品の controlled route／fallback、

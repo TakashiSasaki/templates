@@ -164,3 +164,14 @@ review 済み staged identity は、P1 / #754 head `c2e23789ebabee4d1f35653e86eb
 repository 全体の ownership model と Policy / Composition の分離については [Policy–Composition coexistence](/coexistence/) を参照してください。
 
 これらの reader path が別個の provider を作るわけではありません。build artifact 内の provenance は `build-provenance.json` に記録された exact provider revision に解決されます。
+
+### Topology 公開の修復履歴
+
+以下は今回の修復を検証した checkpoint です。過去の実装前に planning が存在したという遡及的な証拠ではありません。
+
+| Sequence | Phase | ID | Snapshot | Manifest SHA-256 |
+| --- | --- | --- | --- | --- |
+| 7 | planning | topology-publication-remediation | artifacts/lifecycle/007-topology-publication-remediation | 5e2203e246437b1ff536430db4e042b403dab7c757b35c2a88447fbfda80c287 |
+| 8 | product | topology-publication-remediation-product | artifacts/lifecycle/008-topology-publication-remediation-product | 3c10eceba4ada27893a6868a7fe9188ce02aab90e8cd641c68237d67cf9f94b8 |
+| 9 | planning | topology-consumer-overview-remediation | artifacts/lifecycle/009-topology-consumer-overview-remediation | acdd54017dd8e0ca560cf1e91d25b3124953ea07b00faa49fe1d3f3cde7543ce |
+| 10 | product | topology-consumer-overview-remediation-product | artifacts/lifecycle/010-topology-consumer-overview-remediation-product | 5c5f8aa08dfe96393a1de3552c16a1ccbeb366411d8688a044b31dca353cac57 |

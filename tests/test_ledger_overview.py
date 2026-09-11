@@ -52,7 +52,11 @@ class LedgerOverviewTests(unittest.TestCase):
         ledger = json.loads(
             (ROOT / "contracts" / "lifecycle-checkpoints.json").read_text(encoding="utf-8")
         )
-        checkpoints = ledger["checkpoints"]
+        checkpoints = ledger["checkpoints"][:6]
+        # Preserve the historical baseline while requiring documentation of new validated transitions.
+        for checkpoint in ledger["checkpoints"][6:]:
+            for key in ("id", "snapshotPath", "manifestSha256"):
+                self.assertIn(checkpoint[key], text)
         self.assertEqual(
             [item["id"] for item in checkpoints],
             [

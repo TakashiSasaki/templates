@@ -244,7 +244,7 @@ does not pretend to reconstruct the Website's original development history.
 Contract validation is not proof of deployment or release readiness; deferred
 browser evidence remains visible until the relevant proof actually runs.
 
-The ledger currently declares 458 verified proof entries
+The ledger currently declares 470 verified proof entries
 and 20 deferred entries. These are coverage entries,
 not counts of independent tests or a release certificate. PWA tests use actual
 worker code with controlled fixture pages, and the Website test checks served
