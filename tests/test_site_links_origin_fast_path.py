@@ -110,6 +110,52 @@ class SiteLinkOriginFastPathTests(unittest.TestCase):
             self.assertEqual((2, 1, []), (pages, links, diagnostics))
             self.assertEqual(["project.site_url", "project.site_url"], descriptions)
 
+    def test_preview_documents_use_fast_path_without_html_parser(self) -> None:
+        temporary = tempfile.TemporaryDirectory()
+        root = Path(temporary.name)
+        site_root = root / "site"
+        preview_dir = site_root / "repository-trees" / "previews" / "composition"
+        preview_dir.mkdir(parents=True)
+        preview_page = preview_dir / "item.html"
+        preview_page.write_text("<html><body><div>Preview</div></body></html>", encoding="utf-8")
+
+        config = root / "zensical.toml"
+        config.write_text('[project]\nsite_url = "https://example.test/"\n', encoding="utf-8")
+
+        with temporary:
+            with mock.patch.object(validate_site_links, "PageParser") as mock_parser:
+                parsed = validate_site_links.parse_page(
+                    preview_page, site_root, "https://example.test/"
+                )
+                mock_parser.assert_not_called()
+                self.assertEqual(frozenset(), parsed.ids)
+                self.assertEqual((), parsed.links)
+
+    def test_source_content_viewers_extract_ids_without_html_parser(self) -> None:
+        temporary = tempfile.TemporaryDirectory()
+        root = Path(temporary.name)
+        site_root = root / "site"
+        content_dir = site_root / "files" / "site" / "content"
+        content_dir.mkdir(parents=True)
+        content_page = content_dir / "sample.html"
+        content_page.write_text(
+            '<html><body><div id="show-lines"></div>'
+            '<main><div class="source-line" id="L1">'
+            '<a class="line-number" href="#L1">1</a>'
+            '<code class="line-code">id="L999"</code></div></main></body></html>',
+            encoding="utf-8",
+        )
+
+        with temporary:
+            with mock.patch.object(validate_site_links, "PageParser") as mock_parser:
+                parsed = validate_site_links.parse_page(
+                    content_page, site_root, "https://example.test/"
+                )
+                mock_parser.assert_not_called()
+                # show-lines and L1 are valid element IDs; L999 inside code text node is ignored
+                self.assertEqual(frozenset({"show-lines", "L1"}), parsed.ids)
+                self.assertEqual((), parsed.links)
+
 
 if __name__ == "__main__":
     unittest.main()

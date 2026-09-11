@@ -370,15 +370,20 @@ def normalized_public_path(encoded_path: str) -> str:
     return _remove_dot_segments_preserving_empty(decoded_path)
 
 
+SOURCE_HEADER_ID_RE = re.compile(
+    r"<[a-zA-Z][a-zA-Z0-9:-]*\b[^>]*\bid\s*=\s*[\"']([^\"']+)[\"']",
+    re.IGNORECASE,
+)
+SOURCE_LINE_ID_RE = re.compile(
+    r'<div class="source-line" id="(L\d+)">',
+)
+
+
 def parse_page(path: Path, site_root: Path, base_url: str) -> HtmlPage:
     try:
         text = path.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError) as exc:
         raise SiteLinkError(f"Unable to read generated HTML {path}: {exc}") from exc
-
-    parser = PageParser()
-    parser.feed(text)
-    parser.close()
 
     relative_path = PurePosixPath(path.relative_to(site_root).as_posix())
     base_parts = urlsplit(base_url)
@@ -386,6 +391,42 @@ def parse_page(path: Path, site_root: Path, base_url: str) -> HtmlPage:
     public_url = urlunsplit(
         (base_parts.scheme, base_parts.netloc, public_path, "", "")
     )
+
+    parts = relative_path.parts
+    # Fast path for leaf file preview HTML documents: they contain no outgoing links
+    # and no anchor targets referenced across pages.
+    if len(parts) >= 2 and parts[:2] == ("repository-trees", "previews"):
+        return HtmlPage(
+            path=path,
+            relative_path=relative_path,
+            public_url=public_url,
+            ids=frozenset(),
+            links=(),
+        )
+
+    # Fast path for immutable repository source viewers: all links inside <main>
+    # are local line number anchors (#L<num>) which are skipped by link validation.
+    # Extract IDs exclusively from generator-owned element tags (header controls and
+    # line wrappers) rather than unconstrained text nodes within syntax-highlighted code.
+    if len(parts) == 4 and parts[0] == "files" and parts[2] == "content":
+        header_end = text.find("<main>")
+        if header_end != -1:
+            header_ids = frozenset(SOURCE_HEADER_ID_RE.findall(text[:header_end]))
+            line_ids = frozenset(SOURCE_LINE_ID_RE.findall(text[header_end:]))
+            extracted_ids = header_ids | line_ids
+        else:
+            extracted_ids = frozenset(SOURCE_HEADER_ID_RE.findall(text))
+        return HtmlPage(
+            path=path,
+            relative_path=relative_path,
+            public_url=public_url,
+            ids=extracted_ids,
+            links=(),
+        )
+
+    parser = PageParser()
+    parser.feed(text)
+    parser.close()
     return HtmlPage(
         path=path,
         relative_path=relative_path,

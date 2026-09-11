@@ -130,6 +130,22 @@ class FreshnessMetadataTests(unittest.TestCase):
                 Path("index.html"),
             )
 
+    def test_duplicate_revision_metadata_in_body_is_rejected(self) -> None:
+        marker = (
+            '<meta name="templates-site-revision" '
+            f'content="{SITE_REVISION}">'
+        )
+        source = f"<html><head>{marker}</head><body>{marker}</body></html>"
+        with self.assertRaisesRegex(
+            generate_freshness_metadata.FreshnessMetadataError,
+            "expected at most one",
+        ):
+            generate_freshness_metadata.annotate_site_revision(
+                source,
+                SITE_REVISION,
+                Path("index.html"),
+            )
+
     def test_missing_or_duplicate_head_close_is_rejected(self) -> None:
         cases = (
             "<html><head><title>Test</title><body></body></html>",
