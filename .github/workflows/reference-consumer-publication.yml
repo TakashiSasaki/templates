@@ -5,7 +5,7 @@ permissions:
   contents: read
 jobs:
   compatibility:
-    uses: TakashiSasaki/templates/.github/workflows/build-pages.yml@de3141613c6a838e0a3ce49aa21d3d778f7051f8
+    uses: TakashiSasaki/templates/.github/workflows/build-pages.yml@9a8b7e0e029ef439b84e630ee6937f7d24ee3eea
     with:
-      site_ref: de3141613c6a838e0a3ce49aa21d3d778f7051f8
+      site_ref: 9a8b7e0e029ef439b84e630ee6937f7d24ee3eea
       composition_ref: ${{ github.event.pull_request.head.sha }}

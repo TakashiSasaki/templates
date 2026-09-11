@@ -28,10 +28,10 @@ TRANSLATED_WEBAPP_WALKTHROUGH = (
 TRANSLATED_WEBSITE_WALKTHROUGH = (
     ROOT / "translations" / "ja" / "docs" / "guides" / "website-product-walkthrough.md"
 )
-INSTALLER_REVISION = "60bb93751f0163d7c523a06a32c2fefb562ee7e3"
-INSTALLER_SHA256 = "e79e43785f92bbc049619360e0680873504b0f33db1670010d85750786d24b93"
-SKILL_REVISION = "3e1c093a173c406e9fea2ea761e1aa1f0cf32038"
-TOOLCHAIN_REVISION = "b4581b58301b1f2736fce86dfcd56d7ddb98bff0"
+INSTALLER_REVISION = "c328fbe2bf733cf32cea54c1054570a94afa693a"
+INSTALLER_SHA256 = "d5422e28b29aaf015c14ffe4d17ae4a0478e0d108a98c951f978f7016f90e607"
+SKILL_REVISION = "745ccc6e00a96c602f9edbb6edc4bca530429539"
+TOOLCHAIN_REVISION = "f46595bcee2b0cdbc204fca052b2b431eefae3b5"
 RAW_INSTALLER_URL = (
     "https://raw.githubusercontent.com/TakashiSasaki/templates/"
     f"{INSTALLER_REVISION}/scripts/install_composition_skill.py"
@@ -175,6 +175,12 @@ class CompositionSkillInstallerPublicationTests(unittest.TestCase):
         ):
             with self.subTest(path=path.relative_to(ROOT).as_posix()):
                 self.assert_verified_bootstrap_guidance(path)
+
+        translated_guide = TRANSLATED_CONSUMER_GUIDE.read_text(encoding="utf-8")
+        self.assertIn(INSTALLER_REVISION, translated_guide)
+        self.assertIn(SKILL_REVISION, translated_guide)
+        self.assertIn(TOOLCHAIN_REVISION, translated_guide)
+        self.assertIn(INSTALLER_SHA256, translated_guide)
 
     def test_website_walkthroughs_use_stable_website_capable_toolchain(self) -> None:
         for path in (WEBSITE_WALKTHROUGH, TRANSLATED_WEBSITE_WALKTHROUGH):

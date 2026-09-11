@@ -175,6 +175,7 @@ class WebsiteArtifactTests(unittest.TestCase):
                 "capability.runtime",
                 "capability.service",
                 "capability.web-interface",
+                "capability.webmcp",
                 "lifecycle.release-bundle",
             ],
         )

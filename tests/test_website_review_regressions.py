@@ -16,20 +16,23 @@ EVIDENCE_VALIDATOR = WEBSITE_FILES / "scripts" / "validate_website_evidence.py"
 TARGET_HELPER = WEBSITE_FILES / "scripts" / "website_evidence_targets.py"
 
 
+import types
+
+
 def load(path: Path):
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def load_module(name: str, path: Path):
-    spec = importlib.util.spec_from_file_location(name, path)
-    if spec is None or spec.loader is None:
-        raise RuntimeError(f"cannot load {path}")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+def load_module_without_bytecode(name: str, path: Path):
+    module = types.ModuleType(name)
+    module.__file__ = str(path)
+    sys.modules[name] = module
+    source = path.read_text(encoding="utf-8")
+    exec(compile(source, str(path), "exec"), module.__dict__)
     return module
 
 
-helper = load_module("website_evidence_targets_review", TARGET_HELPER)
+helper = load_module_without_bytecode("website_evidence_targets_review", TARGET_HELPER)
 
 
 class WebsiteReviewRegressionTests(unittest.TestCase):
@@ -58,7 +61,7 @@ class WebsiteReviewRegressionTests(unittest.TestCase):
         self, source: Path, root: Path
     ) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
-            [sys.executable, str(source), str(root)],
+            [sys.executable, "-B", str(source), str(root)],
             cwd=ROOT,
             text=True,
             capture_output=True,
