@@ -50,7 +50,7 @@ and `policy`. Their independent histories do not imply adoption of this consumer
 topology. This change does not create a `main` Hub or mount those authorities as
 self-referencing submodules.
 
-As described in the [authority model](../authority-model.md), `site` owns
+As described in the [authority model](https://github.com/TakashiSasaki/templates/blob/961014d00cb28f5cc3ee5e162b6eae4323df470a/docs/authority-model.md), `site` owns
 integration, provider-lock assembly, discovery, and Pages publication.
 Composition owns reusable topology semantics; Policy consumes that contract and
 owns coding-agent operational procedures. Site documents and integrates their
