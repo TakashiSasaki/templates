@@ -140,9 +140,9 @@ class SiteLinkOriginFastPathTests(unittest.TestCase):
         content_page = content_dir / "sample.html"
         content_page.write_text(
             '<html><body><div id="show-lines"></div>'
-            '<div class="source-line" id="L1">'
+            '<main><div class="source-line" id="L1">'
             '<a class="line-number" href="#L1">1</a>'
-            '<code class="line-code">hello</code></div></body></html>',
+            '<code class="line-code">id="L999"</code></div></main></body></html>',
             encoding="utf-8",
         )
 
@@ -152,6 +152,7 @@ class SiteLinkOriginFastPathTests(unittest.TestCase):
                     content_page, site_root, "https://example.test/"
                 )
                 mock_parser.assert_not_called()
+                # show-lines and L1 are valid element IDs; L999 inside code text node is ignored
                 self.assertEqual(frozenset({"show-lines", "L1"}), parsed.ids)
                 self.assertEqual((), parsed.links)
 

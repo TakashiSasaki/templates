@@ -370,7 +370,13 @@ def normalized_public_path(encoded_path: str) -> str:
     return _remove_dot_segments_preserving_empty(decoded_path)
 
 
-CONTENT_ID_RE = re.compile(r'\bid\s*=\s*["\']([^"\']+)["\']', re.IGNORECASE)
+SOURCE_HEADER_ID_RE = re.compile(
+    r"<[a-zA-Z][a-zA-Z0-9:-]*\b[^>]*\bid\s*=\s*[\"']([^\"']+)[\"']",
+    re.IGNORECASE,
+)
+SOURCE_LINE_ID_RE = re.compile(
+    r'<div class="source-line" id="(L\d+)">',
+)
 
 
 def parse_page(path: Path, site_root: Path, base_url: str) -> HtmlPage:
@@ -400,10 +406,16 @@ def parse_page(path: Path, site_root: Path, base_url: str) -> HtmlPage:
 
     # Fast path for immutable repository source viewers: all links inside <main>
     # are local line number anchors (#L<num>) which are skipped by link validation.
-    # We extract all id attributes structurally via regex to satisfy target anchor
-    # resolution without invoking full HTMLParser tokenization across megabytes of code.
+    # Extract IDs exclusively from generator-owned element tags (header controls and
+    # line wrappers) rather than unconstrained text nodes within syntax-highlighted code.
     if len(parts) == 4 and parts[0] == "files" and parts[2] == "content":
-        extracted_ids = frozenset(CONTENT_ID_RE.findall(text))
+        header_end = text.find("<main>")
+        if header_end != -1:
+            header_ids = frozenset(SOURCE_HEADER_ID_RE.findall(text[:header_end]))
+            line_ids = frozenset(SOURCE_LINE_ID_RE.findall(text[header_end:]))
+            extracted_ids = header_ids | line_ids
+        else:
+            extracted_ids = frozenset(SOURCE_HEADER_ID_RE.findall(text))
         return HtmlPage(
             path=path,
             relative_path=relative_path,
