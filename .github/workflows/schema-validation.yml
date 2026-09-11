@@ -15,6 +15,9 @@ concurrency:
   group: composition-schema-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  PYTHONDONTWRITEBYTECODE: "1"
+
 jobs:
   classify_browser:
     name: classify real-browser requirement
