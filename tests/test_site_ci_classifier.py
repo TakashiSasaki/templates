@@ -49,6 +49,7 @@ class SiteCIClassifierTests(unittest.TestCase):
         self.assertFalse(decision.pwa_required)
         self.assertFalse(decision.cross_authority_required)
         self.assertFalse(decision.full_required)
+        self.assertFalse(decision.freshness_candidate_required)
         self.assertEqual("documentation-only", decision.risk_class)
 
     def test_browser_and_css_changes_require_browser_and_build(self) -> None:
@@ -297,7 +298,7 @@ class SiteCIClassifierTests(unittest.TestCase):
             self.assertIn("browser_required=false\n", content)
             self.assertIn("full_required=false\n", content)
             self.assertIn("coexistence_required=false\n", content)
-            self.assertIn("freshness_candidate_required=true\n", content)
+            self.assertIn("freshness_candidate_required=false\n", content)
             self.assertIn("risk_class=documentation-only\n", content)
 
     def test_coexistence_required_for_full_and_python_paths(self) -> None:

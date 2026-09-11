@@ -111,10 +111,20 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           REPO: ${{ github.repository }}
+          TRIGGER_TIME: ${{ github.event.pull_request.updated_at }}
+          RUN_ID: ${{ github.run_id }}
         run: |
-          python3 scripts/verify_site_full_qualification.py \
-            --repo "$REPO" \
-            --head-sha "$HEAD_SHA" \
-            --token "$GITHUB_TOKEN" \
-            --timeout-seconds 2400 \
+          args=(
+            --repo "$REPO"
+            --head-sha "$HEAD_SHA"
+            --token "$GITHUB_TOKEN"
+            --timeout-seconds 2400
             --poll-interval-seconds 20
+          )
+          if [ -n "$RUN_ID" ]; then
+            args+=(--qualification-run-id "$RUN_ID")
+          fi
+          if [ -n "$TRIGGER_TIME" ]; then
+            args+=(--qualification-trigger-time "$TRIGGER_TIME")
+          fi
+          python3 scripts/verify_site_full_qualification.py "${args[@]}"

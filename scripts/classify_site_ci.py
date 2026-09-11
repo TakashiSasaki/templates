@@ -443,6 +443,7 @@ def classify_paths(
             reason="all changed paths are documentation-only",
             changed_count=changed_count,
             requiring_paths=(),
+            freshness_candidate_required=False,
         )
 
     # 5. Mixed / Specific capability matching

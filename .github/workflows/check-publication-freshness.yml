@@ -16,16 +16,7 @@ on:
       - synchronize
       - reopened
       - labeled
-    paths:
-      - '.github/workflows/check-publication-freshness.yml'
-      - '.github/workflows/build-pages.yml'
-      - 'PUBLICATION_FRESHNESS.md'
-      - 'publication-sources.json'
-      - 'site-manifest.json'
-      - 'scripts/**'
-      - 'tests/**'
-      - 'requirements.txt'
-      - 'zensical.template.toml'
+
   schedule:
     - cron: '23 17 * * *'
   workflow_dispatch:

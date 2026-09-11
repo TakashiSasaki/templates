@@ -22,6 +22,7 @@ import sys
 import time
 import urllib.error
 import urllib.request
+from datetime import datetime
 from typing import Any, NamedTuple
 
 
@@ -211,6 +212,23 @@ def fetch_run_jobs(repo: str, run_id: int, token: str) -> list[dict[str, Any]]:
     return jobs
 
 
+def fetch_run_info(repo: str, run_id: int, token: str) -> dict[str, Any]:
+    url = f"https://api.github.com/repos/{repo}/actions/runs/{run_id}"
+    req = urllib.request.Request(url)
+    req.add_header("Accept", "application/vnd.github+json")
+    req.add_header("User-Agent", "site-full-qualification-verifier")
+    if token:
+        req.add_header("Authorization", f"Bearer {token}")
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
+def parse_iso_timestamp(ts: str) -> float:
+    """Parse an ISO 8601 timestamp string into epoch seconds."""
+    ts_clean = ts.strip().replace("Z", "+00:00")
+    return datetime.fromisoformat(ts_clean).timestamp()
+
+
 class SuiteEvaluation(NamedTuple):
     suite: RequiredSuite
     state: str  # "successful", "pending", "failed", "skipped", "cancelled", "missing"
@@ -227,16 +245,57 @@ def evaluate_suites(
     head_sha: str,
     token: str,
     completed_jobs_cache: dict[tuple[int, int], list[dict[str, Any]]],
+    qualification_trigger_time: str | None = None,
+    qualification_run_id: int | None = None,
+    min_run_id: int | None = None,
 ) -> tuple[dict[str, SuiteEvaluation], list[str]]:
     """Evaluates all 19 suites against exact head workflow runs.
 
     Returns (evaluations_by_key, missing_external_workflow_paths).
     """
+    epoch_timestamp: float | None = None
+    if qualification_trigger_time:
+        try:
+            epoch_timestamp = parse_iso_timestamp(qualification_trigger_time)
+        except (ValueError, TypeError) as exc:
+            print(
+                f"Warning: could not parse qualification_trigger_time {qualification_trigger_time!r}: {exc}",
+                file=sys.stderr,
+            )
+    elif qualification_run_id and token:
+        try:
+            run_info = fetch_run_info(repo, qualification_run_id, token)
+            created_at_str = run_info.get("created_at")
+            if created_at_str:
+                # 60s tolerance for sibling workflow runs dispatched in the same event batch
+                epoch_timestamp = parse_iso_timestamp(created_at_str) - 60.0
+        except Exception as exc:
+            print(
+                f"Warning: could not fetch qualification run {qualification_run_id}: {exc}",
+                file=sys.stderr,
+            )
+
     runs = fetch_workflow_runs(repo, head_sha, token)
+
+    valid_runs: list[dict[str, Any]] = []
+    for r in runs:
+        if min_run_id is not None and r.get("id", 0) < min_run_id:
+            continue
+        if epoch_timestamp is not None:
+            created_at_str = r.get("created_at")
+            if created_at_str:
+                try:
+                    run_epoch = parse_iso_timestamp(created_at_str)
+                    if run_epoch < epoch_timestamp:
+                        # Stale historical run from before the qualification trigger epoch
+                        continue
+                except (ValueError, TypeError):
+                    pass
+        valid_runs.append(r)
 
     # Group runs by workflow path
     runs_by_path: dict[str, list[dict[str, Any]]] = {}
-    for r in runs:
+    for r in valid_runs:
         path = r.get("path")
         if path:
             runs_by_path.setdefault(path, []).append(r)
@@ -359,10 +418,19 @@ def verify_qualification(
     repo: str,
     head_sha: str,
     token: str,
+    qualification_trigger_time: str | None = None,
+    qualification_run_id: int | None = None,
+    min_run_id: int | None = None,
     timeout_seconds: int = 2400,
     poll_interval_seconds: int = 20,
 ) -> int:
     print(f"Starting Site Full Qualification verification for {repo} at {head_sha}")
+    if qualification_trigger_time:
+        print(f"Qualification trigger epoch: {qualification_trigger_time}")
+    elif qualification_run_id:
+        print(f"Qualification runner run ID epoch: {qualification_run_id}")
+    if min_run_id is not None:
+        print(f"Qualification minimum run ID: {min_run_id}")
     print(f"Required external workflow paths: {len(EXTERNAL_WORKFLOW_PATHS)}")
     print(f"Required L3 check suites: {len(REQUIRED_SUITES)}")
     deadline = time.time() + timeout_seconds
@@ -371,7 +439,13 @@ def verify_qualification(
     while True:
         try:
             evaluations, missing_workflows = evaluate_suites(
-                repo, head_sha, token, completed_jobs_cache
+                repo,
+                head_sha,
+                token,
+                completed_jobs_cache,
+                qualification_trigger_time=qualification_trigger_time,
+                qualification_run_id=qualification_run_id,
+                min_run_id=min_run_id,
             )
         except Exception as exc:
             print(f"Transient error querying GitHub API: {exc}", file=sys.stderr)
@@ -431,6 +505,23 @@ def main() -> int:
     parser.add_argument("--repo", required=True, help="GitHub repository (owner/name)")
     parser.add_argument("--head-sha", required=True, help="Exact PR head SHA")
     parser.add_argument("--token", default=os.environ.get("GITHUB_TOKEN", ""), help="GitHub API token")
+    parser.add_argument(
+        "--qualification-trigger-time",
+        default=os.environ.get("QUALIFICATION_TRIGGER_TIME", None),
+        help="Trigger timestamp of the qualification event",
+    )
+    parser.add_argument(
+        "--qualification-run-id",
+        type=int,
+        default=int(os.environ.get("QUALIFICATION_RUN_ID", 0)) or None,
+        help="Workflow run ID of the qualification runner",
+    )
+    parser.add_argument(
+        "--min-run-id",
+        type=int,
+        default=None,
+        help="Minimum run ID to accept as evidence",
+    )
     parser.add_argument("--timeout-seconds", type=int, default=2400, help="Max seconds to wait")
     parser.add_argument("--poll-interval-seconds", type=int, default=20, help="Poll interval in seconds")
     args = parser.parse_args()
@@ -439,6 +530,9 @@ def main() -> int:
         repo=args.repo,
         head_sha=args.head_sha,
         token=args.token,
+        qualification_trigger_time=args.qualification_trigger_time,
+        qualification_run_id=args.qualification_run_id,
+        min_run_id=args.min_run_id,
         timeout_seconds=args.timeout_seconds,
         poll_interval_seconds=args.poll_interval_seconds,
     )
