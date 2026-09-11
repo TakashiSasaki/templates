@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -18,6 +19,11 @@ class TopologyValidationError(RuntimeError):
 
 def load_json(root: Path, relative: Path) -> dict[str, Any]:
     target = root / relative
+    current = root
+    for part in relative.parts:
+        current = current / part
+        if current.is_symlink():
+            raise TopologyValidationError(f"symbolic link is not allowed: {relative}")
     if not target.is_file():
         raise TopologyValidationError(f"required contract file does not exist: {relative}")
     try:
@@ -29,20 +35,31 @@ def load_json(root: Path, relative: Path) -> dict[str, Any]:
     return data
 
 
+def valid_branch_path(value: object) -> bool:
+    """Portable relative path that is also a valid Git branch name."""
+    if not isinstance(value, str) or not re.fullmatch(r"[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*", value):
+        return False
+    return (
+        value != "HEAD" and not value.startswith("-") and ".." not in value
+        and not value.endswith(".")
+        and all(not part.startswith(".") and not part.endswith(".lock") for part in value.split("/"))
+    )
+
+
 def validate_topology(root: Path) -> list[str]:
     contract = load_json(root, TOPOLOGY_CONTRACT)
     schema = load_json(root, TOPOLOGY_SCHEMA)
+    return validate_contract(contract, schema)
 
+
+def validate_contract(contract: dict[str, Any], schema: dict[str, Any]) -> list[str]:
+    """Validate one in-memory declaration against the Composition-owned contract."""
     try:
         import jsonschema
 
         jsonschema.validate(instance=contract, schema=schema)
-    except ImportError:
-        # Minimal fallback validation if jsonschema is unavailable
-        if contract.get("schemaVersion") != 1:
-            raise TopologyValidationError("schemaVersion must be 1")
-        if contract.get("topologyKind") != "hub-and-orphan":
-            raise TopologyValidationError("topologyKind must be hub-and-orphan")
+    except ImportError as exc:
+        raise TopologyValidationError("jsonschema is required; validation cannot be skipped") from exc
     except Exception as exc:
         raise TopologyValidationError(f"contract failed schema validation: {exc}") from exc
 
@@ -59,8 +76,8 @@ def validate_topology(root: Path) -> list[str]:
         return errors
 
     hub_branch = hub.get("branch")
-    if not isinstance(hub_branch, str) or not hub_branch.strip():
-        errors.append("hub.branch must be a non-empty string")
+    if not valid_branch_path(hub_branch):
+        errors.append("hub.branch must be a valid Git branch and safe relative path")
     if hub.get("role") != "discovery-projection":
         errors.append("hub.role must be 'discovery-projection'")
     if hub.get("directMutationForbidden") is not True:
@@ -115,12 +132,17 @@ def validate_topology(root: Path) -> list[str]:
 
         if not isinstance(branch, str) or not branch:
             errors.append(f"components[{index}].branch must be a non-empty string")
+        elif not valid_branch_path(branch):
+            errors.append(f"invalid component branch/path: {branch!r}")
         elif branch in seen_branches:
             errors.append(f"duplicate component branch: {branch}")
         else:
             seen_branches.add(branch)
 
-        if branch == hub_branch:
+        if isinstance(branch, str) and isinstance(hub_branch, str) and (
+            branch == hub_branch or branch.startswith(hub_branch + "/")
+            or hub_branch.startswith(branch + "/")
+        ):
             errors.append(f"component branch cannot be the Hub branch: {branch}")
 
         if not isinstance(mount_path, str) or not mount_path:

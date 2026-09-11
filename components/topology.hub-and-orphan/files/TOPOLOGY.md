@@ -32,3 +32,19 @@ This repository adopts the **Hub-and-Orphan** repository pattern as an explicit 
 ## Machine-Readable Contract
 
 The canonical topology declaration is defined in `contracts/repository-topology.json` and validated by `schemas/repository-topology.schema.json`.
+
+## Declaration and execution boundary
+
+Selection declares intended consumer topology; it does not prove that Git already
+implements it. Composer only materializes files. It does not create or switch
+branches, update refs, mutate `.git`, run arbitrary hooks, or update remote submodules.
+Policy and the coding agent verify actual Git state and perform separately authorized
+operations. The Hub name comes from `hub.branch`; `main` is only a seed example.
+
+Synchronization is provider-neutral. GitHub Actions may implement it, but is not
+part of topology identity. A projection records the immutable component commit in
+a submodule gitlink, then derives discovery metadata from that same gitlink.
+A stale projection must remain identified as stale, never become a second content
+authority. Rename/deletion requires an explicit authority migration and coordinated
+contract, gitlink, `.gitmodules`, and discovery updates; no automatic deletion or
+rename executor is provided by this component.
