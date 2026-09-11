@@ -76,7 +76,7 @@ The directory is the product repository. Git is normal product tooling; it is no
 
 Normal Composition consumption requires CPython 3.11, 3.12, 3.13, or 3.14. Follow the immutable installer procedure in [Using Composition](../consumer-guide.md#install-and-run-the-composition-skill), installing the skill outside Project Docs.
 
-The published stable Composition toolchain is Website-capable. The installed skill's runtime manifest selects immutable toolchain revision `b4581b58301b1f2736fce86dfcd56d7ddb98bff0`, which contains the `website` recipe and the optional component set described in step 14. Normal first-time Website consumption therefore uses the ordinary stable runner path; no walkthrough-specific `--revision` bridge is required.
+The published stable Composition toolchain is Website-capable. The installed skill's runtime manifest selects immutable toolchain revision `f46595bcee2b0cdbc204fca052b2b431eefae3b5`, which contains the `website` recipe and the optional component set described in step 14. Normal first-time Website consumption therefore uses the ordinary stable runner path; no walkthrough-specific `--revision` bridge is required.
 
 Run the read-only doctor through the normal stable selection:
 
@@ -86,7 +86,7 @@ python /absolute/path/to/agent-skills/composition/scripts/run.py \
   doctor
 ```
 
-`READY` means local bootstrap prerequisites are usable for the selected revision. It is not Composition validation and does not prove later network/package availability. Confirm the doctor output identifies `b4581b58301b1f2736fce86dfcd56d7ddb98bff0` as the selected stable toolchain before proceeding.
+`READY` means local bootstrap prerequisites are usable for the selected revision. It is not Composition validation and does not prove later network/package availability. Confirm the doctor output identifies `f46595bcee2b0cdbc204fca052b2b431eefae3b5` as the selected stable toolchain before proceeding.
 
 ## 3. Create `composition.json`
 
@@ -387,7 +387,7 @@ Required deferred browser proof must therefore produce or contribute to a `not-r
 Project Docs is complete for this walkthrough when all of the following are true:
 
 - the recipe remains `website` and the resolved closure contains `artifact.website-core` + transitive `foundation.web` without Webapp-private artifact contracts;
-- the installed stable runner selects Website-capable toolchain revision `b4581b58301b1f2736fce86dfcd56d7ddb98bff0` without a walkthrough-specific `--revision` bridge;
+- the installed stable runner selects Website-capable toolchain revision `f46595bcee2b0cdbc204fca052b2b431eefae3b5` without a walkthrough-specific `--revision` bridge;
 - routes, site structure, metadata, discovery, viewport, and browser-identity contracts describe the implemented Website, including `siteName: "Project Docs"` rather than the seeded placeholder;
 - the actual pages/content/navigation and any declared browser-identity asset such as `favicon.svg` exist in consumer-owned implementation files;
 - a validated planning checkpoint exists from before product implementation and the final product checkpoint closes that transition;

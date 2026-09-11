@@ -103,8 +103,8 @@ import sys
 import tempfile
 import urllib.request
 
-url = "https://raw.githubusercontent.com/TakashiSasaki/templates/60bb93751f0163d7c523a06a32c2fefb562ee7e3/scripts/install_composition_skill.py"
-expected = "e79e43785f92bbc049619360e0680873504b0f33db1670010d85750786d24b93"
+url = "https://raw.githubusercontent.com/TakashiSasaki/templates/c328fbe2bf733cf32cea54c1054570a94afa693a/scripts/install_composition_skill.py"
+expected = "d5422e28b29aaf015c14ffe4d17ae4a0478e0d108a98c951f978f7016f90e607"
 data = urllib.request.urlopen(url, timeout=30).read()
 actual = hashlib.sha256(data).hexdigest()
 if actual != expected:

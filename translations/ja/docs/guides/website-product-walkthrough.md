@@ -78,7 +78,7 @@ git init
 
 通常利用では CPython 3.11、3.12、3.13、3.14 のいずれかが必要です。[Composition の利用方法](../consumer-guide.md#composition-skill-install) の immutable installer procedure に従い、Project Docs の外へ skill を install します。
 
-公開済み stable Composition toolchain は Website-capable です。installed skill の runtime manifest は immutable toolchain revision `b4581b58301b1f2736fce86dfcd56d7ddb98bff0` を選択し、この revision には `website` recipe と step 14 で説明する optional component set が含まれます。したがって通常の first-time Website consumption は ordinary stable runner path を使い、walkthrough 固有の `--revision` bridge は不要です。
+公開済み stable Composition toolchain は Website-capable です。installed skill の runtime manifest は immutable toolchain revision `f46595bcee2b0cdbc204fca052b2b431eefae3b5` を選択し、この revision には `website` recipe と step 14 で説明する optional component set が含まれます。したがって通常の first-time Website consumption は ordinary stable runner path を使い、walkthrough 固有の `--revision` bridge は不要です。
 
 通常の stable selection で read-only doctor を実行します。
 
@@ -88,7 +88,7 @@ python /absolute/path/to/agent-skills/composition/scripts/run.py \
   doctor
 ```
 
-`READY` は selected revision の local bootstrap prerequisite が利用可能という意味であり、Composition validation や後続 network/package availability の証明ではありません。続行前に doctor output の selected stable toolchain が `b4581b58301b1f2736fce86dfcd56d7ddb98bff0` であることを確認します。
+`READY` は selected revision の local bootstrap prerequisite が利用可能という意味であり、Composition validation や後続 network/package availability の証明ではありません。続行前に doctor output の selected stable toolchain が `f46595bcee2b0cdbc204fca052b2b431eefae3b5` であることを確認します。
 
 ## 3. `composition.json` を作る
 
@@ -325,17 +325,18 @@ python /absolute/path/to/agent-skills/composition/scripts/run.py \
 
 この final validation が planning-to-product lifecycle state の closure を確認します。
 
-## 14. Optional PWA/runtime/service/Web-interface/release-bundle behavior は optional のまま
+## 14. Optional PWA/WebMCP/runtime/service/Web-interface/release-bundle behavior は optional のまま
 
-stable toolchain revision `b4581b58301b1f2736fce86dfcd56d7ddb98bff0` の `website` recipe は次だけを optional selection として公開します。
+stable toolchain revision `f46595bcee2b0cdbc204fca052b2b431eefae3b5` の `website` recipe は次だけを optional selection として公開します。
 
 - `capability.pwa`
 - `capability.runtime`
 - `capability.service`
 - `capability.web-interface`
+- `capability.webmcp`
 - `lifecycle.release-bundle`
 
-Project Docs が後で installability/offline/update behavior を support するなら `capability.pwa` を追加します。PWA は cross-cutting capability なので Website のままです。maintained server runtime があれば `capability.runtime`、独立して support する non-browser API があれば `capability.service`、別に support する browser-facing operational/diagnostic interface があれば `capability.web-interface` を追加します。packaging lifecycle が必要な場合だけ `lifecycle.release-bundle` を選択します。どの選択も `artifact.website-core` を `artifact.webapp-core` に変えません。
+Project Docs が後で installability/offline/update behavior を support するなら `capability.pwa` を追加します。PWA は cross-cutting capability なので Website のままです。Website が browser-context WebMCP interface を公開する場合、`capability.webmcp` を追加します。WebMCP の選択は MCP、MCP Apps、runtime、service、または `capability.web-interface` を決して含意せず、product の WebMCP browser-context profile を独立して宣言します。maintained server runtime があれば `capability.runtime`、独立して support する non-browser API があれば `capability.service`、別に support する browser-facing operational/diagnostic interface があれば `capability.web-interface` を追加します。packaging lifecycle が必要な場合だけ `lifecycle.release-bundle` を選択します。どの選択も `artifact.website-core` を `artifact.webapp-core` に変えません。
 
 selected component intent を変更するときは ordinary `update` ではなく `upgrade` を使います。upgrade 後も、別の reviewed full SHA を明示的に選ぶ advanced reason がない限り normal stable runner selection を継続し、追加 capability 自身の contract/evidence requirement を満たします。
 
@@ -356,7 +357,7 @@ required browser proof が deferred なら `not-ready` を生成または構成�
 Project Docs がこの walkthrough で complete なのは次がすべて true の場合です。
 
 - recipe は `website` のままで、closure は `artifact.website-core` + transitive `foundation.web` を含み Webapp-private artifact contract を含まない
-- installed stable runner が walkthrough 固有の `--revision` bridge なしに Website-capable toolchain revision `b4581b58301b1f2736fce86dfcd56d7ddb98bff0` を選択する
+- installed stable runner が walkthrough 固有の `--revision` bridge なしに Website-capable toolchain revision `f46595bcee2b0cdbc204fca052b2b431eefae3b5` を選択する
 - routes/site structure/metadata/discovery/viewport/browser identity が実装済み Website を記述し、seed placeholder ではなく `siteName: "Project Docs"` になっている
 - actual page/content/navigation と `favicon.svg` など宣言済み browser-identity asset が consumer-owned implementation に存在する
 - implementation 前に validated planning checkpoint があり、product checkpoint が transition を閉じている
