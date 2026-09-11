@@ -199,7 +199,7 @@ changes the consumer contract and therefore belongs in Git.
 
 ### Lifecycle-history example
 
-The current canonical Site history contains six validated checkpoints:
+The authority baseline contains the following six validated checkpoints:
 
 ```text
 1  site-reference-adoption
@@ -288,3 +288,12 @@ Composition, see [Policy–Composition coexistence](../coexistence/).
 These reader paths do not create a separate provider. Their provenance in a
 built artifact resolves to the exact provider revisions recorded in
 `build-provenance.json`.
+
+### Topology publication remediation history
+
+These additional checkpoints record the current remediation, not retrospective proof that planning preceded the earlier implementation.
+
+| Sequence | Phase | ID | Snapshot | Manifest SHA-256 |
+| --- | --- | --- | --- | --- |
+| 7 | planning | topology-publication-remediation | artifacts/lifecycle/007-topology-publication-remediation | 5e2203e246437b1ff536430db4e042b403dab7c757b35c2a88447fbfda80c287 |
+| 8 | product | topology-publication-remediation-product | artifacts/lifecycle/008-topology-publication-remediation-product | 3c10eceba4ada27893a6868a7fe9188ce02aab90e8cd641c68237d67cf9f94b8 |
