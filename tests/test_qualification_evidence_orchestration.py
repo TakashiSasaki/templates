@@ -71,6 +71,9 @@ def test_work_ledger_projection_of_qualification_evidence() -> None:
 
     assert "next safe landing action" in ledger_text
     assert "next safe landing action" in staged_text
+    assert "exact-revision-bound ci for the old sha" in ledger_text
+    assert "do not mark explicitly tree-and-context-bound ci stale solely" in ledger_text
+    assert "exact-head review remains stale after any proposed-head change" in ledger_text
 
 
 def test_work_ledger_must_not_become_acceptance_authority() -> None:
