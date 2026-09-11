@@ -80,7 +80,7 @@ jobs:
     uses: ./.github/workflows/build-pages.yml
     with:
       site_ref: ${{ github.event.pull_request.head.sha }}
-      composition_ref: 3863269bed2dd8bf4c7ebd8e329847841ca3179c
+      composition_ref: 2b07b411dc7e903f84dcaf89900ebd614a4cde7a
 
   producer_consumer:
     name: Real producer to Chromium consumer
@@ -129,8 +129,8 @@ jobs:
       - name: Exercise actual Composition candidate through actual Site candidate
         env:
           EXPECTED_SITE_REVISION: ${{ github.event.pull_request.head.sha }}
-          EXPECTED_PROVIDER_REVISION: 3863269bed2dd8bf4c7ebd8e329847841ca3179c
-          EXPECTED_SEMANTIC_REVISION: 6fc97d7e7087cdd6167c2f40c65d05dd4c32a382
+          EXPECTED_PROVIDER_REVISION: 2b07b411dc7e903f84dcaf89900ebd614a4cde7a
+          EXPECTED_SEMANTIC_REVISION: 10c527c0540968538359b1e9bffaba9896f071f9
         run: |
           test "$(git rev-parse HEAD)" = "$EXPECTED_SITE_REVISION"
           python scripts/check_composition_playground_cross_authority.py \
