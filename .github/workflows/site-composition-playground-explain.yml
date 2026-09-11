@@ -128,7 +128,7 @@ jobs:
       - name: Verify exact-head and active publication binding
         env:
           EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
-          EXPECTED_COMPOSITION_REVISION: 3863269bed2dd8bf4c7ebd8e329847841ca3179c
+          EXPECTED_COMPOSITION_REVISION: 2b07b411dc7e903f84dcaf89900ebd614a4cde7a
           EXPECTED_POLICY_REVISION: c5a3294809a1066bf59b83f467f1d597f885289a
         run: |
           test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
