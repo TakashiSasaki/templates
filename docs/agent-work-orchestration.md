@@ -49,6 +49,8 @@ Review latency does not by itself block dependency-safe construction beyond the 
 
 Acceptance evidence should be treated as a set of bindings rather than one indivisible snapshot. Any proposed-head change necessarily makes exact-head CI and review evidence for the former commit stale because those artifacts are bound to the exact revision. Other evidence whose bindings genuinely did not change, such as unrelated target-state or environment facts, may remain reusable after applicability is re-established. Target-branch movement can require semantic impact analysis without automatically making every unrelated evidence item stale. Unknown applicability fails closed; known unchanged non-exact-head bindings are reused.
 
+During stacked pull request landing, **merge progression does not itself invalidate qualification evidence: a change to the qualified candidate state or to an evidence binding does.** When an ancestor merges, the next member's qualification evidence is evaluated for applicability before scheduling new CI. If the effective candidate tree and required evidence bindings remain unchanged, existing qualification evidence is reused. Only invalidated or unknown evidence is selectively reacquired; rerunning full CI is not the default. Review evidence applicability remains separately governed by the repository's review policy.
+
 ### State-read amplification
 
 A state read is useful when it resolves decision-relevant uncertainty. State-read amplification occurs when materially unchanged live state is reacquired without a changed binding, concrete invalidation signal, or new decision need. Evidence-bound reads should therefore be refreshed according to what can actually have changed rather than through unconditional full snapshots.
