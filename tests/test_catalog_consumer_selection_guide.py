@@ -14,12 +14,13 @@ APPLICATION_CAPABILITIES = {
     "capability.service",
     "capability.web-interface",
 }
-WEBAPP_APPLICATION_CAPABILITIES = APPLICATION_CAPABILITIES | {"capability.pwa"}
+WEBAPP_APPLICATION_CAPABILITIES = APPLICATION_CAPABILITIES | {"capability.pwa", "capability.webmcp"}
 WEBSITE_APPLICATION_CAPABILITIES = {
     "capability.pwa",
     "capability.runtime",
     "capability.service",
     "capability.web-interface",
+    "capability.webmcp",
 }
 SKILL_LIFECYCLE_OPTIONS = {
     "lifecycle.contract-evolution",

@@ -145,6 +145,7 @@ class CompositionPublicationContractTests(unittest.TestCase):
             PurePosixPath(".agents/skills/pr-merge-gate/SKILL.md"),
             PurePosixPath("AGENTS.md"),
             PurePosixPath("components/artifact.skill-core/files/AGENTS.md"),
+            PurePosixPath("docs/guides/webmcp-capability.md"),
             PurePosixPath("docs/migrations/pr2-skill-capabilities.md"),
             PurePosixPath("docs/migrations/pr3-webapp-lifecycle.md"),
             PurePosixPath("examples/README.md"),

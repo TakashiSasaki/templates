@@ -349,17 +349,20 @@ python /absolute/path/to/agent-skills/composition/scripts/run.py \
 
 This final validation checks the closed planning-to-product lifecycle state. A product that has merely switched evidence to `product` without the required planning baseline or product checkpoint is not complete for this walkthrough.
 
-## 14. Optional PWA, runtime, service, Web-interface, and release-bundle behavior remains optional
+## 14. Optional PWA, WebMCP, runtime, service, Web-interface, and release-bundle behavior remains optional
 
-At stable toolchain revision `b4581b58301b1f2736fce86dfcd56d7ddb98bff0`, the `website` recipe exposes exactly these optional selections:
+At stable toolchain revision `f46595bcee2b0cdbc204fca052b2b431eefae3b5`, the `website` recipe exposes exactly these optional selections:
 
 - `capability.pwa`;
 - `capability.runtime`;
 - `capability.service`;
-- `capability.web-interface`; and
+- `capability.web-interface`;
+- `capability.webmcp`; and
 - `lifecycle.release-bundle`.
 
 If Project Docs later supports installability/offline/update behavior, upgrade the intent to include `capability.pwa`. It remains a Website because PWA is a cross-cutting capability. Network-only offline read policies do not require cached-content proof; cached-content/freshness proof families become active only when the selected PWA route policy actually permits cached content.
+
+If the Website exposes a browser-context WebMCP interface, add `capability.webmcp`. WebMCP selection never implies MCP, MCP Apps, runtime, service, or `capability.web-interface`; it declares the product's WebMCP browser-context profile independently.
 
 If the Website has a maintained server runtime, add `capability.runtime`. If it exposes an independently supported non-browser API, add `capability.service`, which brings its runtime dependency transitively. If it exposes a separately supported browser-facing operational or diagnostic interface, add `capability.web-interface`. Select `lifecycle.release-bundle` only when the repository needs that packaging lifecycle. None of those selections changes `artifact.website-core` into `artifact.webapp-core`, and selecting the release-bundle lifecycle does not itself establish release readiness.
 

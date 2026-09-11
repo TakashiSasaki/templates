@@ -268,6 +268,7 @@ class PR3ProductionCatalogTests(unittest.TestCase):
                 "capability.runtime",
                 "capability.service",
                 "capability.web-interface",
+                "capability.webmcp",
                 "lifecycle.release-bundle",
             ],
         )
