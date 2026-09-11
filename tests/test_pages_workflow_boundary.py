@@ -254,6 +254,31 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
                 self.assertIn("ci/full-site-verification", job_if)
 
 
+    def test_all_labeled_workflows_isolate_unrelated_labels_in_concurrency_group(self) -> None:
+        import yaml
+        workflows_dir = ROOT / ".github/workflows"
+        labeled_workflows = (
+            "build-pages.yml",
+            "check-publication-freshness.yml",
+            "provider-coexistence.yml",
+            "reference-consumer.yml",
+            "site-composition-playground.yml",
+            "site-composition-playground-explain.yml",
+            "site-composition-playground-cross-authority.yml",
+            "site-full-qualification.yml",
+        )
+        for wf_name in labeled_workflows:
+            with self.subTest(workflow=wf_name):
+                wf_path = workflows_dir / wf_name
+                wf_data = yaml.safe_load(wf_path.read_text(encoding="utf-8"))
+                concurrency = wf_data.get("concurrency", {})
+                group = concurrency.get("group", "")
+                self.assertIn("unrelated-label-", group)
+                self.assertIn("ci/full-qualification", group)
+                self.assertIn("ci/full-site-verification", group)
+                self.assertIn("github.run_id", group)
+
+
 if __name__ == "__main__":
     unittest.main()
 

@@ -44,7 +44,7 @@ env:
   PUBLIC_SITE_URL: https://templates.moukaeritai.work/
 
 concurrency:
-  group: documentation-build-${{ github.workflow }}-${{ github.ref }}
+  group: documentation-build-${{ github.workflow }}-${{ (github.event.action == 'labeled' && github.event.label.name != 'ci/full-qualification' && github.event.label.name != 'ci/full-site-verification') && format('unrelated-label-{0}', github.run_id) || github.ref }}
   cancel-in-progress: true
 
 jobs:
