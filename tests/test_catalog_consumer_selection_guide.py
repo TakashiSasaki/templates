@@ -70,12 +70,18 @@ class CatalogConsumerSelectionGuideTests(unittest.TestCase):
         self.assertIn("## Consumer selection guide", guide)
         self.assertIn("Website", guide)
         self.assertIn("Web application", guide)
+        self.assertIn("`capability.webmcp`", guide)
         self.assertIn("website-webapp-selection.md", guide)
         self.assertIn(
             "[Choosing a recipe and components](../catalog/README.md)",
             docs_index,
         )
         self.assertIn("website-webapp-selection.md", docs_index)
+
+        ja_guide = (ROOT / "translations" / "ja" / "catalog" / "README.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("`capability.webmcp`", ja_guide)
 
     def test_recipe_exposure_matches_consumer_selection_model(self) -> None:
         skill = load_json(ROOT / "recipes" / "skill.json")

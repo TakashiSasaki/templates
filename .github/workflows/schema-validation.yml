@@ -155,6 +155,9 @@ jobs:
       - name: Verify dependency graph
         run: .venv/bin/python -m pip check
 
+      - name: Materialize Composition publication
+        run: .venv/bin/python -I scripts/materialize_publication.py --source-root .
+
       - name: Run core schema and semantic contract test shard 1/2
         run: >-
           .venv/bin/python scripts/run_unittest_shard.py

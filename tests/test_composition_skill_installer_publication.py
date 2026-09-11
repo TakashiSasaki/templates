@@ -176,6 +176,12 @@ class CompositionSkillInstallerPublicationTests(unittest.TestCase):
             with self.subTest(path=path.relative_to(ROOT).as_posix()):
                 self.assert_verified_bootstrap_guidance(path)
 
+        translated_guide = TRANSLATED_CONSUMER_GUIDE.read_text(encoding="utf-8")
+        self.assertIn(INSTALLER_REVISION, translated_guide)
+        self.assertIn(SKILL_REVISION, translated_guide)
+        self.assertIn(TOOLCHAIN_REVISION, translated_guide)
+        self.assertIn(INSTALLER_SHA256, translated_guide)
+
     def test_website_walkthroughs_use_stable_website_capable_toolchain(self) -> None:
         for path in (WEBSITE_WALKTHROUGH, TRANSLATED_WEBSITE_WALKTHROUGH):
             with self.subTest(path=path.relative_to(ROOT).as_posix()):
