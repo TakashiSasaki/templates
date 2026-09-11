@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - site
+      - 'feat/site-*'
     types:
       - opened
       - synchronize

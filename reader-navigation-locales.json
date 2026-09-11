@@ -5,6 +5,9 @@
     {
       "language": "ja",
       "labels": [
+        {"id": "repository-topology", "canonical": "Repository topology", "localized": "リポジトリトポロジ"},
+        {"id": "topology-contract", "canonical": "Topology contract", "localized": "トポロジ契約"},
+        {"id": "topology-architecture", "canonical": "Topology architecture", "localized": "トポロジアーキテクチャ"},
         {"id": "documentation-portal", "canonical": "Documentation portal", "localized": "ドキュメントポータル"},
         {"id": "policy-composition-coexistence", "canonical": "Policy–Composition coexistence", "localized": "Policy–Composition 共存"},
         {"id": "repository-trees", "canonical": "Repository trees", "localized": "リポジトリツリー"},

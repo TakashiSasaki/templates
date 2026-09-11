@@ -13,7 +13,7 @@ Repository-wide authority ownership, semantic-role definitions, the Site ownersh
 | Authority | Owns | Does not own |
 | --- | --- | --- |
 | `policy` | application-type-independent coding-agent operating semantics; the `agent-policy` toolchain; Policy adoption, render, validate, and check behavior; Policy configuration, lock, runtime selection, cache, and release identity | artifact semantics; Composition component selection; Composition material ownership; Composer update/upgrade/recovery |
-| `composition` | `artifact.*`, `capability.*`, `lifecycle.*`, and `topology.*` semantics; recipes and schemas; deterministic resolution/materialization; Composition lock, ownership, update/upgrade, and recovery | coding-agent operating policy; Policy profiles; Policy runtime/release; interpretation of Policy configuration or lock state |
+| `composition` | `artifact.*`, `capability.*`, and `lifecycle.*` semantics; recipes and schemas; deterministic resolution/materialization; Composition lock, ownership, update/upgrade, and recovery | coding-agent operating policy; Policy profiles; Policy runtime/release; interpretation of Policy configuration or lock state |
 | `site` | repository integration and publication semantics at this boundary; reviewed provider revision selection; reader-facing information architecture; cross-provider integration validation; Pages/PWA publication | Policy semantics; Composition semantics; mutation of consumer repository state; provider-specific consumer management |
 
 ## Independent adoption states
@@ -197,8 +197,8 @@ The relationships below are generated from their canonical declarations.
 | --- | --- | --- |
 | Composition consumer | `a739b3823660e3db742ff0e1e159d279126cba7c` | Governs the Site Website contracts and material ownership |
 | Policy consumer | `33a7ab809225c2a8b8dd2598ef04d0a39cf076a7` | Governs Site maintenance and generated agent instructions |
-| Composition publication | `32bd7760e8c5a43ed78a7209c7cd1697cf7ba18c` | Provider material exposed to readers |
-| Policy publication | `10816c2084cbe27ef451ae949216124fa4ca28d4` | Provider material exposed to readers |
+| Composition publication | `69bbe90f615b8af025916feb72555c5f15c8d901` | Provider material exposed to readers |
+| Policy publication | `5e7d8205d671290a7cac7694e6117ecdba155d3a` | Provider material exposed to readers |
 
 ```mermaid
 flowchart TD

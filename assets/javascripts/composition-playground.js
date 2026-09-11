@@ -249,6 +249,9 @@
       const index = integerAtLeast(outcome.index, "outcome.index");
       if (outcomeById.has(index)) throw new ProjectionError("MALFORMED_PROJECTION", "outcome inventory is invalid or duplicated");
       const resolved = componentIdArray(outcome.resolved_components, `outcome ${index}.resolved_components`);
+      if (resolved.filter((id) => id.startsWith("topology.")).length > 1) {
+        throw new ProjectionError("MALFORMED_PROJECTION", "An outcome may select at most one repository topology");
+      }
       const edges = requireArray(outcome.dependency_edges, `outcome ${index}.dependency_edges`);
       const seenEdges = new Set();
       for (const edge of edges) {

@@ -518,6 +518,30 @@
       "socialPreview": "none"
     },
     {
+      "pageId": "site-repository-topology-overview",
+      "title": "Overview",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-topology-contract",
+      "title": "Topology contract",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-repository-topology-architecture",
+      "title": "Topology architecture",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
       "pageId": "site-lifecycle-overview",
       "title": "Overview",
       "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",

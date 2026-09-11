@@ -15,7 +15,7 @@ repository 全体の authority ownership、semantic role の定義、Site owners
 | Authority | 所有するもの | 所有しないもの |
 | --- | --- | --- |
 | `policy` | application type に依存しない coding-agent operating semantics、`agent-policy` toolchain、Policy の adoption / render / validate / check behavior、Policy configuration、lock、runtime selection、cache、release identity | artifact semantics、Composition component selection、Composition material ownership、Composer update / upgrade / recovery |
-| `composition` | `artifact.*`、`capability.*`、`lifecycle.*`、`topology.*` semantics、recipe と schema、deterministic resolution / materialization、Composition lock、ownership、update / upgrade、recovery | coding-agent operating policy、Policy profile、Policy runtime / release、Policy configuration / lock state の解釈 |
+| `composition` | `artifact.*`、`capability.*`、`lifecycle.*` semantics、recipe と schema、deterministic resolution / materialization、Composition lock、ownership、update / upgrade、recovery | coding-agent operating policy、Policy profile、Policy runtime / release、Policy configuration / lock state の解釈 |
 | `site` | この boundary における repository integration / publication semantics、reviewed provider revision selection、reader-facing information architecture、cross-provider integration validation、Pages / PWA publication | Policy semantics、Composition semantics、consumer repository state の変更、provider-specific consumer management |
 
 ## 独立した adoption state
@@ -201,8 +201,8 @@ Website 製品は `website` recipe と `capability.pwa` を、保守作業は Po
 | --- | --- | --- |
 | Composition consumer | `a739b3823660e3db742ff0e1e159d279126cba7c` | Website 契約と material の所有関係 |
 | Policy consumer | `33a7ab809225c2a8b8dd2598ef04d0a39cf076a7` | 保守規範と生成された agent 指示 |
-| Composition publication | `32bd7760e8c5a43ed78a7209c7cd1697cf7ba18c` | 読者に公開する provider の内容 |
-| Policy publication | `10816c2084cbe27ef451ae949216124fa4ca28d4` | 読者に公開する provider の内容 |
+| Composition publication | `69bbe90f615b8af025916feb72555c5f15c8d901` | 読者に公開する provider の内容 |
+| Policy publication | `5e7d8205d671290a7cac7694e6117ecdba155d3a` | 読者に公開する provider の内容 |
 
 既知の provider revision N が後続の consumer revision N+1 を規定します。
 これは時間順序を持つ bootstrap であり、実行時の循環依存ではありません。

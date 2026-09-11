@@ -9,7 +9,7 @@ EXPECTED_BASES = {
     "codex/site-composition-playground-v1-shell",
     "site",
 }
-EXPECTED_COMPOSITION_PROVIDER = "32bd7760e8c5a43ed78a7209c7cd1697cf7ba18c"
+EXPECTED_COMPOSITION_PROVIDER = "69bbe90f615b8af025916feb72555c5f15c8d901"
 
 
 def pull_request_bases(text: str) -> set[str]:

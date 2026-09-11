@@ -1,67 +1,69 @@
-# Repository topology: Hub-and-Orphan architecture
+# Repository topology: selectable consumer structure
 
-## Overview
+Repository topology is the fifth Composition axis: `artifact.*` identifies what
+is built, `foundation.*` supplies shared foundations, `capability.*` selects
+externally visible behavior, `lifecycle.*` manages change over time, and
+`topology.*` declares repository authority, history, and projection structure.
 
-This document defines the architectural specification and publication model for
-the **Hub-and-Orphan** repository pattern (`topology.hub-and-orphan`), formalizing
-repository topology as an orthogonal component role within `TakashiSasaki/templates`.
+## Select topology independently of the artifact
 
-Repository topology governs the branching structure, projection rules, submodule
-boundaries, and cross-authority integration paths across independent semantic domains.
+`topology.hub-and-orphan` is an optional component of the ordinary `skill`,
+`webapp`, and `website` recipes. It is not an artifact recipe. Selecting it keeps
+the recipe's artifact identity and resolves at most one topology component.
+The authoritative descriptor is
+`components/topology.hub-and-orphan/component.json` in Composition.
 
-## The Hub-and-Orphan pattern
+The component materializes `contracts/repository-topology.json`, its schema,
+and a validator. This declares an intended consumer repository layout; it does
+not demonstrate that Git already implements that layout. Composer does not
+create or switch branches, push refs, mutate `.git`, execute arbitrary hooks,
+or update remote submodules. Policy and the coding agent inspect actual Git
+state and perform separately authorized operations.
 
-The Hub-and-Orphan repository topology decouples independent domain authorities
-into disconnected orphan git branches while maintaining a unified discovery hub:
+## Hub-and-Orphan in a consumer repository
 
-```
-                  ┌─────────────────────────────────┐
-                  │            main hub             │
-                  │   Unified discovery & portals   │
-                  │   agent.json / site projection  │
-                  └───────┬──────────────┬──────────┘
-                          │              │
-       projection imports │              │ projection imports
-                          ▼              ▼
-     ┌─────────────────────────┐    ┌─────────────────────────┐
-     │   composition branch    │    │      policy branch      │
-     │   Independent orphan    │    │   Independent orphan    │
-     │   Schemas, components,  │    │   Operating policies,   │
-     │   recipes, foundations  │    │   profiles, procedures  │
-     └─────────────────────────┘    └─────────────────────────┘
-```
+A consumer chooses its Hub through `hub.branch`; `main` is merely the seed
+example. Each component has an independent authority history. A component's
+branch name equals its submodule mount path, and component namespaces are
+non-overlapping leaves. The Hub and component refs must also be compatible with
+Git's ref namespace constraints.
 
-### 1. Disconnected orphan authority branches
+The direction of authority is:
 
-Each primary domain authority exists on its own root-level orphan git branch:
-- **`composition`**: Owns component schemas, artifact definitions, capability selection, recipes, and resolution invariants.
-- **`policy`**: Owns coding-agent operating policies, profiles, verification procedures, and change orchestration skills.
-- **`site`**: Owns documentation assembly, cross-authority publication, web portal, agent discovery integration, and localization.
+1. A component authority branch contains the source of truth.
+2. An immutable commit identifies the selected component content.
+3. A Hub submodule gitlink selects that exact commit from the same repository.
+4. Hub discovery metadata describes those gitlinks.
 
-Orphan branches share no git ancestry with one another or with historical default branches. Each branch maintains independent versioning, test suites, and git commit graphs.
+The Hub never becomes a second component-content authority. Direct edits to
+component content in the projection are prohibited. Synchronization is
+provider-neutral: GitHub Actions can implement it, but is not part of topology
+identity. Stale discovery must not be mistaken for a current projection.
+Renames and deletions require coordinated updates to the declaration, refs,
+gitlinks, `.gitmodules`, and discovery metadata; Composer provides no automatic
+Git migration executor.
 
-### 2. Central discovery hub (`main`)
+## The templates repository has a separate authority model
 
-The central default branch (`main`) serves as the discovery hub and assembly surface:
-- It aggregates the published outputs and interfaces from each domain authority.
-- It exposes root-level discovery metadata (including `agent.json` and `.well-known/agent.json`).
-- It projects authority contents into mount paths corresponding strictly to the authority names.
+The existing `TakashiSasaki/templates` authorities are `site`, `composition`,
+and `policy`. Their independent histories do not imply adoption of this consumer
+topology. This change does not create a `main` Hub or mount those authorities as
+self-referencing submodules.
 
-### 3. Submodule and projection rule
+As described in the [authority model](../authority-model.md), `site` owns
+integration, provider-lock assembly, discovery, and Pages publication.
+Composition owns reusable topology semantics; Policy consumes that contract and
+owns coding-agent operational procedures. Site documents and integrates their
+public interfaces without redefining either authority.
 
-When authority branches are projected or mounted as git submodules or projection directories:
-- **`branch == mountPath`**: The mount path in the hub directory tree MUST match the authoritative branch name exactly (e.g. `composition` mounted at `/composition`, `policy` mounted at `/policy`).
-- **Leaf-only namespaces**: Domain authorities must maintain leaf-only namespaces to prevent path collisions when projected into the central hub.
+## Machine discovery and publication provenance
 
-### 4. Strict authority-to-hub synchronization
+Site generates `agent.json` and `assets/agent.json`; the public discovery URL is
+`/agent.json`. Its task routing identifies Composition as required when selecting
+repository topology. `publication-sources.json` records immutable provider
+revisions. The generator validates release descriptor structure and renders
+matching projections; it does not verify cryptographic authority signatures.
 
-The synchronization direction between authority branches and the central hub is strictly unidirectional:
-- **Authority to Hub**: Changes originate within authority branches (`composition`, `policy`, `site`) via isolated pull requests and verification workflows. Once reviewed and accepted, qualified revisions are published to the hub.
-- **Prohibition of Direct Hub Mutation**: Direct modification of authority component files, policy rules, or schema definitions directly on the `main` hub branch is prohibited. Any change to authority-owned assets on `main` without provenance from the respective authority branch is considered an integrity violation.
-
-## Discovery and agent.json integration
-
-The Site authority materializes discovery metadata (`agent.json` and `assets/agent.json`) consuming verified revisions of `composition` and `policy`:
-- **`publication-sources.json`**: Records the exact git commit SHAs of the upstream orphan branches accepted for publication.
-- **Agent bootstrap generator**: Reads the pinned commit SHAs, validates authority signatures and schemas, and renders the unified bootstrap document.
-- **Hub discovery**: Agents accessing the repository can discover the complete set of capabilities, recipes, and topologies starting from `agent.json` at the repository root.
+Publication selection, consumer topology declaration, observed Git state, and
+permission to mutate are distinct facts. A publication pin is not evidence that
+the repository has adopted the published topology.

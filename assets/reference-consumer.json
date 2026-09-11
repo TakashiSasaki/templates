@@ -480,10 +480,10 @@
     "repository": "TakashiSasaki/templates",
     "publications": {
       "composition": {
-        "revision": "32bd7760e8c5a43ed78a7209c7cd1697cf7ba18c"
+        "revision": "69bbe90f615b8af025916feb72555c5f15c8d901"
       },
       "policy": {
-        "revision": "10816c2084cbe27ef451ae949216124fa4ca28d4"
+        "revision": "5e7d8205d671290a7cac7694e6117ecdba155d3a"
       }
     }
   },
