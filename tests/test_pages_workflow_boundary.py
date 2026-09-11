@@ -254,6 +254,54 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
                 self.assertIn("ci/full-site-verification", job_if)
 
 
+    def test_all_labeled_workflows_isolate_unrelated_labels_in_concurrency_group(self) -> None:
+        import yaml
+        workflows_dir = ROOT / ".github/workflows"
+        labeled_workflows = (
+            "build-pages.yml",
+            "check-publication-freshness.yml",
+            "provider-coexistence.yml",
+            "reference-consumer.yml",
+            "site-composition-playground.yml",
+            "site-composition-playground-explain.yml",
+            "site-composition-playground-cross-authority.yml",
+            "site-full-qualification.yml",
+            "publication-materialization.yml",
+            "publication-contract-v4.yml",
+            "check-agent-policy.yml",
+        )
+        for wf_name in labeled_workflows:
+            with self.subTest(workflow=wf_name):
+                wf_path = workflows_dir / wf_name
+                wf_data = yaml.safe_load(wf_path.read_text(encoding="utf-8"))
+                
+                # Verify pull_request trigger includes labeled
+                triggers = wf_data.get("on") or wf_data.get(True) or {}
+                pr_config = triggers.get("pull_request", {})
+                pr_types = pr_config.get("types", []) if isinstance(pr_config, dict) else []
+                self.assertIn("labeled", pr_types, f"{wf_name} missing 'labeled' trigger")
+
+                # Verify concurrency group isolates unrelated labels
+                concurrency = wf_data.get("concurrency", {})
+                group = concurrency.get("group", "")
+                self.assertIn("unrelated-label-", group)
+                self.assertIn("ci/full-qualification", group)
+                self.assertIn("ci/full-site-verification", group)
+                self.assertIn("github.run_id", group)
+
+                # Verify at least one job gates on the qualification label
+                jobs = wf_data.get("jobs", {})
+                has_qualification_gate = any(
+                    "ci/full-qualification" in job.get("if", "")
+                    and "github.event.action != 'labeled'" in job.get("if", "")
+                    for job in jobs.values()
+                )
+                self.assertTrue(
+                    has_qualification_gate,
+                    f"{wf_name} missing job-level qualification label gate",
+                )
+
+
 if __name__ == "__main__":
     unittest.main()
 

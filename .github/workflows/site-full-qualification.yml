@@ -16,7 +16,7 @@ permissions:
   actions: read
 
 concurrency:
-  group: site-full-qualification-${{ github.event.pull_request.number || github.ref }}
+  group: site-full-qualification-${{ (github.event.action == 'labeled' && github.event.label.name != 'ci/full-qualification' && github.event.label.name != 'ci/full-site-verification') && format('unrelated-label-{0}', github.run_id) || (github.event.pull_request.number || github.ref) }}
   cancel-in-progress: true
 
 jobs:

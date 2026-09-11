@@ -12,7 +12,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: site-composition-playground-${{ github.workflow }}-${{ github.event.pull_request.number }}
+  group: site-composition-playground-${{ github.workflow }}-${{ (github.event.action == 'labeled' && github.event.label.name != 'ci/full-qualification' && github.event.label.name != 'ci/full-site-verification') && format('unrelated-label-{0}', github.run_id) || (github.event.pull_request.number || github.ref) }}
   cancel-in-progress: true
 
 jobs:

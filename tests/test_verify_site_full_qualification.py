@@ -452,9 +452,9 @@ class VerifySiteFullQualificationTests(unittest.TestCase):
         runs, jobs_by_id = build_mock_hierarchy()
         for r in runs:
             r["created_at"] = "2026-09-11T09:59:30Z"
-        # Make one workflow run ancient (stale)
+        # Make one labeled-dispatched workflow run ancient (stale)
         for r in runs:
-            if r["path"] == ".github/workflows/validate-website.yml":
+            if r["path"] == ".github/workflows/check-agent-policy.yml":
                 r["created_at"] = "2026-09-11T08:00:00Z"
 
         mock_runs.return_value = runs
@@ -472,7 +472,39 @@ class VerifySiteFullQualificationTests(unittest.TestCase):
             )
         self.assertEqual(1, result)
         self.assertIn("Full Qualification TIMED OUT", stderr_capture.getvalue())
-        self.assertIn("Validate website contract", stderr_capture.getvalue())
+        self.assertIn("Check agent policy", stderr_capture.getvalue())
+
+    @patch("scripts.verify_site_full_qualification.fetch_run_jobs")
+    @patch("scripts.verify_site_full_qualification.fetch_run_info")
+    @patch("scripts.verify_site_full_qualification.fetch_workflow_runs")
+    def test_provider_managed_workflows_preserve_exact_head_runs_across_epochs(
+        self, mock_runs, mock_info, mock_jobs
+    ) -> None:
+        # Qualification runner run ID has created_at 2026-09-11T10:00:00Z
+        mock_info.return_value = {"id": 12345, "created_at": "2026-09-11T10:00:00Z"}
+
+        runs, jobs_by_id = build_mock_hierarchy()
+        for r in runs:
+            r["created_at"] = "2026-09-11T09:59:30Z"
+        # Validate-website is provider-managed and ran at PR opened (e.g. 2 hours before label event)
+        for r in runs:
+            if r["path"] == ".github/workflows/validate-website.yml":
+                r["created_at"] = "2026-09-11T08:00:00Z"
+
+        mock_runs.return_value = runs
+        mock_jobs.side_effect = lambda repo, run_id, token: jobs_by_id.get(run_id, [])
+
+        result = verify_qualification(
+            repo="TakashiSasaki/templates",
+            head_sha="0123456789abcdef",
+            token="dummy",
+            qualification_run_id=12345,
+            timeout_seconds=0,
+            poll_interval_seconds=0,
+        )
+        # Succeeded because validate-website.yml is not in LABELED_DISPATCHED_WORKFLOW_PATHS,
+        # so its exact-head run from 08:00:00 is preserved without timing out.
+        self.assertEqual(0, result)
 
     @patch("scripts.verify_site_full_qualification.fetch_run_jobs")
     @patch("scripts.verify_site_full_qualification.fetch_workflow_runs")

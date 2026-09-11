@@ -15,7 +15,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: provider-coexistence-${{ github.ref }}
+  group: provider-coexistence-${{ (github.event.action == 'labeled' && github.event.label.name != 'ci/full-qualification' && github.event.label.name != 'ci/full-site-verification') && format('unrelated-label-{0}', github.run_id) || github.ref }}
   cancel-in-progress: true
 
 jobs:

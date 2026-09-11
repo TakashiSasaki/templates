@@ -41,7 +41,9 @@ class PublicationFreshnessWorkflowTests(unittest.TestCase):
 
     def test_concurrency_only_cancels_superseded_pull_request_runs(self) -> None:
         concurrency = self.workflow["concurrency"]
-        self.assertEqual("publication-freshness-${{ github.ref }}", concurrency["group"])
+        self.assertIn("publication-freshness-", concurrency["group"])
+        self.assertIn("unrelated-label-", concurrency["group"])
+        self.assertIn("ci/full-qualification", concurrency["group"])
         self.assertEqual(
             "${{ github.event_name == 'pull_request' }}",
             concurrency["cancel-in-progress"],

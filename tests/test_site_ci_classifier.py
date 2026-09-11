@@ -219,7 +219,9 @@ class SiteCIClassifierTests(unittest.TestCase):
             "scripts/classify_site_ci.py",
             "scripts/classify_site_browser_acceptance.py",
             "scripts/verify_site_full_qualification.py",
+            "scripts/run_core_tests.py",
             "tests/test_site_ci_classifier.py",
+            "tests/test_run_core_tests.py",
         ):
             with self.subTest(path=path):
                 decision = classify_paths([path])
@@ -365,22 +367,6 @@ class SiteCIClassifierTests(unittest.TestCase):
                 self.assertFalse(decision.full_required)
                 self.assertTrue(decision.freshness_candidate_required)
                 self.assertEqual("runtime-sensitive", decision.risk_class)
-
-    def test_known_core_only_scripts_skip_heavy_build_and_browser(self) -> None:
-        for path in ("scripts/run_core_tests.py", "tests/test_run_core_tests.py"):
-            with self.subTest(path=path):
-                decision = classify_paths([path])
-                self.assertTrue(decision.core_required)
-                self.assertFalse(decision.build_required)
-                self.assertFalse(decision.browser_required)
-                self.assertFalse(decision.pwa_required)
-                self.assertFalse(decision.reference_consumer_required)
-                self.assertFalse(decision.cross_authority_required)
-                self.assertFalse(decision.publication_required)
-                self.assertFalse(decision.full_required)
-                self.assertFalse(decision.coexistence_required)
-                self.assertFalse(decision.freshness_candidate_required)
-                self.assertEqual("core-only", decision.risk_class)
 
     def test_known_build_only_scripts_require_build_but_skip_browser(self) -> None:
         for script_path in (
