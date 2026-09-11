@@ -43,6 +43,7 @@ exclusion が既知の reader-facing requirement を無効にすることはあ�
 現在の explicit exclusion は次のとおりです。
 
 - operational consumer-agent instruction (`components/artifact.skill-core/files/AGENTS.md`)。
+- supplemental WebMCP selection note (`docs/guides/webmcp-capability.md`)。canonical な reader-facing capability authority は `components/capability.webmcp/files/WEBMCP.md` であり、`docs/index.md` から参照されます。
 - stage-specific な PR2 / PR3 authority-migration note (`docs/migrations/pr2-skill-capabilities.md` と `docs/migrations/pr3-webapp-lifecycle.md`)。これらは Composition authority maintenance provenance として保持されますが、統合 history と immutable PR record が reader-facing history surface を形成するため reader publication には含めません。
 - non-production executable-fixture guidance (`examples/README.md`)。
 - repository-level immutable installer publication guidance (`release/README.md`)。これは operational release identity を文書化しますが、reader-facing installation guidance は Site が別途 assemble します。
