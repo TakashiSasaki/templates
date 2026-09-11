@@ -73,7 +73,7 @@ def test_discover_valid_contract_returns_hub_and_orphan(tmp_path: Path) -> None:
     schemas_dir.mkdir(parents=True)
     repo_root = Path(__file__).resolve().parents[1]
     (schemas_dir / "repository-topology.schema.json").write_text(
-        (repo_root / "schemas" / "repository-topology.schema.json").read_text(encoding="utf-8"),
+        (repo_root / "src/agent_policy/_topology_contract/schemas/repository-topology.schema.json").read_text(encoding="utf-8"),
         encoding="utf-8",
     )
 
@@ -102,7 +102,7 @@ def test_discover_malformed_json_fails_closed(tmp_path: Path) -> None:
 
     with pytest.raises(TopologyDiscoveryError) as exc_info:
         discover_repository_topology(tmp_path)
-    assert exc_info.value.code == "TOPOLOGY_JSON_INVALID"
+    assert exc_info.value.code == "TOPOLOGY_CONTRACT_INVALID"
 
 
 def test_discover_invalid_shape_fails_closed(tmp_path: Path) -> None:
@@ -113,7 +113,7 @@ def test_discover_invalid_shape_fails_closed(tmp_path: Path) -> None:
 
     with pytest.raises(TopologyDiscoveryError) as exc_info:
         discover_repository_topology(tmp_path)
-    assert exc_info.value.code == "TOPOLOGY_SHAPE_INVALID"
+    assert exc_info.value.code == "TOPOLOGY_CONTRACT_INVALID"
 
 
 def test_discover_schema_violation_fails_closed(tmp_path: Path) -> None:
@@ -126,7 +126,7 @@ def test_discover_schema_violation_fails_closed(tmp_path: Path) -> None:
 
     with pytest.raises(TopologyDiscoveryError) as exc_info:
         discover_repository_topology(tmp_path)
-    assert exc_info.value.code == "TOPOLOGY_SCHEMA_VIOLATION"
+    assert exc_info.value.code == "TOPOLOGY_CONTRACT_INVALID"
 
 
 def test_discover_unsupported_kind_fails_closed(tmp_path: Path) -> None:
@@ -139,7 +139,7 @@ def test_discover_unsupported_kind_fails_closed(tmp_path: Path) -> None:
 
     with pytest.raises(TopologyDiscoveryError) as exc_info:
         discover_repository_topology(tmp_path)
-    assert exc_info.value.code in ("TOPOLOGY_SCHEMA_VIOLATION", "UNSUPPORTED_TOPOLOGY_KIND")
+    assert exc_info.value.code == "TOPOLOGY_CONTRACT_INVALID"
 
 
 def test_discover_branch_name_mount_path_mismatch_fails_closed(tmp_path: Path) -> None:
@@ -159,7 +159,7 @@ def test_discover_branch_name_mount_path_mismatch_fails_closed(tmp_path: Path) -
 
     with pytest.raises(TopologyDiscoveryError) as exc_info:
         discover_repository_topology(tmp_path)
-    assert exc_info.value.code == "BRANCH_NAME_MOUNT_PATH_MISMATCH"
+    assert exc_info.value.code == "TOPOLOGY_CONTRACT_INVALID"
 
 
 def test_discover_nested_mount_paths_fails_closed(tmp_path: Path) -> None:
@@ -185,7 +185,7 @@ def test_discover_nested_mount_paths_fails_closed(tmp_path: Path) -> None:
 
     with pytest.raises(TopologyDiscoveryError) as exc_info:
         discover_repository_topology(tmp_path)
-    assert exc_info.value.code == "LEAF_NAMESPACE_VIOLATION"
+    assert exc_info.value.code == "TOPOLOGY_CONTRACT_INVALID"
 
 
 def test_discover_hub_direct_mutation_allowed_fails_closed(tmp_path: Path) -> None:
@@ -199,7 +199,7 @@ def test_discover_hub_direct_mutation_allowed_fails_closed(tmp_path: Path) -> No
 
     with pytest.raises(TopologyDiscoveryError) as exc_info:
         discover_repository_topology(tmp_path)
-    assert exc_info.value.code in ("TOPOLOGY_SCHEMA_VIOLATION", "TOPOLOGY_HUB_MUTATION_ALLOWED")
+    assert exc_info.value.code == "TOPOLOGY_CONTRACT_INVALID"
 
 
 def test_discover_invalid_sync_direction_fails_closed(tmp_path: Path) -> None:
@@ -213,7 +213,7 @@ def test_discover_invalid_sync_direction_fails_closed(tmp_path: Path) -> None:
 
     with pytest.raises(TopologyDiscoveryError) as exc_info:
         discover_repository_topology(tmp_path)
-    assert exc_info.value.code in ("TOPOLOGY_SCHEMA_VIOLATION", "TOPOLOGY_SYNC_DIRECTION_INVALID")
+    assert exc_info.value.code == "TOPOLOGY_CONTRACT_INVALID"
 
 
 def test_core_profile_loads_repository_topology_discovery_rule() -> None:
@@ -227,3 +227,31 @@ def test_core_profile_loads_repository_topology_discovery_rule() -> None:
     assert rule.overridable is False
     assert rule.order == 45
     assert "Discover repository topology fail-closed" in rule.title
+
+
+def test_absent_contract_has_safe_empty_lookups(tmp_path: Path) -> None:
+    topology = discover_repository_topology(tmp_path)
+    assert topology.component_by_branch("anything") is None
+    assert topology.component_by_mount_path("anything") is None
+
+
+def test_present_directory_and_symlink_fail_closed(tmp_path: Path) -> None:
+    contract = tmp_path / "contracts/repository-topology.json"
+    contract.parent.mkdir()
+    contract.mkdir()
+    with pytest.raises(TopologyDiscoveryError):
+        discover_repository_topology(tmp_path)
+    contract.rmdir()
+    contract.symlink_to(tmp_path / "absent")
+    with pytest.raises(TopologyDiscoveryError):
+        discover_repository_topology(tmp_path)
+
+
+def test_consumer_schema_cannot_disable_validation(tmp_path: Path) -> None:
+    (tmp_path / "contracts").mkdir()
+    data = dict(SAMPLE_VALID_TOPOLOGY, schemaVersion=999)
+    (tmp_path / "contracts/repository-topology.json").write_text(json.dumps(data))
+    (tmp_path / "schemas").mkdir()
+    (tmp_path / "schemas/repository-topology.schema.json").write_text("{}")
+    with pytest.raises(TopologyDiscoveryError):
+        discover_repository_topology(tmp_path)

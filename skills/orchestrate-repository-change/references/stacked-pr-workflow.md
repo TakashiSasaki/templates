@@ -26,7 +26,7 @@ When operating in a repository using `hub-and-orphan` topology:
 2. **Cross-component independence**: Never create a single PR or Git commit branch that spans multiple component orphan histories. Unrelated authority branches share no common ancestor; cross-component dependencies must be expressed as explicit external candidate bindings (such as candidate commit SHAs or pins in schema/recipe contracts), not Git ancestry.
 3. **Landing and projection advance**:
    - Each component stack lands base-to-tip into its respective component authority orphan branch.
-   - After component authority branches advance to their target landing heads, the hub projection (`main`) is updated via submodule pointer advances (`authority-to-hub`).
+   - After component authority branches advance to their target landing heads, the hub projection (`hub.branch`) is updated via submodule pointer advances (`authority-to-hub`).
    - The hub branch is never mutated to land intermediate, unmerged component candidate commits.
 
 ## Stability frontier

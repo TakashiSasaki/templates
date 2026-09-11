@@ -1,0 +1,17 @@
+{
+  "repository": "TakashiSasaki/templates",
+  "authority": "composition",
+  "revision": "84bb23f6e8ebf5cafbef3e93f25b7076fe47f3b7",
+  "files": [
+    {
+      "source": "components/topology.hub-and-orphan/files/.template-composition/validators/validate_repository_topology.py",
+      "destination": "validator.py",
+      "sha256": "822d201a7b081fa395f712c35bb735af9a99fd0ddf7902b2bd873056d61a6bea"
+    },
+    {
+      "source": "components/topology.hub-and-orphan/files/schemas/repository-topology.schema.json",
+      "destination": "schemas/repository-topology.schema.json",
+      "sha256": "29a2d42929fa984031b7909fc8fb7cd40e706fd787fce1aa55dbc413f3105d97"
+    }
+  ]
+}

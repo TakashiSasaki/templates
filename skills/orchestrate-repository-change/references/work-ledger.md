@@ -34,7 +34,7 @@ If durable storage is unavailable, retain execution-local state and report the d
 
 When `contracts/repository-topology.json` declares a `hub-and-orphan` topology:
 
-1. **Topology registration**: Record the discovered topology kind (`hub-and-orphan`), hub projection branch (`main`), and registered component authorities (branch, mount path, role).
+1. **Topology registration**: Record the discovered topology kind (`hub-and-orphan`), hub projection branch (`hub.branch`), and registered component authorities (branch, mount path, role).
 2. **Authority-isolated mutations**: Every planned mutation unit MUST designate its target component authority. Component source and test mutations MUST target branches branched from the component's authority orphan branch (`branch == mountPath`). Direct mutation of component files on the hub projection branch is prohibited.
 3. **Projection synchronization ordering**: Units updating submodule projection pointers on the hub branch MUST declare explicit dependencies on the merged/landed state of the component authority PR (`authority-to-hub` direction).
 4. **Interrupted mutation recovery**: On resume, verify whether orphan branches were created, whether component PRs landed, and whether the hub submodule pointer was updated. Reconcile component authority state before scheduling hub projection updates.
