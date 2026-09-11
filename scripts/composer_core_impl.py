@@ -127,6 +127,11 @@ def source_revision() -> str:
     return revision
 
 
+_VERIFIED_TRACKED_AUTHORITIES: set[str] = set()
+_COMPILED_VALIDATORS: dict[Path, Draft202012Validator] = {}
+_SOURCE_BYTES_CACHE: dict[Path, bytes] = {}
+
+
 def _assert_tracked_authority(path: Path) -> None:
     try:
         relative = path.relative_to(SOURCE_ROOT).as_posix()
@@ -135,6 +140,8 @@ def _assert_tracked_authority(path: Path) -> None:
             "SOURCE_OUTSIDE_REPOSITORY",
             f"source authority is outside the composition checkout: {path}",
         ) from exc
+    if relative in _VERIFIED_TRACKED_AUTHORITIES:
+        return
     if path.is_symlink() or not path.is_file():
         raise CompositionError(
             "INVALID_SOURCE_AUTHORITY",
@@ -146,19 +153,24 @@ def _assert_tracked_authority(path: Path) -> None:
             "UNTRACKED_SOURCE_AUTHORITY",
             f"source authority is not tracked by the bound Git revision: {relative}",
         )
+    _VERIFIED_TRACKED_AUTHORITIES.add(relative)
 
 
 def _schema_validate(schema_path: Path, value: Any, *, label: str) -> None:
-    _assert_tracked_authority(schema_path)
-    schema = read_json(schema_path)
-    try:
-        Draft202012Validator.check_schema(schema)
-        errors = sorted(
-            Draft202012Validator(schema).iter_errors(value),
-            key=lambda error: tuple(error.absolute_path),
-        )
-    except Exception as exc:
-        raise CompositionError("INVALID_SCHEMA", f"{schema_path}: {exc}") from exc
+    validator = _COMPILED_VALIDATORS.get(schema_path)
+    if validator is None:
+        _assert_tracked_authority(schema_path)
+        schema = read_json(schema_path)
+        try:
+            Draft202012Validator.check_schema(schema)
+            validator = Draft202012Validator(schema)
+        except Exception as exc:
+            raise CompositionError("INVALID_SCHEMA", f"{schema_path}: {exc}") from exc
+        _COMPILED_VALIDATORS[schema_path] = validator
+    errors = sorted(
+        validator.iter_errors(value),
+        key=lambda error: tuple(error.absolute_path),
+    )
     if errors:
         rendered = "; ".join(error.message for error in errors[:5])
         raise CompositionError("SCHEMA_VALIDATION_FAILED", f"{label}: {rendered}")
@@ -418,11 +430,14 @@ def build_materials(state: SourceState, selected: list[str]) -> list[Material]:
         for declaration in descriptor["materials"]:
             if "source" in declaration:
                 source = component_root / declaration["source"]
-                _assert_tracked_authority(source)
-                try:
-                    data = source.read_bytes()
-                except OSError as exc:
-                    raise CompositionError("READ_FAILED", f"cannot read source material {source}: {exc}") from exc
+                data = _SOURCE_BYTES_CACHE.get(source)
+                if data is None:
+                    _assert_tracked_authority(source)
+                    try:
+                        data = source.read_bytes()
+                    except OSError as exc:
+                        raise CompositionError("READ_FAILED", f"cannot read source material {source}: {exc}") from exc
+                    _SOURCE_BYTES_CACHE[source] = data
             else:
                 generator = declaration["generator"]
                 if generator not in SUPPORTED_GENERATORS:
