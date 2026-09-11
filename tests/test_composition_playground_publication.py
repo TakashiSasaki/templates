@@ -22,6 +22,11 @@ from composer_core_impl import CompositionError  # noqa: E402
 
 GENERATED = ROOT / "generated"
 CATALOG = ROOT / "docs" / "publication-catalog.json"
+CLASSIFICATION = ROOT / "docs" / "publication-classification.json"
+DOCS_INDEX = ROOT / "docs" / "index.md"
+SCHEMA_VALIDATION = ROOT / ".github" / "workflows" / "schema-validation.yml"
+REFERENCE_CONSUMER_PUBLICATION = ROOT / ".github" / "workflows" / "reference-consumer-publication.yml"
+EXPECTED_SITE_COMPATIBILITY_REVISION = "de3141613c6a838e0a3ce49aa21d3d778f7051f8"
 
 
 class CompositionPlaygroundPublicationTests(unittest.TestCase):
@@ -169,6 +174,61 @@ class CompositionPlaygroundPublicationTests(unittest.TestCase):
         self.assertEqual(1, build_projection_count)
         self.assertIn(publication.BASE_NAME, payloads)
         self.assertIn(publication.INTENT_NAME, payloads)
+
+
+class PublicationLifecycleRegressionTests(unittest.TestCase):
+    def test_schema_validation_executes_materializer_before_both_validators(self) -> None:
+        workflow = SCHEMA_VALIDATION.read_text(encoding="utf-8")
+        primary = workflow.split("\n  primary:\n", 1)[1].split("\n  parallel:\n", 1)[0]
+        materialize = "scripts/materialize_publication.py --source-root ."
+        site_contract = (
+            '"$SITE_PUBLICATION_PROTOCOL_ROOT/scripts/publication_contract.py" --source-root .'
+        )
+        composition_semantics = "scripts/validate_publication.py"
+
+        self.assertEqual(1, primary.count(materialize))
+        self.assertEqual(1, primary.count(site_contract))
+        self.assertEqual(1, primary.count(composition_semantics))
+        self.assertLess(primary.index(materialize), primary.index(site_contract))
+        self.assertLess(primary.index(site_contract), primary.index(composition_semantics))
+
+    def test_supplemental_webmcp_guide_is_classified_and_canonical_route_is_indexed(self) -> None:
+        classification = json.loads(CLASSIFICATION.read_text(encoding="utf-8"))
+        matches = [
+            entry
+            for entry in classification["excluded_markdown"]
+            if entry["source"] == "docs/guides/webmcp-capability.md"
+        ]
+        self.assertEqual(1, len(matches))
+        self.assertIn("components/capability.webmcp", matches[0]["reason"])
+
+        catalog = json.loads(CATALOG.read_text(encoding="utf-8"))
+        published_sources = {document["source"] for document in catalog["documents"]}
+        self.assertNotIn("docs/guides/webmcp-capability.md", published_sources)
+        self.assertIn("components/capability.webmcp/files/WEBMCP.md", published_sources)
+
+        index = DOCS_INDEX.read_text(encoding="utf-8")
+        canonical_link = "../components/capability.webmcp/files/WEBMCP.md"
+        self.assertEqual(1, index.count(canonical_link))
+
+    def test_reference_consumer_compatibility_pin_is_immutable_and_intentional(self) -> None:
+        workflow = REFERENCE_CONSUMER_PUBLICATION.read_text(encoding="utf-8")
+        uses_match = re.search(
+            r"uses: TakashiSasaki/templates/\.github/workflows/build-pages\.yml@([0-9a-f]{40})",
+            workflow,
+        )
+        site_ref_match = re.search(r"^\s+site_ref: ([0-9a-f]{40})$", workflow, re.MULTILINE)
+        self.assertIsNotNone(uses_match)
+        self.assertIsNotNone(site_ref_match)
+        assert uses_match is not None
+        assert site_ref_match is not None
+        self.assertEqual(EXPECTED_SITE_COMPATIBILITY_REVISION, uses_match.group(1))
+        self.assertEqual(uses_match.group(1), site_ref_match.group(1))
+        self.assertIn(
+            "composition_ref: ${{ github.event.pull_request.head.sha }}",
+            workflow,
+        )
+        self.assertNotIn("publication_staging_id:", workflow)
 
 
 if __name__ == "__main__":
