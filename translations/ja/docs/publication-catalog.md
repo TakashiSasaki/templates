@@ -95,17 +95,18 @@ glossary file は strict JSON として encode されており、これは有効
 
 ## Local validation
 
-review 済みの shared protocol は Composition にコピーしません。CI を再現するには、Site commit `3ae5d1e60c65e7a8ebf5f9af0436044484e42983` から `scripts/publication_contract.py` を別 checkout に取得し、その checkout を Composition に指定します。
+review 済みの shared protocol は Composition にコピーしません。CI を再現するには、Site commit `3ae5d1e60c65e7a8ebf5f9af0436044484e42983` から `scripts/publication_contract.py` を別 checkout に取得し、その checkout を Composition に指定します。fresh な Composition checkout では、いずれの publication validator よりも先に provider-owned の generated publication asset を materialize します。
 
 ```sh
 export SITE_PUBLICATION_PROTOCOL_ROOT=/path/to/reviewed-site-protocol-checkout
+python -I scripts/materialize_publication.py --source-root .
 python -I "$SITE_PUBLICATION_PROTOCOL_ROOT/scripts/publication_contract.py" --source-root .
 python -I scripts/validate_publication.py
 python -I scripts/verify_composition_skill_installer_release.py --git-ref HEAD
 python -m unittest discover -s tests -v
 ```
 
-Site-owned step は generic schema-v3 publication protocol を validation します。続いて `scripts/validate_publication.py` が同じ review 済み module を dynamic load し、その validated `PublicationCatalog` object を利用して、Composition-owned declaration、Markdown classification、reader / machine authority coverage、glossary semantics だけを適用します。installer-release verifier は独立して publication metadata を immutable Git history に束縛します。
+Composition-owned materialization step は canonical provider state から宣言済み generated publication asset を生成します。その後 Site-owned step が generic schema-v3 publication protocol を validation します。続いて `scripts/validate_publication.py` が同じ review 済み module を dynamic load し、その validated `PublicationCatalog` object を利用して、Composition-owned declaration、Markdown classification、reader / machine authority coverage、glossary semantics だけを適用します。installer-release verifier は独立して publication metadata を immutable Git history に束縛します。
 
 pin update は意図的かつ review 済みでなければなりません。Composition CI は今後も40文字の full commit SHA を使い、`site`、tag、pull-request merge ref を暗黙に追従してはなりません。
 
