@@ -185,6 +185,8 @@ Provider-internal changes that do not affect this surface remain independently r
 
 <!-- reference-consumer:start -->
 
+<span id="self-hosting-reference-consumer"></span>
+
 ## Self-hosting reference consumer
 
 This Site consumes the systems it provides. Its Website product uses the
