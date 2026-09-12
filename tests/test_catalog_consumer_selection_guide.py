@@ -30,6 +30,7 @@ SKILL_LIFECYCLE_OPTIONS = {
     "lifecycle.release-execution",
 }
 BROWSER_LIFECYCLE_OPTIONS = {"lifecycle.release-bundle"}
+TOPOLOGY_OPTIONS = {"topology.hub-and-orphan"}
 BROWSER_BASELINE_LIFECYCLE = {
     "lifecycle.contract-evolution",
     "lifecycle.implementation-evidence",
@@ -91,19 +92,19 @@ class CatalogConsumerSelectionGuideTests(unittest.TestCase):
         self.assertEqual(skill["artifact"], "artifact.skill-core")
         self.assertEqual(
             set(skill["optional_components"]),
-            APPLICATION_CAPABILITIES | SKILL_LIFECYCLE_OPTIONS,
+            APPLICATION_CAPABILITIES | SKILL_LIFECYCLE_OPTIONS | TOPOLOGY_OPTIONS,
         )
 
         self.assertEqual(website["artifact"], "artifact.website-core")
         self.assertEqual(
             set(website["optional_components"]),
-            WEBSITE_APPLICATION_CAPABILITIES | BROWSER_LIFECYCLE_OPTIONS,
+            WEBSITE_APPLICATION_CAPABILITIES | BROWSER_LIFECYCLE_OPTIONS | TOPOLOGY_OPTIONS,
         )
 
         self.assertEqual(webapp["artifact"], "artifact.webapp-core")
         self.assertEqual(
             set(webapp["optional_components"]),
-            WEBAPP_APPLICATION_CAPABILITIES | BROWSER_LIFECYCLE_OPTIONS,
+            WEBAPP_APPLICATION_CAPABILITIES | BROWSER_LIFECYCLE_OPTIONS | TOPOLOGY_OPTIONS,
         )
 
     def test_machine_readable_dependency_closures_match_selection_contract(self) -> None:
@@ -250,6 +251,30 @@ class CatalogConsumerSelectionGuideTests(unittest.TestCase):
                 "lifecycle.composition-state",
                 *RELEASE_LIFECYCLE_CLOSURE,
             },
+        )
+
+        topology_skill = dependency_closure(
+            "artifact.skill-core", "topology.hub-and-orphan"
+        )
+        self.assertEqual(
+            topology_skill,
+            {"artifact.skill-core", "lifecycle.composition-state", "topology.hub-and-orphan"},
+        )
+
+        topology_website = dependency_closure(
+            "artifact.website-core", "topology.hub-and-orphan"
+        )
+        self.assertEqual(
+            topology_website,
+            minimal_website | {"topology.hub-and-orphan"},
+        )
+
+        topology_webapp = dependency_closure(
+            "artifact.webapp-core", "topology.hub-and-orphan"
+        )
+        self.assertEqual(
+            topology_webapp,
+            minimal_webapp | {"topology.hub-and-orphan"},
         )
 
 

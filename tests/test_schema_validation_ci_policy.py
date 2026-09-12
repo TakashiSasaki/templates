@@ -53,7 +53,7 @@ class SchemaValidationCIPolicyTests(unittest.TestCase):
     def test_schema_validation_uses_pr_and_authoritative_push_tiers_only(self) -> None:
         self.assertEqual(_trigger_events(self.workflow), ["push", "pull_request"])
         self.assertEqual(_trigger_branches(self.workflow, "push"), ["composition"])
-        self.assertEqual(_trigger_branches(self.workflow, "pull_request"), ["composition"])
+        self.assertEqual(_trigger_branches(self.workflow, "pull_request"), ["composition", "feat/composition-*"])
         trigger = self.workflow.split("\njobs:\n", 1)[0]
         self.assertNotIn("agent/composition-", trigger)
 

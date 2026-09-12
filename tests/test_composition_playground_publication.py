@@ -26,7 +26,7 @@ CLASSIFICATION = ROOT / "docs" / "publication-classification.json"
 DOCS_INDEX = ROOT / "docs" / "index.md"
 SCHEMA_VALIDATION = ROOT / ".github" / "workflows" / "schema-validation.yml"
 REFERENCE_CONSUMER_PUBLICATION = ROOT / ".github" / "workflows" / "reference-consumer-publication.yml"
-EXPECTED_SITE_COMPATIBILITY_REVISION = "961014d00cb28f5cc3ee5e162b6eae4323df470a"
+EXPECTED_SITE_COMPATIBILITY_REVISION = "cbdb90be9e22b8e3212aaccc095bc9e539afcd23"
 
 
 class CompositionPlaygroundPublicationTests(unittest.TestCase):
@@ -98,7 +98,7 @@ class CompositionPlaygroundPublicationTests(unittest.TestCase):
         self.assertEqual("composition-playground-intent-v1", intent_projection["projection_id"])
         self.assertEqual(semantic_revision, base_projection["source"]["revision"])
         self.assertEqual(semantic_revision, intent_projection["source"]["revision"])
-        self.assertEqual(2624, sum(recipe["case_count"] for recipe in base_projection["recipes"]))
+        self.assertEqual(5248, sum(recipe["case_count"] for recipe in base_projection["recipes"]))
         self.assertLess(len(base), 131_072)
         self.assertLess(len(intent), 131_072)
 

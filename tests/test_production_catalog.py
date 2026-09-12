@@ -174,6 +174,7 @@ class ProductionCatalogTests(unittest.TestCase):
                 "lifecycle.release-bundle",
                 "lifecycle.release-evidence",
                 "lifecycle.release-execution",
+                "topology.hub-and-orphan",
             ],
         )
 

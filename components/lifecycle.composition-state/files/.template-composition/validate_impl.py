@@ -23,7 +23,7 @@ CHECKPOINT_ACTION_REGISTRY_RELATIVE = ".template-composition/lifecycle-checkpoin
 IMPLEMENTATION_EVIDENCE_ACTION_REGISTRY_RELATIVE = ".template-composition/implementation-evidence-actions.json"
 RUNNER_RELATIVE = ".template-composition/validate.py"
 COMPONENT_RE = re.compile(
-    r"^(artifact|capability|lifecycle)\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+    r"^(artifact|capability|lifecycle|topology)\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
 )
 EXACT_REQUIREMENT = re.compile(
     r"^[A-Za-z0-9][A-Za-z0-9_.-]*===([A-Za-z0-9][A-Za-z0-9_.+!-]*)$"

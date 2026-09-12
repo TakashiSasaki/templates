@@ -43,6 +43,14 @@ Lifecycle components are selected according to the product workflow. The `skill`
 | Revision-bound release evidence production | `lifecycle.release-evidence` (`skill`) | release evidence -> release execution -> implementation evidence -> contract evolution |
 | Deterministic release bundle and one-command release orchestration | `lifecycle.release-bundle` (`skill`, `website`, or `webapp`) | release bundle -> release evidence -> release execution -> implementation evidence -> contract evolution |
 
+### Repository topology selection
+
+Select repository topology when the repository requires an explicit multi-branch or projected structure rather than the default single-worktree repository layout:
+
+| Need | Include | Automatically adds | What it contributes |
+| --- | --- | --- | --- |
+| Rootless component branches with a read-only self-referencing submodule Hub projection | `topology.hub-and-orphan` | — | Machine-readable repository topology contract, Hub projection invariants, and branch-equals-mount-path validation |
+
 A minimal Website uses an empty include list and receives `foundation.web`, Website contracts, implementation-evidence/contract-evolution support, and no PWA/runtime/release materials:
 
 ```json
@@ -158,4 +166,4 @@ For an unmanaged target, initial composition refuses a pre-existing composition 
 
 ### Component roles and direct selection
 
-Recipes select one artifact and expose optional capability or lifecycle components. Components with the `foundation` role are dependencies of artifact components: they are resolved automatically, are not listed as recipe options, and are not direct consumer include targets. See [Composition concepts](../docs/guides/composition-concepts.md) for the four-role mental model and the provider glossary for canonical terminology.
+Recipes select one artifact and expose optional capability, lifecycle, or topology components. Components with the `foundation` role are dependencies of artifact components: they are resolved automatically, are not listed as recipe options, and are not direct consumer include targets. See [Composition concepts](../docs/guides/composition-concepts.md) for the five-role mental model and the provider glossary for canonical terminology.

@@ -103,7 +103,7 @@ class ComposerRuntimeCIPolicyTests(unittest.TestCase):
         )
         self.assertEqual(
             _trigger_list(self.fast_workflow, "pull_request", "branches"),
-            ["composition"],
+            ["composition", "feat/composition-*"],
         )
         self.assertEqual(
             set(_trigger_list(self.fast_workflow, "pull_request", "types")),

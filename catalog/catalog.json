@@ -19,7 +19,8 @@
     "lifecycle.lifecycle-checkpoints",
     "lifecycle.release-bundle",
     "lifecycle.release-evidence",
-    "lifecycle.release-execution"
+    "lifecycle.release-execution",
+    "topology.hub-and-orphan"
   ],
   "recipes": [
     "skill",

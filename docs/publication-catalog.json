@@ -72,7 +72,9 @@
     {"id":"release-evidence","source":"components/lifecycle.release-evidence/files/docs/architecture/release-evidence.md","optional":false,"home":false},
     {"id":"release-bundle","source":"components/lifecycle.release-bundle/files/docs/architecture/release-bundle.md","optional":false,"home":false},
     {"id":"composition-authority-migration","source":"docs/migrations/composition-authority-migration.md","optional":false,"home":false},
-    {"id":"web-routes-v4-migration","source":"components/foundation.web/files/docs/migrations/routes-v4-to-v5.md","optional":false,"home":false}
+    {"id":"web-routes-v4-migration","source":"components/foundation.web/files/docs/migrations/routes-v4-to-v5.md","optional":false,"home":false},
+    {"id":"topology-contract","source":"components/topology.hub-and-orphan/files/TOPOLOGY.md","optional":false,"home":false},
+    {"id":"repository-topology-architecture","source":"components/topology.hub-and-orphan/files/docs/architecture/repository-topology.md","optional":false,"home":false}
   ],
   "assets": [
     {"source":"catalog/catalog.json","destination":"catalog/catalog.json","optional":false},
@@ -131,7 +133,10 @@
     {"source":"examples/evaluations/evaluation-scorecard.schema.json","destination":"evaluation/evaluation-scorecard.schema.json","optional":false},
     {"source":"components/foundation.web/component.json","destination":"components/foundation.web/component.json","optional":false},
     {"source":"components/foundation.web/files/contracts","destination":"web/contracts","optional":false},
-    {"source":"components/foundation.web/files/schemas","destination":"web/schemas","optional":false}
+    {"source":"components/foundation.web/files/schemas","destination":"web/schemas","optional":false},
+    {"source":"components/topology.hub-and-orphan/component.json","destination":"components/topology.hub-and-orphan/component.json","optional":false},
+    {"source":"components/topology.hub-and-orphan/files/contracts","destination":"topology/contracts","optional":false},
+    {"source":"components/topology.hub-and-orphan/files/schemas","destination":"topology/schemas","optional":false}
   ],
   "glossary": {"source":"docs/glossary.yml"}
 }

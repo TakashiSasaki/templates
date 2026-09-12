@@ -58,13 +58,13 @@ class CompositionPlaygroundProjectionTests(unittest.TestCase):
             1 << len(recipe["optional_components"])
             for recipe in state.recipes.values()
         )
-        # skill=2048, webapp=512, website=64 after independent WebMCP opt-in.
-        self.assertEqual(2624, expected_case_count)
+        # skill=4096, webapp=1024, website=128 after topology.hub-and-orphan opt-in.
+        self.assertEqual(5248, expected_case_count)
         self.assertEqual(expected_case_count, sum(len(recipe["cases"]) for recipe in projection["recipes"]))
         self.assertEqual(expected_case_count, sum(recipe["case_count"] for recipe in projection["recipes"]))
         self.assertEqual(state.revision, projection["source"]["revision"])
         self.assertEqual(playground.PROVENANCE_REASON_BITS, projection["provenance_reason_bits"])
-        self.assertLess(len(playground.render_projection(projection)), 1_000_000)
+        self.assertLess(len(playground.render_projection(projection)), 2_000_000)
 
         validated_outcomes: set[int] = set()
         case_keys: set[str] = set()

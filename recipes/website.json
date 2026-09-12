@@ -11,6 +11,7 @@
     "capability.service",
     "capability.web-interface",
     "capability.webmcp",
-    "lifecycle.release-bundle"
+    "lifecycle.release-bundle",
+    "topology.hub-and-orphan"
   ]
 }
