@@ -22,20 +22,23 @@ class ReferenceConsumerMetadataTests(unittest.TestCase):
 
     def test_preserves_japanese_renderer_heading_and_fragment(self):
         source = (
-            '<html><body><main><h2 id="self-hosting-reference-consumer">'
+            '<html><body><nav><a href="#consumer">TOC</a></nav><main><h2 id="consumer">'
             "自己ホスティングの参照 consumer"
-            '<a class="headerlink" href="#self-hosting-reference-consumer">¶</a>'
+            '<a class="headerlink" href="#consumer">¶</a>'
             "</h2></main></body></html>"
         )
         rendered = ensure_reference_consumer_anchor(source, Path("ja/coexistence/index.html"))
-        self.assertEqual(source, rendered)
+        self.assertNotEqual(source, rendered)
+        self.assertIn('<h2 id="self-hosting-reference-consumer">', rendered)
+        self.assertNotIn('href="#consumer"', rendered)
+        self.assertEqual(rendered.count('id="self-hosting-reference-consumer"'), 1)
 
     def test_missing_renderer_heading_fails_closed(self):
         source = (
             '<html><body><main><span id="self-hosting-reference-consumer"></span>'
             "<h2>Self-hosting reference consumer</h2></main></body></html>"
         )
-        with self.assertRaisesRegex(SiteMetadataError, "expected exactly one h2#self-hosting-reference-consumer"):
+        with self.assertRaisesRegex(SiteMetadataError, "expected exactly one rendered reference consumer h2"):
             ensure_reference_consumer_anchor(source, Path("coexistence/index.html"))
 
     def test_duplicate_renderer_headings_fail_closed(self):
@@ -45,7 +48,7 @@ class ReferenceConsumerMetadataTests(unittest.TestCase):
             '<h2 id="self-hosting-reference-consumer">Two</h2>'
             "</main></body></html>"
         )
-        with self.assertRaisesRegex(SiteMetadataError, "found 2 target element"):
+        with self.assertRaisesRegex(SiteMetadataError, "duplicate id"):
             ensure_reference_consumer_anchor(source, Path("coexistence/index.html"))
 
     def test_non_reference_page_is_unchanged(self):

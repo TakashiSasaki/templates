@@ -515,12 +515,14 @@ REFERENCE_CONSUMER_ID = "self-hosting-reference-consumer"
 
 
 class _ReferenceConsumerHeadingParser(HTMLParser):
-    """Count the canonical fragment target in the generated reference page."""
+    """Inspect the rendered reference heading and its existing fragment IDs."""
 
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)
-        self.target_count = 0
-        self.heading_count = 0
+        self.id_counts: dict[str, int] = {}
+        self.headings: list[tuple[str | None, str]] = []
+        self._heading_id: str | None = None
+        self._heading_text: list[str] = []
 
     def handle_starttag(
         self,
@@ -528,11 +530,12 @@ class _ReferenceConsumerHeadingParser(HTMLParser):
         attrs: list[tuple[str, str | None]],
     ) -> None:
         attributes = {name.lower(): value for name, value in attrs}
-        if attributes.get("id") != REFERENCE_CONSUMER_ID:
-            return
-        self.target_count += 1
+        element_id = attributes.get("id")
+        if element_id is not None:
+            self.id_counts[element_id] = self.id_counts.get(element_id, 0) + 1
         if tag.lower() == "h2":
-            self.heading_count += 1
+            self._heading_id = element_id
+            self._heading_text = []
 
     def handle_startendtag(
         self,
@@ -540,6 +543,25 @@ class _ReferenceConsumerHeadingParser(HTMLParser):
         attrs: list[tuple[str, str | None]],
     ) -> None:
         self.handle_starttag(tag, attrs)
+
+    def handle_data(self, data: str) -> None:
+        if self._heading_id is not None:
+            self._heading_text.append(data)
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag.lower() != "h2" or self._heading_id is None:
+            return
+        text = re.sub(r"\s+", " ", "".join(self._heading_text).replace("¶", "")).strip()
+        self.headings.append((self._heading_id, text))
+        self._heading_id = None
+        self._heading_text = []
+
+
+def _reference_consumer_heading_title(text: str) -> bool:
+    return text in {
+        "Self-hosting reference consumer",
+        "自己ホスティングの参照 consumer",
+    }
 
 
 def ensure_reference_consumer_anchor(source: str, path: Path) -> str:
@@ -564,11 +586,67 @@ def ensure_reference_consumer_anchor(source: str, path: Path) -> str:
         raise SiteMetadataError(
             f"{path}: unable to parse reference consumer heading: {exc}"
         ) from exc
-    if parser.target_count != 1 or parser.heading_count != 1:
+    if parser.id_counts.get(REFERENCE_CONSUMER_ID, 0) > 1:
         raise SiteMetadataError(
-            f"{path}: expected exactly one h2#{REFERENCE_CONSUMER_ID}, "
-            f"found {parser.target_count} target element(s) and "
-            f"{parser.heading_count} heading(s)"
+            f"{path}: duplicate id={REFERENCE_CONSUMER_ID!r}"
+        )
+    headings = [
+        (element_id, text)
+        for element_id, text in parser.headings
+        if _reference_consumer_heading_title(text)
+    ]
+    if len(headings) != 1:
+        raise SiteMetadataError(
+            f"{path}: expected exactly one rendered reference consumer h2, "
+            f"found {len(headings)}"
+        )
+    rendered_id, _ = headings[0]
+    if rendered_id == REFERENCE_CONSUMER_ID:
+        if parser.id_counts.get(REFERENCE_CONSUMER_ID) != 1:
+            raise SiteMetadataError(
+                f"{path}: duplicate id={REFERENCE_CONSUMER_ID!r}"
+            )
+        return source
+    if not rendered_id or parser.id_counts.get(rendered_id) != 1:
+        raise SiteMetadataError(
+            f"{path}: rendered reference consumer heading has no unique id"
+        )
+    heading_pattern = re.compile(
+        r"<h2\b[^>]*\bid\s*=\s*(['\"])"
+        + re.escape(rendered_id)
+        + r"\1[^>]*>",
+        re.IGNORECASE,
+    )
+    if len(heading_pattern.findall(source)) != 1:
+        raise SiteMetadataError(
+            f"{path}: could not locate the unique rendered reference consumer heading"
+        )
+    source = heading_pattern.sub(
+        lambda match: re.sub(
+            r"(\bid\s*=\s*)(['\"])" + re.escape(rendered_id) + r"\2",
+            r"\g<1>\g<2>" + REFERENCE_CONSUMER_ID + r"\2",
+            match.group(0),
+            count=1,
+            flags=re.IGNORECASE,
+        ),
+        source,
+        count=1,
+    )
+    source = re.sub(
+        r"(\bhref\s*=\s*)(['\"])#" + re.escape(rendered_id) + r"\2",
+        r"\g<1>\g<2>#" + REFERENCE_CONSUMER_ID + r"\2",
+        source,
+        flags=re.IGNORECASE,
+    )
+    verified = _ReferenceConsumerHeadingParser()
+    verified.feed(source)
+    verified.close()
+    if verified.id_counts.get(REFERENCE_CONSUMER_ID) != 1 or sum(
+        _reference_consumer_heading_title(text) and element_id == REFERENCE_CONSUMER_ID
+        for element_id, text in verified.headings
+    ) != 1:
+        raise SiteMetadataError(
+            f"{path}: canonical reference consumer heading normalization failed"
         )
     return source
 
