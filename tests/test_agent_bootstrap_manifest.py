@@ -97,7 +97,7 @@ class AgentBootstrapManifestTests(unittest.TestCase):
         self.assertEqual(
             manifest["authorities"]["composition"],
             {
-                "role": "artifact-capability-lifecycle-semantics",
+                "role": "artifact-foundation-capability-lifecycle-topology-semantics",
                 "publication_revision": "a" * 40,
                 "overview_document_id": bootstrap.COMPOSITION_OVERVIEW_DOCUMENT_ID,
                 "publication_catalog_path": bootstrap.PUBLICATION_CATALOG_PATH,

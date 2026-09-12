@@ -29,6 +29,7 @@
     artifact: "Artifact",
     capability: "Capability",
     lifecycle: "Lifecycle",
+    topology: "Topology",
     noContracts: "No contracts are registered by this composition.",
     noMaterials: "No initial material destinations are projected for this case.",
     recipeArtifact: "Selected as the recipe artifact.",
@@ -93,7 +94,7 @@
   }
 
   function componentGroups(projection, item) {
-    const groups = new Map(["foundation", "artifact", "capability", "lifecycle"].map((role) => [role, []]));
+    const groups = new Map(["foundation", "artifact", "capability", "lifecycle", "topology"].map((role) => [role, []]));
     item.resolved_components.forEach((componentId, componentIndex) => {
       const component = projection.componentById.get(componentId);
       if (!component) throw new core.ProjectionError("MALFORMED_PROJECTION", `missing component metadata for ${componentId}`);

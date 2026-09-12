@@ -6,8 +6,8 @@
   "purpose": "Discover authorities and compose new or existing software repositories",
   "authorities": {
     "composition": {
-      "role": "artifact-capability-lifecycle-semantics",
-      "publication_revision": "2b07b411dc7e903f84dcaf89900ebd614a4cde7a",
+      "role": "artifact-foundation-capability-lifecycle-topology-semantics",
+      "publication_revision": "2575a4257398426378443074af743d78ff61dbff",
       "overview_document_id": "composition:overview",
       "publication_catalog_path": "docs/publication-catalog.json"
     },
@@ -28,7 +28,8 @@
     "composition": {
       "required_when": [
         "select-or-materialize-artifact-structure",
-        "select-capabilities-or-lifecycle"
+        "select-capabilities-or-lifecycle",
+        "select-repository-topology"
       ]
     },
     "policy": {
@@ -58,7 +59,7 @@
     }
   },
   "composition": {
-    "publication_revision": "2b07b411dc7e903f84dcaf89900ebd614a4cde7a",
+    "publication_revision": "2575a4257398426378443074af743d78ff61dbff",
     "installer": {
       "repository": "TakashiSasaki/templates",
       "revision": "c328fbe2bf733cf32cea54c1054570a94afa693a",

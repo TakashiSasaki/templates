@@ -54,7 +54,7 @@
           "additionalProperties": false,
           "required": ["role", "publication_revision", "overview_document_id", "publication_catalog_path"],
           "properties": {
-            "role": {"const": "artifact-capability-lifecycle-semantics"},
+            "role": {"const": "artifact-foundation-capability-lifecycle-topology-semantics"},
             "publication_revision": {"$ref": "#/$defs/full_sha"},
             "overview_document_id": {"const": "composition:overview"},
             "publication_catalog_path": {"const": "docs/publication-catalog.json"}
@@ -98,11 +98,12 @@
               "type": "array",
               "prefixItems": [
                 {"const": "select-or-materialize-artifact-structure"},
-                {"const": "select-capabilities-or-lifecycle"}
+                {"const": "select-capabilities-or-lifecycle"},
+                {"const": "select-repository-topology"}
               ],
               "items": false,
-              "minItems": 2,
-              "maxItems": 2
+              "minItems": 3,
+              "maxItems": 3
             }
           }
         },

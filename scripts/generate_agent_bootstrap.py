@@ -236,7 +236,7 @@ def build_manifest(
         "purpose": "Discover authorities and compose new or existing software repositories",
         "authorities": {
             "composition": {
-                "role": "artifact-capability-lifecycle-semantics",
+                "role": "artifact-foundation-capability-lifecycle-topology-semantics",
                 "publication_revision": sources["composition"],
                 "overview_document_id": COMPOSITION_OVERVIEW_DOCUMENT_ID,
                 "publication_catalog_path": PUBLICATION_CATALOG_PATH,
@@ -259,6 +259,7 @@ def build_manifest(
                 "required_when": [
                     "select-or-materialize-artifact-structure",
                     "select-capabilities-or-lifecycle",
+                    "select-repository-topology",
                 ],
             },
             "policy": {
