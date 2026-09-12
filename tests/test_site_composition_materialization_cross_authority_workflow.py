@@ -5,7 +5,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github" / "workflows" / "site-composition-materialization-cross-authority.yml"
-EXPECTED_COMPOSITION_HEAD = "69bbe90f615b8af025916feb72555c5f15c8d901"
+EXPECTED_COMPOSITION_HEAD = "4d7e98be157acb20c9be732df48158e4a588b272"
 
 
 class SiteCompositionMaterializationCrossAuthorityWorkflowTests(unittest.TestCase):

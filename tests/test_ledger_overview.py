@@ -126,7 +126,7 @@ class LedgerOverviewTests(unittest.TestCase):
         sources = json.loads((ROOT / "publication-sources.json").read_text(encoding="utf-8"))
         self.assertEqual(
             sources["publications"]["composition"]["revision"],
-            "69bbe90f615b8af025916feb72555c5f15c8d901",
+            "4d7e98be157acb20c9be732df48158e4a588b272",
         )
         policy_revision = sources["publications"]["policy"]["revision"]
         self.assertEqual(policy_revision, "5e7d8205d671290a7cac7694e6117ecdba155d3a")

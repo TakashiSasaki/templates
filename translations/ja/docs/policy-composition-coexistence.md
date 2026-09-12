@@ -201,7 +201,7 @@ Website 製品は `website` recipe と `capability.pwa` を、保守作業は Po
 | --- | --- | --- |
 | Composition consumer | `a739b3823660e3db742ff0e1e159d279126cba7c` | Website 契約と material の所有関係 |
 | Policy consumer | `33a7ab809225c2a8b8dd2598ef04d0a39cf076a7` | 保守規範と生成された agent 指示 |
-| Composition publication | `69bbe90f615b8af025916feb72555c5f15c8d901` | 読者に公開する provider の内容 |
+| Composition publication | `4d7e98be157acb20c9be732df48158e4a588b272` | 読者に公開する provider の内容 |
 | Policy publication | `5e7d8205d671290a7cac7694e6117ecdba155d3a` | 読者に公開する provider の内容 |
 
 既知の provider revision N が後続の consumer revision N+1 を規定します。
