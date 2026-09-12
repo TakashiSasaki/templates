@@ -521,8 +521,14 @@ def ensure_reference_consumer_anchor(source: str, path: Path) -> str:
     relative = path.as_posix().split("/site/")[-1]
     if relative not in {"coexistence/index.html", "ja/coexistence/index.html"}:
         return source
-    if 'id="self-hosting-reference-consumer"' in source:
-        return source
+    # Normalize accidental renderer-generated duplicates before inserting one
+    # canonical node. This also handles a preserved source heading id.
+    source = re.sub(
+        r"\s+id=(?:\"|')self-hosting-reference-consumer(?:\"|')",
+        "",
+        source,
+        flags=re.IGNORECASE,
+    )
     marker = re.search(r"<main\b[^>]*>", source, re.IGNORECASE)
     if marker is None:
         raise SiteMetadataError(f"{path}: reference consumer page has no main element")
