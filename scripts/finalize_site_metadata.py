@@ -519,7 +519,11 @@ def ensure_reference_consumer_anchor(source: str, path: Path) -> str:
     inject it into the final page only when the generated document lacks it.
     """
     relative = path.as_posix().split("/site/")[-1]
-    if relative not in {"coexistence/index.html", "ja/coexistence/index.html"}:
+    is_reference_page = relative in {"coexistence/index.html", "ja/coexistence/index.html"}
+    # Keep the invariant content-based as well as path-based: publication
+    # assembly may relocate the page before finalization.
+    is_reference_page = is_reference_page or "Self-hosting reference consumer" in source or "自己ホスティングの参照 consumer" in source
+    if not is_reference_page:
         return source
     # Normalize accidental renderer-generated duplicates before inserting one
     # canonical node. This also handles a preserved source heading id.
