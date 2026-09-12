@@ -511,12 +511,43 @@ def normalize_canonical_links(site_root: Path, canonical_url: str) -> int:
     return len(updates)
 
 
-def ensure_reference_consumer_anchor(source: str, path: Path) -> str:
-    """Keep the public reference-consumer fragment stable after HTML rendering.
+REFERENCE_CONSUMER_ID = "self-hosting-reference-consumer"
 
-    Zensical may omit raw Markdown/HTML anchor nodes depending on the renderer
-    configuration. The fragment is part of the Site navigation contract, so
-    inject it into the final page only when the generated document lacks it.
+
+class _ReferenceConsumerHeadingParser(HTMLParser):
+    """Count the canonical fragment target in the generated reference page."""
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.target_count = 0
+        self.heading_count = 0
+
+    def handle_starttag(
+        self,
+        tag: str,
+        attrs: list[tuple[str, str | None]],
+    ) -> None:
+        attributes = {name.lower(): value for name, value in attrs}
+        if attributes.get("id") != REFERENCE_CONSUMER_ID:
+            return
+        self.target_count += 1
+        if tag.lower() == "h2":
+            self.heading_count += 1
+
+    def handle_startendtag(
+        self,
+        tag: str,
+        attrs: list[tuple[str, str | None]],
+    ) -> None:
+        self.handle_starttag(tag, attrs)
+
+
+def ensure_reference_consumer_anchor(source: str, path: Path) -> str:
+    """Require Zensical's Markdown heading to own the public fragment.
+
+    The renderer is the source of truth for heading IDs, TOC entries, and
+    permalink behavior. A missing or ambiguous target is a generated-artifact
+    failure and must not be repaired with a synthetic anchor near ``<main>``.
     """
     relative = path.as_posix().split("/site/")[-1]
     is_reference_page = relative in {"coexistence/index.html", "ja/coexistence/index.html"}
@@ -525,19 +556,21 @@ def ensure_reference_consumer_anchor(source: str, path: Path) -> str:
     is_reference_page = is_reference_page or "Self-hosting reference consumer" in source or "自己ホスティングの参照 consumer" in source
     if not is_reference_page:
         return source
-    # Normalize accidental renderer-generated duplicates before inserting one
-    # canonical node. This also handles a preserved source heading id.
-    source = re.sub(
-        r"\s+id=(?:\"|')self-hosting-reference-consumer(?:\"|')",
-        "",
-        source,
-        flags=re.IGNORECASE,
-    )
-    marker = re.search(r"<main\b[^>]*>", source, re.IGNORECASE)
-    if marker is None:
-        raise SiteMetadataError(f"{path}: reference consumer page has no main element")
-    anchor = '<span id="self-hosting-reference-consumer"></span>\n'
-    return source[: marker.end()] + "\n" + anchor + source[marker.end():]
+    parser = _ReferenceConsumerHeadingParser()
+    try:
+        parser.feed(source)
+        parser.close()
+    except (TypeError, ValueError) as exc:
+        raise SiteMetadataError(
+            f"{path}: unable to parse reference consumer heading: {exc}"
+        ) from exc
+    if parser.target_count != 1 or parser.heading_count != 1:
+        raise SiteMetadataError(
+            f"{path}: expected exactly one h2#{REFERENCE_CONSUMER_ID}, "
+            f"found {parser.target_count} target element(s) and "
+            f"{parser.heading_count} heading(s)"
+        )
+    return source
 
 
 def normalize_site_metadata(
