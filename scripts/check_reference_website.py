@@ -76,7 +76,7 @@ def check_reference_consumer_navigation(page, prefix):
     require(heading.count() == 1, "reference fragment must target exactly one h2")
     require(
         page.locator(
-            f'nav[data-md-component="toc"] a[href="#{REFERENCE_CONSUMER_ID}"]'
+            f'[data-md-component="toc"] a[href="#{REFERENCE_CONSUMER_ID}"]'
         ).count()
         > 0,
         "reference consumer heading missing from generated table of contents",
