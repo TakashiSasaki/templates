@@ -37,6 +37,15 @@
       "surfaces": [
         "reader"
       ]
+    },
+    {
+      "canonical": "docs/webmcp.md",
+      "language": "ja",
+      "translation": "translations/ja/docs/webmcp.md",
+      "canonical_blob_sha": "916c51defd21da53a8d1d38cc9f1746166f093ff",
+      "surfaces": [
+        "reader"
+      ]
     }
   ]
 }
