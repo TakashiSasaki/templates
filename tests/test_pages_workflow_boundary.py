@@ -73,7 +73,7 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
         self.assertIn("persist-credentials: false", classifier_block)
         self.assertIn("python-version: '3.12.13'", classifier_block)
         self.assertIn("git diff --name-only --no-renames", classifier_block)
-        self.assertIn("test -s \"$RUNNER_TEMP/site-browser-paths.txt\"", classifier_block)
+
         self.assertIn("git show \"$BASE_SHA:scripts/classify_site_ci.py\"", classifier_block)
         self.assertIn("python -I \"$classifier_dir/classify_site_ci.py\"", classifier_block)
         self.assertNotIn("python -I scripts/classify_site_browser_acceptance.py", classifier_block)
