@@ -81,6 +81,26 @@
       "snapshotPath": "artifacts/lifecycle/008-topology-publication-remediation-product",
       "manifestSha256": "3c10eceba4ada27893a6868a7fe9188ce02aab90e8cd641c68237d67cf9f94b8",
       "recordedAt": "2026-09-11T23:44:34.964249Z"
+    },
+    {
+      "id": "topology-consumer-overview-remediation",
+      "sequence": 9,
+      "phase": "planning",
+      "changeKind": "specification-change",
+      "parentId": "topology-publication-remediation-product",
+      "snapshotPath": "artifacts/lifecycle/009-topology-consumer-overview-remediation",
+      "manifestSha256": "acdd54017dd8e0ca560cf1e91d25b3124953ea07b00faa49fe1d3f3cde7543ce",
+      "recordedAt": "2026-09-11T23:46:47.317709Z"
+    },
+    {
+      "id": "topology-consumer-overview-remediation-product",
+      "sequence": 10,
+      "phase": "product",
+      "changeKind": "specification-change",
+      "parentId": "topology-consumer-overview-remediation",
+      "snapshotPath": "artifacts/lifecycle/010-topology-consumer-overview-remediation-product",
+      "manifestSha256": "5c5f8aa08dfe96393a1de3552c16a1ccbeb366411d8688a044b31dca353cac57",
+      "recordedAt": "2026-09-11T23:47:19.259777Z"
     }
   ]
 }

@@ -128,8 +128,8 @@ jobs:
       - name: Verify exact-head and active publication binding
         env:
           EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
-          EXPECTED_COMPOSITION_REVISION: 2575a4257398426378443074af743d78ff61dbff
-          EXPECTED_POLICY_REVISION: c5a3294809a1066bf59b83f467f1d597f885289a
+          EXPECTED_COMPOSITION_REVISION: 0f0c4012818a3b8646ad89fbca7db22c71ad5dd8
+          EXPECTED_POLICY_REVISION: 5574ea46d2076bb1f5c51d4b0e8c9483a17d8fe2
         run: |
           test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
           grep --fixed-strings -- 'composition-playground-explain.js' zensical.template.toml

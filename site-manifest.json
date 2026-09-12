@@ -137,6 +137,7 @@
     {
       "title": "Repository topology",
       "children": [
+        {"title": "Overview", "publication": "site", "document": "repository-topology-overview", "destination": "topology/index.md"},
         {"title": "Topology contract", "publication": "composition", "document": "topology-contract", "destination": "topology/contract/index.md"},
         {"title": "Topology architecture", "publication": "composition", "document": "repository-topology-architecture", "destination": "topology/architecture/index.md"}
       ]

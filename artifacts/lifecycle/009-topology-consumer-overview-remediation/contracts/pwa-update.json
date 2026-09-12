@@ -1,0 +1,8 @@
+{
+  "$schema": "../schemas/pwa-update.schema.json",
+  "schemaVersion": 2,
+  "mode": "planning",
+  "updateDetection": "observable",
+  "activation": "immediate",
+  "unsavedChangesPolicy": "not-applicable"
+}

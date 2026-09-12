@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schemaVersion", "homePageId", "pages", "primaryNavigationPageIds"],
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[a-z][a-z0-9-]*(?![\\s\\S])"},
+    "nonBlankText": {"type": "string", "minLength": 1},
+    "page": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "routeId", "role", "title", "parentPageId"],
+      "properties": {
+        "id": {"$ref": "#/$defs/identifier"},
+        "routeId": {"$ref": "#/$defs/identifier"},
+        "role": {"enum": ["home", "content", "index", "utility"]},
+        "title": {"$ref": "#/$defs/nonBlankText"},
+        "parentPageId": {"oneOf": [{"$ref": "#/$defs/identifier"}, {"type": "null"}]}
+      }
+    }
+  },
+  "properties": {
+    "$schema": {"const": "../schemas/site-structure.schema.json"},
+    "schemaVersion": {"const": 1},
+    "homePageId": {"$ref": "#/$defs/identifier"},
+    "pages": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/page"}},
+    "primaryNavigationPageIds": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/identifier"}}
+  }
+}

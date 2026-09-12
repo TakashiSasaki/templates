@@ -29,7 +29,7 @@ review-finding model is already published Policy procedure. The Work-ledger
 row describes the reviewed but unmerged Policy candidate in PRs `#754 -> #755`.
 The anti-stall section below projects the separate staged Policy candidates
 `#773 -> #774`. The Site currently publishes Policy revision
-`c5a3294809a1066bf59b83f467f1d597f885289a`, which contains neither staged
+`5574ea46d2076bb1f5c51d4b0e8c9483a17d8fe2`, which contains neither staged
 candidate set. Therefore both the Work-ledger candidate and the anti-stall
 projection are staged architecture here, not current published Policy
 authority.
@@ -297,3 +297,5 @@ These additional checkpoints record the current remediation, not retrospective p
 | --- | --- | --- | --- | --- |
 | 7 | planning | topology-publication-remediation | artifacts/lifecycle/007-topology-publication-remediation | 5e2203e246437b1ff536430db4e042b403dab7c757b35c2a88447fbfda80c287 |
 | 8 | product | topology-publication-remediation-product | artifacts/lifecycle/008-topology-publication-remediation-product | 3c10eceba4ada27893a6868a7fe9188ce02aab90e8cd641c68237d67cf9f94b8 |
+| 9 | planning | topology-consumer-overview-remediation | artifacts/lifecycle/009-topology-consumer-overview-remediation | acdd54017dd8e0ca560cf1e91d25b3124953ea07b00faa49fe1d3f3cde7543ce |
+| 10 | product | topology-consumer-overview-remediation-product | artifacts/lifecycle/010-topology-consumer-overview-remediation-product | 5c5f8aa08dfe96393a1de3552c16a1ccbeb366411d8688a044b31dca353cac57 |

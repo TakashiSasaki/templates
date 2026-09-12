@@ -187,9 +187,9 @@ Site はこの boundary における repository integration / publication author
 
 <!-- reference-consumer:start -->
 
-<span id="self-hosting-reference-consumer"></span>
+<h2 id="self-hosting-reference-consumer">自己ホスティングの参照 consumer</h2>
 
-## 自己ホスティングの参照 consumer
+<!-- ## 自己ホスティングの参照 consumer -->
 
 この Site は、自ら提供する Composition と Policy を実際に採用しています。
 Website 製品は `website` recipe と `capability.pwa` を、保守作業は Policy を使います。
@@ -201,8 +201,8 @@ Website 製品は `website` recipe と `capability.pwa` を、保守作業は Po
 | --- | --- | --- |
 | Composition consumer | `a739b3823660e3db742ff0e1e159d279126cba7c` | Website 契約と material の所有関係 |
 | Policy consumer | `33a7ab809225c2a8b8dd2598ef04d0a39cf076a7` | 保守規範と生成された agent 指示 |
-| Composition publication | `2575a4257398426378443074af743d78ff61dbff` | 読者に公開する provider の内容 |
-| Policy publication | `c5a3294809a1066bf59b83f467f1d597f885289a` | 読者に公開する provider の内容 |
+| Composition publication | `0f0c4012818a3b8646ad89fbca7db22c71ad5dd8` | 読者に公開する provider の内容 |
+| Policy publication | `5574ea46d2076bb1f5c51d4b0e8c9483a17d8fe2` | 読者に公開する provider の内容 |
 
 既知の provider revision N が後続の consumer revision N+1 を規定します。
 これは時間順序を持つ bootstrap であり、実行時の循環依存ではありません。
@@ -234,7 +234,7 @@ Composition と Policy はそれぞれ自分の state を検証し、Site は実
 既存 Website の開発履歴を後から作るものではありません。契約検証だけで公開済みや
 release-ready とは判断せず、未実施のブラウザ証拠は deferred として明示します。
 
-現在の台帳は verified 466 件、deferred 20 件です。
+現在の台帳は verified 470 件、deferred 20 件です。
 これはカバレッジ項目数であり、独立したテスト数やリリース認定ではありません。
 PWA 試験は実際の worker コードと制御された試験用ページを使い、Website 試験は
 配信された manifest と icon ファイルを確認します。実製品の controlled route／fallback、

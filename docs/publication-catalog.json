@@ -36,6 +36,12 @@
       "source": "docs/lifecycle.md",
       "optional": false,
       "home": false
+    },
+    {
+      "id": "repository-topology-overview",
+      "source": "docs/architecture/repository-topology.md",
+      "optional": false,
+      "home": false
     }
   ],
   "glossary": {

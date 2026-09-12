@@ -55,7 +55,9 @@ def explanation(data):
         if excluded
         else ""
     )
-    return f"""## Self-hosting reference consumer
+    return f"""<h2 id="self-hosting-reference-consumer">Self-hosting reference consumer</h2>
+
+<!-- ## Self-hosting reference consumer -->
 
 This Site consumes the systems it provides. Its Website product uses the
 Composition `website` recipe and `capability.pwa`; its maintenance uses Policy.{exclusion}
@@ -138,9 +140,9 @@ def explanation_ja(data):
         if excluded
         else ""
     )
-    return f'''<span id="self-hosting-reference-consumer"></span>
+    return f'''<h2 id="self-hosting-reference-consumer">自己ホスティングの参照 consumer</h2>
 
-## 自己ホスティングの参照 consumer
+<!-- ## 自己ホスティングの参照 consumer -->
 
 この Site は、自ら提供する Composition と Policy を実際に採用しています。
 Website 製品は `website` recipe と `capability.pwa` を、保守作業は Policy を使います。{exclusion}

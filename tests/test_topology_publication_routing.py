@@ -9,7 +9,7 @@ class TopologyPublicationRoutingTests(unittest.TestCase):
         routes = json.loads((ROOT / "contracts/routes.json").read_text())["routes"]
         evidence = json.loads((ROOT / "contracts/implementation-evidence.json").read_text())
         targets = {(r["target"].get("contractId"), r["target"].get("itemId")) for r in evidence["records"]}
-        for identity in ("composition-topology-contract", "composition-repository-topology-architecture"):
+        for identity in ("composition-topology-contract", "composition-repository-topology-architecture", "site-repository-topology-overview"):
             with self.subTest(identity=identity):
                 self.assertEqual(sum(route["id"] == identity for route in routes), 1)
                 self.assertIn(("site_structure", identity), targets)

@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - site
+      - 'feat/site-*'
       - codex/site-composition-playground-v1-shell
     types:
       - opened

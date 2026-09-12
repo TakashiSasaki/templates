@@ -480,16 +480,16 @@
     "repository": "TakashiSasaki/templates",
     "publications": {
       "composition": {
-        "revision": "2575a4257398426378443074af743d78ff61dbff"
+        "revision": "0f0c4012818a3b8646ad89fbca7db22c71ad5dd8"
       },
       "policy": {
-        "revision": "c5a3294809a1066bf59b83f467f1d597f885289a"
+        "revision": "5574ea46d2076bb1f5c51d4b0e8c9483a17d8fe2"
       }
     }
   },
   "evidence": {
     "ledger": "contracts/implementation-evidence.json",
-    "verified": 466,
+    "verified": 470,
     "deferred": 20
   },
   "validation": {

@@ -8,8 +8,9 @@ WORKFLOW = ROOT / ".github" / "workflows" / "site-composition-playground-cross-a
 EXPECTED_BASES = {
     "codex/site-composition-playground-v1-shell",
     "site",
+    "feat/site-*",
 }
-EXPECTED_COMPOSITION_PROVIDER = "2575a4257398426378443074af743d78ff61dbff"
+EXPECTED_COMPOSITION_PROVIDER = "0f0c4012818a3b8646ad89fbca7db22c71ad5dd8"
 
 
 def pull_request_bases(text: str) -> set[str]:
@@ -20,7 +21,7 @@ def pull_request_bases(text: str) -> set[str]:
     for raw_line in text[branches:types].splitlines()[1:]:
         line = raw_line.strip()
         if line.startswith("- "):
-            values.add(line[2:].strip())
+            values.add(line[2:].strip().strip("\"'"))
     return values
 
 

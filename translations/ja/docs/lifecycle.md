@@ -17,7 +17,7 @@ Git history、pull request、CI run、review thread は重要な provider fact �
 
 これらは相互に関係しますが、どれか一つが他を暗黙に置き換えることはありません。
 
-**Publication status:** Requirement/Evidence と lifecycle の説明は現在選択されている Composition contract を反映し、review-finding model はすでに公開済みの Policy procedure です。Work-ledger の行は review 済みだが未マージの Policy candidate `#754 -> #755` を説明しています。下記の anti-stall 節は別の staged Policy candidate `#773 -> #774` を projection しています。この Site が現在公開している Policy revision は `c5a3294809a1066bf59b83f467f1d597f885289a` であり、いずれの staged candidate set も含みません。したがって Work ledger candidate と anti-stall projection はここでは staged architecture であり、現在公開済みの Policy authority ではありません。
+**Publication status:** Requirement/Evidence と lifecycle の説明は現在選択されている Composition contract を反映し、review-finding model はすでに公開済みの Policy procedure です。Work-ledger の行は review 済みだが未マージの Policy candidate `#754 -> #755` を説明しています。下記の anti-stall 節は別の staged Policy candidate `#773 -> #774` を projection しています。この Site が現在公開している Policy revision は `5574ea46d2076bb1f5c51d4b0e8c9483a17d8fe2` であり、いずれの staged candidate set も含みません。したがって Work ledger candidate と anti-stall projection はここでは staged architecture であり、現在公開済みの Policy authority ではありません。
 
 ## Requirement と evidence: 現在の product state
 
@@ -173,3 +173,5 @@ repository 全体の ownership model と Policy / Composition の分離につい
 | --- | --- | --- | --- | --- |
 | 7 | planning | topology-publication-remediation | artifacts/lifecycle/007-topology-publication-remediation | 5e2203e246437b1ff536430db4e042b403dab7c757b35c2a88447fbfda80c287 |
 | 8 | product | topology-publication-remediation-product | artifacts/lifecycle/008-topology-publication-remediation-product | 3c10eceba4ada27893a6868a7fe9188ce02aab90e8cd641c68237d67cf9f94b8 |
+| 9 | planning | topology-consumer-overview-remediation | artifacts/lifecycle/009-topology-consumer-overview-remediation | acdd54017dd8e0ca560cf1e91d25b3124953ea07b00faa49fe1d3f3cde7543ce |
+| 10 | product | topology-consumer-overview-remediation-product | artifacts/lifecycle/010-topology-consumer-overview-remediation-product | 5c5f8aa08dfe96393a1de3552c16a1ccbeb366411d8688a044b31dca353cac57 |

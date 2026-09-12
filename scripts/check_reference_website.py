@@ -172,7 +172,7 @@ def check(repository: Path, site_root: Path):
                     check_link(page, {**fallback, "relation": identity["favicon"]["relation"]})
                 check_link(page, ios_identity)
                 page.locator('section[aria-labelledby="portal-reference-consumer-title"] a').click()
-                page.wait_for_url(f"**{prefix}/coexistence/#self-hosting-reference-consumer")
+                page.wait_for_url(f"**{prefix}/coexistence/#self-hosting-reference-consumer", wait_until="domcontentloaded")
                 require(page.locator("html").get_attribute("lang") == language, "reference explanation locale mismatch")
                 require(page.locator("#self-hosting-reference-consumer").count() == 1, "reference anchor missing")
             projection = context.request.get(f"http://127.0.0.1:{server.server_port}/reference-consumer.json").json()
