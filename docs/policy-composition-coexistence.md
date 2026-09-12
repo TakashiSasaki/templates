@@ -185,9 +185,9 @@ Provider-internal changes that do not affect this surface remain independently r
 
 <!-- reference-consumer:start -->
 
-<span id="self-hosting-reference-consumer">&#8203;</span>
+<h2 id="self-hosting-reference-consumer">Self-hosting reference consumer</h2>
 
-## Self-hosting reference consumer
+<!-- ## Self-hosting reference consumer -->
 
 This Site consumes the systems it provides. Its Website product uses the
 Composition `website` recipe and `capability.pwa`; its maintenance uses Policy.
