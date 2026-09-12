@@ -31,7 +31,8 @@ A valid isolated strategy has these properties:
 
 - updating operational state does not move a PR head, feature branch head, qualification candidate, release candidate, or product-authority ref merely to record progress;
 - operational files are not interpreted as product semantic state, validated lifecycle history, generated-source authority, review-finding authority, or merge evidence;
-- deleting, compacting, or archiving old operational state cannot change the meaning of a qualified implementation revision; and
+- deleting, compacting, or archiving old operational state cannot change the meaning of a qualified implementation revision;
+- in repositories using Hub-and-Orphan topology, the operational ref MUST be an independent orphan ref (such as `refs/heads/work-ledger`) that does not collide with component authority branch names or mount paths, and is never registered or projected as a submodule in the hub; and
 - provider facts remain canonical when they disagree with cached ledger observations.
 
 A commit that adds or refreshes a progress file on the implementation candidate itself is not isolated. Moving the candidate and then re-running exact-head CI/review is not an acceptable substitute for isolation when the only reason for the mutation was bookkeeping.
