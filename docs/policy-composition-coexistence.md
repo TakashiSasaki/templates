@@ -185,7 +185,7 @@ Provider-internal changes that do not affect this surface remain independently r
 
 <!-- reference-consumer:start -->
 
-<span id="self-hosting-reference-consumer"></span>
+<span id="self-hosting-reference-consumer">&#8203;</span>
 
 ## Self-hosting reference consumer
 

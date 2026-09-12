@@ -55,7 +55,7 @@ def explanation(data):
         if excluded
         else ""
     )
-    return f"""<span id="self-hosting-reference-consumer"></span>
+    return f"""<span id="self-hosting-reference-consumer">&#8203;</span>
 
 ## Self-hosting reference consumer
 
@@ -140,7 +140,7 @@ def explanation_ja(data):
         if excluded
         else ""
     )
-    return f'''<span id="self-hosting-reference-consumer"></span>
+    return f'''<span id="self-hosting-reference-consumer">&#8203;</span>
 
 ## 自己ホスティングの参照 consumer
 

@@ -187,7 +187,7 @@ Site はこの boundary における repository integration / publication author
 
 <!-- reference-consumer:start -->
 
-<span id="self-hosting-reference-consumer"></span>
+<span id="self-hosting-reference-consumer">&#8203;</span>
 
 ## 自己ホスティングの参照 consumer
 
