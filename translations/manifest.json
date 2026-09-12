@@ -51,7 +51,7 @@
       "canonical": "docs/architecture/composition-model.md",
       "language": "ja",
       "translation": "translations/ja/docs/architecture/composition-model.md",
-      "canonical_blob_sha": "650f6556e8e3c98b2b10bb1c40b08be5734e3ad5",
+      "canonical_blob_sha": "968fab41c44a43d3a3a84263cf2b2838fdb62c82",
       "surfaces": [
         "reader"
       ]
@@ -60,7 +60,7 @@
       "canonical": "docs/architecture/composer-mvp.md",
       "language": "ja",
       "translation": "translations/ja/docs/architecture/composer-mvp.md",
-      "canonical_blob_sha": "098d3848bd0adbe5deaad727a9265a9e1a3db2e6",
+      "canonical_blob_sha": "607e2ca2e97be688f94f53ef5831324c003b2b95",
       "surfaces": [
         "reader"
       ]
@@ -160,7 +160,7 @@
       "canonical": "docs/reference/composer.md",
       "language": "ja",
       "translation": "translations/ja/docs/reference/composer.md",
-      "canonical_blob_sha": "2e00e66311d9cbadcbddfa4a9e0d63e08a30b7b8",
+      "canonical_blob_sha": "03d70ced9e32f789c5b4065c781889087d7515bf",
       "surfaces": [
         "reader"
       ]

@@ -26,7 +26,7 @@ Lock schema version 2 は consumer intent と provenance の基盤を提供し�
 
 Composer は clean な `composition` source checkout から実行します。successful な plan/apply はすべて `git rev-parse HEAD` が返す exact full Git commit に bind され、tracked source modification がある場合は拒否します。
 
-production catalog は closed に load されます。catalog ID は `components/` と `recipes/` に正確に一致しなければならず、descriptor / recipe は各 schema に対して valid でなければならず、dependency は存在しかつ acyclic でなければならず、generic capability/lifecycle component は artifact authority に depend してはなりません。
+production catalog は closed に load されます。catalog ID は `components/` と `recipes/` に正確に一致しなければならず、descriptor / recipe は各 schema に対して valid でなければならず、dependency は存在しかつ acyclic でなければならず、generic capability/lifecycle/topology component は artifact authority に depend してはなりません。
 
 update / upgrade では、old lock の source revision が local source history に存在し、current source revision の ancestor または同一 revision でなければなりません。これにより mutable branch や network を参照せずに downgrade と unrelated-history reconciliation を拒否しつつ、forward reconciliation を許可します。
 

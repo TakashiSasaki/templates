@@ -142,9 +142,9 @@ Configuration schema version 1 has four required fields:
 }
 ```
 
-`recipe` selects a production recipe. `components.include` and `components.exclude` may name exposed `capability.*` or `lifecycle.*` components. Include/exclude sets must be disjoint; required components cannot be excluded; selected dependency closure cannot contain an excluded component.
+`recipe` selects a production recipe. `components.include` and `components.exclude` may name exposed `capability.*`, `lifecycle.*`, or `topology.*` components. Include/exclude sets must be disjoint; required components cannot be excluded; selected dependency closure cannot contain an excluded component. At most one `topology.*` component may be selected in a resolved composition.
 
-`parameters` is an object keyed by selected `artifact.*`, `capability.*`, or `lifecycle.*` component IDs. The schema permits component-local object values. At this production revision, materialization does not consume parameter values and production components do not declare parameter-specific material behavior. Parameter objects are nevertheless normalized into lock-v2 intent, so changing them requires explicit `upgrade`.
+`parameters` is an object keyed by selected `artifact.*`, `capability.*`, `lifecycle.*`, or `topology.*` component IDs. The schema permits component-local object values. At this production revision, materialization does not consume parameter values and production components do not declare parameter-specific material behavior. Parameter objects are nevertheless normalized into lock-v2 intent, so changing them requires explicit `upgrade`.
 
 ## Lock schema v2
 

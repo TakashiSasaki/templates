@@ -18,9 +18,9 @@ POLICY_CONFIG_RELATIVE = ".agent-policy.yml"
 POLICY_LOCK_RELATIVE = ".agent-policy.lock"
 POLICY_STATE_PREFIX = ".agent-policy"
 CANONICAL_REPOSITORY = "TakashiSasaki/templates"
-COMPONENT_RE = re.compile(r"^(foundation|artifact|capability|lifecycle)\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$")
-SELECTABLE_COMPONENT_RE = re.compile(r"^(capability|lifecycle)\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$")
-PARAMETER_COMPONENT_RE = re.compile(r"^(artifact|capability|lifecycle)\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$")
+COMPONENT_RE = re.compile(r"^(foundation|artifact|capability|lifecycle|topology)\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$")
+SELECTABLE_COMPONENT_RE = re.compile(r"^(capability|lifecycle|topology)\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$")
+PARAMETER_COMPONENT_RE = re.compile(r"^(artifact|capability|lifecycle|topology)\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$")
 RECIPE_RE = re.compile(r"^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 REVISION_RE = re.compile(r"^(?!0{40}$)[0-9a-f]{40}$")
@@ -215,6 +215,8 @@ def validate_lock_shape(lock: Any) -> list[str]:
             errors.append("resolved component IDs must be unique")
         if sum(component_id.startswith("artifact.") for component_id in resolved_ids) != 1:
             errors.append("composition lock must resolve exactly one artifact component")
+        if sum(component_id.startswith("topology.") for component_id in resolved_ids) > 1:
+            errors.append("composition lock must resolve at most one topology component")
 
     files = lock.get("files")
     destinations: list[str] = []

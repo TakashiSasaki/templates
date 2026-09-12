@@ -93,6 +93,17 @@ def validate_component_semantics(value: dict) -> None:
                 "non-artifact components must not depend on or conflict with artifact components: "
                 f"{artifact_relations}"
             )
+    else:
+        topology_relations = sorted(
+            relation
+            for relation in required | conflicts
+            if relation.startswith("topology.")
+        )
+        if topology_relations:
+            raise ValueError(
+                "artifact components must not depend on or conflict with topology components: "
+                f"{topology_relations}"
+            )
     for material in value["materials"]:
         if "source" in material:
             validate_portable_path(material["source"])
@@ -127,6 +138,9 @@ def validate_lock_semantics(value: dict) -> None:
     artifact_ids = [component_id for component_id in component_ids if component_id.startswith("artifact.")]
     if len(artifact_ids) != 1:
         raise ValueError("lock must resolve exactly one artifact component")
+    topology_ids = [component_id for component_id in component_ids if component_id.startswith("topology.")]
+    if len(topology_ids) > 1:
+        raise ValueError("lock must resolve at most one topology component")
     resolved = set(component_ids)
     destinations = [item["destination"] for item in value["files"]]
     if destinations != sorted(destinations):
@@ -177,7 +191,7 @@ class CompositionSchemaTests(unittest.TestCase):
             value = copy.deepcopy(self.examples["component"])
             value[field].append("artifact.webapp-core")
             with self.subTest(field=field):
-                with self.assertRaises(ValueError):
+                with self.assertRaises((ValidationError, ValueError)):
                     self.assert_schema_valid("component", value)
 
     def test_component_rejects_unsafe_destination(self) -> None:
@@ -449,6 +463,95 @@ class CompositionSchemaTests(unittest.TestCase):
         value["post_install"] = "echo unsafe"
         with self.assertRaises(ValidationError):
             self.assert_schema_valid("component", value)
+
+    def test_topology_component_schema_and_role_agreement(self) -> None:
+        value = copy.deepcopy(self.examples["component"])
+        value["id"] = "topology.custom"
+        value["component_role"] = "topology"
+        self.assert_schema_valid("component", value)
+
+        # Mismatched role and prefix
+        mismatched = copy.deepcopy(value)
+        mismatched["id"] = "capability.custom"
+        with self.assertRaises(ValidationError):
+            self.assert_schema_valid("component", mismatched)
+
+        # Topology referencing artifact
+        for field in ("requires", "conflicts"):
+            invalid_topo = copy.deepcopy(value)
+            invalid_topo[field].append("artifact.webapp-core")
+            with self.subTest(field=field):
+                with self.assertRaises((ValidationError, ValueError)):
+                    self.assert_schema_valid("component", invalid_topo)
+
+    def test_artifact_component_cannot_reference_topology(self) -> None:
+        for field in ("requires", "conflicts"):
+            artifact_val = {
+                "schema_version": 1,
+                "id": "artifact.test",
+                "component_role": "artifact",
+                "version": 1,
+                "summary": "test artifact",
+                "requires": ["topology.custom"] if field == "requires" else [],
+                "conflicts": ["topology.custom"] if field == "conflicts" else [],
+                "materials": [
+                    {
+                        "source": "files/test.txt",
+                        "destination": "test.txt",
+                        "ownership": "managed",
+                    }
+                ],
+            }
+            with self.subTest(field=field):
+                with self.assertRaises((ValidationError, ValueError)):
+                    self.assert_schema_valid("component", artifact_val)
+
+    def test_recipe_and_config_accept_topology_selection(self) -> None:
+        recipe_val = copy.deepcopy(self.examples["recipe"])
+        recipe_val["optional_components"].append("topology.custom")
+        self.assert_schema_valid("recipe", recipe_val)
+
+        config_val = copy.deepcopy(self.examples["config"])
+        config_val["components"]["include"].append("topology.custom")
+        config_val["parameters"]["topology.custom"] = {"key": "value"}
+        self.assert_schema_valid("config", config_val)
+
+    def test_lock_enforces_at_most_one_topology_component(self) -> None:
+        value = copy.deepcopy(self.examples["lock"])
+        # Add one topology
+        topo1 = {
+            "id": "topology.custom1",
+            "version": 1,
+            "descriptor_sha256": "0" * 64,
+        }
+        value["resolved_components"].append(topo1)
+        value["resolved_components"] = sorted(value["resolved_components"], key=lambda item: item["id"])
+        value["files"].append({
+            "destination": "contracts/repository-topology.json",
+            "component": "topology.custom1",
+            "ownership": "managed",
+            "materialized_sha256": "0" * 64,
+        })
+        value["files"] = sorted(value["files"], key=lambda item: item["destination"])
+        self.assert_schema_valid("lock", value)
+
+        # Add second topology -> must fail
+        topo2 = {
+            "id": "topology.custom2",
+            "version": 1,
+            "descriptor_sha256": "0" * 64,
+        }
+        value["resolved_components"].append(topo2)
+        value["resolved_components"] = sorted(value["resolved_components"], key=lambda item: item["id"])
+        value["files"].append({
+            "destination": "contracts/other-topology.json",
+            "component": "topology.custom2",
+            "ownership": "managed",
+            "materialized_sha256": "0" * 64,
+        })
+        value["files"] = sorted(value["files"], key=lambda item: item["destination"])
+        with self.assertRaises((ValidationError, ValueError)):
+            self.assert_schema_valid("lock", value)
 
 
 if __name__ == "__main__":

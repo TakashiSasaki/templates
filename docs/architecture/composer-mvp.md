@@ -24,7 +24,7 @@ Lock schema version 2 provides the consumer-intent and provenance foundation. Re
 
 The Composer runs from a clean `composition` source checkout. It binds every successful plan/apply to the exact full Git commit returned by `git rev-parse HEAD` and refuses tracked source modifications.
 
-The production catalog is loaded closed: catalog IDs must exactly match `components/` and `recipes/`, descriptors/recipes must validate against their schemas, dependencies must exist and be acyclic, and generic capability/lifecycle components must not depend on artifact authorities.
+The production catalog is loaded closed: catalog IDs must exactly match `components/` and `recipes/`, descriptors/recipes must validate against their schemas, dependencies must exist and be acyclic, and generic capability/lifecycle/topology components must not depend on artifact authorities.
 
 For update and upgrade, the old lock source revision must exist in the local source history and must be an ancestor of, or identical to, the current source revision. This permits forward reconciliation while rejecting downgrade or unrelated-history reconciliation without consulting the network or a mutable branch.
 
