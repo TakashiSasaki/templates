@@ -73,17 +73,25 @@ REFERENCE_CONSUMER_ID = "self-hosting-reference-consumer"
 
 def check_reference_consumer_navigation(page, prefix):
     heading = page.locator(f"h2#{REFERENCE_CONSUMER_ID}")
+    heading.first.wait_for(state="attached")
     require(heading.count() == 1, "reference fragment must target exactly one h2")
     require(
-        page.locator(
-            f'[data-md-component="toc"] a[href="#{REFERENCE_CONSUMER_ID}"]'
-        ).count()
-        > 0,
-        "reference consumer heading missing from generated table of contents",
+        heading.get_attribute("id") == REFERENCE_CONSUMER_ID,
+        "reference consumer h2 does not own the canonical fragment",
     )
+    fragment = f"#{REFERENCE_CONSUMER_ID}"
+    has_same_document_fragment = """(links, fragment) => links.some(link => {
+        const target = new URL(link.href, window.location.href);
+        return target.pathname === window.location.pathname
+            && target.search === window.location.search
+            && target.hash === fragment;
+    })"""
     require(
-        page.locator(f'a[href="#{REFERENCE_CONSUMER_ID}"]').count() > 0,
-        "reference consumer heading has no generated fragment permalink",
+        page.locator('[data-md-component="toc"] a').evaluate_all(
+            has_same_document_fragment,
+            fragment,
+        ),
+        "reference consumer heading missing from generated table of contents",
     )
     in_viewport = page.evaluate(
         """id => {
