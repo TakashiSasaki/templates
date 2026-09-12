@@ -107,6 +107,7 @@ Use for the baseline semantics expected in ordinary repository changes: change s
 
 Included modules:
 
+- `policy/core/repository-topology-discovery.md`
 - `policy/core/change-contract.md`
 - `policy/core/acceptance-baseline.md`
 - `policy/core/change-scope.md`
