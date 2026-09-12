@@ -199,8 +199,8 @@ The relationships below are generated from their canonical declarations.
 | --- | --- | --- |
 | Composition consumer | `a739b3823660e3db742ff0e1e159d279126cba7c` | Governs the Site Website contracts and material ownership |
 | Policy consumer | `33a7ab809225c2a8b8dd2598ef04d0a39cf076a7` | Governs Site maintenance and generated agent instructions |
-| Composition publication | `4d7e98be157acb20c9be732df48158e4a588b272` | Provider material exposed to readers |
-| Policy publication | `5e7d8205d671290a7cac7694e6117ecdba155d3a` | Provider material exposed to readers |
+| Composition publication | `0f0c4012818a3b8646ad89fbca7db22c71ad5dd8` | Provider material exposed to readers |
+| Policy publication | `5574ea46d2076bb1f5c51d4b0e8c9483a17d8fe2` | Provider material exposed to readers |
 
 ```mermaid
 flowchart TD

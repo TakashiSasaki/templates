@@ -17,7 +17,7 @@ Git history、pull request、CI run、review thread は重要な provider fact �
 
 これらは相互に関係しますが、どれか一つが他を暗黙に置き換えることはありません。
 
-**Publication status:** Requirement/Evidence と lifecycle の説明は現在選択されている Composition contract を反映し、review-finding model はすでに公開済みの Policy procedure です。Work-ledger の行は review 済みだが未マージの Policy candidate `#754 -> #755` を説明しています。下記の anti-stall 節は別の staged Policy candidate `#773 -> #774` を projection しています。この Site が現在公開している Policy revision は `5e7d8205d671290a7cac7694e6117ecdba155d3a` であり、いずれの staged candidate set も含みません。したがって Work ledger candidate と anti-stall projection はここでは staged architecture であり、現在公開済みの Policy authority ではありません。
+**Publication status:** Requirement/Evidence と lifecycle の説明は現在選択されている Composition contract を反映し、review-finding model はすでに公開済みの Policy procedure です。Work-ledger の行は review 済みだが未マージの Policy candidate `#754 -> #755` を説明しています。下記の anti-stall 節は別の staged Policy candidate `#773 -> #774` を projection しています。この Site が現在公開している Policy revision は `5574ea46d2076bb1f5c51d4b0e8c9483a17d8fe2` であり、いずれの staged candidate set も含みません。したがって Work ledger candidate と anti-stall projection はここでは staged architecture であり、現在公開済みの Policy authority ではありません。
 
 ## Requirement と evidence: 現在の product state
 
