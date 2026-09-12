@@ -511,6 +511,25 @@ def normalize_canonical_links(site_root: Path, canonical_url: str) -> int:
     return len(updates)
 
 
+def ensure_reference_consumer_anchor(source: str, path: Path) -> str:
+    """Keep the public reference-consumer fragment stable after HTML rendering.
+
+    Zensical may omit raw Markdown/HTML anchor nodes depending on the renderer
+    configuration. The fragment is part of the Site navigation contract, so
+    inject it into the final page only when the generated document lacks it.
+    """
+    relative = path.as_posix().split("/site/")[-1]
+    if relative not in {"coexistence/index.html", "ja/coexistence/index.html"}:
+        return source
+    if 'id="self-hosting-reference-consumer"' in source:
+        return source
+    marker = re.search(r"<main\b[^>]*>", source, re.IGNORECASE)
+    if marker is None:
+        raise SiteMetadataError(f"{path}: reference consumer page has no main element")
+    anchor = '<span id="self-hosting-reference-consumer"></span>\n'
+    return source[: marker.end()] + "\n" + anchor + source[marker.end():]
+
+
 def normalize_site_metadata(
     site_root: Path,
     canonical_url: str,
@@ -536,6 +555,7 @@ def normalize_site_metadata(
             path,
             page_routes,
         )
+        updated = ensure_reference_consumer_anchor(updated, path)
         updates[path] = updated
 
     for path, source in updates.items():
