@@ -7,13 +7,13 @@
   "authorities": {
     "composition": {
       "role": "artifact-foundation-capability-lifecycle-topology-semantics",
-      "publication_revision": "4d7e98be157acb20c9be732df48158e4a588b272",
+      "publication_revision": "0f0c4012818a3b8646ad89fbca7db22c71ad5dd8",
       "overview_document_id": "composition:overview",
       "publication_catalog_path": "docs/publication-catalog.json"
     },
     "policy": {
       "role": "coding-agent-operating-policy",
-      "publication_revision": "5e7d8205d671290a7cac7694e6117ecdba155d3a",
+      "publication_revision": "5574ea46d2076bb1f5c51d4b0e8c9483a17d8fe2",
       "overview_document_id": "policy:overview",
       "publication_catalog_path": "docs/publication-catalog.json",
       "relationship_to_composition": "independent-optional"
@@ -59,7 +59,7 @@
     }
   },
   "composition": {
-    "publication_revision": "4d7e98be157acb20c9be732df48158e4a588b272",
+    "publication_revision": "0f0c4012818a3b8646ad89fbca7db22c71ad5dd8",
     "installer": {
       "repository": "TakashiSasaki/templates",
       "revision": "c328fbe2bf733cf32cea54c1054570a94afa693a",
@@ -81,7 +81,7 @@
     }
   },
   "policy": {
-    "publication_revision": "5e7d8205d671290a7cac7694e6117ecdba155d3a",
+    "publication_revision": "5574ea46d2076bb1f5c51d4b0e8c9483a17d8fe2",
     "installer": {
       "repository": "TakashiSasaki/templates",
       "revision": "f4457c90854db34c3ce8e1c381f67a4d7d5ea523",
