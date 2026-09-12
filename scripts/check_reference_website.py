@@ -68,6 +68,43 @@ def check_manifest(actual, expected, routes, manifest_url):
                     for item in actual.get("icons", [])), f"manifest icon intent mismatch: {icon['id']}")
 
 
+REFERENCE_CONSUMER_ID = "self-hosting-reference-consumer"
+
+
+def check_reference_consumer_navigation(page, prefix):
+    heading = page.locator(f"h2#{REFERENCE_CONSUMER_ID}")
+    heading.first.wait_for(state="attached")
+    require(heading.count() == 1, "reference fragment must target exactly one h2")
+    require(
+        heading.get_attribute("id") == REFERENCE_CONSUMER_ID,
+        "reference consumer h2 does not own the canonical fragment",
+    )
+    fragment = f"#{REFERENCE_CONSUMER_ID}"
+    has_same_document_fragment = """(links, fragment) => links.some(link => {
+        const target = new URL(link.href, window.location.href);
+        return target.pathname === window.location.pathname
+            && target.search === window.location.search
+            && target.hash === fragment;
+    })"""
+    require(
+        page.locator('[data-md-component="toc"] a').evaluate_all(
+            has_same_document_fragment,
+            fragment,
+        ),
+        "reference consumer heading missing from generated table of contents",
+    )
+    in_viewport = page.evaluate(
+        """id => {
+            const element = document.getElementById(id);
+            if (!element) return false;
+            const box = element.getBoundingClientRect();
+            return box.top >= -1 && box.top < window.innerHeight;
+        }""",
+        REFERENCE_CONSUMER_ID,
+    )
+    require(in_viewport, "reference fragment did not navigate the heading into view")
+
+
 def check(repository: Path, site_root: Path):
     from playwright.sync_api import sync_playwright
     def load(name):
@@ -174,7 +211,7 @@ def check(repository: Path, site_root: Path):
                 page.locator('section[aria-labelledby="portal-reference-consumer-title"] a').click()
                 page.wait_for_url(f"**{prefix}/coexistence/#self-hosting-reference-consumer", wait_until="domcontentloaded")
                 require(page.locator("html").get_attribute("lang") == language, "reference explanation locale mismatch")
-                require(page.locator("#self-hosting-reference-consumer").count() == 1, "reference anchor missing")
+                check_reference_consumer_navigation(page, prefix)
             projection = context.request.get(f"http://127.0.0.1:{server.server_port}/reference-consumer.json").json()
             require(projection == json.loads((repository / "assets/reference-consumer.json").read_text()), "served reference projection mismatch")
             browser.close()
