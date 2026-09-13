@@ -138,11 +138,19 @@ jobs:
           else
             staging_args+=(--staging-id "$PUBLICATION_STAGING_ID")
           fi
-          cp -a site-source site-qualification
-          python site-source/scripts/materialize_publication_staging.py \
-            --site-root site-qualification \
-            "${staging_args[@]}"
-          echo "SITE_PUBLICATION_ROOT=$GITHUB_WORKSPACE/site-qualification" >> "$GITHUB_ENV"
+          staged_root="$(python site-source/scripts/materialize_publication_staging.py \
+            --site-root site-source \
+            "${staging_args[@]}")"
+          case "$staged_root" in
+            "$GITHUB_WORKSPACE"/*) ;;
+            *)
+              echo "Staging materializer returned an unexpected root: $staged_root" >&2
+              exit 1
+              ;;
+          esac
+          test -f "$staged_root/site-manifest.json"
+          test -f "$staged_root/reader-navigation-locales.json"
+          echo "SITE_PUBLICATION_ROOT=$staged_root" >> "$GITHUB_ENV"
 
       - name: Run site assembly tests
         run: PYTHONPATH=site-source python -m unittest discover --start-directory site-source/tests --verbose
@@ -638,7 +646,6 @@ jobs:
             echo "- build_required: \`$BUILD_REQUIRED\`"
             echo "- reason: \`$BROWSER_REASON\`"
           } >> "$GITHUB_STEP_SUMMARY"
-
 
       - name: Check out proposed Site revision
         if: ${{ needs.classify_browser.outputs.required == 'true' }}
