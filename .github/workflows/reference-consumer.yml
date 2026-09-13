@@ -8,6 +8,7 @@ on:
       - labeled
 permissions:
   contents: read
+  actions: read
 concurrency:
   group: reference-consumer-${{ (github.event.action == 'labeled' && github.event.label.name != 'ci/full-qualification' && github.event.label.name != 'ci/full-site-verification' && github.event.label.name != 'ci/browser') && format('unrelated-label-{0}', github.run_id) || (github.event.pull_request.number || github.ref) }}
   cancel-in-progress: true
@@ -99,6 +100,7 @@ jobs:
     if: ${{ always() && !cancelled() && needs.classify.result == 'success' && needs.classify.outputs.required == 'true' && needs.classify.outputs.build_required == 'true' }}
     uses: ./.github/workflows/build-pages.yml
     with:
+      reuse_pr_build: true
       site_ref: ${{ github.event.pull_request.head.sha }}
   browser:
     needs: [classify, build]

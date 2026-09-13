@@ -6,18 +6,21 @@ on:
       - site
       - 'feat/site-*'
       - site-composition-audience-publication-staging
-      - "perf/site-*"
+      - 'site-*'
+      - 'perf/site-*'
+      - codex/site-composition-playground-v1-shell
     types:
       - opened
       - synchronize
       - reopened
+      - labeled
 
 permissions:
   contents: read
   actions: read
 
 concurrency:
-  group: site-composition-materialization-cross-authority-${{ github.event.pull_request.number }}
+  group: site-composition-materialization-cross-authority-${{ (github.event.action == 'labeled' && github.event.label.name != 'ci/full-qualification' && github.event.label.name != 'ci/full-site-verification' && github.event.label.name != 'ci/browser') && format('unrelated-label-{0}', github.run_id) || github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
@@ -93,5 +96,6 @@ jobs:
       needs.classify.outputs.required == 'true'
     uses: ./.github/workflows/build-pages.yml
     with:
+      reuse_pr_build: true
       site_ref: ${{ github.event.pull_request.head.sha }}
       composition_ref: 6b7d764c963f957c6bee43c0c1d42eb03970ec8f

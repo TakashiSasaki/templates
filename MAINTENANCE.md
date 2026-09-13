@@ -274,3 +274,44 @@ mobile, search, and PWA browser checks against one exact Site/locked-provider bu
 It complements the existing daily current-Composition browser safety net, which
 checks provider authority rather than the assembled Site. Manual mobile visual
 regression remains manual-only. Ordinary docs changes still run cheap checks.
+
+## Exact-input Site build reuse
+
+`Build documentation artifact` is the canonical PR producer for `site`,
+`feat/site-*`, `site-*`, and `perf/site-*` bases. The redundant stacked wrapper is
+retired. Reference, Playground cross-authority, materialization and freshness
+consumers opt into its immutable Pages artifact through `build-pages.yml`.
+Each consumer still uploads the validated artifact into its own run, preserving
+existing `github-pages` download contracts and exact workflow/job qualification
+names. Reuse qualifies assembly; each applicable browser consumer still executes.
+
+`ci-build-inputs.json` binds the full Site, Composition and Policy SHAs, repository,
+SHA-256 of the **executed** build workflow (including PR base changes), canonical
+URL, singular and ordered plural staging IDs, deployment timestamp, and Python/runner image identity. Site SHA
+also binds consumer toolchains, the complete pinned `requirements-build.lock`
+dependency closure, and publication/configuration files. Builds install the lock
+with `--no-deps` and verify it with `pip check`; transitive renderer dependencies
+cannot drift through resolver ranges. To refresh the lock, install `requirements.txt`
+in a fresh virtual environment, freeze the complete package set, review all changes,
+and qualify the resulting dependency/build change.
+Provider histories are only checked out, never combined. Inputs are resolved
+before reuse. The helper verifies the canonical workflow, same PR/repository/head,
+successful producer build attempt, artifact lifetime and SHA-256 archive digest,
+exact input manifest, and existing publication provenance before extraction.
+Archive paths, links and duplicate members are rejected before writing the target.
+
+A compatible consumer waits for that exact producer; failure, missing provenance,
+corruption, or discovery timeout fails closed rather than silently rebuilding or
+accepting stale state. Canonical producers can reuse earlier qualified same-head
+artifacts (for example on label escalation); with no qualified predecessor they
+build normally. Scheduled/manual runs and deployments build independently.
+Actions artifact read permission is required; no cache or additional write token
+is used. The build summary records identity, actual inputs, reuse decision, and
+immutable producer run/artifact/digest evidence.
+
+Freshness snapshots **current Composition HEAD** and retains **locked Policy**.
+Only equality with the normal PR's resolved inputs permits reuse. A different
+Composition revision, Policy override, explicit singular/plural staging IDs or deployment timestamp
+gets an independent candidate build; freshness still reports lock/head divergence
+and never advances the reviewed lock. Concurrent work in the audience publication
+staging stack must preserve this comparison when integrating its staging changes.

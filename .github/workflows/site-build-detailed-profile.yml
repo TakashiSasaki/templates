@@ -21,6 +21,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: site-build-detailed-profile-${{ github.workflow }}-${{ github.ref }}
@@ -78,6 +79,7 @@ jobs:
     needs: resolve-site
     uses: ./.github/workflows/build-pages.yml
     with:
+      reuse_pr_build: true
       site_ref: ${{ needs.resolve-site.outputs.site_sha }}
 
   profile:

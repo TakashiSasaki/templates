@@ -14,7 +14,7 @@ class SiteCompositionMaterializationCrossAuthorityWorkflowTests(unittest.TestCas
         text = WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("site_ref: ${{ github.event.pull_request.head.sha }}", text)
         self.assertIn(f"composition_ref: {EXPECTED_COMPOSITION_HEAD}", text)
-        self.assertIn('      - "perf/site-*"', text)
+        self.assertIn("      - 'perf/site-*'", text)
         self.assertIn("      - site", text)
         self.assertIn("uses: ./.github/workflows/build-pages.yml", text)
 

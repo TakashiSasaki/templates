@@ -91,7 +91,7 @@ def build_mock_hierarchy(
 
 class VerifySiteFullQualificationTests(unittest.TestCase):
     def test_required_suites_count(self) -> None:
-        self.assertEqual(20, len(REQUIRED_SUITES))
+        self.assertEqual(21, len(REQUIRED_SUITES))
         keys = [s.key for s in REQUIRED_SUITES]
         self.assertEqual(len(keys), len(set(keys)), "Suite keys must be unique")
 
