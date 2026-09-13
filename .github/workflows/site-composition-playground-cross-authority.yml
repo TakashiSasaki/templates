@@ -98,7 +98,7 @@ jobs:
     with:
       reuse_pr_build: true
       site_ref: ${{ github.event.pull_request.head.sha }}
-      composition_ref: 0f0c4012818a3b8646ad89fbca7db22c71ad5dd8
+      composition_ref: 6b7d764c963f957c6bee43c0c1d42eb03970ec8f
 
   producer_consumer:
     name: Real producer to Chromium consumer
@@ -147,7 +147,7 @@ jobs:
       - name: Exercise actual Composition candidate through actual Site candidate
         env:
           EXPECTED_SITE_REVISION: ${{ github.event.pull_request.head.sha }}
-          EXPECTED_PROVIDER_REVISION: 0f0c4012818a3b8646ad89fbca7db22c71ad5dd8
+          EXPECTED_PROVIDER_REVISION: 6b7d764c963f957c6bee43c0c1d42eb03970ec8f
           EXPECTED_SEMANTIC_REVISION: 84bb23f6e8ebf5cafbef3e93f25b7076fe47f3b7
         run: |
           test "$(git rev-parse HEAD)" = "$EXPECTED_SITE_REVISION"
