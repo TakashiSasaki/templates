@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Materialize an explicit Site-owned publication mapping for compatibility builds."""
+"""Materialize explicit Site-owned publication mappings for compatibility builds."""
 
 from __future__ import annotations
 
 import argparse
 import json
-import os
+import shutil
 import sys
 import tempfile
 from pathlib import Path
@@ -94,6 +94,7 @@ def _load_staging(path: Path, staging_ids: list[str]) -> list[dict[str, Any]]:
         raise PublicationStagingError("at least one publication staging id is required")
     if len(set(staging_ids)) != len(staging_ids):
         raise PublicationStagingError("duplicate selected publication staging id")
+
     data = _read_json(path, "publication staging contract")
     schema_version = data.get("schema_version")
     if (
@@ -104,6 +105,7 @@ def _load_staging(path: Path, staging_ids: list[str]) -> list[dict[str, Any]]:
         raise PublicationStagingError(
             "publication staging contract must be integer schema version 1 with mappings"
         )
+
     mappings = data["mappings"]
     if not isinstance(mappings, list) or not mappings:
         raise PublicationStagingError("publication staging mappings must be a non-empty array")
@@ -125,16 +127,19 @@ def _load_staging(path: Path, staging_ids: list[str]) -> list[dict[str, Any]]:
                 f"{field} must contain id, publication, document, title, destination, "
                 "insert_after, and localizations"
             )
+
         identifier = _name(raw["id"], f"{field}.id")
         if identifier in ids:
             raise PublicationStagingError(f"duplicate publication staging id: {identifier}")
         ids.add(identifier)
+
         publication = _name(raw["publication"], f"{field}.publication")
         if publication not in {"composition", "policy"}:
             raise PublicationStagingError(
                 f"{field}.publication must be composition or policy"
             )
         document = _name(raw["document"], f"{field}.document")
+
         title = raw["title"]
         if not isinstance(title, str) or not title.strip() or title != title.strip():
             raise PublicationStagingError(f"{field}.title must be a trimmed non-empty string")
@@ -224,30 +229,64 @@ def _load_staging(path: Path, staging_ids: list[str]) -> list[dict[str, Any]]:
     return selected
 
 
-def _temporary_json(path: Path, payload: dict[str, Any]) -> Path:
-    return _temporary_bytes(
-        path, (json.dumps(payload, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
+def _write_json(path: Path, payload: dict[str, Any]) -> None:
+    path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
     )
 
 
-def _temporary_bytes(path: Path, payload: bytes) -> Path:
-    descriptor, name = tempfile.mkstemp(
-        dir=path.parent,
-        prefix=f".{path.name}.",
-        suffix=".tmp",
-        text=True,
+def _create_snapshot(
+    site_root: Path,
+    manifest: dict[str, Any],
+    locales: dict[str, Any],
+    original_manifest: bytes,
+    original_locales: bytes,
+) -> Path:
+    """Create and validate an isolated staged Site root without replacing source files."""
+
+    snapshot_root = Path(
+        tempfile.mkdtemp(
+            dir=site_root.parent,
+            prefix=f".{site_root.name}.publication-staging-",
+        )
     )
-    temporary = Path(name)
     try:
-        with os.fdopen(descriptor, "wb") as stream:
-            stream.write(payload)
+        shutil.copytree(site_root, snapshot_root, dirs_exist_ok=True, symlinks=True)
+        snapshot_manifest = snapshot_root / "site-manifest.json"
+        snapshot_locales = snapshot_root / "reader-navigation-locales.json"
+        _write_json(snapshot_manifest, manifest)
+        _write_json(snapshot_locales, locales)
+
+        try:
+            load_manifest(snapshot_manifest)
+            staged_manifest = _read_json(snapshot_manifest, "materialized site manifest")
+            prepared_navigation = augment_manifest(staged_manifest)["navigation"]
+            load_overlays(snapshot_locales, prepared_navigation)
+        except (AssemblyError, PreparationError, ReaderNavigationLocaleError) as exc:
+            raise PublicationStagingError(
+                f"materialized Site mapping failed canonical validation: {exc}"
+            ) from exc
+
+        # A source mutation while the private snapshot was being created makes the
+        # qualification input ambiguous, so reject it. There is no destructive
+        # rollback: the source checkout was never replaced.
+        if (
+            (site_root / "site-manifest.json").read_bytes() != original_manifest
+            or (site_root / "reader-navigation-locales.json").read_bytes()
+            != original_locales
+        ):
+            raise PublicationStagingError("Site mapping changed during staging")
+
+        return snapshot_root
     except BaseException:
-        temporary.unlink(missing_ok=True)
+        shutil.rmtree(snapshot_root, ignore_errors=True)
         raise
-    return temporary
 
 
-def materialize_many(site_root: Path, staging_ids: list[str]) -> None:
+def materialize_many(site_root: Path, staging_ids: list[str]) -> Path:
+    """Return a private staged qualification root; never replace files in site_root."""
+
     site_root = site_root.resolve(strict=True)
     staging_path = site_root / "publication-staging.json"
     manifest_path = site_root / "site-manifest.json"
@@ -369,6 +408,7 @@ def materialize_many(site_root: Path, staging_ids: list[str]) -> None:
                 raise PublicationStagingError(f"duplicate staged localization label id: {label_id}")
             mapping_label_ids.add(label_id)
             selected_label_ids.add(label_id)
+
     for locale in locale_entries:
         language = locale["language"]
         if not isinstance(locale.get("labels"), list):
@@ -403,57 +443,19 @@ def materialize_many(site_root: Path, staging_ids: list[str]) -> None:
                 }
             )
 
-    manifest_temporary = _temporary_json(manifest_path, manifest)
-    try:
-        locales_temporary = _temporary_json(locales_path, locales)
-        try:
-            try:
-                load_manifest(manifest_temporary)
-                staged_manifest = _read_json(
-                    manifest_temporary,
-                    "materialized site manifest",
-                )
-                prepared_staged_navigation = augment_manifest(staged_manifest)["navigation"]
-                load_overlays(locales_temporary, prepared_staged_navigation)
-            except (AssemblyError, PreparationError, ReaderNavigationLocaleError) as exc:
-                raise PublicationStagingError(
-                    f"materialized Site mapping failed canonical validation: {exc}"
-                ) from exc
-            staged_manifest_bytes = manifest_temporary.read_bytes()
-            backup = _temporary_bytes(manifest_path, original_manifest)
-            try:
-                if (
-                    manifest_path.read_bytes() != original_manifest
-                    or locales_path.read_bytes() != original_locales
-                ):
-                    raise PublicationStagingError("Site mapping changed during staging")
-                os.replace(manifest_temporary, manifest_path)
-                try:
-                    if locales_path.read_bytes() != original_locales:
-                        raise PublicationStagingError(
-                            "reader navigation locale overlay changed during staging"
-                        )
-                    os.replace(locales_temporary, locales_path)
-                except BaseException:
-                    # Restore only our own manifest replacement. A concurrent
-                    # locale writer keeps its bytes; qualification fails closed.
-                    if manifest_path.read_bytes() != staged_manifest_bytes:
-                        raise PublicationStagingError(
-                            "Site manifest changed concurrently; refusing rollback"
-                        )
-                    os.replace(backup, manifest_path)
-                    raise
-            finally:
-                backup.unlink(missing_ok=True)
-        finally:
-            locales_temporary.unlink(missing_ok=True)
-    finally:
-        manifest_temporary.unlink(missing_ok=True)
+    return _create_snapshot(
+        site_root,
+        manifest,
+        locales,
+        original_manifest,
+        original_locales,
+    )
 
 
-def materialize(site_root: Path, staging_id: str) -> None:
-    """Backward-compatible single-mapping API."""
-    materialize_many(site_root, [staging_id])
+def materialize(site_root: Path, staging_id: str) -> Path:
+    """Backward-compatible single-mapping API returning the qualification root."""
+
+    return materialize_many(site_root, [staging_id])
 
 
 def main() -> int:
@@ -472,10 +474,11 @@ def main() -> int:
         else [item.strip() for item in args.staging_ids.split(",")]
     )
     try:
-        materialize_many(args.site_root, staging_ids)
+        snapshot_root = materialize_many(args.site_root, staging_ids)
     except (PublicationStagingError, OSError, UnicodeError) as exc:
         print(f"materialize_publication_staging.py: {exc}", file=sys.stderr)
         return 1
+    print(snapshot_root)
     return 0
 
 
