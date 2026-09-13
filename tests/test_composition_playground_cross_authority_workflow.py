@@ -13,7 +13,7 @@ EXPECTED_BASES = {
     "site-*",
     "perf/site-*",
 }
-EXPECTED_COMPOSITION_PROVIDER = "0f0c4012818a3b8646ad89fbca7db22c71ad5dd8"
+EXPECTED_COMPOSITION_PROVIDER = "6b7d764c963f957c6bee43c0c1d42eb03970ec8f"
 
 
 def pull_request_bases(text: str) -> set[str]:
