@@ -1,0 +1,39 @@
+name: Temporary reapply #833 build-pages semantics
+
+on:
+  push:
+    branches:
+      - feat/site-browser-qualification
+
+permissions:
+  contents: write
+
+jobs:
+  reapply:
+    if: ${{ github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: feat/site-browser-qualification
+          fetch-depth: 0
+      - name: Reapply historical qualified #833 member patch
+        run: |
+          set -euo pipefail
+          git diff 231cf76c2ee94235d3cefbdad08eb5e80ed8fcb3 ecf7aec28793609a1a38f43998530fed0a4ccb25 -- .github/workflows/build-pages.yml > /tmp/build-pages-833.patch
+          test -s /tmp/build-pages-833.patch
+          git apply --check /tmp/build-pages-833.patch
+          git apply /tmp/build-pages-833.patch
+      - name: Validate recovered browser qualification contract
+        run: |
+          python -m pip install --disable-pip-version-check PyYAML==6.0.3
+          python -m unittest tests.test_site_browser_qualification_workflows -v
+      - name: Commit semantic recovery and remove transaction workflow
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm .github/workflows/temp-reapply-833-build-pages.yml
+          git add .github/workflows/build-pages.yml
+          git commit -m 'Restore #833 build-pages browser qualification semantics'
+          git push origin HEAD:feat/site-browser-qualification
