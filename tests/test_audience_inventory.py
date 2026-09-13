@@ -13,6 +13,7 @@ from jsonschema.exceptions import ValidationError
 from scripts.publication_contract import PublicationContractError, read_json_object
 from scripts.validate_audience_inventory import (
     AREA, ROOT, GitEvidence, InventoryError, tree_declarations,
+    candidate_identities, validate_candidate_documentation, validate_candidate_scope,
     validate_inventory, validate_structure,
 )
 
@@ -76,6 +77,7 @@ class AudienceInventoryTests(unittest.TestCase):
     def setUpClass(cls):
         cls.schema = read_json_object(AREA / "migration-matrix.schema.json", "schema")
         cls.full = read_json_object(AREA / "migration-matrix.json", "matrix")
+        cls.candidate_scope = read_json_object(AREA / "future-candidates.json", "candidate scope")
 
     def setUp(self):
         self.matrix = copy.deepcopy(self.full)
@@ -86,15 +88,95 @@ class AudienceInventoryTests(unittest.TestCase):
             for a, rows in self.matrix["documents"].items()
         }
         self.evidence = MemoryEvidence(self.matrix["audit"]["revisions"])
+        self.scope = {"site": [], "composition": [], "policy": []}
 
     def validate(self):
-        return validate_inventory(self.matrix, self.schema, self.evidence)
+        return validate_inventory(self.matrix, self.schema, self.evidence, self.scope)
 
     def test_complete_catalog_and_generated_surface(self):
         self.assertEqual(self.validate()["published"], 4)
 
     def test_committed_matrix_schema_and_decisions(self):
         validate_structure(self.full, self.schema)
+        self.assertEqual(len(validate_candidate_scope(self.full, self.candidate_scope)), 16)
+        validate_candidate_documentation(self.candidate_scope, (AREA / "README.md").read_text())
+
+    def test_external_authority_rejects_non_owner_content_actions(self):
+        for authority in ("composition", "policy"):
+            for status in ("published", "candidate"):
+                identifier = "overview" if status == "published" else (
+                    "provider-maintenance" if authority == "composition" else "contributing")
+                for action in ("clarify", "publish-existing", "author-and-publish"):
+                    with self.subTest(authority=authority, status=status, action=action):
+                        matrix = copy.deepcopy(self.full)
+                        row = matrix["documents"][authority][identifier]
+                        row["site_action"] = action
+                        row["site_projection_sufficient"] = False
+                        with self.assertRaises(ValidationError):
+                            validate_inventory(matrix, self.schema, self.evidence, self.candidate_scope)
+
+    def test_site_authority_rejects_inverse_provider_actions(self):
+        for identifier in ("portal-home", "site-maintenance"):
+            for action in ("clarify", "publish-existing", "author-and-publish"):
+                with self.subTest(identifier=identifier, action=action):
+                    matrix = copy.deepcopy(self.full)
+                    matrix["documents"]["site"][identifier]["provider_action"] = action
+                    with self.assertRaises(ValidationError):
+                        validate_inventory(matrix, self.schema, self.evidence, self.candidate_scope)
+
+    def test_missing_declared_candidate_fails_for_each_authority(self):
+        for authority, identifiers in self.candidate_scope.items():
+            for identifier in identifiers:
+                with self.subTest(authority=authority, identifier=identifier):
+                    matrix = copy.deepcopy(self.full)
+                    del matrix["documents"][authority][identifier]
+                    with self.assertRaisesRegex(InventoryError, "candidate scope mismatch: missing=.*" + identifier):
+                        validate_inventory(matrix, self.schema, self.evidence, self.candidate_scope)
+
+    def test_renamed_or_unexpected_candidate_fails_for_each_authority(self):
+        for authority, identifiers in self.candidate_scope.items():
+            with self.subTest(authority=authority):
+                matrix = copy.deepcopy(self.full)
+                rows = matrix["documents"][authority]
+                rows["unexpected-candidate"] = rows.pop(identifiers[0])
+                with self.assertRaisesRegex(InventoryError, "unexpected=.*unexpected-candidate"):
+                    validate_inventory(matrix, self.schema, self.evidence, self.candidate_scope)
+
+    def test_reclassifying_candidate_as_published_does_not_erase_scope(self):
+        matrix = copy.deepcopy(self.full)
+        matrix["documents"]["site"]["site-maintenance"]["status"] = "published"
+        with self.assertRaisesRegex(InventoryError, "candidate scope mismatch"):
+            validate_candidate_scope(matrix, self.candidate_scope)
+
+    def test_candidate_scope_is_closed_and_duplicate_free(self):
+        invalid = [[], {"site": [], "composition": []},
+                   {**self.candidate_scope, "unknown": []},
+                   {**self.candidate_scope, "policy": "contributing"},
+                   {**self.candidate_scope, "policy": ["contributing", "contributing"]},
+                   {**self.candidate_scope, "policy": [None]}]
+        for scope in invalid:
+            with self.subTest(scope=scope):
+                with self.assertRaises((InventoryError, PublicationContractError)):
+                    candidate_identities(scope)
+
+    def test_candidate_documentation_counts_cannot_drift(self):
+        readme = (AREA / "README.md").read_text()
+        for changed in (readme.replace("| Total | 16 |", "| Total | 15 |"),
+                        readme.replace("| site | 10 |", "| site | 9 |"),
+                        readme.replace("<!-- future-candidate-counts -->", "")):
+            with self.assertRaisesRegex(InventoryError, "documentation counts are stale"):
+                validate_candidate_documentation(self.candidate_scope, changed)
+        scope = copy.deepcopy(self.candidate_scope)
+        scope["policy"].pop()
+        with self.assertRaisesRegex(InventoryError, "documentation counts are stale"):
+            validate_candidate_documentation(scope, readme)
+
+    def test_roadmap_names_declared_provider_candidates_and_scope_input(self):
+        roadmap = (AREA / "implementation-roadmap.md").read_text()
+        self.assertIn("[independent future candidate scope](future-candidates.json)", roadmap)
+        for authority in ("composition", "policy"):
+            for identifier in self.candidate_scope[authority]:
+                self.assertIn(f"`{identifier}`", roadmap)
 
     def test_missing_published_document(self):
         del self.matrix["documents"]["site"]["portal-home"]
@@ -115,6 +197,7 @@ class AudienceInventoryTests(unittest.TestCase):
     def test_candidate_requires_existing_source_or_explicit_authoring(self):
         candidate = copy.deepcopy(self.full["documents"]["composition"]["provider-maintenance"])
         self.matrix["documents"]["composition"]["provider-maintenance"] = candidate
+        self.scope["composition"] = ["provider-maintenance"]
         self.assertEqual(self.validate()["candidates"], 1)
         candidate["source"] = "docs/missing.md"
         candidate["provider_action"] = "publish-existing"
@@ -192,7 +275,7 @@ class AudienceInventoryTests(unittest.TestCase):
                 value[key].append(value[key][0])
                 evidence.put("site", path, value)
                 with self.assertRaises((InventoryError, PublicationContractError)):
-                    validate_inventory(self.matrix, self.schema, evidence)
+                    validate_inventory(self.matrix, self.schema, evidence, self.scope)
 
     def test_generated_declarations_are_not_executed(self):
         with self.assertRaises(ValueError):

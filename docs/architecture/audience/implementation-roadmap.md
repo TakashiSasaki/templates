@@ -24,6 +24,9 @@ from these files and their immutable GitHub PR binding alone.
 At S, the [model](audience-model.md), [target IA](target-information-architecture.md),
 [matrix](migration-matrix.json), and [schema](migration-matrix.schema.json) are
 normative design inputs. The [index](README.md) defines the evidence boundary.
+The [independent future candidate scope](future-candidates.json) is also normative:
+all declared candidates must retain a matrix decision. Use the validated count
+summary in the index; do not infer future scope from whichever rows remain.
 This roadmap defines dependencies, not provider behavior. The validator proves
 the frozen design inventory against its audited sources; it is never the future
 production manifest implementation.
@@ -89,7 +92,7 @@ The matrix classifies reader discovery, not a mandate to rewrite every page.
   qualified revision C and actual landing SHA separately when they differ.
 
 Output: canonical Composition changes or evidence-backed no-change dispositions
-for the two candidates, semantic-role clarifications where justified, stable
+for every declared Composition candidate, semantic-role clarifications where justified, stable
 document IDs/paths and publication evidence. Record operational state in its PR;
 Site later updates the projection for the accepted provider revision.
 
@@ -136,7 +139,8 @@ document the concrete semantic-context representation, history restoration,
 deep-link fallback, switch behavior and canonical URL normalization required by
 the model. Do not use this design inventory as runtime configuration.
 
-Publish the ten existing Site maintainer candidates recorded in the matrix,
+Publish the existing Site maintainer candidates declared in the independent scope
+and described in the matrix,
 following Site source-link, translation, and publication conventions. Audit any
 newly authored architecture area for future canonical publication separately;
 do not add uncataloged local copies of Composition material. Generate sparse
@@ -214,6 +218,7 @@ the normal core runner discovers the focused regression tests.
 
 Schema validation includes date-time format checking and requires duplicate-key
 rejection before parsing. Additional executable checks cover source uniqueness,
+independent candidate identity coverage and documented counts, action ownership,
 candidate source existence, source/destination/navigation equality, provider-lock
 binding, audience/membership consistency, and full catalog/generated coverage.
 The check proves inventory completeness and structural decisions, not editorial

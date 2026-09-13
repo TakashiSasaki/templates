@@ -113,7 +113,18 @@
             "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
           },
           "additionalProperties": {
-            "$ref": "#/$defs/document"
+            "allOf": [
+              {
+                "$ref": "#/$defs/document"
+              },
+              {
+                "properties": {
+                  "site_action": {
+                    "const": "project"
+                  }
+                }
+              }
+            ]
           }
         },
         "policy": {
@@ -123,7 +134,18 @@
             "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
           },
           "additionalProperties": {
-            "$ref": "#/$defs/document"
+            "allOf": [
+              {
+                "$ref": "#/$defs/document"
+              },
+              {
+                "properties": {
+                  "site_action": {
+                    "const": "project"
+                  }
+                }
+              }
+            ]
           }
         }
       }

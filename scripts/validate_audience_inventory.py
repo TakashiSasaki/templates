@@ -21,12 +21,12 @@ from jsonschema.exceptions import SchemaError, ValidationError
 
 try:
     from .publication_contract import (
-        PublicationContractError, parse_publication_catalog, read_json_object,
+        PublicationContractError, parse_name, parse_publication_catalog, read_json_object,
         safe_relative_path,
     )
 except ImportError:
     from publication_contract import (
-        PublicationContractError, parse_publication_catalog, read_json_object,
+        PublicationContractError, parse_name, parse_publication_catalog, read_json_object,
         safe_relative_path,
     )
 
@@ -90,6 +90,50 @@ def validate_structure(matrix, schema):
                         f"{identity}: projection sufficiency contradicts required action")
             require(row["status"] != "generated" or authority == "site",
                     f"{identity}: generated tree documents are Site-owned")
+
+
+def candidate_identities(scope):
+    """A closed, independently authored identity set, not another content manifest."""
+    require(isinstance(scope, dict) and set(scope) == {"site", "composition", "policy"},
+            "candidate scope must declare exactly site, composition, and policy")
+    expected = set()
+    for authority, identifiers in scope.items():
+        require(isinstance(identifiers, list), f"{authority}: candidate scope must be an array")
+        for identifier in identifiers:
+            parse_name(identifier, f"{authority} candidate identity")
+            key = (authority, identifier)
+            require(key not in expected, f"duplicate candidate scope identity: {key}")
+            expected.add(key)
+    return expected
+
+
+def validate_candidate_scope(matrix, scope):
+    expected = candidate_identities(scope)
+    actual = {(authority, identifier)
+              for authority, rows in matrix["documents"].items()
+              for identifier, row in rows.items() if row["status"] == "candidate"}
+    require(actual == expected,
+            f"candidate scope mismatch: missing={sorted(expected - actual)}, "
+            f"unexpected={sorted(actual - expected)}")
+    return expected
+
+
+def candidate_scope_summary(scope):
+    candidate_identities(scope)
+    lines = ["<!-- future-candidate-counts -->", "| Authority | Expected candidates |",
+             "| --- | --- |"]
+    for authority in ("site", "composition", "policy"):
+        lines.append(f"| {authority} | {len(scope[authority])} |")
+    lines.extend([f"| Total | {sum(map(len, scope.values()))} |",
+                  "<!-- /future-candidate-counts -->"])
+    return "\n".join(lines)
+
+
+def validate_candidate_documentation(scope, readme):
+    expected = candidate_scope_summary(scope)
+    require(readme.count("<!-- future-candidate-counts -->") == 1
+            and readme.count("<!-- /future-candidate-counts -->") == 1
+            and expected in readme, "candidate scope documentation counts are stale")
 
 
 class GitEvidence:
@@ -206,8 +250,9 @@ def derive_surface(matrix, evidence):
         return surface
 
 
-def validate_inventory(matrix, schema, evidence):
+def validate_inventory(matrix, schema, evidence, candidate_scope):
     validate_structure(matrix, schema)
+    expected_candidates = validate_candidate_scope(matrix, candidate_scope)
     surface = derive_surface(matrix, evidence)
     actual = {(a, i): row for a, rows in matrix["documents"].items() for i, row in rows.items()}
     published = {key for key, row in actual.items() if row["status"] != "candidate"}
@@ -220,7 +265,7 @@ def validate_inventory(matrix, schema, evidence):
     for (authority, identifier), row in actual.items():
         if row["status"] == "candidate" and row["source"] is not None:
             evidence.read(matrix["audit"]["revisions"][authority], row["source"]).decode("utf-8")
-    return {"published": len(surface), "candidates": len(actual) - len(surface),
+    return {"published": len(surface), "candidates": len(expected_candidates),
             "audited_revisions": matrix["audit"]["revisions"]}
 
 
@@ -235,13 +280,16 @@ def main():
     try:
         matrix = read_json_object(args.matrix, "audience matrix")
         schema = read_json_object(args.schema, "audience schema")
+        candidate_scope = read_json_object(AREA / "future-candidates.json", "future candidate scope")
         validate_structure(matrix, schema)
+        validate_candidate_scope(matrix, candidate_scope)
+        validate_candidate_documentation(candidate_scope, (AREA / "README.md").read_text(encoding="utf-8"))
         evidence = GitEvidence(args.repository)
         if args.fetch_audit:
             for revision in matrix["audit"]["revisions"].values():
                 evidence.git("fetch", "--no-tags", "--no-write-fetch-head",
                              "https://github.com/TakashiSasaki/templates.git", revision)
-        result = validate_inventory(matrix, schema, evidence)
+        result = validate_inventory(matrix, schema, evidence, candidate_scope)
         result["validated_checkout_head"] = evidence.git("rev-parse", "HEAD").decode().strip()
         result["checkout_dirty"] = bool(evidence.git("status", "--porcelain"))
         print(json.dumps(result, indent=2))
