@@ -65,6 +65,39 @@ def _configure_future_mapping(site_root: Path) -> None:
 
 
 def _configure_composition_mappings(site_root: Path) -> None:
+    # Reconstruct the historical pre-promotion Site state so staging behavior
+    # remains regression-tested after these mappings become active authority.
+    manifest_path = site_root / "site-manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+
+    def remove_promoted(nodes):
+        retained = []
+        for node in nodes:
+            children = node.get("children")
+            if isinstance(children, list):
+                remove_promoted(children)
+                retained.append(node)
+            elif not (
+                node.get("publication") == "composition"
+                and node.get("document") in {"provider-maintenance", "installer-release"}
+            ):
+                retained.append(node)
+        nodes[:] = retained
+
+    remove_promoted(manifest["navigation"])
+    write = json.dumps(manifest, ensure_ascii=False, indent=2) + "\n"
+    manifest_path.write_text(write, encoding="utf-8")
+
+    locales_path = site_root / "reader-navigation-locales.json"
+    locales = json.loads(locales_path.read_text(encoding="utf-8"))
+    for locale in locales["locales"]:
+        locale["labels"] = [
+            label for label in locale["labels"]
+            if label.get("id") not in COMPOSITION_STAGING_IDS
+        ]
+    write = json.dumps(locales, ensure_ascii=False, indent=2) + "\n"
+    locales_path.write_text(write, encoding="utf-8")
+
     staging_path = site_root / "publication-staging.json"
     staging = json.loads(staging_path.read_text(encoding="utf-8"))
     staging["mappings"] = [
