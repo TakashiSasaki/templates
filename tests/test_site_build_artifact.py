@@ -161,6 +161,8 @@ class ReuseWorkflowTests(unittest.TestCase):
         root=Path(__file__).resolve().parents[1]
         workflow=yaml.safe_load((root/artifact.WORKFLOW).read_text())
         steps=workflow['jobs']['build']['steps']
+        reuse_step=next(s for s in steps if s.get('id') == 'artifact')
+        self.assertIn('github.event.pull_request.head.repo.full_name == github.repository', reuse_step['env']['REUSE_PR_BUILD'])
         start=next(i for i,s in enumerate(steps) if s.get('name')=='Install pinned site dependencies')
         end=next(i for i,s in enumerate(steps) if s.get('name')=='Upload Pages artifact')
         for step in steps[start:end]:

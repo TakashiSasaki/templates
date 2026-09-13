@@ -140,7 +140,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           IS_CANONICAL_BUILD: ${{ inputs.site_ref == '' && github.workflow == 'Build documentation artifact' }}
-          REUSE_PR_BUILD: ${{ inputs.reuse_pr_build }}
+          REUSE_PR_BUILD: ${{ inputs.reuse_pr_build && github.event.pull_request.head.repo.full_name == github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           STAGING_IDS: ${{ inputs.publication_staging_ids }}
           STAGING_ID: ${{ inputs.publication_staging_id }}
