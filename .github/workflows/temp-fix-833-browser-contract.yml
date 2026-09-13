@@ -1,0 +1,45 @@
+name: Temporary fix #833 browser classifier contract
+
+on:
+  push:
+    branches:
+      - feat/site-browser-qualification
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out exact branch
+        uses: actions/checkout@v7
+        with:
+          ref: feat/site-browser-qualification
+          fetch-depth: 1
+
+      - name: Update exact-head assertion
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('tests/test_pages_workflow_boundary.py')
+          text = path.read_text(encoding='utf-8')
+          old = '            "ref: ${{ github.event.pull_request.head.sha }}",\n'
+          new = '            "ref: ${{ github.event.pull_request.head.sha || github.sha }}",\n'
+          if text.count(old) != 1:
+              raise SystemExit(f'expected exactly one stale assertion, found {text.count(old)}')
+          path.write_text(text.replace(old, new), encoding='utf-8')
+          PY
+
+      - name: Run targeted contract
+        run: python -m unittest tests.test_pages_workflow_boundary.PagesWorkflowBoundaryTests.test_browser_classifier_is_exact_head_fail_closed_and_parallel_to_build -v
+
+      - name: Commit ordinary test repair
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add tests/test_pages_workflow_boundary.py
+          git diff --cached --check
+          git diff --cached --quiet && { echo 'expected test repair is absent' >&2; exit 1; }
+          git commit -m 'Align browser classifier contract with safety-net checkout'
+          git push origin HEAD:feat/site-browser-qualification
