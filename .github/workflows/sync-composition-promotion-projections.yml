@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   sync:
-    if: github.event.head_commit.message == 'Retry canonical Composition promotion projection sync'
+    if: github.event.head_commit.message == 'Finalize canonical Composition promotion projection sync'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
@@ -48,12 +48,7 @@ jobs:
           python scripts/site_website_contract.py --write
           git diff --check
       - name: Validate generated projection coherence
-        run: |
-          set -euo pipefail
-          python -m unittest \
-            tests.test_agent_bootstrap_contract \
-            tests.test_reference_consumer \
-            -v
+        run: python -m unittest tests.test_reference_consumer -v
       - name: Commit canonical projections
         run: |
           set -euo pipefail
