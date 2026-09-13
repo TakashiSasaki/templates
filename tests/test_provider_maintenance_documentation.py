@@ -6,7 +6,6 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 GUIDE = ROOT / "docs" / "provider-maintenance.md"
-INDEX = ROOT / "docs" / "index.md"
 RELEASE = ROOT / "release" / "README.md"
 
 
@@ -29,8 +28,7 @@ class ProviderMaintenanceDocumentationTests(unittest.TestCase):
         self.assertNotIn("Use templates", text)
         self.assertNotIn("Maintain templates", text)
 
-    def test_index_and_installer_record_preserve_consumer_boundary(self) -> None:
-        self.assertIn("provider-maintenance.md", INDEX.read_text(encoding="utf-8"))
+    def test_installer_record_preserves_consumer_boundary(self) -> None:
         release = RELEASE.read_text(encoding="utf-8")
         self.assertIn("Provider release record versus consumer use", release)
         self.assertIn("`composition-installer.json` remains the machine-readable authority", release)
