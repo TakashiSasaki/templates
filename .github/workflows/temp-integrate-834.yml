@@ -2,8 +2,7 @@ name: Temporary integrate #834 exact build reuse
 
 on:
   push:
-    branches:
-      - feat/site-exact-build-reuse
+    branches: [feat/site-exact-build-reuse]
 
 permissions:
   contents: write
@@ -18,7 +17,7 @@ jobs:
           ref: feat/site-exact-build-reuse
           fetch-depth: 0
 
-      - name: Apply clean historical #834 member patches
+      - name: Apply historical #834 members
         run: |
           set -euo pipefail
           clean_paths=(
@@ -26,11 +25,8 @@ jobs:
             .github/workflows/deploy-pages.yml
             .github/workflows/reference-consumer.yml
             .github/workflows/site-build-detailed-profile.yml
-            MAINTENANCE.md
-            requirements-build.lock
-            scripts/classify_site_ci.py
-            scripts/site_build_artifact.py
-            scripts/verify_site_full_qualification.py
+            MAINTENANCE.md requirements-build.lock scripts/classify_site_ci.py
+            scripts/site_build_artifact.py scripts/verify_site_full_qualification.py
             tests/test_site_browser_qualification_workflows.py
             tests/test_site_build_artifact.py
             tests/test_site_build_artifact_review_regression.py
@@ -39,135 +35,90 @@ jobs:
             tests/test_verify_site_full_qualification.py
           )
           for path in "${clean_paths[@]}"; do
-            patch="$RUNNER_TEMP/member.patch"
-            git diff ecf7aec28793609a1a38f43998530fed0a4ccb25 cde90168a6c34c3c78b7c1b8d0e4b64b5d3fa4a2 -- "$path" > "$patch"
-            test -s "$patch"
-            git apply --check "$patch"
-            git apply "$patch"
+            git diff ecf7aec28793609a1a38f43998530fed0a4ccb25 cde90168a6c34c3c78b7c1b8d0e4b64b5d3fa4a2 -- "$path" > "$RUNNER_TEMP/member.patch"
+            test -s "$RUNNER_TEMP/member.patch"
+            git apply --check "$RUNNER_TEMP/member.patch"
+            git apply "$RUNNER_TEMP/member.patch"
           done
 
-      - name: Three-way merge overlapping #834 members
-        shell: bash
-        run: |
-          set -u
           set +e
-          base=ecf7aec28793609a1a38f43998530fed0a4ccb25
-          theirs=cde90168a6c34c3c78b7c1b8d0e4b64b5d3fa4a2
-          merge_root="$RUNNER_TEMP/site-834-merge"
-          mkdir -p "$merge_root"
-          paths=(
+          mkdir -p "$RUNNER_TEMP/merge"
+          overlap=(
             .github/workflows/build-pages.yml
             .github/workflows/check-publication-freshness.yml
             .github/workflows/provider-coexistence.yml
             .github/workflows/site-composition-materialization-cross-authority.yml
             .github/workflows/site-composition-playground-cross-authority.yml
             .github/workflows/site-full-qualification.yml
-            tests/test_composition_playground_cross-authority_workflow.py
-            tests/test_publication_freshness_workflow.py
           )
-          for path in "${paths[@]}"; do
+          for path in "${overlap[@]}"; do
             safe="${path//\//__}"
-            git show "$base:$path" > "$merge_root/${safe}.base"
-            git show "$theirs:$path" > "$merge_root/${safe}.theirs"
-            git merge-file --diff3 -L current -L historical-base -L historical-834 \
-              "$path" "$merge_root/${safe}.base" "$merge_root/${safe}.theirs"
-            :
+            git show ecf7aec28793609a1a38f43998530fed0a4ccb25:"$path" > "$RUNNER_TEMP/merge/$safe.base"
+            git show cde90168a6c34c3c78b7c1b8d0e4b64b5d3fa4a2:"$path" > "$RUNNER_TEMP/merge/$safe.theirs"
+            git merge-file --diff3 -L current -L historical-base -L historical-834 "$path" "$RUNNER_TEMP/merge/$safe.base" "$RUNNER_TEMP/merge/$safe.theirs"
           done
           exit 0
 
-      - name: Resolve prerequisite/artifact-reuse overlaps
+      - name: Resolve prerequisite overlaps
         run: |
           python - <<'PY'
           from pathlib import Path
+          import re
 
-          START = '<<<<<<< current\n'
-          BASE = '||||||| historical-base\n'
-          SEP = '=======\n'
-          END = '>>>>>>> historical-834\n'
+          START='<<<<<<< current\n'; BASE='||||||| historical-base\n'; SEP='=======\n'; END='>>>>>>> historical-834\n'
+          def resolve(path, replacements):
+              p=Path(path); text=p.read_text()
+              for repl in replacements:
+                  s=text.index(START); b=text.index(BASE,s); q=text.index(SEP,b); e=text.index(END,q)+len(END)
+                  text=text[:s]+repl+text[e:]
+              if any(x in text for x in ('<<<<<<< ','||||||| ','>>>>>>> ')):
+                  raise SystemExit(f'unresolved marker: {path}')
+              p.write_text(text)
 
-          def resolve(path: str, replacements: list[str]) -> None:
-              p = Path(path)
-              text = p.read_text(encoding='utf-8')
-              for replacement in replacements:
-                  start = text.index(START)
-                  base = text.index(BASE, start)
-                  sep = text.index(SEP, base)
-                  end = text.index(END, sep) + len(END)
-                  text = text[:start] + replacement + text[end:]
-              if '<<<<<<< ' in text or '||||||| ' in text or '>>>>>>> ' in text:
-                  raise SystemExit(f'unresolved merge marker in {path}')
-              p.write_text(text, encoding='utf-8')
-
-          branch_union_with_codex = (
+          with_codex=(
               "      - site-composition-audience-publication-staging\n"
-              "      - 'site-*'\n"
-              "      - 'perf/site-*'\n"
+              "      - 'site-*'\n      - 'perf/site-*'\n"
               "      - codex/site-composition-playground-v1-shell\n"
           )
-          branch_union_without_codex = (
+          without_codex=(
               "      - site-composition-audience-publication-staging\n"
-              "      - 'site-*'\n"
-              "      - 'perf/site-*'\n"
+              "      - 'site-*'\n      - 'perf/site-*'\n"
           )
+          resolve('.github/workflows/build-pages.yml',[with_codex,''])
+          p=Path('.github/workflows/build-pages.yml'); text=p.read_text()
+          needle='      - name: Run site assembly tests\n        run: PYTHONPATH=site-source python -m unittest discover --start-directory site-source/tests --verbose\n'
+          literal='        if: '+'$'+"{{ steps.artifact.outputs.reused != 'true' }}\n"
+          if text.count(needle)!=1: raise SystemExit(f'assembly block count={text.count(needle)}')
+          p.write_text(text.replace(needle,'      - name: Run site assembly tests\n'+literal+'        run: PYTHONPATH=site-source python -m unittest discover --start-directory site-source/tests --verbose\n',1))
 
-          resolve('.github/workflows/build-pages.yml', [branch_union_with_codex, ''])
-          p = Path('.github/workflows/build-pages.yml')
-          text = p.read_text(encoding='utf-8')
-          needle = (
-              '      - name: Run site assembly tests\n'
-              '        run: PYTHONPATH=site-source python -m unittest discover --start-directory site-source/tests --verbose\n'
-          )
-          literal_if = '        if: ' + '$' + "{{ steps.artifact.outputs.reused != 'true' }}\n"
-          replacement = (
-              '      - name: Run site assembly tests\n'
-              + literal_if
-              + '        run: PYTHONPATH=site-source python -m unittest discover --start-directory site-source/tests --verbose\n'
-          )
-          if text.count(needle) != 1:
-              raise SystemExit(f'expected one staged site-test block, found {text.count(needle)}')
-          p.write_text(text.replace(needle, replacement, 1), encoding='utf-8')
+          resolve('.github/workflows/check-publication-freshness.yml',[without_codex])
+          resolve('.github/workflows/provider-coexistence.yml',[without_codex])
+          resolve('.github/workflows/site-composition-materialization-cross-authority.yml',[with_codex])
+          resolve('.github/workflows/site-composition-playground-cross-authority.yml',[with_codex])
+          resolve('.github/workflows/site-full-qualification.yml',[with_codex])
 
-          resolve('.github/workflows/check-publication-freshness.yml', [branch_union_without_codex])
-          resolve('.github/workflows/provider-coexistence.yml', [branch_union_without_codex])
-          resolve('.github/workflows/site-composition-materialization-cross-authority.yml', [branch_union_with_codex])
-          resolve('.github/workflows/site-composition-playground-cross-authority.yml', [branch_union_with_codex])
-          resolve('.github/workflows/site-full-qualification.yml', [branch_union_with_codex])
-          resolve(
-              'tests/test_composition_playground_cross_authority_workflow.py',
-              [
-                  '    "site-composition-audience-publication-staging",\n'
-                  '    "site-*",\n'
-                  '    "perf/site-*",\n'
-              ],
-          )
-          resolve(
-              'tests/test_publication_freshness_workflow.py',
-              [
-                  '            ["site", "feat/site-*", "site-composition-audience-publication-staging", '
-                  '"site-*", "perf/site-*", "codex/site-composition-playground-v1-shell"],\n'
-              ],
-          )
+          p=Path('tests/test_composition_playground_cross_authority_workflow.py'); text=p.read_text()
+          text=re.sub(r'EXPECTED_BASES = \{.*?\n\}', 'EXPECTED_BASES = {\n    "codex/site-composition-playground-v1-shell",\n    "site",\n    "feat/site-*",\n    "site-composition-audience-publication-staging",\n    "site-*",\n    "perf/site-*",\n}', text, count=1, flags=re.S)
+          p.write_text(text)
+
+          p=Path('tests/test_publication_freshness_workflow.py'); text=p.read_text()
+          pattern=r'(self\.assertEqual\(\n)\s*\[[^\n]+\],\n(\s*pull_request\["branches"\],)'
+          replacement=r'\1            ["site", "feat/site-*", "site-composition-audience-publication-staging", "site-*", "perf/site-*", "codex/site-composition-playground-v1-shell"],\n\2'
+          text,n=re.subn(pattern,replacement,text,count=1)
+          if n!=1: raise SystemExit('freshness branch expectation not found')
+          p.write_text(text)
           PY
-
-      - name: Verify prerequisite and #834 semantics coexist
-        run: |
-          set -euo pipefail
-          ! grep -R -n '^<<<<<<< \|^||||||| \|^>>>>>>> ' \
-            .github/workflows tests/test_composition_playground_cross_authority_workflow.py tests/test_publication_freshness_workflow.py
-          grep --fixed-strings -- 'publication_staging_id' .github/workflows/build-pages.yml
-          grep --fixed-strings -- 'SITE_PUBLICATION_ROOT' .github/workflows/build-pages.yml
-          grep --fixed-strings -- 'ci/browser' .github/workflows/build-pages.yml
-          grep --fixed-strings -- 'workflow_dispatch:' .github/workflows/build-pages.yml
-          grep --fixed-strings -- '--force-browser' .github/workflows/build-pages.yml
-          grep --fixed-strings -- 'reuse_pr_build' .github/workflows/build-pages.yml
-          grep --fixed-strings -- 'site_build_artifact.py' .github/workflows/build-pages.yml
-          grep --fixed-strings -- 'steps.artifact.outputs.reused' .github/workflows/build-pages.yml
-          grep --fixed-strings -- '6b7d764c963f957c6bee43c0c1d42eb03970ec8f' .github/workflows/site-composition-materialization-cross-authority.yml
-          grep --fixed-strings -- '6b7d764c963f957c6bee43c0c1d42eb03970ec8f' .github/workflows/site-composition-playground-cross-authority.yml
-          test ! -e .github/workflows/build-pages-stacked-site.yml
 
       - name: Validate integrated contracts
         run: |
+          set -euo pipefail
+          ! grep -R -n '^<<<<<<< \|^||||||| \|^>>>>>>> ' .github/workflows tests/test_composition_playground_cross_authority_workflow.py tests/test_publication_freshness_workflow.py
+          grep -F 'SITE_PUBLICATION_ROOT' .github/workflows/build-pages.yml
+          grep -F 'ci/browser' .github/workflows/build-pages.yml
+          grep -F 'reuse_pr_build' .github/workflows/build-pages.yml
+          grep -F 'site_build_artifact.py' .github/workflows/build-pages.yml
+          grep -F '6b7d764c963f957c6bee43c0c1d42eb03970ec8f' .github/workflows/site-composition-materialization-cross-authority.yml
+          test ! -e .github/workflows/build-pages-stacked-site.yml
           python -m pip install --disable-pip-version-check PyYAML==6.0.3
           python -m unittest \
             tests.test_composition_playground_cross_authority_workflow \
@@ -179,13 +130,12 @@ jobs:
             tests.test_stacked_site_documentation_workflow \
             tests.test_verify_site_full_qualification -v
 
-      - name: Stage integrated members as ordinary Git blobs
+      - name: Stage integrated members
         run: |
           set -euo pipefail
-          stage_root=tmp/site-ci-recovery/834
-          rm -rf "$stage_root"
-          mkdir -p "$stage_root"
-          workflow_paths=(
+          stage=tmp/site-ci-recovery/834
+          rm -rf "$stage"; mkdir -p "$stage"
+          workflows=(
             .github/workflows/build-pages.yml
             .github/workflows/check-publication-freshness.yml
             .github/workflows/deploy-pages.yml
@@ -196,40 +146,14 @@ jobs:
             .github/workflows/site-composition-playground-cross-authority.yml
             .github/workflows/site-full-qualification.yml
           )
-          for path in "${workflow_paths[@]}"; do
-            safe="${path//\//__}"
-            cp "$path" "$stage_root/$safe"
-          done
-          printf '%s\n' '.github/workflows/build-pages-stacked-site.yml' > "$stage_root/DELETE.txt"
-
-          git restore -- \
-            .github/workflows/build-pages.yml \
-            .github/workflows/check-publication-freshness.yml \
-            .github/workflows/deploy-pages.yml \
-            .github/workflows/provider-coexistence.yml \
-            .github/workflows/reference-consumer.yml \
-            .github/workflows/site-build-detailed-profile.yml \
-            .github/workflows/site-composition-materialization-cross-authority.yml \
-            .github/workflows/site-composition-playground-cross-authority.yml \
-            .github/workflows/site-full-qualification.yml
+          for path in "${workflows[@]}"; do cp "$path" "$stage/${path//\//__}"; done
+          printf '%s\n' '.github/workflows/build-pages-stacked-site.yml' > "$stage/DELETE.txt"
+          git restore -- "${workflows[@]}"
           git restore --source=HEAD -- .github/workflows/build-pages-stacked-site.yml
-
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add \
-            MAINTENANCE.md \
-            requirements-build.lock \
-            scripts/classify_site_ci.py \
-            scripts/site_build_artifact.py \
-            scripts/verify_site_full_qualification.py \
-            tests/test_composition_playground_cross_authority_workflow.py \
-            tests/test_publication_freshness_workflow.py \
-            tests/test_site_browser_qualification_workflows.py \
-            tests/test_site_build_artifact.py \
-            tests/test_site_build_artifact_review_regression.py \
-            tests/test_site_composition_materialization_cross_authority_workflow.py \
-            tests/test_stacked_site_documentation_workflow.py \
-            tests/test_verify_site_full_qualification.py \
-            "$stage_root"
+          git config user.name 'github-actions[bot]'; git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add MAINTENANCE.md requirements-build.lock scripts/classify_site_ci.py scripts/site_build_artifact.py scripts/verify_site_full_qualification.py \
+            tests/test_composition_playground_cross_authority_workflow.py tests/test_publication_freshness_workflow.py tests/test_site_browser_qualification_workflows.py \
+            tests/test_site_build_artifact.py tests/test_site_build_artifact_review_regression.py tests/test_site_composition_materialization_cross_authority_workflow.py \
+            tests/test_stacked_site_documentation_workflow.py tests/test_verify_site_full_qualification.py "$stage"
           git commit -m 'Stage integrated #834 exact-build-reuse members'
           git push origin HEAD:feat/site-exact-build-reuse
