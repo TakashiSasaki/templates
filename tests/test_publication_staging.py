@@ -78,7 +78,7 @@ def _configure_composition_mappings(site_root: Path) -> None:
                 "id": COMPOSITION_STAGING_IDS[0],
                 "publication": "composition",
                 "document": "provider-maintenance",
-                "title": "Composition provider maintenance",
+                "title": "Composition maintainer overview",
                 "destination": "composition/authorities/provider-maintenance.md",
                 "insert_after": {
                     "publication": "composition",
@@ -88,7 +88,7 @@ def _configure_composition_mappings(site_root: Path) -> None:
                     {
                         "language": "ja",
                         "label_id": COMPOSITION_STAGING_IDS[0],
-                        "localized": "Composition provider の保守",
+                        "localized": "Composition メンテナー概要",
                     }
                 ],
             },
@@ -96,7 +96,7 @@ def _configure_composition_mappings(site_root: Path) -> None:
                 "id": COMPOSITION_STAGING_IDS[1],
                 "publication": "composition",
                 "document": "installer-release",
-                "title": "Composition installer release",
+                "title": "Installer release",
                 "destination": "composition/authorities/installer-release.md",
                 "insert_after": {
                     "publication": "composition",
@@ -106,7 +106,7 @@ def _configure_composition_mappings(site_root: Path) -> None:
                     {
                         "language": "ja",
                         "label_id": COMPOSITION_STAGING_IDS[1],
-                        "localized": "Composition installer release",
+                        "localized": "インストーラーリリース",
                     }
                 ],
             },
@@ -174,12 +174,12 @@ class PublicationStagingMaterializationTests(unittest.TestCase):
                 site_root / "reader-navigation-locales.json", prepared_navigation
             )
             self.assertEqual(
-                overlays["ja"]["Composition provider maintenance"],
-                "Composition provider の保守",
+                overlays["ja"]["Composition maintainer overview"],
+                "Composition メンテナー概要",
             )
             self.assertEqual(
-                overlays["ja"]["Composition installer release"],
-                "Composition installer release",
+                overlays["ja"]["Installer release"],
+                "インストーラーリリース",
             )
 
     def test_duplicate_selected_id_fails_without_mutation(self) -> None:

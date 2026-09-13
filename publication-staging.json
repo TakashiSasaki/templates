@@ -41,7 +41,7 @@
       "id": "composition-provider-maintenance",
       "publication": "composition",
       "document": "provider-maintenance",
-      "title": "Composition provider maintenance",
+      "title": "Composition maintainer overview",
       "destination": "composition/authorities/provider-maintenance.md",
       "insert_after": {
         "publication": "composition",
@@ -51,7 +51,7 @@
         {
           "language": "ja",
           "label_id": "composition-provider-maintenance",
-          "localized": "Composition provider の保守"
+          "localized": "Composition メンテナー概要"
         }
       ]
     },
@@ -59,7 +59,7 @@
       "id": "composition-installer-release",
       "publication": "composition",
       "document": "installer-release",
-      "title": "Composition installer release",
+      "title": "Installer release",
       "destination": "composition/authorities/installer-release.md",
       "insert_after": {
         "publication": "composition",
@@ -69,7 +69,7 @@
         {
           "language": "ja",
           "label_id": "composition-installer-release",
-          "localized": "Composition installer release"
+          "localized": "インストーラーリリース"
         }
       ]
     }
