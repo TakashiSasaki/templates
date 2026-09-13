@@ -14,9 +14,11 @@ authoritative for what is assembled today.
 3. [Migration matrix](migration-matrix.json): per-document migration decisions,
    current exposure, publication gaps, and exact audited inputs.
 4. [Matrix schema](migration-matrix.schema.json): closed inventory structure.
+5. [Implementation roadmap](implementation-roadmap.md): cross-authority
+   dependencies, publication staging, reproduction, and later acceptance criteria.
 
-The implementation roadmap added with the validation layer orders the later
-authority-specific work. Roadmap scheduling never overrides these definitions
+The implementation roadmap orders the later authority-specific work.
+Roadmap scheduling never overrides these definitions
 or a provider's semantic authority. Inconsistencies must be resolved by the
 owning authority before implementation, not silently inferred from a path name.
 

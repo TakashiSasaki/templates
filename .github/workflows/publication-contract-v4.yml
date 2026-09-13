@@ -42,3 +42,12 @@ jobs:
             tests.test_publication_contract \
             tests.test_publication_contract_v4 \
             --verbose
+
+      - name: Install audience inventory schema validator
+        run: python -m pip install jsonschema==4.26.0
+
+      - name: Validate exact audited audience inventory
+        run: python scripts/validate_audience_inventory.py --fetch-audit
+
+      - name: Run audience inventory regressions
+        run: python -m unittest tests.test_audience_inventory --verbose

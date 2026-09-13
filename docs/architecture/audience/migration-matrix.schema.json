@@ -44,15 +44,21 @@
           "properties": {
             "site": {
               "type": "string",
-              "pattern": "^[0-9a-f]{40}$"
+              "pattern": "^[0-9a-f]{40}$",
+              "minLength": 40,
+              "maxLength": 40
             },
             "composition": {
               "type": "string",
-              "pattern": "^[0-9a-f]{40}$"
+              "pattern": "^[0-9a-f]{40}$",
+              "minLength": 40,
+              "maxLength": 40
             },
             "policy": {
               "type": "string",
-              "pattern": "^[0-9a-f]{40}$"
+              "pattern": "^[0-9a-f]{40}$",
+              "minLength": 40,
+              "maxLength": 40
             }
           }
         },

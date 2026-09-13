@@ -197,6 +197,10 @@ contract path, and canonical prose.
 
 ## Change rule
 
+Reader classification is an independent axis defined in the
+[audience architecture](architecture/audience/README.md). Site owns that
+projection; assigning an audience never changes the semantic owner defined here.
+
 A change to this document requires Site review because it changes repository-wide
 integration semantics. Such a change must not be used to alter provider-specific
 behavior indirectly.
