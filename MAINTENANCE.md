@@ -288,7 +288,12 @@ names. Reuse qualifies assembly; each applicable browser consumer still executes
 `ci-build-inputs.json` binds the full Site, Composition and Policy SHAs, repository,
 SHA-256 of the **executed** build workflow (including PR base changes), canonical
 URL, singular and ordered plural staging IDs, deployment timestamp, and Python/runner image identity. Site SHA
-also binds consumer toolchains, requirements and publication/configuration files.
+also binds consumer toolchains, the complete pinned `requirements-build.lock`
+dependency closure, and publication/configuration files. Builds install the lock
+with `--no-deps` and verify it with `pip check`; transitive renderer dependencies
+cannot drift through resolver ranges. To refresh the lock, install `requirements.txt`
+in a fresh virtual environment, freeze the complete package set, review all changes,
+and qualify the resulting dependency/build change.
 Provider histories are only checked out, never combined. Inputs are resolved
 before reuse. The helper verifies the canonical workflow, same PR/repository/head,
 successful producer build attempt, artifact lifetime and SHA-256 archive digest,

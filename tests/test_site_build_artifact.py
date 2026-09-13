@@ -204,3 +204,28 @@ class ManifestSchemaTypeTests(unittest.TestCase):
         with self.assertRaises(artifact.ArtifactError):
             artifact.validate_provenance(dict(schema_version=2.0, repository='TakashiSasaki/templates',
                 site_commit='a'*40, publication_commits={'composition':'b'*40,'policy':'c'*40}), inputs())
+
+
+class BuildDependencyLockTests(unittest.TestCase):
+    def test_build_lock_pins_direct_requirements_and_every_declared_package(self):
+        import re
+        root = Path(__file__).resolve().parents[1]
+        def packages(path):
+            result = {}
+            for line in path.read_text().splitlines():
+                if not line or line.startswith('#'):
+                    continue
+                self.assertRegex(line, r'^[A-Za-z0-9_.-]+==[^=<>!~* ]+$')
+                name, version = line.split('==')
+                key = re.sub(r'[-_.]+', '-', name).lower()
+                self.assertNotIn(key, result)
+                result[key] = version
+            return result
+        direct = packages(root / 'requirements.txt')
+        locked = packages(root / 'requirements-build.lock')
+        for name, version in direct.items():
+            self.assertEqual(locked.get(name), version, name)
+        workflow = yaml.safe_load((root / artifact.WORKFLOW).read_text())
+        step = next(s for s in workflow['jobs']['build']['steps'] if s.get('name') == 'Install pinned site dependencies')
+        self.assertIn('--no-deps --requirement site-source/requirements-build.lock', step['run'])
+        self.assertIn('python -m pip check', step['run'])

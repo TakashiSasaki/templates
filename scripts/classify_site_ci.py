@@ -110,6 +110,7 @@ BROWSER_EXACT_PATHS = frozenset(
         "docs/composition-playground.md",
         "scripts/check_reference_website.py",
         "zensical.template.toml",
+        "requirements-build.lock",
         "requirements-visual.txt",
         "assets/site-chrome-locales.json",
         "scripts/check_mobile_layout.py",
