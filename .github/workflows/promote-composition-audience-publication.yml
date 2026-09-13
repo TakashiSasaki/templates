@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   promote:
-    if: github.event.head_commit.message == 'Add one-shot Composition audience promotion workflow'
+    if: github.event.head_commit.message == 'Run isolated Composition audience promotion'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
@@ -20,102 +20,8 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: '3.12.13'
-      - name: Materialize reviewed staged mappings into active Site authority
-        run: |
-          set -euo pipefail
-          staged_root="$(python scripts/materialize_publication_staging.py \
-            --site-root . \
-            --staging-ids composition-provider-maintenance,composition-installer-release)"
-          cp "$staged_root/site-manifest.json" site-manifest.json
-          cp "$staged_root/reader-navigation-locales.json" reader-navigation-locales.json
-          python - <<'PY'
-          import json
-          from pathlib import Path
-
-          composition_revision = "6b7d764c963f957c6bee43c0c1d42eb03970ec8f"
-          promoted_ids = {
-              "composition-provider-maintenance",
-              "composition-installer-release",
-          }
-
-          sources_path = Path("publication-sources.json")
-          sources = json.loads(sources_path.read_text(encoding="utf-8"))
-          sources["publications"]["composition"]["revision"] = composition_revision
-          sources_path.write_text(json.dumps(sources, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-
-          staging_path = Path("publication-staging.json")
-          staging = json.loads(staging_path.read_text(encoding="utf-8"))
-          selected = [m for m in staging["mappings"] if m["id"] in promoted_ids]
-          if [m["id"] for m in selected] != [
-              "composition-provider-maintenance",
-              "composition-installer-release",
-          ]:
-              raise SystemExit("expected Composition staging mappings are not present in reviewed order")
-          staging["mappings"] = [m for m in staging["mappings"] if m["id"] not in promoted_ids]
-          staging_path.write_text(json.dumps(staging, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-
-          tests_path = Path("tests/test_publication_staging.py")
-          text = tests_path.read_text(encoding="utf-8")
-          anchor = '''def _configure_composition_mappings(site_root: Path) -> None:
-    staging_path = site_root / "publication-staging.json"
-'''
-          replacement = '''def _configure_composition_mappings(site_root: Path) -> None:
-    # Reconstruct the historical pre-promotion Site state so staging behavior
-    # remains regression-tested after these mappings become active authority.
-    manifest_path = site_root / "site-manifest.json"
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-
-    def remove_promoted(nodes):
-        retained = []
-        for node in nodes:
-            children = node.get("children")
-            if isinstance(children, list):
-                remove_promoted(children)
-                retained.append(node)
-            elif not (
-                node.get("publication") == "composition"
-                and node.get("document") in {"provider-maintenance", "installer-release"}
-            ):
-                retained.append(node)
-        nodes[:] = retained
-
-    remove_promoted(manifest["navigation"])
-    manifest_path.write_text(
-        json.dumps(manifest, ensure_ascii=False, indent=2) + "\\n",
-        encoding="utf-8",
-    )
-
-    locales_path = site_root / "reader-navigation-locales.json"
-    locales = json.loads(locales_path.read_text(encoding="utf-8"))
-    for locale in locales["locales"]:
-        locale["labels"] = [
-            label for label in locale["labels"]
-            if label.get("id") not in COMPOSITION_STAGING_IDS
-        ]
-    locales_path.write_text(
-        json.dumps(locales, ensure_ascii=False, indent=2) + "\\n",
-        encoding="utf-8",
-    )
-
-    staging_path = site_root / "publication-staging.json"
-'''
-          if text.count(anchor) != 1:
-              raise SystemExit("staging test fixture anchor mismatch")
-          tests_path.write_text(text.replace(anchor, replacement, 1), encoding="utf-8")
-
-          commit_test = Path("tests/test_publication_staging_commit.py")
-          text = commit_test.read_text(encoding="utf-8")
-          old_import = "from tests.test_publication_staging import _copy_inputs, COMPOSITION_STAGING_IDS"
-          new_import = "from tests.test_publication_staging import (\n    _configure_composition_mappings,\n    _copy_inputs,\n    COMPOSITION_STAGING_IDS,\n)"
-          if text.count(old_import) != 1:
-              raise SystemExit("staging commit test import anchor mismatch")
-          text = text.replace(old_import, new_import, 1)
-          marker = "            _copy_inputs(root)\n"
-          if text.count(marker) != 3:
-              raise SystemExit(f"expected three staging commit fixture setup calls, found {text.count(marker)}")
-          text = text.replace(marker, marker + "            _configure_composition_mappings(root)\n")
-          commit_test.write_text(text, encoding="utf-8")
-          PY
+      - name: Apply reviewed Site promotion
+        run: python .github/integration/promote_composition_audience_publication.py
       - name: Validate promoted authority and staging regressions
         run: |
           set -euo pipefail
