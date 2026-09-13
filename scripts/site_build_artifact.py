@@ -28,6 +28,10 @@ class ArtifactError(ValueError):
     pass
 
 
+class InputMismatch(ArtifactError):
+    """Valid prior artifact, but a different build recipe/environment identity."""
+
+
 def digest(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
@@ -57,8 +61,13 @@ def identity_key(inputs: dict) -> str:
 
 
 def validate_manifest(manifest: dict, expected: dict) -> None:
-    if manifest != {'inputs': expected, 'identity': identity_key(expected)}:
-        raise ArtifactError('artifact build input identity mismatch')
+    if (not isinstance(manifest, dict) or set(manifest) != {'inputs', 'identity'}
+            or not isinstance(manifest['inputs'], dict)
+            or set(manifest['inputs']) != set(expected)
+            or manifest['identity'] != identity_key(manifest['inputs'])):
+        raise ArtifactError('invalid artifact build input manifest')
+    if manifest['inputs'] != expected:
+        raise InputMismatch('artifact build input identity mismatch')
 
 
 def validate_provenance(provenance: dict, expected: dict) -> None:
@@ -75,7 +84,7 @@ def validate_and_extract(archive: Path, expected: dict, expected_digest: str,
         archive_digest = hashlib.file_digest(source, 'sha256').hexdigest()
     if expected_digest != 'sha256:' + archive_digest:
         raise ArtifactError('artifact archive digest mismatch')
-    if target.exists():
+    if target.exists() or target.is_symlink():
         raise ArtifactError('artifact destination already exists')
     with tempfile.TemporaryDirectory(dir=target.parent) as temporary:
         root = Path(temporary)
@@ -187,7 +196,14 @@ def reuse(expected: dict, target: Path, *, pr: int, current_run: int,
                     with archive.open('wb') as output:
                         subprocess.run(['gh', 'api', f'repos/{repository}/actions/artifacts/{artifact["id"]}/zip'], stdout=output, check=True)
                     target.parent.mkdir(parents=True, exist_ok=True)
-                    validate_and_extract(archive, expected, artifact['digest'], target)
+                    try:
+                        validate_and_extract(archive, expected, artifact['digest'], target)
+                    except InputMismatch:
+                        if wait:
+                            raise
+                        # A changed base workflow or runner image is a different
+                        # identity: the canonical producer must build it afresh.
+                        return {}
                 return dict(producer_run=run['id'], artifact_id=artifact['id'], digest=artifact['digest'])
         if not wait:
             return {}

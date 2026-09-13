@@ -3,9 +3,11 @@ name: Site Composition Playground cross-authority acceptance
 on:
   pull_request:
     branches:
-      - codex/site-composition-playground-v1-shell
       - site
       - 'feat/site-*'
+      - 'site-*'
+      - 'perf/site-*'
+      - codex/site-composition-playground-v1-shell
     types:
       - opened
       - synchronize

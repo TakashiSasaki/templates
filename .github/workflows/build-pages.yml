@@ -10,6 +10,7 @@ on:
       - 'feat/site-*'
       - 'site-*'
       - 'perf/site-*'
+      - codex/site-composition-playground-v1-shell
     types:
       - opened
       - synchronize

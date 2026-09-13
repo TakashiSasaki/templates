@@ -182,3 +182,12 @@ class CanonicalProducerReuseTests(unittest.TestCase):
         run, job, _ = producer()
         listing.side_effect = [[run], [dict(job, conclusion='skipped')]]
         self.assertEqual(artifact.reuse(inputs(), Path('/unused'), pr=1, current_run=99, wait=False), {})
+
+class ChangedRecipeTests(unittest.TestCase):
+    def test_valid_prior_recipe_is_distinct_from_corrupt_manifest(self):
+        prior=inputs(workflow=b'prior workflow')
+        with self.assertRaises(artifact.InputMismatch):
+            artifact.validate_manifest({'inputs': prior, 'identity': artifact.identity_key(prior)}, inputs())
+        with self.assertRaises(artifact.ArtifactError) as raised:
+            artifact.validate_manifest({'inputs': prior, 'identity': artifact.identity_key(inputs())}, inputs())
+        self.assertNotIsInstance(raised.exception, artifact.InputMismatch)

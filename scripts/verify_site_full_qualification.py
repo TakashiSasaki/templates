@@ -39,6 +39,7 @@ LABELED_DISPATCHED_WORKFLOW_PATHS: frozenset[str] = frozenset(
         ".github/workflows/site-composition-playground.yml",
         ".github/workflows/site-composition-playground-explain.yml",
         ".github/workflows/site-composition-playground-cross-authority.yml",
+        ".github/workflows/site-composition-materialization-cross-authority.yml",
         ".github/workflows/site-full-qualification.yml",
         ".github/workflows/publication-materialization.yml",
         ".github/workflows/publication-contract-v4.yml",
@@ -139,6 +140,12 @@ REQUIRED_SUITES: list[RequiredSuite] = [
         description="Cross-authority candidate build",
         workflow_path=".github/workflows/site-composition-playground-cross-authority.yml",
         job_name="Build exact cross-authority candidate / build",
+    ),
+    RequiredSuite(
+        key="materialization_build",
+        description="Cross-authority materialization candidate build",
+        workflow_path=".github/workflows/site-composition-materialization-cross-authority.yml",
+        job_name="Build exact cross-authority materialization candidate / build",
     ),
     RequiredSuite(
         key="cross_auth_consumer",
