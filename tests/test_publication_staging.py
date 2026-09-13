@@ -136,12 +136,15 @@ def _prepared_navigation(site_root: Path):
 class PublicationStagingMaterializationTests(unittest.TestCase):
     def test_two_explicit_mappings_materialize_atomically_with_locales(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
-            site_root = Path(temporary_directory)
+            site_root = Path(temporary_directory) / "site-source"
+            site_root.mkdir()
             _copy_inputs(site_root)
             _configure_composition_mappings(site_root)
-            active_manifest = json.loads(
-                (site_root / "site-manifest.json").read_text(encoding="utf-8")
-            )
+            source_before = {
+                name: (site_root / name).read_bytes()
+                for name in ("site-manifest.json", "reader-navigation-locales.json")
+            }
+            active_manifest = json.loads(source_before["site-manifest.json"].decode("utf-8"))
             active_pages = list(_pages(active_manifest["navigation"]))
             self.assertFalse(
                 any(
@@ -150,9 +153,17 @@ class PublicationStagingMaterializationTests(unittest.TestCase):
                 )
             )
 
-            materialize_many(site_root, list(COMPOSITION_STAGING_IDS))
+            staged_root = materialize_many(site_root, list(COMPOSITION_STAGING_IDS))
 
-            prepared_navigation = _prepared_navigation(site_root)
+            self.assertNotEqual(site_root, staged_root)
+            self.assertEqual(
+                source_before,
+                {
+                    name: (site_root / name).read_bytes()
+                    for name in source_before
+                },
+            )
+            prepared_navigation = _prepared_navigation(staged_root)
             composition_pages = [
                 page
                 for page in _pages(prepared_navigation)
@@ -171,7 +182,7 @@ class PublicationStagingMaterializationTests(unittest.TestCase):
                 ["provider-maintenance", "installer-release"],
             )
             overlays = load_overlays(
-                site_root / "reader-navigation-locales.json", prepared_navigation
+                staged_root / "reader-navigation-locales.json", prepared_navigation
             )
             self.assertEqual(
                 overlays["ja"]["Composition maintainer overview"],
@@ -268,14 +279,23 @@ class PublicationStagingMaterializationTests(unittest.TestCase):
         )
 
         with tempfile.TemporaryDirectory() as temporary_directory:
-            site_root = Path(temporary_directory)
+            site_root = Path(temporary_directory) / "site-source"
+            site_root.mkdir()
             _copy_inputs(site_root)
             _configure_future_mapping(site_root)
-            materialize(site_root, FUTURE_ID)
+            source_before = {
+                name: (site_root / name).read_bytes()
+                for name in ("site-manifest.json", "reader-navigation-locales.json")
+            }
+            staged_root = materialize(site_root, FUTURE_ID)
 
-            prepared_navigation = _prepared_navigation(site_root)
+            self.assertEqual(
+                source_before,
+                {name: (site_root / name).read_bytes() for name in source_before},
+            )
+            prepared_navigation = _prepared_navigation(staged_root)
             overlays = load_overlays(
-                site_root / "reader-navigation-locales.json",
+                staged_root / "reader-navigation-locales.json",
                 prepared_navigation,
             )
             policy_pages = [
@@ -438,7 +458,8 @@ class PublicationStagingMaterializationTests(unittest.TestCase):
 
     def test_existing_canonical_title_reuses_locale_overlay(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
-            site_root = Path(temporary_directory)
+            site_root = Path(temporary_directory) / "site-source"
+            site_root.mkdir()
             _copy_inputs(site_root)
             _configure_future_mapping(site_root)
             staging_path = site_root / "publication-staging.json"
@@ -454,17 +475,21 @@ class PublicationStagingMaterializationTests(unittest.TestCase):
                 (site_root / "reader-navigation-locales.json").read_text(encoding="utf-8")
             )
 
-            materialize(site_root, FUTURE_ID)
+            staged_root = materialize(site_root, FUTURE_ID)
 
-            prepared_navigation = _prepared_navigation(site_root)
+            prepared_navigation = _prepared_navigation(staged_root)
             overlays = load_overlays(
-                site_root / "reader-navigation-locales.json",
+                staged_root / "reader-navigation-locales.json",
                 prepared_navigation,
             )
-            after_locales = json.loads(
+            staged_locales = json.loads(
+                (staged_root / "reader-navigation-locales.json").read_text(encoding="utf-8")
+            )
+            source_locales = json.loads(
                 (site_root / "reader-navigation-locales.json").read_text(encoding="utf-8")
             )
-            self.assertEqual(before_locales, after_locales)
+            self.assertEqual(before_locales, staged_locales)
+            self.assertEqual(before_locales, source_locales)
             self.assertIn("Getting started", overlays["ja"])
 
     def test_existing_canonical_title_rejects_new_localizations(self) -> None:
