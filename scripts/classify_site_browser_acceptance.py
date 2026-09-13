@@ -3,7 +3,7 @@
 
 Delegates to the unified Site CI classifier (scripts/classify_site_ci.py).
 Browser acceptance is required for browser-sensitive, PWA-sensitive,
-runtime/build-sensitive, and CI control changes, or when forced.
+and CI control changes, or when forced.
 Documentation-only and CI-observability changes safely skip browser acceptance.
 Unknown or malformed input fails closed.
 """
@@ -48,8 +48,9 @@ def classify_paths(
     paths: Iterable[str],
     *,
     force_full: bool = False,
+    force_browser: bool = False,
 ) -> tuple[bool, str, tuple[str, ...]]:
-    decision = classify_site_ci_paths(paths, force_full=force_full)
+    decision = classify_site_ci_paths(paths, force_full=force_full, force_browser=force_browser)
     return decision.browser_required, decision.reason, decision.requiring_paths
 
 
@@ -80,6 +81,7 @@ def parse_args() -> argparse.Namespace:
         type=lambda v: str(v).lower() in {"true", "1", "yes"},
         default=False,
     )
+    parser.add_argument("--force-browser", type=lambda v: str(v).lower() in {"true", "1", "yes"}, default=False)
     return parser.parse_args()
 
 
@@ -88,7 +90,7 @@ def main() -> int:
     try:
         paths = args.changed_paths.read_text(encoding="utf-8").splitlines()
         required, reason, requiring_paths = classify_paths(
-            paths, force_full=args.force_full
+            paths, force_full=args.force_full, force_browser=args.force_browser
         )
         with args.output.open("a", encoding="utf-8") as output:
             write_outputs(

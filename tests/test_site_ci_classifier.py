@@ -461,3 +461,28 @@ class ReferenceBrowserApplicabilityTests(unittest.TestCase):
 if __name__ == "__main__":
     unittest.main()
 
+
+class ExplicitBrowserQualificationTests(unittest.TestCase):
+    def test_docs_and_static_inputs_skip_browsers(self):
+        for path in ['docs/index.md', 'schemas/publication.schema.json', 'scripts/assemble_publications.py', 'scripts/site_website_contract.py']:
+            with self.subTest(path=path):
+                self.assertFalse(classify_paths([path]).browser_required)
+        self.assertFalse(classify_paths(['docs/index.md']).build_required)
+
+    def test_node_explainability_is_cheap_but_applicable(self):
+        decision = classify_paths(['tests/composition-playground-explain.test.mjs'])
+        self.assertTrue(decision.playground_required)
+        self.assertFalse(decision.browser_required)
+        self.assertFalse(decision.build_required)
+
+    def test_playground_markup_is_browser_sensitive(self):
+        self.assertTrue(classify_paths(['docs/composition-playground.md']).browser_required)
+
+    def test_browser_escalation_includes_pwa_without_reducing_full(self):
+        decision = classify_paths(['docs/index.md'], force_browser=True)
+        for field in ['build_required', 'browser_required', 'pwa_required', 'reference_consumer_required', 'playground_required']:
+            self.assertTrue(getattr(decision, field), field)
+        self.assertFalse(decision.full_required)
+        for path in ['scripts/classify_site_ci.py', 'unknown.xyz']:
+            self.assertTrue(classify_paths([path], force_browser=True).full_required)
+        self.assertTrue(classify_paths(['docs/index.md'], force_full=True, force_browser=True).full_required)

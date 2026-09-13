@@ -9,7 +9,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: reference-consumer-${{ (github.event.action == 'labeled' && github.event.label.name != 'ci/full-qualification' && github.event.label.name != 'ci/full-site-verification') && format('unrelated-label-{0}', github.run_id) || (github.event.pull_request.number || github.ref) }}
+  group: reference-consumer-${{ (github.event.action == 'labeled' && github.event.label.name != 'ci/full-qualification' && github.event.label.name != 'ci/full-site-verification' && github.event.label.name != 'ci/browser') && format('unrelated-label-{0}', github.run_id) || (github.event.pull_request.number || github.ref) }}
   cancel-in-progress: true
 jobs:
   classify:
@@ -18,7 +18,7 @@ jobs:
       github.event_name != 'pull_request' ||
       github.event.action != 'labeled' ||
       github.event.label.name == 'ci/full-qualification' ||
-      github.event.label.name == 'ci/full-site-verification'
+      github.event.label.name == 'ci/full-site-verification' || github.event.label.name == 'ci/browser'
     runs-on: ubuntu-24.04
     timeout-minutes: 2
     outputs:
@@ -42,6 +42,7 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          FORCE_BROWSER_REQUESTED: ${{ contains(github.event.pull_request.labels.*.name, 'ci/browser') }}
           FORCE_FULL_REQUESTED: ${{ github.event_name == 'push' || (github.event_name == 'pull_request' && (contains(github.event.pull_request.labels.*.name, 'ci/full-qualification') || contains(github.event.pull_request.labels.*.name, 'ci/full-site-verification'))) }}
         run: |
           set -euo pipefail
@@ -51,21 +52,26 @@ jobs:
           force_full="${FORCE_FULL_REQUESTED:-false}"
           git diff --name-only --no-renames "$BASE_SHA" "$HEAD_SHA" > "$RUNNER_TEMP/changed-paths.txt"
           if git show "$BASE_SHA:scripts/classify_site_ci.py" > "$classifier_dir/classify_site_ci.py" 2>/dev/null; then
+            browser_args=()
+            if grep -q -- '--force-browser' "$classifier_dir/classify_site_ci.py"; then
+              browser_args=(--force-browser "${FORCE_BROWSER_REQUESTED:-false}")
+            elif [ "${FORCE_BROWSER_REQUESTED:-false}" = true ]; then
+              force_full=true
+            fi
             output_file="$RUNNER_TEMP/site-ci-output.txt"
             python3 -I "$classifier_dir/classify_site_ci.py" \
               --changed-paths "$RUNNER_TEMP/changed-paths.txt" \
-              --force-full "$force_full" \
+              --force-full "$force_full" "${browser_args[@]}" \
               --output "$output_file"
-            for capability in build_required browser_required pwa_required; do
+            for capability in build_required browser_required pwa_required reference_consumer_required cross_authority_required playground_required; do
               value="$(sed -n "s/^${capability}=//p" "$output_file")"
+              if [ -z "$value" ] && [ "$capability" = playground_required ]; then value=true; fi
               case "$value" in true|false) ;; *) exit 1 ;; esac
               echo "$capability=$value" >> "$GITHUB_OUTPUT"
             done
-            req="$(grep '^reference_consumer_required=' "$output_file" | cut -d= -f2)"
-            reason="$(grep '^reason=' "$output_file" | cut -d= -f2)"
-            echo "reference_consumer_required=$req" >> "$GITHUB_OUTPUT"
-            echo "reason=$reason" >> "$GITHUB_OUTPUT"
+            sed -n '/^reason=/p' "$output_file" >> "$GITHUB_OUTPUT"
           else
+            echo "playground_required=true" >> "$GITHUB_OUTPUT"
             echo "build_required=true" >> "$GITHUB_OUTPUT"
             echo "browser_required=true" >> "$GITHUB_OUTPUT"
             echo "pwa_required=true" >> "$GITHUB_OUTPUT"
