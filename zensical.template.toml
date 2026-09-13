@@ -33,6 +33,9 @@ custom_fences = [
   { name = "mermaid", class = "mermaid", format = "pymdownx.superfences.fence_code_format" }
 ]
 
+[project.markdown_extensions.toc]
+permalink = true
+
 [project.theme]
 favicon = "icon.svg"
 font = false

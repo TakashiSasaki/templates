@@ -99,6 +99,23 @@ def check_reference_consumer_navigation(page, prefix, expected_heading):
         "reference consumer navigation did not commit the canonical URL fragment",
     )
     fragment = f"#{REFERENCE_CONSUMER_ID}"
+    permalink = heading.locator("a.headerlink")
+    require(
+        permalink.count() == 1,
+        "reference consumer heading permalink is missing or ambiguous",
+    )
+    require(
+        permalink.evaluate_all(
+            """(links, fragment) => links.some(link => {
+                const target = new URL(link.href, window.location.href);
+                return target.pathname === window.location.pathname
+                    && target.search === window.location.search
+                    && target.hash === fragment;
+            })""",
+            fragment,
+        ),
+        "reference consumer heading permalink does not use the canonical fragment",
+    )
     has_same_document_fragment = """(links, fragment) => links.some(link => {
         const target = new URL(link.href, window.location.href);
         return target.pathname === window.location.pathname
@@ -109,14 +126,9 @@ def check_reference_consumer_navigation(page, prefix, expected_heading):
         page.locator('[data-md-component="toc"] a').evaluate_all(
             has_same_document_fragment,
             fragment,
-        ),
-        "reference consumer heading missing from generated table of contents",
-    )
-    permalink = page.locator("a[href]")
-    require(
-        permalink.evaluate_all(has_same_document_fragment, fragment),
-        "reference consumer heading has no generated fragment permalink",
-    )
+            ),
+            "reference consumer heading missing from generated table of contents",
+        )
     in_viewport = page.evaluate(
         """id => {
             const element = document.getElementById(id);

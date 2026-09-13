@@ -135,6 +135,9 @@ class ReferenceBrowserContractTests(unittest.TestCase):
 
     def test_reference_navigation_matrix_pairs_each_locale_with_each_viewport(self):
         contract = json.loads((ROOT / "contracts/viewports.json").read_text())
+        template = (ROOT / "zensical.template.toml").read_text()
+        self.assertIn("[project.markdown_extensions.toc]", template)
+        self.assertIn("permalink = true", template)
         probes = reference_consumer_probes(contract)
         self.assertEqual(
             probes,
