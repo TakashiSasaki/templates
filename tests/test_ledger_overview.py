@@ -124,10 +124,6 @@ class LedgerOverviewTests(unittest.TestCase):
     def test_work_ledger_example_is_explicitly_staged_against_published_policy(self) -> None:
         text = PAGE.read_text(encoding="utf-8")
         sources = json.loads((ROOT / "publication-sources.json").read_text(encoding="utf-8"))
-        self.assertEqual(
-            sources["publications"]["composition"]["revision"],
-            "0f0c4012818a3b8646ad89fbca7db22c71ad5dd8",
-        )
         policy_revision = sources["publications"]["policy"]["revision"]
         self.assertEqual(policy_revision, "5574ea46d2076bb1f5c51d4b0e8c9483a17d8fe2")
         self.assertIn(policy_revision, text)
