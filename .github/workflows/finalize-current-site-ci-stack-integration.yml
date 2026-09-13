@@ -21,6 +21,31 @@ jobs:
         with:
           ref: feat/site-exact-build-reuse
           fetch-depth: 0
+      - name: Adjust cumulative test anchors
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('.github/integration/finalize-current-site-ci-stack-integration.py')
+          text = path.read_text(encoding='utf-8')
+          old = '''    '    "feat/site-*",\\n}',
+    '    "feat/site-*",\\n    "site-composition-audience-publication-staging",\\n}',
+'''
+          new = '''    '    "feat/site-*",\\n    "site-*",\\n    "perf/site-*",\\n}',
+    '    "feat/site-*",\\n    "site-composition-audience-publication-staging",\\n    "site-*",\\n    "perf/site-*",\\n}',
+'''
+          if text.count(old) != 1:
+              raise SystemExit(f'playground test transformer anchor mismatch: {text.count(old)}')
+          text = text.replace(old, new, 1)
+          old = '''    '["site", "feat/site-*", "codex/site-composition-playground-v1-shell"]',
+    '["site", "feat/site-*", "site-composition-audience-publication-staging", "codex/site-composition-playground-v1-shell"]',
+'''
+          new = '''    '["site", "feat/site-*", "site-*", "perf/site-*", "codex/site-composition-playground-v1-shell"]',
+    '["site", "feat/site-*", "site-composition-audience-publication-staging", "site-*", "perf/site-*", "codex/site-composition-playground-v1-shell"]',
+'''
+          if text.count(old) != 1:
+              raise SystemExit(f'freshness test transformer anchor mismatch: {text.count(old)}')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
       - name: Apply semantic integration
         run: python .github/integration/finalize-current-site-ci-stack-integration.py
       - name: Commit integrated tree
