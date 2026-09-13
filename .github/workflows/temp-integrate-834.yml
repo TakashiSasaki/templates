@@ -6,17 +6,17 @@ on:
       - feat/site-exact-build-reuse
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  integrate:
-    if: ${{ github.actor != 'github-actions[bot]' }}
+  diagnose-merge:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
         with:
           ref: feat/site-exact-build-reuse
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Apply clean historical #834 member patches
         run: |
@@ -46,15 +46,16 @@ jobs:
             git apply "$patch"
           done
 
-      - name: Three-way merge overlapping #834 members
+      - name: Capture three-way merge results
         id: merge
+        shell: bash
         run: |
-          set -euo pipefail
+          set -u
           base=ecf7aec28793609a1a38f43998530fed0a4ccb25
           theirs=cde90168a6c34c3c78b7c1b8d0e4b64b5d3fa4a2
-          merge_root="$RUNNER_TEMP/site-834-merge"
-          mkdir -p "$merge_root"
-          : > "$merge_root/report.txt"
+          debug_root="$RUNNER_TEMP/site-834-merge-debug"
+          mkdir -p "$debug_root/files"
+          : > "$debug_root/report.txt"
           conflicts=0
           paths=(
             .github/workflows/build-pages.yml
@@ -68,104 +69,39 @@ jobs:
           )
           for path in "${paths[@]}"; do
             safe="${path//\//__}"
-            base_file="$merge_root/${safe}.base"
-            theirs_file="$merge_root/${safe}.theirs"
+            base_file="$debug_root/${safe}.base"
+            theirs_file="$debug_root/${safe}.theirs"
             git show "$base:$path" > "$base_file"
             git show "$theirs:$path" > "$theirs_file"
-            if git merge-file --diff3 -L current -L historical-base -L historical-834 "$path" "$base_file" "$theirs_file"; then
-              echo "MERGED $path" | tee -a "$merge_root/report.txt"
+            git merge-file --diff3 -L current -L historical-base -L historical-834 "$path" "$base_file" "$theirs_file"
+            status=$?
+            if [ "$status" -eq 0 ]; then
+              echo "MERGED $path" | tee -a "$debug_root/report.txt"
             else
-              status=$?
-              echo "CONFLICT($status) $path" | tee -a "$merge_root/report.txt"
+              echo "CONFLICT($status) $path" | tee -a "$debug_root/report.txt"
               conflicts=$((conflicts + 1))
             fi
+            cp "$path" "$debug_root/files/$safe"
+            grep -n -C 12 '^<<<<<<< current$\|^||||||| historical-base$\|^=======$\|^>>>>>>> historical-834$' "$path" \
+              > "$debug_root/${safe}.markers.txt" || true
           done
-          if grep -R -n '^<<<<<<< current$\|^||||||| historical-base$\|^>>>>>>> historical-834$' \
-              .github/workflows tests/test_composition_playground_cross_authority_workflow.py tests/test_publication_freshness_workflow.py; then
-            conflicts=$((conflicts + 1))
-          fi
-          cat "$merge_root/report.txt"
+          printf 'conflicts=%s\n' "$conflicts" | tee -a "$debug_root/report.txt"
           echo "conflicts=$conflicts" >> "$GITHUB_OUTPUT"
-          test "$conflicts" -eq 0
+          tar -C "$RUNNER_TEMP" -czf "$RUNNER_TEMP/site-834-merge-debug.tar.gz" site-834-merge-debug
+          cat "$debug_root/report.txt"
+          exit 0
 
-      - name: Verify prerequisite and #834 semantics coexist
+      - name: Upload merge diagnostics
+        uses: actions/upload-artifact@v4
+        with:
+          name: site-834-merge-debug
+          path: ${{ runner.temp }}/site-834-merge-debug.tar.gz
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Fail closed after diagnostics are retained
+        env:
+          CONFLICTS: ${{ steps.merge.outputs.conflicts }}
         run: |
           set -euo pipefail
-          grep --fixed-strings -- 'publication_staging_id' .github/workflows/build-pages.yml
-          grep --fixed-strings -- 'SITE_PUBLICATION_ROOT' .github/workflows/build-pages.yml
-          grep --fixed-strings -- 'ci/browser' .github/workflows/build-pages.yml
-          grep --fixed-strings -- 'workflow_dispatch:' .github/workflows/build-pages.yml
-          grep --fixed-strings -- '--force-browser' .github/workflows/build-pages.yml
-          grep --fixed-strings -- 'reuse_pr_build' .github/workflows/build-pages.yml
-          grep --fixed-strings -- 'site_build_artifact.py' .github/workflows/build-pages.yml
-          grep --fixed-strings -- '6b7d764c963f957c6bee43c0c1d42eb03970ec8f' .github/workflows/site-composition-materialization-cross-authority.yml
-          grep --fixed-strings -- '6b7d764c963f957c6bee43c0c1d42eb03970ec8f' .github/workflows/site-composition-playground-cross-authority.yml
-          test ! -e .github/workflows/build-pages-stacked-site.yml
-
-      - name: Validate integrated contracts
-        run: |
-          python -m pip install --disable-pip-version-check PyYAML==6.0.3
-          python -m unittest \
-            tests.test_composition_playground_cross_authority_workflow \
-            tests.test_publication_freshness_workflow \
-            tests.test_site_browser_qualification_workflows \
-            tests.test_site_build_artifact \
-            tests.test_site_build_artifact_review_regression \
-            tests.test_site_composition_materialization_cross_authority_workflow \
-            tests.test_stacked_site_documentation_workflow \
-            tests.test_verify_site_full_qualification -v
-
-      - name: Stage workflow results as ordinary Git blobs
-        run: |
-          set -euo pipefail
-          stage_root=tmp/site-ci-recovery/834
-          rm -rf "$stage_root"
-          mkdir -p "$stage_root"
-          workflow_paths=(
-            .github/workflows/build-pages.yml
-            .github/workflows/check-publication-freshness.yml
-            .github/workflows/deploy-pages.yml
-            .github/workflows/provider-coexistence.yml
-            .github/workflows/reference-consumer.yml
-            .github/workflows/site-build-detailed-profile.yml
-            .github/workflows/site-composition-materialization-cross-authority.yml
-            .github/workflows/site-composition-playground-cross-authority.yml
-            .github/workflows/site-full-qualification.yml
-          )
-          for path in "${workflow_paths[@]}"; do
-            safe="${path//\//__}"
-            cp "$path" "$stage_root/$safe"
-          done
-          printf '%s\n' '.github/workflows/build-pages-stacked-site.yml' > "$stage_root/DELETE.txt"
-
-          git restore -- \
-            .github/workflows/build-pages.yml \
-            .github/workflows/check-publication-freshness.yml \
-            .github/workflows/deploy-pages.yml \
-            .github/workflows/provider-coexistence.yml \
-            .github/workflows/reference-consumer.yml \
-            .github/workflows/site-build-detailed-profile.yml \
-            .github/workflows/site-composition-materialization-cross-authority.yml \
-            .github/workflows/site-composition-playground-cross-authority.yml \
-            .github/workflows/site-full-qualification.yml
-          git restore --source=HEAD -- .github/workflows/build-pages-stacked-site.yml
-
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add \
-            MAINTENANCE.md \
-            requirements-build.lock \
-            scripts/classify_site_ci.py \
-            scripts/site_build_artifact.py \
-            scripts/verify_site_full_qualification.py \
-            tests/test_composition_playground_cross_authority_workflow.py \
-            tests/test_publication_freshness_workflow.py \
-            tests/test_site_browser_qualification_workflows.py \
-            tests/test_site_build_artifact.py \
-            tests/test_site_build_artifact_review_regression.py \
-            tests/test_site_composition_materialization_cross_authority_workflow.py \
-            tests/test_stacked_site_documentation_workflow.py \
-            tests/test_verify_site_full_qualification.py \
-            "$stage_root"
-          git commit -m 'Stage integrated #834 exact-build-reuse members'
-          git push origin HEAD:feat/site-exact-build-reuse
+          test "${CONFLICTS:-1}" -eq 0
