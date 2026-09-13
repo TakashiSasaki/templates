@@ -15,6 +15,28 @@ CLASSIFIER = ROOT / "scripts" / "classify_site_ci.py"
 
 
 class SiteCIClassifierTests(unittest.TestCase):
+    def test_empty_paths_returns_all_false(self) -> None:
+        decision = classify_paths([])
+        self.assertFalse(decision.core_required)
+        self.assertFalse(decision.build_required)
+        self.assertFalse(decision.browser_required)
+        self.assertFalse(decision.pwa_required)
+        self.assertFalse(decision.reference_consumer_required)
+        self.assertFalse(decision.cross_authority_required)
+        self.assertFalse(decision.publication_required)
+        self.assertFalse(decision.full_required)
+
+    def test_empty_paths_with_force_full_returns_all_true(self) -> None:
+        decision = classify_paths([], force_full=True)
+        self.assertTrue(decision.core_required)
+        self.assertTrue(decision.build_required)
+        self.assertTrue(decision.browser_required)
+        self.assertTrue(decision.pwa_required)
+        self.assertTrue(decision.reference_consumer_required)
+        self.assertTrue(decision.cross_authority_required)
+        self.assertTrue(decision.publication_required)
+        self.assertTrue(decision.full_required)
+
     def test_observability_only_changes_skip_all_heavy_stages(self) -> None:
         decision = classify_paths(
             [

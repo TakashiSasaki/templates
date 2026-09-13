@@ -84,7 +84,7 @@ class PublicationFreshnessWorkflowTests(unittest.TestCase):
             'git -C site-source diff --name-only --no-renames "$BASE_SHA" "$HEAD_SHA"',
             run,
         )
-        self.assertIn('test -s "$RUNNER_TEMP/publication-freshness-paths.txt"', run)
+
         self.assertIn(
             'git -C site-source show "$BASE_SHA:scripts/classify_site_ci.py"',
             run,

@@ -53,7 +53,7 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           git diff --name-only --no-renames "$BASE_SHA" "$HEAD_SHA" > "$RUNNER_TEMP/provider-coexistence-paths.txt"
-          test -s "$RUNNER_TEMP/provider-coexistence-paths.txt"
+
 
       - name: Classify provider coexistence scope
         id: classify

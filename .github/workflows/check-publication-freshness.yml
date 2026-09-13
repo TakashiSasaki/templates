@@ -88,7 +88,7 @@ jobs:
           fi
 
           git -C site-source diff --name-only --no-renames "$BASE_SHA" "$HEAD_SHA" > "$RUNNER_TEMP/publication-freshness-paths.txt"
-          test -s "$RUNNER_TEMP/publication-freshness-paths.txt"
+
 
           classifier_dir="$RUNNER_TEMP/site-ci-classifier-authority"
           rm -rf "$classifier_dir"
