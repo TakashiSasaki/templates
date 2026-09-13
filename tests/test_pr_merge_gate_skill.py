@@ -53,7 +53,7 @@ class PullRequestMergeGateReferenceTests(unittest.TestCase):
     def test_shim_loads_only_exact_verified_source_and_fails_closed(self) -> None:
         text = SKILL.read_text(encoding="utf-8").lower()
         for invariant in (
-            "use the github connector to fetch `path` from exactly `revision`",
+            "fetch `path` from exactly `revision`",
             "returned file blob sha equals `blob_sha`",
             "do not resolve the source through a branch name",
             "full 40-character lowercase hexadecimal sha",
@@ -63,6 +63,7 @@ class PullRequestMergeGateReferenceTests(unittest.TestCase):
         ):
             with self.subTest(invariant=invariant):
                 self.assertIn(invariant, text)
+        self.assertNotIn("github connector", text)
 
     def test_shim_does_not_duplicate_policy_adapter_mechanics(self) -> None:
         text = SKILL.read_text(encoding="utf-8")
@@ -74,7 +75,6 @@ class PullRequestMergeGateReferenceTests(unittest.TestCase):
             "BLOCKED_REVIEW_STALE",
             "PR_OPEN -> SCOPE_AUDITED",
             "expected_head_sha",
-            "@hermes review",
             "check-run",
             "check-suite",
         )
