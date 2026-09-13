@@ -229,3 +229,31 @@ class BuildDependencyLockTests(unittest.TestCase):
         step = next(s for s in workflow['jobs']['build']['steps'] if s.get('name') == 'Install pinned site dependencies')
         self.assertIn('--no-deps --requirement site-source/requirements-build.lock', step['run'])
         self.assertIn('python -m pip check', step['run'])
+
+
+class PartialRetryTests(unittest.TestCase):
+    def test_browser_only_retry_preserves_prior_successful_build_and_artifact(self):
+        run, job, file = producer()
+        job['run_attempt'] = 1
+        retried_check = dict(name='check', run_attempt=2, status='completed', conclusion='success')
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            archive, checksum = bundle(root, inputs())
+            file['digest'] = checksum
+            def github(path):
+                if '/workflows/' in path:
+                    return {'workflow_runs': [run]}
+                if '/artifacts?' in path:
+                    return {'artifacts': [file]}
+                if '/attempts/2/jobs' in path:
+                    return {'jobs': [retried_check]}
+                if '/jobs?filter=latest' in path:
+                    return {'jobs': [job, retried_check]}
+                self.fail(path)
+            def download(command, *, stdout, check):
+                self.assertEqual(command[-1], 'repos/TakashiSasaki/templates/actions/artifacts/12/zip')
+                stdout.write(archive.read_bytes())
+            with patch.object(artifact, 'api', side_effect=github), patch.object(artifact.subprocess, 'run', side_effect=download):
+                result = artifact.reuse(inputs(), root/'site', pr=1, current_run=99, timeout=0)
+            self.assertEqual(result['producer_run'], 42)
+            self.assertTrue((root/'site/index.html').is_file())

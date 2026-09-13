@@ -182,7 +182,7 @@ def reuse(expected: dict, target: Path, *, pr: int, current_run: int,
         # A canonical producer can reuse an earlier qualified same-head build.
         # If none exists (including a previous docs-only skip), it must build.
         while run:
-            jobs = list_all(f'repos/{repository}/actions/runs/{run["id"]}/attempts/{run["run_attempt"]}/jobs', 'jobs')
+            jobs = list_all(f'repos/{repository}/actions/runs/{run["id"]}/jobs?filter=latest', 'jobs')
             if wait or any(j['name'] == 'build' and j['status'] == 'completed' and j['conclusion'] == 'success' for j in jobs):
                 break
             runs = [r for r in runs if r['id'] != run['id']]
