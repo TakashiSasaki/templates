@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   promote:
-    if: github.event.head_commit.message == 'Retry lifecycle evidence promotion from planning baseline'
+    if: github.event.head_commit.message == 'Run corrected lifecycle evidence promotion'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
