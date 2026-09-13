@@ -429,10 +429,14 @@ def materialize_many(site_root: Path, staging_ids: list[str]) -> None:
                     raise PublicationStagingError("Site mapping changed during staging")
                 os.replace(manifest_temporary, manifest_path)
                 try:
+                    if locales_path.read_bytes() != original_locales:
+                        raise PublicationStagingError(
+                            "reader navigation locale overlay changed during staging"
+                        )
                     os.replace(locales_temporary, locales_path)
-                except OSError:
-                    # Restore only our own replacement, without overwriting a
-                    # concurrent writer. Failure is never an accepted build.
+                except BaseException:
+                    # Restore only our own manifest replacement. A concurrent
+                    # locale writer keeps its bytes; qualification fails closed.
                     if manifest_path.read_bytes() != staged_manifest_bytes:
                         raise PublicationStagingError(
                             "Site manifest changed concurrently; refusing rollback"
