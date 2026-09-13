@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Materialize an explicit Site-owned publication mapping for compatibility builds."""
+"""Materialize explicit Site-owned publication mappings for compatibility builds."""
 
 from __future__ import annotations
 
 import argparse
 import json
-import os
+import shutil
 import sys
 import tempfile
 from pathlib import Path
@@ -89,7 +89,12 @@ def _walk_pages(
             yield nodes, index, node
 
 
-def _load_staging(path: Path, staging_id: str) -> dict[str, Any]:
+def _load_staging(path: Path, staging_ids: list[str]) -> list[dict[str, Any]]:
+    if not staging_ids:
+        raise PublicationStagingError("at least one publication staging id is required")
+    if len(set(staging_ids)) != len(staging_ids):
+        raise PublicationStagingError("duplicate selected publication staging id")
+
     data = _read_json(path, "publication staging contract")
     schema_version = data.get("schema_version")
     if (
@@ -100,6 +105,7 @@ def _load_staging(path: Path, staging_id: str) -> dict[str, Any]:
         raise PublicationStagingError(
             "publication staging contract must be integer schema version 1 with mappings"
         )
+
     mappings = data["mappings"]
     if not isinstance(mappings, list) or not mappings:
         raise PublicationStagingError("publication staging mappings must be a non-empty array")
@@ -121,16 +127,19 @@ def _load_staging(path: Path, staging_id: str) -> dict[str, Any]:
                 f"{field} must contain id, publication, document, title, destination, "
                 "insert_after, and localizations"
             )
+
         identifier = _name(raw["id"], f"{field}.id")
         if identifier in ids:
             raise PublicationStagingError(f"duplicate publication staging id: {identifier}")
         ids.add(identifier)
+
         publication = _name(raw["publication"], f"{field}.publication")
         if publication not in {"composition", "policy"}:
             raise PublicationStagingError(
                 f"{field}.publication must be composition or policy"
             )
         document = _name(raw["document"], f"{field}.document")
+
         title = raw["title"]
         if not isinstance(title, str) or not title.strip() or title != title.strip():
             raise PublicationStagingError(f"{field}.title must be a trimmed non-empty string")
@@ -211,37 +220,81 @@ def _load_staging(path: Path, staging_id: str) -> dict[str, Any]:
             }
         )
 
-    matches = [mapping for mapping in normalized if mapping["id"] == staging_id]
-    if len(matches) != 1:
-        raise PublicationStagingError(f"unknown publication staging id: {staging_id}")
-    return matches[0]
+    by_id = {mapping["id"]: mapping for mapping in normalized}
+    selected: list[dict[str, Any]] = []
+    for staging_id in staging_ids:
+        if staging_id not in by_id:
+            raise PublicationStagingError(f"unknown publication staging id: {staging_id}")
+        selected.append(by_id[staging_id])
+    return selected
 
 
-def _temporary_json(path: Path, payload: dict[str, Any]) -> Path:
-    descriptor, name = tempfile.mkstemp(
-        dir=path.parent,
-        prefix=f".{path.name}.",
-        suffix=".tmp",
-        text=True,
+def _write_json(path: Path, payload: dict[str, Any]) -> None:
+    path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
     )
-    temporary = Path(name)
+
+
+def _create_snapshot(
+    site_root: Path,
+    manifest: dict[str, Any],
+    locales: dict[str, Any],
+    original_manifest: bytes,
+    original_locales: bytes,
+) -> Path:
+    """Create and validate an isolated staged Site root without replacing source files."""
+
+    snapshot_root = Path(
+        tempfile.mkdtemp(
+            dir=site_root.parent,
+            prefix=f".{site_root.name}.publication-staging-",
+        )
+    )
     try:
-        with os.fdopen(descriptor, "w", encoding="utf-8", newline="\n") as stream:
-            stream.write(json.dumps(payload, ensure_ascii=False, indent=2))
-            stream.write("\n")
+        shutil.copytree(site_root, snapshot_root, dirs_exist_ok=True, symlinks=True)
+        snapshot_manifest = snapshot_root / "site-manifest.json"
+        snapshot_locales = snapshot_root / "reader-navigation-locales.json"
+        _write_json(snapshot_manifest, manifest)
+        _write_json(snapshot_locales, locales)
+
+        try:
+            load_manifest(snapshot_manifest)
+            staged_manifest = _read_json(snapshot_manifest, "materialized site manifest")
+            prepared_navigation = augment_manifest(staged_manifest)["navigation"]
+            load_overlays(snapshot_locales, prepared_navigation)
+        except (AssemblyError, PreparationError, ReaderNavigationLocaleError) as exc:
+            raise PublicationStagingError(
+                f"materialized Site mapping failed canonical validation: {exc}"
+            ) from exc
+
+        # A source mutation while the private snapshot was being created makes the
+        # qualification input ambiguous, so reject it. There is no destructive
+        # rollback: the source checkout was never replaced.
+        if (
+            (site_root / "site-manifest.json").read_bytes() != original_manifest
+            or (site_root / "reader-navigation-locales.json").read_bytes()
+            != original_locales
+        ):
+            raise PublicationStagingError("Site mapping changed during staging")
+
+        return snapshot_root
     except BaseException:
-        temporary.unlink(missing_ok=True)
+        shutil.rmtree(snapshot_root, ignore_errors=True)
         raise
-    return temporary
 
 
-def materialize(site_root: Path, staging_id: str) -> None:
+def materialize_many(site_root: Path, staging_ids: list[str]) -> Path:
+    """Return a private staged qualification root; never replace files in site_root."""
+
     site_root = site_root.resolve(strict=True)
     staging_path = site_root / "publication-staging.json"
     manifest_path = site_root / "site-manifest.json"
     locales_path = site_root / "reader-navigation-locales.json"
+    original_manifest = manifest_path.read_bytes()
+    original_locales = locales_path.read_bytes()
 
-    mapping = _load_staging(staging_path, staging_id)
+    mappings = _load_staging(staging_path, staging_ids)
     manifest = _read_json(manifest_path, "site manifest")
     locales = _read_json(locales_path, "reader navigation locale overlay")
 
@@ -258,87 +311,131 @@ def materialize(site_root: Path, staging_id: str) -> None:
     if not isinstance(navigation, list):
         raise PublicationStagingError("site manifest navigation must be an array")
     existing_pages = list(_walk_pages(navigation))
-    target_key = (mapping["publication"], mapping["document"])
-    target_matches = [
-        node
+    existing_keys = {
+        (node.get("publication"), node.get("document"))
         for _, _, node in existing_pages
-        if (node.get("publication"), node.get("document")) == target_key
-    ]
-    if target_matches:
-        raise PublicationStagingError(
-            f"staged document is already active: {mapping['publication']}:{mapping['document']}"
-        )
-    destination_matches = [
-        node for _, _, node in existing_pages if node.get("destination") == mapping["destination"]
-    ]
-    if destination_matches:
-        raise PublicationStagingError(
-            f"staged destination is already active: {mapping['destination']}"
-        )
-
-    anchor_key = (
-        mapping["insert_after"]["publication"],
-        mapping["insert_after"]["document"],
-    )
-    anchor_matches = [
-        (parent, index)
-        for parent, index, node in existing_pages
-        if (node.get("publication"), node.get("document")) == anchor_key
-    ]
-    if len(anchor_matches) != 1:
-        raise PublicationStagingError(
-            "staging insertion anchor must match exactly one active page: "
-            f"{anchor_key[0]}:{anchor_key[1]}"
-        )
-
-    # Locale coverage is defined over prepared navigation, including generated
-    # repository-tree titles, rather than only the raw manifest.
+    }
+    existing_destinations = {node.get("destination") for _, _, node in existing_pages}
+    selected_keys: set[tuple[str, str]] = set()
+    selected_destinations: set[str] = set()
+    anchor_operations: dict[
+        tuple[str, str], tuple[list[dict[str, Any]], int, list[dict[str, Any]]]
+    ] = {}
     original_titles = navigation_titles(prepared_navigation)
-    anchor_parent, anchor_index = anchor_matches[0]
-    # anchor_parent is a sublist of manifest["navigation"], so this mutation is
-    # intentionally reflected in the manifest serialized below.
-    anchor_parent.insert(
-        anchor_index + 1,
-        {
-            "title": mapping["title"],
-            "publication": mapping["publication"],
-            "document": mapping["document"],
-            "destination": mapping["destination"],
-        },
-    )
+    selected_titles: set[str] = set()
+
+    for mapping in mappings:
+        target_key = (mapping["publication"], mapping["document"])
+        if target_key in selected_keys:
+            raise PublicationStagingError(
+                "duplicate selected staged publication/document key: "
+                f"{target_key[0]}:{target_key[1]}"
+            )
+        selected_keys.add(target_key)
+        if target_key in existing_keys:
+            raise PublicationStagingError(
+                f"staged document is already active: {mapping['publication']}:{mapping['document']}"
+            )
+
+        destination = mapping["destination"]
+        if destination in selected_destinations:
+            raise PublicationStagingError(
+                f"duplicate selected staged destination: {destination}"
+            )
+        selected_destinations.add(destination)
+        if destination in existing_destinations:
+            raise PublicationStagingError(f"staged destination is already active: {destination}")
+
+        anchor_key = (
+            mapping["insert_after"]["publication"],
+            mapping["insert_after"]["document"],
+        )
+        anchor_matches = [
+            (parent, index)
+            for parent, index, node in existing_pages
+            if (node.get("publication"), node.get("document")) == anchor_key
+        ]
+        if len(anchor_matches) != 1:
+            raise PublicationStagingError(
+                "staging insertion anchor must match exactly one active page: "
+                f"{anchor_key[0]}:{anchor_key[1]}"
+            )
+        anchor_parent, anchor_index = anchor_matches[0]
+        operation = anchor_operations.setdefault(anchor_key, (anchor_parent, anchor_index, []))
+        operation[2].append(mapping)
+
+        title = mapping["title"]
+        if title in selected_titles:
+            raise PublicationStagingError(f"duplicate staged navigation title: {title}")
+        selected_titles.add(title)
 
     locale_entries = locales.get("locales")
     if not isinstance(locale_entries, list) or not locale_entries:
         raise PublicationStagingError(
             "reader navigation locale overlay locales must be a non-empty array"
         )
-    if mapping["title"] in original_titles:
-        if mapping["localizations"]:
-            raise PublicationStagingError(
-                "staging localizations must be empty when the canonical title already exists"
-            )
-    else:
-        configured = {
-            locale["language"]: locale for locale in mapping["localizations"]
-        }
-        active_languages = {
-            locale.get("language")
-            for locale in locale_entries
-            if isinstance(locale, dict)
-        }
+    active_languages = {
+        locale.get("language") for locale in locale_entries if isinstance(locale, dict)
+    }
+    existing_label_ids = {
+        label.get("id")
+        for locale in locale_entries
+        if isinstance(locale, dict)
+        for label in locale.get("labels", [])
+        if isinstance(label, dict)
+    }
+    selected_label_ids: set[str] = set()
+    for mapping in mappings:
+        if mapping["title"] in original_titles:
+            if mapping["localizations"]:
+                raise PublicationStagingError(
+                    "staging localizations must be empty when the canonical title already exists"
+                )
+            continue
+        configured = {locale["language"]: locale for locale in mapping["localizations"]}
         if set(configured) != active_languages:
             raise PublicationStagingError(
                 "staging localizations must exactly cover active reader locales"
             )
+        mapping_label_ids: set[str] = set()
+        for locale in mapping["localizations"]:
+            label_id = locale["label_id"]
+            if (
+                label_id in existing_label_ids
+                or label_id in selected_label_ids
+                or label_id in mapping_label_ids
+            ):
+                raise PublicationStagingError(f"duplicate staged localization label id: {label_id}")
+            mapping_label_ids.add(label_id)
+            selected_label_ids.add(label_id)
+
+    for locale in locale_entries:
+        language = locale["language"]
+        if not isinstance(locale.get("labels"), list):
+            raise PublicationStagingError(f"reader locale {language} labels must be an array")
+
+    # Apply all insertions to the in-memory manifest in explicit selection order.
+    # Multiple mappings may share an active anchor; their order remains stable.
+    for parent, index, grouped in sorted(
+        anchor_operations.values(), key=lambda operation: operation[1], reverse=True
+    ):
+        parent[index + 1:index + 1] = [
+            {
+                "title": mapping["title"],
+                "publication": mapping["publication"],
+                "document": mapping["document"],
+                "destination": mapping["destination"],
+            }
+            for mapping in grouped
+        ]
+
+    for mapping in mappings:
+        if mapping["title"] in original_titles:
+            continue
+        configured = {locale["language"]: locale for locale in mapping["localizations"]}
         for locale in locale_entries:
-            language = locale["language"]
-            labels = locale.get("labels")
-            if not isinstance(labels, list):
-                raise PublicationStagingError(
-                    f"reader locale {language} labels must be an array"
-                )
-            staged_locale = configured[language]
-            labels.append(
+            staged_locale = configured[locale["language"]]
+            locale["labels"].append(
                 {
                     "id": staged_locale["label_id"],
                     "canonical": mapping["title"],
@@ -346,43 +443,42 @@ def materialize(site_root: Path, staging_id: str) -> None:
                 }
             )
 
-    manifest_temporary = _temporary_json(manifest_path, manifest)
-    try:
-        locales_temporary = _temporary_json(locales_path, locales)
-        try:
-            try:
-                load_manifest(manifest_temporary)
-                staged_manifest = _read_json(
-                    manifest_temporary,
-                    "materialized site manifest",
-                )
-                prepared_staged_navigation = augment_manifest(staged_manifest)["navigation"]
-                load_overlays(locales_temporary, prepared_staged_navigation)
-            except (AssemblyError, PreparationError, ReaderNavigationLocaleError) as exc:
-                raise PublicationStagingError(
-                    f"materialized Site mapping failed canonical validation: {exc}"
-                ) from exc
-            # Both files are fully validated before either replacement. A rare
-            # failure of the second replacement can leave only this disposable,
-            # build-only checkout partially staged; no deployment path consumes it.
-            os.replace(manifest_temporary, manifest_path)
-            os.replace(locales_temporary, locales_path)
-        finally:
-            locales_temporary.unlink(missing_ok=True)
-    finally:
-        manifest_temporary.unlink(missing_ok=True)
+    return _create_snapshot(
+        site_root,
+        manifest,
+        locales,
+        original_manifest,
+        original_locales,
+    )
+
+
+def materialize(site_root: Path, staging_id: str) -> Path:
+    """Backward-compatible single-mapping API returning the qualification root."""
+
+    return materialize_many(site_root, [staging_id])
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--site-root", required=True, type=Path)
-    parser.add_argument("--staging-id", required=True)
+    selection = parser.add_mutually_exclusive_group(required=True)
+    selection.add_argument("--staging-id")
+    selection.add_argument(
+        "--staging-ids",
+        help="comma-separated ordered staging IDs for one atomic compatibility build",
+    )
     args = parser.parse_args()
+    staging_ids = (
+        [args.staging_id]
+        if args.staging_id is not None
+        else [item.strip() for item in args.staging_ids.split(",")]
+    )
     try:
-        materialize(args.site_root, args.staging_id)
+        snapshot_root = materialize_many(args.site_root, staging_ids)
     except (PublicationStagingError, OSError, UnicodeError) as exc:
         print(f"materialize_publication_staging.py: {exc}", file=sys.stderr)
         return 1
+    print(snapshot_root)
     return 0
 
 
