@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   minimize:
-    if: github.event.head_commit.message == 'Run Composition promotion diff cleanup'
+    if: github.event.head_commit.message == 'Retry Composition promotion diff cleanup'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
@@ -19,12 +19,12 @@ jobs:
           fetch-depth: 0
       - name: Restore canonical formatting and insert promoted entries only
         run: python .github/integration/minimize_composition_promotion_diff.py
-      - name: Validate focused diff
+      - name: Validate focused base-relative diff
         run: |
           set -euo pipefail
           git diff --check
-          test "$(git diff --numstat -- site-manifest.json | awk '{print $1+$2}')" -eq 4
-          test "$(git diff --numstat -- reader-navigation-locales.json | awk '{print $1+$2}')" -eq 4
+          test "$(git diff --numstat c0c8b9430437759f99604ab005e6c04b24218c23 -- site-manifest.json | awk '{print $1+$2}')" -eq 2
+          test "$(git diff --numstat c0c8b9430437759f99604ab005e6c04b24218c23 -- reader-navigation-locales.json | awk '{print $1+$2}')" -eq 2
       - name: Commit focused formatting-preserving promotion
         run: |
           set -euo pipefail
