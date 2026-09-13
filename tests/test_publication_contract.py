@@ -148,9 +148,7 @@ class CompositionPublicationContractTests(unittest.TestCase):
             PurePosixPath("docs/guides/webmcp-capability.md"),
             PurePosixPath("docs/migrations/pr2-skill-capabilities.md"),
             PurePosixPath("docs/migrations/pr3-webapp-lifecycle.md"),
-            PurePosixPath("docs/provider-maintenance.md"),
             PurePosixPath("examples/README.md"),
-            PurePosixPath("release/README.md"),
             PurePosixPath("skills/composition/SKILL.md"),
             PurePosixPath("translations/README.md"),
         }

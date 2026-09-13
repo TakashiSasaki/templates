@@ -14,6 +14,8 @@
     {"id":"release-guide","source":"docs/release-guide.md","optional":false,"home":false},
     {"id":"composer-reference","source":"docs/reference/composer.md","optional":false,"home":false},
     {"id":"publication-boundary","source":"docs/publication-catalog.md","optional":false,"home":false},
+    {"id":"provider-maintenance","source":"docs/provider-maintenance.md","optional":false,"home":false},
+    {"id":"installer-release","source":"release/README.md","optional":false,"home":false},
     {"id":"composition-model","source":"docs/architecture/composition-model.md","optional":false,"home":false},
     {"id":"catalog-architecture","source":"docs/architecture/catalog.md","optional":false,"home":false},
     {"id":"generated-contract-manifest","source":"docs/architecture/generated-contract-manifest.md","optional":false,"home":false},
