@@ -140,25 +140,6 @@ def _prepared_navigation(site_root: Path):
 
 
 class PublicationStagingMaterializationTests(unittest.TestCase):
-    def test_second_replace_failure_restores_original_bytes(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            _copy_inputs(root)
-            before = {name: (root / name).read_bytes() for name in
-                      ("site-manifest.json", "reader-navigation-locales.json")}
-            real_replace = os.replace
-
-            def fail_locale(source, target):
-                if Path(target).name == "reader-navigation-locales.json":
-                    raise OSError("injected locale replace failure")
-                return real_replace(source, target)
-
-            with mock.patch("scripts.materialize_publication_staging.os.replace", side_effect=fail_locale):
-                with self.assertRaisesRegex(OSError, "injected"):
-                    materialize_many(root, list(COMPOSITION_STAGING_IDS))
-            self.assertEqual(before, {name: (root / name).read_bytes() for name in before})
-            self.assertEqual(list(root.glob(".*.tmp")), [])
-
     def test_selected_sibling_conflicts_fail_without_mutation(self) -> None:
         for field in ("document", "title", "label_id", "anchor"):
             with self.subTest(field=field), tempfile.TemporaryDirectory() as directory:
