@@ -27,6 +27,9 @@ DOCS_INDEX = ROOT / "docs" / "index.md"
 SCHEMA_VALIDATION = ROOT / ".github" / "workflows" / "schema-validation.yml"
 REFERENCE_CONSUMER_PUBLICATION = ROOT / ".github" / "workflows" / "reference-consumer-publication.yml"
 EXPECTED_SITE_COMPATIBILITY_REVISION = "c0c8b9430437759f99604ab005e6c04b24218c23"
+EXPECTED_PUBLICATION_STAGING_IDS = (
+    "composition-provider-maintenance,composition-installer-release"
+)
 
 
 class CompositionPlaygroundPublicationTests(unittest.TestCase):
@@ -281,6 +284,10 @@ class PublicationLifecycleRegressionTests(unittest.TestCase):
         self.assertEqual(uses_match.group(1), site_ref_match.group(1))
         self.assertIn(
             "composition_ref: ${{ github.event.pull_request.head.sha }}",
+            workflow,
+        )
+        self.assertIn(
+            f"publication_staging_ids: {EXPECTED_PUBLICATION_STAGING_IDS}",
             workflow,
         )
         self.assertNotIn("publication_staging_id:", workflow)
