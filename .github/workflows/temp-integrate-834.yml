@@ -62,7 +62,7 @@ jobs:
             .github/workflows/site-composition-materialization-cross-authority.yml
             .github/workflows/site-composition-playground-cross-authority.yml
             .github/workflows/site-full-qualification.yml
-            tests/test_composition_playground_cross_authority_workflow.py
+            tests/test_composition_playground_cross-authority_workflow.py
             tests/test_publication_freshness_workflow.py
           )
           for path in "${paths[@]}"; do
@@ -117,10 +117,11 @@ jobs:
               '      - name: Run site assembly tests\n'
               '        run: PYTHONPATH=site-source python -m unittest discover --start-directory site-source/tests --verbose\n'
           )
+          literal_if = '        if: ' + '$' + "{{ steps.artifact.outputs.reused != 'true' }}\n"
           replacement = (
               '      - name: Run site assembly tests\n'
-              "        if: ${{ steps.artifact.outputs.reused != 'true' }}\n"
-              '        run: PYTHONPATH=site-source python -m unittest discover --start-directory site-source/tests --verbose\n'
+              + literal_if
+              + '        run: PYTHONPATH=site-source python -m unittest discover --start-directory site-source/tests --verbose\n'
           )
           if text.count(needle) != 1:
               raise SystemExit(f'expected one staged site-test block, found {text.count(needle)}')
@@ -160,7 +161,7 @@ jobs:
           grep --fixed-strings -- '--force-browser' .github/workflows/build-pages.yml
           grep --fixed-strings -- 'reuse_pr_build' .github/workflows/build-pages.yml
           grep --fixed-strings -- 'site_build_artifact.py' .github/workflows/build-pages.yml
-          grep --fixed-strings -- "if: ${{ steps.artifact.outputs.reused != 'true' }}" .github/workflows/build-pages.yml
+          grep --fixed-strings -- 'steps.artifact.outputs.reused' .github/workflows/build-pages.yml
           grep --fixed-strings -- '6b7d764c963f957c6bee43c0c1d42eb03970ec8f' .github/workflows/site-composition-materialization-cross-authority.yml
           grep --fixed-strings -- '6b7d764c963f957c6bee43c0c1d42eb03970ec8f' .github/workflows/site-composition-playground-cross-authority.yml
           test ! -e .github/workflows/build-pages-stacked-site.yml
