@@ -8,7 +8,11 @@ from scripts.materialize_publication_staging import (
     PublicationStagingError,
     materialize_many,
 )
-from tests.test_publication_staging import _copy_inputs, COMPOSITION_STAGING_IDS
+from tests.test_publication_staging import (
+    _configure_composition_mappings,
+    _copy_inputs,
+    COMPOSITION_STAGING_IDS,
+)
 
 
 class StagingSnapshotTests(unittest.TestCase):
@@ -17,6 +21,7 @@ class StagingSnapshotTests(unittest.TestCase):
             root = Path(directory) / "site-source"
             root.mkdir()
             _copy_inputs(root)
+            _configure_composition_mappings(root)
             before = {
                 name: (root / name).read_bytes()
                 for name in ("site-manifest.json", "reader-navigation-locales.json")
@@ -46,6 +51,7 @@ class StagingSnapshotTests(unittest.TestCase):
             root = Path(directory) / "site-source"
             root.mkdir()
             _copy_inputs(root)
+            _configure_composition_mappings(root)
             manifest_before = (root / "site-manifest.json").read_bytes()
             locales_path = root / "reader-navigation-locales.json"
             concurrent_locales = locales_path.read_bytes() + b" "
@@ -77,6 +83,7 @@ class StagingSnapshotTests(unittest.TestCase):
             root = Path(directory) / "site-source"
             root.mkdir()
             _copy_inputs(root)
+            _configure_composition_mappings(root)
             manifest_path = root / "site-manifest.json"
             concurrent_manifest = manifest_path.read_bytes() + b" "
             locales_before = (root / "reader-navigation-locales.json").read_bytes()
