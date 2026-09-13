@@ -299,3 +299,12 @@ These additional checkpoints record the current remediation, not retrospective p
 | 8 | product | topology-publication-remediation-product | artifacts/lifecycle/008-topology-publication-remediation-product | 3c10eceba4ada27893a6868a7fe9188ce02aab90e8cd641c68237d67cf9f94b8 |
 | 9 | planning | topology-consumer-overview-remediation | artifacts/lifecycle/009-topology-consumer-overview-remediation | acdd54017dd8e0ca560cf1e91d25b3124953ea07b00faa49fe1d3f3cde7543ce |
 | 10 | product | topology-consumer-overview-remediation-product | artifacts/lifecycle/010-topology-consumer-overview-remediation-product | 5c5f8aa08dfe96393a1de3552c16a1ccbeb366411d8688a044b31dca353cac57 |
+
+### Composition audience publication promotion history
+
+These checkpoints bind the validated Site promotion of the already-qualified Composition audience records into the active publication mapping.
+
+| Sequence | Phase | ID | Snapshot | Manifest SHA-256 |
+| --- | --- | --- | --- | --- |
+| 11 | planning | composition-audience-publication-promotion | artifacts/lifecycle/011-composition-audience-publication-promotion | 87c31f7f74b99daafc49def986fdcedad16436196bf482d0d0e31d311f65e517 |
+| 12 | product | composition-audience-publication-promotion-product | artifacts/lifecycle/012-composition-audience-publication-promotion-product | a2140c29ac4bb07bc1684291cfcca0a64d0ff82007ffb65f9474357a7ca9475e |
