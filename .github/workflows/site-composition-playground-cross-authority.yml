@@ -3,10 +3,12 @@ name: Site Composition Playground cross-authority acceptance
 on:
   pull_request:
     branches:
-      - codex/site-composition-playground-v1-shell
       - site
       - 'feat/site-*'
       - site-composition-audience-publication-staging
+      - 'site-*'
+      - 'perf/site-*'
+      - codex/site-composition-playground-v1-shell
     types:
       - opened
       - synchronize
@@ -91,6 +93,7 @@ jobs:
       (needs.classify.outputs.required == 'true' || needs.classify.outputs.browser_required == 'true')
     uses: ./.github/workflows/build-pages.yml
     with:
+      reuse_pr_build: true
       site_ref: ${{ github.event.pull_request.head.sha }}
       composition_ref: 6b7d764c963f957c6bee43c0c1d42eb03970ec8f
 
