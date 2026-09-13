@@ -24,6 +24,11 @@
 
 - [Publication boundary](publication-catalog.md) — what this provider exposes to the integrated documentation site and why.
 
+## Composition provider maintenance
+
+- [Maintaining the Composition provider](provider-maintenance.md) — canonical overview for changing Composition itself: components, catalog, Composer, schemas, evaluation, validation, provider publication, and provider release procedures. It is not consumer-product maintenance guidance.
+- [Composition installer release](../release/README.md) — immutable provider release identities and verified consumer bootstrap boundary for the installable Composition Skill.
+
 ## Agent Skill artifact
 
 - [Skill documentation index](../components/artifact.skill-core/files/docs/) — Skill-specific profiles, architecture, and responsibility map.

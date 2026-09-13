@@ -2,6 +2,21 @@
 
 This directory records the immutable publication identities for the installable Composition Agent Skill. It is a release-publication surface, not the installed skill's runtime authority.
 
+## Provider release record versus consumer use
+
+This record serves two related but distinct purposes. For Composition authority
+maintainers, it identifies the provider release: the immutable installer bytes,
+the distributed Skill source, and the selected Composer toolchain. For consumers,
+it supplies the verified bootstrap material for installing or replacing the
+Composition Skill. It does not define a consumer product release, and it does
+not replace the consumer [Composition guide](../docs/consumer-guide.md), the
+[product release guide](../docs/release-guide.md), or Composer update/upgrade
+behavior.
+
+`composition-installer.json` remains the machine-readable authority. This README
+explains that descriptor and the verification boundary; it must not become a
+second descriptor or a mutable release channel.
+
 The stable publication deliberately separates three full-SHA identities:
 
 - **installer script revision** `c328fbe2bf733cf32cea54c1054570a94afa693a` — the remotely executed stdlib-only bootstrap script;
