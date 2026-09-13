@@ -23,6 +23,9 @@ jobs:
     timeout-minutes: 2
     outputs:
       required: ${{ steps.classify.outputs.reference_consumer_required }}
+      build_required: ${{ steps.classify.outputs.build_required }}
+      browser_required: ${{ steps.classify.outputs.browser_required }}
+      pwa_required: ${{ steps.classify.outputs.pwa_required }}
       reason: ${{ steps.classify.outputs.reason }}
     steps:
       - name: Check out repository history for change classification
@@ -53,11 +56,19 @@ jobs:
               --changed-paths "$RUNNER_TEMP/changed-paths.txt" \
               --force-full "$force_full" \
               --output "$output_file"
+            for capability in build_required browser_required pwa_required; do
+              value="$(sed -n "s/^${capability}=//p" "$output_file")"
+              case "$value" in true|false) ;; *) exit 1 ;; esac
+              echo "$capability=$value" >> "$GITHUB_OUTPUT"
+            done
             req="$(grep '^reference_consumer_required=' "$output_file" | cut -d= -f2)"
             reason="$(grep '^reason=' "$output_file" | cut -d= -f2)"
             echo "reference_consumer_required=$req" >> "$GITHUB_OUTPUT"
             echo "reason=$reason" >> "$GITHUB_OUTPUT"
           else
+            echo "build_required=true" >> "$GITHUB_OUTPUT"
+            echo "browser_required=true" >> "$GITHUB_OUTPUT"
+            echo "pwa_required=true" >> "$GITHUB_OUTPUT"
             echo "reference_consumer_required=true" >> "$GITHUB_OUTPUT"
             echo "reason=base-classifier-unavailable" >> "$GITHUB_OUTPUT"
           fi
@@ -79,12 +90,13 @@ jobs:
       - run: python .template-composition/validate.py . --format json
   build:
     needs: classify
-    if: ${{ always() && !cancelled() && needs.classify.result == 'success' && needs.classify.outputs.required == 'true' }}
+    if: ${{ always() && !cancelled() && needs.classify.result == 'success' && needs.classify.outputs.required == 'true' && needs.classify.outputs.build_required == 'true' }}
     uses: ./.github/workflows/build-pages.yml
     with:
       site_ref: ${{ github.event.pull_request.head.sha }}
   browser:
-    needs: build
+    needs: [classify, build]
+    if: ${{ needs.classify.outputs.browser_required == 'true' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -109,4 +121,5 @@ jobs:
       - name: Verify Website product contract in Chrome
         run: python scripts/check_reference_website.py
       - name: Verify PWA positive and failure paths
+        if: ${{ needs.classify.outputs.pwa_required == 'true' }}
         run: python scripts/check_reference_pwa.py
