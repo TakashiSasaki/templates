@@ -51,6 +51,7 @@ jobs:
         shell: bash
         run: |
           set -u
+          set +e
           base=ecf7aec28793609a1a38f43998530fed0a4ccb25
           theirs=cde90168a6c34c3c78b7c1b8d0e4b64b5d3fa4a2
           debug_root="$RUNNER_TEMP/site-834-merge-debug"
