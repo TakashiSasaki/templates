@@ -66,7 +66,7 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
         self.assertNotIn("needs: build", classifier_block)
         self.assertIn("name: Classify browser acceptance scope", classifier_block)
         self.assertIn(
-            "ref: ${{ github.event.pull_request.head.sha || github.sha }}",
+            "ref: ${{ github.event.pull_request.head.sha }}",
             classifier_block,
         )
         self.assertIn("fetch-depth: 0", classifier_block)
