@@ -66,11 +66,13 @@ def validate_manifest(manifest: dict, expected: dict) -> None:
             or set(manifest['inputs']) != set(expected)
             or manifest['identity'] != identity_key(manifest['inputs'])):
         raise ArtifactError('invalid artifact build input manifest')
-    if manifest['inputs'] != expected:
+    if manifest['inputs'] != expected or manifest['identity'] != identity_key(expected):
         raise InputMismatch('artifact build input identity mismatch')
 
 
 def validate_provenance(provenance: dict, expected: dict) -> None:
+    if not isinstance(provenance, dict) or type(provenance.get('schema_version')) is not int:
+        raise ArtifactError('invalid artifact publication provenance schema')
     if provenance != dict(schema_version=2, repository=expected['repository'],
                           site_commit=expected['site'], publication_commits={
                               'composition': expected['composition'], 'policy': expected['policy']}):

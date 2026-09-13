@@ -193,3 +193,14 @@ class ChangedRecipeTests(unittest.TestCase):
         with self.assertRaises(artifact.ArtifactError) as raised:
             artifact.validate_manifest({'inputs': prior, 'identity': artifact.identity_key(inputs())}, inputs())
         self.assertNotIsInstance(raised.exception, artifact.InputMismatch)
+
+
+class ManifestSchemaTypeTests(unittest.TestCase):
+    def test_json_boolean_and_float_do_not_alias_integer_schema(self):
+        for schema in [True, 1.0]:
+            changed = dict(inputs(), schema_version=schema)
+            with self.assertRaises(artifact.ArtifactError):
+                artifact.validate_manifest({'inputs': changed, 'identity': artifact.identity_key(changed)}, inputs())
+        with self.assertRaises(artifact.ArtifactError):
+            artifact.validate_provenance(dict(schema_version=2.0, repository='TakashiSasaki/templates',
+                site_commit='a'*40, publication_commits={'composition':'b'*40,'policy':'c'*40}), inputs())
