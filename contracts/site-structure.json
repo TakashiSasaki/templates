@@ -123,6 +123,20 @@
       "parentPageId": "site-portal-home"
     },
     {
+      "id": "composition-provider-maintenance",
+      "routeId": "composition-provider-maintenance",
+      "role": "content",
+      "title": "Composition maintainer overview",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-installer-release",
+      "routeId": "composition-installer-release",
+      "role": "content",
+      "title": "Installer release",
+      "parentPageId": "site-portal-home"
+    },
+    {
       "id": "composition-composition-authority-migration",
       "routeId": "composition-composition-authority-migration",
       "role": "content",
@@ -827,6 +841,8 @@
     "composition-catalog-guide",
     "composition-schema-guide",
     "composition-publication-boundary",
+    "composition-provider-maintenance",
+    "composition-installer-release",
     "composition-composition-authority-migration",
     "composition-skill-first-use-walkthrough",
     "composition-skill-overview",

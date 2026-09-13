@@ -142,6 +142,22 @@
       "socialPreview": "none"
     },
     {
+      "pageId": "composition-provider-maintenance",
+      "title": "Composition maintainer overview",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-installer-release",
+      "title": "Installer release",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
       "pageId": "composition-composition-authority-migration",
       "title": "Authority migration history",
       "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",

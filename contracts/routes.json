@@ -190,6 +190,28 @@
       }
     },
     {
+      "id": "composition-provider-maintenance",
+      "path": "/composition/authorities/provider-maintenance/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-installer-release",
+      "path": "/composition/authorities/installer-release/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
       "id": "composition-composition-authority-migration",
       "path": "/composition/migrations/authority-migration/",
       "canonical": true,
