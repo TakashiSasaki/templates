@@ -45,6 +45,8 @@
           ]
         },
         {"title": "Publication boundary", "publication": "composition", "document": "publication-boundary", "destination": "composition/docs/publication-catalog.md"},
+        {"title": "Composition maintainer overview", "publication": "composition", "document": "provider-maintenance", "destination": "composition/authorities/provider-maintenance.md"},
+        {"title": "Installer release", "publication": "composition", "document": "installer-release", "destination": "composition/authorities/installer-release.md"},
         {
           "title": "Historical provenance",
           "children": [

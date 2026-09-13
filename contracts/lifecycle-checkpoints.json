@@ -101,6 +101,26 @@
       "snapshotPath": "artifacts/lifecycle/010-topology-consumer-overview-remediation-product",
       "manifestSha256": "5c5f8aa08dfe96393a1de3552c16a1ccbeb366411d8688a044b31dca353cac57",
       "recordedAt": "2026-09-11T23:47:19.259777Z"
+    },
+    {
+      "id": "composition-audience-publication-promotion",
+      "sequence": 11,
+      "phase": "planning",
+      "changeKind": "specification-change",
+      "parentId": "topology-consumer-overview-remediation-product",
+      "snapshotPath": "artifacts/lifecycle/011-composition-audience-publication-promotion",
+      "manifestSha256": "87c31f7f74b99daafc49def986fdcedad16436196bf482d0d0e31d311f65e517",
+      "recordedAt": "2026-09-13T16:09:16.428493Z"
+    },
+    {
+      "id": "composition-audience-publication-promotion-product",
+      "sequence": 12,
+      "phase": "product",
+      "changeKind": "specification-change",
+      "parentId": "composition-audience-publication-promotion",
+      "snapshotPath": "artifacts/lifecycle/012-composition-audience-publication-promotion-product",
+      "manifestSha256": "a2140c29ac4bb07bc1684291cfcca0a64d0ff82007ffb65f9474357a7ca9475e",
+      "recordedAt": "2026-09-13T16:09:19.320992Z"
     }
   ]
 }

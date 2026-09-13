@@ -29,6 +29,8 @@
         {"id": "catalog-guide", "canonical": "Catalog guide", "localized": "Catalog ガイド"},
         {"id": "schema-guide", "canonical": "Schema guide", "localized": "Schema ガイド"},
         {"id": "publication-boundary", "canonical": "Publication boundary", "localized": "公開境界"},
+        {"id": "composition-provider-maintenance", "canonical": "Composition maintainer overview", "localized": "Composition メンテナー概要"},
+        {"id": "composition-installer-release", "canonical": "Installer release", "localized": "インストーラーリリース"},
         {"id": "historical-provenance", "canonical": "Historical provenance", "localized": "履歴 provenance"},
         {"id": "authority-migration-history", "canonical": "Authority migration history", "localized": "Authority 移行履歴"},
         {"id": "agent-skill", "canonical": "Agent Skill", "localized": "Agent Skill"},
