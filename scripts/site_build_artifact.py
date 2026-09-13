@@ -183,6 +183,15 @@ def reuse(expected: dict, target: Path, *, pr: int, current_run: int,
         # If none exists (including a previous docs-only skip), it must build.
         while run:
             jobs = list_all(f'repos/{repository}/actions/runs/{run["id"]}/jobs?filter=latest', 'jobs')
+            builds = [job for job in jobs if job['name'] == 'build']
+            # Unrelated label events intentionally create isolated same-head runs
+            # whose build job is skipped. They are not producer failures and must
+            # not hide an older applicable producer while consumers are waiting.
+            if (len(builds) == 1 and builds[0]['status'] == 'completed'
+                    and builds[0]['conclusion'] == 'skipped'):
+                runs = [r for r in runs if r['id'] != run['id']]
+                run = select_run(runs, repository=repository, head=expected['site'], pr=pr, current_run=current_run)
+                continue
             if wait or any(j['name'] == 'build' and j['status'] == 'completed' and j['conclusion'] == 'success' for j in jobs):
                 break
             runs = [r for r in runs if r['id'] != run['id']]
