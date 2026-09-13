@@ -222,7 +222,10 @@ def test_adapter_requires_exact_head_review_and_guarded_merge() -> None:
             "absence of findings on one surface is not completed review evidence"
         ),
         "current pr head equals the exact accepted head",
-        "never perform an agent merge in this repository without an equivalent immutable-head precondition",
+        (
+            "never perform an agent merge in this repository without an equivalent "
+            "immutable-head precondition"
+        ),
         "do not retry blindly",
     ):
         assert invariant in text
