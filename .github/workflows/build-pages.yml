@@ -8,6 +8,8 @@ on:
     branches:
       - site
       - 'feat/site-*'
+      - 'site-*'
+      - 'perf/site-*'
     types:
       - opened
       - synchronize
@@ -15,6 +17,11 @@ on:
       - labeled
   workflow_call:
     inputs:
+      reuse_pr_build:
+        description: Reuse the canonical exact-input PR artifact when provider/configuration inputs match
+        required: false
+        type: boolean
+        default: false
       site_ref:
         description: Commit, branch, or tag containing the site implementation
         required: false
@@ -67,6 +74,9 @@ jobs:
     needs:
       - classify_browser
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: read
 
     steps:
       - name: Check out site implementation
@@ -110,20 +120,43 @@ jobs:
           ref: ${{ steps.publication_refs.outputs.policy }}
           path: policy-source
 
+      - name: Check out executed build workflow definition
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          path: workflow-source
+          sparse-checkout: .github/workflows/build-pages.yml
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Resolve exact build inputs and reuse qualified PR artifact
+        id: artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+          IS_CANONICAL_BUILD: ${{ inputs.site_ref == '' && github.workflow == 'Build documentation artifact' }}
+          REUSE_PR_BUILD: ${{ inputs.reuse_pr_build }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          STAGING_ID: ${{ inputs.publication_staging_id }}
+          DEPLOYMENT_TIMESTAMP: ${{ inputs.deployment_timestamp }}
+        run: python site-source/scripts/site_build_artifact.py --output "$GITHUB_OUTPUT"
+
       - name: Install pinned site dependencies
+        if: ${{ steps.artifact.outputs.reused != 'true' }}
         run: python -m pip install --requirement site-source/requirements.txt
 
       - name: Materialize provider publications
+        if: ${{ steps.artifact.outputs.reused != 'true' }}
         run: |
           python site-source/scripts/materialize_publication_assets.py \
             --publication composition=composition-source \
             --publication policy=policy-source
 
       - name: Run site assembly tests
+        if: ${{ steps.artifact.outputs.reused != 'true' }}
         run: PYTHONPATH=site-source python -m unittest discover --start-directory site-source/tests --verbose
 
       - name: Materialize staged publication mapping
-        if: ${{ inputs.publication_staging_id != '' }}
+        if: ${{ steps.artifact.outputs.reused != 'true' && inputs.publication_staging_id != '' }}
         env:
           PUBLICATION_STAGING_ID: ${{ inputs.publication_staging_id }}
         run: |
@@ -132,12 +165,14 @@ jobs:
             --staging-id "$PUBLICATION_STAGING_ID"
 
       - name: Prepare repository-tree publication
+        if: ${{ steps.artifact.outputs.reused != 'true' }}
         run: |
           python site-source/scripts/prepare_repository_tree_publication.py \
             --site-root site-source \
             --output-root site-publication
 
       - name: Assemble the documentation project
+        if: ${{ steps.artifact.outputs.reused != 'true' }}
         run: |
           python site-source/scripts/assemble_publications_v3.py \
             --publication site=site-publication \
@@ -147,6 +182,7 @@ jobs:
             --output-root build
 
       - name: Publish declared translations
+        if: ${{ steps.artifact.outputs.reused != 'true' }}
         run: |
           python site-source/scripts/publish_provider_translations.py \
             --publication site=site-publication \
@@ -156,6 +192,7 @@ jobs:
             --output-root build
 
       - name: Generate repository trees
+        if: ${{ steps.artifact.outputs.reused != 'true' }}
         run: |
           python site-source/scripts/generate_repository_trees_composition.py \
             --repository "$GITHUB_REPOSITORY" \
@@ -165,6 +202,7 @@ jobs:
             --publication policy=policy-source
 
       - name: Generate inline file previews
+        if: ${{ steps.artifact.outputs.reused != 'true' }}
         run: |
           python site-source/scripts/generate_repository_file_previews_composition.py \
             --repository "$GITHUB_REPOSITORY" \
@@ -174,6 +212,7 @@ jobs:
             --publication policy=policy-source
 
       - name: Prepare deployment metadata
+        if: ${{ steps.artifact.outputs.reused != 'true' }}
         id: site_metadata
         run: |
           notice="$(
@@ -185,9 +224,11 @@ jobs:
           printf 'notice=%s\n' "$notice" >> "$GITHUB_OUTPUT"
 
       - name: Build the static site
+        if: ${{ steps.artifact.outputs.reused != 'true' }}
         run: zensical build --config-file build/zensical.toml --clean --strict
 
       - name: Generate integrated glossary
+        if: ${{ steps.artifact.outputs.reused != 'true' }}
         run: |
           python site-source/scripts/generate_glossary.py \
             --repository "$GITHUB_REPOSITORY" \
@@ -200,12 +241,14 @@ jobs:
             --revision "policy=$(git -C policy-source rev-parse HEAD)"
 
       - name: Normalize generated canonical links and PWA metadata
+        if: ${{ steps.artifact.outputs.reused != 'true' }}
         run: |
           python site-source/scripts/finalize_site_metadata.py \
             --site-root build/site \
             --canonical-url "${PUBLIC_SITE_URL}"
 
       - name: Generate static repository browser
+        if: ${{ steps.artifact.outputs.reused != 'true' }}
         run: |
           python site-source/scripts/generate_repository_browser_composition.py \
             --repository "$GITHUB_REPOSITORY" \
@@ -215,6 +258,7 @@ jobs:
             --branch policy=policy-source
 
       - name: Generate index navigation graph
+        if: ${{ steps.artifact.outputs.reused != 'true' }}
         run: |
           python site-source/scripts/run_composition_navigation.py graph \
             --repository "$GITHUB_REPOSITORY" \
@@ -223,6 +267,7 @@ jobs:
             --provider policy=policy-source
 
       - name: Generate index navigation locale overlays
+        if: ${{ steps.artifact.outputs.reused != 'true' }}
         run: |
           python site-source/scripts/run_composition_navigation.py locales \
             --graph build/index-navigation.json \
@@ -231,6 +276,7 @@ jobs:
             --provider policy=policy-source
 
       - name: Generate index-guided navigation viewer
+        if: ${{ steps.artifact.outputs.reused != 'true' }}
         run: |
           python site-source/scripts/run_composition_navigation.py viewer \
             --repository "$GITHUB_REPOSITORY" \
@@ -241,6 +287,7 @@ jobs:
             --provider policy=policy-source
 
       - name: Generate localized index-guided navigation viewer
+        if: ${{ steps.artifact.outputs.reused != 'true' }}
         run: |
           python site-source/scripts/run_composition_navigation.py locale-viewer \
             --repository "$GITHUB_REPOSITORY" \
@@ -254,16 +301,19 @@ jobs:
             --provider policy=policy-source
 
       - name: Normalize guided canonical links and PWA metadata
+        if: ${{ steps.artifact.outputs.reused != 'true' }}
         run: |
           python site-source/scripts/finalize_site_metadata.py \
             --site-root build/site/guided \
             --canonical-url "${PUBLIC_SITE_URL}"
 
       - name: Apply Site Website consumer metadata
+        if: ${{ steps.artifact.outputs.reused != 'true' }}
         run: |
           python site-source/scripts/render_website_metadata.py --repository site-source --site-root build/site
 
       - name: Finalize per-page and translation reader metadata
+        if: ${{ steps.artifact.outputs.reused != 'true' }}
         run: |
           python site-source/scripts/finalize_translation_reader.py \
             --site-root build/site \
@@ -271,6 +321,7 @@ jobs:
             --canonical-url "${PUBLIC_SITE_URL}"
 
       - name: Validate generated translation reader pairs
+        if: ${{ steps.artifact.outputs.reused != 'true' }}
         run: |
           python site-source/scripts/validate_translation_pairs.py \
             --site-root build/site \
@@ -278,6 +329,7 @@ jobs:
             --canonical-url "${PUBLIC_SITE_URL}"
 
       - name: Finalize localized guided metadata
+        if: ${{ steps.artifact.outputs.reused != 'true' }}
         run: |
           python site-source/scripts/finalize_guided_locales.py \
             --site-root build/site \
@@ -285,17 +337,20 @@ jobs:
             --canonical-url "${PUBLIC_SITE_URL}"
 
       - name: Annotate Glossary terms
+        if: ${{ steps.artifact.outputs.reused != 'true' }}
         run: |
           python site-source/scripts/finalize_glossary_annotations.py \
             --site-root build/site \
             --glossary build/site/glossary/index.json
 
       - name: Verify generated public URL boundary
+        if: ${{ steps.artifact.outputs.reused != 'true' }}
         run: |
           python site-source/scripts/check_public_url_boundary.py \
             --site-root build/site
 
       - name: Verify the Pages entry point and deployment notice
+        if: ${{ steps.artifact.outputs.reused != 'true' }}
         run: |
           test -f build/site/index.html
           test -f build/site/app.webmanifest
@@ -428,6 +483,7 @@ jobs:
             build/site/index.html
 
       - name: Record build provenance
+        if: ${{ steps.artifact.outputs.reused != 'true' }}
         run: |
           python site-source/scripts/write_publication_provenance.py \
             --output build/site/build-provenance.json \
@@ -437,10 +493,15 @@ jobs:
             --publication-commit "policy=$(git -C policy-source rev-parse HEAD)"
 
       - name: Validate generated site links
+        if: ${{ steps.artifact.outputs.reused != 'true' }}
         run: |
           python site-source/scripts/validate_site_links.py \
             --site-root build/site \
             --config-file build/zensical.toml
+
+      - name: Embed exact build input identity
+        if: ${{ steps.artifact.outputs.reused != 'true' }}
+        run: cp build-inputs.json build/site/ci-build-inputs.json
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v5

@@ -21,6 +21,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: site-build-detailed-profile-${{ github.workflow }}-${{ github.ref }}

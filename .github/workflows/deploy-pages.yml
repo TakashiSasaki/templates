@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 env:
   PUBLIC_SITE_URL: https://templates.moukaeritai.work/
@@ -45,6 +46,7 @@ jobs:
       deployment_timestamp: ${{ needs.deployment_metadata.outputs.deployment_timestamp }}
     permissions:
       contents: read
+      actions: read
 
   deploy:
     if: >-

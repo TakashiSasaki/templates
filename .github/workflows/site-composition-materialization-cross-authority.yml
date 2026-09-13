@@ -92,5 +92,6 @@ jobs:
       needs.classify.outputs.required == 'true'
     uses: ./.github/workflows/build-pages.yml
     with:
+      reuse_pr_build: true
       site_ref: ${{ github.event.pull_request.head.sha }}
       composition_ref: 0f0c4012818a3b8646ad89fbca7db22c71ad5dd8

@@ -33,7 +33,7 @@ class PublicationFreshnessWorkflowTests(unittest.TestCase):
         self.assertEqual("23 17 * * *", triggers["schedule"][0]["cron"])
         self.assertIn("workflow_dispatch", triggers)
 
-        self.assertEqual({"contents": "read"}, self.workflow["permissions"])
+        self.assertEqual({"contents": "read", "actions": "read"}, self.workflow["permissions"])
         self.assertNotIn("pages: write", self.workflow_text)
         self.assertNotIn("id-token: write", self.workflow_text)
         self.assertNotIn("actions/configure-pages@", self.workflow_text)
@@ -142,7 +142,7 @@ class PublicationFreshnessWorkflowTests(unittest.TestCase):
             candidate["with"]["composition_ref"],
         )
         self.assertNotIn("policy_ref", candidate["with"])
-        self.assertEqual({"contents": "read"}, candidate["permissions"])
+        self.assertEqual({"contents": "read", "actions": "read"}, candidate["permissions"])
 
     def test_report_accepts_only_required_success_or_nonapplicable_skip(self) -> None:
         report = self.workflow["jobs"]["report"]

@@ -27,6 +27,7 @@ from typing import TextIO
 # Paths whose changes govern CI execution or classification authority (fail-closed to full).
 CI_CONTROL_EXACT_PATHS = frozenset(
     {
+        "scripts/site_build_artifact.py",
         "scripts/classify_site_ci.py",
         "scripts/classify_site_browser_acceptance.py",
         "scripts/classify_provider_coexistence.py",
@@ -37,6 +38,8 @@ CI_CONTROL_EXACT_PATHS = frozenset(
 )
 CI_CONTROL_PREFIXES = (
     ".github/workflows/",
+    "tests/test_site_build_artifact",
+    "tests/test_site_browser_qualification_workflows",
     "tests/test_site_ci_classifier",
     "tests/test_site_browser_acceptance_classifier",
     "tests/test_pages_workflow_boundary",

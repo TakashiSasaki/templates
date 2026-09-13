@@ -24,6 +24,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: publication-freshness-${{ (github.event.action == 'labeled' && github.event.label.name != 'ci/full-qualification' && github.event.label.name != 'ci/full-site-verification') && format('unrelated-label-{0}', github.run_id) || github.ref }}
@@ -187,10 +188,12 @@ jobs:
     needs: resolve
     uses: ./.github/workflows/build-pages.yml
     with:
+      reuse_pr_build: true
       site_ref: ${{ needs.resolve.outputs.site_revision }}
       composition_ref: ${{ needs.resolve.outputs.composition_head }}
     permissions:
       contents: read
+      actions: read
 
   report:
     if: ${{ always() && github.repository == 'TakashiSasaki/templates' && needs.resolve.result == 'success' }}
