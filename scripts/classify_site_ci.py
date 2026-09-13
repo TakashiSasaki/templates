@@ -405,7 +405,21 @@ def classify_paths(
 ) -> ClassificationDecision:
     normalized = tuple(normalize_path(p) for p in paths)
     if not normalized:
-        raise ClassificationError("at least one changed path is required")
+        return ClassificationDecision(
+            core_required=False,
+            build_required=False,
+            browser_required=False,
+            pwa_required=False,
+            reference_consumer_required=False,
+            cross_authority_required=False,
+            publication_required=False,
+            full_required=False,
+            risk_class="empty",
+            freshness_candidate_required=False,
+            reason="no changed paths",
+            changed_count=0,
+            requiring_paths=(),
+        )
 
     changed_count = len(normalized)
 

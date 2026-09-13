@@ -104,8 +104,8 @@ class SiteBrowserAcceptanceClassifierTests(unittest.TestCase):
                     normalize_path(path)
 
     def test_empty_change_set_fails_closed(self) -> None:
-        with self.assertRaisesRegex(ClassificationError, "at least one changed path"):
-            classify_paths([])
+        decision = classify_paths([])
+        self.assertEqual(decision[1], "no changed paths")
 
     def test_outputs_are_stable_and_machine_readable(self) -> None:
         output = io.StringIO()
@@ -187,7 +187,7 @@ class SiteBrowserAcceptanceClassifierTests(unittest.TestCase):
                 output.read_text(encoding="utf-8").splitlines(),
             )
 
-    def test_cli_rejects_empty_changed_path_file(self) -> None:
+    def test_cli_accepts_empty_changed_path_file(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
             root = Path(tempdir)
             changed = root / "changed.txt"
@@ -210,9 +210,10 @@ class SiteBrowserAcceptanceClassifierTests(unittest.TestCase):
                 check=False,
             )
 
-            self.assertNotEqual(0, result.returncode)
-            self.assertIn("classification failed", result.stderr)
-            self.assertFalse(output.exists())
+            self.assertEqual(0, result.returncode)
+
+            self.assertTrue(output.exists())
+            self.assertIn("reason=no changed paths", output.read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":
