@@ -254,3 +254,23 @@ that build does not itself require Chrome. The reference browser job requires
 Browser/PWA harness changes require their own runtime coverage. Unknown paths,
 CI controls, and either full-qualification label still escalate all capabilities.
 A skipped browser job is non-applicable evidence, never a browser pass.
+
+`ci/browser` explicitly requests the Site build and all Site browser/PWA families,
+including reference and Playground browser acceptance. It does not request the
+unrelated full cross-authority/freshness suites. `ci/full-site-verification` and
+`ci/full-qualification` retain all suites. Labels are sticky on subsequent heads;
+unrelated label events cannot cancel qualification. A base classifier predating
+`--force-browser` conservatively escalates that request to full qualification.
+
+Playground Node/explainability tests have independent `playground_required`
+applicability (browser or provider integration changes and Playground test inputs).
+Node-only test edits do not launch Chrome. Interactive Playground Markdown is
+runtime markup and remains browser-sensitive. The full verifier separately requires
+`projection explanations` and `Playground browser acceptance`; either missing,
+skipped, stale, or failing suite blocks full qualification.
+
+The daily/manual `Build documentation artifact` route exercises the complete Site
+mobile, search, and PWA browser checks against one exact Site/locked-provider build.
+It complements the existing daily current-Composition browser safety net, which
+checks provider authority rather than the assembled Site. Manual mobile visual
+regression remains manual-only. Ordinary docs changes still run cheap checks.

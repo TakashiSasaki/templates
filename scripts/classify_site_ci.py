@@ -20,7 +20,7 @@ from __future__ import annotations
 import argparse
 import sys
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import TextIO
 
@@ -104,6 +104,7 @@ CORE_ONLY_PREFIXES: tuple[str, ...] = ()
 # Browser, visual layout, CSS, JS, and search-sensitive surfaces.
 BROWSER_EXACT_PATHS = frozenset(
     {
+        "docs/composition-playground.md",
         "scripts/check_reference_website.py",
         "zensical.template.toml",
         "requirements-visual.txt",
@@ -132,7 +133,6 @@ BROWSER_PREFIXES = (
     "tests/test_mobile_",
     "tests/test_search_",
     "tests/test_system_chrome_",
-    "tests/composition-playground",
 )
 
 # Known site build and generator surfaces.
@@ -300,6 +300,7 @@ class ClassificationDecision:
     requiring_paths: tuple[str, ...]
     freshness_candidate_required: bool = True
     coexistence_required: bool = False
+    playground_required: bool = False
 
     @property
     def required(self) -> bool:
@@ -339,7 +340,7 @@ def is_observability_path(path: str) -> bool:
 
 
 def is_doc_path(path: str) -> bool:
-    if is_publication_path(path) or is_cross_authority_path(path):
+    if is_publication_path(path) or is_cross_authority_path(path) or is_browser_path(path):
         return False
     return path in DOC_EXACT_PATHS or (
         any(path.startswith(prefix) for prefix in DOC_PREFIXES)
@@ -356,7 +357,7 @@ def is_pwa_path(path: str) -> bool:
 def is_browser_path(path: str) -> bool:
     return path in BROWSER_EXACT_PATHS or any(
         path.startswith(prefix) for prefix in BROWSER_PREFIXES
-    ) or path.endswith(".test.mjs")
+    )
 
 
 def is_cross_authority_path(path: str) -> bool:
@@ -378,7 +379,7 @@ def is_reference_consumer_path(path: str) -> bool:
 
 
 def is_core_only_path(path: str) -> bool:
-    return path in CORE_ONLY_EXACT_PATHS or any(
+    return path.endswith(".test.mjs") or path in CORE_ONLY_EXACT_PATHS or any(
         path.startswith(prefix) for prefix in CORE_ONLY_PREFIXES
     )
 
@@ -400,7 +401,25 @@ def is_coexistence_path(path: str) -> bool:
     )
 
 
-def classify_paths(
+def classify_paths(paths: Iterable[str], *, force_full: bool = False,
+                   force_browser: bool = False) -> ClassificationDecision:
+    paths = tuple(paths)
+    decision = _classify_paths(paths, force_full=force_full)
+    playground = decision.browser_required or decision.cross_authority_required or any(
+        normalize_path(p).startswith(("tests/composition-playground", "tests/fixtures/composition-playground"))
+        for p in paths
+    )
+    decision = replace(decision, playground_required=playground)
+    if force_browser and not decision.full_required:
+        decision = replace(
+            decision, build_required=True, browser_required=True, pwa_required=True,
+            reference_consumer_required=True, playground_required=True,
+            reason="explicit browser qualification requested",
+        )
+    return decision
+
+
+def _classify_paths(
     paths: Iterable[str],
     *,
     force_full: bool = False,
@@ -609,6 +628,7 @@ def write_outputs(output: TextIO, decision: ClassificationDecision) -> None:
     def b2s(val: bool) -> str:
         return "true" if val else "false"
 
+    output.write(f"playground_required={b2s(decision.playground_required)}\n")
     output.write(f"core_required={b2s(decision.core_required)}\n")
     output.write(f"build_required={b2s(decision.build_required)}\n")
     output.write(f"browser_required={b2s(decision.browser_required)}\n")
@@ -639,6 +659,7 @@ def parse_args() -> argparse.Namespace:
         type=lambda v: str(v).lower() in {"true", "1", "yes"},
         default=False,
     )
+    parser.add_argument("--force-browser", type=lambda v: str(v).lower() in {"true", "1", "yes"}, default=False)
     return parser.parse_args()
 
 
@@ -646,7 +667,7 @@ def main() -> int:
     args = parse_args()
     try:
         paths = args.changed_paths.read_text(encoding="utf-8").splitlines()
-        decision = classify_paths(paths, force_full=args.force_full)
+        decision = classify_paths(paths, force_full=args.force_full, force_browser=args.force_browser)
         with args.output.open("a", encoding="utf-8") as output:
             write_outputs(output, decision)
     except (OSError, UnicodeError, ClassificationError) as exc:

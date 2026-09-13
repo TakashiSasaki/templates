@@ -156,7 +156,13 @@ REQUIRED_SUITES: list[RequiredSuite] = [
         key="playground_explain",
         description="Site Composition Playground explainability",
         workflow_path=".github/workflows/site-composition-playground-explain.yml",
-        job_name="projection explanations and browser acceptance",
+        job_name="projection explanations",
+    ),
+    RequiredSuite(
+        key="playground_browser",
+        description="Site Composition Playground browser acceptance",
+        workflow_path=".github/workflows/site-composition-playground-explain.yml",
+        job_name="Playground browser acceptance",
     ),
     RequiredSuite(
         key="validate_website",
