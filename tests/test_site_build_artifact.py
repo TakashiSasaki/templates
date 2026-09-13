@@ -53,7 +53,7 @@ class BuildIdentityTests(unittest.TestCase):
     def test_every_material_input_changes_identity(self):
         original = inputs()
         for key, value in dict(site='d'*40, composition='d'*40, policy='d'*40,
-                               repository='other/templates', workflow=b'changed', staging='candidate',
+                               repository='other/templates', workflow=b'changed', staging='candidate', staging_ids='one,two',
                                deployment_timestamp='timestamp', public_url='https://example.com/', runtime='new runner').items():
             with self.subTest(key=key):
                 self.assertNotEqual(artifact.identity_key(original), artifact.identity_key(inputs(**{key: value})))
@@ -68,7 +68,7 @@ class BuildIdentityTests(unittest.TestCase):
         expected = inputs()
         locked = dict(composition='b'*40, policy='c'*40)
         self.assertTrue(artifact.reuse_applicable(expected, locked, requested=True, event='pull_request'))
-        for key, value in [('composition','d'*40), ('policy','d'*40), ('staging','candidate'), ('deployment_timestamp','now')]:
+        for key, value in [('composition','d'*40), ('policy','d'*40), ('staging','candidate'), ('staging_ids','one,two'), ('deployment_timestamp','now')]:
             with self.subTest(key=key):
                 self.assertFalse(artifact.reuse_applicable(inputs(**{key: value}), locked, requested=True, event='pull_request'))
         self.assertFalse(artifact.reuse_applicable(expected, locked, requested=True, event='schedule'))

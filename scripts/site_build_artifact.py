@@ -41,7 +41,7 @@ def revision(root: Path) -> str:
 
 
 def identity(*, repository: str, site: str, composition: str, policy: str,
-             workflow: bytes, staging: str = '', deployment_timestamp: str = '',
+             workflow: bytes, staging: str = '', staging_ids: str = '', deployment_timestamp: str = '',
              public_url: str = 'https://templates.moukaeritai.work/',
              runtime: str = '') -> dict:
     for value in (site, composition, policy):
@@ -51,7 +51,7 @@ def identity(*, repository: str, site: str, composition: str, policy: str,
         raise ArtifactError('invalid repository')
     return dict(schema_version=1, repository=repository, site=site,
                 composition=composition, policy=policy,
-                workflow_sha256=digest(workflow), staging=staging,
+                workflow_sha256=digest(workflow), staging=staging, staging_ids=staging_ids,
                 deployment_timestamp=deployment_timestamp, public_url=public_url,
                 runtime=runtime)
 
@@ -217,7 +217,7 @@ def reuse_applicable(expected: dict, locked: dict, *, requested: bool, event: st
     return (requested and event == 'pull_request'
             and expected['composition'] == locked['composition']
             and expected['policy'] == locked['policy']
-            and not expected['staging'] and not expected['deployment_timestamp'])
+            and not expected['staging'] and not expected['staging_ids'] and not expected['deployment_timestamp'])
 
 
 def main() -> int:
@@ -232,6 +232,7 @@ def main() -> int:
     expected = identity(repository=os.environ['GITHUB_REPOSITORY'], site=revision(args.site_root),
                         composition=revision(Path('composition-source')), policy=revision(Path('policy-source')),
                         workflow=args.workflow_file.read_bytes(), staging=os.environ.get('STAGING_ID', ''),
+                        staging_ids=os.environ.get('STAGING_IDS', ''),
                         deployment_timestamp=os.environ.get('DEPLOYMENT_TIMESTAMP', ''),
                         public_url=os.environ['PUBLIC_SITE_URL'], runtime=runtime)
     args.identity_file.write_text(json.dumps({'inputs': expected, 'identity': identity_key(expected)}, sort_keys=True) + '\n')

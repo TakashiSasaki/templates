@@ -287,7 +287,7 @@ names. Reuse qualifies assembly; each applicable browser consumer still executes
 
 `ci-build-inputs.json` binds the full Site, Composition and Policy SHAs, repository,
 SHA-256 of the **executed** build workflow (including PR base changes), canonical
-URL, staging ID, deployment timestamp, and Python/runner image identity. Site SHA
+URL, singular and ordered plural staging IDs, deployment timestamp, and Python/runner image identity. Site SHA
 also binds consumer toolchains, requirements and publication/configuration files.
 Provider histories are only checked out, never combined. Inputs are resolved
 before reuse. The helper verifies the canonical workflow, same PR/repository/head,
@@ -306,7 +306,7 @@ immutable producer run/artifact/digest evidence.
 
 Freshness snapshots **current Composition HEAD** and retains **locked Policy**.
 Only equality with the normal PR's resolved inputs permits reuse. A different
-Composition revision, Policy override, explicit staging ID or deployment timestamp
+Composition revision, Policy override, explicit singular/plural staging IDs or deployment timestamp
 gets an independent candidate build; freshness still reports lock/head divergence
 and never advances the reviewed lock. Concurrent work in the audience publication
 staging stack must preserve this comparison when integrating its staging changes.
