@@ -21,8 +21,16 @@ jobs:
         with:
           ref: feat/site-exact-build-reuse
           fetch-depth: 0
+      - name: Normalize cumulative test anchors
+        run: |
+          python -c 'from pathlib import Path; p=Path("tests/test_composition_playground_cross_authority_workflow.py"); s=p.read_text(); old="    \"feat/site-*\",\n    \"site-*\",\n    \"perf/site-*\",\n}"; new="    \"feat/site-*\",\n}"; assert old in s; p.write_text(s.replace(old,new,1))'
+          python -c 'from pathlib import Path; p=Path("tests/test_publication_freshness_workflow.py"); s=p.read_text(); old="[\"site\", \"feat/site-*\", \"site-*\", \"perf/site-*\", \"codex/site-composition-playground-v1-shell\"]"; new="[\"site\", \"feat/site-*\", \"codex/site-composition-playground-v1-shell\"]"; assert old in s; p.write_text(s.replace(old,new,1))'
       - name: Apply semantic integration
         run: python .github/integration/finalize-current-site-ci-stack-integration.py
+      - name: Restore cumulative test anchors
+        run: |
+          python -c 'from pathlib import Path; p=Path("tests/test_composition_playground_cross_authority_workflow.py"); s=p.read_text(); old="    \"feat/site-*\",\n    \"site-composition-audience-publication-staging\",\n}"; new="    \"feat/site-*\",\n    \"site-composition-audience-publication-staging\",\n    \"site-*\",\n    \"perf/site-*\",\n}"; assert old in s; p.write_text(s.replace(old,new,1))'
+          python -c 'from pathlib import Path; p=Path("tests/test_publication_freshness_workflow.py"); s=p.read_text(); old="[\"site\", \"feat/site-*\", \"site-composition-audience-publication-staging\", \"codex/site-composition-playground-v1-shell\"]"; new="[\"site\", \"feat/site-*\", \"site-composition-audience-publication-staging\", \"site-*\", \"perf/site-*\", \"codex/site-composition-playground-v1-shell\"]"; assert old in s; p.write_text(s.replace(old,new,1))'
       - name: Commit integrated tree
         run: |
           rm .github/workflows/finalize-current-site-ci-stack-integration.yml
