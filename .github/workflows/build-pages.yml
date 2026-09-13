@@ -5,6 +5,7 @@ on:
     branches:
       - site
       - 'feat/site-*'
+      - site-composition-audience-publication-staging
     types:
       - opened
       - synchronize
@@ -121,29 +122,43 @@ jobs:
             --publication composition=composition-source \
             --publication policy=policy-source
 
-      - name: Run site assembly tests
-        run: PYTHONPATH=site-source python -m unittest discover --start-directory site-source/tests --verbose
-
       - name: Materialize staged publication mapping
         if: ${{ inputs.publication_staging_id != '' || inputs.publication_staging_ids != '' }}
         env:
           PUBLICATION_STAGING_ID: ${{ inputs.publication_staging_id }}
           PUBLICATION_STAGING_IDS: ${{ inputs.publication_staging_ids }}
         run: |
+          if [ -n "$PUBLICATION_STAGING_ID" ] && [ -n "$PUBLICATION_STAGING_IDS" ]; then
+            echo "Select publication_staging_id or publication_staging_ids, not both" >&2
+            exit 1
+          fi
           staging_args=()
           if [ -n "$PUBLICATION_STAGING_IDS" ]; then
             staging_args+=(--staging-ids "$PUBLICATION_STAGING_IDS")
           else
             staging_args+=(--staging-id "$PUBLICATION_STAGING_ID")
           fi
-          python site-source/scripts/materialize_publication_staging.py \
+          staged_root="$(python site-source/scripts/materialize_publication_staging.py \
             --site-root site-source \
-            "${staging_args[@]}"
+            "${staging_args[@]}")"
+          case "$staged_root" in
+            "$GITHUB_WORKSPACE"/*) ;;
+            *)
+              echo "Staging materializer returned an unexpected root: $staged_root" >&2
+              exit 1
+              ;;
+          esac
+          test -f "$staged_root/site-manifest.json"
+          test -f "$staged_root/reader-navigation-locales.json"
+          echo "SITE_PUBLICATION_ROOT=$staged_root" >> "$GITHUB_ENV"
+
+      - name: Run site assembly tests
+        run: PYTHONPATH=site-source python -m unittest discover --start-directory site-source/tests --verbose
 
       - name: Prepare repository-tree publication
         run: |
           python site-source/scripts/prepare_repository_tree_publication.py \
-            --site-root site-source \
+            --site-root "${SITE_PUBLICATION_ROOT:-site-source}" \
             --output-root site-publication
 
       - name: Assemble the documentation project
@@ -158,6 +173,7 @@ jobs:
       - name: Publish declared translations
         run: |
           python site-source/scripts/publish_provider_translations.py \
+            --reader-navigation-locales "${SITE_PUBLICATION_ROOT:-site-source}/reader-navigation-locales.json" \
             --publication site=site-publication \
             --publication composition=composition-source \
             --publication policy=policy-source \
@@ -630,7 +646,6 @@ jobs:
             echo "- build_required: \`$BUILD_REQUIRED\`"
             echo "- reason: \`$BROWSER_REASON\`"
           } >> "$GITHUB_STEP_SUMMARY"
-
 
       - name: Check out proposed Site revision
         if: ${{ needs.classify_browser.outputs.required == 'true' }}
