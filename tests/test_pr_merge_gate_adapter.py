@@ -72,8 +72,7 @@ def test_adapter_keeps_provider_mechanics_outside_atomic_policy() -> None:
     )
 
     adapter_terms = (
-        "GitHub connector",
-        "expected_head_sha",
+        "GitHub REST merge API",
         "check-run",
         "check-suite",
         "CI_DISCOVERY_MIN_OBSERVATION_MINUTES = 10",
@@ -81,6 +80,13 @@ def test_adapter_keeps_provider_mechanics_outside_atomic_policy() -> None:
     for term in adapter_terms:
         assert term in adapter
         assert term not in policy_corpus
+
+
+def test_adapter_does_not_require_a_specific_github_transport() -> None:
+    text = SKILL.read_text(encoding="utf-8")
+    assert "GitHub connector" not in text
+    assert "any other execution surface must provide an equivalent head guard" in text
+    assert "without an equivalent immutable-head precondition" in text
 
 
 def test_adapter_does_not_embed_transient_reviewer_triggers() -> None:
@@ -216,7 +222,7 @@ def test_adapter_requires_exact_head_review_and_guarded_merge() -> None:
             "absence of findings on one surface is not completed review evidence"
         ),
         "current pr head equals the exact accepted head",
-        "never omit `expected_head_sha`",
+        "never perform an agent merge in this repository without an equivalent immutable-head precondition",
         "do not retry blindly",
     ):
         assert invariant in text
