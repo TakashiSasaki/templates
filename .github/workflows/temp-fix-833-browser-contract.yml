@@ -27,8 +27,9 @@ jobs:
           from pathlib import Path
           path = Path('tests/test_pages_workflow_boundary.py')
           text = path.read_text(encoding='utf-8')
-          old = '            "ref: ${{ github.event.pull_request.head.sha }}",\n'
-          new = '            "ref: ${{ github.event.pull_request.head.sha || github.sha }}",\n'
+          opening = '$' + '{{'
+          old = '            "ref: ' + opening + ' github.event.pull_request.head.sha }}",\n'
+          new = '            "ref: ' + opening + ' github.event.pull_request.head.sha || github.sha }}",\n'
           if text.count(old) != 1:
               raise SystemExit(f'expected exactly one stale assertion, found {text.count(old)}')
           path.write_text(text.replace(old, new), encoding='utf-8')
