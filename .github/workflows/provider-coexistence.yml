@@ -5,6 +5,7 @@ on:
     branches:
       - site
       - 'feat/site-*'
+      - site-composition-audience-publication-staging
       - 'site-*'
       - 'perf/site-*'
       - codex/site-composition-playground-v1-shell
