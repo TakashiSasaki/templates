@@ -10,6 +10,8 @@ EXPECTED_BASES = {
     "site",
     "feat/site-*",
     "site-composition-audience-publication-staging",
+    "site-*",
+    "perf/site-*",
 }
 EXPECTED_COMPOSITION_PROVIDER = "6b7d764c963f957c6bee43c0c1d42eb03970ec8f"
 

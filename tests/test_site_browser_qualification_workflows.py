@@ -47,3 +47,12 @@ class BrowserWorkflowTests(unittest.TestCase):
         self.assertIn('workflow_dispatch', events)
         self.assertIn('schedule', workflow('composition-real-browser.yml')[True])
         self.assertEqual(set(workflow('mobile-visual-regression.yml')[True]), {'workflow_dispatch'})
+
+class FullStackTriggerTests(unittest.TestCase):
+    def test_all_filtered_qualification_workflows_cover_canonical_bases(self):
+        canonical=set(workflow('build-pages.yml')[True]['pull_request']['branches'])
+        for suite in REQUIRED_SUITES:
+            events=workflow(suite.workflow_path.rsplit('/',1)[1])[True]['pull_request']
+            if events and 'branches' in events:
+                self.assertEqual(canonical,set(events['branches']),suite.workflow_path)
+        self.assertIn('labeled',workflow('site-composition-materialization-cross-authority.yml')[True]['pull_request']['types'])

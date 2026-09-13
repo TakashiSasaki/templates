@@ -1,0 +1,84 @@
+name: Deploy documentation from site
+
+# Keep this workflow source-controlled so each diagnostic retry uses a new commit SHA.
+on:
+  push:
+    branches:
+      - site
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  PUBLIC_SITE_URL: https://templates.moukaeritai.work/
+
+concurrency:
+  group: documentation-deployment
+  cancel-in-progress: true
+
+jobs:
+  deployment_metadata:
+    if: >-
+      github.repository == 'TakashiSasaki/templates' &&
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/site'
+    runs-on: ubuntu-latest
+    outputs:
+      deployment_timestamp: ${{ steps.timestamp.outputs.deployment_timestamp }}
+
+    steps:
+      - name: Capture deployment timestamp
+        id: timestamp
+        run: |
+          echo "deployment_timestamp=$(TZ=Asia/Tokyo date '+%Y-%m-%d %H:%M:%S JST')" \
+            >> "$GITHUB_OUTPUT"
+
+  build:
+    if: >-
+      github.repository == 'TakashiSasaki/templates' &&
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/site'
+    needs: deployment_metadata
+    uses: ./.github/workflows/build-pages.yml
+    with:
+      site_ref: ${{ github.sha }}
+      deployment_timestamp: ${{ needs.deployment_metadata.outputs.deployment_timestamp }}
+    permissions:
+      contents: read
+      actions: read
+
+  deploy:
+    if: >-
+      github.repository == 'TakashiSasaki/templates' &&
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/site'
+    needs: build
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Configure GitHub Pages
+        id: pages
+        uses: actions/configure-pages@v6
+
+      - name: Verify configured public URL
+        env:
+          ACTUAL_BASE_URL: ${{ steps.pages.outputs.base_url }}
+          ACTUAL_HOST: ${{ steps.pages.outputs.host }}
+          ACTUAL_BASE_PATH: ${{ steps.pages.outputs.base_path }}
+        run: |
+          expected_base_url="${PUBLIC_SITE_URL%/}"
+          expected_host="${expected_base_url#https://}"
+          test "$ACTUAL_BASE_URL" = "$expected_base_url"
+          test "$ACTUAL_HOST" = "$expected_host"
+          test -z "$ACTUAL_BASE_PATH"
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5

@@ -1,0 +1,19 @@
+# Complete Site build dependency closure; regenerate in an isolated environment
+# from requirements.txt, review all version changes, and run pip check.
+attrs==26.1.0
+click==8.5.0
+deepmerge==3.0.1
+idna==3.18
+Jinja2==3.1.6
+jsonschema==4.26.0
+jsonschema-specifications==2025.9.1
+Markdown==3.10.3
+MarkupSafe==3.0.3
+Pygments==2.20.0
+pymdown-extensions==11.0.2
+PyYAML==6.0.3
+referencing==0.37.0
+rpds-py==2026.6.3
+tomli==2.4.1
+typing_extensions==4.16.0
+zensical==0.0.57

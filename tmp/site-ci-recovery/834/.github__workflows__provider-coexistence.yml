@@ -1,0 +1,232 @@
+name: Provider coexistence integration
+
+on:
+  pull_request:
+    branches:
+      - site
+      - 'feat/site-*'
+      - site-composition-audience-publication-staging
+      - 'site-*'
+      - 'perf/site-*'
+      - codex/site-composition-playground-v1-shell
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - labeled
+
+permissions:
+  contents: read
+
+concurrency:
+  group: provider-coexistence-${{ (github.event.action == 'labeled' && github.event.label.name != 'ci/full-qualification' && github.event.label.name != 'ci/full-site-verification') && format('unrelated-label-{0}', github.run_id) || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  classify:
+    name: Classify provider coexistence scope
+    if: >-
+      github.repository == 'TakashiSasaki/templates' &&
+      (github.event_name != 'pull_request' ||
+       github.event.action != 'labeled' ||
+       github.event.label.name == 'ci/full-qualification' ||
+       github.event.label.name == 'ci/full-site-verification')
+    runs-on: ubuntu-24.04
+    outputs:
+      required: ${{ steps.classify.outputs.required }}
+      matched_count: ${{ steps.classify.outputs.matched_count }}
+      matched_paths: ${{ steps.classify.outputs.matched_paths }}
+
+    steps:
+      - name: Check out exact Site candidate
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12.13'
+
+      - name: Collect exact pull-request changed paths
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          git diff --name-only --no-renames "$BASE_SHA" "$HEAD_SHA" > "$RUNNER_TEMP/provider-coexistence-paths.txt"
+          test -s "$RUNNER_TEMP/provider-coexistence-paths.txt"
+
+      - name: Classify provider coexistence scope
+        id: classify
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          FORCE_FULL_REQUESTED: ${{ github.event_name == 'push' || (github.event_name == 'pull_request' && (contains(github.event.pull_request.labels.*.name, 'ci/full-qualification') || contains(github.event.pull_request.labels.*.name, 'ci/full-site-verification'))) }}
+        run: |
+          set -euo pipefail
+          classifier_dir="$RUNNER_TEMP/site-ci-classifier-authority"
+          rm -rf "$classifier_dir"
+          mkdir -p "$classifier_dir"
+          force_full="${FORCE_FULL_REQUESTED:-false}"
+
+          if [ "$force_full" = "true" ]; then
+            echo "required=true" >> "$GITHUB_OUTPUT"
+            echo "matched_count=all" >> "$GITHUB_OUTPUT"
+            echo "matched_paths=forced-full" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Evaluate unified Site CI classifier for automatic full qualification or cross-authority escalation
+          if git show "$BASE_SHA:scripts/classify_site_ci.py" > "$classifier_dir/classify_site_ci.py" 2>/dev/null; then
+            site_output="$RUNNER_TEMP/site-ci-output.txt"
+            python3 -I "$classifier_dir/classify_site_ci.py" \
+              --changed-paths "$RUNNER_TEMP/provider-coexistence-paths.txt" \
+              --force-full "$force_full" \
+              --output "$site_output"
+            full_req="$(grep '^full_required=' "$site_output" | cut -d= -f2 || echo "false")"
+            cross_req="$(grep '^cross_authority_required=' "$site_output" | cut -d= -f2 || echo "false")"
+            coex_req="$(grep '^coexistence_required=' "$site_output" | cut -d= -f2 || echo "")"
+            if [ "$full_req" = "true" ] || [ "$cross_req" = "true" ] || [ "$coex_req" = "true" ]; then
+              echo "required=true" >> "$GITHUB_OUTPUT"
+              echo "matched_count=all" >> "$GITHUB_OUTPUT"
+              echo "matched_paths=automatic-full-qualification" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+
+          if git show "$BASE_SHA:scripts/classify_provider_coexistence.py" > "$classifier_dir/classify_provider_coexistence.py" 2>/dev/null; then
+            python -I "$classifier_dir/classify_provider_coexistence.py" \
+              --changed-paths "$RUNNER_TEMP/provider-coexistence-paths.txt" \
+              --output "$GITHUB_OUTPUT"
+          else
+            echo "required=true" >> "$GITHUB_OUTPUT"
+            echo "matched_count=all" >> "$GITHUB_OUTPUT"
+            echo "matched_paths=base-unavailable-full" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Report classification
+        env:
+          REQUIRED: ${{ steps.classify.outputs.required }}
+          MATCHED_COUNT: ${{ steps.classify.outputs.matched_count }}
+          MATCHED_PATHS: ${{ steps.classify.outputs.matched_paths }}
+        run: |
+          {
+            echo '## Provider coexistence scope'
+            echo
+            echo "- required: \`$REQUIRED\`"
+            echo "- matched paths: \`$MATCHED_COUNT\`"
+            echo "- inputs: \`$MATCHED_PATHS\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  coexistence:
+    name: Validate exact provider coexistence
+    if: >-
+      github.repository == 'TakashiSasaki/templates' &&
+      needs.classify.outputs.required == 'true'
+    needs: classify
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Check out Site implementation
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: site-source
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12.13'
+
+      - name: Resolve exact provider revisions
+        id: publication_refs
+        run: |
+          python site-source/scripts/resolve_publication_sources.py \
+            --lock site-source/publication-sources.json \
+            --output "$GITHUB_OUTPUT"
+
+      - name: Check out exact Composition provider
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ steps.publication_refs.outputs.composition }}
+          path: composition-source
+          fetch-depth: 0
+
+      - name: Check out exact Policy provider
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ steps.publication_refs.outputs.policy }}
+          path: policy-source
+          fetch-depth: 0
+
+      - name: Create isolated Composition environment
+        run: |
+          python -I -m venv --clear .venv-composition
+          .venv-composition/bin/python -m pip install \
+            --isolated \
+            --disable-pip-version-check \
+            --no-deps \
+            --requirement composition-source/requirements-dev.lock
+
+      - name: Create isolated Policy environment
+        run: |
+          python -I -m venv --clear .venv-policy
+          .venv-policy/bin/python -m pip install \
+            --isolated \
+            --disable-pip-version-check \
+            --no-deps \
+            --requirement policy-source/requirements-ci.lock
+          .venv-policy/bin/python -m pip install \
+            --isolated \
+            --disable-pip-version-check \
+            --no-deps \
+            --no-build-isolation \
+            --editable policy-source
+          .venv-policy/bin/python -m pip check
+
+      - name: Validate exact-revision Policy–Composition coexistence
+        run: |
+          python site-source/scripts/validate_provider_coexistence.py \
+            --composition-root composition-source \
+            --composition-python "$PWD/.venv-composition/bin/python" \
+            --composition-revision "${{ steps.publication_refs.outputs.composition }}" \
+            --policy-root policy-source \
+            --policy-cli "$PWD/.venv-policy/bin/agent-policy" \
+            --policy-revision "${{ steps.publication_refs.outputs.policy }}"
+
+  gate:
+    name: Provider coexistence gate
+    if: >-
+      always() &&
+      github.repository == 'TakashiSasaki/templates' &&
+      (github.event_name != 'pull_request' ||
+       github.event.action != 'labeled' ||
+       github.event.label.name == 'ci/full-qualification' ||
+       github.event.label.name == 'ci/full-site-verification')
+    needs:
+      - classify
+      - coexistence
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Require coherent classification and validation result
+        env:
+          CLASSIFY_RESULT: ${{ needs.classify.result }}
+          REQUIRED: ${{ needs.classify.outputs.required }}
+          COEXISTENCE_RESULT: ${{ needs.coexistence.result }}
+        run: |
+          test "$CLASSIFY_RESULT" = success
+          case "$REQUIRED" in
+            true)
+              test "$COEXISTENCE_RESULT" = success
+              ;;
+            false)
+              test "$COEXISTENCE_RESULT" = skipped
+              ;;
+            *)
+              echo "::error::Unexpected provider coexistence classification: $REQUIRED"
+              exit 1
+              ;;
+          esac
