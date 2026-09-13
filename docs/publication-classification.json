@@ -26,6 +26,10 @@
       "reason": "Stage-specific authority-migration provenance is retained for Composition authority maintenance but is redundant with the consolidated migration history and immutable PR record, so it is not part of the reader-facing publication."
     },
     {
+      "source": "docs/provider-maintenance.md",
+      "reason": "The canonical Composition provider-maintainer overview is prepared for a coordinated catalog addition; until a Site-owned staging mapping exists, it remains outside the active reader publication surface to preserve exact provider-catalog coverage."
+    },
+    {
       "source": "examples/README.md",
       "reason": "Repository-local executable fixture guidance documents non-production examples and is intentionally outside the supported reader publication surface."
     },
