@@ -14,6 +14,11 @@ LEDGER = ROOT / "contracts/lifecycle-checkpoints.json"
 COMPOSITION_REVISION = "6b7d764c963f957c6bee43c0c1d42eb03970ec8f"
 PLANNING_ID = "composition-audience-publication-promotion"
 PRODUCT_ID = "composition-audience-publication-promotion-product"
+PWA_PATHS = (
+    ROOT / "contracts/pwa-manifest.json",
+    ROOT / "contracts/pwa-offline.json",
+    ROOT / "contracts/pwa-update.json",
+)
 NEW_ITEMS = [
     ("document-metadata", "document_metadata", "page-metadata", "composition-publication-boundary", "composition-provider-maintenance"),
     ("document-metadata", "document_metadata", "page-metadata", "composition-publication-boundary", "composition-installer-release"),
@@ -22,15 +27,9 @@ NEW_ITEMS = [
 ]
 
 
-def run(*args: str, capture: bool = False) -> subprocess.CompletedProcess[str]:
+def run(*args: str) -> subprocess.CompletedProcess[str]:
     print("+", " ".join(args), flush=True)
-    return subprocess.run(
-        args,
-        cwd=ROOT,
-        text=True,
-        capture_output=capture,
-        check=True,
-    )
+    return subprocess.run(args, cwd=ROOT, text=True, check=True)
 
 
 def validate(label: str) -> None:
@@ -51,6 +50,10 @@ def validate(label: str) -> None:
     payload = json.loads(completed.stdout)
     if payload.get("status") != "valid":
         raise SystemExit(f"canonical validation returned non-valid status during {label}: {payload.get('status')!r}")
+
+
+def write_json(path: Path, value: object) -> None:
+    path.write_text(json.dumps(value, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
 
 def expanded_product(source: dict) -> dict:
@@ -97,51 +100,45 @@ def expanded_product(source: dict) -> dict:
     return product
 
 
-def planning_from_baseline(baseline: dict, product: dict) -> dict:
-    requirements = {req["id"]: copy.deepcopy(req) for req in baseline["requirements"]}
-    product_requirements = {req["id"]: req for req in product["requirements"]}
-    for prefix, _contract_id, _item_kind, _template_item, item_id in NEW_ITEMS:
-        new_id = f"{prefix}-{item_id}"
-        requirements[new_id] = copy.deepcopy(product_requirements[new_id])
-    planning = copy.deepcopy(baseline)
+def planning_from_product(product: dict) -> dict:
+    planning = copy.deepcopy(product)
     planning["mode"] = "planning"
     planning["commands"] = []
     planning["releaseGates"] = []
     planning["records"] = []
-    projected = []
-    for requirement in sorted(requirements.values(), key=lambda item: item["id"]):
-        projected.append(
-            {
-                "id": requirement["id"],
-                "description": requirement["description"],
-                "targets": requirement["targets"],
-                "recordIds": [],
-                "requiredPositiveProofKinds": requirement["requiredPositiveProofKinds"],
-            }
-        )
-    planning["requirements"] = projected
+    planning["requirements"] = [
+        {
+            "id": requirement["id"],
+            "description": requirement["description"],
+            "targets": requirement["targets"],
+            "recordIds": [],
+            "requiredPositiveProofKinds": requirement["requiredPositiveProofKinds"],
+        }
+        for requirement in product["requirements"]
+    ]
     return planning
 
 
-def write_json(path: Path, value: object) -> None:
-    path.write_text(json.dumps(value, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+def set_pwa_mode(mode: str) -> None:
+    for path in PWA_PATHS:
+        contract = json.loads(path.read_text(encoding="utf-8"))
+        current = contract.get("mode")
+        if current not in {"planning", "product"}:
+            raise SystemExit(f"unexpected PWA mode {current!r} in {path.relative_to(ROOT)}")
+        contract["mode"] = mode
+        write_json(path, contract)
 
 
 def main() -> int:
-    head = run("git", "rev-parse", "HEAD", capture=True).stdout.strip()
-    base = run("git", "merge-base", "origin/site", head, capture=True).stdout.strip()
-    print(f"product head={head}\nplanning baseline={base}", flush=True)
-
     original_product = json.loads(EVIDENCE.read_text(encoding="utf-8"))
     product = expanded_product(original_product)
 
-    # A planning checkpoint must describe the pre-promotion product state plus
-    # future requirements. Reconstruct that state transiently; do not commit it.
-    run("git", "checkout", base, "--", ".")
-    baseline = json.loads(EVIDENCE.read_text(encoding="utf-8"))
-    planning = planning_from_baseline(baseline, product)
-    write_json(EVIDENCE, planning)
-    validate("pre-promotion planning state")
+    # The planning snapshot keeps the future Website inventory visible so every
+    # requirement target is a known contract item, while PWA and evidence claims
+    # are explicitly downgraded to planning until implementation records close it.
+    write_json(EVIDENCE, planning_from_product(product))
+    set_pwa_mode("planning")
+    validate("planning contracts and target-bound requirements")
     run(
         sys.executable,
         ".template-composition/checkpoint.py",
@@ -151,12 +148,10 @@ def main() -> int:
         "--source-revision",
         COMPOSITION_REVISION,
     )
-    planning_ledger = LEDGER.read_bytes()
 
-    # Restore the exact #838 product tree, then retain the validated planning
-    # ledger/snapshot and add the concrete evidence for the two promoted pages.
-    run("git", "checkout", head, "--", ".")
-    LEDGER.write_bytes(planning_ledger)
+    # Product closure restores the three PWA contracts and binds the same stable
+    # requirements to concrete positive/negative evidence records.
+    set_pwa_mode("product")
     write_json(EVIDENCE, product)
     validate("promoted product state before product checkpoint")
     run(
