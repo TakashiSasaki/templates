@@ -1,5 +1,9 @@
 # Documentation Site maintenance
 
+For the future reader journey contract and authority-specific publication work,
+read the [audience architecture](docs/architecture/audience/README.md). It is a
+design inventory; current publication catalogs and manifest remain active.
+
 ## Independent self-hosted consumers
 
 Start with `reference-consumer.json` to discover the three separate relationships.

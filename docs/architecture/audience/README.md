@@ -14,9 +14,13 @@ authoritative for what is assembled today.
 3. [Migration matrix](migration-matrix.json): per-document migration decisions,
    current exposure, publication gaps, and exact audited inputs.
 4. [Matrix schema](migration-matrix.schema.json): closed inventory structure.
+5. [Implementation roadmap](implementation-roadmap.md): cross-authority
+   dependencies, publication staging, reproduction, and later acceptance criteria.
+6. [Future candidate scope](future-candidates.json): independent closed set of
+   authority/document identities required by the cross-session handoff.
 
-The implementation roadmap added with the validation layer orders the later
-authority-specific work. Roadmap scheduling never overrides these definitions
+The implementation roadmap orders the later authority-specific work.
+Roadmap scheduling never overrides these definitions
 or a provider's semantic authority. Inconsistencies must be resolved by the
 owning authority before implementation, not silently inferred from a path name.
 
@@ -53,6 +57,22 @@ existing uncataloged maintenance material and a missing Composition maintainer
 overview. Candidate IDs and paths for unwritten material are proposals owned by
 the named authority, not newly assigned provider catalog identities.
 
+The independent candidate scope is an explicit design decision, not generated
+from the matrix rows. Validation requires exact set equality: both missing and
+unexpected candidates fail. Changing the agreed future scope requires a deliberate
+Site architecture change to this declaration, the corresponding matrix decisions,
+and affected roadmap text; removing a row is not a disposition of future work.
+The validator also checks the following summary against the declaration:
+
+<!-- future-candidate-counts -->
+| Authority | Expected candidates |
+| --- | --- |
+| site | 10 |
+| composition | 2 |
+| policy | 4 |
+| Total | 16 |
+<!-- /future-candidate-counts -->
+
 ## Inventory interpretation
 
 `documents[authority][document-id]` is the unique canonical identity. JSON readers
@@ -72,8 +92,21 @@ model. Both journeys link to it through Start here / Maintainer overview.
 
 `provider_action` is `none`, `clarify`, `publish-existing`, or `author-and-publish`.
 It records a requested later action by the semantic owner, never permission for
-Site to edit provider prose. For Site rows it is always `none`; `site_action`
-distinguishes projection alone, clarification, or future publication work.
+Site to edit provider prose. Action ownership applies to every row, including
+future candidates:
+
+| Document authority | `provider_action` | `site_action` |
+| --- | --- | --- |
+| Site | Always `none` | `project`, `clarify`, `publish-existing`, or `author-and-publish`, subject to publication status |
+| Composition or Policy | `none`, `clarify`, `publish-existing`, or `author-and-publish`, subject to publication status | Always `project` |
+
+`clarify` means canonical content clarification by its semantic owner. On external
+rows, `project` covers Site reader mapping/integration only; it never authorizes
+Site to author, clarify, or publish provider-owned canonical source material.
+The existing publication protocol still governs Site assembly of provider content.
+Existing-source candidates require their owner's `publish-existing`; unwritten
+candidates require their owner's `author-and-publish`. These restrictions are
+schema constraints, not a second semantic authority in the validator.
 `site_projection_sufficient` says whether the audited material already permits
 the proposed reader projection without a preceding content/publication change.
 `notes` states the task rationale and any required authority decision.

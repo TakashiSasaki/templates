@@ -29,6 +29,10 @@ The rest of this README documents the repository authority and publication model
 
 ## Repository authority model
 
+The [audience architecture](docs/architecture/audience/README.md) defines the
+future Use templates and Maintain templates reader journeys, the exact-revision
+document inventory, and the cross-authority implementation roadmap.
+
 This repository is also an executable reference consumer: Composition defines
 its own Website product, and Policy governs Site maintenance. Inspect
 [`reference-consumer.json`](reference-consumer.json) and the

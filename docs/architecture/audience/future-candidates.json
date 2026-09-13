@@ -1,0 +1,24 @@
+{
+  "site": [
+    "site-maintenance",
+    "authority-model",
+    "integrated-publication",
+    "publication-staging",
+    "publication-freshness",
+    "runtime-freshness",
+    "glossary-contract",
+    "language-contract",
+    "site-pwa-contract",
+    "ci-performance"
+  ],
+  "composition": [
+    "provider-maintenance",
+    "installer-release"
+  ],
+  "policy": [
+    "contributing",
+    "maintainer-workflow",
+    "adr-review-authority-and-github-runtime-boundary",
+    "adr-review-result-representation-boundary"
+  ]
+}
