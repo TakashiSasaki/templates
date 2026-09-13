@@ -13,13 +13,17 @@ class ReferenceEvidenceCommandTests(unittest.TestCase):
         evidence = json.loads((ROOT / "contracts/implementation-evidence.json").read_text())
         workflow = yaml.safe_load((ROOT / ".github/workflows/reference-consumer.yml").read_text())
         job = workflow["jobs"]["browser"]
-        self.assertNotIn("if", job)
+        self.assertEqual(job["needs"], ["classify", "build"])
+        self.assertIn("needs.classify.outputs.browser_required == 'true'", job["if"])
         for command in evidence["commands"]:
             with self.subTest(command=command["id"]):
                 tokens = shlex.split(command["command"])
                 matches = [step for step in job["steps"] if "run" in step and shlex.split(step["run"]) == tokens]
                 self.assertEqual(len(matches), 1, command["command"])
-                self.assertNotIn("if", matches[0])
+                if "check_reference_pwa.py" in command["command"]:
+                    self.assertIn("needs.classify.outputs.pwa_required == 'true'", matches[0]["if"])
+                else:
+                    self.assertNotIn("if", matches[0])
                 self.assertNotIn("continue-on-error", matches[0])
                 self.assertNotIn("working-directory", matches[0])
                 harness = command["execution"]["harness"]

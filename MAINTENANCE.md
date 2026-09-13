@@ -243,3 +243,14 @@ Generated Markdown, integrated glossary files, browser pages, repository preview
 `.github/workflows/build-pages.yml` is build-only and read-only with respect to repository contents. `.github/workflows/deploy-pages.yml` is the only deployment route and runs only for a push to `site`.
 
 The external `github-pages` environment must allow exactly the `site` branch. Pull requests cannot change this repository/environment setting. Do not broaden it to all branches and do not introduce a second deployment authority.
+
+## Conditional reference qualification
+
+The base-authoritative Site classifier reports reference-consumer, Site-build,
+browser, and PWA applicability independently. Reference declarations run cheap
+Composition/Website validation and obtain a Site build when required; obtaining
+that build does not itself require Chrome. The reference browser job requires
+`browser_required`, and its PWA harness additionally requires `pwa_required`.
+Browser/PWA harness changes require their own runtime coverage. Unknown paths,
+CI controls, and either full-qualification label still escalate all capabilities.
+A skipped browser job is non-applicable evidence, never a browser pass.

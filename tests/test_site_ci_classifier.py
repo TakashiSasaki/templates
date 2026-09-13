@@ -441,6 +441,23 @@ class SiteCIClassifierTests(unittest.TestCase):
         self.assertIn("unknown changed paths: new-top-level-file.xyz", decision.reason)
 
 
+class ReferenceBrowserApplicabilityTests(unittest.TestCase):
+    def test_reference_contract_does_not_imply_browser(self):
+        decision = classify_paths(["scripts/site_website_contract.py"])
+        self.assertTrue(decision.reference_consumer_required)
+        self.assertTrue(decision.build_required)
+        self.assertFalse(decision.browser_required)
+        self.assertFalse(decision.pwa_required)
+
+    def test_reference_harnesses_require_their_runtime(self):
+        for path, pwa in [("scripts/check_reference_website.py", False),
+                          ("scripts/check_reference_pwa.py", True)]:
+            with self.subTest(path=path):
+                decision = classify_paths([path])
+                self.assertTrue(decision.browser_required)
+                self.assertEqual(decision.pwa_required, pwa)
+
+
 if __name__ == "__main__":
     unittest.main()
 

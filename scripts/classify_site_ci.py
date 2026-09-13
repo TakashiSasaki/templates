@@ -75,6 +75,7 @@ DOC_PREFIXES = (
 # PWA-sensitive surfaces.
 PWA_EXACT_PATHS = frozenset(
     {
+        "scripts/check_reference_pwa.py",
         "assets/service-worker.js",
         "assets/javascripts/pwa.js",
         "assets/app.webmanifest",
@@ -103,6 +104,7 @@ CORE_ONLY_PREFIXES: tuple[str, ...] = ()
 # Browser, visual layout, CSS, JS, and search-sensitive surfaces.
 BROWSER_EXACT_PATHS = frozenset(
     {
+        "scripts/check_reference_website.py",
         "zensical.template.toml",
         "requirements-visual.txt",
         "assets/site-chrome-locales.json",
