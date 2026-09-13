@@ -28,12 +28,11 @@ jobs:
         run: |
           python -m pip install --disable-pip-version-check PyYAML==6.0.3
           python -m unittest tests.test_site_browser_qualification_workflows -v
-      - name: Commit semantic recovery and remove transaction workflow
+      - name: Commit semantic recovery
         run: |
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git rm .github/workflows/temp-reapply-833-build-pages.yml
           git add .github/workflows/build-pages.yml
           git commit -m 'Restore #833 build-pages browser qualification semantics'
           git push origin HEAD:feat/site-browser-qualification
