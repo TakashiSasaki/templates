@@ -619,10 +619,17 @@ class PublicationStagingWorkflowTests(unittest.TestCase):
         tests = workflow.index("- name: Run site assembly tests")
         materialize_step = workflow.index("- name: Materialize staged publication mapping")
         prepare = workflow.index("- name: Prepare repository-tree publication")
-        self.assertLess(composition_checkout, tests)
-        self.assertLess(policy_checkout, tests)
-        self.assertLess(tests, materialize_step)
-        self.assertLess(materialize_step, prepare)
+        self.assertLess(composition_checkout, materialize_step)
+        self.assertLess(policy_checkout, materialize_step)
+        self.assertLess(materialize_step, tests)
+        self.assertLess(tests, prepare)
+        self.assertIn('staged_root="$(python site-source/scripts/materialize_publication_staging.py', workflow)
+        self.assertIn('SITE_PUBLICATION_ROOT=$staged_root', workflow)
+        self.assertIn('--site-root "${SITE_PUBLICATION_ROOT:-site-source}"', workflow)
+        self.assertIn(
+            '--reader-navigation-locales "${SITE_PUBLICATION_ROOT:-site-source}/reader-navigation-locales.json"',
+            workflow,
+        )
         self.assertNotIn("publication_staging_id", deploy)
         self.assertNotIn("publication_staging_ids", deploy)
 
