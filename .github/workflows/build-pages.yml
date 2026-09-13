@@ -35,6 +35,11 @@ on:
         required: false
         type: string
         default: ''
+      publication_staging_ids:
+        description: Optional comma-separated ordered Site-owned staged mapping IDs for one non-deploying compatibility build
+        required: false
+        type: string
+        default: ''
       deployment_timestamp:
         description: JST deployment timestamp rendered in the footer; empty for non-deploying builds
         required: false
@@ -123,13 +128,20 @@ jobs:
         run: PYTHONPATH=site-source python -m unittest discover --start-directory site-source/tests --verbose
 
       - name: Materialize staged publication mapping
-        if: ${{ inputs.publication_staging_id != '' }}
+        if: ${{ inputs.publication_staging_id != '' || inputs.publication_staging_ids != '' }}
         env:
           PUBLICATION_STAGING_ID: ${{ inputs.publication_staging_id }}
+          PUBLICATION_STAGING_IDS: ${{ inputs.publication_staging_ids }}
         run: |
+          staging_args=()
+          if [ -n "$PUBLICATION_STAGING_IDS" ]; then
+            staging_args+=(--staging-ids "$PUBLICATION_STAGING_IDS")
+          else
+            staging_args+=(--staging-id "$PUBLICATION_STAGING_ID")
+          fi
           python site-source/scripts/materialize_publication_staging.py \
             --site-root site-source \
-            --staging-id "$PUBLICATION_STAGING_ID"
+            "${staging_args[@]}"
 
       - name: Prepare repository-tree publication
         run: |
@@ -854,4 +866,3 @@ jobs:
               echo "Site Construction CI aggregate gate passed (build_required=$BUILD_REQUIRED, browser_required=$BROWSER_REQUIRED)"
               ;;
           esac
-
