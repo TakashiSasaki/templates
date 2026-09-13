@@ -188,8 +188,8 @@ class AgentSkillContractTests(unittest.TestCase):
     def test_merge_gate_shim_loads_only_exact_verified_source(self) -> None:
         skill = MERGE_GATE.read_text(encoding="utf-8").lower()
         for invariant in (
-            "use the github connector to fetch `path` from exactly `revision`",
-            "returned file blob sha equals `blob_sha`",
+            "using any available mechanism that preserves the immutable revision",
+            "observed file blob sha equals `blob_sha`",
             "do not resolve the source through a branch name",
             "full 40-character lowercase hexadecimal sha",
             "if any source field is missing, malformed, unavailable, or mismatched",
@@ -198,6 +198,7 @@ class AgentSkillContractTests(unittest.TestCase):
         ):
             with self.subTest(invariant=invariant):
                 self.assertIn(invariant, skill)
+        self.assertNotIn("use the github connector", skill)
 
     def test_merge_gate_shim_does_not_duplicate_adapter_mechanics(self) -> None:
         skill = MERGE_GATE.read_text(encoding="utf-8")
