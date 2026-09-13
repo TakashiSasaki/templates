@@ -225,6 +225,12 @@ def _load_staging(path: Path, staging_ids: list[str]) -> list[dict[str, Any]]:
 
 
 def _temporary_json(path: Path, payload: dict[str, Any]) -> Path:
+    return _temporary_bytes(
+        path, (json.dumps(payload, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
+    )
+
+
+def _temporary_bytes(path: Path, payload: bytes) -> Path:
     descriptor, name = tempfile.mkstemp(
         dir=path.parent,
         prefix=f".{path.name}.",
@@ -233,9 +239,8 @@ def _temporary_json(path: Path, payload: dict[str, Any]) -> Path:
     )
     temporary = Path(name)
     try:
-        with os.fdopen(descriptor, "w", encoding="utf-8", newline="\n") as stream:
-            stream.write(json.dumps(payload, ensure_ascii=False, indent=2))
-            stream.write("\n")
+        with os.fdopen(descriptor, "wb") as stream:
+            stream.write(payload)
     except BaseException:
         temporary.unlink(missing_ok=True)
         raise
@@ -247,6 +252,8 @@ def materialize_many(site_root: Path, staging_ids: list[str]) -> None:
     staging_path = site_root / "publication-staging.json"
     manifest_path = site_root / "site-manifest.json"
     locales_path = site_root / "reader-navigation-locales.json"
+    original_manifest = manifest_path.read_bytes()
+    original_locales = locales_path.read_bytes()
 
     mappings = _load_staging(staging_path, staging_ids)
     manifest = _read_json(manifest_path, "site manifest")
@@ -412,11 +419,28 @@ def materialize_many(site_root: Path, staging_ids: list[str]) -> None:
                 raise PublicationStagingError(
                     f"materialized Site mapping failed canonical validation: {exc}"
                 ) from exc
-            # Both files are fully validated before either replacement. A rare
-            # failure of the second replacement can leave only this disposable,
-            # build-only checkout partially staged; no deployment path consumes it.
-            os.replace(manifest_temporary, manifest_path)
-            os.replace(locales_temporary, locales_path)
+            staged_manifest_bytes = manifest_temporary.read_bytes()
+            backup = _temporary_bytes(manifest_path, original_manifest)
+            try:
+                if (
+                    manifest_path.read_bytes() != original_manifest
+                    or locales_path.read_bytes() != original_locales
+                ):
+                    raise PublicationStagingError("Site mapping changed during staging")
+                os.replace(manifest_temporary, manifest_path)
+                try:
+                    os.replace(locales_temporary, locales_path)
+                except OSError:
+                    # Restore only our own replacement, without overwriting a
+                    # concurrent writer. Failure is never an accepted build.
+                    if manifest_path.read_bytes() != staged_manifest_bytes:
+                        raise PublicationStagingError(
+                            "Site manifest changed concurrently; refusing rollback"
+                        )
+                    os.replace(backup, manifest_path)
+                    raise
+            finally:
+                backup.unlink(missing_ok=True)
         finally:
             locales_temporary.unlink(missing_ok=True)
     finally:
@@ -441,7 +465,7 @@ def main() -> int:
     staging_ids = (
         [args.staging_id]
         if args.staging_id is not None
-        else [item.strip() for item in args.staging_ids.split(",") if item.strip()]
+        else [item.strip() for item in args.staging_ids.split(",")]
     )
     try:
         materialize_many(args.site_root, staging_ids)

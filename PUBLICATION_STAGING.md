@@ -51,11 +51,11 @@ Materialization is fail-closed. It requires:
 - the selected mappings to have unique publication/document keys, destinations, titles, and locale label IDs; and
 - the fully materialized combined manifest and locale overlay to pass the ordinary canonical validators before either file is replaced.
 
-The materializer does not edit the provider catalog. Site-owned unit/integration tests validate the reviewed pristine Site revision before materialization. After materialization, the ordinary strict assembler still requires exact catalog coverage against the exact provider candidate. A candidate provider that does not contain the staged document therefore fails in the normal way.
+The materializer does not edit the provider catalog. It validates the complete selection before replacement and restores the original manifest if replacing the locale file fails. Rollback is limited to its own write; a concurrent change or rollback I/O failure aborts qualification and must never be accepted as a build. The ordinary strict assembler still requires exact catalog coverage against the exact provider candidate.
 
 ## Workflow boundary
 
-`.github/workflows/build-pages.yml` exposes an optional `publication_staging_id` reusable-workflow input. The default is empty.
+`.github/workflows/build-pages.yml` exposes optional `publication_staging_id` and `publication_staging_ids` reusable-workflow inputs. Both default to empty; supplying both is an error. The plural input is a comma-separated ordered selection: whitespace around IDs is stripped, but empty elements, unknown IDs, and duplicates fail.
 
 When the input is empty:
 
@@ -67,11 +67,11 @@ When an external provider compatibility workflow explicitly supplies a staging I
 
 1. checks out the exact Site revision;
 2. resolves and checks out the exact provider revisions;
-3. runs the existing Site unit/integration tests against the pristine reviewed Site checkout;
-4. materializes the named staging mapping into the disposable `site-source` checkout; and
+3. copies the reviewed Site checkout to disposable `site-qualification` and materializes all explicitly selected mappings there;
+4. sets `SITE_PUBLICATION_ROOT` only after successful materialization, then runs the full Site test suite; and
 5. runs the existing strict assembly and artifact validation against that exact materialized Site/provider pair.
 
-This ordering is deliberate. The Site test suite includes staging-protocol tests whose fixtures model the committed active Site state before staging. Running those tests after mutating the checkout would test the fixture against its own materialized output rather than validate the reviewed active contract. Exact provider-catalog compatibility is proved after materialization by the unchanged strict assembly path, not by weakening or skipping staging self-tests.
+Provider-dependent publication integration tests use `tests/publication_context.py` to read the selected publication root. Repository/staging self-tests retain the pristine `site-source` fixtures. Preparation and assembly consume the same selected root as the integration tests. No tests are skipped to enable staging. With no selection, integration tests and assembly both use the committed active mapping. An explicit invalid qualification root fails instead of falling back to active publication.
 
 The staging path is build-only. It must not be wired into `deploy-pages.yml`.
 

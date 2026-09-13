@@ -5,7 +5,10 @@ import json
 import shutil
 import tempfile
 import unittest
-from pathlib import Path
+from unittest import mock
+import os
+from pathlib import Path, PurePosixPath
+import hashlib
 
 from scripts.assemble_publications import load_manifest
 from scripts.materialize_publication_staging import (
@@ -15,6 +18,9 @@ from scripts.materialize_publication_staging import (
 )
 from scripts.prepare_repository_tree_publication import augment_manifest
 from scripts.reader_navigation_locales import load_overlays
+from scripts.publish_translations import publish_translations, TranslationPublicationError
+from scripts.assemble_publications import pages
+from tests.publication_context import publication_root
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -134,6 +140,46 @@ def _prepared_navigation(site_root: Path):
 
 
 class PublicationStagingMaterializationTests(unittest.TestCase):
+    def test_second_replace_failure_restores_original_bytes(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            _copy_inputs(root)
+            before = {name: (root / name).read_bytes() for name in
+                      ("site-manifest.json", "reader-navigation-locales.json")}
+            real_replace = os.replace
+
+            def fail_locale(source, target):
+                if Path(target).name == "reader-navigation-locales.json":
+                    raise OSError("injected locale replace failure")
+                return real_replace(source, target)
+
+            with mock.patch("scripts.materialize_publication_staging.os.replace", side_effect=fail_locale):
+                with self.assertRaisesRegex(OSError, "injected"):
+                    materialize_many(root, list(COMPOSITION_STAGING_IDS))
+            self.assertEqual(before, {name: (root / name).read_bytes() for name in before})
+            self.assertEqual(list(root.glob(".*.tmp")), [])
+
+    def test_selected_sibling_conflicts_fail_without_mutation(self) -> None:
+        for field in ("document", "title", "label_id", "anchor"):
+            with self.subTest(field=field), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                _copy_inputs(root)
+                path = root / "publication-staging.json"
+                data = json.loads(path.read_text())
+                first, second = data["mappings"][-2:]
+                if field == "label_id":
+                    second["localizations"][0]["label_id"] = first["localizations"][0]["label_id"]
+                elif field == "anchor":
+                    second["insert_after"]["document"] = first["document"]
+                else:
+                    second[field] = first[field]
+                path.write_text(json.dumps(data))
+                before = {name: (root / name).read_bytes() for name in
+                          ("site-manifest.json", "reader-navigation-locales.json")}
+                with self.assertRaises(PublicationStagingError):
+                    materialize_many(root, list(COMPOSITION_STAGING_IDS))
+                self.assertEqual(before, {name: (root / name).read_bytes() for name in before})
+
     def test_two_explicit_mappings_materialize_atomically_with_locales(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             site_root = Path(temporary_directory)
@@ -572,6 +618,61 @@ class PublicationStagingMaterializationTests(unittest.TestCase):
 
 
 class PublicationStagingWorkflowTests(unittest.TestCase):
+    def test_translation_integration_uses_staged_mapping_before_publication(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            pristine, staged, provider = (base / name for name in ("pristine", "staged", "provider"))
+            pristine.mkdir()
+            _copy_inputs(pristine)
+            _configure_future_mapping(pristine)
+            staging_path = pristine / "publication-staging.json"
+            data = json.loads(staging_path.read_text())
+            mapping = data["mappings"][0]
+            mapping["publication"] = "composition"
+            mapping["insert_after"] = {"publication": "composition", "document": "publication-boundary"}
+            staging_path.write_text(json.dumps(data))
+            shutil.copytree(pristine, staged)
+            (provider / "docs").mkdir(parents=True)
+            (provider / "translations/ja/docs").mkdir(parents=True)
+            canonical = b"# Index\n"
+            (provider / "docs/index.md").write_bytes(canonical)
+            (provider / "docs/future.md").write_text("# Future\n")
+            (provider / "translations/ja/docs/index.md").write_text(
+                "# Index\n\n> **参考訳（非正本）:** test\n\n[Future](../../../docs/future.md)\n"
+            )
+            (provider / "translations/manifest.json").write_text(json.dumps({
+                "schema_version": 2, "canonical_language": "en", "translations": [{
+                    "canonical": "docs/index.md", "language": "ja",
+                    "translation": "translations/ja/docs/index.md",
+                    "canonical_blob_sha": hashlib.sha1(b"blob " + str(len(canonical)).encode() + b"\0" + canonical).hexdigest(),
+                    "surfaces": ["reader"],
+                }],
+            }))
+            documents = {
+                "documentation-index": {"source": PurePosixPath("docs/index.md"), "optional": False, "home": False},
+                FUTURE_ID: {"source": PurePosixPath("docs/future.md"), "optional": False, "home": False},
+            }
+
+            def publish():
+                _, navigation = load_manifest(publication_root(pristine) / "site-manifest.json")
+                selected = [p for p in pages(navigation) if p["publication"] == "composition" and p["document"] in documents]
+                return publish_translations({"composition": (provider, documents, [])}, selected, base / "output")
+
+            with mock.patch.dict(os.environ, {"SITE_PUBLICATION_ROOT": str(staged)}):
+                with self.assertRaisesRegex(TranslationPublicationError, "does not resolve"):
+                    publish()
+                materialize(staged, FUTURE_ID)
+                records = publish()
+                self.assertEqual(len(records), 1)
+                output = base / "output" / records[0].translation_destination
+                self.assertIn("future-policy-page.md", output.read_text())
+            self.assertNotEqual((pristine / "site-manifest.json").read_bytes(), (staged / "site-manifest.json").read_bytes())
+
+    def test_explicit_missing_publication_root_fails_closed(self) -> None:
+        with mock.patch.dict(os.environ, {"SITE_PUBLICATION_ROOT": ""}):
+            with self.assertRaises(ValueError):
+                publication_root(ROOT)
+
     def test_reusable_build_materializes_staging_only_when_explicitly_requested(self) -> None:
         workflow = (ROOT / ".github/workflows/build-pages.yml").read_text(encoding="utf-8")
         deploy = (ROOT / ".github/workflows/deploy-pages.yml").read_text(encoding="utf-8")
@@ -596,8 +697,12 @@ class PublicationStagingWorkflowTests(unittest.TestCase):
         prepare = workflow.index("- name: Prepare repository-tree publication")
         self.assertLess(composition_checkout, tests)
         self.assertLess(policy_checkout, tests)
-        self.assertLess(tests, materialize_step)
-        self.assertLess(materialize_step, prepare)
+        self.assertLess(materialize_step, tests)
+        self.assertLess(tests, prepare)
+        self.assertIn('--site-root site-qualification', workflow)
+        self.assertIn('SITE_PUBLICATION_ROOT=$GITHUB_WORKSPACE/site-qualification', workflow)
+        self.assertIn('--site-root "${SITE_PUBLICATION_ROOT:-site-source}"', workflow)
+        self.assertIn('--reader-navigation-locales "${SITE_PUBLICATION_ROOT:-site-source}/reader-navigation-locales.json"', workflow)
         self.assertNotIn("publication_staging_id", deploy)
         self.assertNotIn("publication_staging_ids", deploy)
 
