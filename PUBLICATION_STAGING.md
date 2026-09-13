@@ -11,7 +11,7 @@ The active publication authority remains the exact pair of:
 - `site-manifest.json` and `reader-navigation-locales.json` from the selected Site revision; and
 - the exact provider catalogs from the selected Composition and Policy revisions.
 
-A staged mapping becomes effective only inside a non-deploying compatibility build that explicitly names its staging ID.
+A staged mapping becomes effective only inside a non-deploying compatibility build that explicitly names its staging ID. A compatibility build may select an explicit ordered comma-separated set of IDs to stage one coordinated document set atomically; it never stages unselected entries.
 
 ## Why staging is required
 
@@ -37,18 +37,19 @@ The staging record does not contain provider prose, provider glossary definition
 
 ## Materialization
 
-`scripts/materialize_publication_staging.py` applies one explicitly selected mapping to a disposable Site checkout.
+`scripts/materialize_publication_staging.py` applies one explicitly selected mapping, or an explicit ordered set selected with `--staging-ids`, to a disposable Site checkout.
 
 Materialization is fail-closed. It requires:
 
 - the active Site manifest and navigation locale overlay to validate before staging;
-- a unique staging ID;
+- unique selected staging IDs;
 - a target provider document that is not already active;
 - a destination that is not already active;
-- exactly one insertion anchor;
+- exactly one active insertion anchor per mapping;
 - safe Markdown destination syntax;
 - exact localization coverage for every active Site reader locale when the title is new; and
-- the fully materialized manifest and locale overlay to pass the ordinary canonical validators before either file is replaced.
+- the selected mappings to have unique publication/document keys, destinations, titles, and locale label IDs; and
+- the fully materialized combined manifest and locale overlay to pass the ordinary canonical validators before either file is replaced.
 
 The materializer does not edit the provider catalog. Site-owned unit/integration tests validate the reviewed pristine Site revision before materialization. After materialization, the ordinary strict assembler still requires exact catalog coverage against the exact provider candidate. A candidate provider that does not contain the staged document therefore fails in the normal way.
 

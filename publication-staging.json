@@ -36,6 +36,42 @@
           "localized": "Routes v4 から v5 への移行"
         }
       ]
+    },
+    {
+      "id": "composition-provider-maintenance",
+      "publication": "composition",
+      "document": "provider-maintenance",
+      "title": "Composition provider maintenance",
+      "destination": "composition/authorities/provider-maintenance.md",
+      "insert_after": {
+        "publication": "composition",
+        "document": "publication-boundary"
+      },
+      "localizations": [
+        {
+          "language": "ja",
+          "label_id": "composition-provider-maintenance",
+          "localized": "Composition provider の保守"
+        }
+      ]
+    },
+    {
+      "id": "composition-installer-release",
+      "publication": "composition",
+      "document": "installer-release",
+      "title": "Composition installer release",
+      "destination": "composition/authorities/installer-release.md",
+      "insert_after": {
+        "publication": "composition",
+        "document": "publication-boundary"
+      },
+      "localizations": [
+        {
+          "language": "ja",
+          "label_id": "composition-installer-release",
+          "localized": "Composition installer release"
+        }
+      ]
     }
   ]
 }
