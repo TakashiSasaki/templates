@@ -1,0 +1,71 @@
+name: Sync Composition promotion projections
+
+on:
+  push:
+    branches:
+      - promote/site-composition-audience-publication
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    if: github.event.head_commit.message == 'Run canonical Composition promotion projection sync'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: promote/site-composition-audience-publication
+          fetch-depth: 0
+      - uses: actions/checkout@v7
+        with:
+          ref: 6b7d764c963f957c6bee43c0c1d42eb03970ec8f
+          path: composition-source
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          ref: 5574ea46d2076bb1f5c51d4b0e8c9483a17d8fe2
+          path: policy-source
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12.13'
+      - name: Re-run canonical publication advance and dependent renderers
+        run: |
+          set -euo pipefail
+          git show c0c8b9430437759f99604ab005e6c04b24218c23:publication-sources.json > publication-sources.json
+          python scripts/advance_publication_source.py \
+            --site-root . \
+            --provider composition \
+            --provider-root composition-source \
+            --composition-root composition-source \
+            --policy-root policy-source \
+            --target 6b7d764c963f957c6bee43c0c1d42eb03970ec8f \
+            --expected-current 0f0c4012818a3b8646ad89fbca7db22c71ad5dd8
+          python scripts/render_reference_consumer.py --write
+          python scripts/site_website_contract.py --write
+          git diff --check
+      - name: Validate generated projection coherence
+        run: |
+          set -euo pipefail
+          python -m unittest \
+            tests.test_agent_bootstrap_contract \
+            tests.test_reference_consumer \
+            -v
+      - name: Commit canonical projections
+        run: |
+          set -euo pipefail
+          git config user.name 'Takashi SASAKI'
+          git config user.email 'takashi316@gmail.com'
+          git add \
+            publication-sources.json \
+            agent.json assets/agent.json \
+            assets/reference-consumer.json \
+            docs/policy-composition-coexistence.md \
+            translations/ja/docs/policy-composition-coexistence.md \
+            contracts/routes.json \
+            contracts/site-structure.json \
+            contracts/document-metadata.json \
+            contracts/site-discovery.json
+          git commit -m 'Synchronize Composition publication projections after promotion'
+          git push origin HEAD:promote/site-composition-audience-publication
