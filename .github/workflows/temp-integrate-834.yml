@@ -1,0 +1,71 @@
+name: Temporary integrate #834 exact build reuse
+
+on:
+  push:
+    branches:
+      - feat/site-exact-build-reuse
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    if: ${{ github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: feat/site-exact-build-reuse
+          fetch-depth: 0
+      - name: Apply historical qualified #834 member patch
+        run: |
+          set -euo pipefail
+          git diff ecf7aec28793609a1a38f43998530fed0a4ccb25 cde90168a6c34c3c78b7c1b8d0e4b64b5d3fa4a2 > /tmp/site-834.patch
+          test -s /tmp/site-834.patch
+          git apply --check /tmp/site-834.patch
+          git apply /tmp/site-834.patch
+      - name: Validate integrated artifact-reuse contracts
+        run: |
+          python -m pip install --disable-pip-version-check PyYAML==6.0.3
+          python -m unittest \
+            tests.test_site_build_artifact \
+            tests.test_site_build_artifact_review_regression \
+            tests.test_site_browser_qualification_workflows \
+            tests.test_publication_freshness_workflow \
+            tests.test_verify_site_full_qualification -v
+      - name: Stage workflow outputs as ordinary blobs and commit non-workflow members
+        run: |
+          set -euo pipefail
+          stage_root=tmp/site-ci-recovery/834
+          mkdir -p "$stage_root/.github/workflows"
+          for path in \
+            .github/workflows/build-pages.yml \
+            .github/workflows/check-publication-freshness.yml \
+            .github/workflows/deploy-pages.yml \
+            .github/workflows/provider-coexistence.yml \
+            .github/workflows/reference-consumer.yml \
+            .github/workflows/site-build-detailed-profile.yml \
+            .github/workflows/site-composition-materialization-cross-authority.yml \
+            .github/workflows/site-composition-playground-cross-authority.yml \
+            .github/workflows/site-full-qualification.yml; do
+            cp "$path" "$stage_root/$path"
+          done
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add \
+            MAINTENANCE.md \
+            requirements-build.lock \
+            scripts/classify_site_ci.py \
+            scripts/site_build_artifact.py \
+            scripts/verify_site_full_qualification.py \
+            tests/test_composition_playground_cross_authority_workflow.py \
+            tests/test_publication_freshness_workflow.py \
+            tests/test_site_browser_qualification_workflows.py \
+            tests/test_site_build_artifact.py \
+            tests/test_site_build_artifact_review_regression.py \
+            tests/test_site_composition_materialization_cross_authority_workflow.py \
+            tests/test_stacked_site_documentation_workflow.py \
+            tests/test_verify_site_full_qualification.py \
+            "$stage_root"
+          git commit -m 'Stage integrated #834 exact-build-reuse members'
+          git push origin HEAD:feat/site-exact-build-reuse
