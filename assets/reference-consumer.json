@@ -430,7 +430,7 @@
   "policy": {
     "toolchain": {
       "repository": "TakashiSasaki/templates",
-      "revision": "33a7ab809225c2a8b8dd2598ef04d0a39cf076a7"
+      "revision": "733c86941f8154f301a225054d88c6b8a477058a"
     },
     "contexts": {
       "default": {
