@@ -51,7 +51,7 @@ This Skill owns GitHub-specific execution details, not shared policy meaning. In
 - how a GitHub acceptance snapshot records evidence bindings and invalidation signals;
 - how GitHub workflow-run and exact-commit check views are correlated when indexing lags;
 - this repository's minimum observation floor before an expected check may be classified as confirmed absent;
-- the GitHub connector `expected_head_sha` merge guard;
+- the immutable-head merge precondition used to bind merge execution to the accepted PR head;
 - the concrete live-state snapshot and evidence report used by repository-maintenance agents.
 
 These mechanics may change without changing the underlying shared Policy rule IDs when the provider or execution surface changes.
@@ -226,13 +226,13 @@ Validate the binding facts of previously accepted scope, CI, and completed-revie
 
 If any binding changed or is unknown, leave `MERGE_ALLOWED` and reacquire only the affected evidence. Additional diagnostic reads are permitted when concrete uncertainty exists, but they are diagnostic work rather than new mandatory acceptance requirements.
 
-### 7. Merge with the GitHub immutable-head guard
+### 7. Merge with an immutable-head guard
 
 Apply `pull-request.guard-merge-against-head-movement`.
 
-Only after the final snapshot reaches `MERGE_ALLOWED`, call the GitHub connector merge operation with `expected_head_sha` equal to the exact accepted PR head SHA. The corresponding GitHub REST merge field is `sha`.
+Only after the final snapshot reaches `MERGE_ALLOWED`, execute the merge with an immutable-head precondition bound to the exact accepted PR head SHA. For the GitHub REST merge API, this precondition is the `sha` field; any other execution surface must provide an equivalent head guard.
 
-Never omit `expected_head_sha` for an agent-performed merge in this repository. Use the immutable-head guard to close the proposed-head race rather than inserting an extra unrequired head poll between the accepted final snapshot and the merge call. If the merge is rejected because the head or repository state moved, do not retry blindly; refresh live state and run the affected gates again.
+Never perform an agent merge in this repository without an equivalent immutable-head precondition. Use the immutable-head guard to close the proposed-head race rather than inserting an extra unrequired head poll between the accepted final snapshot and the merge call. If the merge is rejected because the head or repository state moved, do not retry blindly; refresh live state and run the affected gates again.
 
 ### 8. Verify after merge
 
@@ -252,7 +252,7 @@ Do not declare merge readiness or invoke merge while any of the following is tru
 - current head differs from the accepted head;
 - current mergeability is unknown or false;
 - an acceptance-evidence binding is unknown or invalid and affected evidence has not been reacquired;
-- the GitHub merge cannot be guarded with `expected_head_sha`.
+- the merge execution surface cannot enforce an immutable-head precondition bound to the accepted head.
 
 Do not create additional stop conditions solely because a stricter local procedure feels safer. New mandatory gates require current repository authority or a concrete unresolved uncertainty already covered by that authority.
 
@@ -270,6 +270,6 @@ At completion report:
 - target-branch freshness decision;
 - any invalidation signals observed and the evidence selectively reacquired;
 - final gate state;
-- `expected_head_sha` used for merge;
+- immutable-head precondition used for merge;
 - merge result and merge commit SHA;
 - any separate post-merge release/publication state.
