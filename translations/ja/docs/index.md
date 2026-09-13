@@ -26,11 +26,6 @@
 
 - [公開境界](publication-catalog.md) — この provider が統合ドキュメントサイトへ何を公開し、その境界をなぜ設けるかを説明します。
 
-## Composition provider の保守
-
-- [Composition provider の保守](../../../docs/provider-maintenance.md) — component、catalog、Composer、schema、evaluation、validation、provider publication、provider release procedure を含む、Composition 自体を変更するための canonical overview です。consumer product の保守手順ではありません。
-- [Composition installer release](../../../release/README.md) — installable Composition Skill の immutable provider release identity と verified consumer bootstrap boundary を説明します。
-
 ## Agent Skill artifact
 
 - [Skill ドキュメント索引](../../../components/artifact.skill-core/files/docs/) — Skill-specific profiles、architecture、responsibility map を説明します。
