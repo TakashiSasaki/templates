@@ -9,6 +9,7 @@ EXPECTED_BASES = {
     "codex/site-composition-playground-v1-shell",
     "site",
     "feat/site-*",
+    "site-composition-audience-publication-staging",
 }
 EXPECTED_COMPOSITION_PROVIDER = "0f0c4012818a3b8646ad89fbca7db22c71ad5dd8"
 

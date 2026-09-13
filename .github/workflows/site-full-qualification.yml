@@ -5,6 +5,7 @@ on:
     branches:
       - site
       - 'feat/site-*'
+      - site-composition-audience-publication-staging
     types:
       - opened
       - synchronize
