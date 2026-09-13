@@ -22,6 +22,7 @@ catalog は次の explanatory Markdown を公開します。
 - 再利用可能な runtime、CLI、MCP、MCP Apps、PWA、browser、service capability。
 - 再利用可能な composition-state、contract-evolution、implementation-evidence、release-execution、release-evidence、release-bundle lifecycle contract。
 - evaluator を formal protocol、scorecard guide、scorecard schema、output sequence へ案内する、canonical な independent clean-room evaluation entry point。
+- Composition provider の immutable installer、配布される Skill-source、選択された toolchain identity を説明する、`release/README.md` の `installer-release` record。
 - 旧 monolithic Skill / Webapp responsibility が現在の authority へ移動した理由を説明し、stage-level detail の immutable PR provenance を示す、統合された1つの authority-migration history。
 
 publication home は branch の `README.md` です。`docs/index.md` は guided navigation が使う provider-owned progressive-disclosure root です。
@@ -46,7 +47,6 @@ exclusion が既知の reader-facing requirement を無効にすることはあ�
 - supplemental WebMCP selection note (`docs/guides/webmcp-capability.md`)。canonical な reader-facing capability authority は `components/capability.webmcp/files/WEBMCP.md` であり、`docs/index.md` から参照されます。
 - stage-specific な PR2 / PR3 authority-migration note (`docs/migrations/pr2-skill-capabilities.md` と `docs/migrations/pr3-webapp-lifecycle.md`)。これらは Composition authority maintenance provenance として保持されますが、統合 history と immutable PR record が reader-facing history surface を形成するため reader publication には含めません。
 - non-production executable-fixture guidance (`examples/README.md`)。
-- repository-level immutable installer publication guidance (`release/README.md`)。これは operational release identity を文書化しますが、reader-facing installation guidance は Site が別途 assemble します。
 - repository-facing Composition skill instruction (`skills/composition/SKILL.md`)。これは canonical reader documentation ではなく executable skill material として配布されます。
 - provider-owned translation maintenance guidance (`translations/README.md`)。
 
@@ -72,7 +72,7 @@ Machine-readable source authority は rendered documentation ではなく suppor
 
 Evaluation material は通常の materialized consumer contract ではなく、maintainer/evaluator authority です。reader entry document と正確な supporting asset として公開されますが、consumer `agent.json` bootstrap に evaluator mode を追加しません。
 
-stable installer descriptor は、remote installer script revision、installed skill-source revision、その skill が選択する Composition toolchain revision という3つの full-SHA role を分離します。repository CI は、それらの identity を Git history、pinned installer source、skill runtime manifest、runtime-lock digest、strict な `toolchain -> skill source -> installer -> publication` ancestry と照合して検証します。そのため descriptor 自体は、`release/README.md` が reader-facing publication ではなくても machine-readable authority として公開されます。
+stable installer descriptor は、remote installer script revision、installed skill-source revision、その skill が選択する Composition toolchain revision という3つの full-SHA role を分離します。repository CI は、それらの identity を Git history、pinned installer source、skill runtime manifest、runtime-lock digest、strict な `toolchain -> skill source -> installer -> publication` ancestry と照合して検証します。`release/composition-installer.json` はこれらの identity の machine-readable authority です。別途公開される `release/README.md` の `installer-release` record は、この provider / maintainer release boundary を説明し、canonical な consumer operation へリンクします。これは consumer bootstrap、installation、replacement、update、product release guidance を置き換えません。
 
 Site-owned protocol は、generic asset declaration、source existence、path safety、symlink boundary、overlap rule、asset tree 内の undeclared Markdown 禁止を validation します。Composition はその後、自身の production catalog が要求する machine-readable authority を、それら generic asset が網羅していることを validation します。
 

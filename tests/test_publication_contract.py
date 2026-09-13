@@ -61,6 +61,41 @@ class CompositionPublicationContractTests(unittest.TestCase):
         self.assertNotIn("template/README.md", sources)
         self.assertEqual(catalog.glossary_source.as_posix(), "docs/glossary.yml")
 
+    def test_publication_boundary_does_not_exclude_or_disavow_catalog_documents(self):
+        """Keep the human boundary contract aligned with the catalog allowlist."""
+        validator = load_validator()
+        catalog = validator.load_publication_catalog()
+        published = {entry.source.as_posix() for entry in catalog.documents}
+        boundary = (ROOT / "docs" / "publication-catalog.md").read_text(encoding="utf-8")
+
+        exclusions_start = boundary.index("The current explicit exclusions are:")
+        exclusions_end = boundary.index(
+            "Provider-owned translation derivatives", exclusions_start
+        )
+        exclusion_paths = {
+            path
+            for line in boundary[exclusions_start:exclusions_end].splitlines()
+            if line.startswith("- ")
+            for parenthetical in re.findall(r"\(([^)]*)\)", line)
+            for path in re.findall(r"`([^`]+\.md)`", parenthetical)
+        }
+        self.assertFalse(
+            published & exclusion_paths,
+            "publication-boundary explicit exclusions overlap published catalog documents",
+        )
+
+        disavowed_paths = set(
+            re.findall(
+                r"`([^`]+\.md)`[^.]*?\bnot reader-facing(?: publication)?\b",
+                boundary,
+                flags=re.IGNORECASE,
+            )
+        )
+        self.assertFalse(
+            published & disavowed_paths,
+            "publication-boundary disavows published catalog documents",
+        )
+
     def test_consumer_docs_are_primary_entry_points(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         self.assertIn("[Using Composition](docs/consumer-guide.md)", readme)

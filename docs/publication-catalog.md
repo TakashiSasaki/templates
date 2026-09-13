@@ -20,6 +20,9 @@ The catalog publishes explanatory Markdown for:
 - reusable runtime, CLI, MCP, MCP Apps, PWA, browser, and service capabilities;
 - reusable composition-state, contract-evolution, implementation-evidence, release-execution, release-evidence, and release-bundle lifecycle contracts;
 - the canonical independent clean-room evaluation entry point that routes evaluators to the formal protocol, scorecard guide, scorecard schema, and output sequence; and
+- the `installer-release` record at `release/README.md`, which explains the
+  Composition provider's immutable installer, distributed Skill-source, and
+  selected toolchain identities; and
 - one consolidated authority-migration history that explains why former monolithic Skill/Webapp responsibilities moved to their present authorities and points to immutable PR provenance for stage-level detail.
 
 The publication home is the branch `README.md`. `docs/index.md` is the provider-owned progressive-disclosure root used by guided navigation.
@@ -44,7 +47,6 @@ The current explicit exclusions are:
 - supplemental WebMCP selection notes (`docs/guides/webmcp-capability.md`), because the canonical reader-facing capability authority is `components/capability.webmcp/files/WEBMCP.md` and is indexed from `docs/index.md`;
 - the stage-specific PR2 and PR3 authority-migration notes (`docs/migrations/pr2-skill-capabilities.md` and `docs/migrations/pr3-webapp-lifecycle.md`), which are retained as Composition authority maintenance provenance while the consolidated history and immutable PR records form the reader-facing history surface;
 - non-production executable-fixture guidance (`examples/README.md`);
-- repository-level immutable installer publication guidance (`release/README.md`), which documents operational release identities while reader-facing installation guidance is assembled separately by Site;
 - repository-facing Composition skill instructions (`skills/composition/SKILL.md`), which are distributed as executable skill material rather than canonical reader publication; and
 - provider-owned translation maintenance guidance (`translations/README.md`).
 
@@ -70,7 +72,7 @@ Machine-readable source authorities are published as supporting assets rather th
 
 Evaluation materials are maintainer/evaluator authorities rather than ordinary materialized consumer contracts. They are published as a reader entry document plus exact supporting assets; they do not extend the consumer `agent.json` bootstrap with an evaluator mode.
 
-The stable installer descriptor separates three full-SHA roles: the remote installer script revision, the installed skill-source revision, and the Composition toolchain revision selected by that skill. Repository CI verifies those identities against Git history, the pinned installer source, the skill runtime manifest, the runtime-lock digest, and strict `toolchain -> skill source -> installer -> publication` ancestry. The descriptor itself is therefore published as machine-readable authority even though `release/README.md` is not reader-facing publication.
+The stable installer descriptor separates three full-SHA roles: the remote installer script revision, the installed skill-source revision, and the Composition toolchain revision selected by that skill. Repository CI verifies those identities against Git history, the pinned installer source, the skill runtime manifest, the runtime-lock digest, and strict `toolchain -> skill source -> installer -> publication` ancestry. `release/composition-installer.json` is the machine-readable authority for those identities. The separately published `installer-release` record at `release/README.md` explains that provider/maintainer release boundary and links to canonical consumer operation; it does not replace consumer bootstrap, installation, replacement, update, or product-release guidance.
 
 The Site-owned protocol validates the generic asset declarations, source existence, path safety, symlink boundary, overlap rules, and the prohibition on undeclared Markdown inside asset trees. Composition then validates that those generic assets cover the machine-readable authorities required by its own production catalog.
 
