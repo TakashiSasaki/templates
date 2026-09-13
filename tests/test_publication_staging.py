@@ -11,6 +11,7 @@ from scripts.assemble_publications import load_manifest
 from scripts.materialize_publication_staging import (
     PublicationStagingError,
     materialize,
+    materialize_many,
 )
 from scripts.prepare_repository_tree_publication import augment_manifest
 from scripts.reader_navigation_locales import load_overlays
@@ -21,6 +22,10 @@ FUTURE_ID = "future-policy-page"
 FUTURE_TITLE = "Future policy page"
 FUTURE_DESTINATION = "policy/future-policy-page.md"
 FUTURE_LOCALIZED = "将来の Policy ページ"
+COMPOSITION_STAGING_IDS = (
+    "composition-provider-maintenance",
+    "composition-installer-release",
+)
 
 
 def _copy_inputs(destination: Path) -> None:
@@ -59,6 +64,60 @@ def _configure_future_mapping(site_root: Path) -> None:
     )
 
 
+def _configure_composition_mappings(site_root: Path) -> None:
+    staging_path = site_root / "publication-staging.json"
+    staging = json.loads(staging_path.read_text(encoding="utf-8"))
+    staging["mappings"] = [
+        mapping
+        for mapping in staging["mappings"]
+        if mapping["id"] not in COMPOSITION_STAGING_IDS
+    ]
+    staging["mappings"].extend(
+        [
+            {
+                "id": COMPOSITION_STAGING_IDS[0],
+                "publication": "composition",
+                "document": "provider-maintenance",
+                "title": "Composition maintainer overview",
+                "destination": "composition/authorities/provider-maintenance.md",
+                "insert_after": {
+                    "publication": "composition",
+                    "document": "publication-boundary",
+                },
+                "localizations": [
+                    {
+                        "language": "ja",
+                        "label_id": COMPOSITION_STAGING_IDS[0],
+                        "localized": "Composition メンテナー概要",
+                    }
+                ],
+            },
+            {
+                "id": COMPOSITION_STAGING_IDS[1],
+                "publication": "composition",
+                "document": "installer-release",
+                "title": "Installer release",
+                "destination": "composition/authorities/installer-release.md",
+                "insert_after": {
+                    "publication": "composition",
+                    "document": "publication-boundary",
+                },
+                "localizations": [
+                    {
+                        "language": "ja",
+                        "label_id": COMPOSITION_STAGING_IDS[1],
+                        "localized": "インストーラーリリース",
+                    }
+                ],
+            },
+        ]
+    )
+    staging_path.write_text(
+        json.dumps(staging, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
 def _pages(nodes):
     for node in nodes:
         if "children" in node:
@@ -75,6 +134,130 @@ def _prepared_navigation(site_root: Path):
 
 
 class PublicationStagingMaterializationTests(unittest.TestCase):
+    def test_two_explicit_mappings_materialize_atomically_with_locales(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            site_root = Path(temporary_directory) / "site-source"
+            site_root.mkdir()
+            _copy_inputs(site_root)
+            _configure_composition_mappings(site_root)
+            source_before = {
+                name: (site_root / name).read_bytes()
+                for name in ("site-manifest.json", "reader-navigation-locales.json")
+            }
+            active_manifest = json.loads(source_before["site-manifest.json"].decode("utf-8"))
+            active_pages = list(_pages(active_manifest["navigation"]))
+            self.assertFalse(
+                any(
+                    page.get("document") in {"provider-maintenance", "installer-release"}
+                    for page in active_pages
+                )
+            )
+
+            staged_root = materialize_many(site_root, list(COMPOSITION_STAGING_IDS))
+
+            self.assertNotEqual(site_root, staged_root)
+            self.assertEqual(
+                source_before,
+                {
+                    name: (site_root / name).read_bytes()
+                    for name in source_before
+                },
+            )
+            prepared_navigation = _prepared_navigation(staged_root)
+            composition_pages = [
+                page
+                for page in _pages(prepared_navigation)
+                if page.get("publication") == "composition"
+            ]
+            publication_boundary = [
+                index
+                for index, page in enumerate(composition_pages)
+                if page.get("document") == "publication-boundary"
+            ][0]
+            self.assertEqual(
+                [
+                    page["document"]
+                    for page in composition_pages[publication_boundary + 1 : publication_boundary + 3]
+                ],
+                ["provider-maintenance", "installer-release"],
+            )
+            overlays = load_overlays(
+                staged_root / "reader-navigation-locales.json", prepared_navigation
+            )
+            self.assertEqual(
+                overlays["ja"]["Composition maintainer overview"],
+                "Composition メンテナー概要",
+            )
+            self.assertEqual(
+                overlays["ja"]["Installer release"],
+                "インストーラーリリース",
+            )
+
+    def test_duplicate_selected_id_fails_without_mutation(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            site_root = Path(temporary_directory)
+            _copy_inputs(site_root)
+            _configure_composition_mappings(site_root)
+            before = {
+                name: (site_root / name).read_bytes()
+                for name in ("site-manifest.json", "reader-navigation-locales.json")
+            }
+            with self.assertRaisesRegex(
+                PublicationStagingError, "duplicate selected publication staging id"
+            ):
+                materialize_many(site_root, [COMPOSITION_STAGING_IDS[0]] * 2)
+            self.assertEqual(
+                before,
+                {
+                    name: (site_root / name).read_bytes()
+                    for name in ("site-manifest.json", "reader-navigation-locales.json")
+                },
+            )
+
+    def test_second_invalid_mapping_fails_before_any_file_changes(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            site_root = Path(temporary_directory)
+            _copy_inputs(site_root)
+            _configure_composition_mappings(site_root)
+            before = {
+                name: (site_root / name).read_bytes()
+                for name in ("site-manifest.json", "reader-navigation-locales.json")
+            }
+            with self.assertRaisesRegex(PublicationStagingError, "unknown publication staging id"):
+                materialize_many(site_root, [COMPOSITION_STAGING_IDS[0], "missing"])
+            self.assertEqual(
+                before,
+                {
+                    name: (site_root / name).read_bytes()
+                    for name in ("site-manifest.json", "reader-navigation-locales.json")
+                },
+            )
+
+    def test_selected_destination_conflict_fails_before_any_file_changes(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            site_root = Path(temporary_directory)
+            _copy_inputs(site_root)
+            _configure_composition_mappings(site_root)
+            staging_path = site_root / "publication-staging.json"
+            staging = json.loads(staging_path.read_text(encoding="utf-8"))
+            staging["mappings"][-1]["destination"] = staging["mappings"][-2]["destination"]
+            staging_path.write_text(
+                json.dumps(staging, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+            )
+            before = {
+                name: (site_root / name).read_bytes()
+                for name in ("site-manifest.json", "reader-navigation-locales.json")
+            }
+            with self.assertRaisesRegex(PublicationStagingError, "duplicate selected staged destination"):
+                materialize_many(site_root, list(COMPOSITION_STAGING_IDS))
+            self.assertEqual(
+                before,
+                {
+                    name: (site_root / name).read_bytes()
+                    for name in ("site-manifest.json", "reader-navigation-locales.json")
+                },
+            )
+
     def test_future_mapping_materializes_without_changing_active_authority(self) -> None:
         root_manifest_before = (ROOT / "site-manifest.json").read_bytes()
         root_locales_before = (ROOT / "reader-navigation-locales.json").read_bytes()
@@ -96,14 +279,23 @@ class PublicationStagingMaterializationTests(unittest.TestCase):
         )
 
         with tempfile.TemporaryDirectory() as temporary_directory:
-            site_root = Path(temporary_directory)
+            site_root = Path(temporary_directory) / "site-source"
+            site_root.mkdir()
             _copy_inputs(site_root)
             _configure_future_mapping(site_root)
-            materialize(site_root, FUTURE_ID)
+            source_before = {
+                name: (site_root / name).read_bytes()
+                for name in ("site-manifest.json", "reader-navigation-locales.json")
+            }
+            staged_root = materialize(site_root, FUTURE_ID)
 
-            prepared_navigation = _prepared_navigation(site_root)
+            self.assertEqual(
+                source_before,
+                {name: (site_root / name).read_bytes() for name in source_before},
+            )
+            prepared_navigation = _prepared_navigation(staged_root)
             overlays = load_overlays(
-                site_root / "reader-navigation-locales.json",
+                staged_root / "reader-navigation-locales.json",
                 prepared_navigation,
             )
             policy_pages = [
@@ -266,7 +458,8 @@ class PublicationStagingMaterializationTests(unittest.TestCase):
 
     def test_existing_canonical_title_reuses_locale_overlay(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
-            site_root = Path(temporary_directory)
+            site_root = Path(temporary_directory) / "site-source"
+            site_root.mkdir()
             _copy_inputs(site_root)
             _configure_future_mapping(site_root)
             staging_path = site_root / "publication-staging.json"
@@ -282,17 +475,21 @@ class PublicationStagingMaterializationTests(unittest.TestCase):
                 (site_root / "reader-navigation-locales.json").read_text(encoding="utf-8")
             )
 
-            materialize(site_root, FUTURE_ID)
+            staged_root = materialize(site_root, FUTURE_ID)
 
-            prepared_navigation = _prepared_navigation(site_root)
+            prepared_navigation = _prepared_navigation(staged_root)
             overlays = load_overlays(
-                site_root / "reader-navigation-locales.json",
+                staged_root / "reader-navigation-locales.json",
                 prepared_navigation,
             )
-            after_locales = json.loads(
+            staged_locales = json.loads(
+                (staged_root / "reader-navigation-locales.json").read_text(encoding="utf-8")
+            )
+            source_locales = json.loads(
                 (site_root / "reader-navigation-locales.json").read_text(encoding="utf-8")
             )
-            self.assertEqual(before_locales, after_locales)
+            self.assertEqual(before_locales, staged_locales)
+            self.assertEqual(before_locales, source_locales)
             self.assertIn("Getting started", overlays["ja"])
 
     def test_existing_canonical_title_rejects_new_localizations(self) -> None:
@@ -405,14 +602,17 @@ class PublicationStagingWorkflowTests(unittest.TestCase):
         deploy = (ROOT / ".github/workflows/deploy-pages.yml").read_text(encoding="utf-8")
 
         self.assertIn("publication_staging_id:", workflow)
+        self.assertIn("publication_staging_ids:", workflow)
         self.assertIn("Materialize staged publication mapping", workflow)
         self.assertIn("inputs.publication_staging_id != ''", workflow)
+        self.assertIn("inputs.publication_staging_ids != ''", workflow)
         self.assertIn("scripts/materialize_publication_staging.py", workflow)
         self.assertIn(
             "PUBLICATION_STAGING_ID: ${{ inputs.publication_staging_id }}",
             workflow,
         )
         self.assertIn('--staging-id "$PUBLICATION_STAGING_ID"', workflow)
+        self.assertIn('--staging-ids "$PUBLICATION_STAGING_IDS"', workflow)
         self.assertNotIn('--staging-id "${{ inputs.publication_staging_id }}"', workflow)
         composition_checkout = workflow.index("- name: Check out composition publication")
         policy_checkout = workflow.index("- name: Check out policy publication")
@@ -424,6 +624,7 @@ class PublicationStagingWorkflowTests(unittest.TestCase):
         self.assertLess(tests, materialize_step)
         self.assertLess(materialize_step, prepare)
         self.assertNotIn("publication_staging_id", deploy)
+        self.assertNotIn("publication_staging_ids", deploy)
 
 
 if __name__ == "__main__":
