@@ -5,7 +5,12 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.check_reference_website import check_link, check_manifest, viewport_probes
+from scripts.check_reference_website import (
+    check_link,
+    check_manifest,
+    reference_consumer_probes,
+    viewport_probes,
+)
 from scripts.render_website_metadata import normalize_browser_identity
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -127,6 +132,27 @@ class ReferenceBrowserContractTests(unittest.TestCase):
         expected["viewports"].append({"id":"wide", "minWidthPx":1536, "description":"Wide layout"})
         self.assertIn(1536, viewport_probes(expected))
         self.assertNotIn(0, viewport_probes(expected))
+
+    def test_reference_navigation_matrix_pairs_each_locale_with_each_viewport(self):
+        contract = json.loads((ROOT / "contracts/viewports.json").read_text())
+        template = (ROOT / "zensical.template.toml").read_text()
+        self.assertIn("[project.markdown_extensions.toc]", template)
+        self.assertIn("permalink = true", template)
+        probes = reference_consumer_probes(contract)
+        self.assertEqual(
+            probes,
+            [
+                {"prefix": "", "language": "en", "heading": "Self-hosting reference consumer", "width": 360},
+                {"prefix": "", "language": "en", "heading": "Self-hosting reference consumer", "width": 1280},
+                {"prefix": "/ja", "language": "ja", "heading": "自己ホスティングの参照 consumer", "width": 360},
+                {"prefix": "/ja", "language": "ja", "heading": "自己ホスティングの参照 consumer", "width": 1280},
+            ],
+        )
+        expanded = {**contract, "viewports": [*contract["viewports"], {"id": "wide", "minWidthPx": 1536}]}
+        self.assertEqual(
+            [probe["width"] for probe in reference_consumer_probes(expanded)],
+            [360, 1280, 1536, 360, 1280, 1536],
+        )
 
     def test_manifest_semantics_cannot_drift_behind_asset_presence(self):
         expected = json.loads((ROOT / "contracts/pwa-manifest.json").read_text())

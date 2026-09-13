@@ -8,7 +8,7 @@ import json
 import threading
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlsplit
 from xml.etree import ElementTree
 
 
@@ -66,6 +66,93 @@ def check_manifest(actual, expected, routes, manifest_url):
                     and set(item.get("sizes", "").split()) == set(icon["sizes"])
                     and set(item.get("purpose", "any").split()) == set(icon["purposes"])
                     for item in actual.get("icons", [])), f"manifest icon intent mismatch: {icon['id']}")
+
+
+REFERENCE_CONSUMER_ID = "self-hosting-reference-consumer"
+
+
+def check_reference_consumer_navigation(page, prefix, expected_heading):
+    heading = page.locator(f"h2#{REFERENCE_CONSUMER_ID}")
+    heading.first.wait_for(state="attached")
+    require(heading.count() == 1, "reference fragment must target exactly one h2")
+    require(
+        page.locator(f'[id="{REFERENCE_CONSUMER_ID}"]').count() == 1,
+        "reference fragment must have exactly one DOM target",
+    )
+    require(
+        page.locator(f"span#{REFERENCE_CONSUMER_ID}").count() == 0,
+        "reference fragment must not use a synthetic span target",
+    )
+    require(
+        heading.get_attribute("id") == REFERENCE_CONSUMER_ID,
+        "reference consumer h2 does not own the canonical fragment",
+    )
+    require(
+        expected_heading in (heading.text_content() or ""),
+        "reference consumer h2 is not the intended localized heading",
+    )
+    require(heading.is_visible(), "reference consumer h2 is not visible")
+    current = urlsplit(page.url)
+    require(
+        current.path == f"{prefix}/coexistence/"
+        and current.fragment == REFERENCE_CONSUMER_ID,
+        "reference consumer navigation did not commit the canonical URL fragment",
+    )
+    fragment = f"#{REFERENCE_CONSUMER_ID}"
+    permalink = heading.locator("a.headerlink")
+    require(
+        permalink.count() == 1,
+        "reference consumer heading permalink is missing or ambiguous",
+    )
+    require(
+        permalink.evaluate_all(
+            """(links, fragment) => links.some(link => {
+                const target = new URL(link.href, window.location.href);
+                return target.pathname === window.location.pathname
+                    && target.search === window.location.search
+                    && target.hash === fragment;
+            })""",
+            fragment,
+        ),
+        "reference consumer heading permalink does not use the canonical fragment",
+    )
+    has_same_document_fragment = """(links, fragment) => links.some(link => {
+        const target = new URL(link.href, window.location.href);
+        return target.pathname === window.location.pathname
+            && target.search === window.location.search
+            && target.hash === fragment;
+    })"""
+    require(
+        page.locator('[data-md-component="toc"] a').evaluate_all(
+            has_same_document_fragment,
+            fragment,
+            ),
+            "reference consumer heading missing from generated table of contents",
+        )
+    in_viewport = page.evaluate(
+        """id => {
+            const element = document.getElementById(id);
+            if (!element) return false;
+            const box = element.getBoundingClientRect();
+            return box.top >= -1 && box.top < window.innerHeight;
+        }""",
+        REFERENCE_CONSUMER_ID,
+    )
+    require(in_viewport, "reference fragment did not navigate the heading into view")
+
+
+def reference_consumer_probes(contract):
+    """Return the full locale × declared viewport navigation acceptance matrix."""
+    widths = viewport_probes(contract)
+    locales = (
+        ("", "en", "Self-hosting reference consumer"),
+        ("/ja", "ja", "自己ホスティングの参照 consumer"),
+    )
+    return [
+        {"prefix": prefix, "language": language, "heading": heading, "width": width}
+        for prefix, language, heading in locales
+        for width in widths
+    ]
 
 
 def check(repository: Path, site_root: Path):
@@ -162,11 +249,20 @@ def check(repository: Path, site_root: Path):
                 require(response.status == 200, "icon unreachable")
                 if icon["mediaType"] == "image/png":
                     require(response.body().startswith(b"\x89PNG\r\n\x1a\n"), "invalid raster fallback")
-            # Exercise both landing paths and the existing canonical projection.
-            # Product-wide browser identity must survive localization rather than
-            # only matching on the primary English document.
-            for prefix, language in (("", "en"), ("/ja", "ja")):
-                page.goto(f"http://127.0.0.1:{server.server_port}{prefix}/", wait_until="domcontentloaded")
+            # Exercise the landing click and fragment navigation at every
+            # declared viewport. Keeping viewport selection in the same helper
+            # as the click makes the acceptance matrix explicit and prevents a
+            # preceding layout-only loop from masking mobile regressions.
+            for probe in reference_consumer_probes(viewport):
+                prefix = probe["prefix"]
+                language = probe["language"]
+                page.set_viewport_size({"width": probe["width"], "height": 900})
+                response = page.goto(
+                    f"http://127.0.0.1:{server.server_port}{prefix}/",
+                    wait_until="domcontentloaded",
+                )
+                require(response.status == 200, f"unreachable localized landing route: {prefix or '/'}")
+                require(page.locator("html").get_attribute("lang") == language, "landing document language mismatch")
                 check_link(page, identity["favicon"])
                 for fallback in identity["favicon"]["fallbacks"]:
                     check_link(page, {**fallback, "relation": identity["favicon"]["relation"]})
@@ -174,7 +270,7 @@ def check(repository: Path, site_root: Path):
                 page.locator('section[aria-labelledby="portal-reference-consumer-title"] a').click()
                 page.wait_for_url(f"**{prefix}/coexistence/#self-hosting-reference-consumer", wait_until="domcontentloaded")
                 require(page.locator("html").get_attribute("lang") == language, "reference explanation locale mismatch")
-                require(page.locator("#self-hosting-reference-consumer").count() == 1, "reference anchor missing")
+                check_reference_consumer_navigation(page, prefix, probe["heading"])
             projection = context.request.get(f"http://127.0.0.1:{server.server_port}/reference-consumer.json").json()
             require(projection == json.loads((repository / "assets/reference-consumer.json").read_text()), "served reference projection mismatch")
             browser.close()
@@ -182,7 +278,8 @@ def check(repository: Path, site_root: Path):
         server.shutdown()
         server.server_close()
         thread.join()
-    return {"status":"passed","pages":checked,"viewports":widths}
+    return {"status":"passed","pages":checked,"viewports":widths,
+            "reference_consumer_probes": reference_consumer_probes(viewport)}
 
 
 if __name__ == "__main__":
