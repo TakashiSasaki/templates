@@ -1,13 +1,11 @@
 name: Build documentation artifact
 
 on:
-  schedule:
-    - cron: "43 19 * * *"
-  workflow_dispatch:
   pull_request:
     branches:
       - site
       - 'feat/site-*'
+      - site-composition-audience-publication-staging
     types:
       - opened
       - synchronize
@@ -53,7 +51,7 @@ env:
   PUBLIC_SITE_URL: https://templates.moukaeritai.work/
 
 concurrency:
-  group: documentation-build-${{ github.workflow }}-${{ (github.event.action == 'labeled' && github.event.label.name != 'ci/full-qualification' && github.event.label.name != 'ci/full-site-verification' && github.event.label.name != 'ci/browser') && format('unrelated-label-{0}', github.run_id) || github.ref }}
+  group: documentation-build-${{ github.workflow }}-${{ (github.event.action == 'labeled' && github.event.label.name != 'ci/full-qualification' && github.event.label.name != 'ci/full-site-verification') && format('unrelated-label-{0}', github.run_id) || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -64,7 +62,7 @@ jobs:
       (github.event_name != 'pull_request' ||
        github.event.action != 'labeled' ||
        github.event.label.name == 'ci/full-qualification' ||
-       github.event.label.name == 'ci/full-site-verification' || github.event.label.name == 'ci/browser') &&
+       github.event.label.name == 'ci/full-site-verification') &&
       (inputs.site_ref != '' ||
        github.event_name != 'pull_request' ||
        github.event.pull_request.head.repo.full_name != github.repository ||
@@ -77,7 +75,7 @@ jobs:
       - name: Check out site implementation
         uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.site_ref || github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ inputs.site_ref || github.event.pull_request.head.sha || 'site' }}
           path: site-source
 
       - name: Set up Python
@@ -124,29 +122,43 @@ jobs:
             --publication composition=composition-source \
             --publication policy=policy-source
 
-      - name: Run site assembly tests
-        run: PYTHONPATH=site-source python -m unittest discover --start-directory site-source/tests --verbose
-
       - name: Materialize staged publication mapping
         if: ${{ inputs.publication_staging_id != '' || inputs.publication_staging_ids != '' }}
         env:
           PUBLICATION_STAGING_ID: ${{ inputs.publication_staging_id }}
           PUBLICATION_STAGING_IDS: ${{ inputs.publication_staging_ids }}
         run: |
+          if [ -n "$PUBLICATION_STAGING_ID" ] && [ -n "$PUBLICATION_STAGING_IDS" ]; then
+            echo "Select publication_staging_id or publication_staging_ids, not both" >&2
+            exit 1
+          fi
           staging_args=()
           if [ -n "$PUBLICATION_STAGING_IDS" ]; then
             staging_args+=(--staging-ids "$PUBLICATION_STAGING_IDS")
           else
             staging_args+=(--staging-id "$PUBLICATION_STAGING_ID")
           fi
-          python site-source/scripts/materialize_publication_staging.py \
+          staged_root="$(python site-source/scripts/materialize_publication_staging.py \
             --site-root site-source \
-            "${staging_args[@]}"
+            "${staging_args[@]}")"
+          case "$staged_root" in
+            "$GITHUB_WORKSPACE"/*) ;;
+            *)
+              echo "Staging materializer returned an unexpected root: $staged_root" >&2
+              exit 1
+              ;;
+          esac
+          test -f "$staged_root/site-manifest.json"
+          test -f "$staged_root/reader-navigation-locales.json"
+          echo "SITE_PUBLICATION_ROOT=$staged_root" >> "$GITHUB_ENV"
+
+      - name: Run site assembly tests
+        run: PYTHONPATH=site-source python -m unittest discover --start-directory site-source/tests --verbose
 
       - name: Prepare repository-tree publication
         run: |
           python site-source/scripts/prepare_repository_tree_publication.py \
-            --site-root site-source \
+            --site-root "${SITE_PUBLICATION_ROOT:-site-source}" \
             --output-root site-publication
 
       - name: Assemble the documentation project
@@ -161,6 +173,7 @@ jobs:
       - name: Publish declared translations
         run: |
           python site-source/scripts/publish_provider_translations.py \
+            --reader-navigation-locales "${SITE_PUBLICATION_ROOT:-site-source}/reader-navigation-locales.json" \
             --publication site=site-publication \
             --publication composition=composition-source \
             --publication policy=policy-source \
@@ -463,12 +476,12 @@ jobs:
     name: Classify browser acceptance scope
     if: >-
       github.repository == 'TakashiSasaki/templates' &&
-      (github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') &&
+      github.event_name == 'pull_request' &&
       inputs.site_ref == '' &&
-      (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
       (github.event.action != 'labeled' ||
        github.event.label.name == 'ci/full-qualification' ||
-       github.event.label.name == 'ci/full-site-verification' || github.event.label.name == 'ci/browser')
+       github.event.label.name == 'ci/full-site-verification')
     runs-on: ubuntu-24.04
     outputs:
       required: ${{ steps.classify.outputs.required }}
@@ -490,7 +503,7 @@ jobs:
       - name: Check out exact Site candidate for browser classification
         uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
           persist-credentials: false
 
@@ -500,7 +513,6 @@ jobs:
           python-version: '3.12.13'
 
       - name: Collect exact pull-request changed paths
-        if: ${{ github.event_name == 'pull_request' }}
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
@@ -511,21 +523,11 @@ jobs:
       - name: Classify browser acceptance scope
         id: classify
         env:
-          EVENT_NAME: ${{ github.event_name }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          FORCE_BROWSER_REQUESTED: ${{ contains(github.event.pull_request.labels.*.name, 'ci/browser') }}
-          FORCE_FULL_REQUESTED: ${{ github.event_name == 'push' || ((github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && (contains(github.event.pull_request.labels.*.name, 'ci/full-qualification') || contains(github.event.pull_request.labels.*.name, 'ci/full-site-verification'))) }}
+          FORCE_FULL_REQUESTED: ${{ github.event_name == 'push' || (github.event_name == 'pull_request' && (contains(github.event.pull_request.labels.*.name, 'ci/full-qualification') || contains(github.event.pull_request.labels.*.name, 'ci/full-site-verification'))) }}
         run: |
           set -euo pipefail
-          if [ "$EVENT_NAME" != pull_request ]; then
-            for capability in core_required build_required browser_required pwa_required reference_consumer_required cross_authority_required publication_required full_required required; do
-              echo "$capability=true" >> "$GITHUB_OUTPUT"
-            done
-            echo "reason=scheduled-or-manual-full-site-browser-qualification" >> "$GITHUB_OUTPUT"
-            echo "authority_source=scheduled-or-manual" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
           classifier_dir="$RUNNER_TEMP/site-ci-classifier-authority"
           rm -rf "$classifier_dir"
           mkdir -p "$classifier_dir"
@@ -533,15 +535,9 @@ jobs:
 
           if git show "$BASE_SHA:scripts/classify_site_ci.py" > "$classifier_dir/classify_site_ci.py" 2>/dev/null; then
             echo "authority_source=base" >> "$GITHUB_OUTPUT"
-            browser_args=()
-            if grep -q -- '--force-browser' "$classifier_dir/classify_site_ci.py"; then
-              browser_args=(--force-browser "${FORCE_BROWSER_REQUESTED:-false}")
-            elif [ "${FORCE_BROWSER_REQUESTED:-false}" = true ]; then
-              force_full=true
-            fi
             python -I "$classifier_dir/classify_site_ci.py" \
               --changed-paths "$RUNNER_TEMP/site-browser-paths.txt" \
-              --force-full "$force_full" "${browser_args[@]}" \
+              --force-full "$force_full" \
               --output "$GITHUB_OUTPUT"
           else
             authority_source="base-unavailable-full"
@@ -587,12 +583,12 @@ jobs:
     if: >-
       always() &&
       github.repository == 'TakashiSasaki/templates' &&
-      (github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') &&
+      github.event_name == 'pull_request' &&
       inputs.site_ref == '' &&
-      (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
       (github.event.action != 'labeled' ||
        github.event.label.name == 'ci/full-qualification' ||
-       github.event.label.name == 'ci/full-site-verification' || github.event.label.name == 'ci/browser')
+       github.event.label.name == 'ci/full-site-verification')
     needs:
       - build
       - classify_browser
@@ -651,12 +647,11 @@ jobs:
             echo "- reason: \`$BROWSER_REASON\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
-
       - name: Check out proposed Site revision
         if: ${{ needs.classify_browser.outputs.required == 'true' }}
         uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Download built Pages artifact
         if: ${{ needs.classify_browser.outputs.required == 'true' }}
@@ -786,11 +781,11 @@ jobs:
       always() &&
       github.repository == 'TakashiSasaki/templates' &&
       inputs.site_ref == '' &&
-      (github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') &&
-      (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) &&
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
       (github.event.action != 'labeled' ||
        github.event.label.name == 'ci/full-qualification' ||
-       github.event.label.name == 'ci/full-site-verification' || github.event.label.name == 'ci/browser')
+       github.event.label.name == 'ci/full-site-verification')
     needs:
       - classify_browser
     runs-on: ubuntu-24.04
@@ -798,7 +793,7 @@ jobs:
       - name: Check out site candidate
         uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 1
           persist-credentials: false
 
@@ -818,12 +813,12 @@ jobs:
     if: >-
       always() &&
       github.repository == 'TakashiSasaki/templates' &&
-      (github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') &&
+      github.event_name == 'pull_request' &&
       inputs.site_ref == '' &&
-      (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
       (github.event.action != 'labeled' ||
        github.event.label.name == 'ci/full-qualification' ||
-       github.event.label.name == 'ci/full-site-verification' || github.event.label.name == 'ci/browser')
+       github.event.label.name == 'ci/full-site-verification')
     needs:
       - build
       - classify_browser

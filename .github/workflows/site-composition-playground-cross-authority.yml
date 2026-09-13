@@ -6,6 +6,7 @@ on:
       - codex/site-composition-playground-v1-shell
       - site
       - 'feat/site-*'
+      - site-composition-audience-publication-staging
     types:
       - opened
       - synchronize
@@ -66,10 +67,7 @@ jobs:
               force_full=true
             fi
             output_file="$RUNNER_TEMP/site-ci-output.txt"
-            python3 -I "$classifier_dir/classify_site_ci.py" \
-              --changed-paths "$RUNNER_TEMP/changed-paths.txt" \
-              --force-full "$force_full" "${browser_args[@]}" \
-              --output "$output_file"
+            python3 -I "$classifier_dir/classify_site_ci.py"               --changed-paths "$RUNNER_TEMP/changed-paths.txt"               --force-full "$force_full" "${browser_args[@]}"               --output "$output_file"
             for capability in build_required browser_required pwa_required reference_consumer_required cross_authority_required playground_required; do
               value="$(sed -n "s/^${capability}=//p" "$output_file")"
               if [ -z "$value" ] && [ "$capability" = playground_required ]; then value=true; fi
@@ -147,11 +145,7 @@ jobs:
           EXPECTED_SEMANTIC_REVISION: 84bb23f6e8ebf5cafbef3e93f25b7076fe47f3b7
         run: |
           test "$(git rev-parse HEAD)" = "$EXPECTED_SITE_REVISION"
-          python scripts/check_composition_playground_cross_authority.py \
-            --site-root build/site \
-            --expected-site-revision "$EXPECTED_SITE_REVISION" \
-            --expected-provider-revision "$EXPECTED_PROVIDER_REVISION" \
-            --expected-semantic-revision "$EXPECTED_SEMANTIC_REVISION"
+          python scripts/check_composition_playground_cross_authority.py             --site-root build/site             --expected-site-revision "$EXPECTED_SITE_REVISION"             --expected-provider-revision "$EXPECTED_PROVIDER_REVISION"             --expected-semantic-revision "$EXPECTED_SEMANTIC_REVISION"
           python scripts/check_composition_playground_final_browser.py --site-root build/site
           python scripts/check_composition_playground_final_grid_browser.py --site-root build/site
           python scripts/check_composition_playground_latest_five_browser.py --site-root build/site

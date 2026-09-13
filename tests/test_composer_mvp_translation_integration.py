@@ -8,6 +8,7 @@ from scripts import publish_translations as translation_publisher
 from scripts.assemble_publications import load_manifest, pages
 from scripts.assemble_publications_v3 import load_catalog
 from scripts.materialize_publication_assets import is_publication_materialized
+from tests.publication_context import publication_root
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -22,7 +23,7 @@ class ComposerMvpTranslationIntegrationTests(unittest.TestCase):
             self.skipTest("Composition provider is not materialized; run materialize_publication_assets.py first")
 
         documents, assets = load_catalog("composition", provider.resolve(strict=True))
-        _, navigation = load_manifest(ROOT / "site-manifest.json")
+        _, navigation = load_manifest(publication_root(ROOT) / "site-manifest.json")
         composition_pages = [
             page for page in pages(navigation) if page["publication"] == "composition"
         ]
