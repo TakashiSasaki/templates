@@ -315,3 +315,39 @@ Composition revision, Policy override, explicit singular/plural staging IDs or d
 gets an independent candidate build; freshness still reports lock/head divergence
 and never advances the reviewed lock. Concurrent work in the audience publication
 staging stack must preserve this comparison when integrating its staging changes.
+
+### Qualification examples and rollout measurement
+
+| Changed input / escalation | Site build | Real browser | PWA | Full aggregate |
+| --- | --- | --- | --- | --- |
+| Ordinary Markdown (`docs/index.md`, `MAINTENANCE.md`) | no | no | no | no |
+| Website contract implementation or static schema | yes | no | no | no |
+| Playground Node test only | no | no | no | no |
+| Browser JavaScript, CSS, or interactive Playground markup | yes | yes | when PWA-sensitive | no |
+| Service Worker / PWA implementation | yes | yes | yes | no |
+| `ci/browser` | yes | yes | yes | only if otherwise required |
+| Either full label, CI controls, or unknown paths | yes | yes | yes | yes |
+
+The full aggregate requires 21 distinct suites, including both Playground jobs
+and the materialization candidate. All filtered qualification workflows share the
+canonical stack-base patterns; full-label application also triggers materialization.
+An artifact expires under normal Pages retention. A canonical producer with no
+live qualified predecessor builds again; consumers require the new exact producer.
+Changed executed workflow bytes or runner identity likewise need a fresh canonical
+build and cannot reuse the older input identity.
+
+For performance comparisons, inspect exact-head Actions job **steps**, not just
+job names: a reusable `build / build` job may restore and validate an artifact while
+skipping every assembly step. Count executed `Build the static site` steps and
+record each build's input identity. Record the immutable producer run/artifact ID
+from `Resolve exact build inputs and reuse qualified PR artifact` alongside the
+consumer result. Browser jobs and PWA steps remain independent measurements.
+
+The rollout baseline on PRs #832/#833 ran five Site assemblies for a fully
+qualified head, with individual build jobs around 2.5 minutes. These are observed
+samples, not timing guarantees. Compare later heads using actual assembly count,
+reuse count, browser execution/skip decisions, job durations, and aggregate elapsed
+time. Runner queueing and variance can obscure wall-clock improvement even when
+redundant work is removed. The rollout's final documentation PR exercises docs-only
+classification, then browser and full-label escalation on one unchanged head;
+retain those run links in its PR handoff evidence.
