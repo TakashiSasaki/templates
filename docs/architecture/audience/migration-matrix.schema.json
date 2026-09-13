@@ -1,0 +1,410 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Site audience migration inventory",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "audit",
+    "documents"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "audit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repository",
+        "started_at",
+        "revisions",
+        "catalog_path",
+        "site_manifest_path",
+        "provider_lock_path",
+        "generated_publication_path"
+      ],
+      "properties": {
+        "repository": {
+          "const": "TakashiSasaki/templates"
+        },
+        "started_at": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"
+        },
+        "revisions": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "site",
+            "composition",
+            "policy"
+          ],
+          "properties": {
+            "site": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{40}$"
+            },
+            "composition": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{40}$"
+            },
+            "policy": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{40}$"
+            }
+          }
+        },
+        "catalog_path": {
+          "const": "docs/publication-catalog.json"
+        },
+        "site_manifest_path": {
+          "const": "site-manifest.json"
+        },
+        "provider_lock_path": {
+          "const": "publication-sources.json"
+        },
+        "generated_publication_path": {
+          "const": "scripts/prepare_repository_tree_publication.py"
+        }
+      }
+    },
+    "documents": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "site",
+        "composition",
+        "policy"
+      ],
+      "properties": {
+        "site": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": {
+            "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+          },
+          "additionalProperties": {
+            "allOf": [
+              {
+                "$ref": "#/$defs/document"
+              },
+              {
+                "properties": {
+                  "provider_action": {
+                    "const": "none"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "composition": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": {
+            "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/document"
+          }
+        },
+        "policy": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": {
+            "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/document"
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "document": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "source",
+        "current_destination",
+        "current_navigation",
+        "primary_audience",
+        "additional_audiences",
+        "proposed_navigation",
+        "provider_action",
+        "site_action",
+        "site_projection_sufficient",
+        "notes"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "published",
+            "generated",
+            "candidate"
+          ]
+        },
+        "source": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^(?!/)(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*\\\\)[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*\\.md$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "current_destination": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^(?!/)(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*\\\\)[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*\\.md$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "current_navigation": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "primary_audience": {
+          "enum": [
+            "use",
+            "maintain"
+          ]
+        },
+        "additional_audiences": {
+          "type": "array",
+          "uniqueItems": true,
+          "maxItems": 1,
+          "items": {
+            "enum": [
+              "use",
+              "maintain"
+            ]
+          }
+        },
+        "proposed_navigation": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "audience",
+              "path"
+            ],
+            "properties": {
+              "audience": {
+                "enum": [
+                  "use",
+                  "maintain"
+                ]
+              },
+              "path": {
+                "type": "array",
+                "minItems": 2,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            },
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "audience": {
+                      "const": "use"
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "path": {
+                      "prefixItems": [
+                        {
+                          "enum": [
+                            "Start here",
+                            "Composition",
+                            "Website",
+                            "Web application",
+                            "Agent Skill",
+                            "Policy",
+                            "Capabilities",
+                            "Product lifecycle",
+                            "Repository topology",
+                            "Migrations",
+                            "Reference"
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                }
+              },
+              {
+                "if": {
+                  "properties": {
+                    "audience": {
+                      "const": "maintain"
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "path": {
+                      "prefixItems": [
+                        {
+                          "enum": [
+                            "Maintainer overview",
+                            "Authorities",
+                            "Authority coexistence",
+                            "Self-hosting",
+                            "Publication",
+                            "Site operation",
+                            "Validation and qualification",
+                            "Development workflow",
+                            "Architecture decisions",
+                            "Repository history",
+                            "Repository inspection"
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "provider_action": {
+          "enum": [
+            "none",
+            "clarify",
+            "publish-existing",
+            "author-and-publish"
+          ]
+        },
+        "site_action": {
+          "enum": [
+            "project",
+            "clarify",
+            "publish-existing",
+            "author-and-publish"
+          ]
+        },
+        "site_projection_sufficient": {
+          "type": "boolean"
+        },
+        "notes": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "primary_audience": {
+                "const": "use"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "additional_audiences": {
+                "items": {
+                  "const": "maintain"
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "primary_audience": {
+                "const": "maintain"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "additional_audiences": {
+                "items": {
+                  "const": "use"
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "candidate"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "current_destination": {
+                "type": "null"
+              },
+              "current_navigation": {
+                "maxItems": 0
+              },
+              "site_projection_sufficient": {
+                "const": false
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "source": {
+                "type": "string",
+                "pattern": "^(?!/)(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*\\\\)[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*\\.md$"
+              },
+              "current_destination": {
+                "type": "string",
+                "pattern": "^(?!/)(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*\\\\)[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*\\.md$"
+              },
+              "current_navigation": {
+                "minItems": 1
+              },
+              "site_action": {
+                "enum": [
+                  "project",
+                  "clarify"
+                ]
+              },
+              "provider_action": {
+                "enum": [
+                  "none",
+                  "clarify"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

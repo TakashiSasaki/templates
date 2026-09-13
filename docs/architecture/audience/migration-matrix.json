@@ -1,0 +1,3958 @@
+{
+  "schema_version": 1,
+  "audit": {
+    "repository": "TakashiSasaki/templates",
+    "started_at": "2026-09-13T05:49:39Z",
+    "revisions": {
+      "site": "27e51190a20cd1603247c60d0ed30632c3b5182f",
+      "composition": "0f0c4012818a3b8646ad89fbca7db22c71ad5dd8",
+      "policy": "5574ea46d2076bb1f5c51d4b0e8c9483a17d8fe2"
+    },
+    "catalog_path": "docs/publication-catalog.json",
+    "site_manifest_path": "site-manifest.json",
+    "provider_lock_path": "publication-sources.json",
+    "generated_publication_path": "scripts/prepare_repository_tree_publication.py"
+  },
+  "documents": {
+    "site": {
+      "portal-home": {
+        "status": "published",
+        "source": "docs/landing.md",
+        "current_destination": "index.md",
+        "current_navigation": [
+          [
+            "Documentation portal"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [
+          "maintain"
+        ],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Start here",
+              "Documentation portal"
+            ]
+          },
+          {
+            "audience": "maintain",
+            "path": [
+              "Maintainer overview",
+              "Documentation portal"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Neutral root landing serves both journeys. Its inventory primary does not select the root theme."
+      },
+      "policy-composition-coexistence": {
+        "status": "published",
+        "source": "docs/policy-composition-coexistence.md",
+        "current_destination": "coexistence/index.md",
+        "current_navigation": [
+          [
+            "Policy\u2013Composition coexistence"
+          ]
+        ],
+        "primary_audience": "maintain",
+        "additional_audiences": [
+          "use"
+        ],
+        "proposed_navigation": [
+          {
+            "audience": "maintain",
+            "path": [
+              "Authority coexistence",
+              "Policy\u2013Composition coexistence"
+            ]
+          },
+          {
+            "audience": "use",
+            "path": [
+              "Reference",
+              "Integration",
+              "Policy\u2013Composition coexistence"
+            ]
+          },
+          {
+            "audience": "maintain",
+            "path": [
+              "Self-hosting",
+              "Reference consumer"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Cross-authority integration contract also needed by consumers adopting both systems. Self-hosting is a section of this same canonical document."
+      },
+      "composition-playground": {
+        "status": "published",
+        "source": "docs/composition-playground.md",
+        "current_destination": "playground/index.md",
+        "current_navigation": [
+          [
+            "Composition",
+            "Composition Playground"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Composition",
+              "Composition Playground"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Consumer recipe/intent exploration consumes provider projections; browser UI does not own Composer semantics."
+      },
+      "capabilities-overview": {
+        "status": "published",
+        "source": "docs/capabilities.md",
+        "current_destination": "capabilities/index.md",
+        "current_navigation": [
+          [
+            "Reusable capabilities",
+            "Overview"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Capabilities",
+              "Overview"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Site navigation index routes consumer capability selection to canonical Composition contracts."
+      },
+      "webmcp-guide": {
+        "status": "published",
+        "source": "docs/webmcp.md",
+        "current_destination": "capabilities/webmcp/index.md",
+        "current_navigation": [
+          [
+            "Reusable capabilities",
+            "WebMCP overview"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Capabilities",
+              "WebMCP",
+              "WebMCP overview"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Consumer discovery guide; optional component semantics stay with Composition."
+      },
+      "lifecycle-overview": {
+        "status": "published",
+        "source": "docs/lifecycle.md",
+        "current_destination": "lifecycle/index.md",
+        "current_navigation": [
+          [
+            "Lifecycle contracts",
+            "Overview"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [
+          "maintain"
+        ],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Product lifecycle",
+              "Overview"
+            ]
+          },
+          {
+            "audience": "maintain",
+            "path": [
+              "Self-hosting",
+              "Overview"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Integration explanation connects product evidence/checkpoints with Policy review/work ledgers; reference-consumer sections also serve maintainers."
+      },
+      "repository-topology-overview": {
+        "status": "published",
+        "source": "docs/architecture/repository-topology.md",
+        "current_destination": "topology/index.md",
+        "current_navigation": [
+          [
+            "Repository topology",
+            "Overview"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [
+          "maintain"
+        ],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Repository topology",
+              "Overview"
+            ]
+          },
+          {
+            "audience": "maintain",
+            "path": [
+              "Authorities",
+              "Site",
+              "Overview"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Consumer topology selection index also distinguishes templates authority integration from consumer topology."
+      },
+      "repository-trees": {
+        "status": "generated",
+        "source": "docs/repository-trees/overview.md",
+        "current_destination": "repository-trees/index.md",
+        "current_navigation": [
+          [
+            "Repository trees",
+            "Overview"
+          ]
+        ],
+        "primary_audience": "maintain",
+        "additional_audiences": [
+          "use"
+        ],
+        "proposed_navigation": [
+          {
+            "audience": "maintain",
+            "path": [
+              "Repository inspection",
+              "Overview"
+            ]
+          },
+          {
+            "audience": "use",
+            "path": [
+              "Reference",
+              "Repository inspection",
+              "Overview"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Generated exact-revision source-tree document, useful for maintainer inspection and consumer provenance."
+      },
+      "repository-tree-composition": {
+        "status": "generated",
+        "source": "docs/repository-trees/composition.md",
+        "current_destination": "repository-trees/composition.md",
+        "current_navigation": [
+          [
+            "Repository trees",
+            "Composition tree"
+          ]
+        ],
+        "primary_audience": "maintain",
+        "additional_audiences": [
+          "use"
+        ],
+        "proposed_navigation": [
+          {
+            "audience": "maintain",
+            "path": [
+              "Repository inspection",
+              "Composition tree"
+            ]
+          },
+          {
+            "audience": "use",
+            "path": [
+              "Reference",
+              "Repository inspection",
+              "Composition tree"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Generated exact-revision source-tree document, useful for maintainer inspection and consumer provenance."
+      },
+      "repository-tree-policy": {
+        "status": "generated",
+        "source": "docs/repository-trees/policy.md",
+        "current_destination": "repository-trees/policy.md",
+        "current_navigation": [
+          [
+            "Repository trees",
+            "Policy tree"
+          ]
+        ],
+        "primary_audience": "maintain",
+        "additional_audiences": [
+          "use"
+        ],
+        "proposed_navigation": [
+          {
+            "audience": "maintain",
+            "path": [
+              "Repository inspection",
+              "Policy tree"
+            ]
+          },
+          {
+            "audience": "use",
+            "path": [
+              "Reference",
+              "Repository inspection",
+              "Policy tree"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Generated exact-revision source-tree document, useful for maintainer inspection and consumer provenance."
+      },
+      "site-maintenance": {
+        "status": "candidate",
+        "source": "MAINTENANCE.md",
+        "current_destination": null,
+        "current_navigation": [],
+        "primary_audience": "maintain",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "maintain",
+            "path": [
+              "Maintainer overview",
+              "Site maintenance"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "publish-existing",
+        "site_projection_sufficient": false,
+        "notes": "Publish canonical Site operating overview; link self-hosted consumer, assembly, source locking and validation procedures without copying provider rules."
+      },
+      "authority-model": {
+        "status": "candidate",
+        "source": "docs/authority-model.md",
+        "current_destination": null,
+        "current_navigation": [],
+        "primary_audience": "maintain",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "maintain",
+            "path": [
+              "Authorities",
+              "Site",
+              "Authority model"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "publish-existing",
+        "site_projection_sufficient": false,
+        "notes": "Publish repository-wide ownership/semantic-role contract; Site is not a super-authority."
+      },
+      "integrated-publication": {
+        "status": "candidate",
+        "source": "PUBLISHING.md",
+        "current_destination": null,
+        "current_navigation": [],
+        "primary_audience": "maintain",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "maintain",
+            "path": [
+              "Publication",
+              "Integrated publication"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "publish-existing",
+        "site_projection_sufficient": false,
+        "notes": "Publish existing integration/publication rules and sole deployment boundary."
+      },
+      "publication-staging": {
+        "status": "candidate",
+        "source": "PUBLICATION_STAGING.md",
+        "current_destination": null,
+        "current_navigation": [],
+        "primary_audience": "maintain",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "maintain",
+            "path": [
+              "Publication",
+              "Staging and cutover"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "publish-existing",
+        "site_projection_sufficient": false,
+        "notes": "Publish compatibility staging sequence; future provider document additions must follow this existing protocol."
+      },
+      "publication-freshness": {
+        "status": "candidate",
+        "source": "PUBLICATION_FRESHNESS.md",
+        "current_destination": null,
+        "current_navigation": [],
+        "primary_audience": "maintain",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "maintain",
+            "path": [
+              "Publication",
+              "Provider source freshness"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "publish-existing",
+        "site_projection_sufficient": false,
+        "notes": "Publish exact-lock versus candidate compatibility diagnostic contract."
+      },
+      "runtime-freshness": {
+        "status": "candidate",
+        "source": "FRESHNESS.md",
+        "current_destination": null,
+        "current_navigation": [],
+        "primary_audience": "maintain",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "maintain",
+            "path": [
+              "Site operation",
+              "Runtime freshness"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "publish-existing",
+        "site_projection_sufficient": false,
+        "notes": "Publish Site cache/fallback and browser freshness semantics; distinct from provider source freshness."
+      },
+      "glossary-contract": {
+        "status": "candidate",
+        "source": "GLOSSARY.md",
+        "current_destination": null,
+        "current_navigation": [],
+        "primary_audience": "maintain",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "maintain",
+            "path": [
+              "Publication",
+              "Glossary integration"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "publish-existing",
+        "site_projection_sufficient": false,
+        "notes": "Publish integration contract; terms remain provider-owned, integrated viewer stays a shared service."
+      },
+      "language-contract": {
+        "status": "candidate",
+        "source": "LANGUAGE.md",
+        "current_destination": null,
+        "current_navigation": [],
+        "primary_audience": "maintain",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "maintain",
+            "path": [
+              "Publication",
+              "Language and translation"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "publish-existing",
+        "site_projection_sufficient": false,
+        "notes": "Publish canonical language and translation ownership/provenance contract."
+      },
+      "site-pwa-contract": {
+        "status": "candidate",
+        "source": "PWA.md",
+        "current_destination": null,
+        "current_navigation": [],
+        "primary_audience": "maintain",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "maintain",
+            "path": [
+              "Site operation",
+              "Site PWA contract"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "publish-existing",
+        "site_projection_sufficient": false,
+        "notes": "Publish Site-specific PWA maintenance pointer to consumer contracts and freshness implementation."
+      },
+      "ci-performance": {
+        "status": "candidate",
+        "source": "docs/ci/site-performance.md",
+        "current_destination": null,
+        "current_navigation": [],
+        "primary_audience": "maintain",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "maintain",
+            "path": [
+              "Validation and qualification",
+              "Site CI performance"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "publish-existing",
+        "site_projection_sufficient": false,
+        "notes": "Publish current CI performance boundaries and validation ownership; do not turn timing evidence into product semantics."
+      }
+    },
+    "composition": {
+      "overview": {
+        "status": "published",
+        "source": "README.md",
+        "current_destination": "composition/index.md",
+        "current_navigation": [
+          [
+            "Composition",
+            "Overview"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [
+          "maintain"
+        ],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Composition",
+              "Overview"
+            ]
+          },
+          {
+            "audience": "maintain",
+            "path": [
+              "Authorities",
+              "Composition",
+              "Overview"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Provider orientation/disclosure begins with consumer tasks and also indexes canonical provider maintenance references."
+      },
+      "documentation-index": {
+        "status": "published",
+        "source": "docs/index.md",
+        "current_destination": "composition/docs/index.md",
+        "current_navigation": [
+          [
+            "Composition",
+            "Documentation index"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [
+          "maintain"
+        ],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Composition",
+              "Documentation index"
+            ]
+          },
+          {
+            "audience": "maintain",
+            "path": [
+              "Authorities",
+              "Composition",
+              "Documentation index"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Provider orientation/disclosure begins with consumer tasks and also indexes canonical provider maintenance references."
+      },
+      "composition-concepts": {
+        "status": "published",
+        "source": "docs/guides/composition-concepts.md",
+        "current_destination": "composition/concepts/index.md",
+        "current_navigation": [
+          [
+            "Composition",
+            "Concepts and terminology"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Composition",
+              "Concepts and terminology"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Explanatory vocabulary helps consumers understand recipes, components and materials; it does not redefine schemas."
+      },
+      "website-webapp-selection": {
+        "status": "published",
+        "source": "docs/guides/website-webapp-selection.md",
+        "current_destination": "web/index.md",
+        "current_navigation": [
+          [
+            "Web",
+            "Choose Website or Web application"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Start here",
+              "Choose Website or Web application"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Selects consumer artifact by product identity and caller-visible behavior."
+      },
+      "web-url-path-design-guidance": {
+        "status": "published",
+        "source": "components/foundation.web/files/docs/url-path-design-guidance.md",
+        "current_destination": "web/url-path-design-guidance.md",
+        "current_navigation": [
+          [
+            "Web",
+            "URL and path design guidance"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Reference",
+              "Shared Web",
+              "URL and path design guidance"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Advisory consumer URL guidance; normative routes remain in Composition contracts."
+      },
+      "website-product-walkthrough": {
+        "status": "published",
+        "source": "docs/guides/website-product-walkthrough.md",
+        "current_destination": "website/index.md",
+        "current_navigation": [
+          [
+            "Website",
+            "Product walkthrough"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Website",
+              "Product walkthrough"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Worked consumer Website path from selection through planning and browser product evidence."
+      },
+      "evaluation-guide": {
+        "status": "published",
+        "source": "docs/evaluation-guide.md",
+        "current_destination": "composition/evaluate/index.md",
+        "current_navigation": [
+          [
+            "Composition",
+            "Evaluate Composition"
+          ]
+        ],
+        "primary_audience": "maintain",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "maintain",
+            "path": [
+              "Validation and qualification",
+              "Composition",
+              "Evaluate Composition"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Guide explicitly targets authority maintainers and clean-room evaluators, not ordinary consumer installation."
+      },
+      "consumer-guide": {
+        "status": "published",
+        "source": "docs/consumer-guide.md",
+        "current_destination": "composition/use/index.md",
+        "current_navigation": [
+          [
+            "Composition",
+            "Use Composition"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Composition",
+              "Use Composition"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Guide explicitly defines maintainers of concrete products as consumers; covers install, update, upgrade and recovery."
+      },
+      "webapp-product-walkthrough": {
+        "status": "published",
+        "source": "docs/guides/webapp-product-walkthrough.md",
+        "current_destination": "webapp/product-walkthrough.md",
+        "current_navigation": [
+          [
+            "Web application",
+            "Product walkthrough"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Web application",
+              "Product walkthrough"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Worked consumer Web application path through contracts, implementation and evidence."
+      },
+      "skill-first-use-walkthrough": {
+        "status": "published",
+        "source": "docs/guides/skill-first-use-walkthrough.md",
+        "current_destination": "composition/use/skill-first-use-walkthrough.md",
+        "current_navigation": [
+          [
+            "Agent Skill",
+            "First-use walkthrough"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Agent Skill",
+              "First-use walkthrough"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Creates a concrete Skill in a separate consumer repository."
+      },
+      "release-guide": {
+        "status": "published",
+        "source": "docs/release-guide.md",
+        "current_destination": "composition/release/index.md",
+        "current_navigation": [
+          [
+            "Composition",
+            "Produce a product release"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Product lifecycle",
+              "Produce a product release"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Produces a consumer product release; do not confuse with releasing the Composition provider installer."
+      },
+      "composer-reference": {
+        "status": "published",
+        "source": "docs/reference/composer.md",
+        "current_destination": "composition/reference/composer.md",
+        "current_navigation": [
+          [
+            "Composition",
+            "Composer reference"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [
+          "maintain"
+        ],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Reference",
+              "Composition",
+              "Composer reference"
+            ]
+          },
+          {
+            "audience": "maintain",
+            "path": [
+              "Authorities",
+              "Composition",
+              "Composer reference"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Technical reference supports consumer composition, schema/managed-state interpretation and diagnostics; provider implementers consult the same canonical contract."
+      },
+      "publication-boundary": {
+        "status": "published",
+        "source": "docs/publication-catalog.md",
+        "current_destination": "composition/docs/publication-catalog.md",
+        "current_navigation": [
+          [
+            "Composition",
+            "Publication boundary"
+          ]
+        ],
+        "primary_audience": "maintain",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "maintain",
+            "path": [
+              "Publication",
+              "Composition",
+              "Publication boundary"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Provider-owned catalog allowlist and publication protocol; Site only controls integrated exposure."
+      },
+      "composition-model": {
+        "status": "published",
+        "source": "docs/architecture/composition-model.md",
+        "current_destination": "composition/architecture/composition-model.md",
+        "current_navigation": [
+          [
+            "Composition",
+            "Architecture",
+            "Composition model"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [
+          "maintain"
+        ],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Reference",
+              "Composition",
+              "Composition model"
+            ]
+          },
+          {
+            "audience": "maintain",
+            "path": [
+              "Authorities",
+              "Composition",
+              "Composition model"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Technical reference supports consumer composition, schema/managed-state interpretation and diagnostics; provider implementers consult the same canonical contract."
+      },
+      "catalog-architecture": {
+        "status": "published",
+        "source": "docs/architecture/catalog.md",
+        "current_destination": "composition/architecture/catalog.md",
+        "current_navigation": [
+          [
+            "Composition",
+            "Architecture",
+            "Production catalog"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [
+          "maintain"
+        ],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Reference",
+              "Composition",
+              "Production catalog"
+            ]
+          },
+          {
+            "audience": "maintain",
+            "path": [
+              "Authorities",
+              "Composition",
+              "Production catalog"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Technical reference supports consumer composition, schema/managed-state interpretation and diagnostics; provider implementers consult the same canonical contract."
+      },
+      "generated-contract-manifest": {
+        "status": "published",
+        "source": "docs/architecture/generated-contract-manifest.md",
+        "current_destination": "composition/architecture/generated-contract-manifest.md",
+        "current_navigation": [
+          [
+            "Composition",
+            "Architecture",
+            "Generated contract manifest"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [
+          "maintain"
+        ],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Reference",
+              "Composition",
+              "Generated contract manifest"
+            ]
+          },
+          {
+            "audience": "maintain",
+            "path": [
+              "Authorities",
+              "Composition",
+              "Generated contract manifest"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Technical reference supports consumer composition, schema/managed-state interpretation and diagnostics; provider implementers consult the same canonical contract."
+      },
+      "composer-mvp": {
+        "status": "published",
+        "source": "docs/architecture/composer-mvp.md",
+        "current_destination": "composition/architecture/composer-mvp.md",
+        "current_navigation": [
+          [
+            "Composition",
+            "Architecture",
+            "Composer architecture"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [
+          "maintain"
+        ],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Reference",
+              "Composition",
+              "Composer architecture"
+            ]
+          },
+          {
+            "audience": "maintain",
+            "path": [
+              "Authorities",
+              "Composition",
+              "Composer architecture"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Technical reference supports consumer composition, schema/managed-state interpretation and diagnostics; provider implementers consult the same canonical contract."
+      },
+      "catalog-guide": {
+        "status": "published",
+        "source": "catalog/README.md",
+        "current_destination": "composition/catalog/index.md",
+        "current_navigation": [
+          [
+            "Composition",
+            "Machine authority guides",
+            "Catalog guide"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [
+          "maintain"
+        ],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Reference",
+              "Composition",
+              "Catalog guide"
+            ]
+          },
+          {
+            "audience": "maintain",
+            "path": [
+              "Authorities",
+              "Composition",
+              "Catalog guide"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Technical reference supports consumer composition, schema/managed-state interpretation and diagnostics; provider implementers consult the same canonical contract."
+      },
+      "schema-guide": {
+        "status": "published",
+        "source": "schemas/README.md",
+        "current_destination": "composition/schemas/index.md",
+        "current_navigation": [
+          [
+            "Composition",
+            "Machine authority guides",
+            "Schema guide"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [
+          "maintain"
+        ],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Reference",
+              "Composition",
+              "Schema guide"
+            ]
+          },
+          {
+            "audience": "maintain",
+            "path": [
+              "Authorities",
+              "Composition",
+              "Schema guide"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Technical reference supports consumer composition, schema/managed-state interpretation and diagnostics; provider implementers consult the same canonical contract."
+      },
+      "skill-overview": {
+        "status": "published",
+        "source": "components/artifact.skill-core/files/README.md",
+        "current_destination": "skill/index.md",
+        "current_navigation": [
+          [
+            "Agent Skill",
+            "Overview"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Agent Skill",
+              "Reference",
+              "Overview"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Materialized Skill contract/reference supports concrete consumer workflow design: Overview."
+      },
+      "skill-contract": {
+        "status": "published",
+        "source": "components/artifact.skill-core/files/SKILL.md",
+        "current_destination": "skill/SKILL.md",
+        "current_navigation": [
+          [
+            "Agent Skill",
+            "Skill contract"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Agent Skill",
+              "Reference",
+              "Skill contract"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Materialized Skill contract/reference supports concrete consumer workflow design: Skill contract."
+      },
+      "skill-documentation-index": {
+        "status": "published",
+        "source": "components/artifact.skill-core/files/docs/index.md",
+        "current_destination": "skill/docs/index.md",
+        "current_navigation": [
+          [
+            "Agent Skill",
+            "Documentation index"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Agent Skill",
+              "Reference",
+              "Documentation index"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Materialized Skill contract/reference supports concrete consumer workflow design: Documentation index."
+      },
+      "skill-profiles": {
+        "status": "published",
+        "source": "components/artifact.skill-core/files/docs/skill-profiles.md",
+        "current_destination": "skill/docs/skill-profiles.md",
+        "current_navigation": [
+          [
+            "Agent Skill",
+            "Skill profiles"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Agent Skill",
+              "Reference",
+              "Skill profiles"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Materialized Skill contract/reference supports concrete consumer workflow design: Skill profiles."
+      },
+      "skill-capability-map": {
+        "status": "published",
+        "source": "components/artifact.skill-core/files/docs/skill-capability-map.md",
+        "current_destination": "skill/docs/skill-capability-map.md",
+        "current_navigation": [
+          [
+            "Agent Skill",
+            "Skill/capability map"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Agent Skill",
+              "Reference",
+              "Skill/capability map"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Materialized Skill contract/reference supports concrete consumer workflow design: Skill/capability map."
+      },
+      "skill-architecture": {
+        "status": "published",
+        "source": "components/artifact.skill-core/files/docs/architecture.md",
+        "current_destination": "skill/docs/architecture.md",
+        "current_navigation": [
+          [
+            "Agent Skill",
+            "Architecture"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Agent Skill",
+              "Reference",
+              "Architecture"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Materialized Skill contract/reference supports concrete consumer workflow design: Architecture."
+      },
+      "runtime-decision-record": {
+        "status": "published",
+        "source": "components/capability.runtime/files/RUNTIME.md",
+        "current_destination": "capabilities/runtime/index.md",
+        "current_navigation": [
+          [
+            "Reusable capabilities",
+            "Runtime decision record"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Capabilities",
+              "Runtime decision record"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Materialized or supporting capability guidance for a consumer product: Runtime decision record. Provider implementation is not the primary task."
+      },
+      "runtime-selection": {
+        "status": "published",
+        "source": "components/capability.runtime/files/docs/runtime-selection.md",
+        "current_destination": "capabilities/runtime/selection.md",
+        "current_navigation": [
+          [
+            "Reusable capabilities",
+            "Runtime selection"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Capabilities",
+              "Runtime selection"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Materialized or supporting capability guidance for a consumer product: Runtime selection. Provider implementation is not the primary task."
+      },
+      "cli-interface": {
+        "status": "published",
+        "source": "components/capability.cli/files/CLI_INTERFACE.md",
+        "current_destination": "capabilities/cli/index.md",
+        "current_navigation": [
+          [
+            "Reusable capabilities",
+            "Packaged CLI interface"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Capabilities",
+              "Packaged CLI interface"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Materialized or supporting capability guidance for a consumer product: Packaged CLI interface. Provider implementation is not the primary task."
+      },
+      "cli-interface-v2-migration": {
+        "status": "published",
+        "source": "components/capability.cli/files/docs/migrations/cli-interface-v1-to-v2.md",
+        "current_destination": "capabilities/cli/migrations/v1-to-v2.md",
+        "current_navigation": [
+          [
+            "Reusable capabilities",
+            "CLI interface v1 to v2"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Migrations",
+              "Capabilities and lifecycle",
+              "CLI interface v1 to v2"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Consumer contract upgrade guidance for CLI interface v1 to v2; historical versions remain labeled, not provider authority history."
+      },
+      "mcp-interface": {
+        "status": "published",
+        "source": "components/capability.mcp/files/MCP_INTERFACE.md",
+        "current_destination": "capabilities/mcp/index.md",
+        "current_navigation": [
+          [
+            "Reusable capabilities",
+            "MCP interface"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Capabilities",
+              "MCP interface"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Materialized or supporting capability guidance for a consumer product: MCP interface. Provider implementation is not the primary task."
+      },
+      "mcp-transports": {
+        "status": "published",
+        "source": "components/capability.mcp/files/docs/mcp-transports.md",
+        "current_destination": "capabilities/mcp/transports.md",
+        "current_navigation": [
+          [
+            "Reusable capabilities",
+            "MCP transports"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Capabilities",
+              "MCP transports"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Materialized or supporting capability guidance for a consumer product: MCP transports. Provider implementation is not the primary task."
+      },
+      "mcp-interface-v2-migration": {
+        "status": "published",
+        "source": "components/capability.mcp/files/docs/migrations/mcp-interface-v1-to-v2.md",
+        "current_destination": "capabilities/mcp/migrations/v1-to-v2.md",
+        "current_navigation": [
+          [
+            "Reusable capabilities",
+            "MCP interface v1 to v2"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Migrations",
+              "Capabilities and lifecycle",
+              "MCP interface v1 to v2"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Consumer contract upgrade guidance for MCP interface v1 to v2; historical versions remain labeled, not provider authority history."
+      },
+      "mcp-apps-interface": {
+        "status": "published",
+        "source": "components/capability.mcp-apps/files/MCP_APPS.md",
+        "current_destination": "capabilities/mcp-apps/index.md",
+        "current_navigation": [
+          [
+            "Reusable capabilities",
+            "MCP Apps interface"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Capabilities",
+              "MCP Apps interface"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Materialized or supporting capability guidance for a consumer product: MCP Apps interface. Provider implementation is not the primary task."
+      },
+      "mcp-apps-guidance": {
+        "status": "published",
+        "source": "components/capability.mcp-apps/files/docs/mcp-apps.md",
+        "current_destination": "capabilities/mcp-apps/guidance.md",
+        "current_navigation": [
+          [
+            "Reusable capabilities",
+            "MCP Apps guidance"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Capabilities",
+              "MCP Apps guidance"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Materialized or supporting capability guidance for a consumer product: MCP Apps guidance. Provider implementation is not the primary task."
+      },
+      "mcp-apps-v2-migration": {
+        "status": "published",
+        "source": "components/capability.mcp-apps/files/docs/migrations/mcp-apps-v1-to-v2.md",
+        "current_destination": "capabilities/mcp-apps/migrations/v1-to-v2.md",
+        "current_navigation": [
+          [
+            "Reusable capabilities",
+            "MCP Apps v1 to v2"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Migrations",
+              "Capabilities and lifecycle",
+              "MCP Apps v1 to v2"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Consumer contract upgrade guidance for MCP Apps v1 to v2; historical versions remain labeled, not provider authority history."
+      },
+      "pwa-capability": {
+        "status": "published",
+        "source": "components/capability.pwa/files/PWA.md",
+        "current_destination": "capabilities/pwa/index.md",
+        "current_navigation": [
+          [
+            "Reusable capabilities",
+            "Progressive Web App"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Capabilities",
+              "Progressive Web App"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Materialized or supporting capability guidance for a consumer product: Progressive Web App. Provider implementation is not the primary task."
+      },
+      "pwa-offline-v2-migration": {
+        "status": "published",
+        "source": "components/capability.pwa/files/docs/migrations/pwa-offline-v1-to-v2.md",
+        "current_destination": "capabilities/pwa/migrations/offline-v1-to-v2.md",
+        "current_navigation": [
+          [
+            "Reusable capabilities",
+            "PWA offline v1 to v2"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Migrations",
+              "Capabilities and lifecycle",
+              "PWA offline v1 to v2"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Consumer contract upgrade guidance for PWA offline v1 to v2; historical versions remain labeled, not provider authority history."
+      },
+      "pwa-update-v2-migration": {
+        "status": "published",
+        "source": "components/capability.pwa/files/docs/migrations/pwa-update-v1-to-v2.md",
+        "current_destination": "capabilities/pwa/migrations/update-v1-to-v2.md",
+        "current_navigation": [
+          [
+            "Reusable capabilities",
+            "PWA update v1 to v2"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Migrations",
+              "Capabilities and lifecycle",
+              "PWA update v1 to v2"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Consumer contract upgrade guidance for PWA update v1 to v2; historical versions remain labeled, not provider authority history."
+      },
+      "webmcp-capability": {
+        "status": "published",
+        "source": "components/capability.webmcp/files/WEBMCP.md",
+        "current_destination": "capabilities/webmcp/provider.md",
+        "current_navigation": [
+          [
+            "Reusable capabilities",
+            "WebMCP provider contract"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Capabilities",
+              "WebMCP provider contract"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Materialized or supporting capability guidance for a consumer product: WebMCP provider contract. Provider implementation is not the primary task."
+      },
+      "webmcp-tool-design": {
+        "status": "published",
+        "source": "components/capability.webmcp/files/docs/webmcp-tool-design.md",
+        "current_destination": "capabilities/webmcp/tool-design.md",
+        "current_navigation": [
+          [
+            "Reusable capabilities",
+            "WebMCP tool design"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Capabilities",
+              "WebMCP tool design"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Materialized or supporting capability guidance for a consumer product: WebMCP tool design. Provider implementation is not the primary task."
+      },
+      "webmcp-security": {
+        "status": "published",
+        "source": "components/capability.webmcp/files/docs/webmcp-security.md",
+        "current_destination": "capabilities/webmcp/security.md",
+        "current_navigation": [
+          [
+            "Reusable capabilities",
+            "WebMCP security"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Capabilities",
+              "WebMCP security"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Materialized or supporting capability guidance for a consumer product: WebMCP security. Provider implementation is not the primary task."
+      },
+      "webmcp-testing": {
+        "status": "published",
+        "source": "components/capability.webmcp/files/docs/webmcp-testing.md",
+        "current_destination": "capabilities/webmcp/testing.md",
+        "current_navigation": [
+          [
+            "Reusable capabilities",
+            "WebMCP testing"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Capabilities",
+              "WebMCP testing"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Materialized or supporting capability guidance for a consumer product: WebMCP testing. Provider implementation is not the primary task."
+      },
+      "browser-interface": {
+        "status": "published",
+        "source": "components/capability.web-interface/files/WEB_INTERFACE.md",
+        "current_destination": "capabilities/browser/index.md",
+        "current_navigation": [
+          [
+            "Reusable capabilities",
+            "Standalone browser interface"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Capabilities",
+              "Standalone browser interface"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Materialized or supporting capability guidance for a consumer product: Standalone browser interface. Provider implementation is not the primary task."
+      },
+      "web-interface-v2-migration": {
+        "status": "published",
+        "source": "components/capability.web-interface/files/docs/migrations/web-interface-v1-to-v2.md",
+        "current_destination": "capabilities/browser/migrations/v1-to-v2.md",
+        "current_navigation": [
+          [
+            "Reusable capabilities",
+            "Web interface v1 to v2"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Migrations",
+              "Capabilities and lifecycle",
+              "Web interface v1 to v2"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Consumer contract upgrade guidance for Web interface v1 to v2; historical versions remain labeled, not provider authority history."
+      },
+      "service-interface": {
+        "status": "published",
+        "source": "components/capability.service/files/SERVICE_INTERFACE.md",
+        "current_destination": "capabilities/service/index.md",
+        "current_navigation": [
+          [
+            "Reusable capabilities",
+            "Headless service interface"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Capabilities",
+              "Headless service interface"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Materialized or supporting capability guidance for a consumer product: Headless service interface. Provider implementation is not the primary task."
+      },
+      "service-interface-v2-migration": {
+        "status": "published",
+        "source": "components/capability.service/files/docs/migrations/service-interface-v1-to-v2.md",
+        "current_destination": "capabilities/service/migrations/v1-to-v2.md",
+        "current_navigation": [
+          [
+            "Reusable capabilities",
+            "Service interface v1 to v2"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Migrations",
+              "Capabilities and lifecycle",
+              "Service interface v1 to v2"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Consumer contract upgrade guidance for Service interface v1 to v2; historical versions remain labeled, not provider authority history."
+      },
+      "webapp-overview": {
+        "status": "published",
+        "source": "components/artifact.webapp-core/files/README.md",
+        "current_destination": "webapp/index.md",
+        "current_navigation": [
+          [
+            "Web application",
+            "Overview"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Web application",
+              "Reference",
+              "Overview"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Materialized Web application reference supports consumer product contracts and validation: Overview."
+      },
+      "webapp-template": {
+        "status": "published",
+        "source": "components/artifact.webapp-core/files/TEMPLATE.md",
+        "current_destination": "webapp/TEMPLATE.md",
+        "current_navigation": [
+          [
+            "Web application",
+            "Template contract"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Web application",
+              "Reference",
+              "Template contract"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Materialized Web application reference supports consumer product contracts and validation: Template contract."
+      },
+      "webapp-documentation-index": {
+        "status": "published",
+        "source": "components/artifact.webapp-core/files/docs/index.md",
+        "current_destination": "webapp/docs/index.md",
+        "current_navigation": [
+          [
+            "Web application",
+            "Documentation index"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Web application",
+              "Reference",
+              "Documentation index"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Materialized Web application reference supports consumer product contracts and validation: Documentation index."
+      },
+      "webapp-contracts": {
+        "status": "published",
+        "source": "components/artifact.webapp-core/files/docs/architecture/webapp-contracts.md",
+        "current_destination": "webapp/docs/architecture/contracts.md",
+        "current_navigation": [
+          [
+            "Web application",
+            "Webapp contracts"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Web application",
+              "Reference",
+              "Webapp contracts"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Materialized Web application reference supports consumer product contracts and validation: Webapp contracts."
+      },
+      "webapp-responsibility-boundaries": {
+        "status": "published",
+        "source": "components/artifact.webapp-core/files/docs/architecture/responsibility-boundaries.md",
+        "current_destination": "webapp/docs/architecture/responsibility-boundaries.md",
+        "current_navigation": [
+          [
+            "Web application",
+            "Responsibility boundaries"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Web application",
+              "Reference",
+              "Responsibility boundaries"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Materialized Web application reference supports consumer product contracts and validation: Responsibility boundaries."
+      },
+      "webapp-validation-toolchain": {
+        "status": "published",
+        "source": "components/artifact.webapp-core/files/docs/architecture/validation-toolchain.md",
+        "current_destination": "webapp/docs/architecture/validation-toolchain.md",
+        "current_navigation": [
+          [
+            "Web application",
+            "Validation toolchain"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Web application",
+              "Reference",
+              "Validation toolchain"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Materialized Web application reference supports consumer product contracts and validation: Validation toolchain."
+      },
+      "web-routes-v1-migration": {
+        "status": "published",
+        "source": "components/foundation.web/files/docs/migrations/routes-v1-to-v2.md",
+        "current_destination": "web/migrations/routes-v1-to-v2.md",
+        "current_navigation": [
+          [
+            "Web",
+            "Shared route migrations",
+            "Routes v1 to v2"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Migrations",
+              "Web routes",
+              "Routes v1 to v2"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Consumer contract upgrade guidance for Routes v1 to v2; historical versions remain labeled, not provider authority history."
+      },
+      "web-routes-v2-migration": {
+        "status": "published",
+        "source": "components/foundation.web/files/docs/migrations/routes-v2-to-v3.md",
+        "current_destination": "web/migrations/routes-v2-to-v3.md",
+        "current_navigation": [
+          [
+            "Web",
+            "Shared route migrations",
+            "Routes v2 to v3"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Migrations",
+              "Web routes",
+              "Routes v2 to v3"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Consumer contract upgrade guidance for Routes v2 to v3; historical versions remain labeled, not provider authority history."
+      },
+      "web-routes-v3-migration": {
+        "status": "published",
+        "source": "components/foundation.web/files/docs/migrations/routes-v3-to-v4.md",
+        "current_destination": "web/migrations/routes-v3-to-v4.md",
+        "current_navigation": [
+          [
+            "Web",
+            "Shared route migrations",
+            "Routes v3 to v4"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Migrations",
+              "Web routes",
+              "Routes v3 to v4"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Consumer contract upgrade guidance for Routes v3 to v4; historical versions remain labeled, not provider authority history."
+      },
+      "surfaces-v2-migration": {
+        "status": "published",
+        "source": "components/artifact.webapp-core/files/docs/migrations/surfaces-v1-to-v2.md",
+        "current_destination": "webapp/docs/migrations/surfaces-v1-to-v2.md",
+        "current_navigation": [
+          [
+            "Web application",
+            "Domain migrations",
+            "Surfaces v1 to v2"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Migrations",
+              "Web application",
+              "Surfaces v1 to v2"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Consumer contract upgrade guidance for Surfaces v1 to v2; historical versions remain labeled, not provider authority history."
+      },
+      "ui-states-migration": {
+        "status": "published",
+        "source": "components/artifact.webapp-core/files/docs/migrations/ui-states-v1-to-v2.md",
+        "current_destination": "webapp/docs/migrations/ui-states-v1-to-v2.md",
+        "current_navigation": [
+          [
+            "Web application",
+            "Domain migrations",
+            "UI states v1 to v2"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Migrations",
+              "Web application",
+              "UI states v1 to v2"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Consumer contract upgrade guidance for UI states v1 to v2; historical versions remain labeled, not provider authority history."
+      },
+      "composition-state": {
+        "status": "published",
+        "source": "components/lifecycle.composition-state/files/docs/architecture/composition-state.md",
+        "current_destination": "lifecycle/composition-state/index.md",
+        "current_navigation": [
+          [
+            "Lifecycle contracts",
+            "Composition state"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [
+          "maintain"
+        ],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Product lifecycle",
+              "Composition state"
+            ]
+          },
+          {
+            "audience": "maintain",
+            "path": [
+              "Self-hosting",
+              "Product lifecycle",
+              "Composition state"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Consumer-owned product lifecycle contract: Composition state. Templates self-hosting uses the same canonical semantics."
+      },
+      "contract-evolution": {
+        "status": "published",
+        "source": "components/lifecycle.contract-evolution/files/docs/architecture/contract-evolution.md",
+        "current_destination": "lifecycle/contract-evolution/index.md",
+        "current_navigation": [
+          [
+            "Lifecycle contracts",
+            "Contract evolution"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [
+          "maintain"
+        ],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Product lifecycle",
+              "Contract evolution"
+            ]
+          },
+          {
+            "audience": "maintain",
+            "path": [
+              "Self-hosting",
+              "Product lifecycle",
+              "Contract evolution"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Consumer-owned product lifecycle contract: Contract evolution. Templates self-hosting uses the same canonical semantics."
+      },
+      "implementation-evidence": {
+        "status": "published",
+        "source": "components/lifecycle.implementation-evidence/files/docs/architecture/implementation-evidence.md",
+        "current_destination": "lifecycle/implementation-evidence/index.md",
+        "current_navigation": [
+          [
+            "Lifecycle contracts",
+            "Implementation evidence"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [
+          "maintain"
+        ],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Product lifecycle",
+              "Implementation evidence"
+            ]
+          },
+          {
+            "audience": "maintain",
+            "path": [
+              "Self-hosting",
+              "Product lifecycle",
+              "Implementation evidence"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Consumer-owned product lifecycle contract: Implementation evidence. Templates self-hosting uses the same canonical semantics."
+      },
+      "implementation-evidence-v2-migration": {
+        "status": "published",
+        "source": "components/lifecycle.implementation-evidence/files/docs/migrations/implementation-evidence-v1-to-v2.md",
+        "current_destination": "lifecycle/implementation-evidence/migrations/v1-to-v2.md",
+        "current_navigation": [
+          [
+            "Lifecycle contracts",
+            "Implementation evidence v1 to v2"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Migrations",
+              "Implementation evidence",
+              "Implementation evidence v1 to v2"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Consumer contract upgrade guidance for Implementation evidence v1 to v2; historical versions remain labeled, not provider authority history."
+      },
+      "implementation-evidence-v3-migration": {
+        "status": "published",
+        "source": "components/lifecycle.implementation-evidence/files/docs/migrations/implementation-evidence-v2-to-v3.md",
+        "current_destination": "lifecycle/implementation-evidence/migrations/v2-to-v3.md",
+        "current_navigation": [
+          [
+            "Lifecycle contracts",
+            "Implementation evidence v2 to v3"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Migrations",
+              "Implementation evidence",
+              "Implementation evidence v2 to v3"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Consumer contract upgrade guidance for Implementation evidence v2 to v3; historical versions remain labeled, not provider authority history."
+      },
+      "implementation-evidence-v4-migration": {
+        "status": "published",
+        "source": "components/lifecycle.implementation-evidence/files/docs/migrations/implementation-evidence-v3-to-v4.md",
+        "current_destination": "lifecycle/implementation-evidence/migrations/v3-to-v4.md",
+        "current_navigation": [
+          [
+            "Lifecycle contracts",
+            "Implementation evidence v3 to v4"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Migrations",
+              "Implementation evidence",
+              "Implementation evidence v3 to v4"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Consumer contract upgrade guidance for Implementation evidence v3 to v4; historical versions remain labeled, not provider authority history."
+      },
+      "implementation-evidence-v5-migration": {
+        "status": "published",
+        "source": "components/lifecycle.implementation-evidence/files/docs/migrations/implementation-evidence-v4-to-v5.md",
+        "current_destination": "lifecycle/implementation-evidence/migrations/v4-to-v5.md",
+        "current_navigation": [
+          [
+            "Lifecycle contracts",
+            "Implementation evidence v4 to v5"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Migrations",
+              "Implementation evidence",
+              "Implementation evidence v4 to v5"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Consumer contract upgrade guidance for Implementation evidence v4 to v5; historical versions remain labeled, not provider authority history."
+      },
+      "implementation-evidence-v6-migration": {
+        "status": "published",
+        "source": "components/lifecycle.implementation-evidence/files/docs/migrations/implementation-evidence-v5-to-v6.md",
+        "current_destination": "lifecycle/implementation-evidence/migrations/v5-to-v6.md",
+        "current_navigation": [
+          [
+            "Lifecycle contracts",
+            "Implementation evidence v5 to v6"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Migrations",
+              "Implementation evidence",
+              "Implementation evidence v5 to v6"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Consumer contract upgrade guidance for Implementation evidence v5 to v6; historical versions remain labeled, not provider authority history."
+      },
+      "lifecycle-checkpoints": {
+        "status": "published",
+        "source": "components/lifecycle.lifecycle-checkpoints/files/docs/architecture/lifecycle-checkpoints.md",
+        "current_destination": "lifecycle/checkpoints/index.md",
+        "current_navigation": [
+          [
+            "Lifecycle contracts",
+            "Lifecycle checkpoints"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [
+          "maintain"
+        ],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Product lifecycle",
+              "Lifecycle checkpoints"
+            ]
+          },
+          {
+            "audience": "maintain",
+            "path": [
+              "Self-hosting",
+              "Product lifecycle",
+              "Lifecycle checkpoints"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Consumer-owned product lifecycle contract: Lifecycle checkpoints. Templates self-hosting uses the same canonical semantics."
+      },
+      "release-execution": {
+        "status": "published",
+        "source": "components/lifecycle.release-execution/files/docs/architecture/release-execution.md",
+        "current_destination": "lifecycle/release-execution/index.md",
+        "current_navigation": [
+          [
+            "Lifecycle contracts",
+            "Release execution"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [
+          "maintain"
+        ],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Product lifecycle",
+              "Release execution"
+            ]
+          },
+          {
+            "audience": "maintain",
+            "path": [
+              "Self-hosting",
+              "Product lifecycle",
+              "Release execution"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Consumer-owned product lifecycle contract: Release execution. Templates self-hosting uses the same canonical semantics."
+      },
+      "release-execution-v2-migration": {
+        "status": "published",
+        "source": "components/lifecycle.release-execution/files/docs/migrations/release-execution-v1-to-v2.md",
+        "current_destination": "lifecycle/release-execution/migrations/v1-to-v2.md",
+        "current_navigation": [
+          [
+            "Lifecycle contracts",
+            "Release execution v1 to v2"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Migrations",
+              "Capabilities and lifecycle",
+              "Release execution v1 to v2"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Consumer contract upgrade guidance for Release execution v1 to v2; historical versions remain labeled, not provider authority history."
+      },
+      "release-evidence": {
+        "status": "published",
+        "source": "components/lifecycle.release-evidence/files/docs/architecture/release-evidence.md",
+        "current_destination": "lifecycle/release-evidence/index.md",
+        "current_navigation": [
+          [
+            "Lifecycle contracts",
+            "Release evidence"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [
+          "maintain"
+        ],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Product lifecycle",
+              "Release evidence"
+            ]
+          },
+          {
+            "audience": "maintain",
+            "path": [
+              "Self-hosting",
+              "Product lifecycle",
+              "Release evidence"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Consumer-owned product lifecycle contract: Release evidence. Templates self-hosting uses the same canonical semantics."
+      },
+      "release-bundle": {
+        "status": "published",
+        "source": "components/lifecycle.release-bundle/files/docs/architecture/release-bundle.md",
+        "current_destination": "lifecycle/release-bundle/index.md",
+        "current_navigation": [
+          [
+            "Lifecycle contracts",
+            "Release bundle"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [
+          "maintain"
+        ],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Product lifecycle",
+              "Release bundle"
+            ]
+          },
+          {
+            "audience": "maintain",
+            "path": [
+              "Self-hosting",
+              "Product lifecycle",
+              "Release bundle"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Consumer-owned product lifecycle contract: Release bundle. Templates self-hosting uses the same canonical semantics."
+      },
+      "composition-authority-migration": {
+        "status": "published",
+        "source": "docs/migrations/composition-authority-migration.md",
+        "current_destination": "composition/migrations/authority-migration.md",
+        "current_navigation": [
+          [
+            "Composition",
+            "Historical provenance",
+            "Authority migration history"
+          ]
+        ],
+        "primary_audience": "maintain",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "maintain",
+            "path": [
+              "Repository history",
+              "Composition",
+              "Authority migration history"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Historical authority migration is repository provenance, not a consumer contract migration."
+      },
+      "web-routes-v4-migration": {
+        "status": "published",
+        "source": "components/foundation.web/files/docs/migrations/routes-v4-to-v5.md",
+        "current_destination": "web/migrations/routes-v4-to-v5.md",
+        "current_navigation": [
+          [
+            "Web",
+            "Shared route migrations",
+            "Routes v4 to v5"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Migrations",
+              "Web routes",
+              "Routes v4 to v5"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Consumer contract upgrade guidance for Routes v4 to v5; historical versions remain labeled, not provider authority history."
+      },
+      "topology-contract": {
+        "status": "published",
+        "source": "components/topology.hub-and-orphan/files/TOPOLOGY.md",
+        "current_destination": "topology/contract/index.md",
+        "current_navigation": [
+          [
+            "Repository topology",
+            "Topology contract"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [
+          "maintain"
+        ],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Repository topology",
+              "Topology contract"
+            ]
+          },
+          {
+            "audience": "maintain",
+            "path": [
+              "Authorities",
+              "Composition",
+              "Topology contract"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Selectable consumer topology contract/reference; templates maintainers may reuse it without confusing Site integration ownership."
+      },
+      "repository-topology-architecture": {
+        "status": "published",
+        "source": "components/topology.hub-and-orphan/files/docs/architecture/repository-topology.md",
+        "current_destination": "topology/architecture/index.md",
+        "current_navigation": [
+          [
+            "Repository topology",
+            "Topology architecture"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [
+          "maintain"
+        ],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Repository topology",
+              "Topology architecture"
+            ]
+          },
+          {
+            "audience": "maintain",
+            "path": [
+              "Authorities",
+              "Composition",
+              "Topology architecture"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Selectable consumer topology contract/reference; templates maintainers may reuse it without confusing Site integration ownership."
+      },
+      "provider-maintenance": {
+        "status": "candidate",
+        "source": null,
+        "current_destination": null,
+        "current_navigation": [],
+        "primary_audience": "maintain",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "maintain",
+            "path": [
+              "Authorities",
+              "Composition",
+              "Composition maintainer overview"
+            ]
+          }
+        ],
+        "provider_action": "author-and-publish",
+        "site_action": "project",
+        "site_projection_sufficient": false,
+        "notes": "Author a human maintainer overview connecting component/catalog/Composer development, current validation and release/publication procedures. AGENTS.md only routes procedures; no dedicated current canonical guide exists. Composition selects final path/ID."
+      },
+      "installer-release": {
+        "status": "candidate",
+        "source": "release/README.md",
+        "current_destination": null,
+        "current_navigation": [],
+        "primary_audience": "maintain",
+        "additional_audiences": [
+          "use"
+        ],
+        "proposed_navigation": [
+          {
+            "audience": "maintain",
+            "path": [
+              "Authorities",
+              "Composition",
+              "Installer release"
+            ]
+          },
+          {
+            "audience": "use",
+            "path": [
+              "Reference",
+              "Composition",
+              "Installer release"
+            ]
+          }
+        ],
+        "provider_action": "publish-existing",
+        "site_action": "project",
+        "site_projection_sufficient": false,
+        "notes": "Publish existing installer release documentation after clarifying provider release identities versus consumer verified installation. Preserve descriptor authority and link consumer guide instead of duplicating bootstrap semantics."
+      }
+    },
+    "policy": {
+      "overview": {
+        "status": "published",
+        "source": "docs/overview.md",
+        "current_destination": "policy/index.md",
+        "current_navigation": [
+          [
+            "Policy",
+            "Overview"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [
+          "maintain"
+        ],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Policy",
+              "Overview"
+            ]
+          },
+          {
+            "audience": "maintain",
+            "path": [
+              "Authorities",
+              "Policy",
+              "Overview"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Consumer Policy adoption/application reference: Overview. Consumer repository maintenance remains Use."
+      },
+      "provider-navigation": {
+        "status": "published",
+        "source": "docs/provider/index.md",
+        "current_destination": "policy/provider/index.md",
+        "current_navigation": [
+          [
+            "Policy",
+            "Policy layers",
+            "Provider and toolchain"
+          ]
+        ],
+        "primary_audience": "maintain",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "maintain",
+            "path": [
+              "Authorities",
+              "Policy",
+              "Provider and toolchain"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Provider/toolchain orientation; shared CLI/bootstrap references retain consumer memberships."
+      },
+      "shared-policy-navigation": {
+        "status": "published",
+        "source": "docs/shared-policy/index.md",
+        "current_destination": "policy/shared-policy/index.md",
+        "current_navigation": [
+          [
+            "Policy",
+            "Policy layers",
+            "Shared policy corpus"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [
+          "maintain"
+        ],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Policy",
+              "Shared policy corpus"
+            ]
+          },
+          {
+            "audience": "maintain",
+            "path": [
+              "Authorities",
+              "Policy",
+              "Shared policy corpus"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Consumer Policy adoption/application reference: Shared policy corpus. Consumer repository maintenance remains Use."
+      },
+      "policy-profiles": {
+        "status": "published",
+        "source": "docs/shared-policy/profiles.md",
+        "current_destination": "policy/shared-policy/profiles.md",
+        "current_navigation": [
+          [
+            "Policy",
+            "Design",
+            "Policy profiles"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [
+          "maintain"
+        ],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Policy",
+              "Policy profiles"
+            ]
+          },
+          {
+            "audience": "maintain",
+            "path": [
+              "Authorities",
+              "Policy",
+              "Policy profiles"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Consumer Policy adoption/application reference: Policy profiles. Consumer repository maintenance remains Use."
+      },
+      "consumer-policy-navigation": {
+        "status": "published",
+        "source": "docs/consumer/index.md",
+        "current_destination": "policy/consumer/index.md",
+        "current_navigation": [
+          [
+            "Policy",
+            "Policy layers",
+            "Consumer effective policy"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Policy",
+              "Consumer effective policy"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Consumer Policy adoption/application reference: Consumer effective policy. Consumer repository maintenance remains Use."
+      },
+      "getting-started": {
+        "status": "published",
+        "source": "docs/getting-started.md",
+        "current_destination": "policy/getting-started.md",
+        "current_navigation": [
+          [
+            "Policy",
+            "Introduction",
+            "Getting started"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Policy",
+              "Getting started"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Consumer Policy adoption/application reference: Getting started. Consumer repository maintenance remains Use."
+      },
+      "policy-concepts": {
+        "status": "published",
+        "source": "docs/policy-concepts.md",
+        "current_destination": "policy/policy-concepts.md",
+        "current_navigation": [
+          [
+            "Policy",
+            "Introduction",
+            "Policy concepts for first-time readers"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Policy",
+              "Policy concepts for first-time readers"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Consumer Policy adoption/application reference: Policy concepts for first-time readers. Consumer repository maintenance remains Use."
+      },
+      "managed-operation": {
+        "status": "published",
+        "source": "docs/managed-operation.md",
+        "current_destination": "policy/managed-operation.md",
+        "current_navigation": [
+          [
+            "Policy",
+            "Introduction",
+            "Managed repository operation"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Policy",
+              "Managed repository operation"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Consumer Policy adoption/application reference: Managed repository operation. Consumer repository maintenance remains Use."
+      },
+      "cli": {
+        "status": "published",
+        "source": "docs/cli.md",
+        "current_destination": "policy/cli.md",
+        "current_navigation": [
+          [
+            "Policy",
+            "Introduction",
+            "CLI"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [
+          "maintain"
+        ],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Reference",
+              "Policy",
+              "CLI"
+            ]
+          },
+          {
+            "audience": "maintain",
+            "path": [
+              "Authorities",
+              "Policy",
+              "CLI"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Consumer Policy adoption/application reference: CLI. Consumer repository maintenance remains Use."
+      },
+      "bootstrap": {
+        "status": "published",
+        "source": "docs/bootstrap.md",
+        "current_destination": "policy/bootstrap.md",
+        "current_navigation": [
+          [
+            "Policy",
+            "Introduction",
+            "Bootstrap skill"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Policy",
+              "Bootstrap skill"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Consumer Policy adoption/application reference: Bootstrap skill. Consumer repository maintenance remains Use."
+      },
+      "adoption": {
+        "status": "published",
+        "source": "docs/adoption.md",
+        "current_destination": "policy/adoption.md",
+        "current_navigation": [
+          [
+            "Policy",
+            "Introduction",
+            "Repository adoption"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Policy",
+              "Repository adoption"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Consumer Policy adoption/application reference: Repository adoption. Consumer repository maintenance remains Use."
+      },
+      "release-lifecycle": {
+        "status": "published",
+        "source": "docs/release-lifecycle.md",
+        "current_destination": "policy/release-lifecycle.md",
+        "current_navigation": [
+          [
+            "Policy",
+            "Introduction",
+            "Toolchain release lifecycle"
+          ]
+        ],
+        "primary_audience": "maintain",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "maintain",
+            "path": [
+              "Authorities",
+              "Policy",
+              "Toolchain release lifecycle"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Stable toolchain, installer and promotion lifecycle belongs to Policy provider maintenance."
+      },
+      "policy-readiness": {
+        "status": "published",
+        "source": "docs/policy-readiness.md",
+        "current_destination": "policy/policy-readiness.md",
+        "current_navigation": [
+          [
+            "Policy",
+            "Introduction",
+            "Policy completion roadmap"
+          ]
+        ],
+        "primary_audience": "maintain",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "maintain",
+            "path": [
+              "Validation and qualification",
+              "Policy",
+              "Policy completion roadmap"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Completion gates for the Policy toolkit itself, not consumer adoption."
+      },
+      "documentation-publication": {
+        "status": "published",
+        "source": "docs/documentation-publication.md",
+        "current_destination": "policy/documentation-publication.md",
+        "current_navigation": [
+          [
+            "Policy",
+            "Introduction",
+            "Documentation publication"
+          ]
+        ],
+        "primary_audience": "maintain",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "maintain",
+            "path": [
+              "Publication",
+              "Policy",
+              "Documentation publication"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Policy local build and documentation boundary; deployment remains solely Site-owned."
+      },
+      "publication-catalog": {
+        "status": "published",
+        "source": "docs/publication-catalog.md",
+        "current_destination": "policy/publication-catalog.md",
+        "current_navigation": [
+          [
+            "Policy",
+            "Introduction",
+            "Publication catalog"
+          ]
+        ],
+        "primary_audience": "maintain",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "maintain",
+            "path": [
+              "Publication",
+              "Policy",
+              "Publication catalog"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Provider-owned publication allowlist and terminology/translation boundary."
+      },
+      "pwa": {
+        "status": "published",
+        "source": "docs/pwa.md",
+        "current_destination": "policy/pwa.md",
+        "current_navigation": [
+          [
+            "Policy",
+            "Introduction",
+            "PWA usage"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [
+          "maintain"
+        ],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Reference",
+              "Reader help",
+              "PWA usage"
+            ]
+          },
+          {
+            "audience": "maintain",
+            "path": [
+              "Site operation",
+              "Reader help",
+              "PWA usage"
+            ]
+          }
+        ],
+        "provider_action": "clarify",
+        "site_action": "project",
+        "site_projection_sufficient": false,
+        "notes": "Reader installation/offline help serves both journeys, but references agent-policy identity. Policy must clarify its relationship to the integrated Site PWA contract; Site cannot silently redefine provider prose."
+      },
+      "google-ai-studio": {
+        "status": "published",
+        "source": "docs/agent-environments/google-ai-studio.md",
+        "current_destination": "policy/agent-environments/google-ai-studio.md",
+        "current_navigation": [
+          [
+            "Policy",
+            "Agent environments",
+            "Google AI Studio Build mode"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [
+          "maintain"
+        ],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Policy",
+              "Repository operation",
+              "Google AI Studio Build mode"
+            ]
+          },
+          {
+            "audience": "maintain",
+            "path": [
+              "Development workflow",
+              "Policy",
+              "Google AI Studio Build mode"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Reusable Policy operating guidance applies in consumer repositories; templates maintainers also consume it."
+      },
+      "repository-structure": {
+        "status": "published",
+        "source": "docs/repository-structure.md",
+        "current_destination": "policy/repository-structure.md",
+        "current_navigation": [
+          [
+            "Policy",
+            "Design",
+            "Repository structure"
+          ]
+        ],
+        "primary_audience": "maintain",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "maintain",
+            "path": [
+              "Authorities",
+              "Policy",
+              "Repository structure"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Directory responsibilities of the Policy authority history, not a consumer product scaffold."
+      },
+      "architecture": {
+        "status": "published",
+        "source": "docs/architecture.md",
+        "current_destination": "policy/architecture.md",
+        "current_navigation": [
+          [
+            "Policy",
+            "Design",
+            "Architecture"
+          ]
+        ],
+        "primary_audience": "maintain",
+        "additional_audiences": [
+          "use"
+        ],
+        "proposed_navigation": [
+          {
+            "audience": "maintain",
+            "path": [
+              "Authorities",
+              "Policy",
+              "Architecture"
+            ]
+          },
+          {
+            "audience": "use",
+            "path": [
+              "Reference",
+              "Policy",
+              "Architecture"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Provider implementation/trust design also supports consumer understanding of adoption and immutable runtime risks."
+      },
+      "configuration": {
+        "status": "published",
+        "source": "docs/configuration.md",
+        "current_destination": "policy/configuration.md",
+        "current_navigation": [
+          [
+            "Policy",
+            "Design",
+            "Configuration"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [
+          "maintain"
+        ],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Reference",
+              "Policy",
+              "Configuration"
+            ]
+          },
+          {
+            "audience": "maintain",
+            "path": [
+              "Authorities",
+              "Policy",
+              "Configuration"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Consumer Policy adoption/application reference: Configuration. Consumer repository maintenance remains Use."
+      },
+      "policy-authoring": {
+        "status": "published",
+        "source": "docs/policy-authoring.md",
+        "current_destination": "policy/policy-authoring.md",
+        "current_navigation": [
+          [
+            "Policy",
+            "Design",
+            "Policy authoring"
+          ]
+        ],
+        "primary_audience": "maintain",
+        "additional_audiences": [
+          "use"
+        ],
+        "proposed_navigation": [
+          {
+            "audience": "maintain",
+            "path": [
+              "Authorities",
+              "Policy",
+              "Policy authoring"
+            ]
+          },
+          {
+            "audience": "use",
+            "path": [
+              "Policy",
+              "Local policy",
+              "Policy authoring"
+            ]
+          }
+        ],
+        "provider_action": "clarify",
+        "site_action": "project",
+        "site_projection_sufficient": false,
+        "notes": "Shared-module authorship is primarily provider work; repository-local extension/override guidance also serves consumers. Clarify these semantic roles without duplicating the canonical rules."
+      },
+      "policy-authority-inventory": {
+        "status": "published",
+        "source": "docs/policy-authority-inventory.md",
+        "current_destination": "policy/policy-authority-inventory.md",
+        "current_navigation": [
+          [
+            "Policy",
+            "Design",
+            "Policy authority inventory"
+          ]
+        ],
+        "primary_audience": "maintain",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "maintain",
+            "path": [
+              "Repository history",
+              "Policy",
+              "Policy authority inventory"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Frozen historical authority-consolidation audit; not a new current policy source."
+      },
+      "review-policy": {
+        "status": "published",
+        "source": "docs/review-policy.md",
+        "current_destination": "policy/review-policy.md",
+        "current_navigation": [
+          [
+            "Policy",
+            "Design",
+            "Shared review policy"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [
+          "maintain"
+        ],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Policy",
+              "Repository operation",
+              "Shared review policy"
+            ]
+          },
+          {
+            "audience": "maintain",
+            "path": [
+              "Development workflow",
+              "Policy",
+              "Shared review policy"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Reusable Policy operating guidance applies in consumer repositories; templates maintainers also consume it."
+      },
+      "external-artifact-intake": {
+        "status": "published",
+        "source": "docs/external-artifact-intake.md",
+        "current_destination": "policy/external-artifact-intake.md",
+        "current_navigation": [
+          [
+            "Policy",
+            "Design",
+            "External artifact intake"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [
+          "maintain"
+        ],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Policy",
+              "Repository operation",
+              "External artifact intake"
+            ]
+          },
+          {
+            "audience": "maintain",
+            "path": [
+              "Development workflow",
+              "Policy",
+              "External artifact intake"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Reusable Policy operating guidance applies in consumer repositories; templates maintainers also consume it."
+      },
+      "regression-prevention": {
+        "status": "published",
+        "source": "docs/regression-prevention.md",
+        "current_destination": "policy/regression-prevention.md",
+        "current_navigation": [
+          [
+            "Policy",
+            "Design",
+            "Regression prevention"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [
+          "maintain"
+        ],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Policy",
+              "Repository operation",
+              "Regression prevention"
+            ]
+          },
+          {
+            "audience": "maintain",
+            "path": [
+              "Development workflow",
+              "Policy",
+              "Regression prevention"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Reusable Policy operating guidance applies in consumer repositories; templates maintainers also consume it."
+      },
+      "bootstrap-model": {
+        "status": "published",
+        "source": "docs/bootstrap-model.md",
+        "current_destination": "policy/bootstrap-model.md",
+        "current_navigation": [
+          [
+            "Policy",
+            "Design",
+            "Bootstrap model"
+          ]
+        ],
+        "primary_audience": "use",
+        "additional_audiences": [
+          "maintain"
+        ],
+        "proposed_navigation": [
+          {
+            "audience": "use",
+            "path": [
+              "Reference",
+              "Policy",
+              "Bootstrap model"
+            ]
+          },
+          {
+            "audience": "maintain",
+            "path": [
+              "Authorities",
+              "Policy",
+              "Bootstrap model"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Consumer Policy adoption/application reference: Bootstrap model. Consumer repository maintenance remains Use."
+      },
+      "threat-model": {
+        "status": "published",
+        "source": "docs/threat-model.md",
+        "current_destination": "policy/threat-model.md",
+        "current_navigation": [
+          [
+            "Policy",
+            "Design",
+            "Threat model"
+          ]
+        ],
+        "primary_audience": "maintain",
+        "additional_audiences": [
+          "use"
+        ],
+        "proposed_navigation": [
+          {
+            "audience": "maintain",
+            "path": [
+              "Authorities",
+              "Policy",
+              "Threat model"
+            ]
+          },
+          {
+            "audience": "use",
+            "path": [
+              "Reference",
+              "Policy",
+              "Threat model"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Provider implementation/trust design also supports consumer understanding of adoption and immutable runtime risks."
+      },
+      "adr-index": {
+        "status": "published",
+        "source": "docs/adr/index.md",
+        "current_destination": "policy/adr/index.md",
+        "current_navigation": [
+          [
+            "Policy",
+            "Architecture decisions",
+            "Overview"
+          ]
+        ],
+        "primary_audience": "maintain",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "maintain",
+            "path": [
+              "Architecture decisions",
+              "Policy",
+              "Overview"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Provider architecture rationale; decision status remains Policy-owned."
+      },
+      "adr-repository-adoption": {
+        "status": "published",
+        "source": "docs/adr/0002-repository-adoption.md",
+        "current_destination": "policy/adr/0002-repository-adoption.md",
+        "current_navigation": [
+          [
+            "Policy",
+            "Architecture decisions",
+            "Current decisions",
+            "ADR-0002 Repository adoption"
+          ]
+        ],
+        "primary_audience": "maintain",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "maintain",
+            "path": [
+              "Architecture decisions",
+              "Policy",
+              "ADR-0002 Repository adoption"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Provider architecture rationale; decision status remains Policy-owned."
+      },
+      "adr-application-neutral-scope": {
+        "status": "published",
+        "source": "docs/adr/0003-application-neutral-policy-scope.md",
+        "current_destination": "policy/adr/0003-application-neutral-policy-scope.md",
+        "current_navigation": [
+          [
+            "Policy",
+            "Architecture decisions",
+            "Current decisions",
+            "ADR-0003 Application-neutral scope"
+          ]
+        ],
+        "primary_audience": "maintain",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "maintain",
+            "path": [
+              "Architecture decisions",
+              "Policy",
+              "ADR-0003 Application-neutral scope"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Provider architecture rationale; decision status remains Policy-owned."
+      },
+      "adr-integrated-bootstrap-skill": {
+        "status": "published",
+        "source": "docs/adr/0004-integrated-bootstrap-skill.md",
+        "current_destination": "policy/adr/0004-integrated-bootstrap-skill.md",
+        "current_navigation": [
+          [
+            "Policy",
+            "Architecture decisions",
+            "Superseded decisions",
+            "ADR-0004 Integrated bootstrap skill (superseded)"
+          ]
+        ],
+        "primary_audience": "maintain",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "maintain",
+            "path": [
+              "Repository history",
+              "Policy",
+              "ADR-0004 Integrated bootstrap skill (superseded)"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Provider architecture rationale; explicitly superseded by ADR-0007, retain historical label."
+      },
+      "adr-single-policy-authority": {
+        "status": "published",
+        "source": "docs/adr/0005-single-policy-authority.md",
+        "current_destination": "policy/adr/0005-single-policy-authority.md",
+        "current_navigation": [
+          [
+            "Policy",
+            "Architecture decisions",
+            "Current decisions",
+            "ADR-0005 Single policy authority"
+          ]
+        ],
+        "primary_audience": "maintain",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "maintain",
+            "path": [
+              "Architecture decisions",
+              "Policy",
+              "ADR-0005 Single policy authority"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Provider architecture rationale; decision status remains Policy-owned."
+      },
+      "adr-copyable-artifact-policy-adoption": {
+        "status": "published",
+        "source": "docs/adr/0006-copyable-artifact-policy-adoption.md",
+        "current_destination": "policy/adr/0006-copyable-artifact-policy-adoption.md",
+        "current_navigation": [
+          [
+            "Policy",
+            "Architecture decisions",
+            "Current decisions",
+            "ADR-0006 Copyable artifact policy adoption"
+          ]
+        ],
+        "primary_audience": "maintain",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "maintain",
+            "path": [
+              "Architecture decisions",
+              "Policy",
+              "ADR-0006 Copyable artifact policy adoption"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Provider architecture rationale; decision status remains Policy-owned."
+      },
+      "adr-single-agent-policy-skill-runtime-cache": {
+        "status": "published",
+        "source": "docs/adr/0007-single-agent-policy-skill-runtime-cache.md",
+        "current_destination": "policy/adr/0007-single-agent-policy-skill-runtime-cache.md",
+        "current_navigation": [
+          [
+            "Policy",
+            "Architecture decisions",
+            "Current decisions",
+            "ADR-0007 Single agent-policy skill runtime cache"
+          ]
+        ],
+        "primary_audience": "maintain",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "maintain",
+            "path": [
+              "Architecture decisions",
+              "Policy",
+              "ADR-0007 Single agent-policy skill runtime cache"
+            ]
+          }
+        ],
+        "provider_action": "none",
+        "site_action": "project",
+        "site_projection_sufficient": true,
+        "notes": "Provider architecture rationale; decision status remains Policy-owned."
+      },
+      "contributing": {
+        "status": "candidate",
+        "source": "CONTRIBUTING.md",
+        "current_destination": null,
+        "current_navigation": [],
+        "primary_audience": "maintain",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "maintain",
+            "path": [
+              "Development workflow",
+              "Policy",
+              "Contributing"
+            ]
+          }
+        ],
+        "provider_action": "publish-existing",
+        "site_action": "project",
+        "site_projection_sufficient": false,
+        "notes": "Publish existing maintainer entry point linking repository-policy and validation sources; generated instructions remain projections."
+      },
+      "maintainer-workflow": {
+        "status": "candidate",
+        "source": "docs/policy-maintainer-workflow.md",
+        "current_destination": null,
+        "current_navigation": [],
+        "primary_audience": "maintain",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "maintain",
+            "path": [
+              "Authorities",
+              "Policy",
+              "Policy maintainer workflow"
+            ]
+          }
+        ],
+        "provider_action": "publish-existing",
+        "site_action": "project",
+        "site_projection_sufficient": false,
+        "notes": "Publish existing provider-maintenance/self-hosting explanation; preserve trusted-base, separate promotion and non-self-authorization boundaries."
+      },
+      "adr-review-authority-and-github-runtime-boundary": {
+        "status": "candidate",
+        "source": "docs/adr/0008-review-authority-and-github-runtime-boundary.md",
+        "current_destination": null,
+        "current_navigation": [],
+        "primary_audience": "maintain",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "maintain",
+            "path": [
+              "Architecture decisions",
+              "Policy",
+              "Review authority and GitHub runtime"
+            ]
+          }
+        ],
+        "provider_action": "publish-existing",
+        "site_action": "project",
+        "site_projection_sufficient": false,
+        "notes": "Existing ADR is absent from the current catalog and ADR index. Policy must reconcile status/index and expose the canonical decision through its publication protocol."
+      },
+      "adr-review-result-representation-boundary": {
+        "status": "candidate",
+        "source": "docs/adr/0009-review-result-representation-boundary.md",
+        "current_destination": null,
+        "current_navigation": [],
+        "primary_audience": "maintain",
+        "additional_audiences": [],
+        "proposed_navigation": [
+          {
+            "audience": "maintain",
+            "path": [
+              "Architecture decisions",
+              "Policy",
+              "Review result representation"
+            ]
+          }
+        ],
+        "provider_action": "publish-existing",
+        "site_action": "project",
+        "site_projection_sufficient": false,
+        "notes": "Existing ADR is absent from the current catalog and ADR index. Policy must reconcile status/index and expose the canonical decision through its publication protocol."
+      }
+    }
+  }
+}
