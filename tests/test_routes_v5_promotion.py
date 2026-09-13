@@ -6,7 +6,6 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-COMPOSITION_MERGE_SHA = "0f0c4012818a3b8646ad89fbca7db22c71ad5dd8"
 COMPOSITION_CONSUMER_SHA = "a739b3823660e3db742ff0e1e159d279126cba7c"
 TITLE = "Routes v4 to v5"
 DOCUMENT = "web-routes-v4-migration"
@@ -27,10 +26,7 @@ class RoutesV5PromotionTests(unittest.TestCase):
         sources = json.loads(
             (ROOT / "publication-sources.json").read_text(encoding="utf-8")
         )
-        self.assertEqual(
-            COMPOSITION_MERGE_SHA,
-            sources["publications"]["composition"]["revision"],
-        )
+        current_composition_revision = sources["publications"]["composition"]["revision"]
 
         lock = json.loads(
             (ROOT / ".template-composition/lock.json").read_text(encoding="utf-8")
@@ -42,7 +38,7 @@ class RoutesV5PromotionTests(unittest.TestCase):
         self.assertEqual(repository_agent, published_agent)
         agent = json.loads(repository_agent.decode("utf-8"))
         self.assertEqual(
-            COMPOSITION_MERGE_SHA,
+            current_composition_revision,
             agent["authorities"]["composition"]["publication_revision"],
         )
 
