@@ -187,9 +187,7 @@ Site はこの boundary における repository integration / publication author
 
 <!-- reference-consumer:start -->
 
-<h2 id="self-hosting-reference-consumer">自己ホスティングの参照 consumer</h2>
-
-<!-- ## 自己ホスティングの参照 consumer -->
+## 自己ホスティングの参照 consumer
 
 この Site は、自ら提供する Composition と Policy を実際に採用しています。
 Website 製品は `website` recipe と `capability.pwa` を、保守作業は Policy を使います。
