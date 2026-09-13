@@ -1,0 +1,35 @@
+name: Minimize Composition promotion diff
+
+on:
+  push:
+    branches:
+      - promote/site-composition-audience-publication
+
+permissions:
+  contents: write
+
+jobs:
+  minimize:
+    if: github.event.head_commit.message == 'Run Composition promotion diff cleanup'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: promote/site-composition-audience-publication
+          fetch-depth: 0
+      - name: Restore canonical formatting and insert promoted entries only
+        run: python .github/integration/minimize_composition_promotion_diff.py
+      - name: Validate focused diff
+        run: |
+          set -euo pipefail
+          git diff --check
+          test "$(git diff --numstat -- site-manifest.json | awk '{print $1+$2}')" -eq 4
+          test "$(git diff --numstat -- reader-navigation-locales.json | awk '{print $1+$2}')" -eq 4
+      - name: Commit focused formatting-preserving promotion
+        run: |
+          set -euo pipefail
+          git config user.name 'Takashi SASAKI'
+          git config user.email 'takashi316@gmail.com'
+          git add site-manifest.json reader-navigation-locales.json
+          git commit -m 'Preserve Site publication formatting during promotion'
+          git push origin HEAD:promote/site-composition-audience-publication
