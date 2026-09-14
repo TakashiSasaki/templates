@@ -260,11 +260,11 @@ def load_manifest(path: Path) -> Manifest:
         audiences_data = data["audiences"]
         if (
             not isinstance(audiences_data, list)
-            or not audiences_data
-            or len(set(audiences_data)) != len(audiences_data)
-            or not all(isinstance(a, str) and a.strip() == a and a for a in audiences_data)
+            or audiences_data != ["use", "maintain"]
         ):
-            raise AssemblyError("site manifest audiences must be a non-empty array of unique strings")
+            raise AssemblyError(
+                "site manifest audiences must be exactly ['use', 'maintain']"
+            )
         audiences = list(audiences_data)
 
         home_data = data["home"]

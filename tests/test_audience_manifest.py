@@ -160,12 +160,23 @@ class AudienceManifestSchemaTests(unittest.TestCase):
                 load_manifest(manifest_path)
 
     def test_reject_empty_or_invalid_audiences(self) -> None:
-        for invalid_audiences in [[], ["use", "use"], ["use", ""], ["use", 123]]:
+        invalid_cases = [
+            [],
+            ["use"],
+            ["maintain"],
+            ["use", "maintain", "admin"],
+            ["maintain", "use"],
+            ["use", "use"],
+            ["use", ""],
+            ["use", 123],
+            "not-a-list",
+        ]
+        for invalid_audiences in invalid_cases:
             with self.subTest(audiences=invalid_audiences):
                 data = self._create_v3_manifest({"audiences": invalid_audiences})
                 with tempfile.TemporaryDirectory() as temp_dir:
                     manifest_path = self._write_manifest(Path(temp_dir), data)
-                    with self.assertRaisesRegex(AssemblyError, "audiences must be a non-empty array of unique strings"):
+                    with self.assertRaisesRegex(AssemblyError, r"audiences must be exactly \['use', 'maintain'\]"):
                         load_manifest(manifest_path)
 
     def test_reject_duplicate_document_keys(self) -> None:
