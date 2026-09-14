@@ -22,8 +22,9 @@ class SitePreflightTests(unittest.TestCase):
         self.assertIn("unit-tests", preflight.PROFILES["full"])
         self.assertIn("node-explainability", preflight.PROFILES["full"])
         self.assertIn("cross-binding", preflight.PROFILES["full"])
+        self.assertIn("candidate-projection", preflight.PROFILES["full"])
         self.assertEqual(
-            ("cross-binding", "provider-tests", "cross-assembly"),
+            ("cross-binding", "candidate-projection", "provider-tests", "cross-assembly"),
             preflight.PROFILES["cross"],
         )
 
@@ -33,6 +34,7 @@ class SitePreflightTests(unittest.TestCase):
             "publication-materialization.yml": "--check materialization-tests",
             "publication-contract-v4.yml": "--check publication-contract-tests",
             "site-composition-playground-explain.yml": "--check node-explainability",
+            "site-composition-playground-cross-authority.yml": "--check candidate-projection",
         }
         for name, expected in workflows.items():
             with self.subTest(name=name):

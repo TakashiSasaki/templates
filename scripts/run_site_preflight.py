@@ -38,6 +38,7 @@ NODE_EXPLAINABILITY_TESTS = (
     "tests/composition-playground-root-reachability.test.mjs",
     "tests/composition-playground-latest-five-review.test.mjs",
     "tests/composition-playground-explain.test.mjs",
+    "tests/composition-playground-topology.test.mjs",
 )
 
 
@@ -86,6 +87,12 @@ def require_provider_roots(args: argparse.Namespace) -> tuple[Path, Path]:
             "this check requires --composition-root and --policy-root at the locked revisions"
         )
     return args.composition_root.resolve(strict=True), args.policy_root.resolve(strict=True)
+
+
+def require_composition_root(args: argparse.Namespace) -> Path:
+    if args.composition_root is None:
+        raise PreflightFailure("this check requires --composition-root at the locked revision")
+    return args.composition_root.resolve(strict=True)
 
 
 def check_reference_projections(args: argparse.Namespace) -> None:
@@ -214,6 +221,21 @@ def check_provider_tests(args: argparse.Namespace) -> None:
     )
 
 
+def check_candidate_projection(args: argparse.Namespace) -> None:
+    composition = require_composition_root(args)
+    expected = resolve_sources(ROOT / "publication-sources.json", {})["composition"]
+    actual = git_head(composition)
+    if actual != expected:
+        raise PreflightFailure(
+            f"composition checkout mismatch: expected {expected}, found {actual}"
+        )
+    run(
+        "node",
+        "scripts/check_composition_playground_candidate_projection.mjs",
+        composition,
+    )
+
+
 def check_cross_assembly(args: argparse.Namespace) -> None:
     composition, policy = require_provider_roots(args)
     with tempfile.TemporaryDirectory(prefix="site-preflight-") as directory:
@@ -297,6 +319,7 @@ CHECKS: dict[str, Callable[[argparse.Namespace], None]] = {
     "publication-contract-tests": check_publication_contract_tests,
     "cross-binding": check_cross_binding,
     "provider-tests": check_provider_tests,
+    "candidate-projection": check_candidate_projection,
     "cross-assembly": check_cross_assembly,
 }
 
@@ -308,10 +331,12 @@ PROFILES = {
         "unit-tests",
         "node-explainability",
         "cross-binding",
+        "candidate-projection",
         "cross-assembly",
     ),
     "cross": (
         "cross-binding",
+        "candidate-projection",
         "provider-tests",
         "cross-assembly",
     ),

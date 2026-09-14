@@ -117,6 +117,13 @@ jobs:
           print(f"semantic_revision={semantic}")
           PY
 
+      - name: Validate candidate projection with canonical Site preflight
+        run: >-
+          python scripts/run_site_preflight.py cross
+          --check candidate-projection
+          --expected-head ${{ github.event.pull_request.head.sha }}
+          --composition-root composition-source
+
   build_candidate:
     name: Build exact cross-authority candidate
     needs: classify

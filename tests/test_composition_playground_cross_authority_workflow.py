@@ -42,6 +42,8 @@ def main() -> int:
         raise AssertionError("cross-authority candidate must resolve the declared exact provider pin")
     if "python scripts/resolve_publication_sources.py" not in text:
         raise AssertionError("cross-authority candidate must use the canonical publication resolver")
+    if "python scripts/run_site_preflight.py cross" not in text or "--check candidate-projection" not in text:
+        raise AssertionError("cross-authority classification must use canonical candidate validation")
     if "EXPECTED_PROVIDER_REVISION: ${{ needs.classify.outputs.composition_revision }}" not in text:
         raise AssertionError("browser acceptance must verify the same resolved provider revision")
     if "composition-source/generated/composition-playground-publication.json" not in text:
