@@ -192,8 +192,10 @@ def test_documentation_build_installs_and_verifies_only_the_lock() -> None:
         "--isolated --disable-pip-version-check --no-deps "
         "--requirement requirements-docs.lock"
     ) in workflow
-    assert "run: .venv/bin/python scripts/verify_docs_environment.py" in workflow
-    assert "run: .venv/bin/python -m pip check" in workflow
+    assert "scripts/run_policy_preflight.py --check docs" in workflow
+    runner = (ROOT / "scripts/run_policy_preflight.py").read_text(encoding="utf-8")
+    assert 'run(sys.executable, "scripts/verify_docs_environment.py")' in runner
+    assert 'run(sys.executable, "-m", "pip", "check")' in runner
     assert "-r requirements-docs.lock" not in workflow
     assert "-r requirements-docs.txt" not in workflow
 

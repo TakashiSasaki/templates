@@ -58,6 +58,7 @@ def test_fast_and_full_profiles_retain_distinct_validation_depth() -> None:
     assert "runtime" in preflight.PROFILES["full"]
     assert "docs" in preflight.PROFILES["full"]
     assert "focused-tests" not in preflight.PROFILES["full"]
+    assert (ROOT / "scripts/smoke_test_policy_documentation.py").is_file()
 
 
 def test_released_compatibility_is_separate_from_current_self_qualification() -> None:

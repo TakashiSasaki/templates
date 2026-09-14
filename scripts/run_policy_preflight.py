@@ -167,6 +167,9 @@ def check_runtime() -> None:
 
 
 def check_docs() -> None:
+    if os.environ.get("POLICY_DOCS_ENV_READY") != "1":
+        run(sys.executable, "-I", "scripts/smoke_test_policy_documentation.py")
+        return
     protocol = Path(
         os.environ.get(
             "SITE_PUBLICATION_PROTOCOL",
@@ -177,6 +180,8 @@ def check_docs() -> None:
         protocol = ROOT / protocol
     if not protocol.is_file():
         raise RuntimeError(f"Site publication protocol is unavailable: {protocol}")
+    run(sys.executable, "scripts/verify_docs_environment.py")
+    run(sys.executable, "-m", "pip", "check")
     run(
         sys.executable,
         "-I",
