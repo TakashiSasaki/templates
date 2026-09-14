@@ -6,7 +6,7 @@
 
 ## Provider and toolchain
 
-* [Contributing to Policy](../CONTRIBUTING.md) - Locates canonical maintenance authority, validation, and source ownership.
+* [Contributing to Policy](https://github.com/TakashiSasaki/templates/blob/policy/CONTRIBUTING.md) - Locates canonical maintenance authority, validation, and source ownership.
 * [Maintainer publication sources](publication-catalog.md#deferred-maintainer-publications) - Records stable Policy document IDs and the separate publication prerequisite.
 
 * [Provider and toolchain documentation](provider/index.md) - Describes the `policy` branch as the source repository for the toolchain, release and bootstrap machinery, maintenance model, and explanatory documentation.
