@@ -95,6 +95,14 @@ def test_maintainer_identities_are_complete_existing_and_published() -> None:
         assert any(item["id"] == document_id and item["source"] == source for item in active)
 
 
+def test_contribution_guide_describes_active_policy_publication() -> None:
+    contributing = (ROOT / "CONTRIBUTING.md").read_text(encoding="utf-8")
+
+    assert "active Policy publication entries" in contributing
+    assert "Site owns their staged-to-active reader promotion" in contributing
+    assert "prepared for later publication" not in contributing
+
+
 def test_published_maintainer_sources_have_post_cutover_discovery_links() -> None:
     index = (ROOT / "docs/index.md").read_text(encoding="utf-8")
     adr_index = (ROOT / "docs/adr/index.md").read_text(encoding="utf-8")
