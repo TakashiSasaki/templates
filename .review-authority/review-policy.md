@@ -47,6 +47,31 @@ corresponding authority and refresh affected bindings before use.
 _Source: `TakashiSasaki/templates@33a7ab809225c2a8b8dd2598ef04d0a39cf076a7:policy/core/repository-topology-discovery.md`; rule ID: `core.discover-repository-topology-fail-closed`; severity: `mandatory`._
 
 
+## Discover local-checkout topology separately from repository topology
+
+Before a mutation whose safety depends on local checkout layout, inspect
+`contracts/local-checkout-topology.json` independently from
+`contracts/repository-topology.json`. Absence selects no explicit local-checkout
+topology and never infers a default workspace layout. A present but unreadable,
+unsafe, malformed, unsupported, or contradicted declaration must halt dependent
+operations.
+
+Composition owns local-checkout semantics. Consume the immutable schema and
+validator snapshot identified in `agent_policy/_local_checkout_contract/source.json`;
+consumer files cannot weaken it. Declaration validation proves only the intended
+pattern, not current Git state.
+
+For a declared Bare Worktree pattern, independently resolve and verify the common
+Git directory, current worktree root, workspace root, linked-worktree inventory,
+and target-branch occupancy using Git state. Never assume repository root equals
+worktree root. Treat HEAD/index/working-directory state as worktree-specific and
+refs, config, fetch, maintenance, and object storage as shared common-repository
+state. Reject unsafe/symlinked declaration paths and any required live-state
+contradiction before mutation.
+
+_Source: `TakashiSasaki/templates@33a7ab809225c2a8b8dd2598ef04d0a39cf076a7:policy/core/local-checkout-topology-discovery.md`; rule ID: `core.discover-local-checkout-topology-fail-closed`; severity: `mandatory`._
+
+
 ## Define the change contract before editing
 
 Before editing, identify the requested outcome, the allowed change surface, the existing behavior and invariants that must be preserved, explicit non-goals, and the evidence required for acceptance. Treat unspecified behavior as preserved unless the requested change necessarily alters it; do not silently broaden the contract to resolve ambiguity or implementation difficulty.

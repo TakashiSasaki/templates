@@ -61,6 +61,13 @@ def test_fast_and_full_profiles_retain_distinct_validation_depth() -> None:
     assert (ROOT / "scripts/smoke_test_policy_documentation.py").is_file()
 
 
+def test_fast_profile_requires_local_checkout_behavioral_suite() -> None:
+    preflight = load_preflight()
+    assert "tests/test_local_checkout_discovery.py" in preflight.FOCUSED_TESTS
+    assert "tests/test_local_checkout_contract_provenance.py" in preflight.FOCUSED_TESTS
+    assert all((ROOT / path).is_file() for path in preflight.FOCUSED_TESTS)
+
+
 def test_released_compatibility_is_separate_from_current_self_qualification() -> None:
     workflow = (ROOT / ".github/workflows/check-agent-policy.yml").read_text(
         encoding="utf-8"

@@ -3,7 +3,7 @@ import json
 import subprocess
 from pathlib import Path
 
-COMPOSITION_C2_REVISION = "54bd4b9b979fe75337f4275471761079084410f1"
+COMPOSITION_C2_REVISION = "8c6c1884fa97f3ef1ec6c1aa7deba4ad38c9f4ff"
 
 
 def test_local_checkout_snapshot_is_exact_composition_source() -> None:
