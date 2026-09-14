@@ -36,7 +36,7 @@ jobs:
     name: Validate exact provider coexistence
     if: >-
       github.repository == 'TakashiSasaki/templates' &&
-      needs.classify.outputs.required == 'true'
+      needs.classify.outputs.coexistence_required == 'true'
     needs: classify
     runs-on: ubuntu-24.04
 
@@ -51,8 +51,6 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: '3.12.13'
-          cache: pip
-          cache-dependency-path: 'requirements*.txt'
 
       - name: Resolve exact provider revisions
         id: publication_refs
@@ -128,7 +126,7 @@ jobs:
       - name: Require coherent classification and validation result
         env:
           CLASSIFY_RESULT: ${{ needs.classify.result }}
-          REQUIRED: ${{ needs.classify.outputs.required }}
+          REQUIRED: ${{ needs.classify.outputs.coexistence_required }}
           COEXISTENCE_RESULT: ${{ needs.coexistence.result }}
         run: |
           test "$CLASSIFY_RESULT" = success

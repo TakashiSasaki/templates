@@ -29,18 +29,78 @@ jobs:
     uses: ./.github/workflows/classify.yml
     if: github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'ci/full-qualification' || github.event.label.name == 'ci/full-site-verification' || github.event.label.name == 'ci/browser'
 
-  build_candidate:
-    name: Build exact cross-authority candidate
+  resolve_candidate:
+    name: Resolve declared candidate
     needs: classify
     if: >-
       github.repository == 'TakashiSasaki/templates' &&
+      (needs.classify.outputs.cross_authority_required == 'true' || needs.classify.outputs.browser_required == 'true')
+    runs-on: ubuntu-24.04
+    outputs:
+      composition_revision: ${{ steps.publication_refs.outputs.composition }}
+      policy_revision: ${{ steps.publication_refs.outputs.policy }}
+      semantic_revision: ${{ steps.provider_identity.outputs.semantic_revision }}
+    steps:
+      - name: Check out Site candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12.13'
+
+      - name: Resolve exact declared provider candidates
+        id: publication_refs
+        run: python scripts/resolve_publication_sources.py --output "$GITHUB_OUTPUT"
+
+      - name: Check out exact declared Composition candidate
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ steps.publication_refs.outputs.composition }}
+          path: composition-source
+          persist-credentials: false
+
+      - name: Verify exact candidate identity
+        id: provider_identity
+        env:
+          EXPECTED_COMPOSITION: ${{ steps.publication_refs.outputs.composition }}
+        run: |
+          test "$(git -C composition-source rev-parse HEAD)" = "$EXPECTED_COMPOSITION"
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          from pathlib import Path
+          descriptor = json.loads(
+              Path("composition-source/generated/composition-playground-publication.json").read_text()
+          )
+          semantic = descriptor.get("semantic_revision")
+          if not isinstance(semantic, str) or len(semantic) != 40:
+              raise SystemExit("invalid Composition publication semantic revision")
+          print(f"semantic_revision={semantic}")
+          PY
+
+      - name: Validate candidate projection with canonical Site preflight
+        run: >-
+          python scripts/run_site_preflight.py cross
+          --check candidate-projection
+          --expected-head ${{ github.event.pull_request.head.sha }}
+          --composition-root composition-source
+
+  build_candidate:
+    name: Build exact cross-authority candidate
+    needs: [classify, resolve_candidate]
+    if: >-
+      github.repository == 'TakashiSasaki/templates' &&
       github.event.pull_request.head.repo.full_name == github.repository &&
-      (needs.classify.outputs.required == 'true' || needs.classify.outputs.browser_required == 'true')
+      (needs.classify.outputs.cross_authority_required == 'true' || needs.classify.outputs.browser_required == 'true')
     uses: ./.github/workflows/build-pages.yml
     with:
       reuse_pr_build: true
       site_ref: ${{ github.event.pull_request.head.sha }}
-      composition_ref: ${{ needs.classify.outputs.composition_revision }}
+      composition_ref: ${{ needs.resolve_candidate.outputs.composition_revision }}
 
   producer_consumer:
     name: Real producer to Chromium consumer
@@ -48,7 +108,7 @@ jobs:
       github.repository == 'TakashiSasaki/templates' &&
       github.event.pull_request.head.repo.full_name == github.repository &&
       needs.classify.outputs.browser_required == 'true'
-    needs: [classify, build_candidate]
+    needs: [classify, resolve_candidate, build_candidate]
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -78,7 +138,7 @@ jobs:
         with:
           python-version: '3.12.13'
           cache: pip
-          cache-dependency-path: 'requirements*.txt'
+          cache-dependency-path: 'requirements-visual.txt'
 
       - name: Install Playwright controller
         run: python -m pip install --disable-pip-version-check -r requirements-visual.txt
@@ -91,11 +151,15 @@ jobs:
       - name: Exercise actual Composition candidate through actual Site candidate
         env:
           EXPECTED_SITE_REVISION: ${{ github.event.pull_request.head.sha }}
-          EXPECTED_PROVIDER_REVISION: ${{ needs.classify.outputs.composition_revision }}
-          EXPECTED_SEMANTIC_REVISION: ${{ needs.classify.outputs.semantic_revision }}
+          EXPECTED_PROVIDER_REVISION: ${{ needs.resolve_candidate.outputs.composition_revision }}
+          EXPECTED_SEMANTIC_REVISION: ${{ needs.resolve_candidate.outputs.semantic_revision }}
         run: |
           test "$(git rev-parse HEAD)" = "$EXPECTED_SITE_REVISION"
-          python scripts/check_composition_playground_cross_authority.py             --site-root build/site             --expected-site-revision "$EXPECTED_SITE_REVISION"             --expected-provider-revision "$EXPECTED_PROVIDER_REVISION"             --expected-semantic-revision "$EXPECTED_SEMANTIC_REVISION"
+          python scripts/check_composition_playground_cross_authority.py \
+            --site-root build/site \
+            --expected-site-revision "$EXPECTED_SITE_REVISION" \
+            --expected-provider-revision "$EXPECTED_PROVIDER_REVISION" \
+            --expected-semantic-revision "$EXPECTED_SEMANTIC_REVISION"
           python scripts/check_composition_playground_final_browser.py --site-root build/site
           python scripts/check_composition_playground_final_grid_browser.py --site-root build/site
           python scripts/check_composition_playground_latest_five_browser.py --site-root build/site

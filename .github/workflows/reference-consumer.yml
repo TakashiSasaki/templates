@@ -20,7 +20,7 @@ jobs:
 
   composition:
     needs: classify
-    if: ${{ always() && !cancelled() && needs.classify.result == 'success' && needs.classify.outputs.required == 'true' }}
+    if: ${{ always() && !cancelled() && needs.classify.result == 'success' && needs.classify.outputs.reference_consumer_required == 'true' }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -36,7 +36,7 @@ jobs:
       - run: python .template-composition/validate.py . --format json
   build:
     needs: classify
-    if: ${{ always() && !cancelled() && needs.classify.result == 'success' && needs.classify.outputs.required == 'true' && needs.classify.outputs.build_required == 'true' }}
+    if: ${{ always() && !cancelled() && needs.classify.result == 'success' && needs.classify.outputs.reference_consumer_required == 'true' && needs.classify.outputs.build_required == 'true' }}
     uses: ./.github/workflows/build-pages.yml
     with:
       reuse_pr_build: true
@@ -54,7 +54,14 @@ jobs:
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
           python-version: '3.12.13'
+          cache: pip
+          cache-dependency-path: 'requirements-visual.txt'
       - run: python -m pip install --requirement requirements-visual.txt
+      - name: Cache Playwright binaries
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-${{ runner.arch }}-playwright-shell-${{ hashFiles('requirements-visual.txt') }}
       - name: Install worker-lifecycle browser
         run: python -m playwright install --only-shell chromium
       - uses: actions/download-artifact@v5

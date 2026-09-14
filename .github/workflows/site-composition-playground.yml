@@ -27,7 +27,7 @@ jobs:
     if: >-
       always() &&
       needs.classify.result == 'success' &&
-      needs.classify.outputs.required == 'true'
+      needs.classify.outputs.playground_required == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:

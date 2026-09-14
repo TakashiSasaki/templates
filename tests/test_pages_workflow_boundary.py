@@ -62,25 +62,31 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
         build_block, remainder = workflow.split("\n  classify_browser:\n", maxsplit=1)
         classifier_block, check_block = remainder.split("\n  check:\n", maxsplit=1)
 
+        classify_workflow = (ROOT / ".github/workflows/classify.yml").read_text(encoding="utf-8")
+
         self.assertIn("actions/upload-pages-artifact@v5", build_block)
         self.assertNotIn("needs: build", classifier_block)
         self.assertIn("name: Classify browser acceptance scope", classifier_block)
+        self.assertTrue(
+            "uses: ./.github/workflows/classify.yml" in classifier_block
+            or "scripts/classify_site_ci.py" in classifier_block
+        )
         self.assertIn(
             "ref: ${{ github.event.pull_request.head.sha || github.sha }}",
-            classifier_block,
+            classify_workflow,
         )
-        self.assertIn("fetch-depth: 0", classifier_block)
-        self.assertIn("persist-credentials: false", classifier_block)
-        self.assertIn("python-version: '3.12.13'", classifier_block)
-        self.assertIn("git diff --name-only --no-renames", classifier_block)
-        self.assertIn("test -s \"$RUNNER_TEMP/site-browser-paths.txt\"", classifier_block)
-        self.assertIn("git show \"$BASE_SHA:scripts/classify_site_ci.py\"", classifier_block)
-        self.assertIn("python -I \"$classifier_dir/classify_site_ci.py\"", classifier_block)
-        self.assertNotIn("python -I scripts/classify_site_browser_acceptance.py", classifier_block)
-        self.assertNotIn("python -I scripts/classify_site_ci.py", classifier_block)
-        self.assertIn("authority_source=\"base-unavailable-full\"", classifier_block)
-        self.assertIn("required: ${{ steps.classify.outputs.required }}", classifier_block)
-        self.assertIn("reason: ${{ steps.classify.outputs.reason }}", classifier_block)
+        self.assertIn("fetch-depth: 0", classify_workflow)
+        self.assertIn("persist-credentials: false", classify_workflow)
+        self.assertIn("python-version: '3.12.13'", classify_workflow)
+        self.assertIn("git diff --name-only --no-renames", classify_workflow)
+        self.assertIn("test -s \"$RUNNER_TEMP/site-browser-paths.txt\"", classify_workflow)
+        self.assertIn("git show \"$BASE_SHA:scripts/classify_site_ci.py\"", classify_workflow)
+        self.assertIn("python -I \"$classifier_dir/classify_site_ci.py\"", classify_workflow)
+        self.assertNotIn("python -I scripts/classify_site_browser_acceptance.py", classify_workflow)
+        self.assertNotIn("python -I scripts/classify_site_ci.py", classify_workflow)
+        self.assertIn("authority_source=\"base-unavailable-full\"", classify_workflow)
+        self.assertIn("required: ${{ steps.classify.outputs.required }}", classify_workflow)
+        self.assertIn("reason: ${{ steps.classify.outputs.reason }}", classify_workflow)
 
         self.assertIn("Unexpected browser acceptance classification", check_block)
         self.assertIn(
@@ -225,12 +231,17 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
 
     def test_aggregate_ci_validate_gate_and_force_full_qualification(self) -> None:
         workflow = BUILD_WORKFLOW.read_text(encoding="utf-8")
+        classify_workflow = (ROOT / ".github/workflows/classify.yml").read_text(encoding="utf-8")
         self.assertIn("name: Site Construction CI / validate", workflow)
         self.assertIn("needs:\n      - build\n      - classify_browser\n      - check\n      - core_tests", workflow)
         self.assertIn("test \"$CORE_TESTS_RESULT\" = success", workflow)
         self.assertIn("python scripts/run_core_tests.py", workflow)
-        self.assertIn("FORCE_FULL_REQUESTED:", workflow)
-        self.assertIn("--force-full", workflow)
+        self.assertTrue(
+            "FORCE_FULL_REQUESTED:" in workflow or "FORCE_FULL_REQUESTED:" in classify_workflow
+        )
+        self.assertTrue(
+            "--force-full" in workflow or "--force-full" in classify_workflow
+        )
         self.assertIn("ci/full-qualification", workflow)
 
     def test_forked_pull_requests_retain_conservative_build(self) -> None:
