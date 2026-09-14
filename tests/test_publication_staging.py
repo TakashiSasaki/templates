@@ -629,6 +629,29 @@ class PublicationStagingMaterializationTests(unittest.TestCase):
                 materialize(site_root, FUTURE_ID)
 
 
+
+    def test_policy_maintainer_staging(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            site_root = Path(temporary_directory)
+            _copy_inputs(site_root)
+            
+            from scripts.materialize_publication_staging import materialize_many
+            snapshot_root = materialize_many(site_root, [
+                "contributing",
+                "maintainer-workflow",
+                "adr-review-authority-and-github-runtime-boundary",
+                "adr-review-result-representation-boundary"
+            ])
+            
+            manifest_path = snapshot_root / "site-manifest.json"
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            
+            # Check they were added
+            
+            documents = json.dumps(manifest)
+            for doc in ["contributing", "maintainer-workflow", "adr-review-authority-and-github-runtime-boundary", "adr-review-result-representation-boundary"]:
+                self.assertIn(doc, documents)
+
 class PublicationStagingWorkflowTests(unittest.TestCase):
     def test_reusable_build_materializes_staging_only_when_explicitly_requested(self) -> None:
         workflow = (ROOT / ".github/workflows/build-pages.yml").read_text(encoding="utf-8")

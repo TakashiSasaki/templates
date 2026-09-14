@@ -15,7 +15,7 @@
         {
           "language": "ja",
           "label_id": "policy-concepts",
-          "localized": "Policy の概念（初めての読者向け）"
+          "localized": "Policy \u306e\u6982\u5ff5\uff08\u521d\u3081\u3066\u306e\u8aad\u8005\u5411\u3051\uff09"
         }
       ]
     },
@@ -33,7 +33,79 @@
         {
           "language": "ja",
           "label_id": "routes-v4-to-v5",
-          "localized": "Routes v4 から v5 への移行"
+          "localized": "Routes v4 \u304b\u3089 v5 \u3078\u306e\u79fb\u884c"
+        }
+      ]
+    },
+    {
+      "id": "contributing",
+      "publication": "policy",
+      "document": "contributing",
+      "title": "Contributing",
+      "destination": "policy/contributing.md",
+      "insert_after": {
+        "publication": "policy",
+        "document": "threat-model"
+      },
+      "localizations": [
+        {
+          "language": "ja",
+          "label_id": "contributing",
+          "localized": "\u30b3\u30f3\u30c8\u30ea\u30d3\u30e5\u30fc\u30b7\u30e7\u30f3"
+        }
+      ]
+    },
+    {
+      "id": "maintainer-workflow",
+      "publication": "policy",
+      "document": "maintainer-workflow",
+      "title": "Policy maintainer workflow",
+      "destination": "policy/policy-maintainer-workflow.md",
+      "insert_after": {
+        "publication": "policy",
+        "document": "threat-model"
+      },
+      "localizations": [
+        {
+          "language": "ja",
+          "label_id": "maintainer-workflow",
+          "localized": "Policy \u30e1\u30f3\u30c6\u30ca\u30ef\u30fc\u30af\u30d5\u30ed\u30fc"
+        }
+      ]
+    },
+    {
+      "id": "adr-review-authority-and-github-runtime-boundary",
+      "publication": "policy",
+      "document": "adr-review-authority-and-github-runtime-boundary",
+      "title": "ADR-0008 Review authority and GitHub runtime boundary",
+      "destination": "policy/adr/0008-review-authority-and-github-runtime-boundary.md",
+      "insert_after": {
+        "publication": "policy",
+        "document": "adr-single-agent-policy-skill-runtime-cache"
+      },
+      "localizations": [
+        {
+          "language": "ja",
+          "label_id": "adr-review-authority",
+          "localized": "ADR-0008 \u30ec\u30d3\u30e5\u30fc\u6a29\u9650\u3068 GitHub \u30e9\u30f3\u30bf\u30a4\u30e0\u5883\u754c"
+        }
+      ]
+    },
+    {
+      "id": "adr-review-result-representation-boundary",
+      "publication": "policy",
+      "document": "adr-review-result-representation-boundary",
+      "title": "ADR-0009 Review result representation boundary",
+      "destination": "policy/adr/0009-review-result-representation-boundary.md",
+      "insert_after": {
+        "publication": "policy",
+        "document": "adr-single-agent-policy-skill-runtime-cache"
+      },
+      "localizations": [
+        {
+          "language": "ja",
+          "label_id": "adr-review-result",
+          "localized": "ADR-0009 \u30ec\u30d3\u30e5\u30fc\u7d50\u679c\u306e\u8868\u73fe\u5883\u754c"
         }
       ]
     }
