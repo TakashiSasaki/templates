@@ -16,6 +16,11 @@ import run_composition_preflight as preflight  # noqa: E402
 
 
 class CompositionPreflightTests(unittest.TestCase):
+    def test_validation_environment_prevents_source_tree_bytecode_drift(self) -> None:
+        with mock.patch.dict(preflight.os.environ, {}, clear=True):
+            preflight.configure_validation_environment()
+            self.assertEqual(preflight.os.environ["PYTHONDONTWRITEBYTECODE"], "1")
+
     def test_profiles_are_explicit_and_full_requires_site_protocol(self) -> None:
         self.assertEqual(preflight.parse_args(["fast"]).profile, "fast")
         self.assertEqual(preflight.parse_args(["full"]).profile, "full")
