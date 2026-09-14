@@ -17,6 +17,14 @@ PYTHON_ROOTS = (
     ROOT / "skills" / "agent-policy" / "scripts",
 )
 
+FOCUSED_TESTS = (
+    "tests/test_config_driven_check.py",
+    "tests/test_topology_contract_provenance.py",
+    "tests/test_topology_change_orchestration.py",
+    "tests/test_local_checkout_discovery.py",
+    "tests/test_local_checkout_contract_provenance.py",
+)
+
 
 def sanitized_environment() -> dict[str, str]:
     environment = {
@@ -124,18 +132,10 @@ def check_lint() -> None:
 
 
 def check_focused_tests() -> None:
-    selected = [
-        "tests/test_config_driven_check.py",
-        "tests/test_topology_contract_provenance.py",
-        "tests/test_topology_change_orchestration.py",
-    ]
-    local_checkout = ROOT / "tests" / "test_local_checkout.py"
-    local_provenance = ROOT / "tests" / "test_local_checkout_contract_provenance.py"
-    if local_checkout.is_file():
-        selected.append(local_checkout.relative_to(ROOT).as_posix())
-    if local_provenance.is_file():
-        selected.append(local_provenance.relative_to(ROOT).as_posix())
-    run(sys.executable, "-m", "pytest", *selected)
+    missing = [path for path in FOCUSED_TESTS if not (ROOT / path).is_file()]
+    if missing:
+        raise RuntimeError(f"focused Policy test suites are missing: {', '.join(missing)}")
+    run(sys.executable, "-m", "pytest", *FOCUSED_TESTS)
 
 
 def check_tests() -> None:

@@ -1,0 +1,17 @@
+{
+  "repository": "TakashiSasaki/templates",
+  "authority": "composition",
+  "revision": "8c6c1884fa97f3ef1ec6c1aa7deba4ad38c9f4ff",
+  "files": [
+    {
+      "source": "components/workspace.bare-worktree/files/.template-composition/validators/validate_local_checkout_topology.py",
+      "destination": "validator.py",
+      "sha256": "136c333d836d907f82a3cf387ddac9aeed5228f77929a35a815e1b55582a5322"
+    },
+    {
+      "source": "components/workspace.bare-worktree/files/schemas/local-checkout-topology.schema.json",
+      "destination": "schemas/local-checkout-topology.schema.json",
+      "sha256": "7dd7b8e3cba896d236654ed5e2d4cad51ad99c5ace5424ee88dc6ebc51d8c922"
+    }
+  ]
+}

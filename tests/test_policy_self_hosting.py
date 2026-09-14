@@ -97,6 +97,20 @@ def test_repository_self_hosting_outputs_match_recorded_lock() -> None:
     assert not (ROOT / ".github" / "REVIEW_GUIDELINES.md").exists()
 
 
+def test_core_context_delivers_local_checkout_discovery_rule() -> None:
+    profile = load_yaml(ROOT / "profiles/core.yml")
+    rule_path = "policy/core/local-checkout-topology-discovery.md"
+    assert rule_path in profile["policy_files"]
+    assert profile["policy_files"].index(rule_path) == (
+        profile["policy_files"].index("policy/core/repository-topology-discovery.md") + 1
+    )
+
+    for output_path in (ROOT / "AGENTS.md", ROOT / ".review-authority/review-policy.md"):
+        output = output_path.read_text(encoding="utf-8")
+        assert "Discover local-checkout topology separately from repository topology" in output
+        assert "core.discover-local-checkout-topology-fail-closed" in output
+
+
 def test_repository_self_hosting_workflow_checks_with_consumer_pin() -> None:
     config = load_yaml(CONFIG_PATH)
     toolchain = config["toolchain"]
