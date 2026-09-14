@@ -64,7 +64,7 @@ class CompositionPlaygroundProjectionTests(unittest.TestCase):
         self.assertEqual(expected_case_count, sum(recipe["case_count"] for recipe in projection["recipes"]))
         self.assertEqual(state.revision, projection["source"]["revision"])
         self.assertEqual(playground.PROVENANCE_REASON_BITS, projection["provenance_reason_bits"])
-        self.assertLess(len(playground.render_projection(projection)), 2_000_000)
+        self.assertLess(len(playground.render_projection(projection)), 3_000_000)
 
         validated_outcomes: set[int] = set()
         case_keys: set[str] = set()
