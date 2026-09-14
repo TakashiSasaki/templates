@@ -164,6 +164,8 @@ A publication-set change is complete only after both the `policy` pull request
 and the dependent `site` pull request pass. The site source lock must record the
 reviewed full commit SHA that contains the catalog change.
 
+<a id="deferred-maintainer-publications"></a>
+
 ## Maintainer publications
 
 The following existing English sources are active Policy publication entries.
@@ -192,12 +194,15 @@ links the contribution and workflow entry points. The [ADR index](adr/index.md)
 links ADR-0008 and ADR-0009 through their canonical relative document paths. The
 three published layer indexes retain their catalog-only link contract.
 
-The publication cutover uses the **Site-owned build-only staging prerequisite**
-landed by Site PR #848 at full merge commit
-`f79eaa9e90197da0bb0c7eefaa039f265ad4b347`. Policy CI qualifies this exact
-provider candidate against that immutable Site revision and explicitly selects
-each of the four staged mappings. The staging build is non-deploying and cannot
-authorize Policy or Site promotion by itself.
+The four build-only staging mappings were introduced by Site PR #848 at full
+merge commit `f79eaa9e90197da0bb0c7eefaa039f265ad4b347`. Cross-authority
+qualification uses the subsequent Site PR #850 merge commit
+`7776f174e116d8ade9eb0f481d3f8b9bd743c792`, which retains those mappings and
+ensures the reusable build hashes the workflow definition from the same
+immutable `site_ref`. Policy CI qualifies this exact provider candidate against
+that immutable Site revision and explicitly selects each staged mapping. The
+staging build is non-deploying and cannot authorize Policy or Site promotion by
+itself.
 
 After this Policy catalog change lands, a dependent Site change must advance the
 Policy source lock and promote these staged mappings to active reader mappings.
