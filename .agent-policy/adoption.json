@@ -18,12 +18,12 @@
     {
       "generated": false,
       "path": ".agents/skills/pr-merge-gate/SKILL.md",
-      "sha256": "7cdb9d003ea22a3447a9194a7d1f052658d2c1f491ee442014f703c5309eb009"
+      "sha256": "74d6d1890bc8c42b622a0ff622a877e59522f836156466e9719171dc1bfda92f"
     },
     {
       "generated": false,
       "path": ".agents/skills/pr-merge-gate/source.json",
-      "sha256": "cc66b15205fcb5ebf1f2e32d1751c49d3492ede0d6c7def194231c4fdb9ee5d0"
+      "sha256": "dd14e1e73746b178a96189e807f5e761e91439933eb892aa2f471d016eb145e4"
     },
     {
       "generated": false,
@@ -41,16 +41,16 @@
       "sha256": "c204997428acf98f78476dd83de7192affd7f146c7fe846a2f5766fa1e825be1"
     },
     {
-      "generated": false,
+      "generated": true,
       "path": "AGENTS.md",
-      "sha256": "0fd216c6516dda02580858b4cf62d4a73ad322a18e90303aa66b8ef2004ac87a"
+      "sha256": "94cfd2cc729f116c94f3f780daefddef575143159c2590692ab4012ceae34681"
     }
   ],
   "state_path": ".agent-policy/adoption.json",
   "status": "finalized",
   "toolchain": {
     "repository": "TakashiSasaki/templates",
-    "revision": "33a7ab809225c2a8b8dd2598ef04d0a39cf076a7"
+    "revision": "733c86941f8154f301a225054d88c6b8a477058a"
   },
   "verification_command": null
 }
