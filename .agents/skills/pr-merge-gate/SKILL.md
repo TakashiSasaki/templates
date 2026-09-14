@@ -36,7 +36,7 @@ Read `.agents/skills/pr-merge-gate/source.json` and require all of these provena
 - `path` — canonical adapter path at that revision;
 - `blob_sha` — expected Git blob identity of the adapter source.
 
-Use the GitHub connector to fetch `path` from exactly `revision` in `repository`. Verify that the returned file blob SHA equals `blob_sha`. Do not resolve the source through a branch name, latest revision, historical PR body, or inferred equivalent file.
+Fetch `path` from exactly `revision` in `repository` using any available mechanism that preserves the immutable revision and returns or otherwise establishes the Git blob identity. Verify that the observed file blob SHA equals `blob_sha`. Do not resolve the source through a branch name, latest revision, historical PR body, or inferred equivalent file.
 
 After provenance verification succeeds, load and follow the fetched canonical adapter. Its referenced `policy/pull-request/` rules are the shared normative authority. Current Site code, tests, workflows, `MAINTENANCE.md`, `PUBLISHING.md`, and task-specific Site Skills remain authoritative for Site-specific semantic acceptance.
 
@@ -54,7 +54,7 @@ Before handing control to the canonical adapter, record:
 
 1. Read the adjacent `source.json`.
 2. Validate that `schema_version` is `1`, `kind` is `policy-adapter-reference`, `revision` is a full 40-character lowercase hexadecimal SHA, and `blob_sha` is a full 40-character lowercase Git blob SHA.
-3. Fetch the exact `repository` / `revision` / `path` with the GitHub connector.
+3. Fetch the exact `repository` / `revision` / `path` through an available GitHub access mechanism that preserves immutable revision identity and exposes or verifiably establishes the blob identity.
 4. Compare the fetched blob identity with `blob_sha`.
 5. If any source field is missing, malformed, unavailable, or mismatched, stop in a blocked state and do not declare merge readiness.
 6. If verification succeeds, follow the fetched canonical adapter for final pull-request merge authorization and execution.
