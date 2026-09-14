@@ -144,7 +144,7 @@ def run_full_tests() -> None:
             raise PreflightFailure(
                 "CHROMEWEBDRIVER must name an existing absolute regular file"
             )
-        run_real_browser_tests(str(driver_path.resolve()))
+        run_real_browser_tests(str(driver_path))
     else:
         with tempfile.TemporaryDirectory(
             prefix="composition-preflight-chromedriver-"
