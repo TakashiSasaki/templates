@@ -8,6 +8,9 @@
 
 ## プロバイダーとツールチェーン
 
+* [Policy への貢献（リポジトリソース）](https://github.com/TakashiSasaki/templates/blob/policy/CONTRIBUTING.md) - 正本の保守権威、検証、ソース所有権への入口です。
+* [メンテナー公開ソース](publication-catalog.md#deferred-maintainer-publications) - 安定した Policy 文書 ID と別途必要な公開の前提条件を記録します。
+
 * [プロバイダーとツールチェーンのドキュメント](provider/index.md) - `policy` ブランチを、ツールチェーン、リリース／ブートストラップ機構、保守モデル、解説文書のソースリポジトリとして説明します。
 * [ポリシープロバイダーの保守（英語正本）](policy-maintainer-workflow.md) - リポジトリ保守者が、リポジトリ固有の保守authorityと自己承認を防ぐimmutableなself-hosting境界を維持しながら共有best practiceを適用する方法を説明します。
 
