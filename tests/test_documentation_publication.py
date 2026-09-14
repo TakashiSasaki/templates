@@ -99,7 +99,8 @@ def test_documentation_workflow_targets_policy_and_its_pr_stacks() -> None:
     workflow = workflow_text()
 
     assert "push:\n    branches: [policy]" in workflow
-    assert 'branches: [policy, "policy-*"]' in workflow
+    assert "pull_request: {}" in workflow
+    assert "arbitrary stacked-PR branch name" in workflow
     assert "branches: [skill]" not in workflow
     assert "branches: [main]" not in workflow
     assert "branches: [site]" not in workflow

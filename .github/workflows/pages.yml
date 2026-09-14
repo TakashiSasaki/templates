@@ -3,9 +3,9 @@ name: Policy documentation build
 on:
   push:
     branches: [policy]
-  pull_request:
-    # Validate authority-local descendants as well as the root Policy PR.
-    branches: [policy, "policy-*"]
+  # The workflow definition comes from the Policy-side base. Do not infer
+  # authority ownership from an arbitrary stacked-PR branch name.
+  pull_request: {}
 
 permissions:
   contents: read

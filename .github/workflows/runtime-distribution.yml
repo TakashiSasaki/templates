@@ -7,9 +7,6 @@ on:
     tags:
       - 'policy-compatibility-*'
   pull_request:
-    branches:
-      - policy
-      - 'policy-*'
     types:
       - opened
       - synchronize
