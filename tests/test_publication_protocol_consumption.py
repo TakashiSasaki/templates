@@ -67,7 +67,7 @@ def test_policy_catalog_keeps_policy_owned_v3_declarations() -> None:
     }
 
 
-DEFERRED_MAINTAINER_SOURCES = {
+MAINTAINER_SOURCES = {
     "contributing": "CONTRIBUTING.md",
     "maintainer-workflow": "docs/policy-maintainer-workflow.md",
     "adr-review-authority-and-github-runtime-boundary": (
@@ -79,32 +79,50 @@ DEFERRED_MAINTAINER_SOURCES = {
 }
 
 
-def test_deferred_maintainer_identities_are_complete_existing_and_not_published() -> None:
+def test_maintainer_identities_are_complete_existing_and_published() -> None:
     guide = PUBLICATION_GUIDE.read_text(encoding="utf-8")
     section = guide.split("<!-- deferred-maintainer-publications -->", 1)[1].split(
         "<!-- /deferred-maintainer-publications -->", 1
     )[0]
     rows = re.findall(r"^\| `([^`]+)` \| `([^`]+)` \|", section, re.MULTILINE)
     # Exact correspondence catches omission, rename, duplicate, and source drift.
-    assert len(rows) == len(DEFERRED_MAINTAINER_SOURCES)
-    assert dict(rows) == DEFERRED_MAINTAINER_SOURCES
+    assert len(rows) == len(MAINTAINER_SOURCES)
+    assert dict(rows) == MAINTAINER_SOURCES
     assert len({source for _, source in rows}) == len(rows)
     active = json.loads(CATALOG.read_text(encoding="utf-8"))["documents"]
     for document_id, source in rows:
         assert (ROOT / source).is_file(), source
-        assert all(item["id"] != document_id and item["source"] != source for item in active)
+        assert any(item["id"] == document_id and item["source"] == source for item in active)
 
 
-def test_deferred_sources_are_discoverable_without_uncataloged_reader_routes() -> None:
+def test_contribution_guide_describes_active_policy_publication() -> None:
+    contributing = (ROOT / "CONTRIBUTING.md").read_text(encoding="utf-8")
+
+    assert "active Policy publication entries" in contributing
+    assert "Site owns their staged-to-active reader promotion" in contributing
+    assert "prepared for later publication" not in contributing
+
+
+def test_published_maintainer_sources_have_post_cutover_discovery_links() -> None:
     index = (ROOT / "docs/index.md").read_text(encoding="utf-8")
     adr_index = (ROOT / "docs/adr/index.md").read_text(encoding="utf-8")
+
+    # CONTRIBUTING lives outside the local MkDocs docs root, so repository
+    # discovery remains an explicit source link while Site owns its reader route.
     assert "https://github.com/TakashiSasaki/templates/blob/policy/CONTRIBUTING.md" in index
     assert "(policy-maintainer-workflow.md)" in index
-    for document_id, source in DEFERRED_MAINTAINER_SOURCES.items():
+    assert "repository source" not in index.lower()
+
+    for document_id, source in MAINTAINER_SOURCES.items():
         if document_id.startswith("adr-"):
-            assert f"https://github.com/TakashiSasaki/templates/blob/policy/{source}" in adr_index
-            # Until catalog cutover, published ADR index must not imply a reader route.
-            assert f"({Path(source).name})" not in adr_index
+            relative = Path(source).name
+            repository_link = (
+                "https://github.com/TakashiSasaki/templates/blob/policy/" + source
+            )
+            assert f"({relative})" in adr_index
+            assert repository_link not in adr_index
             assert source.removeprefix("docs/") in (ROOT / "mkdocs.yml").read_text(
                 encoding="utf-8"
             )
+
+    assert "reader publication is deferred" not in adr_index

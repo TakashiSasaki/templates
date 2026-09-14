@@ -204,6 +204,30 @@
       "source": "docs/adr/0007-single-agent-policy-skill-runtime-cache.md",
       "optional": false,
       "home": false
+    },
+    {
+      "id": "contributing",
+      "source": "CONTRIBUTING.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "maintainer-workflow",
+      "source": "docs/policy-maintainer-workflow.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "adr-review-authority-and-github-runtime-boundary",
+      "source": "docs/adr/0008-review-authority-and-github-runtime-boundary.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "adr-review-result-representation-boundary",
+      "source": "docs/adr/0009-review-result-representation-boundary.md",
+      "optional": false,
+      "home": false
     }
   ],
   "assets": [

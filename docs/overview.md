@@ -84,5 +84,5 @@ The installed skill's generic bootstrap operation never exposes migration finali
 - [Shared policy corpus](shared-policy/index.md) — follow the canonical shared policy and profiles selected by consumers.
 - [Applying policy to a consumer repository](consumer/index.md) — follow adoption, configuration, effective policy, and managed operation.
 - [CLI reference](cli.md) — inspect the `agent-policy` command and subcommand contracts.
-- [Architecture decisions](adr/) — browse the currently applicable ADRs with short descriptions.
+- [Architecture decisions](adr/index.md) — browse the currently applicable ADRs with short descriptions.
 - [Threat model](threat-model.md) — review the threats and trust boundaries defended by the toolchain.

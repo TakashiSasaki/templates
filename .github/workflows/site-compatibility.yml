@@ -6,6 +6,7 @@ on:
       - policy
       - "policy-*"
     paths:
+      - CONTRIBUTING.md
       - docs/**
       - .github/workflows/pages.yml
       - .github/workflows/site-compatibility.yml
@@ -23,19 +24,27 @@ concurrency:
 jobs:
   compatibility:
     if: github.repository == 'TakashiSasaki/templates'
-    uses: TakashiSasaki/templates/.github/workflows/build-pages.yml@76db390476b2b6fd2fb49c90fd4b9fbcf0c65f94
+    uses: TakashiSasaki/templates/.github/workflows/build-pages.yml@7776f174e116d8ade9eb0f481d3f8b9bd743c792
     with:
-      site_ref: 76db390476b2b6fd2fb49c90fd4b9fbcf0c65f94
+      site_ref: 7776f174e116d8ade9eb0f481d3f8b9bd743c792
       policy_ref: ${{ github.sha }}
-      publication_staging_id: policy-concepts
+      publication_staging_ids: >-
+        contributing,maintainer-workflow,adr-review-authority-and-github-runtime-boundary,adr-review-result-representation-boundary
     # The reusable workflow and Site source are pinned to the reviewed
-    # PR #643 Site merge commit. That revision retains the Site-owned
-    # policy-concepts staging mapping and runs pristine Site tests before
-    # explicit staged materialization and strict assembly. Composition is
-    # resolved from that exact Site revision's reviewed publication-sources lock.
-    # For pull requests, github.sha is GitHub's proposed merge commit; for
-    # workflow_dispatch it is the selected ref's exact commit. The called
-    # workflow is build-only, explicitly selects the policy-concepts staging ID,
-    # and cannot deploy Pages.
+    # PR #850 Site merge commit. That revision includes the PR #848 Site-owned
+    # maintainer documentation staging mappings and resolves the executed Site
+    # workflow definition from this same immutable site_ref before hashing exact
+    # build inputs. Composition is resolved from that exact Site revision's
+    # reviewed publication-sources lock.
+    # For pull requests, github.sha is GitHub's proposed Policy merge commit; for
+    # workflow_dispatch it is the selected ref's exact commit. Because the Policy
+    # candidate publishes all four maintainer documents as one catalog change,
+    # the build atomically stages the complete mapping set in the same order.
+    # Partial one-ID staging is intentionally not used: it would leave the other
+    # newly published Policy documents uncovered by the Site manifest. The called
+    # workflow is build-only, runs pristine Site tests before staged
+    # materialization, and cannot deploy Pages. actions:read is required only for
+    # read-only exact-input artifact discovery/reuse.
     permissions:
       contents: read
+      actions: read

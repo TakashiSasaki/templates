@@ -164,57 +164,58 @@ A publication-set change is complete only after both the `policy` pull request
 and the dependent `site` pull request pass. The site source lock must record the
 reviewed full commit SHA that contains the catalog change.
 
-## Deferred maintainer publications
+<a id="deferred-maintainer-publications"></a>
 
-The following existing English sources are prepared for later catalog inclusion.
-These are stable **Policy-side document IDs and source identities**, not active
-catalog entries or a second publication protocol. `docs/publication-catalog.json`
-remains the sole publication allowlist. Source availability, MkDocs navigation,
-and repository-source links do not establish reader publication eligibility.
+## Maintainer publications
+
+The following existing English sources are active Policy publication entries.
+These are stable **Policy-side document IDs and source identities**; Site still
+owns their reader destinations, navigation memberships, and the staged-to-active
+integration cutover. `docs/publication-catalog.json` remains the sole Policy
+publication allowlist.
 
 <!-- deferred-maintainer-publications -->
 | Stable document ID | Canonical Policy source | Semantic role and disposition |
 | --- | --- | --- |
-| `contributing` | `CONTRIBUTING.md` | Contribution entry point for this provider; clarified existing source, publish later. Links to canonical operating inputs and validation rather than copying their rules. |
-| `maintainer-workflow` | `docs/policy-maintainer-workflow.md` | Provider maintenance and self-hosting explanation; clarified existing source, publish later. Preserve trusted-base authority and reviewed candidate / separate promotion boundaries. |
-| `adr-review-authority-and-github-runtime-boundary` | `docs/adr/0008-review-authority-and-github-runtime-boundary.md` | Existing accepted review trust/provenance and GitHub runtime-boundary decision; publish later with its partial supersession by ADR-0009 visible. No replacement ADR. |
-| `adr-review-result-representation-boundary` | `docs/adr/0009-review-result-representation-boundary.md` | Existing accepted representation-boundary decision; publish later. Supersedes only the listed ADR-0008 representation requirements and preserves the remaining trust machinery. No duplicate decision. |
+| `contributing` | `CONTRIBUTING.md` | Contribution entry point for this provider. Links to canonical operating inputs and validation rather than copying their rules. |
+| `maintainer-workflow` | `docs/policy-maintainer-workflow.md` | Provider maintenance and self-hosting explanation. Preserves trusted-base authority and reviewed candidate / separate promotion boundaries. |
+| `adr-review-authority-and-github-runtime-boundary` | `docs/adr/0008-review-authority-and-github-runtime-boundary.md` | Existing accepted review trust/provenance and GitHub runtime-boundary decision, with its partial supersession by ADR-0009 visible. No replacement ADR. |
+| `adr-review-result-representation-boundary` | `docs/adr/0009-review-result-representation-boundary.md` | Existing accepted representation-boundary decision. Supersedes only the listed ADR-0008 representation requirements and preserves the remaining trust machinery. No duplicate decision. |
 <!-- /deferred-maintainer-publications -->
 
 All four correspond to the Policy candidates in the landed Site audience design
 at [Site revision af55c7dc0176dd24393b4296b43c8e31d6171a11](https://github.com/TakashiSasaki/templates/tree/af55c7dc0176dd24393b4296b43c8e31d6171a11/docs/architecture/audience).
 That frozen inventory records historical exposure; this correspondence neither
 rewrites it nor imports Site reader taxonomy into Policy. No missing canonical
-source needs to be authored for these four identities.
+source needed to be authored for these four identities.
 
 The repository-local [documentation index (source)](https://github.com/TakashiSasaki/templates/blob/policy/docs/index.md)
 links the contribution and workflow entry points. The [ADR index](adr/index.md)
-exposes both review decisions through explicitly labeled repository-source links;
-MkDocs already includes both canonical ADR files. The three published layer
-indexes retain their catalog-only link contract. When the catalog is extended,
-replace the temporary ADR repository-source links with canonical relative document
-links and add appropriate provider-index discovery in the same qualified change.
-Do not turn an uncataloged source link into a claimed integrated reader route.
+links ADR-0008 and ADR-0009 through their canonical relative document paths. The
+three published layer indexes retain their catalog-only link contract.
 
-Publication requires a **Site-owned build-only staging prerequisite** for all
-four IDs. The existing Policy CI Site staging selection (`policy-concepts`)
-covers an earlier addition; it does not authorize these documents. The order is:
+The four build-only staging mappings were introduced by Site PR #848 at full
+merge commit `f79eaa9e90197da0bb0c7eefaa039f265ad4b347`. Cross-authority
+qualification uses the subsequent Site PR #850 merge commit
+`7776f174e116d8ade9eb0f481d3f8b9bd743c792`, which retains those mappings and
+ensures the reusable build hashes the workflow definition from the same
+immutable `site_ref`. Policy CI qualifies this exact provider candidate against
+that immutable Site revision by atomically selecting the complete ordered set of
+four staged mappings in one non-deploying build. Partial one-document staging is
+invalid for this catalog cutover because the other newly published Policy
+documents would remain uncovered by the Site manifest. The staging build cannot
+authorize Policy or Site promotion by itself.
 
-1. Stabilize and review the Policy semantic sources and these identities.
-2. Land Site-owned build-only staging for the four identities with active
-   mappings and publication locks unchanged.
-3. Add the four entries to the Policy catalog in a later Policy change and
-   qualify that exact provider candidate against the exact reviewed staged Site
-   revision and its explicit staging ID. Validate source-relative links, catalog
-   coverage, ADR discovery, and translation/provenance at that boundary.
-4. Land the qualified Policy provider change.
-5. Promote the provider publication revision and active mappings in a later Site
-   change, then prove ordinary integrated builds without staging.
+After this Policy catalog change lands, a dependent Site change must advance the
+Policy source lock and promote these staged mappings to active reader mappings.
+Only that later Site promotion makes ordinary integrated builds consume the new
+Policy publication without staging.
 
-Site chooses destinations, navigation memberships, reader context and presentation.
-Policy owns these sources, identities, semantic roles and publication eligibility.
-No portal labels, theme metadata, or audience fields belong in the Policy catalog.
-The four canonical sources currently have no Japanese reader translations;
-English remains canonical and available as fallback. Updated Japanese index
-text remains a non-authoritative overlay with synchronized canonical blob hashes;
-future translations follow the existing manifest/surface rules when eligible.
+Site chooses destinations, navigation memberships, reader context and
+presentation. Policy owns these sources, identities, semantic roles and
+publication eligibility. No portal labels, theme metadata, or audience fields
+belong in the Policy catalog. The four canonical sources currently have no
+Japanese reader translations; English remains canonical and available as
+fallback. Updated Japanese index text remains a non-authoritative overlay with
+synchronized canonical blob hashes; future translations follow the existing
+manifest/surface rules when eligible.
