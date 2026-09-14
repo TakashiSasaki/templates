@@ -1,5 +1,11 @@
 # Provider and toolchain documentation
 
+This path explains maintenance of the Policy provider in `TakashiSasaki/templates`:
+the compiler, shared corpus, release machinery, and documentation publication.
+For adoption, configuration, or applying even advanced review rules in another
+repository, start with [Consumer application](../consumer/index.md). References
+such as the CLI and trust model can support both tasks without changing ownership.
+
 ## Orientation
 
 * [Repository structure](../repository-structure.md) - Describes the maintained `policy` branch layout and the responsibility of each top-level directory.

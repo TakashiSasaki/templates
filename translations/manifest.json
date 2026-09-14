@@ -41,7 +41,7 @@
       "canonical": "docs/pwa.md",
       "language": "ja",
       "translation": "translations/ja/docs/pwa.md",
-      "canonical_blob_sha": "68af9688c623f4ca1abc743c98aa1ae00cf9a1bc",
+      "canonical_blob_sha": "f4833fe9eb4492b1016266397a0f647c55f26ed3",
       "surfaces": ["reader"]
     },
     {
@@ -83,7 +83,7 @@
       "canonical": "docs/provider/index.md",
       "language": "ja",
       "translation": "translations/ja/docs/provider/index.md",
-      "canonical_blob_sha": "cb611f36ff700e5b2424f47911d3307a8f152548",
+      "canonical_blob_sha": "e9ff6c7c5f8c639cad63abbd1430fa929e3470bb",
       "surfaces": ["reader", "guided"]
     },
     {
@@ -97,7 +97,7 @@
       "canonical": "docs/consumer/index.md",
       "language": "ja",
       "translation": "translations/ja/docs/consumer/index.md",
-      "canonical_blob_sha": "38e1bc18f09c50f8846d26b45cc1b839de6a18c1",
+      "canonical_blob_sha": "1e3d1a631bae44756d11122ad02c67ff88e304cf",
       "surfaces": ["reader", "guided"]
     },
     {
