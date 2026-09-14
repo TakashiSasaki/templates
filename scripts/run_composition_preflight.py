@@ -119,8 +119,9 @@ def run_site_publication_contract(protocol_root: Path) -> None:
 
 
 def run_focused_tests() -> None:
-    tests = [path for path in FOCUSED_TESTS if (ROOT / path).is_file()]
-    run_check("focused-semantic-tests", command("-I", *tests))
+    for path in FOCUSED_TESTS:
+        if (ROOT / path).is_file():
+            run_check(f"focused-{Path(path).stem}", command("-I", path))
 
 
 def run_full_tests() -> None:
@@ -193,6 +194,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         component_version_base = resolve_component_version_base(
             args.component_version_base
         )
+        if args.site_publication_protocol is not None:
+            os.environ["SITE_PUBLICATION_PROTOCOL_ROOT"] = str(
+                args.site_publication_protocol.resolve()
+            )
         run_owned_validators(component_version_base)
         if args.validators_only:
             print(
