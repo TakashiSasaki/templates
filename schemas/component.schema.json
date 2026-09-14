@@ -118,7 +118,7 @@
     },
     "id": {
       "type": "string",
-      "pattern": "^(foundation|artifact|capability|lifecycle|topology)\\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+      "pattern": "^(foundation|artifact|capability|lifecycle|topology|workspace)\\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
     },
     "version": {
       "type": "integer",
@@ -133,7 +133,7 @@
       "uniqueItems": true,
       "items": {
         "type": "string",
-        "pattern": "^(foundation|artifact|capability|lifecycle|topology)\\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+        "pattern": "^(foundation|artifact|capability|lifecycle|topology|workspace)\\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
       }
     },
     "conflicts": {
@@ -141,7 +141,7 @@
       "uniqueItems": true,
       "items": {
         "type": "string",
-        "pattern": "^(foundation|artifact|capability|lifecycle|topology)\\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+        "pattern": "^(foundation|artifact|capability|lifecycle|topology|workspace)\\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
       }
     },
     "contract_registrations": {
@@ -214,7 +214,8 @@
         "artifact",
         "capability",
         "lifecycle",
-        "topology"
+        "topology",
+        "workspace"
       ]
     }
   },
@@ -238,14 +239,14 @@
           "requires": {
             "items": {
               "not": {
-                "pattern": "^topology\\."
+                "pattern": "^(topology|workspace)\\."
               }
             }
           },
           "conflicts": {
             "items": {
               "not": {
-                "pattern": "^topology\\."
+                "pattern": "^(topology|workspace)\\."
               }
             }
           }
@@ -267,6 +268,39 @@
         "properties": {
           "id": {
             "pattern": "^capability\\."
+          },
+          "requires": {
+            "items": {
+              "not": {
+                "pattern": "^artifact\\."
+              }
+            }
+          },
+          "conflicts": {
+            "items": {
+              "not": {
+                "pattern": "^artifact\\."
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "component_role": {
+            "const": "workspace"
+          }
+        },
+        "required": [
+          "component_role"
+        ]
+      },
+      "then": {
+        "properties": {
+          "id": {
+            "pattern": "^workspace\\."
           },
           "requires": {
             "items": {

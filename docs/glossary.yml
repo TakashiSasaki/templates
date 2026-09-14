@@ -6,8 +6,8 @@
       "term": "Composition component",
       "localized_labels": {"ja": {"term": "コンポジションコンポーネント"}},
       "origin": "repository",
-      "definition": "A closed reusable source authority with a component role: foundation, artifact, capability, lifecycle, or topology. Its descriptor declares dependencies, conflicts, materialized files, ownership modes, and any contract registrations used by deterministic composition.",
-      "related_terms": ["templates-composition-component-role", "templates-composition-foundation-component", "templates-composition-artifact-component", "templates-composition-capability-component", "templates-composition-lifecycle-component", "templates-composition-topology-component", "templates-composition-recipe"]
+      "definition": "A closed reusable source authority with a component role: foundation, artifact, capability, lifecycle, topology, or workspace. Its descriptor declares dependencies, conflicts, materialized files, ownership modes, and any contract registrations used by deterministic composition.",
+      "related_terms": ["templates-composition-component-role", "templates-composition-foundation-component", "templates-composition-artifact-component", "templates-composition-capability-component", "templates-composition-lifecycle-component", "templates-composition-topology-component", "templates-composition-workspace-component", "templates-composition-recipe"]
     },
     {
       "id": "templates-composition-artifact-component",
@@ -33,6 +33,13 @@
       "origin": "repository",
       "definition": "An artifact-neutral composition component that adds product lifecycle machinery such as resolved-state validation, contract evolution, implementation evidence, release evidence, or release handoff.",
       "related_terms": ["templates-composition-component", "templates-contract-manifest", "templates-implementation-evidence", "templates-release-evidence", "templates-release-bundle"]
+    },
+    {
+      "id": "templates-composition-workspace-component",
+      "term": "Workspace component",
+      "origin": "repository",
+      "definition": "An artifact-neutral Composition component that declares local-checkout and workspace materialization semantics independently from repository authority, history, and projection topology.",
+      "related_terms": ["templates-composition-component", "templates-composition-topology-component"]
     },
     {
       "id": "templates-composition-recipe",

@@ -268,7 +268,7 @@ def _validate_source_graph(components: dict[str, dict[str, Any]], recipes: dict[
         for reference in descriptor["requires"] + descriptor["conflicts"]:
             if reference not in ids:
                 raise CompositionError("UNKNOWN_COMPONENT", f"{component_id} references missing component {reference}")
-        if descriptor["component_role"] in {"capability", "lifecycle", "topology"} and any(
+        if descriptor["component_role"] in {"capability", "lifecycle", "topology", "workspace"} and any(
             reference.startswith("artifact.")
             for reference in descriptor["requires"] + descriptor["conflicts"]
         ):
@@ -277,12 +277,12 @@ def _validate_source_graph(components: dict[str, dict[str, Any]], recipes: dict[
                 f"generic component {component_id} references an artifact component",
             )
         if descriptor["component_role"] == "artifact" and any(
-            reference.startswith("topology.")
+            reference.startswith(("topology.", "workspace."))
             for reference in descriptor["requires"] + descriptor["conflicts"]
         ):
             raise CompositionError(
                 "ARTIFACT_TOPOLOGY_DEPENDENCY",
-                f"artifact component {component_id} references a topology component",
+                f"artifact component {component_id} references a topology or workspace component",
             )
         for dependency in descriptor["requires"]:
             visit(dependency)
@@ -317,6 +317,15 @@ def _validate_source_graph(components: dict[str, dict[str, Any]], recipes: dict[
             raise CompositionError(
                 "MULTIPLE_TOPOLOGY_COMPONENTS",
                 f"recipe {recipe_id} defaults or requires multiple topology components: {sorted(topology_defaults)}",
+            )
+        workspace_defaults = [
+            cid for cid in set(recipe["required_components"]) | set(recipe["default_components"])
+            if components[cid]["component_role"] == "workspace"
+        ]
+        if len(workspace_defaults) > 1:
+            raise CompositionError(
+                "MULTIPLE_WORKSPACE_COMPONENTS",
+                f"recipe {recipe_id} defaults or requires multiple workspace components: {sorted(workspace_defaults)}",
             )
 
 
@@ -395,6 +404,16 @@ def resolve_configuration(state: SourceState, config: dict[str, Any]) -> tuple[d
         raise CompositionError(
             "MULTIPLE_TOPOLOGY_COMPONENTS",
             f"at most one topology component may be selected: {sorted(topology_selected)}",
+        )
+    workspace_selected = [
+        component_id
+        for component_id in selected
+        if state.components[component_id]["component_role"] == "workspace"
+    ]
+    if len(workspace_selected) > 1:
+        raise CompositionError(
+            "MULTIPLE_WORKSPACE_COMPONENTS",
+            f"at most one workspace component may be selected: {sorted(workspace_selected)}",
         )
     return recipe, sorted(selected)
 

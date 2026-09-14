@@ -92,6 +92,11 @@ def _validate_lock_semantics(lock: dict[str, Any]) -> None:
             "INVALID_OLD_LOCK",
             "composition lock must resolve at most one topology component",
         )
+    if sum(component_id.startswith("workspace.") for component_id in component_ids) > 1:
+        raise ManagedPlanError(
+            "INVALID_OLD_LOCK",
+            "composition lock must resolve at most one workspace component",
+        )
     resolved = set(component_ids)
 
     files = lock["files"]
