@@ -1,11 +1,8 @@
 # Applying policy to a consumer repository
 
-This path covers using Policy in another repository, including its ongoing
-operation and advanced review configuration. Repository-local policy belongs to
-that consumer. Changing the shared corpus, compiler, or provider release system
-belongs to [Provider and toolchain documentation](../provider/index.md).
-
 ## Adoption and initialization
+
+* [Provider maintenance](../provider/index.md) - Change the shared corpus, compiler, or provider release system. This consumer path covers adoption, ongoing operation, advanced review configuration, and local policy in another repository.
 
 * [Getting started](../getting-started.md) - Describes first-time setup and the main path into a managed consumer repository.
 * [Bootstrap skill](../bootstrap.md) - Describes the immutable trust-seed path into initialization and adoption preparation.
