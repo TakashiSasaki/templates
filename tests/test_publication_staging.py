@@ -629,6 +629,38 @@ class PublicationStagingMaterializationTests(unittest.TestCase):
                 materialize(site_root, FUTURE_ID)
 
 
+
+    def test_policy_maintainer_staging(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            site_root = Path(temporary_directory)
+            _copy_inputs(site_root)
+            
+            # Test individual materialization without failing
+            for staging_id in [
+                "contributing",
+                "maintainer-workflow",
+                "adr-review-authority-and-github-runtime-boundary",
+                "adr-review-result-representation-boundary",
+            ]:
+                # We need to copy fresh inputs because materialization is stateful
+                # and mutates the manifest. Wait, we can materialize them sequentially!
+                pass
+            
+            # Sequence materialization
+            materialize(site_root, "contributing")
+            materialize(site_root, "maintainer-workflow")
+            materialize(site_root, "adr-review-authority-and-github-runtime-boundary")
+            materialize(site_root, "adr-review-result-representation-boundary")
+            
+            manifest_path = site_root / "site-manifest.json"
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            
+            # Check they were added
+            
+            documents = json.dumps(manifest)
+            for doc in ["contributing", "maintainer-workflow", "adr-review-authority-and-github-runtime-boundary", "adr-review-result-representation-boundary"]:
+                self.assertIn(doc, documents)
+
 class PublicationStagingWorkflowTests(unittest.TestCase):
     def test_reusable_build_materializes_staging_only_when_explicitly_requested(self) -> None:
         workflow = (ROOT / ".github/workflows/build-pages.yml").read_text(encoding="utf-8")
