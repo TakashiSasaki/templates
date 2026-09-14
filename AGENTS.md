@@ -27,6 +27,26 @@ These instructions were generated from shared policy profiles and repository-spe
 Do not edit this generated file directly. Change `.agent-policy.yml` or its repository policy inputs, then regenerate with the pinned toolchain. Before editing repository files, inspect any repository-local skill catalog that exists and read the relevant generated or handwritten skills.
 
 
+## Discover repository topology fail-closed before mutation
+
+Before planning repository mutations, inspect repository-local authority instructions
+and the declaration at `contracts/repository-topology.json`. Absence selects no
+explicit Composition topology; it never overrides authority instructions or proves
+that branch histories are related. A present but unreadable, unsafe, malformed, or
+unsupported declaration must halt dependent operations.
+
+Composition owns topology semantics. Consume its immutable contract and validator
+rather than maintaining an independent Policy definition. The operational adapter
+uses the Composition snapshot identified in `agent_policy/_topology_contract/source.json`;
+consumer schema files cannot relax its validation. Validation of a declaration is
+not proof of the live Git graph. Before mutation, independently verify the current
+branch, authority ancestry, immutable gitlinks, submodule repository identity, and
+projection consistency against that declaration. Perform operations only on the
+corresponding authority and refresh affected bindings before use.
+
+_Source: `TakashiSasaki/templates@33a7ab809225c2a8b8dd2598ef04d0a39cf076a7:policy/core/repository-topology-discovery.md`; rule ID: `core.discover-repository-topology-fail-closed`; severity: `mandatory`._
+
+
 ## Define the change contract before editing
 
 Before editing, identify the requested outcome, the allowed change surface, the existing behavior and invariants that must be preserved, explicit non-goals, and the evidence required for acceptance. Treat unspecified behavior as preserved unless the requested change necessarily alters it; do not silently broaden the contract to resolve ambiguity or implementation difficulty.
@@ -140,6 +160,175 @@ Human handoff is not a review waiver, does not remove acceptance requirements fo
 _Source: `TakashiSasaki/templates@33a7ab809225c2a8b8dd2598ef04d0a39cf076a7:policy/core/repository-change-completion.md`; rule ID: `changes.separate-task-review-merge-state`; severity: `mandatory`._
 
 
+## Repository-change anti-stall policy
+
+## Purpose
+
+Repository-change orchestration MUST optimize for material progress, not visible tool activity. Repeated retrieval attempts, connector discovery, polling, or progress messages without a knowledge-state or repository-state delta are diagnostic activity, not progress.
+
+This policy defines bounded diagnostic exploration, invalidated-path memory, strategy switching, stagnation detection, progress reporting, waiting semantics, and artifact-neutral durable-resume requirements. Repository-change execution procedures and their provider-specific checkpoint mechanisms MUST implement these semantics without turning resume state into an execution transcript or duplicating review-finding authority.
+
+## Material progress
+
+An iteration counts as **material progress** only when it changes at least one decision-relevant state, for example when it:
+
+- obtains new evidence;
+- supports or rejects a current hypothesis;
+- narrows the failure scope or evidence gap;
+- establishes a finding;
+- changes implementation, branch, commit, PR, or merge state;
+- changes exact-head validation or CI state;
+- resolves or explicitly rejects a review finding with rationale;
+- advances the qualification or mergeability frontier; or
+- makes the next safe action materially more specific.
+
+Tool calls, API-name discovery, searches, log-download attempts, and status messages do not count by themselves. A successful call that only reproduces already-known information is also not material progress.
+
+Orchestration SHOULD track a compact `last_material_progress` and `progress_frontier`, rather than an activity counter.
+
+## Strategy identity and repeated attempts
+
+A diagnostic strategy is identified by the combination of deliberately selected inputs:
+
+- objective;
+- evidence source;
+- diagnostic method; and
+- relevant hypothesis.
+
+Observed failure mode is an outcome of an attempt, not part of strategy identity. Track it per attempt for failure classification and retry decisions without allowing a changed outcome to reset the strategy attempt count.
+
+Changing an endpoint name, response format, or connector action while pursuing the same evidence from the same source is ordinarily the same strategy. A **strategy switch** changes the evidence source, diagnostic method, or hypothesis in a way that can produce a new knowledge-state delta.
+
+Repeated failures MUST be bounded. As a baseline, two failures using the same strategy with the same observed failure mode require a strategy reassessment; a third identical retrieval MUST NOT be issued merely because another equivalent API spelling might work.
+
+The baseline is not a universal hard-coded retry count. The agent MUST classify the failure before deciding whether another same-strategy attempt is justified:
+
+| Failure class | Default treatment |
+| --- | --- |
+| Cheap deterministic retry | One bounded retry MAY be useful when inputs can be corrected or a deterministic race is plausible. |
+| Transient failure | A bounded retry MAY be appropriate when the response supplies credible transient evidence such as rate limiting or service unavailability. |
+| Authentication failure | Refresh or repair authorization if permitted; otherwise invalidate the path for the current authorization context. |
+| Capability unavailable | Invalidate the path for the applicable runtime/capability context; do not retry without evidence of capability change. |
+| Evidence unavailable | Switch source or method; repeated retrieval from the same source is not progress. |
+| Semantic failure | Change the hypothesis, reproduction, or implementation; transport retries do not address semantic failure. |
+
+Any exception to the baseline MUST have an explicit reason tied to the failure classification or a demonstrated execution-context change.
+
+## Invalidated paths and negative capability memory
+
+When a path is demonstrated unavailable, orchestration MUST record an **invalidated path** with enough state to prevent accidental retry:
+
+- `path` — capability or evidence route, such as `gh-cli` or `direct-github-network`;
+- `reason` — observed failure, such as `executable-not-installed` or `dns-resolution-unavailable`;
+- `applicability` — scope such as current session, current runtime, connector version, or authorization context; and
+- `retry_condition` — concrete evidence that would justify trying the path again.
+
+An invalidated path MUST NOT be retried inside its applicability scope without evidence that the retry condition became true. “It may work now” is not evidence. Legitimate retry evidence includes a changed runtime, newly exposed connector capability, refreshed authorization, or independently observed network recovery.
+
+Invalidated paths are operational negative-capability memory. They are not review findings and MUST NOT be copied into the review finding ledger unless they independently constitute a review finding.
+
+## Diagnostic strategy switching
+
+When the required evidence cannot be obtained within the current strategy budget, orchestration MUST prefer a diagnostic strategy switch over endpoint discovery. Examples include moving from raw CI logs to:
+
+- check annotations;
+- a successful-baseline versus failing-head diff;
+- focused local or repository reproduction;
+- generated-artifact inspection;
+- workflow source plus failing-step inputs; or
+- bounded delta inspection or bisect.
+
+Trying another endpoint that exposes the same unavailable evidence is not necessarily a strategy switch. The transition MUST state the remaining evidence gap and why the new method can reduce it.
+
+## Diagnostic budget and stagnation detection
+
+Each diagnostic objective MUST have a global no-material-progress bound that advances for every diagnostic action that fails to move decision-relevant state, including successful calls that only reproduce already-known information. Implementations MAY also maintain narrower budgets such as:
+
+- same-source failures;
+- no-progress tool calls;
+- external round trips;
+- repeated semantically equivalent progress messages; and
+- optional elapsed diagnostic time when the environment can measure it reliably.
+
+A narrower counter MUST NOT be the only bound when other no-progress execution paths remain possible. Every applicable diagnostic path must eventually reach reassessment while the same evidence gap persists.
+
+Recommended baselines are:
+
+- same-source same-failure attempts: reassess after 2 failures;
+- no-progress tool calls: perform a stall check after about 3 calls; and
+- semantically equivalent progress reports: reassess after about 2 consecutive reports.
+
+These numbers are guardrails, not the definition of a stall. The primary signal is absence of material knowledge-state, repository-state, validation-state, review-state, or qualification-frontier change while the same evidence gap persists. Tool discovery dominating productive actions is an additional stall signal.
+
+When a budget is reached, the default transition is **change strategy**, not “stop working.” The objective is **blocked** only when suitable alternate strategies are exhausted, unavailable, unauthorized, or would violate scope or safety constraints.
+
+## Tool and capability discovery
+
+Tool discovery MUST be capability-first and bounded:
+
+1. State the capability needed to advance the objective.
+2. Perform one sufficiently scoped discovery step, or the minimum bounded set required by the connector interface.
+3. Select an available action.
+4. If that action cannot produce the needed evidence, switch diagnostic strategy rather than repeatedly searching tool names.
+
+Tool-name exploration is not diagnostic progress unless it materially changes known capability state.
+
+## Progress reporting
+
+Progress reports MUST communicate knowledge and frontier changes rather than narrate activity. A useful report prioritizes:
+
+- what materially changed;
+- what was learned;
+- what remains unknown;
+- whether and why the strategy changed; and
+- the next safe action.
+
+Semantically equivalent consecutive reports such as “checking logs,” “checking logs another way,” and “continuing to inspect failure logs” are themselves a stagnation signal. After roughly two equivalent reports without material progress, orchestration MUST reassess the evidence gap and strategy before emitting another equivalent update.
+
+## Waiting, stalling, blocking, and parallel work
+
+Orchestration MUST distinguish these states:
+
+- `external_wait` — a required external dependency such as CI or review is validated as legitimately pending and has a concrete resume condition; granular or changing provider progress need not be observable;
+- `diagnostic_stall` — agent activity continues without material progress while an evidence gap remains;
+- `blocked` — no authorized, in-scope, materially different strategy remains after bounded reassessment;
+- `productive_parallel_work` — work performed while another dependency is pending that directly advances the declared completion frontier.
+
+A long-running CI job that is validly pending is `external_wait`, not `diagnostic_stall`, even when the provider exposes only an unchanged `pending` or `in_progress` status. Orchestration MUST separately define the condition that makes an opaque wait stale, timed out, failed, or otherwise eligible for reassessment; an unchanged status alone is not agent stall.
+
+Parallel work while waiting MUST directly advance completion. Appropriate examples include downstream stacked-branch preparation, PR-body synchronization, review-debt audit, exact-head applicability audit, deterministic test preparation, and known documentation synchronization. Unrelated architecture exploration, optional features, cleanup, or scope expansion MUST NOT be justified as parallel work merely because an external dependency is pending.
+
+## Durable resume state
+
+Any durable checkpoint used to resume repository-change work MUST preserve enough anti-stall state to make resume different from restarting the investigation. At minimum, when relevant, recoverable state SHOULD include:
+
+- current objective;
+- current failure scope;
+- current evidence gap;
+- attempted paths as compact strategy-level summaries;
+- invalidated paths and retry conditions;
+- current hypothesis;
+- current strategy and strategy attempt count;
+- exhausted strategies;
+- strategy switch reason;
+- diagnostic budget state;
+- progress frontier;
+- last material progress; and
+- next safe action.
+
+Durable resume state MUST NOT become a call-by-call transcript. On resume, orchestration MUST restore invalidated and exhausted paths before any diagnostic retry and MUST selectively refresh only facts whose freshness matters. A new session MUST NOT repeat an invalidated path without satisfying its retry condition.
+
+Review-finding identity, disposition, repair reasoning, qualification, and closure evidence remain owned by the applicable review procedure. Durable resume state may record only the review state needed for orchestration plus the canonical reference required to recover authoritative finding details; it MUST NOT become a second finding authority.
+
+## Review and completion interaction
+
+Anti-stall behavior never relaxes exact-head validation, review-debt resolution, review applicability, or completion requirements. A strategy switch changes how evidence is acquired; it does not lower the evidence standard.
+
+Before a final review request, unresolved review findings MUST still be resolved or explicitly rejected under the review policy. After the final review request, any final-review-stop rule remains controlling; anti-stall checkpointing MUST NOT create forbidden post-request reads, polls, or mutations.
+
+_Source: `TakashiSasaki/templates@33a7ab809225c2a8b8dd2598ef04d0a39cf076a7:policy/core/repository-change-anti-stall.md`; rule ID: `changes.prevent-diagnostic-stall`; severity: `mandatory`._
+
+
 ## Do not expose or commit secrets
 
 Do not print, persist, or commit credentials, private keys, access tokens, session material, or unredacted sensitive configuration. Use established secret-management mechanisms.
@@ -171,11 +360,11 @@ _Source: `TakashiSasaki/templates@33a7ab809225c2a8b8dd2598ef04d0a39cf076a7:polic
 
 ## Defer revision-bound qualification until an authority boundary requires it
 
-A pull-request head or stacked-member commit that exists during dependency-safe construction is a **construction head**: an exact Git identity for the current work state, not automatically a final qualification identity. A **provisional candidate** is a construction state that may continue to change because authorized implementation, upstream dependency work, finding disposition, or other justified mutation is still in progress. A **qualification head** is an intended candidate revision deliberately frozen so required acceptance evidence can bind to that exact revision. A **publication identity** is an immutable revision, digest, artifact, or equivalent identity made authoritative for provenance, release, publication, distribution, or another external consumer boundary.
+A pull-request head or stacked-member commit that exists during dependency-safe construction is a **construction head**: an exact Git identity for the current work state, not automatically a final qualification identity. A **construction candidate** (or **provisional candidate**) is a construction state that may continue to change because authorized implementation, upstream dependency work, finding disposition, or other justified mutation is still in progress; full exact-head qualification is not required for a construction candidate. A **qualification candidate** (or **qualification head**) is an intended candidate revision deliberately frozen so required acceptance evidence can bind to that exact revision. A **publication identity** is an immutable revision, digest, artifact, or equivalent identity made authoritative for provenance, release, publication, distribution, or another external consumer boundary.
 
 Until an applicable repository authority or explicit task boundary requires revision-bound acceptance, independent review, provenance, release, publication, merge, or another immutable binding, do not intentionally freeze a provisional candidate solely to acquire final revision-bound evidence or materialize a downstream immutable identity that is expected to follow still-mutable prerequisites. The mere existence of a commit SHA, branch head, or pull request does not by itself establish that the candidate has entered final qualification.
 
-Continue authorized implementation, focused diagnostic validation, pull-request creation, dependency-safe downstream work, and naturally triggered CI while a candidate remains provisional. Do not treat those activities, or an observed successful run on a provisional head, as proof that final qualification has been completed. Do not use this rule to suppress repository-required automatic checks or to substitute focused diagnostics for qualification once an applicable boundary requires it.
+Continue authorized implementation, focused diagnostic validation, pull-request creation, dependency-safe downstream work, and naturally triggered CI while a candidate remains provisional. Under a staged CI model, this may include CI preflight, core validation, and applicable focused or conditional integration. Full qualification should normally remain bound to the authority-defined qualification boundary rather than being deliberately reacquired for every provisional head. Do not treat those activities, or an observed successful run on a provisional head, as proof that final qualification has been completed. Do not use this rule to suppress repository-required automatic checks or to substitute focused diagnostics or earlier CI stages for qualification once an applicable boundary requires it.
 
 When a revision-bound boundary is reached, stabilize the actual prerequisite identities, freeze the intended candidate revision or ordered candidate revisions, and acquire every exact-revision evidence item required by the applicable authority. When provenance, publication, release, generated projection, signed material, or another downstream artifact embeds an upstream exact revision or digest as part of its authoritative meaning, perform that final immutable materialization only after the prerequisite identity is stable enough to bind. If a later justified mutation changes an evidence binding, invalidate and reacquire only the affected revision-bound evidence as required by the applicable evidence rules.
 
@@ -208,15 +397,28 @@ _Source: `TakashiSasaki/templates@33a7ab809225c2a8b8dd2598ef04d0a39cf076a7:polic
 
 ## Disposition known findings before review reacquisition
 
-Before intentionally starting a new merge-acceptance review acquisition cycle for a proposed candidate, account for every material actionable finding already known from submitted review evidence and applicable to that candidate. For each such finding, establish either a repair validated for the current proposed head or an evidence-backed no-change disposition validated against the current proposed head and applicable authority, and record enough finding-level closure evidence on an auditable review or pull-request surface to distinguish that finding from unresolved or deferred material findings. Do not intentionally request another merge-acceptance review merely to accumulate more findings while a known material actionable finding lacks either the required current-head validated outcome or the required closure evidence.
+Before intentionally starting a new merge-acceptance review acquisition cycle for a proposed candidate, account for every material actionable finding already known from submitted review evidence and other applicable review-result surfaces and applicable to that candidate. For each such finding, establish either a repair validated for the current proposed head or an evidence-backed no-change disposition validated against the current proposed head and applicable authority, and record enough finding-level closure evidence on an auditable review or pull-request surface to distinguish that finding from unresolved or deferred material findings. Do not intentionally request another merge-acceptance review merely to accumulate more findings while a known material actionable finding lacks either the required current-head validated outcome or the required closure evidence.
 
-Apply this requirement independently of provider representation. A finding in a resolvable thread, a top-level review body, a summary, or another non-resolvable review surface remains subject to the same disposition and closure-evidence requirement when it is independently actionable. Provider thread resolution is bookkeeping and does not itself establish semantic closure. Closure evidence records the validated disposition for auditability; the provider surface or resolved UI state does not redefine the semantic outcome.
+Apply this requirement independently of provider representation. A finding in a resolvable thread, a top-level review body, an ordinary pull-request comment, a summary, or another non-resolvable review surface remains subject to the same disposition and closure-evidence requirement when it is independently actionable. Apply the canonical cross-surface review-result discovery rule when reconstructing that known-finding backlog. Provider thread resolution is bookkeeping and does not itself establish semantic closure. Closure evidence records the validated disposition for auditability; the provider surface or resolved UI state does not redefine the semantic outcome.
 
-Treat reviewer text as a defect hypothesis rather than authority. A finding first reported against an older head may be re-evaluated against the current proposed head; if current evidence falsifies it, record the decisive no-change disposition and the required closure evidence instead of making an appeasement edit. Do not force an unrelated suggestion into the current pull-request scope solely to clear the reacquisition gate.
+Treat reviewer text as a defect hypothesis rather than authority. A finding first reported against an older head may be re-evaluated against the current proposed head; if current evidence falsifies it, record the decisive no-change disposition and the required closure evidence instead of making an appeasement edit. Do not force an unrelated suggestion into the current pull-request scope solely to clear the reacquisition gate. The review-result applicability rule governs whether historical evidence can establish completion for a current review cycle; it does not erase an earlier finding whose causal condition remains applicable.
 
-This rule governs intentional acquisition of a new merge-acceptance review cycle. It does not require delaying an urgent operational, security, or data-integrity repair in order to batch review work; does not prohibit naturally triggered CI or review-provider behavior; and does not require waiting for hypothetical future findings. When an explicit human-handoff procedure authorizes one final diagnostic whole-stack audit, perform it only after known material findings have received the validated dispositions and recorded closure evidence required above. Such a diagnostic audit remains distinct from merge-acceptance evidence and does not satisfy or waive the independent exact-head review requirements for later merge authorization.
+This rule governs intentional acquisition of a new merge-acceptance review cycle. It does not require delaying an urgent operational, security, or data-integrity repair in order to batch review work; does not prohibit naturally triggered CI or review-provider behavior; and does not require waiting for hypothetical future findings. When an explicit human-handoff procedure authorizes one final diagnostic whole-stack audit, perform it only after known material findings have received the validated dispositions and recorded closure evidence required above. Such a diagnostic audit remains distinct from merge-acceptance evidence and does not satisfy or waive the independent exact-head review requirements for later merge authorization. The latest request for that diagnostic purpose must not be treated as superseding an applicable merge-acceptance review cycle merely because it is newer.
 
 _Source: `TakashiSasaki/templates@33a7ab809225c2a8b8dd2598ef04d0a39cf076a7:policy/pull-request/review-reacquisition-after-disposition.md`; rule ID: `pull-request.disposition-known-findings-before-review-reacquisition`; severity: `mandatory`._
+
+
+## Discover review results across applicable surfaces
+
+Before classifying the current review cycle as complete, problem-free, or containing findings, inspect the applicable provider-supported review-result surfaces for the pull request rather than treating a review-submission object as the complete review result. The inspected set must include submitted review bodies, ordinary pull-request or issue comments that can carry reviewer results, inline review comments and resolvable review threads, and any other provider surface or signal that the applicable review procedure or provider contract defines as capable of carrying review-result semantics.
+
+Do not infer `no findings` from an empty review-submission body, an approval state, an empty thread list, or the absence of findings on any single provider surface. A material actionable finding discovered on any applicable review-result surface remains a finding even when another surface reports approval or contains no finding. When provider mechanics separate a logical review across multiple surfaces, reconstruct the logical result before classifying it.
+
+Treat reactions and similar provider signals as semantic review evidence only when the applicable workflow, review procedure, or provider contract establishes their meaning for the result being classified. A reaction without such a defined meaning is uninterpreted provider state; at most it may corroborate separately established evidence. Do not interpret an acknowledgement or attention signal as review completion, approval, or absence of findings merely from its glyph or provider presentation.
+
+If the execution environment cannot inspect a provider surface that is known to be capable of carrying applicable review-result semantics, or cannot determine whether a discovered signal has result semantics, record the limitation and keep any affected completion or no-findings conclusion fail-closed. This discovery rule determines whether the logical review result has been observed sufficiently; the separate review-result applicability rule determines which observed evidence belongs to the current review cycle and revision.
+
+_Source: `TakashiSasaki/templates@33a7ab809225c2a8b8dd2598ef04d0a39cf076a7:policy/pull-request/review-result-discovery.md`; rule ID: `pull-request.discover-review-results-across-applicable-surfaces`; severity: `mandatory`._
 
 
 ## Require an independent exact-head review before merge
@@ -225,6 +427,8 @@ Before merging a pull request, require at least one completed review from an ind
 
 A submitted or provider-recorded review object is not by itself evidence that the review's required analysis completed. The relied-upon evidence must establish, under the applicable review procedure or review contract, that the required analysis completed for the exact proposed head. A review that reports itself as incomplete, partial, failed, or materially limited such that required analysis was not completed must not satisfy the independent-review requirement, even when a provider records that review as submitted or completed. If current evidence cannot establish whether the required analysis completed, keep merge authorization fail-closed rather than inferring completion from a provider event, review state, or the absence of blocking findings.
 
+Before relying on that evidence, apply the canonical cross-surface review-result discovery rule and the review-result applicability rule. Establish the logical review result across applicable provider surfaces, bind it to the applicable review purpose and cycle, and verify that the relied-upon completion evidence satisfies this rule's exact-head requirement.
+
 The relied-upon review evidence must identify the reviewed exact head through review metadata or an unambiguous completed review result. If the proposed head changes after that review, treat the review as stale and obtain a new completed review for the new exact head before merge.
 
 If the required reviewer is unavailable or does not complete the review, report the pull request as blocked rather than waiving the requirement. Only an explicit repository policy may define an exception; an implementing agent must not invent or self-authorize one.
@@ -232,9 +436,26 @@ If the required reviewer is unavailable or does not complete the review, report 
 _Source: `TakashiSasaki/templates@33a7ab809225c2a8b8dd2598ef04d0a39cf076a7:policy/pull-request/independent-exact-head-review.md`; rule ID: `pull-request.require-independent-exact-head-review`; severity: `mandatory`._
 
 
+## Bind review-result classification to the applicable cycle and revision
+
+Before classifying review as pending, complete, problem-free, or containing findings, determine whether an applicable review request exists for the review purpose being evaluated. When one or more applicable requests exist, identify the latest applicable review request and bind the classification to that review cycle. Do not let an older completed review establish completion or `no findings` for a later applicable request that is still pending, incomplete, failed, or otherwise unresolved.
+
+When no applicable review request exists, a completed independent review result may itself define the current review cycle only when its review purpose, reviewer or review-system independence, completion state, and required revision binding can all be positively established from the result and the applicable review contract or provider semantics. Use the completed result's own source identity and completion event as the cycle anchor; do not invent a review-request event merely to make valid unsolicited or automatically triggered review evidence classifiable. This fallback does not apply when a later applicable request exists for the same purpose and candidate lineage: that request defines the current cycle under the normal supersession rule. If the request-less result's purpose, completion state, independence, or required candidate binding is unknown, keep the affected completion or no-findings conclusion fail-closed.
+
+Determine applicability by purpose as well as time. A diagnostic whole-stack audit, merge-acceptance review, security review, or other explicitly distinct review purpose does not supersede a different purpose merely because its request is newer. When several requests belong to the same purpose and candidate lineage, the latest applicable request defines the current cycle unless repository authority or the review procedure explicitly establishes different aggregation semantics.
+
+When observed review evidence identifies a reviewed commit, head SHA, stack identity, or other revision binding, compare that binding with the current proposed candidate before relying on the evidence. Classify the evidence as current and applicable only when the required revision relation is established by the applicable review contract. For merge-acceptance evidence governed by the independent exact-head rule, this requires the exact current proposed head. If the candidate head changed after that review, the completed review is stale for merge acceptance. If the required revision binding is absent or its applicability cannot be established, keep the affected completion or no-findings conclusion fail-closed rather than assuming that the review covered the current candidate.
+
+Review-cycle completion applicability and finding applicability are distinct. Evidence from an earlier review cycle must not by itself establish completion or `no findings` for a later cycle, but a material actionable finding reported earlier remains part of the known finding backlog while its causal condition remains applicable to the current candidate and until it has a validated repair or evidence-backed no-change disposition. Do not discard a finding solely because the head changed or a newer review request exists.
+
+When current evidence is insufficient to determine which request or request-less result defines the applicable cycle, what purpose the result served, or whether its revision binding applies to the current candidate, record the ambiguity and do not promote the review state to complete or problem-free. Historical evidence may still be retained for traceability and finding disposition without being accepted as current-cycle completion evidence.
+
+_Source: `TakashiSasaki/templates@33a7ab809225c2a8b8dd2598ef04d0a39cf076a7:policy/pull-request/review-result-applicability.md`; rule ID: `pull-request.bind-review-result-classification-to-applicable-cycle-and-revision`; severity: `mandatory`._
+
+
 ## Close review findings before merge
 
-Before merging a pull request, inspect the current submitted reviews, resolvable review threads, and actionable findings for the exact proposed head. Treat each independently actionable finding as requiring its own repair or explicit disposition and validation, whether or not the provider exposes that finding as a resolvable thread.
+Before merging a pull request, inspect the current submitted reviews, resolvable review threads, and actionable findings for the exact proposed head. Apply the canonical cross-surface review-result discovery rule so findings carried by ordinary comments, review bodies, inline comments, resolvable threads, or other applicable provider-supported surfaces are not omitted merely because they are absent from a submitted-review object or thread list. Treat each independently actionable finding as requiring its own repair or explicit disposition and validation, whether or not the provider exposes that finding as a resolvable thread.
 
 When a resolvable thread exists, do not mark it resolved until the required repair or evidence-backed no-change disposition has been completed and validated for the current head. A code or documentation change by itself is not proof that the finding is resolved, and a provider's resolved UI state is bookkeeping rather than semantic proof of remediation.
 
@@ -245,13 +466,45 @@ Do not treat an unresolved material finding as complete merely by changing provi
 _Source: `TakashiSasaki/templates@33a7ab809225c2a8b8dd2598ef04d0a39cf076a7:policy/pull-request/review-thread-closure.md`; rule ID: `pull-request.close-review-threads-before-merge`; severity: `mandatory`._
 
 
+## Structure CI as staged validation with an explicit preflight
+
+When repository validation contains checks with materially different cost, scope, or applicability, define an explicit staged CI model appropriate to that repository. Prefer these roles when they are meaningful: **CI preflight** for the cheapest deterministic checks that can reject an obviously invalid candidate; **core validation** for baseline correctness checks that are broadly applicable; **conditional integration** for integration, browser, cross-surface, compatibility, or similar checks whose applicability may depend on the proposed change; and **full qualification** for the broad authority-defined acceptance performed when a completion, merge, release, publication, or equivalent qualification boundary requires it. A repository may collapse or omit a stage when no meaningful distinction exists. Stage names describe validation role and execution cost, not importance.
+
+Place CI preflight before dependent expensive validation when the repository workflow can do so without weakening coverage or creating a larger delay than the work it avoids. A preflight failure must not be interpreted as permission to ignore the defect, and dependent expensive validation need not continue for a candidate already known to be invalid. Independent checks may still run in parallel when they provide useful evidence or parallel execution is operationally cheaper than serialization. Do not serialize CI merely to satisfy the taxonomy. When a newer candidate supersedes an older one, cancel or supersede expensive work whose evidence can no longer apply when the repository platform safely permits that cancellation.
+
+Treat **stage**, **applicability**, and **result** as separate dimensions. Passing CI preflight does not establish core, integration, full-qualification, merge-readiness, or release evidence. Passing an earlier stage must not substitute for an applicable later-stage verification. A classified `not-applicable` decision is applicability evidence rather than a passing result, and uncertain applicability must fail closed under the repository's exact-head CI policy. Staging must not suppress repository-required automatic checks contrary to the workflow or policy that owns those checks.
+
+During dependency-safe construction, treat the revision as a **construction candidate**—a development-time or stacked intermediate revision for which full exact-head qualification is not required. Intermediate heads do not each require full qualification. Use CI preflight, core validation, focused diagnostics, and applicable conditional integration to falsify defects early and confirm development continuity without turning every intermediate construction head into a final qualification identity. Passing CI preflight or core validation (L0/L1) establishes only that construction may proceed; it does not constitute merge-readiness or release evidence (L0/L1 green ≠ merge-ready), and L1/L2 evidence must never substitute for required L3 full qualification. Do not stall dependency-safe construction or stacked progression solely to wait for expensive CI on an intermediate construction candidate.
+
+When an authority-defined revision-bound boundary is reached—such as pull-request merge, release, publication, deployment, or final whole-stack review—treat the stabilized revision as a **qualification candidate**. Stabilize the qualification head (or stacked tip) and acquire every applicable verification required by that authority, including full qualification when that boundary requires it. If the qualification candidate's effective state or an evidence binding changes, the affected prior evidence becomes stale and cannot qualify the successor state. A head-SHA-only change makes **exact-revision-bound** and unclassified/unknown evidence stale, but does not automatically invalidate explicitly **tree-and-context-bound** qualification evidence when the effective candidate tree and every declared non-tree binding are positively re-established under the canonical qualification evidence reuse rules. This history-only exception applies only to CI/qualification evidence. Review evidence remains governed independently by exact-head review policy, so a proposed-head change makes prior exact-head review stale and requires a new completed review for the successor head before merge. Staged CI is an execution-efficiency discipline; it does not weaken exact-head evidence, independent review, release trust, provenance, publication, or other completion requirements.
+
+_Source: `TakashiSasaki/templates@33a7ab809225c2a8b8dd2598ef04d0a39cf076a7:policy/pull-request/staged-ci-and-preflight.md`; rule ID: `pull-request.use-staged-ci-with-preflight`; severity: `mandatory`._
+
+
 ## Require exact-head CI evidence before merge
 
-Before declaring a pull request merge-ready or merging it, identify the checks that are applicable to the current proposed head from the current repository workflow and validation definitions. Rely only on CI or validation evidence that applies to that exact head commit. A successful result for an older head is historical evidence and must not satisfy the current merge gate.
+Before declaring a pull request merge-ready or merging it, identify the checks that are applicable to the current proposed head from the current repository workflow and validation definitions, identify the binding class owned by each relied-upon result, and rely only on CI or validation evidence that applies to that exact head commit under its declared binding contract. **exact-revision-bound** evidence must apply to the exact head commit represented by the current proposed head (or the current provider-required merge-result identity). **Tree-and-context-bound** qualification evidence may apply to that current exact head after a head change only when its validation contract or evidence record explicitly declares that binding class and qualification applicability evaluation positively establishes that the effective candidate tree and every required non-tree binding remain unchanged. A successful result for an older head is historical evidence and must not satisfy the current merge gate unless those reuse conditions are established. An ordinary CI success with no explicit binding classification is **unknown**, not implicitly tree-bound, and must be reacquired after head movement.
+
+The binding classification is part of qualification evidence, not an inference from the apparent source diff. A validation result is tree-and-context-bound only when its contract or evidence record binds the result to the effective tree plus all inputs that can affect its validity, such as generated/materialized state, dependencies and lockfiles, toolchain, validation environment, workflow definition, provider/cross-authority revisions, and repository required-check policy. If any required binding or the binding class itself cannot be established, fail closed rather than treating tree identity as sufficient.
+
+When the repository uses staged CI, the stage taxonomy does not reduce this requirement. Passing CI preflight, core validation, or another earlier stage must not substitute for an applicable later-stage verification. Qualification for the current proposed head consists of every check that current repository authority requires and establishes as applicable at that boundary, including conditional integration and full qualification when required.
+
+Treat check applicability as evidence with its own bindings. When a repository uses a classifier, dependency map, changed-surface rule, or equivalent mechanism to decide whether a verification applies, bind that decision to the exact relevant revision, comparison base or other declared input, classifier definition, and verification definition that produced it. A not-applicable decision is valid only when those bindings establish that the verification cannot be affected by the proposed change under current repository authority. **Not-applicable is applicability evidence, not a passing check result.**
+
+An applicability classifier governing selective or staged verification must satisfy the canonical **classifier contract**:
+- **Base-authoritative**: The classifier logic must resolve from the authoritative base revision (or an immutable authority) rather than proposed code, so proposed changes cannot alter their own classification rules. Where workflow dispatch wrappers execute from mutable pull-request candidates, classification and qualification must invoke from an immutable or base-owned control boundary (such as a protected reusable workflow, base-branch dispatch, or independent required check) or fail closed to full qualification if workflow control definitions are mutated.
+- **Deterministic and path-based**: Decisions must be computed deterministically from exact repository-relative changed paths between the base and proposed candidate.
+- **Fail-closed on ambiguity or error**: Unrecognized paths, empty or malformed diffs, missing base references, or unparseable inputs must fail closed to conservative or full verification.
+- **Prohibition of self-exemption**: Changes to the classifier script, classification fixtures, or CI workflow definitions must never self-exempt from verification and must require conservative or full qualification.
+- **Explicit escalation**: The workflow must provide an explicit escalation path or explicit full-verification override (such as a pull-request label or manual dispatch) to force full verification for a qualification checkpoint.
+
+Policy defines the semantic properties and standard risk classes (`documentation-only`, `tests-only`, `content`, `runtime-sensitive`, `browser-sensitive`, `publication-sensitive`, `cross-authority-sensitive`, `distribution-sensitive`, `ci-authority-sensitive`, `unknown`) of this contract; the individual repository remains authoritative for its concrete path-to-class mappings.
+
+Selective applicability must not weaken required verification. Do not use applicability classification to substitute focused diagnostic validation for required qualification or to infer that a skipped or unobserved expected check passed. Applicability classification must not suppress repository-required automatic checks contrary to the repository workflow or policy that owns those checks. A repository may itself define conditional automatic execution when the applicability decision is fail-closed and auditable.
 
 Do not treat an expected but not yet observable check as successful, non-applicable, or absent merely because one live query returns no result. Until applicable exact-head checks have been positively identified or their non-applicability is established by current repository policy, keep merge authorization fail-closed.
 
-If a newer applicable exact-head run supersedes an older cancelled or stale run, evaluate the newest applicable evidence rather than treating the superseded run by itself as the current result.
+If a newer applicable exact-head run supersedes an older cancelled or stale run, evaluate the newest applicable evidence rather than treating the superseded run by itself as the current result. Reuse a previously established not-applicable decision only while every fact that binds that applicability evidence remains unchanged; otherwise reclassify only the affected verification scope.
 
 _Source: `TakashiSasaki/templates@33a7ab809225c2a8b8dd2598ef04d0a39cf076a7:policy/pull-request/exact-head-ci-evidence.md`; rule ID: `pull-request.require-exact-head-ci-evidence`; severity: `mandatory`._
 
@@ -275,7 +528,42 @@ Once scope, validation, review, or other acceptance evidence has been accepted f
 
 Do not make repeated observations, extra review cycles, waiting periods, or redundant evidence collection mandatory solely because they are more conservative. Additional diagnostic work may be performed when concrete uncertainty exists, but it must not silently enlarge the acceptance baseline or become a new merge requirement unless current repository policy requires it.
 
-Reacquire only the evidence affected by a concrete invalidation signal. A changed proposed head invalidates evidence bound to the former head. Target-branch movement requires impact evaluation, but it does not by itself invalidate unrelated exact-head evidence whose applicability and semantic basis remain unchanged. Changes to scope, validation definitions, review state, or another evidence-binding condition invalidate the corresponding evidence. Elapsed time alone does not invalidate exact-head evidence unless current repository policy defines an explicit freshness limit.
+Reacquire only the evidence affected by a concrete invalidation signal. Target-branch movement requires impact evaluation, but it does not by itself invalidate unrelated exact-head evidence whose applicability and semantic basis remain unchanged. Changes to scope, validation definitions, review state, or another evidence-binding condition invalidate the corresponding evidence. Elapsed time alone does not invalidate exact-head evidence unless current repository policy defines an explicit freshness limit.
+
+During stacked pull-request progression and candidate landing, **merge progression does not itself invalidate qualification evidence. A change to the qualified candidate state or to an evidence binding does.** Merely because an ancestor member of a stack was merged, subsequent members' CI or qualification evidence must not be treated as stale solely for that reason. Before scheduling or executing new validation, perform an explicit **qualification applicability check** comparing the qualification candidate, current head, effective tree identity, base evolution, validation-run bound identity, exact-head and exact-tree bindings, provider revision, cross-authority revision, generated or materialized state, dependency, lockfile, and toolchain identity, validation workflow identity, and repository required-check policy.
+
+An applicability check must distinguish at least three outcomes: **applicable**, **stale**, and **unknown**. If applicability is unknown or cannot be positively verified, keep evaluation fail-closed and treat the evidence as requiring reacquisition; unknown must never be treated as applicable.
+
+Qualification evidence binding classification must be explicit and auditable. Treat evidence as **tree-and-context-bound** only when the validation contract or evidence record identifies the effective candidate tree and every non-tree binding required for that result, including relevant generated/materialized state, dependency/lockfile/toolchain identity, validation environment, workflow definition, provider or cross-authority revision, and required-check policy. Treat evidence as **exact-revision-bound** when its contract, provider semantics, or evidence record requires an exact commit/head or merge-result identity. If the binding class or any required binding cannot be established, applicability is **unknown** and the evidence must be reacquired. An ordinary successful CI result is never inferred to be tree-and-context-bound merely because the source tree appears identical.
+
+Existing qualification evidence may be reused when:
+- the effective candidate tree is identical;
+- no conflict resolution occurred;
+- generated or materialized output is unchanged;
+- dependency, lockfile, and toolchain identities are unchanged;
+- the validation environment identity is unchanged;
+- the validation workflow identity is unchanged;
+- provider and cross-authority revisions are unchanged;
+- exact-head, exact-tree, and all other bindings required by the evidence continue to hold; and
+- repository hosting provider rulesets, branch protection, or required merge-result policies do not mandate a fresh check.
+
+Qualification evidence is stale and must be reacquired upon concrete invalidation:
+- conflict resolution;
+- effective tree change;
+- generated or materialized output change;
+- dependency, lockfile, or toolchain change;
+- validation environment change;
+- validation workflow change;
+- provider revision change;
+- cross-authority revision change;
+- breach or destruction of an exact-head, exact-tree, or immutable binding; or
+- change in qualification input.
+
+History-only evolution—such as ancestor pull-request landing, history-only rebase, tree-identical head movement, or commit-graph reorganization—does not automatically invalidate qualification evidence solely because the commit SHA changed. However, when evidence is exact-revision-bound—for example, to an exact commit SHA or provider-required merge-result identity—that binding semantics must be respected; an identical tree alone does not waive explicit exact-commit or merge-result bindings. Tree-and-context-bound evidence may survive a history-only head change only after all declared bindings are positively re-established for the successor candidate.
+
+When evidence becomes stale, running the full validation or CI suite is not the default. Selective invalidation requires identifying the affected validation or binding and rerun only what is required to restore qualification.
+
+Reuse of qualification or CI evidence does not by itself imply reuse of review evidence. Review applicability continues to follow the repository's existing review policy, and merge-acceptance review requirements remain governed by their applicable review contract.
 
 If the continued validity of relied-upon evidence cannot be established, fail closed and reacquire the affected evidence rather than inventing a broader gate.
 

@@ -42,6 +42,58 @@ When human-handoff is selected, stop at HANDOFF_READY after the authorized imple
 
 Use the focused procedures in references/pr-workflow-selection.md, references/serial-pr-workflow.md, references/stacked-pr-workflow.md, and references/human-handoff.md for the selected path.
 
+For the repository-change operational state model, read [Work ledger](references/work-ledger.md). Before resuming or checkpointing, **select the adopted Work-ledger storage strategy** from explicit task instruction, applicable repository-local policy, or another authoritative consumer adoption decision. Use an explicitly adopted isolated repository-tracked strategy according to [Isolated repository-tracked Work ledger](references/repository-tracked-work-ledger.md); otherwise provider-side PR/Issue checkpoints remain the default. Do not infer repository-tracked adoption merely because that optional procedure exists. The selected backend is operational state only and does not create acceptance authority.
+
+## Resumable execution loop
+
+Use [Work ledger](references/work-ledger.md) as the operational index throughout the selected workflow:
+
+1. discover the adopted Work-ledger storage strategy and its canonical checkpoint: use the explicitly adopted repository-tracked operational ref when one is authoritative for the consumer, otherwise use the canonical provider-side checkpoint or reconstruct it from live facts;
+2. refresh materially stale bindings needed for the next safe action, checking whether an interrupted mutation or review request already succeeded; when the selected backend is a shared repository-tracked ref, always resolve the live operational-ref head and bind checkpoint selection/loading to that immutable head before using recovered state, including under serialized ownership;
+3. determine the next safe action under the selected progression/completion modes and actual dependencies;
+4. before executing a recovered non-idempotent external action on behalf of a shared repository-tracked backend, establish exclusive action ownership through authoritative serialized action ownership or an atomic/CAS checkpoint transition that claims that specific action; a worker that loses the claim must reload and must not execute the action;
+5. perform useful authorized work, including dependency-safe descendant implementation while CI is pending;
+6. checkpoint material transitions on the selected canonical operational surface, referencing finding details in the existing review-finding ledger; and
+7. validate/qualify when the applicable boundary requires it, then continue or hand off.
+
+Recover ordered members, their bases and exact heads before resuming a stack. Preserve completed semantic work when a head moves while marking affected exact-head evidence stale. Record asynchronous waiting conditions and the safe action they unblock. A missing or inaccessible durable checkpoint does not establish completed work: reconstruct what can be verified and report remaining uncertainty. Initial live operational-ref binding is mandatory even for a serialized writer. If concurrent writers remain possible after that binding and it moves during recovery, discard the stale recovery decision and restart checkpoint recovery from the new live head before following `next_safe_action` or performing an external mutation. Serialization may eliminate only later movement checks after a current live binding and action ownership are established; it never proves an unverified local ref is current.
+
+At completion, use the checkpoint and its linked evidence to reconstruct the required report. Follow references/human-handoff.md for HANDOFF_READY and the dedicated merge gate for agent-review-and-merge. Recheck the existing complete known-finding and live-identity gates before any authorized review acquisition. If the task requires immediate stop after the request, persist the preflight checkpoint first and let the request record be the acquisition event; do not perform a post-request provider write. For a repository-tracked backend, that preflight checkpoint must also claim the specific non-idempotent request unless authoritative serialized action ownership already covers it.
+
+## Anti-stall diagnostic control
+
+`policy/core/repository-change-anti-stall.md` is the normative authority for material progress, bounded attempts, invalidated paths, diagnostic budgets, strategy switching, progress reporting, waiting semantics, and artifact-neutral durable-resume behavior. This Skill projects that policy into the repository-change execution loop and Work ledger; it does not redefine its acceptance semantics.
+
+For each diagnostic objective:
+
+1. state the evidence gap and current hypothesis before broad capability discovery;
+2. use capability-first, bounded tool discovery to find the minimum action that can reduce that gap;
+3. after a diagnostic attempt, decide whether there was material progress: new evidence, hypothesis support/rejection, narrower failure scope, repository/validation/review state change, qualification-frontier movement, or a materially more specific next safe action;
+4. when no material state changed, increment the global no-material-progress budget and any applicable narrower strategy budget instead of treating the tool call as progress;
+5. remember invalidated paths with their reason, applicability, and evidenced retry condition; do not retry them in the same context merely because another endpoint spelling may exist; and
+6. when the current strategy budget is exhausted, switch diagnostic strategy to a materially different evidence source, reproduction method, or hypothesis.
+
+A strategy is ordinarily identified by the deliberately selected objective, evidence source, diagnostic method, and hypothesis. Track observed failure mode per attempt for classification and retry decisions, but do not treat a changed outcome as a new strategy or reset its attempt count. As a guardrail, two equivalent failures require reassessment; a third identical retrieval is prohibited unless the failure classification or execution context supplies concrete new retry evidence. Cheap deterministic correction, credible transient failure, authentication repair, unavailable capability, unavailable evidence, and semantic failure require different handling; do not encode the guardrail as a universal fixed retry count.
+
+The global no-material-progress budget advances even for successful calls that only reproduce already-known information. Perform a stall check after about three no-progress tool calls while the same evidence gap persists, or sooner when tool-name discovery dominates productive work. Two semantically equivalent progress reports without material progress are also a stagnation signal. These numbers trigger reassessment rather than define a stall: the controlling question is whether the knowledge, repository, validation, review, qualification, or next-action state changed.
+
+At a diagnostic-budget boundary, switch diagnostic strategy before giving up. Only classify the objective as `blocked` when no alternate authorized, in-scope strategy remains that can materially reduce the evidence gap. A change from raw CI logs to check annotations, focused source-delta reproduction, generated-artifact inspection, workflow-source analysis, or bounded bisect can be a real strategy switch; searching another API name for the same unavailable raw log ordinarily is not.
+
+Keep external dependency state distinct from agent diagnostic state:
+
+- `external_wait`: a required dependency such as CI, review, deployment, or publication is validated as legitimately pending and has a concrete resume condition; provider progress may be opaque or unchanged;
+- `diagnostic_stall`: agent activity continues while the same evidence gap persists without material progress;
+- `blocked`: alternate authorized in-scope strategies are exhausted or unavailable;
+- `productive_parallel_work`: authorized work performed during an external wait that directly advances the declared completion frontier.
+
+An unchanged provider `pending` or `in_progress` status can remain `external_wait` when dependency identity and resume condition are valid. Track a separate stale/timeout/failure transition for waits that cease to be legitimate; opaque progress alone is not agent stall.
+
+During `external_wait`, productive_parallel_work may include downstream stacked-branch construction, PR-body synchronization, review-debt audit, exact-head applicability audit, deterministic test preparation, and known documentation synchronization. Do not justify unrelated cleanup, optional features, architecture exploration, or scope expansion as wait-time work.
+
+Progress reporting is knowledge-delta reporting. Prefer: what changed, what was learned, what remains unknown, why the strategy changed, and what comes next. Do not emit repeated variants of “checking logs” or “continuing diagnosis” when the underlying strategy and evidence gap have not changed.
+
+On resume, restore the Work ledger's invalidated and exhausted paths before diagnostic retry. Resume from the recorded progress frontier and next safe action; do not restart the investigation by default. Refresh only stale facts whose current binding matters to the next action. For an adopted shared repository-tracked backend, the operational-ref head is a mandatory read-side concurrency binding: always resolve it live before checkpoint selection/loading, including under serialized ownership. Before a recovered non-idempotent external action, require serialized action ownership or an atomic/CAS action claim; checkpoint-write CAS after the action is too late to prevent duplicate effects.
+
 ## 1. Establish the minimum sufficient snapshot
 
 Before mutating, identify the facts that determine the next safe action:
@@ -61,6 +113,8 @@ When independent reads do not depend on one another and the execution surface su
 
 Group compatible edits that share the same authority, semantic purpose, validation boundary, and rollback unit. Prefer one coherent mutation over avoidable one-finding-at-a-time churn.
 
+Before selecting a transport or mutation mechanism, classify every large, binary, encoded, generated, or otherwise transport-sensitive file payload as **Git-tracked authority source**, **generated build product**, or **external artifact**. Read [Generated artifact transport and mutation payload classification](references/generated-artifact-transport.md) and record enough size, encoding, API-shape, generator/materializer, and transport-limit facts to justify the mechanism. Prefer deterministic provider-owned generation/materialization for generated build products; do not promote a generated projection to authority source or add it to Git merely to make transport easier. If the available mutation surface cannot safely carry a required Git-tracked authority source, fail closed and select another supported transport rather than substituting inline base64, truncation, lossy encoding, or an unverified copy.
+
 Do not combine unrelated work merely to reduce commit, pull-request, or tool-call counts. Keep work separate when changes have different authorities, materially different risks, conflicting decisions, independent merge value, or clearer validation as distinct units.
 
 Do not create no-op, cosmetic, or speculative mutations to demonstrate progress, retrigger automation, or refresh evidence unless current repository authority explicitly requires such a recovery action.
@@ -75,15 +129,15 @@ Never skip a required expensive check merely because a cheaper check passed. Nev
 
 ## 4. Freeze revision-bound candidates
 
-Once CI, independent review, release qualification, or another revision-bound evaluation has started for a candidate, keep that candidate stable unless a justified head-changing repair, scope correction, conflict resolution, or other necessary mutation is ready.
+Distinguish construction heads and provisional candidates from qualification heads under `pull-request.defer-revision-bound-qualification-until-required`. Naturally triggered CI does not by itself freeze a provisional candidate or block authorized implementation. When an applicable boundary requires final qualification, stabilize prerequisite identities and freeze the intended candidate heads. Keep those qualification heads stable unless a justified head-changing repair, scope correction, conflict resolution, or other necessary mutation is ready. Record the frontier and affected evidence bindings in the Work ledger.
 
 A known material defect blocks acceptance immediately even while the candidate revision remains unchanged for investigation. Candidate stability is an efficiency mechanism, not evidence that the candidate is acceptable.
 
 For pull-request merge acceptance, defer to the repository's pull-request policy and any dedicated merge-gate procedure. This skill does not redefine exact-head review, CI, thread-closure, mergeability, or guarded-merge requirements.
 
-## 5. Use asynchronous wait time for bounded read-only work
+## 5. Use asynchronous wait time for bounded read-only work and dependency-safe construction
 
-While CI, review, publication, deployment, or another external result is in flight, continue useful work that does not invalidate the candidate under evaluation. Suitable work includes:
+While CI, review, publication, deployment, or another external result is in flight, continue useful work that does not invalidate the candidate under evaluation. CI waiting must not stop dependency-safe implementation on later members; record the dependency and provisional state in the Work ledger. Treat a validated pending dependency with a concrete resume condition as `external_wait` even when the provider exposes only an unchanged `pending` or `in_progress` status. Track a separate stale/timeout/failure condition for the dependency instead of converting opaque progress into `diagnostic_stall`. Limit parallel activity to `productive_parallel_work` that advances the declared completion frontier. For a frozen qualification candidate, suitable work includes:
 
 - bounded read-only self-audit of the current candidate;
 - reproducing or falsifying suspected defects;
@@ -92,7 +146,7 @@ While CI, review, publication, deployment, or another external result is in flig
 - checking authority and invariant boundaries;
 - inventorying the next independent task when it does not change the current candidate.
 
-Do not turn wait time into an unbounded search for hypothetical defects. Stop a read-only audit when the agreed scope and relevant invariants have been evaluated or when additional investigation has no concrete trigger.
+Do not turn wait time into an unbounded search for hypothetical defects. Stop a read-only audit when the agreed scope and relevant invariants have been evaluated or when additional investigation has no concrete trigger. Do not expand into unrelated cleanup, optional features, or unrelated architecture work merely because an external dependency is pending.
 
 ## 6. Aggregate known actionable findings before mutating
 
@@ -114,7 +168,7 @@ If a binding is uncertain, resolve that uncertainty before relying on the eviden
 
 When the provider or execution surface supports compare-and-swap, expected revision, ETag, immutable-head, version, generation, or equivalent write preconditions, use them to close races at mutation time.
 
-A guarded write does not eliminate semantic validation or live-state revalidation required by repository authority, including any required commit-boundary revalidation. It can eliminate only an additional read whose sole purpose is to detect the same race already covered by the write precondition and whose omission does not remove a required authority check.
+A guarded write does not eliminate semantic validation or live-state revalidation required by repository authority, including any required commit-boundary revalidation. It can eliminate only an additional read whose sole purpose is to detect the same race already covered by the write precondition and whose omission does not remove a required authority check. Guarded checkpoint writes also do not establish action ownership for an already-executed non-idempotent external effect; claim such an action before execution or use authoritative serialization that covers the action itself.
 
 If a guarded write is rejected, do not retry blindly. Refresh the state relevant to the rejection, determine which prior assumptions or evidence were invalidated, and continue from that point.
 
@@ -133,6 +187,7 @@ At completion or handoff, report:
 - validation and asynchronous evidence used;
 - findings that required mutation and how they were batched or separated;
 - evidence invalidated and evidence legitimately reused;
+- payload classification and chosen transport when transport-sensitive mutation affected execution or resumption;
 - guarded-write or race-handling decisions, when applicable;
 - unresolved blockers, residual risks, and the exact completion or stop boundary.
 

@@ -32,17 +32,13 @@ class ComponentTopology:
 
 @dataclass(frozen=True)
 class RepositoryTopology:
-    kind: str
+    kind: str | None
     hub_branch: str | None = None
     components: Mapping[str, ComponentTopology] = field(default_factory=dict)
 
     @property
     def is_hub_and_orphan(self) -> bool:
         return self.kind == "hub-and-orphan"
-
-    @property
-    def is_single_worktree(self) -> bool:
-        return self.kind == "single-worktree"
 
     def component_by_branch(self, branch: str) -> ComponentTopology | None:
         return next((c for c in self.components.values() if c.branch == branch), None)
@@ -63,7 +59,7 @@ def discover_repository_topology(root: Path) -> RepositoryTopology:
     if (root / "contracts").is_symlink() or contract_path.is_symlink():
         raise TopologyDiscoveryError("TOPOLOGY_PATH_UNSAFE", "contract path contains a symlink")
     if not contract_path.exists():
-        return RepositoryTopology(kind="single-worktree")
+        return RepositoryTopology(kind=None)
     try:
         data = validator.load_json(root, TOPOLOGY_CONTRACT_RELATIVE)
         schema = validator.load_json(CONTRACT_SOURCE_ROOT, TOPOLOGY_SCHEMA_RELATIVE)

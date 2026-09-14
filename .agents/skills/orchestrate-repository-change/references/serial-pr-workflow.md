@@ -1,6 +1,10 @@
 <!-- agent-policy-generated: true -->
 # Serial pull-request workflow
 
+## Resumable member checkpoint
+
+Apply [Work ledger](work-ledger.md) to the current member, its exact base/head evidence, completed mutation units and next safe action. Reconstruct provider state before retrying an interrupted mutation, review request or guarded merge. Under agent-review-and-merge, use the existing merge gate to qualify, disposition findings and verify the merge before advancing; the checkpoint cannot authorize it. Under human-handoff, retain the open member and required report evidence on the durable surface, following the selected stop boundary.
+
 Use this procedure when serial-pr is selected. Serial progression controls construction ordering only. The selected completion strategy decides whether the current member proceeds into review/merge or stops after validation with an open pull request.
 
 For every coherent change member:
