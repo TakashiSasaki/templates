@@ -31,6 +31,14 @@ class ReferenceEvidenceCommandTests(unittest.TestCase):
                 self.assertIn(harness["locator"], tokens)
                 self.assertTrue((ROOT / harness["locator"]).is_file())
 
+    def test_browser_job_gates_playwright_binary_setup_on_pwa_required(self):
+        workflow = yaml.safe_load((ROOT / ".github/workflows/reference-consumer.yml").read_text())
+        steps = workflow["jobs"]["browser"]["steps"]
+        cache_step = next(s for s in steps if s.get("name") == "Cache Playwright binaries")
+        install_step = next(s for s in steps if s.get("name") == "Install worker-lifecycle browser")
+        self.assertIn("needs.classify.outputs.pwa_required == 'true'", cache_step.get("if", ""))
+        self.assertIn("needs.classify.outputs.pwa_required == 'true'", install_step.get("if", ""))
+
 
 if __name__ == "__main__":
     unittest.main()

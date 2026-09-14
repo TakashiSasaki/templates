@@ -217,7 +217,7 @@ class SearchHistoryRuntimeContractTests(unittest.TestCase):
         self.assertIn("python scripts/check_search_history.py", check_block)
         self.assertIn("python scripts/check_search_history_review_regressions.py", check_block)
         self.assertIn(
-            "if: ${{ needs.classify_browser.outputs.required == 'true' }}",
+            "if: ${{ needs.classify_browser.outputs.browser_required == 'true' }}",
             check_block,
         )
         self.assertIn("name: search-history-${{ github.event.pull_request.number }}", check_block)

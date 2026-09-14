@@ -48,7 +48,7 @@ jobs:
       composition_head: ${{ steps.composition_head.outputs.result }}
       relation: ${{ steps.classify.outputs.relation }}
       merged_lane: ${{ steps.provider_relation.outputs.merged_lane }}
-      candidate_required: ${{ steps.candidate_scope.outputs.required }}
+      candidate_required: ${{ steps.candidate_scope.outputs.freshness_candidate_required }}
       candidate_reason: ${{ steps.candidate_scope.outputs.reason }}
       candidate_changed_count: ${{ steps.candidate_scope.outputs.changed_count }}
 
@@ -82,7 +82,7 @@ jobs:
         run: |
           if [ "$EVENT_NAME" != pull_request ]; then
             {
-              echo 'required=true'
+              echo 'freshness_candidate_required=true'
               echo 'reason=scheduled or manual diagnostic'
               echo 'changed_count=0'
               echo 'requiring_count=0'
@@ -117,11 +117,11 @@ jobs:
               fi
             fi
             reason="$(grep '^reason=' "$output_file" | cut -d= -f2)"
-            echo "required=$req" >> "$GITHUB_OUTPUT"
+            echo "freshness_candidate_required=$req" >> "$GITHUB_OUTPUT"
             echo "reason=$reason" >> "$GITHUB_OUTPUT"
             echo "authority_source=base" >> "$GITHUB_OUTPUT"
           else
-            echo "required=true" >> "$GITHUB_OUTPUT"
+            echo "freshness_candidate_required=true" >> "$GITHUB_OUTPUT"
             echo "reason=base-classifier-unavailable-full" >> "$GITHUB_OUTPUT"
             echo "authority_source=base-unavailable-full" >> "$GITHUB_OUTPUT"
           fi
@@ -182,7 +182,7 @@ jobs:
 
       - name: Report candidate build selection
         env:
-          CANDIDATE_REQUIRED: ${{ steps.candidate_scope.outputs.required }}
+          CANDIDATE_REQUIRED: ${{ steps.candidate_scope.outputs.freshness_candidate_required }}
           CANDIDATE_REASON: ${{ steps.candidate_scope.outputs.reason }}
           CHANGED_COUNT: ${{ steps.candidate_scope.outputs.changed_count }}
         run: |

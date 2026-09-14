@@ -307,11 +307,6 @@ class ClassificationDecision:
     playground_required: bool = False
 
     @property
-    def required(self) -> bool:
-        """Alias for browser_required for backward compatibility."""
-        return self.browser_required
-
-    @property
     def freshness_required(self) -> bool:
         """Alias for freshness_candidate_required."""
         return self.freshness_candidate_required
@@ -643,7 +638,6 @@ def write_outputs(output: TextIO, decision: ClassificationDecision) -> None:
     output.write(f"full_required={b2s(decision.full_required)}\n")
     output.write(f"coexistence_required={b2s(decision.coexistence_required)}\n")
     output.write(f"freshness_candidate_required={b2s(decision.freshness_candidate_required)}\n")
-    output.write(f"required={b2s(decision.required)}\n")
     output.write(f"risk_class={decision.risk_class}\n")
     output.write(f"reason={decision.reason}\n")
     output.write(f"changed_count={decision.changed_count}\n")

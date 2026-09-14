@@ -9,8 +9,6 @@ on:
         type: boolean
         default: false
     outputs:
-      required:
-        value: ${{ jobs.classify.outputs.required }}
       reason:
         value: ${{ jobs.classify.outputs.reason }}
       changed_count:
@@ -50,7 +48,6 @@ jobs:
   classify:
     runs-on: ubuntu-24.04
     outputs:
-      required: ${{ steps.classify.outputs.required }}
       reason: ${{ steps.classify.outputs.reason }}
       changed_count: ${{ steps.classify.outputs.changed_count }}
       requiring_count: ${{ steps.classify.outputs.requiring_count }}
@@ -98,7 +95,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ "$EVENT_NAME" != pull_request ]; then
-            for capability in core_required build_required browser_required pwa_required reference_consumer_required cross_authority_required publication_required full_required required playground_required coexistence_required freshness_candidate_required; do
+            for capability in core_required build_required browser_required pwa_required reference_consumer_required cross_authority_required publication_required full_required playground_required coexistence_required freshness_candidate_required; do
               echo "$capability=true" >> "$GITHUB_OUTPUT"
             done
             echo "reason=scheduled-or-manual-full-site-browser-qualification" >> "$GITHUB_OUTPUT"
@@ -141,7 +138,6 @@ jobs:
               echo "coexistence_required=true"
               echo "freshness_candidate_required=true"
               echo "full_required=true"
-              echo "required=true"
               echo "risk_class=ci-authority-sensitive"
               echo "reason=base-classifier-unavailable-full"
               echo "changed_count=unknown"
@@ -153,7 +149,7 @@ jobs:
 
       - name: Record acceptance selection
         env:
-          REQUIRED: ${{ steps.classify.outputs.required }}
+          BROWSER_REQUIRED: ${{ steps.classify.outputs.browser_required }}
           REASON: ${{ steps.classify.outputs.reason }}
           CHANGED_COUNT: ${{ steps.classify.outputs.changed_count }}
           REQUIRING_COUNT: ${{ steps.classify.outputs.requiring_count }}
@@ -162,7 +158,7 @@ jobs:
           {
             echo '### CI acceptance selection'
             echo
-            echo "- required: \`$REQUIRED\`"
+            echo "- browser required: \`$BROWSER_REQUIRED\`"
             echo "- reason: \`$REASON\`"
             echo "- changed paths: \`$CHANGED_COUNT\`"
             echo "- requiring paths: \`$REQUIRING_COUNT\`"

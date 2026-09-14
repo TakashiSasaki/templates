@@ -19,10 +19,7 @@ class BrowserWorkflowTests(unittest.TestCase):
 
     def test_explainability_and_browser_are_distinct_required_suites(self):
         jobs = workflow('site-composition-playground-explain.yml')['jobs']
-        self.assertTrue(
-            'outputs.playground_required' in jobs['explainability']['if']
-            or 'outputs.required' in jobs['explainability']['if']
-        )
+        self.assertIn('outputs.playground_required', jobs['explainability']['if'])
         self.assertIn('outputs.browser_required', jobs['browser']['if'])
         cheap = str(jobs['explainability']['steps'])
         self.assertIn('run_site_preflight.py fast --check node-explainability', cheap)
@@ -47,9 +44,9 @@ class BrowserWorkflowTests(unittest.TestCase):
 
     def test_exact_candidate_build_is_unique_and_conditional(self):
         jobs = workflow('site-composition-playground-cross-authority.yml')['jobs']
-        self.assertTrue(
-            "needs.classify.outputs.cross_authority_required == 'true'" in jobs['build_candidate']['if']
-            or "needs.classify.outputs.required == 'true'" in jobs['build_candidate']['if']
+        self.assertIn(
+            "needs.classify.outputs.cross_authority_required == 'true'",
+            jobs['build_candidate']['if'],
         )
         self.assertEqual(
             1,

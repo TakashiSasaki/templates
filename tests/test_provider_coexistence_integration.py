@@ -35,9 +35,9 @@ class ProviderCoexistenceIntegrationTests(unittest.TestCase):
             "uses: ./.github/workflows/classify.yml" in workflow
             or "scripts/classify_provider_coexistence.py" in workflow
         )
-        self.assertTrue(
-            "needs.classify.outputs.coexistence_required == 'true'" in workflow
-            or "needs.classify.outputs.required == 'true'" in workflow
+        self.assertIn(
+            "needs.classify.outputs.coexistence_required == 'true'",
+            workflow,
         )
         self.assertIn("name: Provider coexistence gate", workflow)
         self.assertIn('test "$CLASSIFY_RESULT" = success', workflow)

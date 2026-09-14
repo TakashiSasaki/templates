@@ -245,7 +245,7 @@ class MobileLayoutRegressionTests(unittest.TestCase):
         self.assertIn("inputs.site_ref == ''", check_block)
         self.assertIn("actions/download-artifact@v5", check_block)
         self.assertIn(
-            "if: ${{ needs.classify_browser.outputs.required == 'true' }}",
+            "if: ${{ needs.classify_browser.outputs.browser_required == 'true' }}",
             check_block,
         )
         self.assertNotIn("Wait for documentation artifact build", workflow)
