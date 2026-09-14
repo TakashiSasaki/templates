@@ -1,7 +1,7 @@
 {
   "repository": "TakashiSasaki/templates",
   "authority": "composition",
-  "revision": "fdbe347d27814b08080b14a598a28b84d5c4c245",
+  "revision": "01c7ceb03977d6ca87aa84e4bef6944198e8928a",
   "files": [
     {
       "source": "components/workspace.bare-worktree/files/.template-composition/validators/validate_local_checkout_topology.py",
