@@ -276,7 +276,8 @@ def evaluate_suites(
     epoch_timestamp: float | None = None
     if qualification_trigger_time:
         try:
-            epoch_timestamp = parse_iso_timestamp(qualification_trigger_time)
+            # 60s tolerance for sibling workflow runs dispatched in the same event batch
+            epoch_timestamp = parse_iso_timestamp(qualification_trigger_time) - 60.0
         except (ValueError, TypeError) as exc:
             print(
                 f"Warning: could not parse qualification_trigger_time {qualification_trigger_time!r}: {exc}",
