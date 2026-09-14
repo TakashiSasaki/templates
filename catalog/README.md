@@ -51,6 +51,14 @@ Select repository topology when the repository requires an explicit multi-branch
 | --- | --- | --- | --- |
 | Rootless component branches with a read-only self-referencing submodule Hub projection | `topology.hub-and-orphan` | — | Machine-readable repository topology contract, Hub projection invariants, and branch-equals-mount-path validation |
 
+### Workspace / local-checkout selection
+
+Select a workspace component when a repository declares how its local checkout is materialized. This is independent of repository topology; no workspace selection implies no declared local-checkout topology, not a default filesystem layout.
+
+| Need | Select | Implies | Contract outcome |
+| --- | --- | --- | --- |
+| One bare common Git repository with selected branch worktrees as workspace-root siblings | `workspace.bare-worktree` | — | Local-checkout topology declaration and validator; may be combined with `topology.hub-and-orphan` |
+
 A minimal Website uses an empty include list and receives `foundation.web`, Website contracts, implementation-evidence/contract-evolution support, and no PWA/runtime/release materials:
 
 ```json

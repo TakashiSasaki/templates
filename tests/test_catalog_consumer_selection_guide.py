@@ -31,6 +31,7 @@ SKILL_LIFECYCLE_OPTIONS = {
 }
 BROWSER_LIFECYCLE_OPTIONS = {"lifecycle.release-bundle"}
 TOPOLOGY_OPTIONS = {"topology.hub-and-orphan"}
+WORKSPACE_OPTIONS = {"workspace.bare-worktree"}
 BROWSER_BASELINE_LIFECYCLE = {
     "lifecycle.contract-evolution",
     "lifecycle.implementation-evidence",
@@ -92,19 +93,19 @@ class CatalogConsumerSelectionGuideTests(unittest.TestCase):
         self.assertEqual(skill["artifact"], "artifact.skill-core")
         self.assertEqual(
             set(skill["optional_components"]),
-            APPLICATION_CAPABILITIES | SKILL_LIFECYCLE_OPTIONS | TOPOLOGY_OPTIONS,
+            APPLICATION_CAPABILITIES | SKILL_LIFECYCLE_OPTIONS | TOPOLOGY_OPTIONS | WORKSPACE_OPTIONS,
         )
 
         self.assertEqual(website["artifact"], "artifact.website-core")
         self.assertEqual(
             set(website["optional_components"]),
-            WEBSITE_APPLICATION_CAPABILITIES | BROWSER_LIFECYCLE_OPTIONS | TOPOLOGY_OPTIONS,
+            WEBSITE_APPLICATION_CAPABILITIES | BROWSER_LIFECYCLE_OPTIONS | TOPOLOGY_OPTIONS | WORKSPACE_OPTIONS,
         )
 
         self.assertEqual(webapp["artifact"], "artifact.webapp-core")
         self.assertEqual(
             set(webapp["optional_components"]),
-            WEBAPP_APPLICATION_CAPABILITIES | BROWSER_LIFECYCLE_OPTIONS | TOPOLOGY_OPTIONS,
+            WEBAPP_APPLICATION_CAPABILITIES | BROWSER_LIFECYCLE_OPTIONS | TOPOLOGY_OPTIONS | WORKSPACE_OPTIONS,
         )
 
     def test_machine_readable_dependency_closures_match_selection_contract(self) -> None:

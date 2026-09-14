@@ -1,0 +1,13 @@
+{
+  "$schema": "../schemas/local-checkout-topology.schema.json",
+  "schemaVersion": 1,
+  "topologyKind": "bare-worktree",
+  "workspaceRoot": ".",
+  "commonGitDirectory": ".bare",
+  "layout": {
+    "commonRepositoryBare": true,
+    "linkedWorktrees": "sibling-directories-under-workspace-root",
+    "workspaceRootIsWorktree": false
+  },
+  "rootGitIndirection": "optional-convenience"
+}
