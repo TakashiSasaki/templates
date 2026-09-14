@@ -10,4 +10,3 @@ jobs:
     with:
       site_ref: 0004413894a421bee4114eacd5a6885314b1d8bc
       composition_ref: ${{ github.event.pull_request.head.sha }}
-      publication_staging_ids: composition-provider-maintenance,composition-installer-release
