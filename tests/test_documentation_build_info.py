@@ -24,7 +24,7 @@ def test_workflow_and_local_reproduction_share_build_info_generator() -> None:
     assert '"scripts/generate_docs_build_info.py"' in runner
     assert 'os.environ.get("BUILD_COMMIT", exact_head())' in runner
     assert 'os.environ.get("BUILD_REPOSITORY", "TakashiSasaki/templates")' in runner
-    assert 'os.environ.get("BUILD_RUN_ID", "local-preflight")' in runner
+    assert 'os.environ.get("BUILD_RUN_ID", "0")' in runner
     assert 'os.environ.get("BUILD_RUN_NUMBER", "0")' in runner
     assert "from datetime import datetime, timezone" not in workflow
 

@@ -203,7 +203,7 @@ def check_docs() -> None:
         "--repository",
         os.environ.get("BUILD_REPOSITORY", "TakashiSasaki/templates"),
         "--run-id",
-        os.environ.get("BUILD_RUN_ID", "local-preflight"),
+        os.environ.get("BUILD_RUN_ID", "0"),
         "--run-number",
         os.environ.get("BUILD_RUN_NUMBER", "0"),
     )
