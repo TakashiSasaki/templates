@@ -108,7 +108,9 @@ jobs:
           python - <<'PY' >> "$GITHUB_OUTPUT"
           import json
           from pathlib import Path
-          descriptor = json.loads(Path("composition-source/generated/publication-descriptor.json").read_text())
+          descriptor = json.loads(
+              Path("composition-source/generated/composition-playground-publication.json").read_text()
+          )
           semantic = descriptor.get("semantic_revision")
           if not isinstance(semantic, str) or len(semantic) != 40:
               raise SystemExit("invalid Composition publication semantic revision")

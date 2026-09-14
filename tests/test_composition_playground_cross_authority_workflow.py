@@ -44,6 +44,10 @@ def main() -> int:
         raise AssertionError("cross-authority candidate must use the canonical publication resolver")
     if "EXPECTED_PROVIDER_REVISION: ${{ needs.classify.outputs.composition_revision }}" not in text:
         raise AssertionError("browser acceptance must verify the same resolved provider revision")
+    if "composition-source/generated/composition-playground-publication.json" not in text:
+        raise AssertionError("semantic identity must come from the provider's tracked publication manifest")
+    if "composition-source/generated/publication-descriptor.json" in text:
+        raise AssertionError("candidate classification must not depend on an untracked generated descriptor")
     if "6b7d764c963f957c6bee43c0c1d42eb03970ec8f" in text:
         raise AssertionError("cross-authority workflow retains an obsolete provider literal")
     print("Composition Playground cross-authority trigger contract passed")
