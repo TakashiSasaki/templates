@@ -10,8 +10,8 @@
 * [ADR-0006: Copyable artifact policy adoption](0006-copyable-artifact-policy-adoption.md) - Defines how copyable template artifacts opt into shared policy without importing maintainer-only repository policy.
 * [ADR-0007: Single agent-policy skill with persistent runtime cache](0007-single-agent-policy-skill-runtime-cache.md) - Uses one immutable repository-facing skill before and after adoption and reuses validated full-SHA runtimes.
 
-* [ADR-0008: Review authority and GitHub runtime boundary (repository source; partially superseded)](https://github.com/TakashiSasaki/templates/blob/policy/docs/adr/0008-review-authority-and-github-runtime-boundary.md) - Preserves trusted review bootstrap, provenance, and the GitHub runtime boundary; read ADR-0009 for the superseded representation requirements.
-* [ADR-0009: Review-result representation boundary (repository source)](https://github.com/TakashiSasaki/templates/blob/policy/docs/adr/0009-review-result-representation-boundary.md) - Keeps representation outside review authority while preserving the identity-bound completion handoff; partially supersedes ADR-0008.
+* [ADR-0008: Review authority and GitHub runtime boundary (partially superseded)](0008-review-authority-and-github-runtime-boundary.md) - Preserves trusted review bootstrap, provenance, and the GitHub runtime boundary; read ADR-0009 for the superseded representation requirements.
+* [ADR-0009: Review-result representation boundary](0009-review-result-representation-boundary.md) - Keeps representation outside review authority while preserving the identity-bound completion handoff; partially supersedes ADR-0008.
 
 ## Superseded decisions
 
