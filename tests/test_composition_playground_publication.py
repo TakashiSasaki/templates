@@ -101,9 +101,16 @@ class CompositionPlaygroundPublicationTests(unittest.TestCase):
         self.assertEqual("composition-playground-intent-v1", intent_projection["projection_id"])
         self.assertEqual(semantic_revision, base_projection["source"]["revision"])
         self.assertEqual(semantic_revision, intent_projection["source"]["revision"])
-        self.assertEqual(10496, sum(recipe["case_count"] for recipe in base_projection["recipes"]))
-        self.assertLess(len(base), 262_144)
-        self.assertLess(len(intent), 262_144)
+        expected_case_count = sum(
+            1 << len(recipe["optional_components"])
+            for recipe in base_projection["recipes"]
+        )
+        self.assertEqual(
+            expected_case_count,
+            sum(recipe["case_count"] for recipe in base_projection["recipes"]),
+        )
+        self.assertLess(len(base), publication.MAX_COMPRESSED_ASSET_BYTES)
+        self.assertLess(len(intent), publication.MAX_COMPRESSED_ASSET_BYTES)
 
         with tempfile.TemporaryDirectory(prefix="composition-playground-publication-") as directory:
             target = Path(directory)
@@ -126,6 +133,17 @@ class CompositionPlaygroundPublicationTests(unittest.TestCase):
         semantic_revision, _, payloads = self.generated_fixture()
         base_projection = json.loads(gzip.decompress(payloads[publication.BASE_NAME]))
         self.assertEqual(semantic_revision, base_projection["source"]["revision"])
+
+    def test_compressed_asset_budget_fails_closed_at_the_canonical_boundary(self) -> None:
+        oversized = b"x" * publication.MAX_COMPRESSED_ASSET_BYTES
+        with self.assertRaises(CompositionError) as context:
+            publication.validate_payload_budgets(
+                {
+                    publication.BASE_NAME: oversized,
+                    publication.INTENT_NAME: b"small",
+                }
+            )
+        self.assertEqual("PLAYGROUND_ASSET_BUDGET_EXCEEDED", context.exception.code)
 
     def test_semantic_snapshot_rejects_a_different_current_object(self) -> None:
         semantic_objects = publication.semantic_objects_from_manifest(GENERATED)
@@ -242,13 +260,13 @@ class PublicationLifecycleRegressionTests(unittest.TestCase):
         site_contract = (
             '"$SITE_PUBLICATION_PROTOCOL_ROOT/scripts/publication_contract.py" --source-root .'
         )
-        composition_semantics = "scripts/validate_publication.py"
+        composition_preflight = "scripts/run_composition_preflight.py fast"
 
         self.assertEqual(1, primary.count(materialize))
         self.assertEqual(1, primary.count(site_contract))
-        self.assertEqual(1, primary.count(composition_semantics))
+        self.assertEqual(1, primary.count(composition_preflight))
         self.assertLess(primary.index(materialize), primary.index(site_contract))
-        self.assertLess(primary.index(site_contract), primary.index(composition_semantics))
+        self.assertLess(primary.index(site_contract), primary.index(composition_preflight))
 
     def test_supplemental_webmcp_guide_is_classified_and_canonical_route_is_indexed(self) -> None:
         classification = json.loads(CLASSIFICATION.read_text(encoding="utf-8"))

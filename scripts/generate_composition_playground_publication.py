@@ -20,6 +20,7 @@ ROOT = Path(__file__).resolve().parents[1]
 BASE_NAME = "composition-playground-v1.json.gz"
 INTENT_NAME = "composition-playground-intent-v1.json.gz"
 MANIFEST_NAME = "composition-playground-publication.json"
+MAX_COMPRESSED_ASSET_BYTES = 262_144
 _GIT_OBJECT_RE = re.compile(r"^[0-9a-f]{40}$")
 
 
@@ -180,7 +181,30 @@ def publication_payloads(*, semantic_revision: str, semantic_objects: Mapping[st
     )
     base = render_projection(base_projection)
     intent = (json.dumps(intent_projection, indent=2, sort_keys=False) + "\n").encode()
-    return {BASE_NAME: compress_payload(base), INTENT_NAME: compress_payload(intent)}
+    payloads = {BASE_NAME: compress_payload(base), INTENT_NAME: compress_payload(intent)}
+    validate_payload_budgets(payloads)
+    return payloads
+
+
+def validate_payload_budgets(payloads: Mapping[str, bytes]) -> None:
+    """Enforce the single Composition-owned compressed publication budget."""
+    if set(payloads) != {BASE_NAME, INTENT_NAME}:
+        raise CompositionError(
+            "INVALID_PLAYGROUND_PUBLICATION",
+            "Playground publication payload inventory is invalid",
+        )
+    oversized = {
+        name: len(payload)
+        for name, payload in payloads.items()
+        if len(payload) >= MAX_COMPRESSED_ASSET_BYTES
+    }
+    if oversized:
+        detail = ", ".join(f"{name}={size}" for name, size in sorted(oversized.items()))
+        raise CompositionError(
+            "PLAYGROUND_ASSET_BUDGET_EXCEEDED",
+            f"compressed Playground publication asset budget "
+            f"({MAX_COMPRESSED_ASSET_BYTES} bytes) exceeded: {detail}",
+        )
 
 
 def resolve_revision(directory: Path, semantic_revision: str | None) -> str:

@@ -53,9 +53,25 @@ class SchemaValidationCIPolicyTests(unittest.TestCase):
     def test_schema_validation_uses_pr_and_authoritative_push_tiers_only(self) -> None:
         self.assertEqual(_trigger_events(self.workflow), ["push", "pull_request"])
         self.assertEqual(_trigger_branches(self.workflow, "push"), ["composition"])
-        self.assertEqual(_trigger_branches(self.workflow, "pull_request"), ["composition", "feat/composition-*"])
+        self.assertEqual(
+            _trigger_branches(self.workflow, "pull_request"),
+            ["composition", "feat/composition-*", "feat/workspace-*"],
+        )
         trigger = self.workflow.split("\njobs:\n", 1)[0]
         self.assertNotIn("agent/composition-", trigger)
+
+    def test_schema_validation_reuses_canonical_validator_preflight(self) -> None:
+        primary = self.workflow.split("\n  primary:\n", 1)[1].split("\n  parallel:\n", 1)[0]
+        self.assertEqual(primary.count("scripts/run_composition_preflight.py fast"), 1)
+        self.assertIn("--validators-only", primary)
+        for duplicate in (
+            "scripts/validate_publication.py",
+            "scripts/validate_translations.py",
+            "scripts/validate_component_versions.py",
+            "scripts/verify_composition_skill_installer_release.py",
+            "scripts/run_unittest_shard.py --suite core --shard-count 2 --verify-only",
+        ):
+            self.assertNotIn(duplicate, primary)
 
 
 if __name__ == "__main__":

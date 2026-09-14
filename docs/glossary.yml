@@ -296,8 +296,8 @@
       "term": "Component role",
       "localized_labels": {"ja": {"term": "コンポーネントロール"}},
       "origin": "repository",
-      "definition": "The machine-readable role assigned to every Composition component. It explains whether the component supplies a shared required base (foundation), defines what is being built (artifact), adds an optional observable behavior (capability), manages the artifact over time (lifecycle), or establishes repository authority, history, and projection structure (topology).",
-      "related_terms": ["templates-composition-component", "templates-composition-foundation-component", "templates-composition-artifact-component", "templates-composition-capability-component", "templates-composition-lifecycle-component", "templates-composition-topology-component"]
+      "definition": "The machine-readable role assigned to every Composition component. It explains whether the component supplies a shared required base (foundation), defines what is being built (artifact), adds an optional observable behavior (capability), manages the artifact over time (lifecycle), establishes repository authority, history, and projection structure (topology), or defines local checkout materialization (workspace).",
+      "related_terms": ["templates-composition-component", "templates-composition-foundation-component", "templates-composition-artifact-component", "templates-composition-capability-component", "templates-composition-lifecycle-component", "templates-composition-topology-component", "templates-composition-workspace-component"]
     },
     {
       "id": "templates-composition-foundation-component",

@@ -225,10 +225,8 @@ class UnittestShardTests(unittest.TestCase):
         self.assertIn("\n  real_browser:\n", workflow)
         self.assertIn("name: real-browser acceptance", workflow)
         self.assertIn("\n  validate:\n", workflow)
-        self.assertIn(
-            "scripts/run_unittest_shard.py --suite core --shard-count 2 --verify-only",
-            workflow,
-        )
+        self.assertIn("scripts/run_composition_preflight.py fast", workflow)
+        self.assertIn("--validators-only", workflow)
         self.assertIn("--suite core", workflow)
         self.assertIn("--shard-index 1", workflow)
         self.assertIn("--shard-index 0", workflow)

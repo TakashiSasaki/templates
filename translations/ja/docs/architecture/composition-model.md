@@ -6,13 +6,14 @@
 
 `composition` branch は、再利用可能な artifact semantics、application capabilities、lifecycle contracts、recipes、schemas、および deterministic Composer の canonical source authority です。
 
-Composition は5つの component role を分離します。
+Composition は6つの component role を分離します。
 
 1. **foundations** — artifact dependency により導入される共有必須 baseline semantics を表します。
 2. **artifact semantics** — Website、Web application、Agent Skill のように何を作るかを表します。
 3. **capabilities** — runtime、CLI、MCP、MCP Apps、browser exposure、headless service など、再利用可能で任意選択の behavior を表します。
 4. **lifecycle contracts** — composition state、contract evolution、implementation evidence、release evidence、release-bundle の再利用可能な machinery を表します。
 5. **repository topology** — Hub-and-Orphan のような、リポジトリの authority、history、および projection 構造を表します。
+6. **workspace topology** — repository topology とは独立して選択される、local checkout の materialization 構造を表します。
 
 Web application と Agent Skill は引き続き異なる artifact です。重複する monolithic template を持つのではなく、1つの component catalog に対する recipe を通じて再利用可能な authority を共有します。
 
@@ -49,8 +50,9 @@ Component ID は、次の component-role prefix のいずれか1つだけを持�
 - `capability.*` — reusable optional capabilities
 - `lifecycle.*` — reusable product-lifecycle machinery
 - `topology.*` — repository authority, history, and projection structure
+- `workspace.*` — local checkout and workspace materialization structure
 
-prefix は descriptor の `component_role` と一致しなければなりません。foundation は artifact dependency により導入され、recipe から直接選択できません。non-artifact descriptor (capability、lifecycle、および topology) は、具体的な `artifact.*` authority を要求したり、それと conflict したりしてはなりません。artifact component はトポロジ中立性を保つため `topology.*` authority を要求・競合させてはなりません。resolved composition で選択できる `topology.*` component は高々1つです。トポロジ未選択時は、暗黙のトポロジ選択を発明することなく従来の通常リポジトリ状態を保持します。artifact component は、それらの contract が artifact に本質的である場合、foundation、reusable capability、lifecycle component を require できます。
+prefix は descriptor の `component_role` と一致しなければなりません。foundation は artifact dependency により導入され、recipe から直接選択できません。non-artifact descriptor (capability、lifecycle、topology、および workspace) は、具体的な `artifact.*` authority を要求したり、それと conflict したりしてはなりません。artifact component は両 axis から独立するため `topology.*` または `workspace.*` authority を要求・競合させてはなりません。resolved composition で選択できる `topology.*` component と `workspace.*` component は、それぞれ高々1つです。どちらかが未選択であることは、その明示的な semantic declaration がないことだけを意味します。artifact component は、それらの contract が artifact に本質的である場合、foundation、reusable capability、lifecycle component を require できます。
 
 production catalog は closed です。catalog validation では、component と recipe inventory が source tree と一致していること、dependency が存在し acyclic であること、identity が unique であること、generic/artifact boundary が保持されること、および選択された conflict が reject されることを要求します。
 
@@ -87,8 +89,8 @@ required/default/optional set は pairwise disjoint です。
 consumer configuration は unresolved intent を resolved lock とは別に記録します。
 
 - recipe ID
-- explicitly included capability/lifecycle IDs
-- explicitly excluded capability/lifecycle IDs
+- explicitly included reusable component IDs
+- explicitly excluded reusable component IDs
 - optional component-scoped parameters
 
 include/exclude set は disjoint です。consumer は include/exclude によって recipe artifact を置き換えられません。resolver は recipe-required または transitive dependency の exclusion を reject し、resolved closure に存在しない component の parameter を reject します。
@@ -331,7 +333,7 @@ canonical authority topology は次のとおりです。
 ```text
 site          integrated reader-facing publication, assembly, Pages/PWA
 policy        coding-agent policy authority
-composition   artifact/capability/lifecycle authorities, recipes, schemas, Composer
+composition   artifact/capability/lifecycle/topology/workspace authorities, recipes, schemas, Composer
 ```
 
 Legacy `skill` / `webapp` authority migration と retirement は完了しています。これらの history は provenance であり、active Composition update source ではありません。

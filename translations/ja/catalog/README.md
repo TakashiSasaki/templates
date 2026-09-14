@@ -47,11 +47,19 @@ lifecycle component は product workflow に応じて選択します。`skill` r
 
 ### リポジトリトポロジの選択
 
-デフォルトの単一 worktree リポジトリレイアウトではなく、明示的なマルチブランチまたは投影構造が必要な場合にリポジトリトポロジを選択します。
+明示的なマルチブランチまたは projection 構造が必要な場合にリポジトリトポロジを選択します。未選択は明示的なリポジトリトポロジがないことを意味するだけであり、local checkout や worktree の layout については何も示しません。
 
 | 必要なもの | Include | 自動追加 | 提供するもの |
 | --- | --- | --- | --- |
 | 読み取り専用自己参照サブモジュール Hub 投影を持つ rootless コンポーネントブランチ | `topology.hub-and-orphan` | — | 機械可読なリポジトリトポロジ契約、Hub 投影不変条件、および branch-equals-mount-path 検証 |
+
+### Workspace / local-checkout の選択
+
+repository が local checkout の materialization 方法を宣言する場合は workspace component を選択します。これは repository topology とは独立しています。workspace 未選択は local-checkout topology の宣言がないことを意味し、default filesystem layout を意味しません。
+
+| 必要なもの | Select | 自動追加 | 提供するもの |
+| --- | --- | --- | --- |
+| 1つの bare common Git repository と、その workspace root の sibling として配置される selected branch worktree | `workspace.bare-worktree` | — | local-checkout topology declaration と validator。`topology.hub-and-orphan` と組み合わせ可能 |
 
 最小 Website は空の include list を使用し、`foundation.web`、Website contract、implementation-evidence / contract-evolution support を受け取りますが、PWA/runtime/release material は含みません。
 
@@ -150,7 +158,7 @@ Production catalog validation は次を保証します。
 - descriptor / recipe / schema が妥当であること。
 - component source file の宣言が正確であること。
 - dependency / conflict の target が存在し、dependency graph が非巡回であること。
-- generic capability / lifecycle が artifact-specific authority から独立していること。
+- generic capability / lifecycle / topology / workspace が artifact-specific authority から独立していること。
 - recipe reference が妥当で、required / default / optional selection が互いに素であること。
 - 登録された contract ID、document path、schema path が repository 全体で一意であること。
 - 登録された各 contract document / schema / migration を1つの component が所有すること。
@@ -168,4 +176,4 @@ unmanaged target では initial composition は managed-state transition を推�
 
 ### コンポーネントロールと直接選択
 
-recipe は1つの artifact を選択し、optional な capability、lifecycle、または topology component を公開します。`foundation` role の component は artifact component の依存関係です。自動解決され、recipe option には現れず、consumer が直接 include する target でもありません。五つの role のメンタルモデルは [Composition concepts](../docs/guides/composition-concepts.md) を参照してください。
+recipe は1つの artifact を選択し、optional な capability、lifecycle、topology、または workspace component を公開します。`foundation` role の component は artifact component の依存関係です。自動解決され、recipe option には現れず、consumer が直接 include する target でもありません。repository topology と workspace の選択は独立した axis であり、それぞれ高々1つの component を選択できます。六つの role のメンタルモデルは [Composition concepts](../docs/guides/composition-concepts.md) を参照してください。
