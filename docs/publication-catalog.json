@@ -42,6 +42,12 @@
       "source": "docs/architecture/repository-topology.md",
       "optional": false,
       "home": false
+    },
+    {
+      "id": "workspace-topology-overview",
+      "source": "docs/architecture/workspace-topology.md",
+      "optional": false,
+      "home": false
     }
   ],
   "glossary": {

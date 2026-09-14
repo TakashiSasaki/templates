@@ -487,6 +487,27 @@
       "parentPageId": "site-portal-home"
     },
     {
+      "id": "site-workspace-topology-overview",
+      "routeId": "site-workspace-topology-overview",
+      "role": "content",
+      "title": "Overview",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-bare-worktree",
+      "routeId": "composition-bare-worktree",
+      "role": "content",
+      "title": "Bare Worktree",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "composition-local-checkout-topology-architecture",
+      "routeId": "composition-local-checkout-topology-architecture",
+      "role": "content",
+      "title": "Local-checkout architecture",
+      "parentPageId": "site-portal-home"
+    },
+    {
       "id": "site-lifecycle-overview",
       "routeId": "site-lifecycle-overview",
       "role": "content",
@@ -893,6 +914,9 @@
     "site-repository-topology-overview",
     "composition-topology-contract",
     "composition-repository-topology-architecture",
+    "site-workspace-topology-overview",
+    "composition-bare-worktree",
+    "composition-local-checkout-topology-architecture",
     "site-lifecycle-overview",
     "composition-composition-state",
     "composition-contract-evolution",

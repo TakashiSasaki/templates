@@ -1,6 +1,6 @@
 # Repository topology: selectable consumer structure
 
-Repository topology is the fifth Composition axis: `artifact.*` identifies what
+Repository topology is one Composition axis: `artifact.*` identifies what
 is built, `foundation.*` supplies shared foundations, `capability.*` selects
 externally visible behavior, `lifecycle.*` manages change over time, and
 `topology.*` declares repository authority, history, and projection structure.
@@ -42,6 +42,10 @@ identity. Stale discovery must not be mistaken for a current projection.
 Renames and deletions require coordinated updates to the declaration, refs,
 gitlinks, `.gitmodules`, and discovery metadata; Composer provides no automatic
 Git migration executor.
+
+## Workspace topology composes independently
+
+`workspace.bare-worktree` declares local checkout materialization, not branch authority or repository history. It can therefore be selected alongside `topology.hub-and-orphan`: **Hub-and-Orphan × Bare Worktree**. The Bare Worktree contract does not list active worktrees or branches and does not prove live Git state. Its normative definition and validator are published from Composition; Site only provides navigation and provenance.
 
 ## The templates repository has a separate authority model
 

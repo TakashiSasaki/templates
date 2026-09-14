@@ -762,6 +762,39 @@
       }
     },
     {
+      "id": "site-workspace-topology-overview",
+      "path": "/workspace/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-bare-worktree",
+      "path": "/workspace/bare-worktree/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "composition-local-checkout-topology-architecture",
+      "path": "/workspace/architecture/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
       "id": "site-lifecycle-overview",
       "path": "/lifecycle/",
       "canonical": true,

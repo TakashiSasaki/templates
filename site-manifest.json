@@ -145,6 +145,14 @@
       ]
     },
     {
+      "title": "Workspace / local-checkout topology",
+      "children": [
+        {"title": "Overview", "publication": "site", "document": "workspace-topology-overview", "destination": "workspace/index.md"},
+        {"title": "Bare Worktree", "publication": "composition", "document": "bare-worktree", "destination": "workspace/bare-worktree/index.md"},
+        {"title": "Local-checkout architecture", "publication": "composition", "document": "local-checkout-topology-architecture", "destination": "workspace/architecture/index.md"}
+      ]
+    },
+    {
       "title": "Lifecycle contracts",
       "children": [
         {"title": "Overview", "publication": "site", "document": "lifecycle-overview", "destination": "lifecycle/index.md"},

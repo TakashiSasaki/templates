@@ -558,6 +558,30 @@
       "socialPreview": "none"
     },
     {
+      "pageId": "site-workspace-topology-overview",
+      "title": "Overview",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-bare-worktree",
+      "title": "Bare Worktree",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "composition-local-checkout-topology-architecture",
+      "title": "Local-checkout architecture",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
       "pageId": "site-lifecycle-overview",
       "title": "Overview",
       "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
