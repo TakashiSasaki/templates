@@ -31,21 +31,23 @@ jobs:
           - maintainer-workflow
           - adr-review-authority-and-github-runtime-boundary
           - adr-review-result-representation-boundary
-    uses: TakashiSasaki/templates/.github/workflows/build-pages.yml@f79eaa9e90197da0bb0c7eefaa039f265ad4b347
+    uses: TakashiSasaki/templates/.github/workflows/build-pages.yml@7776f174e116d8ade9eb0f481d3f8b9bd743c792
     with:
-      site_ref: f79eaa9e90197da0bb0c7eefaa039f265ad4b347
+      site_ref: 7776f174e116d8ade9eb0f481d3f8b9bd743c792
       policy_ref: ${{ github.sha }}
       publication_staging_id: ${{ matrix.staging_id }}
     # The reusable workflow and Site source are pinned to the reviewed
-    # PR #848 Site merge commit. That revision retains the Site-owned
-    # maintainer documentation staging mappings and runs pristine Site tests before
-    # explicit staged materialization and strict assembly. Composition is
-    # resolved from that exact Site revision's reviewed publication-sources lock.
-    # For pull requests, github.sha is GitHub's proposed merge commit; for
+    # PR #850 Site merge commit. That revision includes the PR #848 Site-owned
+    # maintainer documentation staging mappings and resolves the executed Site
+    # workflow definition from this same immutable site_ref before hashing exact
+    # build inputs. Composition is resolved from that exact Site revision's
+    # reviewed publication-sources lock.
+    # For pull requests, github.sha is GitHub's proposed Policy merge commit; for
     # workflow_dispatch it is the selected ref's exact commit. The called
     # workflow is build-only, dynamically selects the staging mapping from matrix,
-    # and cannot deploy Pages. actions:read is required because the pinned reusable
-    # workflow can discover and reuse an exact-input build artifact.
+    # runs pristine Site tests before staged materialization, and cannot deploy
+    # Pages. actions:read is required only for read-only exact-input artifact
+    # discovery/reuse.
     permissions:
       contents: read
       actions: read
