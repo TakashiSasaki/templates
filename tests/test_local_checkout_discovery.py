@@ -57,10 +57,20 @@ def test_invalid_or_symlinked_declaration_fails_closed(tmp_path: Path) -> None:
     assert context.value.code == "LOCAL_CHECKOUT_PATH_UNSAFE"
 
 
-def test_live_verification_uses_git_inventory_and_keeps_declaration_separate(tmp_path: Path) -> None:
+def test_live_verification_uses_git_inventory_and_keeps_declaration_separate(
+    tmp_path: Path,
+) -> None:
     write_declaration(tmp_path)
     git("init", "--bare", str(tmp_path / ".bare"))
-    git("--git-dir", str(tmp_path / ".bare"), "worktree", "add", "-b", "main", str(tmp_path / "main"))
+    git(
+        "--git-dir",
+        str(tmp_path / ".bare"),
+        "worktree",
+        "add",
+        "-b",
+        "main",
+        str(tmp_path / "main"),
+    )
     topology = discover_local_checkout_topology(tmp_path)
     assert topology.is_bare_worktree
     assert not topology.linked_worktrees

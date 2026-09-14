@@ -1,4 +1,5 @@
 """Operational ingestion and live verification of Composition local-checkout declarations."""
+
 from __future__ import annotations
 
 import subprocess
@@ -49,7 +50,9 @@ def _safe_child(root: Path, relative: Path) -> Path:
     for part in relative.parts:
         current = current / part
         if current.is_symlink():
-            raise LocalCheckoutDiscoveryError("LOCAL_CHECKOUT_PATH_UNSAFE", f"path contains a symlink: {relative}")
+            raise LocalCheckoutDiscoveryError(
+                "LOCAL_CHECKOUT_PATH_UNSAFE", f"path contains a symlink: {relative}"
+            )
     return current
 
 
@@ -62,14 +65,18 @@ def _git(common_directory: Path, *arguments: str) -> str:
     )
     if result.returncode:
         detail = result.stderr.strip() or result.stdout.strip()
-        raise LocalCheckoutDiscoveryError("LOCAL_CHECKOUT_GIT_FAILED", detail or "Git command failed")
+        raise LocalCheckoutDiscoveryError(
+            "LOCAL_CHECKOUT_GIT_FAILED", detail or "Git command failed"
+        )
     return result.stdout
 
 
 def discover_local_checkout_topology(root: Path) -> LocalCheckoutTopology:
     """Validate a declaration only; absence is an explicit undeclared state."""
     if root.is_symlink():
-        raise LocalCheckoutDiscoveryError("LOCAL_CHECKOUT_PATH_UNSAFE", "workspace root must not be a symlink")
+        raise LocalCheckoutDiscoveryError(
+            "LOCAL_CHECKOUT_PATH_UNSAFE", "workspace root must not be a symlink"
+        )
     root = root.resolve()
     contract_path = _safe_child(root, LOCAL_CHECKOUT_CONTRACT_RELATIVE)
     if not contract_path.exists():
@@ -93,13 +100,24 @@ def discover_local_checkout_topology(root: Path) -> LocalCheckoutTopology:
 
 def verify_bare_worktree_live_state(topology: LocalCheckoutTopology) -> LocalCheckoutTopology:
     """Verify live Git state independently from declaration validation, without mutation."""
-    if not topology.is_bare_worktree or topology.workspace_root is None or topology.common_git_directory is None:
-        raise LocalCheckoutDiscoveryError("LOCAL_CHECKOUT_UNDECLARED", "Bare Worktree live verification requires a declared Bare Worktree topology")
+    if (
+        not topology.is_bare_worktree
+        or topology.workspace_root is None
+        or topology.common_git_directory is None
+    ):
+        raise LocalCheckoutDiscoveryError(
+            "LOCAL_CHECKOUT_UNDECLARED",
+            "Bare Worktree live verification requires a declared Bare Worktree topology",
+        )
     common = topology.common_git_directory
     if common.is_symlink() or not common.is_dir():
-        raise LocalCheckoutDiscoveryError("COMMON_GIT_DIRECTORY_INVALID", "declared common Git directory is not a safe directory")
+        raise LocalCheckoutDiscoveryError(
+            "COMMON_GIT_DIRECTORY_INVALID", "declared common Git directory is not a safe directory"
+        )
     if _git(common, "rev-parse", "--is-bare-repository").strip() != "true":
-        raise LocalCheckoutDiscoveryError("COMMON_GIT_DIRECTORY_INVALID", "declared common Git directory is not bare")
+        raise LocalCheckoutDiscoveryError(
+            "COMMON_GIT_DIRECTORY_INVALID", "declared common Git directory is not bare"
+        )
     records: list[dict[str, str]] = []
     current: dict[str, str] | None = None
     for line in _git(common, "worktree", "list", "--porcelain").splitlines():
@@ -123,15 +141,24 @@ def verify_bare_worktree_live_state(topology: LocalCheckoutTopology) -> LocalChe
         if directory == common and "bare" in record:
             continue
         if directory == common:
-            raise LocalCheckoutDiscoveryError("COMMON_GIT_DIRECTORY_INVALID", "common Git directory is reported as a working tree")
+            raise LocalCheckoutDiscoveryError(
+                "COMMON_GIT_DIRECTORY_INVALID", "common Git directory is reported as a working tree"
+            )
         if directory.parent != topology.workspace_root or directory == topology.workspace_root:
-            raise LocalCheckoutDiscoveryError("WORKTREE_LAYOUT_CONTRADICTION", "linked worktree is not a workspace-root sibling")
+            raise LocalCheckoutDiscoveryError(
+                "WORKTREE_LAYOUT_CONTRADICTION", "linked worktree is not a workspace-root sibling"
+            )
         branch_ref = record.get("branch")
         branch = branch_ref.removeprefix("refs/heads/") if branch_ref else None
-        worktrees.append(LinkedWorktree(directory=directory, head=record.get("HEAD"), branch=branch))
+        worktrees.append(
+            LinkedWorktree(directory=directory, head=record.get("HEAD"), branch=branch)
+        )
     branches = [worktree.branch for worktree in worktrees if worktree.branch is not None]
     if len(branches) != len(set(branches)):
-        raise LocalCheckoutDiscoveryError("BRANCH_OCCUPANCY_CONTRADICTION", "a local branch is checked out by multiple linked worktrees")
+        raise LocalCheckoutDiscoveryError(
+            "BRANCH_OCCUPANCY_CONTRADICTION",
+            "a local branch is checked out by multiple linked worktrees",
+        )
     return LocalCheckoutTopology(
         kind=topology.kind,
         workspace_root=topology.workspace_root,
