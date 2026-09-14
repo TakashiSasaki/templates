@@ -73,6 +73,16 @@ class SchemaValidationCIPolicyTests(unittest.TestCase):
         ):
             self.assertNotIn(duplicate, primary)
 
+    def test_provider_checkouts_are_bound_to_the_exact_pull_request_head(self) -> None:
+        checkout_ref = "ref: ${{ github.event.pull_request.head.sha || github.sha }}"
+        self.assertEqual(self.workflow.count(checkout_ref), 4)
+        self.assertEqual(
+            self.workflow.count(
+                "ref: 3ae5d1e60c65e7a8ebf5f9af0436044484e42983"
+            ),
+            3,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
