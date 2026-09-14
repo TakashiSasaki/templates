@@ -4,6 +4,13 @@ This page explains how maintainers of this repository apply the same shared engi
 
 ## Two policy layers apply to maintainers
 
+Here, a maintainer changes the Policy provider, toolchain, shared corpus, or its
+publication and release machinery. Operating Policy in another repository,
+including local extensions and review configuration, follows
+[Consumer application](consumer/index.md). This provider also consumes Policy,
+but that self-hosting relationship does not export its `repository-policy/`
+requirements to other consumers.
+
 Maintenance of this repository deliberately combines two different authorities:
 
 1. **Shared application-neutral policy** lives under `policy/` and is selected through profiles such as `core`, `security-baseline`, `pull-request`, and `review`.
@@ -33,6 +40,19 @@ This revision-bound qualification lifecycle normally follows `construction -> pr
 For stacked changes, a lower-member mutation can change descendant commit identities without invalidating every descendant semantic decision. Preserve still-applicable local reasoning, finding identity, and focused evidence, then requalify the exact final descendants when the relevant authority boundary is actually reached. Conversely, if a downstream artifact embeds an upstream full SHA or digest as part of its meaning, delay that final materialization until the prerequisite identity is stable enough to bind.
 
 ## Maintainer change workflow
+
+Use the [contribution entry point (repository source)](https://github.com/TakashiSasaki/templates/blob/policy/CONTRIBUTING.md)
+for source ownership and the [README development sequence (repository source)](https://github.com/TakashiSasaki/templates/blob/policy/README.md#development)
+for the current locked CI baseline. [Release lifecycle](release-lifecycle.md)
+and [Documentation publication](documentation-publication.md) describe their
+separate validation and promotion boundaries.
+
+For review architecture, read the existing
+[ADR-0008](adr/0008-review-authority-and-github-runtime-boundary.md) together with
+[ADR-0009](adr/0009-review-result-representation-boundary.md). ADR-0008's trust
+and provenance machinery remains current; ADR-0009 supersedes its coupling of
+review authority to adapter representation. Neither this workflow nor an index
+summary replaces those decisions or the canonical policy and procedure sources.
 
 For ordinary policy-provider maintenance:
 

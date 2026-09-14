@@ -88,3 +88,20 @@ def test_superseded_adr_warns_before_historical_detail() -> None:
     assert marker in text
     assert text.index(marker) < text.index("## Context")
     assert "must not be used as the current Policy architecture" in text
+
+
+
+def test_review_adrs_remain_current_with_visible_partial_supersession() -> None:
+    index = ADR_INDEX.read_text(encoding="utf-8")
+    current = index.split("## Current decisions", 1)[1].split("## Superseded decisions", 1)[0]
+    assert "ADR-0008" in current and "ADR-0009" in current
+    assert "partial supersession" in current
+    assert "trust and provenance" in current
+    assert "review-result representation" in current
+    for adr, sibling in (
+        (PARTIALLY_SUPERSEDED_ADR, RESULT_BOUNDARY_ADR),
+        (RESULT_BOUNDARY_ADR, PARTIALLY_SUPERSEDED_ADR),
+    ):
+        text = adr.read_text(encoding="utf-8")
+        assert "- Status: Accepted" in text
+        assert f"({sibling.name})" in text

@@ -4,6 +4,8 @@
 - Date: 2026-09-02
 - Supersedes in part: ADR-0008
 
+- Related decision: [ADR-0008](0008-review-authority-and-github-runtime-boundary.md)
+
 ## Context
 
 ADR-0008 separated semantic review policy, trusted bootstrap, review procedure, platform adaptation, and platform runtime integration. Its trust-boundary decisions remain necessary: automated review must use authenticated installed Skill provenance, a frozen exact-base authority snapshot, a frozen lock-selected runtime, a frozen reproduced `pr-review` procedure bundle, immutable semantic-policy projection bytes, stable repository/pull-request identity, and a strict separation between review execution and merge authorization.

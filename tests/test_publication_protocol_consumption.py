@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -64,3 +65,46 @@ def test_policy_catalog_keeps_policy_owned_v3_declarations() -> None:
         "optional": False,
         "home": False,
     }
+
+
+DEFERRED_MAINTAINER_SOURCES = {
+    "contributing": "CONTRIBUTING.md",
+    "maintainer-workflow": "docs/policy-maintainer-workflow.md",
+    "adr-review-authority-and-github-runtime-boundary": (
+        "docs/adr/0008-review-authority-and-github-runtime-boundary.md"
+    ),
+    "adr-review-result-representation-boundary": (
+        "docs/adr/0009-review-result-representation-boundary.md"
+    ),
+}
+
+
+def test_deferred_maintainer_identities_are_complete_existing_and_not_published() -> None:
+    guide = PUBLICATION_GUIDE.read_text(encoding="utf-8")
+    section = guide.split("<!-- deferred-maintainer-publications -->", 1)[1].split(
+        "<!-- /deferred-maintainer-publications -->", 1
+    )[0]
+    rows = re.findall(r"^\| `([^`]+)` \| `([^`]+)` \|", section, re.MULTILINE)
+    # Exact correspondence catches omission, rename, duplicate, and source drift.
+    assert len(rows) == len(DEFERRED_MAINTAINER_SOURCES)
+    assert dict(rows) == DEFERRED_MAINTAINER_SOURCES
+    assert len({source for _, source in rows}) == len(rows)
+    active = json.loads(CATALOG.read_text(encoding="utf-8"))["documents"]
+    for document_id, source in rows:
+        assert (ROOT / source).is_file(), source
+        assert all(item["id"] != document_id and item["source"] != source for item in active)
+
+
+def test_deferred_sources_are_discoverable_without_uncataloged_reader_routes() -> None:
+    index = (ROOT / "docs/index.md").read_text(encoding="utf-8")
+    adr_index = (ROOT / "docs/adr/index.md").read_text(encoding="utf-8")
+    assert "https://github.com/TakashiSasaki/templates/blob/policy/CONTRIBUTING.md" in index
+    assert "(policy-maintainer-workflow.md)" in index
+    for document_id, source in DEFERRED_MAINTAINER_SOURCES.items():
+        if document_id.startswith("adr-"):
+            assert f"https://github.com/TakashiSasaki/templates/blob/policy/{source}" in adr_index
+            # Until catalog cutover, published ADR index must not imply a reader route.
+            assert f"({Path(source).name})" not in adr_index
+            assert source.removeprefix("docs/") in (ROOT / "mkdocs.yml").read_text(
+                encoding="utf-8"
+            )
