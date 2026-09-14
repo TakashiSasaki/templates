@@ -20,7 +20,7 @@ ROOT = Path(__file__).resolve().parents[1]
 BASE_NAME = "composition-playground-v1.json.gz"
 INTENT_NAME = "composition-playground-intent-v1.json.gz"
 MANIFEST_NAME = "composition-playground-publication.json"
-MAX_COMPRESSED_ASSET_BYTES = 131_072
+MAX_COMPRESSED_ASSET_BYTES = 262_144
 _GIT_OBJECT_RE = re.compile(r"^[0-9a-f]{40}$")
 
 

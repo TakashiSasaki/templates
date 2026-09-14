@@ -53,6 +53,14 @@ lifecycle component は product workflow に応じて選択します。`skill` r
 | --- | --- | --- | --- |
 | 読み取り専用自己参照サブモジュール Hub 投影を持つ rootless コンポーネントブランチ | `topology.hub-and-orphan` | — | 機械可読なリポジトリトポロジ契約、Hub 投影不変条件、および branch-equals-mount-path 検証 |
 
+### Workspace / local-checkout の選択
+
+repository が local checkout の materialization 方法を宣言する場合は workspace component を選択します。これは repository topology とは独立しています。workspace 未選択は local-checkout topology の宣言がないことを意味し、default filesystem layout を意味しません。
+
+| 必要なもの | Select | 自動追加 | 提供するもの |
+| --- | --- | --- | --- |
+| 1つの bare common Git repository と、その workspace root の sibling として配置される selected branch worktree | `workspace.bare-worktree` | — | local-checkout topology declaration と validator。`topology.hub-and-orphan` と組み合わせ可能 |
+
 最小 Website は空の include list を使用し、`foundation.web`、Website contract、implementation-evidence / contract-evolution support を受け取りますが、PWA/runtime/release material は含みません。
 
 ```json

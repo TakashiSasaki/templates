@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "id": "workspace.bare-worktree",
+  "component_role": "workspace",
+  "version": 1,
+  "summary": "Bare Worktree workspace topology declaring one bare common Git repository and selected branch worktrees as sibling directories under a workspace root.",
+  "requires": [],
+  "conflicts": [],
+  "contract_registrations": [
+    {
+      "id": "local_checkout_topology",
+      "document": "contracts/local-checkout-topology.json",
+      "schema": "schemas/local-checkout-topology.schema.json",
+      "migration_slug": "local-checkout-topology",
+      "document_schema_version": 1,
+      "version_history": [
+        {"version": 1, "change_type": "initial"}
+      ],
+      "purpose": "Declare intended Bare Worktree local-checkout topology independently from repository authority, history, and projection topology."
+    }
+  ],
+  "materials": [
+    {"source": "files/BARE-WORKTREE.md", "destination": "BARE-WORKTREE.md", "ownership": "seed"},
+    {"source": "files/contracts/local-checkout-topology.json", "destination": "contracts/local-checkout-topology.json", "ownership": "seed"},
+    {"source": "files/schemas/local-checkout-topology.schema.json", "destination": "schemas/local-checkout-topology.schema.json", "ownership": "managed"},
+    {"source": "files/docs/architecture/local-checkout-topology.md", "destination": "docs/architecture/local-checkout-topology.md", "ownership": "managed"},
+    {"source": "files/.template-composition/validators/validate_local_checkout_topology.py", "destination": ".template-composition/validators/validate_local_checkout_topology.py", "ownership": "managed"}
+  ]
+}

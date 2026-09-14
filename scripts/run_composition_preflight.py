@@ -18,6 +18,7 @@ FOCUSED_TESTS = (
     "tests/test_composition_schemas.py",
     "tests/test_topology_role.py",
     "tests/test_workspace_role.py",
+    "tests/test_bare_worktree_contract.py",
 )
 RUNTIME_SMOKES = (
     "scripts/smoke_test_runtime_distribution.py",

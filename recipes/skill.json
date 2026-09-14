@@ -17,6 +17,7 @@
     "lifecycle.release-bundle",
     "lifecycle.release-evidence",
     "lifecycle.release-execution",
-    "topology.hub-and-orphan"
+    "topology.hub-and-orphan",
+    "workspace.bare-worktree"
   ]
 }

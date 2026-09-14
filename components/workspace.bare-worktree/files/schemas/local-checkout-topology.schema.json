@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://templates.moukaeritai.work/schemas/local-checkout-topology.schema.json",
+  "title": "Local checkout topology contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schemaVersion", "topologyKind", "workspaceRoot", "commonGitDirectory", "layout", "rootGitIndirection"],
+  "properties": {
+    "$schema": {"type": "string"},
+    "schemaVersion": {"const": 1},
+    "topologyKind": {"const": "bare-worktree"},
+    "workspaceRoot": {"const": "."},
+    "commonGitDirectory": {
+      "type": "string",
+      "pattern": "^(?!/)(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.?(?:/|$))(?!.*(?:^|/)\\.[gG][iI][tT](?:/|$))[A-Za-z0-9_.][A-Za-z0-9._-]*(?:/[A-Za-z0-9_.][A-Za-z0-9._-]*)*$"
+    },
+    "layout": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["commonRepositoryBare", "linkedWorktrees", "workspaceRootIsWorktree"],
+      "properties": {
+        "commonRepositoryBare": {"const": true},
+        "linkedWorktrees": {"const": "sibling-directories-under-workspace-root"},
+        "workspaceRootIsWorktree": {"const": false}
+      }
+    },
+    "rootGitIndirection": {"const": "optional-convenience"}
+  }
+}

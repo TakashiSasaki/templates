@@ -3,10 +3,10 @@ on:
   pull_request:
 permissions:
   contents: read
+  actions: read
 jobs:
   compatibility:
-    uses: TakashiSasaki/templates/.github/workflows/build-pages.yml@c0c8b9430437759f99604ab005e6c04b24218c23
+    uses: TakashiSasaki/templates/.github/workflows/build-pages.yml@0004413894a421bee4114eacd5a6885314b1d8bc
     with:
-      site_ref: c0c8b9430437759f99604ab005e6c04b24218c23
+      site_ref: 0004413894a421bee4114eacd5a6885314b1d8bc
       composition_ref: ${{ github.event.pull_request.head.sha }}
-      publication_staging_ids: composition-provider-maintenance,composition-installer-release

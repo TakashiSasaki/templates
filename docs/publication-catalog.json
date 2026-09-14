@@ -19,6 +19,8 @@
     {"id":"composition-model","source":"docs/architecture/composition-model.md","optional":false,"home":false},
     {"id":"catalog-architecture","source":"docs/architecture/catalog.md","optional":false,"home":false},
     {"id":"generated-contract-manifest","source":"docs/architecture/generated-contract-manifest.md","optional":false,"home":false},
+    {"id":"bare-worktree","source":"components/workspace.bare-worktree/files/BARE-WORKTREE.md","optional":false,"home":false},
+    {"id":"local-checkout-topology-architecture","source":"components/workspace.bare-worktree/files/docs/architecture/local-checkout-topology.md","optional":false,"home":false},
     {"id":"composer-mvp","source":"docs/architecture/composer-mvp.md","optional":false,"home":false},
     {"id":"catalog-guide","source":"catalog/README.md","optional":false,"home":false},
     {"id":"schema-guide","source":"schemas/README.md","optional":false,"home":false},
@@ -138,7 +140,10 @@
     {"source":"components/foundation.web/files/schemas","destination":"web/schemas","optional":false},
     {"source":"components/topology.hub-and-orphan/component.json","destination":"components/topology.hub-and-orphan/component.json","optional":false},
     {"source":"components/topology.hub-and-orphan/files/contracts","destination":"topology/contracts","optional":false},
-    {"source":"components/topology.hub-and-orphan/files/schemas","destination":"topology/schemas","optional":false}
+    {"source":"components/topology.hub-and-orphan/files/schemas","destination":"topology/schemas","optional":false},
+    {"source":"components/workspace.bare-worktree/component.json","destination":"components/workspace.bare-worktree/component.json","optional":false},
+    {"source":"components/workspace.bare-worktree/files/contracts","destination":"workspace/contracts","optional":false},
+    {"source":"components/workspace.bare-worktree/files/schemas","destination":"workspace/schemas","optional":false}
   ],
   "glossary": {"source":"docs/glossary.yml"}
 }
