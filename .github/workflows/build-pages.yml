@@ -130,7 +130,7 @@ jobs:
       - name: Check out executed build workflow definition
         uses: actions/checkout@v7
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ inputs.site_ref || github.sha }}
           path: workflow-source
           sparse-checkout: .github/workflows/build-pages.yml
           sparse-checkout-cone-mode: false
