@@ -140,7 +140,10 @@
     {"source":"components/foundation.web/files/schemas","destination":"web/schemas","optional":false},
     {"source":"components/topology.hub-and-orphan/component.json","destination":"components/topology.hub-and-orphan/component.json","optional":false},
     {"source":"components/topology.hub-and-orphan/files/contracts","destination":"topology/contracts","optional":false},
-    {"source":"components/topology.hub-and-orphan/files/schemas","destination":"topology/schemas","optional":false}
+    {"source":"components/topology.hub-and-orphan/files/schemas","destination":"topology/schemas","optional":false},
+    {"source":"components/workspace.bare-worktree/component.json","destination":"components/workspace.bare-worktree/component.json","optional":false},
+    {"source":"components/workspace.bare-worktree/files/contracts","destination":"workspace/contracts","optional":false},
+    {"source":"components/workspace.bare-worktree/files/schemas","destination":"workspace/schemas","optional":false}
   ],
   "glossary": {"source":"docs/glossary.yml"}
 }

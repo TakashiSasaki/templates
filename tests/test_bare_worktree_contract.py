@@ -49,6 +49,32 @@ class BareWorktreeContractTests(unittest.TestCase):
         self.assertEqual("workspace.bare-worktree", descriptor["id"])
         self.assertEqual("local_checkout_topology", descriptor["contract_registrations"][0]["id"])
 
+    def test_publication_exposes_workspace_machine_readable_authorities(self) -> None:
+        publication = json.loads(
+            (ROOT / "docs/publication-catalog.json").read_text(encoding="utf-8")
+        )
+        assets = {
+            (asset["source"], asset["destination"])
+            for asset in publication["assets"]
+        }
+        self.assertTrue(
+            {
+                (
+                    "components/workspace.bare-worktree/component.json",
+                    "components/workspace.bare-worktree/component.json",
+                ),
+                (
+                    "components/workspace.bare-worktree/files/contracts",
+                    "workspace/contracts",
+                ),
+                (
+                    "components/workspace.bare-worktree/files/schemas",
+                    "workspace/schemas",
+                ),
+            }
+            <= assets
+        )
+
     def test_invalid_contracts_fail_closed(self) -> None:
         for mutation in (
             lambda value: value.__setitem__("topologyKind", "single-worktree"),
