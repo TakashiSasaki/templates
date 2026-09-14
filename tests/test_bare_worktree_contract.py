@@ -3,6 +3,7 @@ from __future__ import annotations
 import copy
 import importlib.util
 import json
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -15,6 +16,7 @@ from jsonschema.exceptions import ValidationError
 ROOT = Path(__file__).resolve().parents[1]
 FILES = ROOT / "components/workspace.bare-worktree/files"
 SCRIPTS = ROOT / "scripts"
+COMPOSER = SCRIPTS / "compose.py"
 if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
@@ -119,6 +121,98 @@ class BareWorktreeContractTests(unittest.TestCase):
             actions, conflicts = core.plan_target(Path(directory), materials)
         self.assertFalse(conflicts)
         self.assertTrue(actions)
+
+    def test_consumer_apply_dispatches_local_checkout_validation(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            target = root / "consumer"
+            config_path = root / "composition.json"
+            config_path.write_text(
+                json.dumps(
+                    {
+                        "schema_version": 1,
+                        "recipe": "skill",
+                        "components": {
+                            "include": [
+                                "topology.hub-and-orphan",
+                                "workspace.bare-worktree",
+                            ],
+                            "exclude": [],
+                        },
+                        "parameters": {},
+                    },
+                    indent=2,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            applied = subprocess.run(
+                [
+                    sys.executable,
+                    str(COMPOSER),
+                    "apply",
+                    "--config",
+                    str(config_path),
+                    "--target",
+                    str(target),
+                ],
+                cwd=ROOT,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
+            lock = json.loads(
+                (target / ".template-composition/lock.json").read_text(encoding="utf-8")
+            )
+            self.assertIn(
+                "workspace.bare-worktree",
+                {entry["id"] for entry in lock["resolved_components"]},
+            )
+
+            runner = target / ".template-composition/validate.py"
+
+            def run_validation() -> tuple[subprocess.CompletedProcess[str], dict]:
+                result = subprocess.run(
+                    [sys.executable, str(runner), str(target), "--format", "json"],
+                    cwd=target,
+                    text=True,
+                    capture_output=True,
+                    check=False,
+                )
+                return result, json.loads(result.stdout)
+
+            valid_result, valid_payload = run_validation()
+            self.assertEqual(
+                valid_result.returncode,
+                0,
+                valid_result.stdout + valid_result.stderr,
+            )
+            valid_checks = {check["id"]: check for check in valid_payload["checks"]}
+            self.assertEqual(valid_checks["composition-state"]["status"], "passed")
+            self.assertEqual(valid_checks["repository-topology"]["status"], "passed")
+            self.assertEqual(valid_checks["local-checkout-topology"]["status"], "passed")
+
+            contract_path = target / "contracts/local-checkout-topology.json"
+            corrupted = json.loads(contract_path.read_text(encoding="utf-8"))
+            corrupted["topologyKind"] = "not-bare-worktree"
+            contract_path.write_text(
+                json.dumps(corrupted, indent=2) + "\n", encoding="utf-8"
+            )
+
+            invalid_result, invalid_payload = run_validation()
+            self.assertNotEqual(invalid_result.returncode, 0)
+            invalid_checks = {
+                check["id"]: check for check in invalid_payload["checks"]
+            }
+            self.assertEqual(invalid_checks["composition-state"]["status"], "passed")
+            self.assertEqual(
+                invalid_checks["local-checkout-topology"]["status"], "failed"
+            )
+            self.assertIn(
+                "contract failed schema validation",
+                invalid_checks["local-checkout-topology"]["stderr"],
+            )
 
 
 if __name__ == "__main__":
