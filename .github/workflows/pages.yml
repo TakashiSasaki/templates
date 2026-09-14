@@ -73,6 +73,10 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
+      - name: Resolve checked-out Policy revision
+        id: policy-revision
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
       - name: Set up Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
@@ -88,7 +92,7 @@ jobs:
 
       - name: Run canonical Policy documentation qualification
         env:
-          BUILD_COMMIT: ${{ github.sha }}
+          BUILD_COMMIT: ${{ steps.policy-revision.outputs.sha }}
           BUILD_REPOSITORY: ${{ github.repository }}
           BUILD_RUN_ID: ${{ github.run_id }}
           BUILD_RUN_NUMBER: ${{ github.run_number }}

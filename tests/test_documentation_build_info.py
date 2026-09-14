@@ -21,6 +21,8 @@ def test_workflow_and_local_reproduction_share_build_info_generator() -> None:
 
     assert BUILD_INFO_GENERATOR.is_file()
     assert "scripts/run_policy_preflight.py --check docs" in workflow
+    assert 'run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"' in workflow
+    assert "BUILD_COMMIT: ${{ steps.policy-revision.outputs.sha }}" in workflow
     assert '"scripts/generate_docs_build_info.py"' in runner
     assert 'os.environ.get("BUILD_COMMIT", exact_head())' in runner
     assert 'os.environ.get("BUILD_REPOSITORY", "TakashiSasaki/templates")' in runner

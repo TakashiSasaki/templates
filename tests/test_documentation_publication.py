@@ -216,7 +216,9 @@ def test_documentation_build_runs_all_tools_from_the_isolated_environment() -> N
         assert step in runner
 
     assert "scripts/run_policy_preflight.py --check docs" in workflow
-    assert "BUILD_COMMIT: ${{ github.sha }}" in workflow
+    assert 'run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"' in workflow
+    assert "BUILD_COMMIT: ${{ steps.policy-revision.outputs.sha }}" in workflow
+    assert "BUILD_COMMIT: ${{ github.sha }}" not in workflow
     assert "from datetime import datetime, timezone" not in workflow
 
 
