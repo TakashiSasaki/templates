@@ -3,6 +3,8 @@ import json
 import subprocess
 from pathlib import Path
 
+COMPOSITION_C2_REVISION = "54bd4b9b979fe75337f4275471761079084410f1"
+
 
 def test_local_checkout_snapshot_is_exact_composition_source() -> None:
     root = Path(__file__).resolve().parents[1]
@@ -10,7 +12,7 @@ def test_local_checkout_snapshot_is_exact_composition_source() -> None:
     source = json.loads((bundle / "source.json").read_text())
     assert source["authority"] == "composition"
     assert source["repository"] == "TakashiSasaki/templates"
-    assert len(source["revision"]) == 40
+    assert source["revision"] == COMPOSITION_C2_REVISION
     for entry in source["files"]:
         data = (bundle / entry["destination"]).read_bytes()
         assert hashlib.sha256(data).hexdigest() == entry["sha256"]
