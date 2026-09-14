@@ -81,8 +81,8 @@ MAINTAINER_SOURCES = {
 
 def test_maintainer_identities_are_complete_existing_and_published() -> None:
     guide = PUBLICATION_GUIDE.read_text(encoding="utf-8")
-    section = guide.split("<!-- maintainer-publications -->", 1)[1].split(
-        "<!-- /maintainer-publications -->", 1
+    section = guide.split("<!-- deferred-maintainer-publications -->", 1)[1].split(
+        "<!-- /deferred-maintainer-publications -->", 1
     )[0]
     rows = re.findall(r"^\| `([^`]+)` \| `([^`]+)` \|", section, re.MULTILINE)
     # Exact correspondence catches omission, rename, duplicate, and source drift.
