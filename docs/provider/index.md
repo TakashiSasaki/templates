@@ -2,6 +2,8 @@
 
 ## Orientation
 
+* [Consumer application](../consumer/index.md) - Use Policy in another repository, including advanced review configuration. This provider path covers the compiler, shared corpus, release machinery, and documentation publication in `TakashiSasaki/templates`; shared references such as the CLI can support both tasks.
+
 * [Repository structure](../repository-structure.md) - Describes the maintained `policy` branch layout and the responsibility of each top-level directory.
 * [Architecture](../architecture.md) - Describes the compiler, generated artifacts, lock state, and trust boundaries.
 * [CLI reference](../cli.md) - Defines the `agent-policy` command-line interface and subcommands.

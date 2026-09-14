@@ -1,5 +1,23 @@
 # Policy authoring
 
+## Which repository owns the change?
+
+Changing the shared `policy/` corpus or `profiles/` in this repository is Policy
+provider work: it changes the rules or selection sets offered to consumers.
+The module and ownership guidance below describes that shared-source work.
+
+Configuring Policy in another repository is consumer application, including
+advanced review-policy selection and repository-local extensions or overrides.
+Start with [Configuration](configuration.md) for `.agent-policy.yml` and use
+[Repository-local extension and override](#repository-local-extension-and-override)
+for the authorship boundary. A local requirement does not need a shared-corpus
+change unless it is intended to become generally applicable Policy semantics.
+
+This guide explains authorship and links to the existing authority; it does not
+create a second copy of the selected rules. For the provider's own maintenance
+requirements, the canonical inputs remain `repository-policy/`, separate from
+shared modules under `policy/`.
+
 Each shared policy file contains YAML front matter with a stable rule ID, severity, override permission, and deterministic order. Mandatory non-overridable rules cannot be replaced by project-local policy. Long rationale and examples may follow the normative paragraph, but generated agent instructions should remain concise and executable.
 
 ## One independently applicable rule per module
@@ -41,4 +59,5 @@ An override is valid only when the canonical shared rule is declared overridable
 
 Generated instructions should preserve the origin of every rule so a reviewer can distinguish toolchain-owned shared policy from repository-owned policy.
 
-See ADR-0005 and `policy-authority-inventory.md` for the consolidation model and frozen cross-branch audit baseline.
+See [ADR-0005](adr/0005-single-policy-authority.md) and the
+[Policy authority inventory](policy-authority-inventory.md) for the consolidation model and frozen cross-branch audit baseline.
