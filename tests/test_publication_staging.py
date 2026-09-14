@@ -635,24 +635,15 @@ class PublicationStagingMaterializationTests(unittest.TestCase):
             site_root = Path(temporary_directory)
             _copy_inputs(site_root)
             
-            # Test individual materialization without failing
-            for staging_id in [
+            from scripts.materialize_publication_staging import materialize_many
+            snapshot_root = materialize_many(site_root, [
                 "contributing",
                 "maintainer-workflow",
                 "adr-review-authority-and-github-runtime-boundary",
-                "adr-review-result-representation-boundary",
-            ]:
-                # We need to copy fresh inputs because materialization is stateful
-                # and mutates the manifest. Wait, we can materialize them sequentially!
-                pass
+                "adr-review-result-representation-boundary"
+            ])
             
-            # Sequence materialization
-            materialize(site_root, "contributing")
-            materialize(site_root, "maintainer-workflow")
-            materialize(site_root, "adr-review-authority-and-github-runtime-boundary")
-            materialize(site_root, "adr-review-result-representation-boundary")
-            
-            manifest_path = site_root / "site-manifest.json"
+            manifest_path = snapshot_root / "site-manifest.json"
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
             
             # Check they were added
