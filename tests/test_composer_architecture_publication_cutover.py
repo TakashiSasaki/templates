@@ -9,6 +9,11 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def _pages(nodes):
+    if isinstance(nodes, dict):
+        for child in nodes.values():
+            if isinstance(child, list):
+                yield from _pages(child)
+        return
     for node in nodes:
         if "publication" in node:
             yield node
@@ -27,17 +32,17 @@ class ComposerArchitecturePublicationCutoverTests(unittest.TestCase):
             and page.get("document") == "composer-mvp"
         ]
 
-        self.assertEqual(
-            matches,
-            [
+        self.assertTrue(matches)
+        for page in matches:
+            self.assertEqual(
+                page,
                 {
                     "title": "Composer architecture",
                     "publication": "composition",
                     "document": "composer-mvp",
                     "destination": "composition/architecture/composer-mvp.md",
-                }
-            ],
-        )
+                },
+            )
 
     def test_composer_architecture_reader_locale_uses_new_label(self) -> None:
         locales = json.loads(

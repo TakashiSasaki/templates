@@ -40,8 +40,18 @@ class HumanFirstOnboardingTests(unittest.TestCase):
         self.assertIn('"destination": "website/index.md"', serialized)
         self.assertIn('"document": "webapp-product-walkthrough"', serialized)
         self.assertIn('"destination": "webapp/product-walkthrough.md"', serialized)
-        web = next(node for node in manifest["navigation"] if node["title"] == "Web")
-        self.assertEqual(web["children"][0]["document"], "website-webapp-selection")
+        nodes = (
+            manifest["navigation"]["use"]
+            if isinstance(manifest["navigation"], dict)
+            else manifest["navigation"]
+        )
+        selection_node = next(
+            child
+            for node in nodes
+            for child in node.get("children", [])
+            if child.get("document") == "website-webapp-selection"
+        )
+        self.assertEqual(selection_node["document"], "website-webapp-selection")
 
     def test_skill_task_links_directly_to_canonical_walkthrough(self) -> None:
         landing = LANDING.read_text(encoding="utf-8")
@@ -50,8 +60,13 @@ class HumanFirstOnboardingTests(unittest.TestCase):
             landing,
         )
         manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+        nodes = (
+            manifest["navigation"]["use"]
+            if isinstance(manifest["navigation"], dict)
+            else manifest["navigation"]
+        )
         agent_skill = next(
-            node for node in manifest["navigation"] if node["title"] == "Agent Skill"
+            node for node in nodes if node["title"] == "Agent Skill"
         )
         first = agent_skill["children"][0]
         self.assertEqual(first["document"], "skill-first-use-walkthrough")
@@ -68,8 +83,13 @@ class HumanFirstOnboardingTests(unittest.TestCase):
         self.assertNotIn("Composition concepts", landing[:explore_section])
 
         manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+        nodes = (
+            manifest["navigation"]["use"]
+            if isinstance(manifest["navigation"], dict)
+            else manifest["navigation"]
+        )
         composition = next(
-            node for node in manifest["navigation"] if node["title"] == "Composition"
+            node for node in nodes if node["title"] == "Composition"
         )
         concepts_entry = next(
             node

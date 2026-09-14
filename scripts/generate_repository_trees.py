@@ -194,6 +194,28 @@ def published_url(base_path: str, document_destination: str) -> str:
 
 def manifest_destinations(site_root: Path) -> dict[tuple[str, str], str]:
     manifest = read_json(site_root / "site-manifest.json", "site manifest")
+    if manifest.get("schema_version") == 3 and "documents" in manifest:
+        documents = manifest["documents"]
+        if not isinstance(documents, list):
+            raise RepositoryTreeError("site manifest documents must be an array")
+        result: dict[tuple[str, str], str] = {}
+        for node in documents:
+            if not isinstance(node, dict):
+                raise RepositoryTreeError("site manifest nodes must be objects")
+            publication = node.get("publication")
+            document = node.get("document")
+            destination = node.get("destination")
+            if not all(
+                isinstance(value, str)
+                for value in (publication, document, destination)
+            ):
+                raise RepositoryTreeError("site manifest page fields must be strings")
+            key = (publication, document)
+            if key in result:
+                raise RepositoryTreeError("site manifest contains a duplicate document")
+            result[key] = destination
+        return result
+
     navigation = manifest.get("navigation")
     if not isinstance(navigation, list):
         raise RepositoryTreeError("site manifest navigation must be an array")

@@ -25,6 +25,105 @@
       }
     },
     {
+      "id": "site-composition-playground",
+      "path": "/playground/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "site-capabilities-overview",
+      "path": "/capabilities/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "site-webmcp-guide",
+      "path": "/capabilities/webmcp/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "site-repository-topology-overview",
+      "path": "/topology/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "site-workspace-topology-overview",
+      "path": "/workspace/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "site-lifecycle-overview",
+      "path": "/lifecycle/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "site-repository-trees",
+      "path": "/repository-trees/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "site-repository-tree-composition",
+      "path": "/repository-trees/composition/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "site-repository-tree-policy",
+      "path": "/repository-trees/policy/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
       "id": "composition-overview",
       "path": "/composition/",
       "canonical": true,
@@ -60,17 +159,6 @@
     {
       "id": "composition-consumer-guide",
       "path": "/composition/use/",
-      "canonical": true,
-      "aliases": [],
-      "deepLink": true,
-      "accessibility": {
-        "documentTitleRequired": true,
-        "focusTarget": "main-heading"
-      }
-    },
-    {
-      "id": "site-composition-playground",
-      "path": "/playground/",
       "canonical": true,
       "aliases": [],
       "deepLink": true,
@@ -476,17 +564,6 @@
       }
     },
     {
-      "id": "site-capabilities-overview",
-      "path": "/capabilities/",
-      "canonical": true,
-      "aliases": [],
-      "deepLink": true,
-      "accessibility": {
-        "documentTitleRequired": true,
-        "focusTarget": "main-heading"
-      }
-    },
-    {
       "id": "composition-runtime-decision-record",
       "path": "/capabilities/runtime/",
       "canonical": true,
@@ -588,17 +665,6 @@
     {
       "id": "composition-mcp-apps-v2-migration",
       "path": "/capabilities/mcp-apps/migrations/v1-to-v2/",
-      "canonical": true,
-      "aliases": [],
-      "deepLink": true,
-      "accessibility": {
-        "documentTitleRequired": true,
-        "focusTarget": "main-heading"
-      }
-    },
-    {
-      "id": "site-webmcp-guide",
-      "path": "/capabilities/webmcp/",
       "canonical": true,
       "aliases": [],
       "deepLink": true,
@@ -729,17 +795,6 @@
       }
     },
     {
-      "id": "site-repository-topology-overview",
-      "path": "/topology/",
-      "canonical": true,
-      "aliases": [],
-      "deepLink": true,
-      "accessibility": {
-        "documentTitleRequired": true,
-        "focusTarget": "main-heading"
-      }
-    },
-    {
       "id": "composition-topology-contract",
       "path": "/topology/contract/",
       "canonical": true,
@@ -762,17 +817,6 @@
       }
     },
     {
-      "id": "site-workspace-topology-overview",
-      "path": "/workspace/",
-      "canonical": true,
-      "aliases": [],
-      "deepLink": true,
-      "accessibility": {
-        "documentTitleRequired": true,
-        "focusTarget": "main-heading"
-      }
-    },
-    {
       "id": "composition-bare-worktree",
       "path": "/workspace/bare-worktree/",
       "canonical": true,
@@ -786,17 +830,6 @@
     {
       "id": "composition-local-checkout-topology-architecture",
       "path": "/workspace/architecture/",
-      "canonical": true,
-      "aliases": [],
-      "deepLink": true,
-      "accessibility": {
-        "documentTitleRequired": true,
-        "focusTarget": "main-heading"
-      }
-    },
-    {
-      "id": "site-lifecycle-overview",
-      "path": "/lifecycle/",
       "canonical": true,
       "aliases": [],
       "deepLink": true,

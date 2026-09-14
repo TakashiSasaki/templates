@@ -34,7 +34,11 @@ def public_path(destination: str) -> str:
 def documents(root: Path) -> dict:
     import tomllib
     project = tomllib.loads((root / "zensical.template.toml").read_text().replace("__GENERATED_NAV__", "[]"))["project"]
-    navigation = list(leaves(read(root, "site-manifest.json")["navigation"]))
+    manifest_data = read(root, "site-manifest.json")
+    if manifest_data.get("schema_version") == 3 and "documents" in manifest_data:
+        navigation = manifest_data["documents"]
+    else:
+        navigation = list(leaves(manifest_data["navigation"]))
     pages, routes, metadata = [], [], []
     seen = set()
     for item in navigation:

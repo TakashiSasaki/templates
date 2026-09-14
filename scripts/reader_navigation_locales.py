@@ -43,8 +43,21 @@ def read_json(path: Path, label: str) -> dict[str, Any]:
     return value
 
 
-def navigation_titles(nodes: Iterable[dict[str, Any]]) -> set[str]:
+def navigation_titles(
+    nodes: Iterable[dict[str, Any]] | dict[str, list[dict[str, Any]]],
+) -> set[str]:
     result: set[str] = set()
+    if isinstance(nodes, dict):
+        for audience, tree in nodes.items():
+            if audience == "use":
+                result.add("Use templates")
+            elif audience == "maintain":
+                result.add("Maintain templates")
+            elif isinstance(audience, str) and audience:
+                result.add(audience)
+            if isinstance(tree, list):
+                result.update(navigation_titles(tree))
+        return result
     for node in nodes:
         if not isinstance(node, dict):
             raise ReaderNavigationLocaleError(
@@ -66,7 +79,7 @@ def navigation_titles(nodes: Iterable[dict[str, Any]]) -> set[str]:
 
 def load_overlays(
     path: Path,
-    navigation: list[dict[str, Any]],
+    navigation: list[dict[str, Any]] | dict[str, list[dict[str, Any]]],
 ) -> dict[str, dict[str, str]]:
     data = read_json(path, "reader navigation locale overlay")
     if set(data) != {"schema_version", "canonical_language", "locales"}:

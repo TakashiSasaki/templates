@@ -12,7 +12,12 @@ JAPANESE_CAPABILITIES = ROOT / "translations" / "ja" / "docs" / "capabilities.md
 SITE_MANIFEST = ROOT / "site-manifest.json"
 
 
-def iter_pages(nodes: list[dict[str, Any]]):
+def iter_pages(nodes: list[dict[str, Any]] | dict[str, Any]):
+    if isinstance(nodes, dict):
+        for child in nodes.values():
+            if isinstance(child, list):
+                yield from iter_pages(child)
+        return
     for node in nodes:
         if "children" in node:
             yield from iter_pages(node["children"])

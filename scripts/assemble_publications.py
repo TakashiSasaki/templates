@@ -140,7 +140,53 @@ def parse_node(raw: Any, field: str) -> dict[str, Any]:
     }
 
 
-def pages(nodes: list[dict[str, Any]]) -> Iterator[dict[str, Any]]:
+AUDIENCE_TITLES: dict[str, str] = {
+    "use": "Use templates",
+    "maintain": "Maintain templates",
+}
+
+
+class Manifest(tuple):
+    home: tuple[str, str]
+    projected_navigation: list[dict[str, Any]]
+    schema_version: int
+    audiences: list[str]
+    documents: list[dict[str, Any]]
+    navigation: dict[str, list[dict[str, Any]]] | list[dict[str, Any]]
+    document_by_key: dict[tuple[str, str], dict[str, Any]]
+    document_by_destination: dict[PurePosixPath, dict[str, Any]]
+
+    def __new__(
+        cls,
+        home: tuple[str, str],
+        projected_navigation: list[dict[str, Any]],
+        *,
+        schema_version: int,
+        audiences: list[str],
+        documents: list[dict[str, Any]],
+        navigation: dict[str, list[dict[str, Any]]] | list[dict[str, Any]],
+        document_by_key: dict[tuple[str, str], dict[str, Any]],
+        document_by_destination: dict[PurePosixPath, dict[str, Any]],
+    ) -> Manifest:
+        instance = super().__new__(cls, (home, projected_navigation))
+        instance.home = home
+        instance.projected_navigation = projected_navigation
+        instance.schema_version = schema_version
+        instance.audiences = audiences
+        instance.documents = documents
+        instance.navigation = navigation
+        instance.document_by_key = document_by_key
+        instance.document_by_destination = document_by_destination
+        return instance
+
+
+def pages(
+    nodes: list[dict[str, Any]] | dict[str, list[dict[str, Any]]],
+) -> Iterator[dict[str, Any]]:
+    if isinstance(nodes, dict):
+        for tree in nodes.values():
+            yield from pages(tree)
+        return
     for node in nodes:
         if "children" in node:
             yield from pages(node["children"])
@@ -148,35 +194,212 @@ def pages(nodes: list[dict[str, Any]]) -> Iterator[dict[str, Any]]:
             yield node
 
 
-def load_manifest(
-    path: Path,
-) -> tuple[tuple[str, str], list[dict[str, Any]]]:
+def load_manifest(path: Path) -> Manifest:
     data = read_json(path, "site manifest")
-    if (
-        set(data) != {"schema_version", "home", "navigation"}
-        or data.get("schema_version") != 2
-    ):
-        raise AssemblyError(
-            "site manifest must be schema version 2 with home and navigation"
+    schema_version = data.get("schema_version")
+    if schema_version == 2:
+        if set(data) != {"schema_version", "home", "navigation"}:
+            raise AssemblyError(
+                "site manifest schema version 2 must contain only schema_version, home, and navigation"
+            )
+        home_data = data["home"]
+        if not isinstance(home_data, dict) or set(home_data) != {"publication", "document"}:
+            raise AssemblyError(
+                "site manifest home must identify publication and document"
+            )
+        home = (
+            parse_name(home_data["publication"], "home.publication"),
+            parse_name(home_data["document"], "home.document"),
         )
-    home = data["home"]
-    if not isinstance(home, dict) or set(home) != {"publication", "document"}:
-        raise AssemblyError(
-            "site manifest home must identify publication and document"
-        )
-    navigation = data["navigation"]
-    if not isinstance(navigation, list) or not navigation:
-        raise AssemblyError("site manifest navigation must be non-empty")
-    return (
-        (
-            parse_name(home["publication"], "home.publication"),
-            parse_name(home["document"], "home.document"),
-        ),
-        [
+        navigation_data = data["navigation"]
+        if not isinstance(navigation_data, list) or not navigation_data:
+            raise AssemblyError("site manifest navigation must be non-empty")
+        parsed_navigation = [
             parse_node(value, f"navigation[{index}]")
-            for index, value in enumerate(navigation)
-        ],
-    )
+            for index, value in enumerate(navigation_data)
+        ]
+        parsed_pages = list(pages(parsed_navigation))
+        doc_by_key: dict[tuple[str, str], dict[str, Any]] = {}
+        doc_by_dest: dict[PurePosixPath, dict[str, Any]] = {}
+        canonical_docs: list[dict[str, Any]] = []
+        for page in parsed_pages:
+            key = (page["publication"], page["document"])
+            dest = page["destination"]
+            if key in doc_by_key or dest in doc_by_dest:
+                raise AssemblyError(
+                    "site manifest document keys and destinations must be unique"
+                )
+            doc_entry = {
+                "publication": page["publication"],
+                "document": page["document"],
+                "title": page["title"],
+                "destination": dest,
+                "primary_audience": "use",
+                "additional_audiences": [],
+            }
+            doc_by_key[key] = doc_entry
+            doc_by_dest[dest] = doc_entry
+            canonical_docs.append(doc_entry)
+
+        return Manifest(
+            home,
+            parsed_navigation,
+            schema_version=2,
+            audiences=[],
+            documents=canonical_docs,
+            navigation=parsed_navigation,
+            document_by_key=doc_by_key,
+            document_by_destination=doc_by_dest,
+        )
+
+    if schema_version == 3:
+        if set(data) != {"schema_version", "audiences", "home", "documents", "navigation"}:
+            raise AssemblyError(
+                "site manifest schema version 3 must contain exactly schema_version, audiences, home, documents, and navigation"
+            )
+        audiences_data = data["audiences"]
+        if (
+            not isinstance(audiences_data, list)
+            or not audiences_data
+            or len(set(audiences_data)) != len(audiences_data)
+            or not all(isinstance(a, str) and a.strip() == a and a for a in audiences_data)
+        ):
+            raise AssemblyError("site manifest audiences must be a non-empty array of unique strings")
+        audiences = list(audiences_data)
+
+        home_data = data["home"]
+        if not isinstance(home_data, dict) or set(home_data) != {"publication", "document"}:
+            raise AssemblyError(
+                "site manifest home must identify publication and document"
+            )
+        home = (
+            parse_name(home_data["publication"], "home.publication"),
+            parse_name(home_data["document"], "home.document"),
+        )
+
+        documents_data = data["documents"]
+        if not isinstance(documents_data, list) or not documents_data:
+            raise AssemblyError("site manifest documents must be a non-empty array")
+
+        doc_by_key = {}
+        doc_by_dest = {}
+        canonical_docs = []
+        expected_doc_keys = {"publication", "document", "title", "destination", "primary_audience", "additional_audiences"}
+        for index, item in enumerate(documents_data):
+            field = f"documents[{index}]"
+            if not isinstance(item, dict) or set(item) != expected_doc_keys:
+                raise AssemblyError(
+                    f"{field} must contain exactly publication, document, title, destination, primary_audience, and additional_audiences"
+                )
+            pub = parse_name(item["publication"], f"{field}.publication")
+            doc = parse_name(item["document"], f"{field}.document")
+            dest = safe_path(item["destination"], f"{field}.destination")
+            if dest.suffix.lower() != ".md":
+                raise AssemblyError(f"{field}.destination must be a Markdown path (.md)")
+            title = item["title"]
+            if not isinstance(title, str) or not title.strip():
+                raise AssemblyError(f"{field}.title must be a non-empty string")
+            title = title.strip()
+            primary_aud = item["primary_audience"]
+            if not isinstance(primary_aud, str) or primary_aud not in audiences:
+                raise AssemblyError(f"{field}.primary_audience must be one of {audiences}")
+            additional_aud = item["additional_audiences"]
+            if (
+                not isinstance(additional_aud, list)
+                or any(not isinstance(a, str) or a not in audiences or a == primary_aud for a in additional_aud)
+                or len(set(additional_aud)) != len(additional_aud)
+            ):
+                raise AssemblyError(
+                    f"{field}.additional_audiences must be a list of unique audiences excluding primary_audience"
+                )
+            key = (pub, doc)
+            if key in doc_by_key:
+                raise AssemblyError(f"duplicate document key in site manifest documents: {pub}:{doc}")
+            if dest in doc_by_dest:
+                raise AssemblyError(f"duplicate document destination in site manifest documents: {dest}")
+            doc_entry = {
+                "publication": pub,
+                "document": doc,
+                "title": title,
+                "destination": dest,
+                "primary_audience": primary_aud,
+                "additional_audiences": list(additional_aud),
+            }
+            doc_by_key[key] = doc_entry
+            doc_by_dest[dest] = doc_entry
+            canonical_docs.append(doc_entry)
+
+        if home not in doc_by_key:
+            raise AssemblyError(f"site manifest home document {home[0]}:{home[1]} is not in documents")
+        if doc_by_key[home]["destination"] != PurePosixPath("index.md"):
+            raise AssemblyError("site manifest home document must have destination index.md")
+
+        navigation_data = data["navigation"]
+        if not isinstance(navigation_data, dict) or set(navigation_data) != set(audiences):
+            raise AssemblyError(f"site manifest navigation must be an object with keys matching audiences {audiences}")
+
+        parsed_navigation: dict[str, list[dict[str, Any]]] = {}
+        for audience in audiences:
+            aud_nav = navigation_data[audience]
+            if not isinstance(aud_nav, list) or not aud_nav:
+                raise AssemblyError(f"site manifest navigation[{audience!r}] must be a non-empty array")
+            parsed_aud_nav = [
+                parse_node(value, f"navigation.{audience}[{idx}]")
+                for idx, value in enumerate(aud_nav)
+            ]
+            aud_pages = list(pages(parsed_aud_nav))
+            aud_seen_keys: set[tuple[str, str]] = set()
+            for page in aud_pages:
+                page_key = (page["publication"], page["document"])
+                aud_seen_keys.add(page_key)
+                if page_key not in doc_by_key:
+                    raise AssemblyError(
+                        f"navigation for audience {audience!r} references undeclared document: {page_key[0]}:{page_key[1]}"
+                    )
+                target_doc = doc_by_key[page_key]
+                if page["destination"] != target_doc["destination"]:
+                    raise AssemblyError(
+                        f"navigation page destination mismatch for {page_key[0]}:{page_key[1]}: "
+                        f"expected {target_doc['destination']}, got {page['destination']}"
+                    )
+                doc_audiences = {target_doc["primary_audience"], *target_doc["additional_audiences"]}
+                if audience not in doc_audiences:
+                    raise AssemblyError(
+                        f"document {page_key[0]}:{page_key[1]} is in navigation for {audience!r} "
+                        f"but does not declare that audience"
+                    )
+
+            for doc_entry in canonical_docs:
+                doc_audiences = {doc_entry["primary_audience"], *doc_entry["additional_audiences"]}
+                if audience in doc_audiences:
+                    d_key = (doc_entry["publication"], doc_entry["document"])
+                    if d_key not in aud_seen_keys:
+                        raise AssemblyError(
+                            f"document {d_key[0]}:{d_key[1]} declares audience {audience!r} "
+                            f"but is missing from navigation.{audience}"
+                        )
+            parsed_navigation[audience] = parsed_aud_nav
+
+        projected_navigation = [
+            {
+                "title": AUDIENCE_TITLES.get(audience, audience),
+                "children": parsed_navigation[audience],
+            }
+            for audience in audiences
+        ]
+
+        return Manifest(
+            home,
+            projected_navigation,
+            schema_version=3,
+            audiences=audiences,
+            documents=canonical_docs,
+            navigation=parsed_navigation,
+            document_by_key=doc_by_key,
+            document_by_destination=doc_by_dest,
+        )
+
+    raise AssemblyError("site manifest must be schema version 2 or 3")
 
 
 def asset_entries(source: Path, field: str) -> list[Path]:
@@ -326,11 +549,12 @@ def assemble(
         documents, assets = load_catalog(name, resolved_root)
         publications[name] = (resolved_root, documents, assets)
 
-    home, navigation = load_manifest(site_root / "site-manifest.json")
-    navigation_pages = list(pages(navigation))
+    manifest = load_manifest(site_root / "site-manifest.json")
+    home = manifest.home
+    canonical_documents = manifest.documents
     seen: set[tuple[str, str]] = set()
     destinations: set[PurePosixPath] = set()
-    for page in navigation_pages:
+    for page in canonical_documents:
         key = (page["publication"], page["document"])
         if key in seen or page["destination"] in destinations:
             raise AssemblyError(
@@ -368,13 +592,13 @@ def assemble(
         )
 
     if (
-        not navigation_pages
+        not canonical_documents
         or (
-            navigation_pages[0]["publication"],
-            navigation_pages[0]["document"],
+            canonical_documents[0]["publication"],
+            canonical_documents[0]["document"],
         )
         != home
-        or navigation_pages[0]["destination"] != PurePosixPath("index.md")
+        or canonical_documents[0]["destination"] != PurePosixPath("index.md")
     ):
         raise AssemblyError("site home page must generate index.md")
     home_document = publications[home[0]][1][home[1]]
@@ -390,7 +614,7 @@ def assemble(
 
     included: list[dict[str, Any]] = []
     skipped: set[tuple[str, str]] = set()
-    for page in navigation_pages:
+    for page in canonical_documents:
         root, documents, _ = publications[page["publication"]]
         document = documents[page["document"]]
         source = resolve(
@@ -435,7 +659,21 @@ def assemble(
                 result.append(node)
         return result
 
-    filtered_navigation = filter_nodes(navigation)
+    if manifest.schema_version == 3:
+        filtered_nav_dict = {
+            audience: filter_nodes(manifest.navigation[audience])
+            for audience in manifest.audiences
+        }
+        filtered_navigation = [
+            {
+                "title": AUDIENCE_TITLES.get(audience, audience),
+                "children": filtered_nav_dict[audience],
+            }
+            for audience in manifest.audiences
+            if filtered_nav_dict[audience]
+        ]
+    else:
+        filtered_navigation = filter_nodes(manifest.navigation)
     for name, (root, _, assets) in publications.items():
         for asset in assets:
             source = resolve(root, asset["source"], f"{name} asset")

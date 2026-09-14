@@ -15,7 +15,12 @@ SITE_MANIFEST = ROOT / "site-manifest.json"
 SOURCE_LOCK = ROOT / "publication-sources.json"
 
 
-def iter_pages(nodes: list[dict[str, Any]]):
+def iter_pages(nodes: list[dict[str, Any]] | dict[str, Any]):
+    if isinstance(nodes, dict):
+        for child in nodes.values():
+            if isinstance(child, list):
+                yield from iter_pages(child)
+        return
     for node in nodes:
         if "children" in node:
             yield from iter_pages(node["children"])
@@ -185,37 +190,68 @@ class PortalPublicationPolicyTests(unittest.TestCase):
         self.assertNotIn("website", publications)
         self.assertNotIn("webapp", publications)
 
+        use_nav = (
+            manifest["navigation"]["use"]
+            if isinstance(manifest["navigation"], dict)
+            else manifest["navigation"]
+        )
         composition_group = next(
-            node for node in manifest["navigation"] if node["title"] == "Composition"
+            node for node in use_nav if node["title"] == "Composition"
         )
-        self.assertEqual(
-            [child["title"] for child in composition_group["children"][:8]],
-            [
-                "Overview",
-                "Concepts and terminology",
-                "Evaluate Composition",
-                "Use Composition",
-                "Composition Playground",
-                "Produce a product release",
-                "Composer reference",
-                "Documentation index",
-            ],
-        )
+        if manifest.get("schema_version") == 3:
+            self.assertEqual(
+                [child["title"] for child in composition_group["children"]],
+                [
+                    "Overview",
+                    "Concepts and terminology",
+                    "Use Composition",
+                    "Composition Playground",
+                    "Documentation index",
+                ],
+            )
+        else:
+            self.assertEqual(
+                [child["title"] for child in composition_group["children"][:8]],
+                [
+                    "Overview",
+                    "Concepts and terminology",
+                    "Evaluate Composition",
+                    "Use Composition",
+                    "Composition Playground",
+                    "Produce a product release",
+                    "Composer reference",
+                    "Documentation index",
+                ],
+            )
 
-        top_level_titles = [node["title"] for node in manifest["navigation"]]
-        self.assertNotIn("Portal overview", top_level_titles)
-        self.assertNotIn("Application capabilities", top_level_titles)
-        for title in (
-            "Composition",
-            "Agent Skill",
-            "Web",
-            "Website",
-            "Web application",
-            "Reusable capabilities",
-            "Lifecycle contracts",
-            "Policy",
-        ):
-            self.assertIn(title, top_level_titles)
+        if manifest.get("schema_version") == 3:
+            top_level_titles = [node["title"] for node in use_nav]
+            self.assertNotIn("Portal overview", top_level_titles)
+            self.assertNotIn("Application capabilities", top_level_titles)
+            for title in (
+                "Composition",
+                "Agent Skill",
+                "Website",
+                "Web application",
+                "Reusable capabilities",
+                "Policy",
+            ):
+                self.assertIn(title, top_level_titles)
+        else:
+            top_level_titles = [node["title"] for node in use_nav]
+            self.assertNotIn("Portal overview", top_level_titles)
+            self.assertNotIn("Application capabilities", top_level_titles)
+            for title in (
+                "Composition",
+                "Agent Skill",
+                "Web",
+                "Website",
+                "Web application",
+                "Reusable capabilities",
+                "Lifecycle contracts",
+                "Policy",
+            ):
+                self.assertIn(title, top_level_titles)
 
     def test_provider_inputs_are_locked_to_full_commit_shas(self) -> None:
         lock = json.loads(SOURCE_LOCK.read_text(encoding="utf-8"))

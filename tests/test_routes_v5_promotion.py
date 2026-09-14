@@ -14,6 +14,11 @@ ROUTE_ID = "composition-web-routes-v4-migration"
 
 
 def _pages(nodes):
+    if isinstance(nodes, dict):
+        for child in nodes.values():
+            if isinstance(child, list):
+                yield from _pages(child)
+        return
     for node in nodes:
         if "children" in node:
             yield from _pages(node["children"])

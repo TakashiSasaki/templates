@@ -22,6 +22,78 @@
       "socialPreview": "none"
     },
     {
+      "pageId": "site-composition-playground",
+      "title": "Composition Playground",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "site-capabilities-overview",
+      "title": "Overview",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "site-webmcp-guide",
+      "title": "WebMCP overview",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "site-repository-topology-overview",
+      "title": "Overview",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "site-workspace-topology-overview",
+      "title": "Overview",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "site-lifecycle-overview",
+      "title": "Overview",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "site-repository-trees",
+      "title": "Overview",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "site-repository-tree-composition",
+      "title": "Composition tree",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "site-repository-tree-policy",
+      "title": "Policy tree",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
       "pageId": "composition-overview",
       "title": "Overview",
       "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
@@ -48,14 +120,6 @@
     {
       "pageId": "composition-consumer-guide",
       "title": "Use Composition",
-      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
-      "indexability": "index",
-      "canonicalPathPolicy": "route-canonical",
-      "socialPreview": "none"
-    },
-    {
-      "pageId": "site-composition-playground",
-      "title": "Composition Playground",
       "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
       "indexability": "index",
       "canonicalPathPolicy": "route-canonical",
@@ -350,14 +414,6 @@
       "socialPreview": "none"
     },
     {
-      "pageId": "site-capabilities-overview",
-      "title": "Overview",
-      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
-      "indexability": "index",
-      "canonicalPathPolicy": "route-canonical",
-      "socialPreview": "none"
-    },
-    {
       "pageId": "composition-runtime-decision-record",
       "title": "Runtime decision record",
       "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
@@ -432,14 +488,6 @@
     {
       "pageId": "composition-mcp-apps-v2-migration",
       "title": "MCP Apps v1 to v2",
-      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
-      "indexability": "index",
-      "canonicalPathPolicy": "route-canonical",
-      "socialPreview": "none"
-    },
-    {
-      "pageId": "site-webmcp-guide",
-      "title": "WebMCP overview",
       "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
       "indexability": "index",
       "canonicalPathPolicy": "route-canonical",
@@ -534,14 +582,6 @@
       "socialPreview": "none"
     },
     {
-      "pageId": "site-repository-topology-overview",
-      "title": "Overview",
-      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
-      "indexability": "index",
-      "canonicalPathPolicy": "route-canonical",
-      "socialPreview": "none"
-    },
-    {
       "pageId": "composition-topology-contract",
       "title": "Topology contract",
       "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
@@ -558,14 +598,6 @@
       "socialPreview": "none"
     },
     {
-      "pageId": "site-workspace-topology-overview",
-      "title": "Overview",
-      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
-      "indexability": "index",
-      "canonicalPathPolicy": "route-canonical",
-      "socialPreview": "none"
-    },
-    {
       "pageId": "composition-bare-worktree",
       "title": "Bare Worktree",
       "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
@@ -576,14 +608,6 @@
     {
       "pageId": "composition-local-checkout-topology-architecture",
       "title": "Local-checkout architecture",
-      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
-      "indexability": "index",
-      "canonicalPathPolicy": "route-canonical",
-      "socialPreview": "none"
-    },
-    {
-      "pageId": "site-lifecycle-overview",
-      "title": "Overview",
       "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
       "indexability": "index",
       "canonicalPathPolicy": "route-canonical",
