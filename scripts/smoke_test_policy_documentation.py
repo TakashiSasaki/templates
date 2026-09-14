@@ -91,7 +91,7 @@ def main() -> int:
                         ["git", "rev-parse", "HEAD"], cwd=worktree, text=True
                     ).strip(),
                     "BUILD_REPOSITORY": "TakashiSasaki/templates",
-                    "BUILD_RUN_ID": "local-preflight",
+                    "BUILD_RUN_ID": "0",
                     "BUILD_RUN_NUMBER": "0",
                     "POLICY_DOCS_ENV_READY": "1",
                     "SITE_PUBLICATION_PROTOCOL": str(protocol),
