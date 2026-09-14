@@ -87,6 +87,6 @@ def test_policy_ci_qualifies_policy_pushes_and_pull_requests_without_targeting_m
     assert "ci/full-policy-verification" in workflow
     assert "branches: [main]" not in workflow
     assert "- main" not in workflow
-    assert "ruff check src tests scripts" in workflow
-    assert "pytest" in workflow
-    assert "python -m compileall -q src scripts" in workflow
+    assert "scripts/run_policy_preflight.py --check lint" in workflow
+    assert "scripts/run_policy_preflight.py --check tests" in workflow
+    assert "scripts/run_policy_preflight.py --check compile" in workflow

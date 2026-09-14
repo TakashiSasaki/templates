@@ -22,10 +22,10 @@ def test_policy_uses_reviewed_site_publication_protocol() -> None:
     assert "sparse-checkout: scripts/publication_contract.py" in workflow
     assert "sparse-checkout-cone-mode: false" in workflow
     assert "persist-credentials: false" in workflow
-    assert (
-        f".venv/bin/python -I {SITE_PROTOCOL_PATH} --source-root . "
-        "--catalog docs/publication-catalog.json"
-    ) in workflow
+    assert f"SITE_PUBLICATION_PROTOCOL: {SITE_PROTOCOL_PATH}" in workflow
+    assert "scripts/run_policy_preflight.py --check docs" in workflow
+    runner = (ROOT / "scripts/run_policy_preflight.py").read_text(encoding="utf-8")
+    assert '"--catalog",\n        "docs/publication-catalog.json"' in runner
     assert "ref: site" not in workflow
     assert "ref: refs/heads/site" not in workflow
     assert "scripts/validate_publication_catalog.py" not in workflow

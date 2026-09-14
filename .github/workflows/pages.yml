@@ -59,6 +59,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 1
 
       - name: Check out Site publication protocol
@@ -91,33 +92,11 @@ jobs:
       - name: Verify installed dependency graph
         run: .venv/bin/python -m pip check
 
-      - name: Validate publication catalog with Site protocol
-        run: .venv/bin/python -I .site-publication-protocol/scripts/publication_contract.py --source-root . --catalog docs/publication-catalog.json
-
-      - name: Generate repository file previews
-        run: .venv/bin/python scripts/generate_repository_preview.py
-
-      - name: Verify published repository tree
-        run: .venv/bin/python scripts/verify-repository-structure.py --check
-
-      - name: Validate translations
-        run: .venv/bin/python scripts/validate_translations.py
-
-      - name: Generate documentation assets
-        run: .venv/bin/python scripts/generate-doc-assets.py
-
-      - name: Record documentation build metadata
+      - name: Run canonical Policy documentation qualification
         env:
           BUILD_COMMIT: ${{ github.sha }}
           BUILD_REPOSITORY: ${{ github.repository }}
           BUILD_RUN_ID: ${{ github.run_id }}
           BUILD_RUN_NUMBER: ${{ github.run_number }}
-        run: |
-          .venv/bin/python scripts/generate_docs_build_info.py \
-            --commit "$BUILD_COMMIT" \
-            --repository "$BUILD_REPOSITORY" \
-            --run-id "$BUILD_RUN_ID" \
-            --run-number "$BUILD_RUN_NUMBER"
-
-      - name: Build documentation
-        run: .venv/bin/python -m mkdocs build --strict --clean
+          SITE_PUBLICATION_PROTOCOL: .site-publication-protocol/scripts/publication_contract.py
+        run: .venv/bin/python scripts/run_policy_preflight.py --check docs

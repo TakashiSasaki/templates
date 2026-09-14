@@ -1,15 +1,83 @@
 name: Check agent policy
+
 on:
   pull_request: {}
   workflow_dispatch: {}
+
 permissions:
   contents: read
+
 jobs:
-  check:
-    runs-on: ubuntu-latest
+  current-head-self-qualification:
+    name: current-head self qualification
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - uses: TakashiSasaki/templates@33a7ab809225c2a8b8dd2598ef04d0a39cf076a7
+      - name: Check out exact candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12.13"
+          cache: pip
+          cache-dependency-path: requirements-ci.lock
+
+      - name: Create isolated environment
+        run: python -I -m venv --clear .venv
+
+      - name: Install current Policy implementation
+        run: |
+          .venv/bin/python -m pip install --disable-pip-version-check --no-deps --requirement requirements-ci.lock
+          .venv/bin/python -m pip install --disable-pip-version-check --no-deps --no-build-isolation -e .
+
+      - name: Qualify current-head generated state
+        env:
+          EXPECTED_HEAD: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        run: .venv/bin/python scripts/run_policy_preflight.py --check self-check --expected-head "$EXPECTED_HEAD"
+
+  released-action-compatibility:
+    name: released Action compatibility
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out exact candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Probe previously released Policy Action
+        id: released
+        continue-on-error: true
+        uses: TakashiSasaki/templates@33a7ab809225c2a8b8dd2598ef04d0a39cf076a7
         with:
           command: check
           config: .agent-policy.yml
+
+      - name: Classify released compatibility
+        if: always()
+        env:
+          RELEASED_OUTCOME: ${{ steps.released.outcome }}
+          RELEASED_REVISION: 33a7ab809225c2a8b8dd2598ef04d0a39cf076a7
+        run: |
+          case "$RELEASED_OUTCOME" in
+            success)
+              classification=compatible
+              ;;
+            failure)
+              classification=incompatible-with-released-version
+              ;;
+            *)
+              echo "::error title=Released compatibility blocked::unexpected probe outcome: $RELEASED_OUTCOME"
+              exit 1
+              ;;
+          esac
+          {
+            echo "### Released Policy Action compatibility"
+            echo "- released revision: \`$RELEASED_REVISION\`"
+            echo "- classification: \`$classification\`"
+            echo "- current-head semantic authority: separate blocking self-qualification job"
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "Released compatibility classification: $classification"

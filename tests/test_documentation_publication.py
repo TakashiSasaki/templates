@@ -200,19 +200,20 @@ def test_documentation_build_installs_and_verifies_only_the_lock() -> None:
 
 def test_documentation_build_runs_all_tools_from_the_isolated_environment() -> None:
     workflow = workflow_text()
+    runner = (ROOT / "scripts/run_policy_preflight.py").read_text(encoding="utf-8")
 
     required_steps = (
-        ".venv/bin/python scripts/generate_repository_preview.py",
-        ".venv/bin/python scripts/verify-repository-structure.py --check",
-        ".venv/bin/python scripts/generate-doc-assets.py",
-        ".venv/bin/python scripts/generate_docs_build_info.py",
-        ".venv/bin/python -m mkdocs build --strict --clean",
+        '"scripts/generate_repository_preview.py"',
+        '"scripts/verify-repository-structure.py", "--check"',
+        '"scripts/generate-doc-assets.py"',
+        '"scripts/generate_docs_build_info.py"',
+        '"mkdocs", "build", "--strict", "--clean"',
     )
     for step in required_steps:
-        assert step in workflow
+        assert step in runner
 
+    assert "scripts/run_policy_preflight.py --check docs" in workflow
     assert "BUILD_COMMIT: ${{ github.sha }}" in workflow
-    assert '--repository "$BUILD_REPOSITORY"' in workflow
     assert "from datetime import datetime, timezone" not in workflow
 
 

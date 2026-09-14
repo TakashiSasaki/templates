@@ -17,13 +17,15 @@ BUILD_INFO_GENERATOR = ROOT / "scripts/generate_docs_build_info.py"
 def test_workflow_and_local_reproduction_share_build_info_generator() -> None:
     workflow = WORKFLOW.read_text(encoding="utf-8")
     guide = PUBLICATION_GUIDE.read_text(encoding="utf-8")
+    runner = (ROOT / "scripts/run_policy_preflight.py").read_text(encoding="utf-8")
 
     assert BUILD_INFO_GENERATOR.is_file()
-    assert ".venv/bin/python scripts/generate_docs_build_info.py" in workflow
-    assert '--commit "$BUILD_COMMIT"' in workflow
-    assert '--repository "$BUILD_REPOSITORY"' in workflow
-    assert '--run-id "$BUILD_RUN_ID"' in workflow
-    assert '--run-number "$BUILD_RUN_NUMBER"' in workflow
+    assert "scripts/run_policy_preflight.py --check docs" in workflow
+    assert '"scripts/generate_docs_build_info.py"' in runner
+    assert 'os.environ.get("BUILD_COMMIT", exact_head())' in runner
+    assert 'os.environ.get("BUILD_REPOSITORY", "TakashiSasaki/templates")' in runner
+    assert 'os.environ.get("BUILD_RUN_ID", "local-preflight")' in runner
+    assert 'os.environ.get("BUILD_RUN_NUMBER", "0")' in runner
     assert "from datetime import datetime, timezone" not in workflow
 
     assert "python scripts/generate_docs_build_info.py" in guide

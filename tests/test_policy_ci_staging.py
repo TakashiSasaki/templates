@@ -79,7 +79,7 @@ def test_policy_ci_preflight_is_cheap_relative_to_core() -> None:
     assert "Compile Python sources" in preflight
     assert "setup-python" in core
     assert "pip install" in core
-    assert "pytest" in core
+    assert "scripts/run_policy_preflight.py --check tests" in core
 
 
 def test_repository_preserves_parallel_full_compatibility_surface() -> None:
