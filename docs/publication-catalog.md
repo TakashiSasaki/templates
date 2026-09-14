@@ -200,9 +200,11 @@ qualification uses the subsequent Site PR #850 merge commit
 `7776f174e116d8ade9eb0f481d3f8b9bd743c792`, which retains those mappings and
 ensures the reusable build hashes the workflow definition from the same
 immutable `site_ref`. Policy CI qualifies this exact provider candidate against
-that immutable Site revision and explicitly selects each staged mapping. The
-staging build is non-deploying and cannot authorize Policy or Site promotion by
-itself.
+that immutable Site revision by atomically selecting the complete ordered set of
+four staged mappings in one non-deploying build. Partial one-document staging is
+invalid for this catalog cutover because the other newly published Policy
+documents would remain uncovered by the Site manifest. The staging build cannot
+authorize Policy or Site promotion by itself.
 
 After this Policy catalog change lands, a dependent Site change must advance the
 Policy source lock and promote these staged mappings to active reader mappings.
