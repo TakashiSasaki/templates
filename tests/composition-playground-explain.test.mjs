@@ -41,6 +41,16 @@ test("provider provenance bits and dependency edges explain canonical selection"
   );
 });
 
+test("workspace components are represented as their own semantic group", async () => {
+  const text = await readFile(fixturePath, "utf8");
+  const raw = JSON.parse(text.replaceAll("capability.cli", "workspace.bare-worktree"));
+  raw.components.find((component) => component.id === "workspace.bare-worktree").role = "workspace";
+  const value = core.validateProjection(raw);
+  const item = core.lookupCase(value, "skill", ["workspace.bare-worktree"]);
+  const byRole = new Map(explain.componentGroups(value, item).map((group) => [group.role, group.components]));
+  assert.equal(byRole.get("workspace")[0].id, "workspace.bare-worktree");
+});
+
 test("contracts, materials, ownership, and initial plan are rendered from projection inventories", async () => {
   const value = await projection();
   const item = core.lookupCase(value, "skill", ["capability.cli", "lifecycle.composition-state"]);
