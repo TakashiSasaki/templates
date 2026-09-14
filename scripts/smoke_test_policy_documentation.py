@@ -114,13 +114,20 @@ def main() -> int:
         )
         return 1
     finally:
-        if worktree is not None and worktree.exists():
-            subprocess.run(
+        if worktree is not None:
+            removed = subprocess.run(
                 ["git", "worktree", "remove", "--force", str(worktree)],
                 cwd=ROOT,
                 env=environment,
                 check=False,
             )
+            if removed.returncode != 0:
+                subprocess.run(
+                    ["git", "worktree", "prune"],
+                    cwd=ROOT,
+                    env=environment,
+                    check=False,
+                )
     print("Policy documentation smoke test passed.")
     return 0
 

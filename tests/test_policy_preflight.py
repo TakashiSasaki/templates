@@ -76,3 +76,12 @@ def test_ruff_has_no_foreign_snapshot_specific_suppression() -> None:
     configuration = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
     assert "_topology_contract/validator.py" not in configuration
     assert "_local_checkout_contract/validator.py" not in configuration
+
+
+def test_documentation_smoke_always_unregisters_temporary_worktree() -> None:
+    smoke = (ROOT / "scripts/smoke_test_policy_documentation.py").read_text(
+        encoding="utf-8"
+    )
+    assert "if worktree is not None:" in smoke
+    assert "worktree is not None and worktree.exists()" not in smoke
+    assert '["git", "worktree", "prune"]' in smoke
