@@ -6,6 +6,7 @@ on:
       - policy
       - "policy-*"
     paths:
+      - CONTRIBUTING.md
       - docs/**
       - .github/workflows/pages.yml
       - .github/workflows/site-compatibility.yml
