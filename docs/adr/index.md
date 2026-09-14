@@ -2,10 +2,7 @@
 
 ## Current decisions
 
-ADR-0008 remains current for trust and provenance, with partial supersession by
-ADR-0009 for review-result representation. The repository-source links below
-expose those existing decisions while their reader publication is deferred;
-see [Maintainer publication sources](../publication-catalog.md#deferred-maintainer-publications).
+* [Maintainer publication sources](../publication-catalog.md#deferred-maintainer-publications) - ADR-0008 remains current for trust and provenance, with partial supersession by ADR-0009 for review-result representation. Repository-source links expose the existing decisions while reader publication is deferred.
 
 * [ADR-0002: Repository adoption](0002-repository-adoption.md) - Defines how existing repositories adopt the policy toolchain without destructively replacing existing instructions.
 * [ADR-0003: Application-neutral policy scope](0003-application-neutral-policy-scope.md) - Keeps shared policy focused on application-type-independent agent operation rather than product architecture.
