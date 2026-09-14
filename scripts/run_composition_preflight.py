@@ -35,6 +35,10 @@ def command(*args: str) -> list[str]:
     return [str(PYTHON), *args]
 
 
+def configure_validation_environment() -> None:
+    os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
+
+
 def run_check(name: str, argv: Sequence[str], *, env: dict[str, str] | None = None) -> None:
     print(f"COMPOSITION_PREFLIGHT_CHECK_START name={name}", flush=True)
     result = subprocess.run(argv, cwd=ROOT, env=env, check=False)
@@ -202,6 +206,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
 def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv)
     try:
+        configure_validation_environment()
         head = git_output("rev-parse", "HEAD")
         print(f"COMPOSITION_PREFLIGHT_START profile={args.profile} head={head}", flush=True)
         if args.expected_head and head != args.expected_head:
