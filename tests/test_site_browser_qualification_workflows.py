@@ -22,7 +22,7 @@ class BrowserWorkflowTests(unittest.TestCase):
         self.assertIn('outputs.required', jobs['explainability']['if'])
         self.assertIn('outputs.browser_required', jobs['browser']['if'])
         cheap = str(jobs['explainability']['steps'])
-        self.assertIn('node --test', cheap)
+        self.assertIn('run_site_preflight.py fast --check node-explainability', cheap)
         self.assertNotIn('check_composition_playground_browser.py', cheap)
         for job in ['explainability', 'browser']:
             self.assertTrue(any(s.workflow_path.endswith('site-composition-playground-explain.yml') and s.job_name == jobs[job]['name'] for s in REQUIRED_SUITES))
@@ -37,8 +37,16 @@ class BrowserWorkflowTests(unittest.TestCase):
                 self.assertIn('force_full=true', text)
                 self.assertIn('git show "$BASE_SHA:scripts/classify_site_ci.py"', text)
 
-    def test_materialization_build_is_conditional(self):
-        self.assertIn("needs.classify.outputs.required == 'true'", workflow('site-composition-materialization-cross-authority.yml')['jobs']['build_candidate']['if'])
+    def test_exact_candidate_build_is_unique_and_conditional(self):
+        jobs = workflow('site-composition-playground-cross-authority.yml')['jobs']
+        self.assertIn("needs.classify.outputs.required == 'true'", jobs['build_candidate']['if'])
+        self.assertEqual(
+            1,
+            sum(
+                path.read_text().count('uses: ./.github/workflows/build-pages.yml')
+                for path in (ROOT / '.github/workflows').glob('site-composition-*-cross-authority.yml')
+            ),
+        )
 
     def test_safety_nets(self):
         # PyYAML's YAML 1.1 loader represents unquoted 'on' as True.
@@ -55,4 +63,3 @@ class FullStackTriggerTests(unittest.TestCase):
             events=workflow(suite.workflow_path.rsplit('/',1)[1])[True]['pull_request']
             if events and 'branches' in events:
                 self.assertEqual(canonical,set(events['branches']),suite.workflow_path)
-        self.assertIn('labeled',workflow('site-composition-materialization-cross-authority.yml')[True]['pull_request']['types'])

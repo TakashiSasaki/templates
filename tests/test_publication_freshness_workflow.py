@@ -121,6 +121,9 @@ class PublicationFreshnessWorkflowTests(unittest.TestCase):
             "${{ steps.composition_head.outputs.result }}",
             classify_step["env"]["CURRENT_COMPOSITION"],
         )
+        relation_step = steps["Classify merged-base compatibility lane"]
+        self.assertIn("compareCommitsWithBasehead", relation_step["with"]["script"])
+        self.assertIn("blocked-by-declared-unmerged-provider", relation_step["with"]["script"])
 
     def test_candidate_uses_normal_full_build_only_when_scope_requires_it(self) -> None:
         candidate = self.workflow["jobs"]["candidate_build"]
@@ -129,6 +132,10 @@ class PublicationFreshnessWorkflowTests(unittest.TestCase):
         self.assertIn("github.repository == 'TakashiSasaki/templates'", condition)
         self.assertIn(
             "needs.resolve.outputs.candidate_required == 'true'",
+            condition,
+        )
+        self.assertIn(
+            "needs.resolve.outputs.merged_lane != 'blocked-by-declared-unmerged-provider'",
             condition,
         )
         self.assertEqual(["resolve"], [candidate["needs"]])
@@ -171,6 +178,8 @@ class PublicationFreshnessWorkflowTests(unittest.TestCase):
         self.assertIn("false:success", run)
         self.assertIn("non-applicable for this CI-observability-only pull request", run)
         self.assertIn("no compatibility conclusion is available", run)
+        self.assertIn("exact-candidate integration remains decisive", run)
+        self.assertIn("Unexpected merged-base compatibility lane", run)
         self.assertIn("unexpectedly executed", run)
         self.assertIn("does not pass the required normal full Site publication build", run)
         self.assertIn('case "$RELATION" in', run)
@@ -191,7 +200,7 @@ class PublicationFreshnessWorkflowTests(unittest.TestCase):
         self.assertIn("does not update the lock automatically", contract)
         self.assertIn("FRESHNESS.md", contract)
         self.assertIn("Site maintainer", contract)
-        self.assertIn("two full publication builds", contract)
+        self.assertIn("builds the locked exact-candidate graph once", contract)
         self.assertIn("CI-observability-only", contract)
         self.assertIn("fail-closed", contract)
         self.assertIn("Scheduled and `workflow_dispatch` diagnostics", contract)
@@ -200,6 +209,8 @@ class PublicationFreshnessWorkflowTests(unittest.TestCase):
             "workflow records that no new compatibility conclusion was produced",
             contract,
         )
+        self.assertIn("blocked-by-declared-unmerged-provider", contract)
+        self.assertIn("exact-candidate", contract)
 
 
 if __name__ == "__main__":

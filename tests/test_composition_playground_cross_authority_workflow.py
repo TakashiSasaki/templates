@@ -13,7 +13,6 @@ EXPECTED_BASES = {
     "site-*",
     "perf/site-*",
 }
-EXPECTED_COMPOSITION_PROVIDER = "6b7d764c963f957c6bee43c0c1d42eb03970ec8f"
 
 
 def pull_request_bases(text: str) -> set[str]:
@@ -39,8 +38,14 @@ def main() -> int:
         raise AssertionError("cross-authority build no longer binds to the exact PR head")
     if "ref: ${{ github.event.pull_request.head.sha }}" not in text:
         raise AssertionError("cross-authority consumer checkout no longer binds to the exact PR head")
-    if f"composition_ref: {EXPECTED_COMPOSITION_PROVIDER}" not in text:
-        raise AssertionError("cross-authority candidate provider binding changed unexpectedly")
+    if "composition_ref: ${{ needs.classify.outputs.composition_revision }}" not in text:
+        raise AssertionError("cross-authority candidate must resolve the declared exact provider pin")
+    if "python scripts/resolve_publication_sources.py" not in text:
+        raise AssertionError("cross-authority candidate must use the canonical publication resolver")
+    if "EXPECTED_PROVIDER_REVISION: ${{ needs.classify.outputs.composition_revision }}" not in text:
+        raise AssertionError("browser acceptance must verify the same resolved provider revision")
+    if "6b7d764c963f957c6bee43c0c1d42eb03970ec8f" in text:
+        raise AssertionError("cross-authority workflow retains an obsolete provider literal")
     print("Composition Playground cross-authority trigger contract passed")
     return 0
 

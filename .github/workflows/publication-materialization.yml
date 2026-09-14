@@ -38,8 +38,6 @@ jobs:
 
       - name: Run materialization regressions
         run: >-
-          python -m unittest
-          tests.test_materialize_publication_assets
-          tests.test_materialize_publication_assets_review_followup
-          tests.test_assembly_materialization_boundary
-          --verbose
+          python scripts/run_site_preflight.py full
+          --check materialization-tests
+          --expected-head "${{ github.event.pull_request.head.sha }}"

@@ -47,6 +47,7 @@ jobs:
       composition_lock: ${{ steps.publication_refs.outputs.composition }}
       composition_head: ${{ steps.composition_head.outputs.result }}
       relation: ${{ steps.classify.outputs.relation }}
+      merged_lane: ${{ steps.provider_relation.outputs.merged_lane }}
       candidate_required: ${{ steps.candidate_scope.outputs.required }}
       candidate_reason: ${{ steps.candidate_scope.outputs.reason }}
       candidate_changed_count: ${{ steps.candidate_scope.outputs.changed_count }}
@@ -156,6 +157,29 @@ jobs:
             --current "$CURRENT_COMPOSITION" \
             --output "$GITHUB_OUTPUT"
 
+      - name: Classify merged-base compatibility lane
+        id: provider_relation
+        uses: actions/github-script@v8
+        env:
+          LOCKED_COMPOSITION: ${{ steps.publication_refs.outputs.composition }}
+          CURRENT_COMPOSITION: ${{ steps.composition_head.outputs.result }}
+        with:
+          script: |
+            const locked = process.env.LOCKED_COMPOSITION;
+            const current = process.env.CURRENT_COMPOSITION;
+            let lane = 'current';
+            if (locked !== current) {
+              const { data } = await github.rest.repos.compareCommitsWithBasehead({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                basehead: `${current}...${locked}`,
+              });
+              lane = data.status === 'behind'
+                ? 'merged-compatibility-required'
+                : 'blocked-by-declared-unmerged-provider';
+            }
+            core.setOutput('merged_lane', lane);
+
       - name: Report candidate build selection
         env:
           CANDIDATE_REQUIRED: ${{ steps.candidate_scope.outputs.required }}
@@ -187,7 +211,8 @@ jobs:
     name: Build with current Composition HEAD
     if: >-
       github.repository == 'TakashiSasaki/templates' &&
-      needs.resolve.outputs.candidate_required == 'true'
+      needs.resolve.outputs.candidate_required == 'true' &&
+      needs.resolve.outputs.merged_lane != 'blocked-by-declared-unmerged-provider'
     needs: resolve
     uses: ./.github/workflows/build-pages.yml
     with:
@@ -212,6 +237,7 @@ jobs:
           LOCKED_COMPOSITION: ${{ needs.resolve.outputs.composition_lock }}
           CURRENT_COMPOSITION: ${{ needs.resolve.outputs.composition_head }}
           RELATION: ${{ needs.resolve.outputs.relation }}
+          MERGED_LANE: ${{ needs.resolve.outputs.merged_lane }}
           CANDIDATE_REQUIRED: ${{ needs.resolve.outputs.candidate_required }}
           CANDIDATE_REASON: ${{ needs.resolve.outputs.candidate_reason }}
           CANDIDATE_RESULT: ${{ needs.candidate_build.result }}
@@ -223,6 +249,7 @@ jobs:
             echo "- reviewed Site lock: \`$LOCKED_COMPOSITION\`"
             echo "- current Composition HEAD snapshot: \`$CURRENT_COMPOSITION\`"
             echo "- lock/head relation: \`$RELATION\`"
+            echo "- merged-base compatibility lane: \`$MERGED_LANE\`"
             echo "- candidate build required: \`$CANDIDATE_REQUIRED\`"
             echo "- candidate selection reason: \`$CANDIDATE_REASON\`"
             echo "- candidate Site build: \`$CANDIDATE_RESULT\`"
@@ -236,8 +263,12 @@ jobs:
               echo "::notice::Current Composition candidate build is non-applicable for this CI-observability-only pull request."
               ;;
             true:skipped)
-              echo "::error::Required current Composition compatibility build was skipped; no compatibility conclusion is available."
-              exit 1
+              if [ "$MERGED_LANE" = blocked-by-declared-unmerged-provider ]; then
+                echo "::notice::Merged-base compatibility is blocked by the declared unmerged Composition provider; exact-candidate integration remains decisive."
+              else
+                echo "::error::Required current Composition compatibility build was skipped; no compatibility conclusion is available."
+                exit 1
+              fi
               ;;
             false:success)
               echo "::error::Non-applicable current Composition candidate build unexpectedly executed."
@@ -249,11 +280,22 @@ jobs:
               ;;
           esac
 
+          case "$MERGED_LANE" in
+            current|merged-compatibility-required|blocked-by-declared-unmerged-provider)
+              ;;
+            *)
+              echo "::error::Unexpected merged-base compatibility lane: $MERGED_LANE"
+              exit 1
+              ;;
+          esac
+
           case "$RELATION" in
             current)
               ;;
             different)
-              if [ "$CANDIDATE_REQUIRED" = true ]; then
+              if [ "$MERGED_LANE" = blocked-by-declared-unmerged-provider ]; then
+                echo "::notice::Composition publication lock declares an unmerged provider candidate; merged-base compatibility is blocked and exact-candidate integration is authoritative for this stack."
+              elif [ "$CANDIDATE_REQUIRED" = true ]; then
                 echo "::warning::Composition publication lock differs from current Composition HEAD; the candidate build is compatible, but advancing the reviewed lock remains an explicit Site review decision."
               else
                 echo "::notice::Composition publication lock differs from current Composition HEAD; compatibility is intentionally not re-evaluated for this CI-observability-only pull request."

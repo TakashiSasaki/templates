@@ -37,10 +37,14 @@ jobs:
       required: ${{ steps.classify.outputs.cross_authority_required }}
       browser_required: ${{ steps.classify.outputs.browser_required }}
       reason: ${{ steps.classify.outputs.reason }}
+      composition_revision: ${{ steps.publication_refs.outputs.composition }}
+      policy_revision: ${{ steps.publication_refs.outputs.policy }}
+      semantic_revision: ${{ steps.provider_identity.outputs.semantic_revision }}
     steps:
       - name: Check out repository history for change classification
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
           persist-credentials: false
       - name: Set up Python
@@ -84,6 +88,33 @@ jobs:
             echo "reason=base-classifier-unavailable" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Resolve exact declared provider candidates
+        id: publication_refs
+        run: python scripts/resolve_publication_sources.py --output "$GITHUB_OUTPUT"
+
+      - name: Check out exact declared Composition candidate
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ steps.publication_refs.outputs.composition }}
+          path: composition-source
+          persist-credentials: false
+
+      - name: Verify exact candidate identity
+        id: provider_identity
+        env:
+          EXPECTED_COMPOSITION: ${{ steps.publication_refs.outputs.composition }}
+        run: |
+          test "$(git -C composition-source rev-parse HEAD)" = "$EXPECTED_COMPOSITION"
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          from pathlib import Path
+          descriptor = json.loads(Path("composition-source/generated/publication-descriptor.json").read_text())
+          semantic = descriptor.get("semantic_revision")
+          if not isinstance(semantic, str) or len(semantic) != 40:
+              raise SystemExit("invalid Composition publication semantic revision")
+          print(f"semantic_revision={semantic}")
+          PY
+
   build_candidate:
     name: Build exact cross-authority candidate
     needs: classify
@@ -95,7 +126,7 @@ jobs:
     with:
       reuse_pr_build: true
       site_ref: ${{ github.event.pull_request.head.sha }}
-      composition_ref: 6b7d764c963f957c6bee43c0c1d42eb03970ec8f
+      composition_ref: ${{ needs.classify.outputs.composition_revision }}
 
   producer_consumer:
     name: Real producer to Chromium consumer
@@ -144,8 +175,8 @@ jobs:
       - name: Exercise actual Composition candidate through actual Site candidate
         env:
           EXPECTED_SITE_REVISION: ${{ github.event.pull_request.head.sha }}
-          EXPECTED_PROVIDER_REVISION: 6b7d764c963f957c6bee43c0c1d42eb03970ec8f
-          EXPECTED_SEMANTIC_REVISION: 84bb23f6e8ebf5cafbef3e93f25b7076fe47f3b7
+          EXPECTED_PROVIDER_REVISION: ${{ needs.classify.outputs.composition_revision }}
+          EXPECTED_SEMANTIC_REVISION: ${{ needs.classify.outputs.semantic_revision }}
         run: |
           test "$(git rev-parse HEAD)" = "$EXPECTED_SITE_REVISION"
           python scripts/check_composition_playground_cross_authority.py             --site-root build/site             --expected-site-revision "$EXPECTED_SITE_REVISION"             --expected-provider-revision "$EXPECTED_PROVIDER_REVISION"             --expected-semantic-revision "$EXPECTED_SEMANTIC_REVISION"
