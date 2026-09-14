@@ -27,7 +27,12 @@ SPEC = importlib.util.spec_from_file_location(
 assert SPEC and SPEC.loader
 validator = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = validator
-SPEC.loader.exec_module(validator)
+_original_dont_write_bytecode = sys.dont_write_bytecode
+try:
+    sys.dont_write_bytecode = True
+    SPEC.loader.exec_module(validator)
+finally:
+    sys.dont_write_bytecode = _original_dont_write_bytecode
 
 
 class BareWorktreeContractTests(unittest.TestCase):

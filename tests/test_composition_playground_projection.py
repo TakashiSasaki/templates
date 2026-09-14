@@ -58,8 +58,8 @@ class CompositionPlaygroundProjectionTests(unittest.TestCase):
             1 << len(recipe["optional_components"])
             for recipe in state.recipes.values()
         )
-        # skill=4096, webapp=1024, website=128 after topology.hub-and-orphan opt-in.
-        self.assertEqual(5248, expected_case_count)
+        # skill=8192, webapp=2048, website=256 after topology and workspace opt-ins.
+        self.assertEqual(10496, expected_case_count)
         self.assertEqual(expected_case_count, sum(len(recipe["cases"]) for recipe in projection["recipes"]))
         self.assertEqual(expected_case_count, sum(recipe["case_count"] for recipe in projection["recipes"]))
         self.assertEqual(state.revision, projection["source"]["revision"])
