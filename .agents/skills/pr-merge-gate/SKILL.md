@@ -36,7 +36,7 @@ Read `.agents/skills/pr-merge-gate/source.json` and require all of these provena
 - `path` — canonical adapter path at that revision;
 - `blob_sha` — expected Git blob identity of the adapter source.
 
-Use the GitHub connector to fetch `path` from exactly `revision` in `repository`. Verify that the returned file blob SHA equals `blob_sha`. Do not resolve the source through a branch name, latest revision, historical PR body, or inferred equivalent file.
+Fetch `path` from exactly `revision` in `repository`. Verify that the returned file blob SHA equals `blob_sha`. Do not resolve the source through a branch name, latest revision, historical PR body, or inferred equivalent file.
 
 After provenance verification succeeds, load and follow the fetched canonical adapter. Its referenced `policy/pull-request/` rules are the shared normative authority. Current Composition code, schemas, validators, tests, workflows, and release contracts remain authoritative for Composition-specific semantic acceptance.
 
@@ -54,7 +54,7 @@ Before handing control to the canonical adapter, record:
 
 1. Read the adjacent `source.json`.
 2. Validate that `schema_version` is `1`, `kind` is `policy-adapter-reference`, `revision` is a full 40-character lowercase hexadecimal SHA, and `blob_sha` is a full 40-character lowercase Git blob SHA.
-3. Fetch the exact `repository` / `revision` / `path` with the GitHub connector.
+3. Fetch the exact `repository` / `revision` / `path`.
 4. Compare the fetched blob identity with `blob_sha`.
 5. If any source field is missing, malformed, unavailable, or mismatched, stop in a blocked state and do not declare merge readiness.
 6. If verification succeeds, follow the fetched canonical adapter for CI, review, base freshness, live-state, guarded merge, and post-merge verification.
