@@ -11,6 +11,7 @@ STAGING_IDS = (
     "adr-review-authority-and-github-runtime-boundary",
     "adr-review-result-representation-boundary",
 )
+STAGING_IDS_CSV = ",".join(STAGING_IDS)
 
 
 def test_policy_workflow_uses_reviewed_immutable_site_revision() -> None:
@@ -32,9 +33,11 @@ def test_policy_workflow_uses_reviewed_immutable_site_revision() -> None:
     )
     assert f"site_ref: {PINNED_SITE_SHA}" in text
     assert "policy_ref: ${{ github.sha }}" in text
-    assert "publication_staging_id: ${{ matrix.staging_id }}" in text
-    for staging_id in STAGING_IDS:
-        assert f"          - {staging_id}" in text
+    assert "publication_staging_ids: >-" in text
+    assert f"        {STAGING_IDS_CSV}" in text
+    assert "publication_staging_id:" not in text
+    assert "matrix.staging_id" not in text
+    assert "strategy:" not in text
     assert "      actions: read" in text
     assert "build-pages.yml@site" not in text
     assert "policy_ref: policy" not in text
@@ -42,6 +45,8 @@ def test_policy_workflow_uses_reviewed_immutable_site_revision() -> None:
     assert "PR #848 Site-owned" in text
     assert "maintainer documentation staging mappings" in text
     assert "immutable site_ref" in text
+    assert "atomically stages the complete mapping set" in text
+    assert "Partial one-ID staging is intentionally not used" in text
     assert "pristine Site tests before" in text
     assert "publication-sources lock" in text
     assert "build-only" in text
