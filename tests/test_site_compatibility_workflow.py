@@ -1,4 +1,3 @@
-import pytest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -8,7 +7,9 @@ PINNED_SITE_SHA = "f79eaa9e90197da0bb0c7eefaa039f265ad4b347"
 
 def test_policy_workflow_uses_reviewed_immutable_site_revision() -> None:
     text = WORKFLOW.read_text(encoding="utf-8")
-    assert f"uses: TakashiSasaki/templates/.github/workflows/build-pages.yml@{PINNED_SITE_SHA}" in text
+    assert \
+        f"uses: TakashiSasaki/templates/.github/workflows/build-pages.yml@{PINNED_SITE_SHA}" \
+        in text
     assert f"site_ref: {PINNED_SITE_SHA}" in text
     assert "policy_ref: ${{ github.sha }}" in text
     assert "publication_staging_id: ${{ matrix.staging_id }}" in text

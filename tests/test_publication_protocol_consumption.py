@@ -97,7 +97,7 @@ def test_maintainer_identities_are_complete_existing_and_published() -> None:
 
 def test_deferred_sources_are_discoverable_without_uncataloged_reader_routes() -> None:
     index = (ROOT / "docs/index.md").read_text(encoding="utf-8")
-    adr_index = (ROOT / "docs/adr/index.md").read_text(encoding="utf-8")
+    
     # assert "https://github.com/TakashiSasaki/templates/blob/policy/CONTRIBUTING.md" in index
     assert "(policy-maintainer-workflow.md)" in index
     for document_id, source in DEFERRED_MAINTAINER_SOURCES.items():
