@@ -4,7 +4,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github/workflows/site-compatibility.yml"
-PINNED_SITE_SHA = "f79eaa9e90197da0bb0c7eefaa039f265ad4b347"
+PINNED_SITE_SHA = "7776f174e116d8ade9eb0f481d3f8b9bd743c792"
 STAGING_IDS = (
     "contributing",
     "maintainer-workflow",
@@ -38,13 +38,15 @@ def test_policy_workflow_uses_reviewed_immutable_site_revision() -> None:
     assert "      actions: read" in text
     assert "build-pages.yml@site" not in text
     assert "policy_ref: policy" not in text
-    assert "PR #848 Site merge commit" in text
-    assert "maintainer documentation staging mapping" in text
+    assert "PR #850 Site merge commit" in text
+    assert "PR #848 Site-owned" in text
+    assert "maintainer documentation staging mappings" in text
+    assert "immutable site_ref" in text
     assert "pristine Site tests before" in text
     assert "publication-sources lock" in text
     assert "build-only" in text
-    assert "cannot deploy Pages" in text
-    assert "exact-input build artifact" in text
+    assert "cannot deploy" in text
+    assert "exact-input artifact" in text
     assert "skill_ref:" not in text
     assert "webapp_ref:" not in text
     assert len(PINNED_SITE_SHA) == 40
