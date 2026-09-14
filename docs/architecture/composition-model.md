@@ -87,8 +87,8 @@ Required/default/optional sets are pairwise disjoint.
 Consumer configuration records unresolved intent separately from the resolved lock:
 
 - recipe ID;
-- explicitly included capability/lifecycle IDs;
-- explicitly excluded capability/lifecycle IDs; and
+- explicitly included reusable component IDs;
+- explicitly excluded reusable component IDs; and
 - optional component-scoped parameters.
 
 Include/exclude sets are disjoint. Consumers cannot replace the recipe artifact through include/exclude. The resolver rejects exclusions of recipe-required or transitive dependencies and rejects parameters for components absent from the resolved closure.
@@ -331,7 +331,7 @@ The canonical authority topology is:
 ```text
 site          integrated reader-facing publication, assembly, Pages/PWA
 policy        coding-agent policy authority
-composition   artifact/capability/lifecycle authorities, recipes, schemas, Composer
+composition   artifact/capability/lifecycle/topology/workspace authorities, recipes, schemas, Composer
 ```
 
 Legacy `skill` / `webapp` authority migration and retirement are complete. Their history is provenance, not an active Composition update source.
