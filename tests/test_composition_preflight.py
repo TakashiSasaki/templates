@@ -70,9 +70,7 @@ class CompositionPreflightTests(unittest.TestCase):
         direct_run.assert_not_called()
         browser_env = dict(recorded)["real-browser-tests"]
         self.assertIsNotNone(browser_env)
-        self.assertEqual(
-            browser_env["CHROMEWEBDRIVER"], str(Path(sys.executable).resolve())
-        )
+        self.assertEqual(browser_env["CHROMEWEBDRIVER"], sys.executable)
 
 
 if __name__ == "__main__":
