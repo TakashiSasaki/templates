@@ -67,6 +67,8 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: '3.12.13'
+          cache: pip
+          cache-dependency-path: 'requirements.txt'
 
       - name: Install pinned Site dependencies
         run: python -m pip install --disable-pip-version-check --requirement requirements.txt
@@ -101,6 +103,8 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: '3.12.13'
+          cache: pip
+          cache-dependency-path: 'site-source/requirements.txt'
 
       - name: Resolve publication source revisions
         id: publication_refs

@@ -50,10 +50,17 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: '3.12'
+          cache: pip
+          cache-dependency-path: 'requirements-visual.txt'
 
       - name: Install Playwright controller
         run: python -m pip install --disable-pip-version-check -r requirements-visual.txt
 
+      - name: Cache Playwright binaries
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-${{ runner.arch }}-playwright-shell-${{ hashFiles('requirements-visual.txt') }}
       - name: Install Playwright Chromium for PWA lifecycle
         run: python -m playwright install --with-deps --only-shell chromium
 

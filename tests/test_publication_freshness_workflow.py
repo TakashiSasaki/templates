@@ -53,7 +53,7 @@ class PublicationFreshnessWorkflowTests(unittest.TestCase):
         resolve = self.workflow["jobs"]["resolve"]
         outputs = resolve["outputs"]
         self.assertEqual(
-            "${{ steps.candidate_scope.outputs.required }}",
+            "${{ steps.candidate_scope.outputs.freshness_candidate_required }}",
             outputs["candidate_required"],
         )
         self.assertEqual(
@@ -78,7 +78,7 @@ class PublicationFreshnessWorkflowTests(unittest.TestCase):
         )
         run = scope["run"]
         self.assertIn('if [ "$EVENT_NAME" != pull_request ]; then', run)
-        self.assertIn("required=true", run)
+        self.assertIn("freshness_candidate_required=true", run)
         self.assertIn("scheduled or manual diagnostic", run)
         self.assertIn(
             'git -C site-source diff --name-only --no-renames "$BASE_SHA" "$HEAD_SHA"',

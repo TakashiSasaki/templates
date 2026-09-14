@@ -59,7 +59,10 @@ class SitePreflightTests(unittest.TestCase):
             / ".github/workflows/site-composition-playground-cross-authority.yml"
         ).read_text(encoding="utf-8")
         self.assertIn("resolve_publication_sources.py", text)
-        self.assertIn("needs.classify.outputs.composition_revision", text)
+        self.assertTrue(
+            "needs.resolve_candidate.outputs.composition_revision" in text
+            or "needs.classify.outputs.composition_revision" in text
+        )
         self.assertNotIn("continue-on-error", text)
 
 

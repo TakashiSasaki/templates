@@ -1,0 +1,166 @@
+name: Classify Site CI
+on:
+  workflow_call:
+    inputs:
+      force_full:
+        type: boolean
+        default: false
+      force_browser:
+        type: boolean
+        default: false
+    outputs:
+      reason:
+        value: ${{ jobs.classify.outputs.reason }}
+      changed_count:
+        value: ${{ jobs.classify.outputs.changed_count }}
+      requiring_count:
+        value: ${{ jobs.classify.outputs.requiring_count }}
+      requiring_paths:
+        value: ${{ jobs.classify.outputs.requiring_paths }}
+      core_required:
+        value: ${{ jobs.classify.outputs.core_required }}
+      build_required:
+        value: ${{ jobs.classify.outputs.build_required }}
+      browser_required:
+        value: ${{ jobs.classify.outputs.browser_required }}
+      pwa_required:
+        value: ${{ jobs.classify.outputs.pwa_required }}
+      reference_consumer_required:
+        value: ${{ jobs.classify.outputs.reference_consumer_required }}
+      cross_authority_required:
+        value: ${{ jobs.classify.outputs.cross_authority_required }}
+      publication_required:
+        value: ${{ jobs.classify.outputs.publication_required }}
+      full_required:
+        value: ${{ jobs.classify.outputs.full_required }}
+      playground_required:
+        value: ${{ jobs.classify.outputs.playground_required }}
+      coexistence_required:
+        value: ${{ jobs.classify.outputs.coexistence_required }}
+      freshness_candidate_required:
+        value: ${{ jobs.classify.outputs.freshness_candidate_required }}
+      risk_class:
+        value: ${{ jobs.classify.outputs.risk_class }}
+      authority_source:
+        value: ${{ jobs.classify.outputs.authority_source }}
+
+jobs:
+  classify:
+    runs-on: ubuntu-24.04
+    outputs:
+      reason: ${{ steps.classify.outputs.reason }}
+      changed_count: ${{ steps.classify.outputs.changed_count }}
+      requiring_count: ${{ steps.classify.outputs.requiring_count }}
+      requiring_paths: ${{ steps.classify.outputs.requiring_paths }}
+      core_required: ${{ steps.classify.outputs.core_required }}
+      build_required: ${{ steps.classify.outputs.build_required }}
+      browser_required: ${{ steps.classify.outputs.browser_required }}
+      pwa_required: ${{ steps.classify.outputs.pwa_required }}
+      reference_consumer_required: ${{ steps.classify.outputs.reference_consumer_required }}
+      cross_authority_required: ${{ steps.classify.outputs.cross_authority_required }}
+      publication_required: ${{ steps.classify.outputs.publication_required }}
+      full_required: ${{ steps.classify.outputs.full_required }}
+      playground_required: ${{ steps.classify.outputs.playground_required }}
+      coexistence_required: ${{ steps.classify.outputs.coexistence_required }}
+      freshness_candidate_required: ${{ steps.classify.outputs.freshness_candidate_required }}
+      risk_class: ${{ steps.classify.outputs.risk_class }}
+      authority_source: ${{ steps.classify.outputs.authority_source }}
+    steps:
+      - name: Check out repository history for change classification
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up classifier Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12.13'
+      - name: Collect exact pull-request changed paths
+        if: ${{ github.event_name == 'pull_request' }}
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          git diff --name-only --no-renames "$BASE_SHA" "$HEAD_SHA" > "$RUNNER_TEMP/site-browser-paths.txt"
+          test -s "$RUNNER_TEMP/site-browser-paths.txt"
+      - name: Classify acceptance scope
+        id: classify
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          FORCE_BROWSER_REQUESTED: ${{ inputs.force_browser || contains(github.event.pull_request.labels.*.name, 'ci/browser') }}
+          FORCE_FULL_REQUESTED: ${{ inputs.force_full || github.event_name == 'push' || ((github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && (contains(github.event.pull_request.labels.*.name, 'ci/full-qualification') || contains(github.event.pull_request.labels.*.name, 'ci/full-site-verification'))) }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" != pull_request ]; then
+            for capability in core_required build_required browser_required pwa_required reference_consumer_required cross_authority_required publication_required full_required playground_required coexistence_required freshness_candidate_required; do
+              echo "$capability=true" >> "$GITHUB_OUTPUT"
+            done
+            echo "reason=scheduled-or-manual-full-site-browser-qualification" >> "$GITHUB_OUTPUT"
+            echo "authority_source=scheduled-or-manual" >> "$GITHUB_OUTPUT"
+            echo "risk_class=full-qualification" >> "$GITHUB_OUTPUT"
+            echo "changed_count=all" >> "$GITHUB_OUTPUT"
+            echo "requiring_count=all" >> "$GITHUB_OUTPUT"
+            echo "requiring_paths=all" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          classifier_dir="$RUNNER_TEMP/site-ci-classifier-authority"
+          rm -rf "$classifier_dir"
+          mkdir -p "$classifier_dir"
+          force_full="${FORCE_FULL_REQUESTED:-false}"
+
+          if git show "$BASE_SHA:scripts/classify_site_ci.py" > "$classifier_dir/classify_site_ci.py" 2>/dev/null; then
+            echo "authority_source=base" >> "$GITHUB_OUTPUT"
+            browser_args=()
+            if grep -q -- '--force-browser' "$classifier_dir/classify_site_ci.py"; then
+              browser_args=(--force-browser "${FORCE_BROWSER_REQUESTED:-false}")
+            elif [ "${FORCE_BROWSER_REQUESTED:-false}" = true ]; then
+              force_full=true
+            fi
+            python -I "$classifier_dir/classify_site_ci.py" \
+              --changed-paths "$RUNNER_TEMP/site-browser-paths.txt" \
+              --force-full "$force_full" "${browser_args[@]}" \
+              --output "$GITHUB_OUTPUT"
+          else
+            authority_source="base-unavailable-full"
+            {
+              echo "authority_source=$authority_source"
+              echo "core_required=true"
+              echo "build_required=true"
+              echo "browser_required=true"
+              echo "pwa_required=true"
+              echo "reference_consumer_required=true"
+              echo "cross_authority_required=true"
+              echo "publication_required=true"
+              echo "playground_required=true"
+              echo "coexistence_required=true"
+              echo "freshness_candidate_required=true"
+              echo "full_required=true"
+              echo "risk_class=ci-authority-sensitive"
+              echo "reason=base-classifier-unavailable-full"
+              echo "changed_count=unknown"
+              echo "requiring_count=unknown"
+              echo "requiring_paths=all"
+            } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+      - name: Record acceptance selection
+        env:
+          BROWSER_REQUIRED: ${{ steps.classify.outputs.browser_required }}
+          REASON: ${{ steps.classify.outputs.reason }}
+          CHANGED_COUNT: ${{ steps.classify.outputs.changed_count }}
+          REQUIRING_COUNT: ${{ steps.classify.outputs.requiring_count }}
+          REQUIRING_PATHS: ${{ steps.classify.outputs.requiring_paths }}
+        run: |
+          {
+            echo '### CI acceptance selection'
+            echo
+            echo "- browser required: \`$BROWSER_REQUIRED\`"
+            echo "- reason: \`$REASON\`"
+            echo "- changed paths: \`$CHANGED_COUNT\`"
+            echo "- requiring paths: \`$REQUIRING_COUNT\`"
+            echo "- inputs: \`$REQUIRING_PATHS\`"
+          } >> "$GITHUB_STEP_SUMMARY"
