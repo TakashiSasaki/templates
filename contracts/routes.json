@@ -1246,6 +1246,28 @@
       }
     },
     {
+      "id": "policy-contributing",
+      "path": "/policy/contributing/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "policy-maintainer-workflow",
+      "path": "/policy/policy-maintainer-workflow/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
       "id": "policy-adr-index",
       "path": "/policy/adr/",
       "canonical": true,
@@ -1303,6 +1325,28 @@
     {
       "id": "policy-adr-single-agent-policy-skill-runtime-cache",
       "path": "/policy/adr/0007-single-agent-policy-skill-runtime-cache/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "policy-adr-review-authority-and-github-runtime-boundary",
+      "path": "/policy/adr/0008-review-authority-and-github-runtime-boundary/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "policy-adr-review-result-representation-boundary",
+      "path": "/policy/adr/0009-review-result-representation-boundary/",
       "canonical": true,
       "aliases": [],
       "deepLink": true,

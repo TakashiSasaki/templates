@@ -29,7 +29,7 @@ review-finding model is already published Policy procedure. The Work-ledger
 row describes the reviewed but unmerged Policy candidate in PRs `#754 -> #755`.
 The anti-stall section below projects the separate staged Policy candidates
 `#773 -> #774`. The Site currently publishes Policy revision
-`5574ea46d2076bb1f5c51d4b0e8c9483a17d8fe2`, which contains neither staged
+`6023af1b6aed4a22407d9ca43106cd66cfee9fb6`, which contains neither staged
 candidate set. Therefore both the Work-ledger candidate and the anti-stall
 projection are staged architecture here, not current published Policy
 authority.

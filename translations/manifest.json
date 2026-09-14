@@ -15,7 +15,7 @@
       "canonical": "docs/policy-composition-coexistence.md",
       "language": "ja",
       "translation": "translations/ja/docs/policy-composition-coexistence.md",
-      "canonical_blob_sha": "f95f8d22b24fba2b82ddcf2c27960f1a33535267",
+      "canonical_blob_sha": "84a39ae0f70eae3ba5a11474c6eee59abbc4c2b3",
       "surfaces": [
         "reader"
       ]
@@ -33,7 +33,7 @@
       "canonical": "docs/lifecycle.md",
       "language": "ja",
       "translation": "translations/ja/docs/lifecycle.md",
-      "canonical_blob_sha": "b68348da22cdb73e1d42d207ed9a0e18d6c16179",
+      "canonical_blob_sha": "eeec0a9d7741a2786fc1dbb29f15bb9afc8b13e2",
       "surfaces": [
         "reader"
       ]

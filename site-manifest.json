@@ -238,7 +238,9 @@
             {"title": "External artifact intake", "publication": "policy", "document": "external-artifact-intake", "destination": "policy/external-artifact-intake.md"},
             {"title": "Regression prevention", "publication": "policy", "document": "regression-prevention", "destination": "policy/regression-prevention.md"},
             {"title": "Bootstrap model", "publication": "policy", "document": "bootstrap-model", "destination": "policy/bootstrap-model.md"},
-            {"title": "Threat model", "publication": "policy", "document": "threat-model", "destination": "policy/threat-model.md"}
+            {"title": "Threat model", "publication": "policy", "document": "threat-model", "destination": "policy/threat-model.md"},
+            {"title": "Contributing", "publication": "policy", "document": "contributing", "destination": "policy/contributing.md"},
+            {"title": "Policy maintainer workflow", "publication": "policy", "document": "maintainer-workflow", "destination": "policy/policy-maintainer-workflow.md"}
           ]
         },
         {
@@ -252,7 +254,9 @@
                 {"title": "ADR-0003 Application-neutral scope", "publication": "policy", "document": "adr-application-neutral-scope", "destination": "policy/adr/0003-application-neutral-policy-scope.md"},
                 {"title": "ADR-0005 Single policy authority", "publication": "policy", "document": "adr-single-policy-authority", "destination": "policy/adr/0005-single-policy-authority.md"},
                 {"title": "ADR-0006 Copyable artifact policy adoption", "publication": "policy", "document": "adr-copyable-artifact-policy-adoption", "destination": "policy/adr/0006-copyable-artifact-policy-adoption.md"},
-                {"title": "ADR-0007 Single agent-policy skill runtime cache", "publication": "policy", "document": "adr-single-agent-policy-skill-runtime-cache", "destination": "policy/adr/0007-single-agent-policy-skill-runtime-cache.md"}
+                {"title": "ADR-0007 Single agent-policy skill runtime cache", "publication": "policy", "document": "adr-single-agent-policy-skill-runtime-cache", "destination": "policy/adr/0007-single-agent-policy-skill-runtime-cache.md"},
+                {"title": "ADR-0008 Review authority and GitHub runtime boundary", "publication": "policy", "document": "adr-review-authority-and-github-runtime-boundary", "destination": "policy/adr/0008-review-authority-and-github-runtime-boundary.md"},
+                {"title": "ADR-0009 Review result representation boundary", "publication": "policy", "document": "adr-review-result-representation-boundary", "destination": "policy/adr/0009-review-result-representation-boundary.md"}
               ]
             },
             {

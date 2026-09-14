@@ -910,6 +910,22 @@
       "socialPreview": "none"
     },
     {
+      "pageId": "policy-contributing",
+      "title": "Contributing",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "policy-maintainer-workflow",
+      "title": "Policy maintainer workflow",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
       "pageId": "policy-adr-index",
       "title": "Overview",
       "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
@@ -952,6 +968,22 @@
     {
       "pageId": "policy-adr-single-agent-policy-skill-runtime-cache",
       "title": "ADR-0007 Single agent-policy skill runtime cache",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "policy-adr-review-authority-and-github-runtime-boundary",
+      "title": "ADR-0008 Review authority and GitHub runtime boundary",
+      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
+      "indexability": "index",
+      "canonicalPathPolicy": "route-canonical",
+      "socialPreview": "none"
+    },
+    {
+      "pageId": "policy-adr-review-result-representation-boundary",
+      "title": "ADR-0009 Review result representation boundary",
       "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
       "indexability": "index",
       "canonicalPathPolicy": "route-canonical",

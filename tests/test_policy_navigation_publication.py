@@ -146,6 +146,8 @@ class PolicyNavigationPublicationTests(unittest.TestCase):
                 "adr-single-policy-authority",
                 "adr-copyable-artifact-policy-adoption",
                 "adr-single-agent-policy-skill-runtime-cache",
+                "adr-review-authority-and-github-runtime-boundary",
+                "adr-review-result-representation-boundary",
             ],
         )
         self.assertEqual(

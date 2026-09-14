@@ -122,12 +122,16 @@
       "policy-regression-prevention",
       "policy-bootstrap-model",
       "policy-threat-model",
+      "policy-contributing",
+      "policy-maintainer-workflow",
       "policy-adr-index",
       "policy-adr-repository-adoption",
       "policy-adr-application-neutral-scope",
       "policy-adr-single-policy-authority",
       "policy-adr-copyable-artifact-policy-adoption",
       "policy-adr-single-agent-policy-skill-runtime-cache",
+      "policy-adr-review-authority-and-github-runtime-boundary",
+      "policy-adr-review-result-representation-boundary",
       "policy-adr-integrated-bootstrap-skill"
     ]
   },
