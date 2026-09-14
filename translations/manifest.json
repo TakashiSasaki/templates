@@ -135,7 +135,7 @@
             "canonical": "docs/adr/index.md",
             "language": "ja",
             "translation": "translations/ja/docs/adr/index.md",
-            "canonical_blob_sha": "e4d84a30d7fd0bbda27fe70aacdb92984a6d3f0d",
+            "canonical_blob_sha": "7d0272065247fc79be68ac0d22ceec9fd2e9fae3",
             "surfaces": [
                 "reader",
                 "guided"
