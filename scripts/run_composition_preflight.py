@@ -214,8 +214,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                     "full preflight requires --site-publication-protocol pointing to "
                     "the pinned Site publication protocol checkout"
                 )
-            run_site_publication_contract(args.site_publication_protocol.resolve())
             run_full_tests()
+            # Materialization intentionally runs after clean-source tests and
+            # runtime smoke checks because it creates publication build products.
+            run_site_publication_contract(args.site_publication_protocol.resolve())
         print(f"COMPOSITION_PREFLIGHT_PASS profile={args.profile} head={head}", flush=True)
         return 0
     except (OSError, PreflightFailure) as exc:
