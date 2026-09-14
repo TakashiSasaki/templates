@@ -308,3 +308,14 @@ These checkpoints bind the validated Site promotion of the already-qualified Com
 | --- | --- | --- | --- | --- |
 | 11 | planning | composition-audience-publication-promotion | artifacts/lifecycle/011-composition-audience-publication-promotion | 87c31f7f74b99daafc49def986fdcedad16436196bf482d0d0e31d311f65e517 |
 | 12 | product | composition-audience-publication-promotion-product | artifacts/lifecycle/012-composition-audience-publication-promotion-product | a2140c29ac4bb07bc1684291cfcca0a64d0ff82007ffb65f9474357a7ca9475e |
+
+### Bare Worktree workspace-topology publication history
+
+These checkpoints bind the intended workspace/local-checkout navigation and its
+Composition-owned Bare Worktree material to a validated planning baseline, then
+record the product evidence for the published reader routes.
+
+| Sequence | Phase | ID | Snapshot | Manifest SHA-256 |
+| --- | --- | --- | --- | --- |
+| 13 | planning | bare-worktree-publication | artifacts/lifecycle/013-bare-worktree-publication | 647e873e8fdde33183cc7e850d765f2f14b52309ea1a844a36840e96b07fda2d |
+| 14 | product | bare-worktree-publication-product | artifacts/lifecycle/014-bare-worktree-publication-product | dc173205220bb14527dd68c1d725486eddebd4727b4280c947c3ce1341f1f7c6 |
