@@ -97,6 +97,13 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Resolve checked-out Site revision
+        id: site_revision
+        run: >-
+          python site-source/scripts/resolve_site_checkout.py
+          --root site-source
+          --output "$GITHUB_OUTPUT"
+
       - name: Resolve publication source revisions
         id: publication_refs
         env:
@@ -193,7 +200,14 @@ jobs:
 
       - name: Run site assembly tests
         if: ${{ steps.artifact.outputs.reused != 'true' }}
-        run: PYTHONPATH=site-source python -m unittest discover --start-directory site-source/tests --verbose
+        env:
+          EXPECTED_SITE_REVISION: ${{ steps.site_revision.outputs.sha }}
+        run: >-
+          python site-source/scripts/run_site_preflight.py full
+          --check unit-tests
+          --expected-head "$EXPECTED_SITE_REVISION"
+          --composition-root composition-source
+          --policy-root policy-source
 
       - name: Prepare repository-tree publication
         if: ${{ steps.artifact.outputs.reused != 'true' }}

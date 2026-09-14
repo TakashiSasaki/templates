@@ -12,7 +12,7 @@ Advancing a provider lock remains an explicit Site review decision followed by t
 
 ## Composition candidate diagnostic
 
-`.github/workflows/check-publication-freshness.yml` evaluates one specific question when a candidate compatibility build is applicable:
+`.github/workflows/check-publication-freshness.yml` evaluates the merged-base lane:
 
 > Does the current exact Composition HEAD snapshot still pass the normal complete Site publication build when combined with the reviewed Site integration and reviewed Policy input?
 
@@ -23,12 +23,16 @@ The workflow:
 3. for scheduled and manual runs, always requires a candidate compatibility build;
 4. resolves the reviewed Composition lock from `publication-sources.json`;
 5. resolves the live `composition` branch through the GitHub API to one immutable full commit SHA;
-6. classifies the reviewed lock as `current` or `different` from that snapshot;
-7. when the candidate build is required, invokes `.github/workflows/build-pages.yml` with that exact SHA as `composition_ref`;
+6. classifies both the lock/head relation and whether the declared lock is an unmerged descendant/divergence from the merged provider;
+7. when the merged-base build is applicable, invokes `.github/workflows/build-pages.yml` with the merged Composition SHA as `composition_ref`;
 8. leaves `policy_ref` unset, so Policy remains at the reviewed Site lock;
 9. reports the Site revision, lock, candidate snapshot, relation, candidate-selection decision, and candidate-build result.
 
-This is deliberately a Composition-only candidate check. It closes the Composition publication integration gap without converting the Site release model into an implicit "latest providers" build.
+When Site explicitly pins an unmerged Composition candidate, this lane reports
+`blocked-by-declared-unmerged-provider` without pretending that merged
+Composition contains the candidate document set. The separate cross-authority
+workflow resolves and builds the exact immutable declared pin; that exact-candidate
+lane remains blocking and fail-closed.
 
 ## Pull-request applicability
 
@@ -54,12 +58,13 @@ The lock/head relation is informational. When the candidate build is applicable,
 | Context | Lock/head relation | Candidate build | Meaning |
 | --- | --- | --- | --- |
 | candidate required | `current` | success | Site is current for Composition and the snapshot is compatible. |
-| candidate required | `different` | success | The reviewed Site remains valid; emit a warning that a different compatible Composition snapshot is available for explicit review. |
+| candidate required | merged provider ahead of lock | success | The reviewed Site remains valid against the newer merged provider snapshot. |
+| candidate required | declared provider is unmerged | skipped | Merged-base compatibility is `blocked-by-declared-unmerged-provider`; exact-candidate integration is decisive. |
 | candidate required | `current` or `different` | failure | Current Composition does not pass the normal Site publication pipeline; integration triage is required. |
-| candidate required | any | skipped / unavailable | No compatibility conclusion is valid; the diagnostic is incomplete and must fail. |
+| candidate required | applicable merged-base lane | skipped / unavailable | No compatibility conclusion is valid; the diagnostic is incomplete and must fail. |
 | CI-observability-only triggered PR | `current` or `different` | skipped | The second compatibility build is non-applicable to this PR scope; the workflow records that no new compatibility conclusion was produced. |
 
-A `different` relation is therefore not a failure condition. It must not cause an automatic lock update. On an observability-only pull request, a `different` relation also must not be described as compatible because no candidate build was run; the scheduled diagnostic remains responsible for independent Composition-head compatibility coverage. An unexpected relation value is itself a diagnostic error rather than an implicit freshness conclusion.
+A `different` relation is therefore not by itself a failure condition. It must not cause an automatic lock update. A declared unmerged candidate is not described as merged-base compatible; it is explicitly blocked in that lane and must pass the exact-candidate cross-authority lane. On an observability-only pull request, a `different` relation also must not be described as compatible because no candidate build was run. An unexpected relation or lane value is a diagnostic error.
 
 ## Validation boundary
 
@@ -79,7 +84,7 @@ The diagnostic runs:
 
 The scheduled run is intended to detect Composition movement after the last reviewed Site pin even when Site itself has not changed. Scheduled and manual diagnostics are not cancelled merely because another diagnostic starts; superseded pull-request diagnostics may be cancelled and replaced by the newer PR revision.
 
-A qualifying Site pull request whose scope can affect publication integration normally causes two full publication builds: the ordinary locked-input PR build and this diagnostic's current-Composition candidate build. That duplication is intentional so integration changes validate both the reviewed release graph and the prospective Composition graph. Presentation-only changes remain excluded by the workflow path filter. Triggered pull requests proved to contain only the explicit CI-observability predicate retain the freshness workflow result but make the second full build non-applicable.
+A qualifying Site pull request whose scope can affect publication integration normally builds the locked exact-candidate graph once. The merged-base lane adds another full build only when the declared provider is already merged and differs from the lock. A declared unmerged provider is classified as blocked in the merged-base lane, avoiding a guaranteed incompatible rebuild while preserving the blocking exact-candidate build. Presentation-only and explicit CI-observability-only changes retain their existing narrow applicability rules.
 
 ## Triage responsibility
 

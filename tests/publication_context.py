@@ -19,3 +19,17 @@ def publication_root(pristine_root: Path) -> Path:
     if not (root / "site-manifest.json").is_file():
         raise ValueError("SITE_PUBLICATION_ROOT must contain site-manifest.json")
     return root
+
+
+def provider_root(name: str, site_root: Path) -> Path:
+    """Resolve an explicit preflight provider checkout without weakening CI defaults."""
+    variable = f"SITE_{name.upper()}_ROOT"
+    selected = os.environ.get(variable)
+    if selected is None:
+        return site_root.parent / f"{name}-source"
+    if not selected:
+        raise ValueError(f"{variable} must not be empty")
+    root = Path(selected).resolve(strict=True)
+    if not (root / "docs/publication-catalog.json").is_file():
+        raise ValueError(f"{variable} must contain a provider publication catalog")
+    return root

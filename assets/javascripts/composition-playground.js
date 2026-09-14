@@ -31,7 +31,7 @@
   const PROJECTION_ID = "composition-playground-v1";
   const BUILD_PROVENANCE_SCHEMA_VERSION = 2;
   const FULL_SHA = /^[0-9a-f]{40}$/;
-  const COMPONENT_ROLES = Object.freeze(["foundation", "artifact", "capability", "lifecycle", "topology"]);
+  const COMPONENT_ROLES = Object.freeze(["foundation", "artifact", "capability", "lifecycle", "topology", "workspace"]);
   const EXPECTED_REASON_BITS = Object.freeze({
     recipe_artifact: 1,
     recipe_required: 2,
@@ -124,7 +124,7 @@
   }
 
   function componentId(value, name) {
-    if (typeof value !== "string" || !/^(foundation|artifact|capability|lifecycle|topology)\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(value)) {
+    if (typeof value !== "string" || !/^(foundation|artifact|capability|lifecycle|topology|workspace)\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(value)) {
       throw new ProjectionError("MALFORMED_PROJECTION", `${name} must be a valid component id`);
     }
     return value;
@@ -251,6 +251,9 @@
       const resolved = componentIdArray(outcome.resolved_components, `outcome ${index}.resolved_components`);
       if (resolved.filter((id) => id.startsWith("topology.")).length > 1) {
         throw new ProjectionError("MALFORMED_PROJECTION", "An outcome may select at most one repository topology");
+      }
+      if (resolved.filter((id) => id.startsWith("workspace.")).length > 1) {
+        throw new ProjectionError("MALFORMED_PROJECTION", "An outcome may select at most one workspace topology");
       }
       const edges = requireArray(outcome.dependency_edges, `outcome ${index}.dependency_edges`);
       const seenEdges = new Set();

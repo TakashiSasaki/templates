@@ -121,6 +121,26 @@
       "snapshotPath": "artifacts/lifecycle/012-composition-audience-publication-promotion-product",
       "manifestSha256": "a2140c29ac4bb07bc1684291cfcca0a64d0ff82007ffb65f9474357a7ca9475e",
       "recordedAt": "2026-09-13T16:09:19.320992Z"
+    },
+    {
+      "id": "bare-worktree-publication",
+      "sequence": 13,
+      "phase": "planning",
+      "changeKind": "specification-change",
+      "parentId": "composition-audience-publication-promotion-product",
+      "snapshotPath": "artifacts/lifecycle/013-bare-worktree-publication",
+      "manifestSha256": "647e873e8fdde33183cc7e850d765f2f14b52309ea1a844a36840e96b07fda2d",
+      "recordedAt": "2026-09-14T06:45:44.651366Z"
+    },
+    {
+      "id": "bare-worktree-publication-product",
+      "sequence": 14,
+      "phase": "product",
+      "changeKind": "specification-change",
+      "parentId": "bare-worktree-publication",
+      "snapshotPath": "artifacts/lifecycle/014-bare-worktree-publication-product",
+      "manifestSha256": "dc173205220bb14527dd68c1d725486eddebd4727b4280c947c3ce1341f1f7c6",
+      "recordedAt": "2026-09-14T06:45:56.033561Z"
     }
   ]
 }

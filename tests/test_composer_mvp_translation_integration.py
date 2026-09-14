@@ -8,7 +8,7 @@ from scripts import publish_translations as translation_publisher
 from scripts.assemble_publications import load_manifest, pages
 from scripts.assemble_publications_v3 import load_catalog
 from scripts.materialize_publication_assets import is_publication_materialized
-from tests.publication_context import publication_root
+from tests.publication_context import provider_root, publication_root
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class ComposerMvpTranslationIntegrationTests(unittest.TestCase):
     def test_locked_provider_publishes_japanese_composer_mvp(self) -> None:
-        provider = ROOT.parent / "composition-source"
+        provider = provider_root("composition", ROOT)
         if not provider.is_dir():
             self.skipTest("Composition provider checkout is only available in Pages CI")
         if not is_publication_materialized(provider, "composition"):

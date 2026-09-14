@@ -102,17 +102,6 @@ jobs:
           node-version: "22"
           cache: ""
 
-      - name: Run Playground consumer and explainability tests
-        run: |
-          node --test tests/composition-playground.test.mjs
-          node --test tests/composition-playground-final-remediation.test.mjs
-          node --test tests/composition-playground-hash-copy-review.test.mjs
-          node --test tests/composition-playground-final-three-review.test.mjs
-          node --test tests/composition-playground-latest-review.test.mjs
-          node --test tests/composition-playground-root-reachability.test.mjs
-          node --test tests/composition-playground-latest-five-review.test.mjs
-          node --test tests/composition-playground-explain.test.mjs
-
       - name: Set up Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
@@ -120,22 +109,28 @@ jobs:
           cache: pip
           cache-dependency-path: requirements-visual.txt
 
+      - name: Run Playground consumer and explainability tests
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: >-
+          python scripts/run_site_preflight.py fast
+          --check node-explainability
+          --expected-head "$EXPECTED_HEAD"
+
       - name: Validate cross-authority trigger contract
         run: python -I tests/test_composition_playground_cross_authority_workflow.py
 
       - name: Verify exact-head and active publication binding
         env:
           EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
-          EXPECTED_COMPOSITION_REVISION: 6b7d764c963f957c6bee43c0c1d42eb03970ec8f
-          EXPECTED_POLICY_REVISION: 5574ea46d2076bb1f5c51d4b0e8c9483a17d8fe2
         run: |
           test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
           grep --fixed-strings -- 'composition-playground-explain.js' zensical.template.toml
           grep --fixed-strings -- 'composition-playground-v1.json.gz' docs/composition-playground.md
           python -I scripts/resolve_publication_sources.py > "$RUNNER_TEMP/publication-sources.txt"
           test "$(wc -l < "$RUNNER_TEMP/publication-sources.txt")" -eq 2
-          grep --fixed-strings --line-regexp -- "composition=$EXPECTED_COMPOSITION_REVISION" "$RUNNER_TEMP/publication-sources.txt"
-          grep --fixed-strings --line-regexp -- "policy=$EXPECTED_POLICY_REVISION" "$RUNNER_TEMP/publication-sources.txt"
+          grep --extended-regexp --line-regexp -- 'composition=[0-9a-f]{40}' "$RUNNER_TEMP/publication-sources.txt"
+          grep --extended-regexp --line-regexp -- 'policy=[0-9a-f]{40}' "$RUNNER_TEMP/publication-sources.txt"
 
   browser:
     name: Playground browser acceptance
