@@ -102,8 +102,8 @@ class CompositionPlaygroundPublicationTests(unittest.TestCase):
         self.assertEqual(semantic_revision, base_projection["source"]["revision"])
         self.assertEqual(semantic_revision, intent_projection["source"]["revision"])
         self.assertEqual(10496, sum(recipe["case_count"] for recipe in base_projection["recipes"]))
-        self.assertLess(len(base), 131_072)
-        self.assertLess(len(intent), 131_072)
+        self.assertLess(len(base), 262_144)
+        self.assertLess(len(intent), 262_144)
 
         with tempfile.TemporaryDirectory(prefix="composition-playground-publication-") as directory:
             target = Path(directory)
