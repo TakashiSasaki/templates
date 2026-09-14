@@ -99,7 +99,8 @@ def test_documentation_workflow_targets_policy_and_its_pr_stacks() -> None:
     workflow = workflow_text()
 
     assert "push:\n    branches: [policy]" in workflow
-    assert 'branches: [policy, "policy-*"]' in workflow
+    assert "pull_request: {}" in workflow
+    assert "arbitrary stacked-PR branch name" in workflow
     assert "branches: [skill]" not in workflow
     assert "branches: [main]" not in workflow
     assert "branches: [site]" not in workflow
@@ -192,27 +193,32 @@ def test_documentation_build_installs_and_verifies_only_the_lock() -> None:
         "--isolated --disable-pip-version-check --no-deps "
         "--requirement requirements-docs.lock"
     ) in workflow
-    assert "run: .venv/bin/python scripts/verify_docs_environment.py" in workflow
-    assert "run: .venv/bin/python -m pip check" in workflow
+    assert "scripts/run_policy_preflight.py --check docs" in workflow
+    runner = (ROOT / "scripts/run_policy_preflight.py").read_text(encoding="utf-8")
+    assert 'run(sys.executable, "scripts/verify_docs_environment.py")' in runner
+    assert 'run(sys.executable, "-m", "pip", "check")' in runner
     assert "-r requirements-docs.lock" not in workflow
     assert "-r requirements-docs.txt" not in workflow
 
 
 def test_documentation_build_runs_all_tools_from_the_isolated_environment() -> None:
     workflow = workflow_text()
+    runner = (ROOT / "scripts/run_policy_preflight.py").read_text(encoding="utf-8")
 
     required_steps = (
-        ".venv/bin/python scripts/generate_repository_preview.py",
-        ".venv/bin/python scripts/verify-repository-structure.py --check",
-        ".venv/bin/python scripts/generate-doc-assets.py",
-        ".venv/bin/python scripts/generate_docs_build_info.py",
-        ".venv/bin/python -m mkdocs build --strict --clean",
+        '"scripts/generate_repository_preview.py"',
+        '"scripts/verify-repository-structure.py", "--check"',
+        '"scripts/generate-doc-assets.py"',
+        '"scripts/generate_docs_build_info.py"',
+        '"mkdocs", "build", "--strict", "--clean"',
     )
     for step in required_steps:
-        assert step in workflow
+        assert step in runner
 
-    assert "BUILD_COMMIT: ${{ github.sha }}" in workflow
-    assert '--repository "$BUILD_REPOSITORY"' in workflow
+    assert "scripts/run_policy_preflight.py --check docs" in workflow
+    assert 'run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"' in workflow
+    assert "BUILD_COMMIT: ${{ steps.policy-revision.outputs.sha }}" in workflow
+    assert "BUILD_COMMIT: ${{ github.sha }}" not in workflow
     assert "from datetime import datetime, timezone" not in workflow
 
 

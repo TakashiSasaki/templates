@@ -155,13 +155,12 @@ def test_policy_ci_installs_only_the_locked_dependency_graph() -> None:
 
 def test_stable_release_probe_sanitizes_inherited_pip_inputs() -> None:
     workflow = workflow_text()
-    workflow_unsets = " ".join(f"-u {name}" for name in PIP_SANITIZED_INPUTS)
+    runner = (ROOT / "scripts/run_policy_preflight.py").read_text(encoding="utf-8")
 
-    assert (
-        f"run: env {workflow_unsets} .venv/bin/python "
-        "scripts/verify-release-state.py --git-ref "
-        "refs/remotes/origin/policy-source"
-    ) in workflow
+    assert "POLICY_SOURCE_REF: refs/remotes/origin/policy-source" in workflow
+    assert "scripts/run_policy_preflight.py --check release-state" in workflow
+    assert 'if not key.startswith("PIP_") and not key.startswith("PYTHON")' in runner
+    assert 'environment["PIP_CONFIG_FILE"] = os.devnull' in runner
 
 
 def test_policy_ci_verifies_the_complete_installed_distribution_set() -> None:
@@ -169,9 +168,11 @@ def test_policy_ci_verifies_the_complete_installed_distribution_set() -> None:
     readme = README.read_text(encoding="utf-8")
 
     assert CI_ENVIRONMENT_VERIFIER.is_file()
-    assert "run: .venv/bin/python scripts/verify_ci_environment.py" in workflow
+    assert "run: .venv/bin/python scripts/run_policy_preflight.py --check environment" in workflow
     assert "python scripts/verify_ci_environment.py" in readme
-    assert "run: .venv/bin/python -m pip check" in workflow
+    runner = (ROOT / "scripts/run_policy_preflight.py").read_text(encoding="utf-8")
+    assert 'run(sys.executable, "scripts/verify_ci_environment.py")' in runner
+    assert 'run(sys.executable, "-m", "pip", "check")' in runner
     assert "run: python -m pip check" not in workflow
 
 
@@ -179,11 +180,11 @@ def test_policy_ci_runs_all_python_tooling_from_the_isolated_environment() -> No
     workflow = workflow_text()
 
     expected_commands = (
-        ".venv/bin/python scripts/verify-release-state.py",
-        ".venv/bin/python -m ruff check src tests scripts skills/agent-policy/scripts",
-        ".venv/bin/python -m pytest",
-        ".venv/bin/python -m compileall -q src scripts skills/agent-policy/scripts",
-        ".venv/bin/agent-policy --help",
+        ".venv/bin/python scripts/run_policy_preflight.py --check release-state",
+        ".venv/bin/python scripts/run_policy_preflight.py --check lint",
+        ".venv/bin/python scripts/run_policy_preflight.py --check tests",
+        ".venv/bin/python scripts/run_policy_preflight.py --check compile",
+        ".venv/bin/python scripts/run_policy_preflight.py --check installed-command",
     )
     for command in expected_commands:
         assert command in workflow
@@ -193,6 +194,7 @@ def test_policy_ci_runs_all_python_tooling_from_the_isolated_environment() -> No
         "run: pytest",
         "run: python -m compileall",
         "run: agent-policy --help",
+        ".venv/bin/python -m ruff check src tests scripts skills/agent-policy/scripts",
     )
     for command in forbidden_commands:
         assert command not in workflow

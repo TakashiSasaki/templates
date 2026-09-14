@@ -82,7 +82,7 @@ def test_runtime_workflow_does_not_use_pip_cache_before_sanitization() -> None:
     assert "PIP_CONFIG_FILE:" in workflow
     assert "PYTHONHOME:" in workflow
     assert "PYTHONPATH:" in workflow
-    assert "run: python -I scripts/smoke_test_runtime_distribution.py" in workflow
+    assert "run: python -I scripts/run_policy_preflight.py --check runtime" in workflow
 
 
 def test_runtime_workflow_trigger_tiers_are_exact() -> None:
@@ -98,7 +98,6 @@ def test_runtime_workflow_trigger_tiers_are_exact() -> None:
         "tags": ["policy-compatibility-*"],
     }
     assert triggers["pull_request"] == {
-        "branches": ["policy", "policy-*"],
         "types": ["opened", "synchronize", "reopened", "labeled", "unlabeled"],
     }
     assert "schedule" not in triggers

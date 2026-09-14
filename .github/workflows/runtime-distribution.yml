@@ -7,9 +7,6 @@ on:
     tags:
       - 'policy-compatibility-*'
   pull_request:
-    branches:
-      - policy
-      - 'policy-*'
     types:
       - opened
       - synchronize
@@ -115,6 +112,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
 
       - name: Set up Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
@@ -122,7 +121,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install and verify runtime distribution in a clean environment
-        run: python -I scripts/smoke_test_runtime_distribution.py
+        run: python -I scripts/run_policy_preflight.py --check runtime
 
   skill-source-candidate:
     name: skill source / ${{ matrix.os }}

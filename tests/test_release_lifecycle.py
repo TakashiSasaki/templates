@@ -250,7 +250,7 @@ def test_policy_ci_fetches_only_the_current_source_history() -> None:
     assert "refs/heads/main" not in workflow
     assert "refs/heads/site" not in workflow
     assert "refs/heads/webapp" not in workflow
-    assert "python scripts/verify-release-state.py" in workflow
+    assert "scripts/run_policy_preflight.py --check release-state" in workflow
 
 
 def test_pinned_probe_environment_installs_only_the_release_lock(

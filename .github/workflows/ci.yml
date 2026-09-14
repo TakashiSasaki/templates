@@ -29,6 +29,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
           persist-credentials: false
 
@@ -142,7 +143,9 @@ jobs:
         run: python3 -I -m venv --without-pip .venv
 
       - name: Compile Python sources
-        run: .venv/bin/python -m compileall -q src scripts skills/agent-policy/scripts
+        env:
+          EXPECTED_HEAD: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        run: .venv/bin/python scripts/run_policy_preflight.py --check compile --expected-head "$EXPECTED_HEAD"
 
   core:
     name: core validation
@@ -164,6 +167,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
           persist-credentials: false
 
@@ -198,32 +202,36 @@ jobs:
         run: env -u PIP_REQUIREMENT -u PIP_CONSTRAINT -u PIP_BUILD_CONSTRAINT -u PIP_REQUIRE_HASHES -u PIP_DRY_RUN -u PIP_NO_BINARY -u PIP_ONLY_BINARY -u PIP_PLATFORM -u PIP_PYTHON_VERSION -u PIP_IMPLEMENTATION -u PIP_ABI -u PIP_UPLOADED_PRIOR_TO -u PIP_INDEX_URL -u PIP_EXTRA_INDEX_URL -u PIP_NO_INDEX -u PIP_FIND_LINKS -u PIP_TARGET -u PIP_PREFIX -u PIP_ROOT -u PIP_USER -u PIP_PYTHON -u PIP_CACHE_DIR -u PIP_NO_CACHE_DIR -u PIP_QUIET -u PIP_EDITABLE -u PIP_GROUP -u PIP_REQUIREMENTS_FROM_SCRIPT -u PIP_REPORT -u PIP_CONFIG_SETTINGS -u PIP_IGNORE_REQUIRES_PYTHON -u PIP_LOG .venv/bin/python -m pip install --disable-pip-version-check --no-deps --no-build-isolation -e .
 
       - name: Verify installed distribution set
-        run: .venv/bin/python scripts/verify_ci_environment.py
-
-      - name: Verify installed dependency graph
-        run: .venv/bin/python -m pip check
+        run: .venv/bin/python scripts/run_policy_preflight.py --check environment
 
       - name: Verify skill installer publication
-        run: .venv/bin/python scripts/verify_skill_installer_release.py --git-ref refs/remotes/origin/policy-source
+        env:
+          POLICY_SOURCE_REF: refs/remotes/origin/policy-source
+        run: .venv/bin/python scripts/run_policy_preflight.py --check installer
 
       - name: Validate translations
-        run: .venv/bin/python scripts/validate_translations.py
+        run: .venv/bin/python scripts/run_policy_preflight.py --check translations
 
       - name: Check formatting and static rules
-        run: |
-          .venv/bin/python -m ruff --version
-          .venv/bin/python -m ruff check src tests scripts skills/agent-policy/scripts
+        run: .venv/bin/python scripts/run_policy_preflight.py --check lint
 
       - name: Run tests
-        run: .venv/bin/python -m pytest
+        run: .venv/bin/python scripts/run_policy_preflight.py --check tests
+
+      - name: Current-head agent-policy self qualification
+        run: .venv/bin/python scripts/run_policy_preflight.py --check self-check
 
       - name: Verify stable release synchronization
         if: needs.preflight.outputs.release_state_required == 'true'
-        run: env -u PIP_REQUIREMENT -u PIP_CONSTRAINT -u PIP_BUILD_CONSTRAINT -u PIP_REQUIRE_HASHES -u PIP_DRY_RUN -u PIP_NO_BINARY -u PIP_ONLY_BINARY -u PIP_PLATFORM -u PIP_PYTHON_VERSION -u PIP_IMPLEMENTATION -u PIP_ABI -u PIP_UPLOADED_PRIOR_TO -u PIP_INDEX_URL -u PIP_EXTRA_INDEX_URL -u PIP_NO_INDEX -u PIP_FIND_LINKS -u PIP_TARGET -u PIP_PREFIX -u PIP_ROOT -u PIP_USER -u PIP_PYTHON -u PIP_CACHE_DIR -u PIP_NO_CACHE_DIR -u PIP_QUIET -u PIP_EDITABLE -u PIP_GROUP -u PIP_REQUIREMENTS_FROM_SCRIPT -u PIP_REPORT -u PIP_CONFIG_SETTINGS -u PIP_IGNORE_REQUIRES_PYTHON -u PIP_LOG .venv/bin/python scripts/verify-release-state.py --git-ref refs/remotes/origin/policy-source
+        env:
+          POLICY_SOURCE_REF: refs/remotes/origin/policy-source
+        run: .venv/bin/python scripts/run_policy_preflight.py --check release-state
 
       - name: Verify trusted review promotion candidate
         if: needs.preflight.outputs.trusted_review_required == 'true'
-        run: env -u PIP_REQUIREMENT -u PIP_CONSTRAINT -u PIP_BUILD_CONSTRAINT -u PIP_REQUIRE_HASHES -u PIP_DRY_RUN -u PIP_NO_BINARY -u PIP_ONLY_BINARY -u PIP_PLATFORM -u PIP_PYTHON_VERSION -u PIP_IMPLEMENTATION -u PIP_ABI -u PIP_UPLOADED_PRIOR_TO -u PIP_INDEX_URL -u PIP_EXTRA_INDEX_URL -u PIP_NO_INDEX -u PIP_FIND_LINKS -u PIP_TARGET -u PIP_PREFIX -u PIP_ROOT -u PIP_USER -u PIP_PYTHON -u PIP_CACHE_DIR -u PIP_NO_CACHE_DIR -u PIP_QUIET -u PIP_EDITABLE -u PIP_GROUP -u PIP_REQUIREMENTS_FROM_SCRIPT -u PIP_REPORT -u PIP_CONFIG_SETTINGS -u PIP_IGNORE_REQUIRES_PYTHON -u PIP_LOG .venv/bin/python scripts/verify_trusted_review_candidate.py --git-ref refs/remotes/origin/policy-source
+        env:
+          POLICY_SOURCE_REF: refs/remotes/origin/policy-source
+        run: .venv/bin/python scripts/run_policy_preflight.py --check trusted-review
 
       - name: Verify installed command
-        run: .venv/bin/agent-policy --help
+        run: .venv/bin/python scripts/run_policy_preflight.py --check installed-command

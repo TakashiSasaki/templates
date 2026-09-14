@@ -54,10 +54,9 @@ SAMPLE_VALID_TOPOLOGY = {
 }
 
 
-def test_discover_absent_contract_returns_single_worktree(tmp_path: Path) -> None:
+def test_discover_absent_contract_returns_undeclared_topology(tmp_path: Path) -> None:
     topology = discover_repository_topology(tmp_path)
-    assert topology.kind == "single-worktree"
-    assert topology.is_single_worktree
+    assert topology.kind is None
     assert not topology.is_hub_and_orphan
     assert len(topology.components) == 0
 
@@ -232,6 +231,7 @@ def test_core_profile_loads_repository_topology_discovery_rule() -> None:
 
 def test_absent_contract_has_safe_empty_lookups(tmp_path: Path) -> None:
     topology = discover_repository_topology(tmp_path)
+    assert topology.kind is None
     assert topology.component_by_branch("anything") is None
     assert topology.component_by_mount_path("anything") is None
 

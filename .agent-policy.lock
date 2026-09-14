@@ -21,15 +21,33 @@ inputs:
     sha256: eb45d47fafa2e406dabb2536a818e206acede23f229eda19e8fdaa37d8445542
 outputs:
   .agents/skills/orchestrate-repository-change/SKILL.md:
-    sha256: 29d31fab6e70aa05c1799ad1a15695dc20eeea186fc1b7a9c80f1c9359dc3f21
+    sha256: 6ab97baffc8aa275ae121bd95bfddfc212f8401bb660feb0a8089e794ab84919
+  .agents/skills/orchestrate-repository-change/references/generated-artifact-transport.md:
+    sha256: 129a99646b222be5eb51a1ca5f6baba29b937a3630c84b7b03e0f43e576052b2
+  .agents/skills/orchestrate-repository-change/references/github-review-finding-representation.md:
+    sha256: d297f50e9b3c31ae78c05b080733664b98c45e3b2693c683cea4a9b39087b50d
+  .agents/skills/orchestrate-repository-change/references/github-review-result-discovery.md:
+    sha256: 60c8d950a886115385d08743e581e4e420ad027adc7cff7c1e748cfec7a7c11f
   .agents/skills/orchestrate-repository-change/references/human-handoff.md:
-    sha256: 7e46be396087a5d745e21c4572b4dac19193756a33446553def6fac6bd0c6bfa
+    sha256: b3ccea633bfa6152a6a51d10c48c29c06598c661e3b5283759c5a4786f35e4b0
   .agents/skills/orchestrate-repository-change/references/pr-workflow-selection.md:
-    sha256: d1ee57c538e1db9249c7406e9124203c09aca29afc1ec6323106a5049631bfda
+    sha256: b9932dcfd182e03e81dd453336f4576f39c38070970062f8464aca1d1b6b69b2
+  .agents/skills/orchestrate-repository-change/references/repository-topology-discovery.md:
+    sha256: 00e5be71c2d869c40b6c88aa84e77cf8e035ae95a50d9fbfceab3a36c5ded433
+  .agents/skills/orchestrate-repository-change/references/repository-tracked-work-ledger.md:
+    sha256: 38d69db4306d48cc1dd29d47c98d4b3a3d1eac6fd7a01c352d3cbf22de0f0f07
+  .agents/skills/orchestrate-repository-change/references/review-feedback-disposition.md:
+    sha256: 2fb550eb7bdf0bc16af43a81d398f963abfe10b56ee0fecc7179c80024cca12b
+  .agents/skills/orchestrate-repository-change/references/review-finding-ledger.md:
+    sha256: d7ed20b74ee998d97141b914ccfe8cb39afc5003d7afb7fbefb0cd6d7881b53a
   .agents/skills/orchestrate-repository-change/references/serial-pr-workflow.md:
-    sha256: 83de932516c604d78199c2ea04903706cc0f9376913bdaace01654c540dcfa73
+    sha256: da7d9b9d26dbd26060d9bbdec0122b37c9e34e245dd722091e60e0ef58971789
   .agents/skills/orchestrate-repository-change/references/stacked-pr-workflow.md:
-    sha256: e816d267b2e0721cd6f97ac7fdd7b3e94ba59adad62d276ada318f020ed6f48e
+    sha256: ba4c0affd16a74a96dbdc9f5f8f53b1ad1fe278aba6737c733132536f4bcacce
+  .agents/skills/orchestrate-repository-change/references/staged-ci-execution.md:
+    sha256: f43cd831aa5f423f7c0968b1570e059af75b4db07fa431095cbbea72d33c2e33
+  .agents/skills/orchestrate-repository-change/references/work-ledger.md:
+    sha256: 5e6df81d67f71f6dfae80544f1ef01ecb4b32fe7c1f9813a357bde96ea67dc1e
   .agents/skills/pr-review/SKILL.md:
     sha256: ed44e1db3549e41342ced28b50fbd37189bef0e43e783c309300432e5df979f1
   .agents/skills/pr-review/references/github-pull-request-review-api.md:
@@ -57,6 +75,6 @@ outputs:
   .agents/skills/pr-review/references/risk-domains/state-mutation-and-recovery.md:
     sha256: 0cd5b71178b43da5128f4d2e1bfab8f3df5d71439531a9010f351c4ed1468f44
   .review-authority/review-policy.md:
-    sha256: 458fbd06762e6f14fdab9ca203bf3294cd66cf45f1279531f85031b9edd6151b
+    sha256: b44bed01c6d76ab7d4bae58d5c07366c5cb28810b8b5cefe47a0f2de5352e09d
   AGENTS.md:
-    sha256: 9cf3721c9cc86267f5dfd2db8cacd784bd8e88cc2a7de9af2c7fdc31dd085fca
+    sha256: ca3bf6968e0a557f70150faaa11ee55c849db1e3a7743eb4d797d9fb222d8072
