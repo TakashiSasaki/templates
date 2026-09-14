@@ -30,6 +30,8 @@ outputs:
     sha256: 60c8d950a886115385d08743e581e4e420ad027adc7cff7c1e748cfec7a7c11f
   .agents/skills/orchestrate-repository-change/references/human-handoff.md:
     sha256: b3ccea633bfa6152a6a51d10c48c29c06598c661e3b5283759c5a4786f35e4b0
+  .agents/skills/orchestrate-repository-change/references/local-checkout-topology-discovery.md:
+    sha256: 6827eea4107c7e87f7721d9f69118efb3e28f48787a1bcf802a32955826323cb
   .agents/skills/orchestrate-repository-change/references/pr-workflow-selection.md:
     sha256: b9932dcfd182e03e81dd453336f4576f39c38070970062f8464aca1d1b6b69b2
   .agents/skills/orchestrate-repository-change/references/repository-topology-discovery.md:
