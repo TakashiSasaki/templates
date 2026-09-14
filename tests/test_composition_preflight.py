@@ -53,6 +53,27 @@ class CompositionPreflightTests(unittest.TestCase):
             with self.assertRaisesRegex(preflight.PreflightFailure, "exit code 7"):
                 preflight.run_check("example", ["false"])
 
+    def test_full_reuses_a_preprovisioned_absolute_chromedriver(self) -> None:
+        recorded: list[tuple[str, dict[str, str] | None]] = []
+
+        def record(name: str, _argv, *, env=None) -> None:
+            recorded.append((name, env))
+
+        with mock.patch.dict(
+            preflight.os.environ,
+            {"CHROMEWEBDRIVER": sys.executable},
+        ), mock.patch.object(preflight, "run_check", side_effect=record), mock.patch(
+            "subprocess.run"
+        ) as direct_run:
+            preflight.run_full_tests()
+
+        direct_run.assert_not_called()
+        browser_env = dict(recorded)["real-browser-tests"]
+        self.assertIsNotNone(browser_env)
+        self.assertEqual(
+            browser_env["CHROMEWEBDRIVER"], str(Path(sys.executable).resolve())
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
