@@ -31,10 +31,19 @@ jobs:
           - maintainer-workflow
           - adr-review-authority-and-github-runtime-boundary
           - adr-review-result-representation-boundary
-    uses: TakashiSasaki/templates/.github/workflows/build-pages.yml@a0c2399886788de02d45bba330203841f18481cb
+    uses: TakashiSasaki/templates/.github/workflows/build-pages.yml@f79eaa9e90197da0bb0c7eefaa039f265ad4b347
     with:
-      site_ref: a0c2399886788de02d45bba330203841f18481cb
+      site_ref: f79eaa9e90197da0bb0c7eefaa039f265ad4b347
       policy_ref: ${{ github.sha }}
       publication_staging_id: ${{ matrix.staging_id }}
+    # The reusable workflow and Site source are pinned to the reviewed
+    # PR #848 Site merge commit. That revision retains the Site-owned
+    # maintainer documentation staging mappings and runs pristine Site tests before
+    # explicit staged materialization and strict assembly. Composition is
+    # resolved from that exact Site revision's reviewed publication-sources lock.
+    # For pull requests, github.sha is GitHub's proposed merge commit; for
+    # workflow_dispatch it is the selected ref's exact commit. The called
+    # workflow is build-only, dynamically selects the staging mapping from matrix,
+    # and cannot deploy Pages.
     permissions:
       contents: read
