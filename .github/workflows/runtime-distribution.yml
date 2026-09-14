@@ -119,8 +119,6 @@ jobs:
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: ${{ matrix.python-version }}
-          cache: pip
-          cache-dependency-path: 'requirements*.lock'
 
       - name: Install and verify runtime distribution in a clean environment
         run: python -I scripts/run_policy_preflight.py --check runtime
@@ -160,8 +158,6 @@ jobs:
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: "3.12"
-          cache: pip
-          cache-dependency-path: 'requirements*.lock'
 
       - name: Verify remote skill-source candidate through stable runtime
         run: >-
