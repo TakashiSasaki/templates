@@ -178,6 +178,7 @@ class WebsiteArtifactTests(unittest.TestCase):
                 "capability.webmcp",
                 "lifecycle.release-bundle",
                 "topology.hub-and-orphan",
+                "workspace.bare-worktree",
             ],
         )
         self.assertIn("artifact.website-core", catalog["components"])
