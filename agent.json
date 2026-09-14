@@ -7,7 +7,7 @@
   "authorities": {
     "composition": {
       "role": "artifact-foundation-capability-lifecycle-topology-semantics",
-      "publication_revision": "77b321d8c21e2df6bcfc9e624e25757a15c61a4b",
+      "publication_revision": "54bd4b9b979fe75337f4275471761079084410f1",
       "overview_document_id": "composition:overview",
       "publication_catalog_path": "docs/publication-catalog.json"
     },
@@ -59,7 +59,7 @@
     }
   },
   "composition": {
-    "publication_revision": "77b321d8c21e2df6bcfc9e624e25757a15c61a4b",
+    "publication_revision": "54bd4b9b979fe75337f4275471761079084410f1",
     "installer": {
       "repository": "TakashiSasaki/templates",
       "revision": "c328fbe2bf733cf32cea54c1054570a94afa693a",
