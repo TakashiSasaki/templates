@@ -19,6 +19,7 @@ def test_policy_workflow_uses_reviewed_immutable_site_revision() -> None:
 
     assert 'branches:\n      - policy\n      - "policy-*"\n    paths:' in text
     for required_path in (
+        "- CONTRIBUTING.md",
         "- docs/**",
         "- .github/workflows/pages.yml",
         "- .github/workflows/site-compatibility.yml",
