@@ -108,8 +108,11 @@ def test_published_maintainer_sources_have_post_cutover_discovery_links() -> Non
     for document_id, source in MAINTAINER_SOURCES.items():
         if document_id.startswith("adr-"):
             relative = Path(source).name
+            repository_link = (
+                "https://github.com/TakashiSasaki/templates/blob/policy/" + source
+            )
             assert f"({relative})" in adr_index
-            assert f"https://github.com/TakashiSasaki/templates/blob/policy/{source}" not in adr_index
+            assert repository_link not in adr_index
             assert source.removeprefix("docs/") in (ROOT / "mkdocs.yml").read_text(
                 encoding="utf-8"
             )
