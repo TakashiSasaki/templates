@@ -38,14 +38,16 @@ inspect -> plan -> apply -> validate
 
 Composition is deliberately fail-closed. Planning is read-only; mutation is preceded by a complete plan; local changes to Composition-owned bytes are not silently overwritten; and unsupported ownership or component transitions are rejected rather than inferred.
 
-## Foundations, artifacts, capabilities, and lifecycle
+## Foundations, artifacts, capabilities, lifecycle, topology, and workspace
 
-The production catalog separates four reusable component roles:
+The production catalog separates six reusable component roles:
 
 - `foundation.*` defines shared mandatory baseline semantics introduced transitively by an artifact. `foundation.web` owns the shared browser identity, generalized routes, and viewports consumed by both Website and Webapp artifacts.
 - `artifact.*` defines what is being built: `artifact.skill-core`, `artifact.website-core`, or `artifact.webapp-core`. Each browser artifact owns its domain-specific contracts plus the evidence-target derivation and validator logic for those artifact-owned semantics.
 - `capability.*` defines reusable optional behavior such as runtime, CLI, MCP, MCP Apps, PWA, standalone browser interfaces, and headless services.
 - `lifecycle.*` defines reusable composition-state, contract-evolution, implementation-evidence, checkpoint, release-evidence, and release-bundle behavior. `lifecycle.implementation-evidence` owns the artifact-neutral evidence machinery that artifact and capability validators consume.
+- `topology.*` defines repository authority, history, and projection structure. It does not describe a local checkout layout.
+- `workspace.*` defines a local-checkout/workspace materialization pattern. It is an independent semantic axis from repository topology.
 
 A recipe selects exactly one artifact. Foundation components are not direct consumer choices; they are resolved transitively from artifact dependencies. `recipes/skill.json` selects `artifact.skill-core`. `recipes/website.json` selects `artifact.website-core`, whose baseline adds Website page structure, document metadata, discovery, and Website-specific evidence on top of `foundation.web`. `recipes/webapp.json` selects `artifact.webapp-core`, whose baseline adds application-specific routes, surfaces, UI states, and Webapp evidence on top of the same shared foundation.
 

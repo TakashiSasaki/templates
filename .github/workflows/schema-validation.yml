@@ -8,6 +8,7 @@ on:
     branches:
       - composition
       - 'feat/composition-*'
+      - 'feat/workspace-*'
 
 permissions:
   contents: read
@@ -32,6 +33,7 @@ jobs:
       - name: Check out repository history for change classification
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
           persist-credentials: false
 
@@ -56,6 +58,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           # Managed update/upgrade validates that the lock's old source revision
           # exists locally and is an ancestor of the target source revision.
           # Release verification also checks the immutable T -> S -> I ancestry.
@@ -95,23 +98,15 @@ jobs:
       - name: Validate Site-owned publication contract
         run: .venv/bin/python -I "$SITE_PUBLICATION_PROTOCOL_ROOT/scripts/publication_contract.py" --source-root .
 
-      - name: Validate Composition publication semantics
-        run: .venv/bin/python -I scripts/validate_publication.py
-
-      - name: Validate Composition translations
-        run: .venv/bin/python -I scripts/validate_translations.py
-
-      - name: Enforce component descriptor version monotonicity
-        if: github.event_name == 'pull_request' || github.ref == 'refs/heads/composition'
+      - name: Run canonical Composition validator preflight
         env:
           COMPONENT_VERSION_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
-        run: .venv/bin/python scripts/validate_component_versions.py --base "$COMPONENT_VERSION_BASE"
-
-      - name: Verify Composition installer release
-        run: .venv/bin/python -I scripts/verify_composition_skill_installer_release.py --git-ref HEAD
-
-      - name: Verify deterministic core unittest partition
-        run: .venv/bin/python scripts/run_unittest_shard.py --suite core --shard-count 2 --verify-only
+          EXPECTED_HEAD: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        run: >-
+          .venv/bin/python -I scripts/run_composition_preflight.py fast
+          --validators-only
+          --component-version-base "$COMPONENT_VERSION_BASE"
+          --expected-head "$EXPECTED_HEAD"
 
       - name: Run core schema and semantic contract test shard 2/2
         run: >-
@@ -130,6 +125,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
 
       - name: Check out Site publication protocol
@@ -182,6 +178,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
 
       - name: Check out Site publication protocol

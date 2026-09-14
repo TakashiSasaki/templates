@@ -19,7 +19,7 @@
   "$defs": {
     "componentId": {
       "type": "string",
-      "pattern": "^(foundation|artifact|capability|lifecycle|topology)\\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+      "pattern": "^(foundation|artifact|capability|lifecycle|topology|workspace)\\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
     },
     "relativePath": {
       "type": "string",
@@ -142,7 +142,7 @@
         "required": ["id", "role", "version", "summary", "requires", "conflicts", "contract_ids", "material_declarations", "source_path"],
         "properties": {
           "id": {"$ref": "#/$defs/componentId"},
-          "role": {"enum": ["foundation", "artifact", "capability", "lifecycle", "topology"]},
+          "role": {"enum": ["foundation", "artifact", "capability", "lifecycle", "topology", "workspace"]},
           "version": {"type": "integer", "minimum": 1},
           "summary": {"type": "string", "minLength": 1},
           "requires": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/componentId"}},

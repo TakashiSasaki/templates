@@ -53,9 +53,35 @@ class SchemaValidationCIPolicyTests(unittest.TestCase):
     def test_schema_validation_uses_pr_and_authoritative_push_tiers_only(self) -> None:
         self.assertEqual(_trigger_events(self.workflow), ["push", "pull_request"])
         self.assertEqual(_trigger_branches(self.workflow, "push"), ["composition"])
-        self.assertEqual(_trigger_branches(self.workflow, "pull_request"), ["composition", "feat/composition-*"])
+        self.assertEqual(
+            _trigger_branches(self.workflow, "pull_request"),
+            ["composition", "feat/composition-*", "feat/workspace-*"],
+        )
         trigger = self.workflow.split("\njobs:\n", 1)[0]
         self.assertNotIn("agent/composition-", trigger)
+
+    def test_schema_validation_reuses_canonical_validator_preflight(self) -> None:
+        primary = self.workflow.split("\n  primary:\n", 1)[1].split("\n  parallel:\n", 1)[0]
+        self.assertEqual(primary.count("scripts/run_composition_preflight.py fast"), 1)
+        self.assertIn("--validators-only", primary)
+        for duplicate in (
+            "scripts/validate_publication.py",
+            "scripts/validate_translations.py",
+            "scripts/validate_component_versions.py",
+            "scripts/verify_composition_skill_installer_release.py",
+            "scripts/run_unittest_shard.py --suite core --shard-count 2 --verify-only",
+        ):
+            self.assertNotIn(duplicate, primary)
+
+    def test_provider_checkouts_are_bound_to_the_exact_pull_request_head(self) -> None:
+        checkout_ref = "ref: ${{ github.event.pull_request.head.sha || github.sha }}"
+        self.assertEqual(self.workflow.count(checkout_ref), 4)
+        self.assertEqual(
+            self.workflow.count(
+                "ref: 3ae5d1e60c65e7a8ebf5f9af0436044484e42983"
+            ),
+            3,
+        )
 
 
 if __name__ == "__main__":

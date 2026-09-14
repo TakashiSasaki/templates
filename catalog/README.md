@@ -45,7 +45,7 @@ Lifecycle components are selected according to the product workflow. The `skill`
 
 ### Repository topology selection
 
-Select repository topology when the repository requires an explicit multi-branch or projected structure rather than the default single-worktree repository layout:
+Select repository topology when the repository requires an explicit multi-branch or projected structure. Its absence selects no explicit repository topology; it says nothing about local checkout or worktree layout:
 
 | Need | Include | Automatically adds | What it contributes |
 | --- | --- | --- | --- |
@@ -148,7 +148,7 @@ Production catalog validation establishes:
 - descriptor/recipe/schema validity;
 - exact component source-file declaration;
 - dependency/conflict target existence and dependency acyclicity;
-- generic capability/lifecycle independence from artifact-specific authorities;
+- generic capability/lifecycle/topology/workspace independence from artifact-specific authorities;
 - recipe reference validity and disjoint required/default/optional selections;
 - global uniqueness of registered contract IDs, document paths, and schema paths;
 - component ownership of every registered contract document/schema/migration;
@@ -166,4 +166,4 @@ For an unmanaged target, initial composition refuses a pre-existing composition 
 
 ### Component roles and direct selection
 
-Recipes select one artifact and expose optional capability, lifecycle, or topology components. Components with the `foundation` role are dependencies of artifact components: they are resolved automatically, are not listed as recipe options, and are not direct consumer include targets. See [Composition concepts](../docs/guides/composition-concepts.md) for the five-role mental model and the provider glossary for canonical terminology.
+Recipes select one artifact and expose optional capability, lifecycle, topology, or workspace components. Components with the `foundation` role are dependencies of artifact components: they are resolved automatically, are not listed as recipe options, and are not direct consumer include targets. Repository topology and workspace selection are independent axes, each with at most one selected component. See [Composition concepts](../docs/guides/composition-concepts.md) for the six-role mental model and the provider glossary for canonical terminology.

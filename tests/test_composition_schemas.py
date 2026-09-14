@@ -141,6 +141,9 @@ def validate_lock_semantics(value: dict) -> None:
     topology_ids = [component_id for component_id in component_ids if component_id.startswith("topology.")]
     if len(topology_ids) > 1:
         raise ValueError("lock must resolve at most one topology component")
+    workspace_ids = [component_id for component_id in component_ids if component_id.startswith("workspace.")]
+    if len(workspace_ids) > 1:
+        raise ValueError("lock must resolve at most one workspace component")
     resolved = set(component_ids)
     destinations = [item["destination"] for item in value["files"]]
     if destinations != sorted(destinations):

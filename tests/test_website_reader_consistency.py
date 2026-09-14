@@ -20,7 +20,7 @@ class WebsiteReaderConsistencyTests(unittest.TestCase):
             "artifact.website-core",
             "artifact.webapp-core",
             "foundation.web",
-            "four reusable component roles",
+            "six reusable component roles",
         ):
             with self.subTest(expected=expected):
                 self.assertIn(expected, readme)

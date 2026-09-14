@@ -40,14 +40,16 @@ inspect -> plan -> apply -> validate
 
 Composition は意図的に fail-closed です。planning は read-only であり、mutation の前には完全な plan が作成されます。Composition-owned bytes に対する local changes は暗黙に上書きされず、未対応の ownership transition や component transition は推測せず拒否されます。
 
-## Foundation、artifact、capability、lifecycle
+## Foundation、artifact、capability、lifecycle、topology、workspace
 
-production catalog は、再利用可能な authority を四つの reusable component role に分離します。
+production catalog は、再利用可能な authority を六つの reusable component role に分離します。
 
 - `foundation.*` は artifact が推移的に導入する shared mandatory baseline semantics を定義します。`foundation.web` は Website / Webapp が共通に利用する browser identity、generalized routes、viewports を所有します。
 - `artifact.*` は何を作るかを定義します。現在は `artifact.skill-core`、`artifact.website-core`、`artifact.webapp-core` があります。browser artifact はそれぞれ、自身の domain-specific contract と、その artifact-owned semantics に対する evidence-target derivation / validator logic を所有します。
 - `capability.*` は runtime、CLI、MCP、MCP Apps、PWA、standalone browser interface、headless service など再利用可能な optional behavior を定義します。
 - `lifecycle.*` は composition-state、contract-evolution、implementation-evidence、checkpoint、release-evidence、release-bundle behavior を定義します。`lifecycle.implementation-evidence` は artifact / capability validator が利用する artifact-neutral evidence machinery を所有します。
+- `topology.*` は repository authority、history、および projection 構造を定義します。local checkout の layout は記述しません。
+- `workspace.*` は local checkout / workspace の materialization pattern を定義します。repository topology とは独立した semantic axis です。
 
 recipe は artifact をちょうど1つ選択します。foundation component は consumer が直接選ぶものではなく、artifact dependency から推移的に解決されます。`recipes/skill.json` は `artifact.skill-core` を選択します。`recipes/website.json` は `artifact.website-core` を選択し、`foundation.web` 上に Website page structure、document metadata、discovery、Website-specific evidence を追加します。`recipes/webapp.json` は `artifact.webapp-core` を選択し、同じ shared foundation 上に application-specific route、surface、UI state、Webapp evidence を追加します。
 

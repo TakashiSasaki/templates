@@ -4,13 +4,14 @@
 
 The `composition` branch is the canonical source authority for reusable artifact semantics, application capabilities, lifecycle contracts, recipes, schemas, and the deterministic Composer.
 
-Composition separates five component roles:
+Composition separates six component roles:
 
 1. **foundations** — shared mandatory baseline semantics introduced transitively by an artifact;
 2. **artifact semantics** — what is being built, such as a Website, Web application, or Agent Skill;
 3. **capabilities** — reusable optional behavior such as runtime, CLI, MCP, MCP Apps, browser exposure, or a headless service;
 4. **lifecycle contracts** — reusable machinery for composition state, contract evolution, implementation evidence, release evidence, and release-bundle behavior; and
-5. **repository topology** — repository authority, history, and projection structure (such as Hub-and-Orphan).
+5. **repository topology** — repository authority, history, and projection structure (such as Hub-and-Orphan); and
+6. **workspace topology** — local checkout materialization structure, independently selected from repository topology.
 
 Web applications and Agent Skills remain distinct artifacts. They share reusable authorities through recipes over one component catalog rather than through duplicated monolithic templates.
 
@@ -47,8 +48,9 @@ Component IDs have exactly one component-role prefix:
 - `capability.*` — reusable optional capabilities;
 - `lifecycle.*` — reusable product-lifecycle machinery; or
 - `topology.*` — repository authority, history, and projection structure.
+- `workspace.*` — local checkout and workspace materialization structure.
 
-The prefix must agree with descriptor `component_role`. A foundation is introduced only through an artifact dependency; it is not recipe-selectable. Non-artifact descriptors (capabilities, lifecycles, and topologies) must not require or conflict with concrete `artifact.*` authorities. Artifact components must not require or conflict with `topology.*` authorities, preserving topology neutrality. At most one `topology.*` component may be selected in a resolved composition; absence of a topology selection retains conventional repository state rather than inventing an implicit selection. Artifact components may require foundations, reusable capabilities, or lifecycle components when those contracts are intrinsic to the artifact.
+The prefix must agree with descriptor `component_role`. A foundation is introduced only through an artifact dependency; it is not recipe-selectable. Non-artifact descriptors (capabilities, lifecycles, topologies, and workspaces) must not require or conflict with concrete `artifact.*` authorities. Artifact components must not require or conflict with `topology.*` or `workspace.*` authorities, preserving both axes as independent choices. At most one `topology.*` and at most one `workspace.*` component may be selected in a resolved composition; absence of either selection means only that its explicit semantic declaration is absent. Artifact components may require foundations, reusable capabilities, or lifecycle components when those contracts are intrinsic to the artifact.
 
 The production catalog is closed. Catalog validation requires component and recipe inventories to match the source tree, dependencies to exist and be acyclic, identities to be unique, generic/artifact boundaries to hold, and selected conflicts to be rejected.
 
@@ -85,8 +87,8 @@ Required/default/optional sets are pairwise disjoint.
 Consumer configuration records unresolved intent separately from the resolved lock:
 
 - recipe ID;
-- explicitly included capability/lifecycle IDs;
-- explicitly excluded capability/lifecycle IDs; and
+- explicitly included reusable component IDs;
+- explicitly excluded reusable component IDs; and
 - optional component-scoped parameters.
 
 Include/exclude sets are disjoint. Consumers cannot replace the recipe artifact through include/exclude. The resolver rejects exclusions of recipe-required or transitive dependencies and rejects parameters for components absent from the resolved closure.
@@ -329,7 +331,7 @@ The canonical authority topology is:
 ```text
 site          integrated reader-facing publication, assembly, Pages/PWA
 policy        coding-agent policy authority
-composition   artifact/capability/lifecycle authorities, recipes, schemas, Composer
+composition   artifact/capability/lifecycle/topology/workspace authorities, recipes, schemas, Composer
 ```
 
 Legacy `skill` / `webapp` authority migration and retirement are complete. Their history is provenance, not an active Composition update source.
