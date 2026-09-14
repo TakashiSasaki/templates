@@ -137,35 +137,52 @@ def run_full_tests() -> None:
             "0",
         ),
     )
-    with tempfile.TemporaryDirectory(prefix="composition-preflight-chromedriver-") as directory:
-        result = subprocess.run(
-            command("-I", "scripts/prepare_chromedriver.py", "--output-dir", directory),
-            cwd=ROOT,
-            text=True,
-            capture_output=True,
-            check=False,
-        )
-        if result.returncode != 0:
-            detail = (result.stderr or result.stdout).strip()
-            raise PreflightFailure(f"browser-runtime-preparation failed: {detail}")
-        driver = result.stdout.strip().splitlines()[-1]
-        browser_env = dict(os.environ)
-        browser_env["CHROMEWEBDRIVER"] = driver
-        run_check(
-            "real-browser-tests",
-            command(
-                "scripts/run_unittest_shard.py",
-                "--suite",
-                "real-browser",
-                "--shard-count",
-                "1",
-                "--shard-index",
-                "0",
-            ),
-            env=browser_env,
-        )
+    configured_driver = os.environ.get("CHROMEWEBDRIVER")
+    if configured_driver:
+        driver_path = Path(configured_driver)
+        if not driver_path.is_absolute() or not driver_path.is_file():
+            raise PreflightFailure(
+                "CHROMEWEBDRIVER must name an existing absolute regular file"
+            )
+        run_real_browser_tests(str(driver_path.resolve()))
+    else:
+        with tempfile.TemporaryDirectory(
+            prefix="composition-preflight-chromedriver-"
+        ) as directory:
+            result = subprocess.run(
+                command(
+                    "-I", "scripts/prepare_chromedriver.py", "--output-dir", directory
+                ),
+                cwd=ROOT,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            if result.returncode != 0:
+                detail = (result.stderr or result.stdout).strip()
+                raise PreflightFailure(f"browser-runtime-preparation failed: {detail}")
+            driver = result.stdout.strip().splitlines()[-1]
+            run_real_browser_tests(driver)
     for smoke in RUNTIME_SMOKES:
         run_check(Path(smoke).stem.replace("smoke_test_", ""), command("-I", smoke))
+
+
+def run_real_browser_tests(driver: str) -> None:
+    browser_env = dict(os.environ)
+    browser_env["CHROMEWEBDRIVER"] = driver
+    run_check(
+        "real-browser-tests",
+        command(
+            "scripts/run_unittest_shard.py",
+            "--suite",
+            "real-browser",
+            "--shard-count",
+            "1",
+            "--shard-index",
+            "0",
+        ),
+        env=browser_env,
+    )
 
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
