@@ -12,7 +12,12 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 
-def validate_projection_parity(site_root: Path, model: dict, expected: dict) -> None:
+def validate_projection_parity(
+    site_root: Path,
+    model: dict,
+    expected: dict,
+    optional_destinations: set[str],
+) -> None:
     documents = model.get("documents")
     routes = model.get("routes")
     assert isinstance(documents, dict), "assembled audience documents must be an object"
@@ -21,6 +26,8 @@ def validate_projection_parity(site_root: Path, model: dict, expected: dict) -> 
     expected_documents = expected["documents"]
     unexpected_documents = set(documents) - set(expected_documents)
     assert not unexpected_documents, f"unexpected assembled audience documents: {sorted(unexpected_documents)}"
+    missing_required = set(expected_documents) - set(documents) - optional_destinations
+    assert not missing_required, f"missing required audience documents: {sorted(missing_required)}"
     assert all(
         document == expected_documents[destination]
         for destination, document in documents.items()
@@ -70,14 +77,34 @@ def validate_projection_parity(site_root: Path, model: dict, expected: dict) -> 
     assert routes == complete_expected_routes, "assembled audience route projection drift"
 
 
-def check(site_root: Path, channel: str | None = "chrome") -> dict:
+def check(
+    site_root: Path,
+    publication_roots: dict[str, Path],
+    channel: str | None = "chrome",
+) -> dict:
     from playwright.sync_api import sync_playwright
 
     model = json.loads((site_root / "audience-runtime.json").read_text())
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-    from scripts.audience_context import create_resolver
-    expected = create_resolver().export_runtime_map()
-    validate_projection_parity(site_root, model, expected)
+    from scripts.assemble_publications import load_manifest
+    from scripts.audience_context import AudienceContextResolver
+    from scripts.publication_contract import load_publication_catalog
+    manifest = load_manifest()
+    expected = AudienceContextResolver(manifest).export_runtime_map()
+    catalogs = {
+        publication: load_publication_catalog(
+            root,
+            label=f"{publication} publication catalog",
+            validate_sources=False,
+        ).documents_by_id
+        for publication, root in publication_roots.items()
+    }
+    optional_destinations = {
+        str(document["destination"])
+        for document in manifest.documents
+        if catalogs[document["publication"]][document["document"]].optional
+    }
+    validate_projection_parity(site_root, model, expected, optional_destinations)
     assert model["overviews"] == expected["overviews"], "assembled audience overview drift"
     provenance = json.loads((site_root / "build-provenance.json").read_text())
     assert model["audiences"] == ["use", "maintain"]
@@ -212,7 +239,13 @@ def main():
     parser.add_argument('--site-root',type=Path,default=Path('build/site'))
     parser.add_argument('--output',type=Path,default=Path('build/audience-runtime.json'))
     parser.add_argument('--channel',default='chrome',help='Browser channel; chromium uses Playwright bundled Chromium')
-    args=parser.parse_args(); result=check(args.site_root, None if args.channel=='chromium' else args.channel)
+    parser.add_argument('--composition-root',type=Path,default=Path('../composition'))
+    parser.add_argument('--policy-root',type=Path,default=Path('../policy'))
+    args=parser.parse_args(); result=check(
+        args.site_root,
+        {"site": Path.cwd(), "composition": args.composition_root, "policy": args.policy_root},
+        None if args.channel=='chromium' else args.channel,
+    )
     args.output.parent.mkdir(parents=True,exist_ok=True); args.output.write_text(json.dumps(result,indent=2)+'\n')
     print(json.dumps(result,indent=2))
 if __name__=='__main__':main()

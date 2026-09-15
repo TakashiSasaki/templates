@@ -46,7 +46,22 @@ class AudienceRuntimeProjectionParityTests(unittest.TestCase):
                 "documents": {"index.md": {"primary": "use"}},
                 "routes": {"/": "index.md", "/index.html": "index.md"},
             }
-            validate_projection_parity(root, model, self.expected())
+            validate_projection_parity(
+                root, model, self.expected(), {"optional/index.md"}
+            )
+
+    def test_required_document_omission_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.write_reader_runtime(root)
+            model = {
+                "documents": {"index.md": {"primary": "use"}},
+                "routes": {"/": "index.md", "/index.html": "index.md"},
+            }
+            with self.assertRaisesRegex(
+                AssertionError, "missing required audience documents"
+            ):
+                validate_projection_parity(root, model, self.expected(), set())
 
     def test_actual_translation_aliases_form_the_only_route_extension(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -64,7 +79,9 @@ class AudienceRuntimeProjectionParityTests(unittest.TestCase):
                     "/ja/index.html": "index.md",
                 },
             }
-            validate_projection_parity(root, model, self.expected())
+            validate_projection_parity(
+                root, model, self.expected(), {"optional/index.md"}
+            )
 
     def test_uninventoried_route_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -81,7 +98,9 @@ class AudienceRuntimeProjectionParityTests(unittest.TestCase):
             with self.assertRaisesRegex(
                 AssertionError, "assembled audience route projection drift"
             ):
-                validate_projection_parity(root, model, self.expected())
+                validate_projection_parity(
+                    root, model, self.expected(), {"optional/index.md"}
+                )
 
 
 if __name__ == "__main__":
