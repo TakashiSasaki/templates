@@ -232,3 +232,14 @@ Report compactly:
 - focused regression result;
 - new exact head and broad same-artifact browser result;
 - any remaining uncertainty or follow-up that should stay outside the current PR.
+
+## Scheduled evidence and local repair loop
+
+Read the exact run attempt's job and step conclusions. A skipped checker is not
+success, including when a priority checker failed earlier. Inspect the PWA JSON
+artifact for registration state, worker events, network timeline and fixture hits
+before changing a convergence bound. Use `run_site_preflight.py ready` for the
+canonical static consumer setup before browser acceptance. A disposable local
+`--capsule-root` can preserve the exact assembled artifact across browser setup
+repairs; source/runtime/artifact identity must still match. Local capsule results
+do not replace fresh exact-head remote CI or independent review.

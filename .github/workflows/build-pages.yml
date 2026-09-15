@@ -179,6 +179,9 @@ jobs:
           BUILD_ARTIFACT_DIGEST: ${{ needs.build.outputs.artifact_digest }}
           BUILD_INPUTS: ${{ needs.build.outputs.build_inputs }}
         run: python3 scripts/consume_site_build_artifact.py
+      - name: Check audience artifact contract before browser setup
+        if: ${{ needs.classify_browser.outputs.browser_required == 'true' }}
+        run: python3 scripts/check_audience_artifact.py --site-root build/site --composition-root composition-source --policy-root policy-source
       - name: Set up Python
         if: ${{ needs.classify_browser.outputs.browser_required == 'true' }}
         uses: actions/setup-python@v6
@@ -209,8 +212,38 @@ jobs:
           sudo rm -f /etc/apt/sources.list.d/google-chrome.list
           sudo apt-get update || true
           sudo apt-get install --yes --no-install-recommends fonts-ipafont-gothic
+      - name: Check changed-feature audience
+        if: ${{ needs.classify_browser.outputs.browser_required == 'true' && needs.classify_browser.outputs.browser_priority == 'audience' }}
+        run: |
+          python scripts/check_audience_runtime.py \
+            --site-root build/site \
+            --output build/mobile-visual/audience-runtime.json \
+            --composition-root composition-source \
+            --policy-root policy-source
+        id: priority_audience
+      - name: Check changed-feature search
+        if: ${{ needs.classify_browser.outputs.browser_required == 'true' && needs.classify_browser.outputs.browser_priority == 'search' }}
+        run: |
+          python scripts/check_search_history.py \
+            --site-root build/site \
+            --output build/search-history/search-history.json
+        id: priority_search
+      - name: Check changed-feature pwa
+        if: ${{ needs.classify_browser.outputs.browser_required == 'true' && (needs.classify_browser.outputs.pwa_required == 'true' || needs.classify_browser.outputs.full_required == 'true') && needs.classify_browser.outputs.browser_priority == 'pwa' }}
+        run: |
+          python scripts/check_pwa_freshness.py \
+            --site-root build/site \
+            --output build/mobile-visual/pwa-freshness.json
+        id: priority_pwa
+      - name: Check changed-feature layout
+        if: ${{ needs.classify_browser.outputs.browser_required == 'true' && needs.classify_browser.outputs.browser_priority == 'layout' }}
+        run: |
+          python scripts/check_mobile_layout.py \
+            --site-root build/site \
+            --output-root build/mobile-visual
+        id: priority_layout
       - name: Check mobile layout geometry
-        if: ${{ needs.classify_browser.outputs.browser_required == 'true' }}
+        if: ${{ needs.classify_browser.outputs.browser_required == 'true' && steps.priority_layout.outcome != 'success' }}
         run: |
           python scripts/check_mobile_layout.py \
             --site-root build/site \
@@ -221,8 +254,28 @@ jobs:
           python scripts/check_glossary_locale_chrome.py \
             --site-root build/site \
             --output build/mobile-visual/glossary-locale-chrome.json
+      - name: Check assembled audience runtime and navigation
+        if: ${{ needs.classify_browser.outputs.browser_required == 'true' && steps.priority_audience.outcome != 'success' }}
+        run: |
+          python scripts/check_audience_runtime.py \
+            --site-root build/site \
+            --output build/mobile-visual/audience-runtime.json \
+            --composition-root composition-source \
+            --policy-root policy-source
+      - name: Check Site search history
+        if: ${{ needs.classify_browser.outputs.browser_required == 'true' && steps.priority_search.outcome != 'success' }}
+        run: |
+          python scripts/check_search_history.py \
+            --site-root build/site \
+            --output build/search-history/search-history.json
+      - name: Check review regressions for Site search history
+        if: ${{ needs.classify_browser.outputs.browser_required == 'true' }}
+        run: |
+          python scripts/check_search_history_review_regressions.py \
+            --site-root build/site \
+            --output build/search-history/review-regressions.json
       - name: Check PWA freshness lifecycle
-        if: ${{ needs.classify_browser.outputs.browser_required == 'true' && (needs.classify_browser.outputs.pwa_required == 'true' || needs.classify_browser.outputs.full_required == 'true') }}
+        if: ${{ needs.classify_browser.outputs.browser_required == 'true' && (needs.classify_browser.outputs.pwa_required == 'true' || needs.classify_browser.outputs.full_required == 'true') && steps.priority_pwa.outcome != 'success' }}
         run: |
           python scripts/check_pwa_freshness.py \
             --site-root build/site \
@@ -239,52 +292,32 @@ jobs:
           python scripts/check_pwa_commit_regressions.py \
             --site-root build/site \
             --output build/mobile-visual/pwa-document-commit.json
-      - name: Check PWA slow-network convergence
-        if: ${{ needs.classify_browser.outputs.browser_required == 'true' && (needs.classify_browser.outputs.pwa_required == 'true' || needs.classify_browser.outputs.full_required == 'true') }}
-        run: |
-          python scripts/check_pwa_slow_convergence.py \
-            --site-root build/site \
-            --output build/mobile-visual/pwa-slow-convergence.json
       - name: Check PWA freshness capability messaging
         if: ${{ needs.classify_browser.outputs.browser_required == 'true' && (needs.classify_browser.outputs.pwa_required == 'true' || needs.classify_browser.outputs.full_required == 'true') }}
         run: |
           python scripts/check_pwa_capabilities.py \
             --site-root build/site \
             --output build/mobile-visual/pwa-capabilities.json
-      - name: Check assembled audience runtime and navigation
-        if: ${{ needs.classify_browser.outputs.browser_required == 'true' }}
+      - name: Check PWA slow-network convergence
+        if: ${{ needs.classify_browser.outputs.browser_required == 'true' && (needs.classify_browser.outputs.pwa_required == 'true' || needs.classify_browser.outputs.full_required == 'true') }}
         run: |
-          python scripts/check_audience_runtime.py \
+          python scripts/check_pwa_slow_convergence.py \
             --site-root build/site \
-            --output build/mobile-visual/audience-runtime.json \
-            --composition-root composition-source \
-            --policy-root policy-source
-      - name: Upload mobile visual evidence
-        if: ${{ always() && needs.classify_browser.outputs.browser_required == 'true' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: mobile-visual-${{ github.event.pull_request.number }}
-          path: build/mobile-visual
-          if-no-files-found: warn
-          retention-days: 7
-      - name: Check Site search history
-        if: ${{ needs.classify_browser.outputs.browser_required == 'true' }}
-        run: |
-          python scripts/check_search_history.py \
-            --site-root build/site \
-            --output build/search-history/search-history.json
-      - name: Check review regressions for Site search history
-        if: ${{ needs.classify_browser.outputs.browser_required == 'true' }}
-        run: |
-          python scripts/check_search_history_review_regressions.py \
-            --site-root build/site \
-            --output build/search-history/review-regressions.json
+            --output build/mobile-visual/pwa-slow-convergence.json
       - name: Upload search-history evidence
         if: ${{ always() && needs.classify_browser.outputs.browser_required == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: search-history-${{ github.event.pull_request.number }}
           path: build/search-history
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Upload mobile visual evidence
+        if: ${{ always() && needs.classify_browser.outputs.browser_required == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-visual-${{ github.event.pull_request.number }}
+          path: build/mobile-visual
           if-no-files-found: warn
           retention-days: 7
   core_tests:

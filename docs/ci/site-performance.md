@@ -126,3 +126,27 @@ Wall time is the critical path; runner occupancy is the sum of job execution
 intervals. Waiting for dependency scheduling consumes no runner time. Reports must
 separate setup, test body, polling and inherited retry evidence, using each step's
 actual status/conclusion rather than inferring success from a later running step.
+
+### Browser priority and failure evidence
+
+Classification exposes `browser_priority` as a scheduling hint for audience,
+search, PWA or layout changes. It does not alter required capabilities. A changed
+feature executes after artifact validation and setup, before generic checks. Its
+normal slot is suppressed only by that early step's actual `success` outcome.
+Unknown/control changes still require full qualification; absent priority from an
+older classifier preserves the normal checks. Generic slow PWA convergence runs
+last. There are no additional browser shards or repeated setup jobs.
+
+`check_pwa_freshness.py --output <json>` records bounded registration/worker state,
+updatefound/statechange/controllerchange timestamps, observed fixture versions,
+request/response failures, page errors, warning/error console messages, fixture hit
+counts and browser/Python versions. Lifecycle events survive page reloads in the
+controller's evidence buffer; failure snapshots run before context teardown. The
+original convergence bounds and lifecycle assertions are unchanged.
+
+Local same-artifact Chromium samples (three before/after, 2026-09-15) measured
+3.60s median before and 3.61s after, ranges 3.58–3.68s and 3.59–3.62s. An injected
+failure after an actual worker update also produced diagnostic JSON. These samples
+show no material local observation overhead, not a hosted-runner speed claim.
+Time-to-first-relevant-failure must be measured separately from total success time;
+priority removes preceding unrelated checker bodies, not the required checks.

@@ -143,6 +143,10 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
                 next_step = check_block.find("\n      - name:", start)
                 step_body = check_block[start:] if next_step == -1 else check_block[start:next_step]
                 expected_condition = pwa_condition if step_name in pwa_steps else required_condition
+                priority = {"Check mobile layout geometry": "layout", "Check Site search history": "search",
+                            "Check PWA freshness lifecycle": "pwa"}.get(step_name)
+                if priority:
+                    expected_condition = expected_condition.replace(" }}", f" && steps.priority_{priority}.outcome != 'success' }}}}")
                 self.assertIn(expected_condition, step_body)
 
         for evidence_step in (

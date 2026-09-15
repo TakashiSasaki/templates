@@ -307,6 +307,7 @@ class ClassificationDecision:
     freshness_candidate_required: bool = True
     coexistence_required: bool = False
     playground_required: bool = False
+    browser_priority: str = "none"
 
     @property
     def freshness_required(self) -> bool:
@@ -410,7 +411,17 @@ def classify_paths(paths: Iterable[str], *, force_full: bool = False,
         normalize_path(p).startswith(("tests/composition-playground", "tests/fixtures/composition-playground"))
         for p in paths
     )
-    decision = replace(decision, playground_required=playground)
+    priority = "none"
+    for capability, markers in (
+        ("audience", ("audience", "site-manifest.json")),
+        ("search", ("search",)),
+        ("pwa", ("pwa", "service-worker")),
+        ("layout", ("mobile", "stylesheets/")),
+    ):
+        if any(any(marker in path for marker in markers) for path in paths):
+            priority = capability
+            break
+    decision = replace(decision, playground_required=playground, browser_priority=priority)
     if force_browser and not decision.full_required:
         decision = replace(
             decision, build_required=True, browser_required=True, pwa_required=True,
@@ -629,6 +640,7 @@ def write_outputs(output: TextIO, decision: ClassificationDecision) -> None:
     def b2s(val: bool) -> str:
         return "true" if val else "false"
 
+    output.write(f"browser_priority={decision.browser_priority}\n")
     output.write(f"playground_required={b2s(decision.playground_required)}\n")
     output.write(f"core_required={b2s(decision.core_required)}\n")
     output.write(f"build_required={b2s(decision.build_required)}\n")
