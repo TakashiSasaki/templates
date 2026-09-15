@@ -319,3 +319,13 @@ record the product evidence for the published reader routes.
 | --- | --- | --- | --- | --- |
 | 13 | planning | bare-worktree-publication | artifacts/lifecycle/013-bare-worktree-publication | 647e873e8fdde33183cc7e850d765f2f14b52309ea1a844a36840e96b07fda2d |
 | 14 | product | bare-worktree-publication-product | artifacts/lifecycle/014-bare-worktree-publication-product | dc173205220bb14527dd68c1d725486eddebd4727b4280c947c3ce1341f1f7c6 |
+
+### Policy maintainer publication remediation
+
+These checkpoints record the repaired publication contracts and their current validation;
+they do not claim that planning preceded the original implementation.
+
+| Sequence | Phase | ID | Snapshot | Manifest SHA-256 |
+| --- | --- | --- | --- | --- |
+| 15 | planning | policy-maintainer-promotion | artifacts/lifecycle/015-policy-maintainer-promotion | 7e7f00cabb3b7077641115a7bc1fb8271fc7d3e340678c61cdc872363aaee58b |
+| 16 | product | policy-maintainer-promotion-product | artifacts/lifecycle/016-policy-maintainer-promotion-product | c412c8931adc39488e8efb7410a3c7f91666976b8b178ba2ff94d03658a4b68d |

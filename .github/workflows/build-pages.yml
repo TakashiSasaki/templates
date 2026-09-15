@@ -8,6 +8,7 @@ on:
     branches:
       - site
       - 'feat/site-*'
+      - 'feat/s4-*'
       - site-composition-audience-publication-staging
       - 'site-*'
       - 'perf/site-*'
