@@ -22,7 +22,7 @@ def check_page(page, meta, canonical):
     require(page.locator('meta[name="description"]').get_attribute("content") == meta["description"], "description mismatch")
     require(page.locator('link[rel="canonical"]').get_attribute("href") == canonical, "canonical mismatch")
     require(page.locator("main").count() > 0, "main landmark missing")
-    require(page.locator("h1").first.is_visible(), "main heading is not visible")
+    require(page.locator("main h1:visible").count() == 1, "page must expose exactly one main heading")
 
 
 def check_viewport(page):
@@ -200,14 +200,15 @@ def check(repository: Path, site_root: Path):
                 else:
                     raise AssertionError("negative title proof did not reject corruption")
                 page.evaluate("value => document.title = value", meta["title"])
-                page.locator("h1").first.evaluate("element => element.style.visibility = 'hidden'")
+                heading = page.locator("main h1:visible").element_handle()
+                heading.evaluate("element => element.style.visibility = 'hidden'")
                 try:
                     check_page(page, meta, canonical)
                 except AssertionError:
                     pass
                 else:
                     raise AssertionError("negative page-structure proof accepted a hidden heading")
-                page.locator("h1").first.evaluate("element => element.style.visibility = ''")
+                heading.evaluate("element => element.style.visibility = ''")
                 checked.append(meta["pageId"])
             page.goto(f"http://127.0.0.1:{server.server_port}/", wait_until="domcontentloaded")
             for width in widths:
@@ -267,6 +268,8 @@ def check(repository: Path, site_root: Path):
                 for fallback in identity["favicon"]["fallbacks"]:
                     check_link(page, {**fallback, "relation": identity["favicon"]["relation"]})
                 check_link(page, ios_identity)
+                # Neutral landing keeps detailed destinations behind its native disclosure.
+                page.locator('.audience-discovery > summary').click()
                 page.locator('section[aria-labelledby="portal-reference-consumer-title"] a').click()
                 page.wait_for_url(f"**{prefix}/coexistence/#self-hosting-reference-consumer", wait_until="domcontentloaded")
                 require(page.locator("html").get_attribute("lang") == language, "reference explanation locale mismatch")

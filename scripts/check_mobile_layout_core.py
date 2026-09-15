@@ -83,7 +83,7 @@ MEASURE_SCRIPT = r"""
   const heading = document.querySelector(".portal-cover h1, .md-content__inner > h1");
   const cover = document.querySelector(".portal-cover");
   const lead = document.querySelector(".portal-cover__lead");
-  const buttons = Array.from(document.querySelectorAll(".portal-cover__button"));
+  const buttons = Array.from(document.querySelectorAll(".portal-cover__button, .audience-journey"));
   const revision = Array.from(document.querySelectorAll("table code")).find(
     (element) => /^[0-9a-f]{40}$/.test(element.textContent.trim())
   );

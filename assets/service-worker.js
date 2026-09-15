@@ -35,6 +35,7 @@ const STATIC_ASSETS = [
   "/javascripts/pwa.js",
   "/javascripts/reader-navigation.js",
   "/javascripts/audience-context.js",
+  "/javascripts/audience-shell.js",
   "/javascripts/search-history.js",
   "/javascripts/glossary-inline.js",
   "/javascripts/composition-playground.js",
