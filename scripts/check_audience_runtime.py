@@ -89,7 +89,7 @@ def check(
     from scripts.assemble_publications import load_manifest
     from scripts.audience_context import AudienceContextResolver
     from scripts.publication_contract import load_publication_catalog
-    manifest = load_manifest()
+    manifest = load_manifest(Path("site-manifest.json"))
     expected = AudienceContextResolver(manifest).export_runtime_map()
     catalogs = {
         publication: load_publication_catalog(
