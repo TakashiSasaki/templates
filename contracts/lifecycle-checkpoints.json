@@ -141,6 +141,26 @@
       "snapshotPath": "artifacts/lifecycle/014-bare-worktree-publication-product",
       "manifestSha256": "dc173205220bb14527dd68c1d725486eddebd4727b4280c947c3ce1341f1f7c6",
       "recordedAt": "2026-09-14T06:45:56.033561Z"
+    },
+    {
+      "id": "policy-maintainer-promotion",
+      "sequence": 15,
+      "phase": "planning",
+      "changeKind": "specification-change",
+      "parentId": "bare-worktree-publication-product",
+      "snapshotPath": "artifacts/lifecycle/015-policy-maintainer-promotion",
+      "manifestSha256": "7e7f00cabb3b7077641115a7bc1fb8271fc7d3e340678c61cdc872363aaee58b",
+      "recordedAt": "2026-09-15T01:10:59.946748Z"
+    },
+    {
+      "id": "policy-maintainer-promotion-product",
+      "sequence": 16,
+      "phase": "product",
+      "changeKind": "specification-change",
+      "parentId": "policy-maintainer-promotion",
+      "snapshotPath": "artifacts/lifecycle/016-policy-maintainer-promotion-product",
+      "manifestSha256": "c412c8931adc39488e8efb7410a3c7f91666976b8b178ba2ff94d03658a4b68d",
+      "recordedAt": "2026-09-15T01:11:02.867868Z"
     }
   ]
 }

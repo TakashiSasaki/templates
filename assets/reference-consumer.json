@@ -483,13 +483,13 @@
         "revision": "8c6c1884fa97f3ef1ec6c1aa7deba4ad38c9f4ff"
       },
       "policy": {
-        "revision": "5574ea46d2076bb1f5c51d4b0e8c9483a17d8fe2"
+        "revision": "6023af1b6aed4a22407d9ca43106cd66cfee9fb6"
       }
     }
   },
   "evidence": {
     "ledger": "contracts/implementation-evidence.json",
-    "verified": 490,
+    "verified": 506,
     "deferred": 20
   },
   "validation": {

@@ -200,7 +200,7 @@ Website 製品は `website` recipe と `capability.pwa` を、保守作業は Po
 | Composition consumer | `a739b3823660e3db742ff0e1e159d279126cba7c` | Website 契約と material の所有関係 |
 | Policy consumer | `733c86941f8154f301a225054d88c6b8a477058a` | 保守規範と生成された agent 指示 |
 | Composition publication | `8c6c1884fa97f3ef1ec6c1aa7deba4ad38c9f4ff` | 読者に公開する provider の内容 |
-| Policy publication | `5574ea46d2076bb1f5c51d4b0e8c9483a17d8fe2` | 読者に公開する provider の内容 |
+| Policy publication | `6023af1b6aed4a22407d9ca43106cd66cfee9fb6` | 読者に公開する provider の内容 |
 
 既知の provider revision N が後続の consumer revision N+1 を規定します。
 これは時間順序を持つ bootstrap であり、実行時の循環依存ではありません。
@@ -232,7 +232,7 @@ Composition と Policy はそれぞれ自分の state を検証し、Site は実
 既存 Website の開発履歴を後から作るものではありません。契約検証だけで公開済みや
 release-ready とは判断せず、未実施のブラウザ証拠は deferred として明示します。
 
-現在の台帳は verified 490 件、deferred 20 件です。
+現在の台帳は verified 506 件、deferred 20 件です。
 これはカバレッジ項目数であり、独立したテスト数やリリース認定ではありません。
 PWA 試験は実際の worker コードと制御された試験用ページを使い、Website 試験は
 配信された manifest と icon ファイルを確認します。実製品の controlled route／fallback、

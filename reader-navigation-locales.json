@@ -136,7 +136,11 @@
         {"id": "superseded-decisions", "canonical": "Superseded decisions", "localized": "Superseded decisions"},
         {"id": "adr-0004-integrated-bootstrap-skill", "canonical": "ADR-0004 Integrated bootstrap skill (superseded)", "localized": "ADR-0004 Integrated bootstrap skill (superseded)"},
         {"id": "composition-tree", "canonical": "Composition tree", "localized": "Composition tree"},
-        {"id": "policy-tree", "canonical": "Policy tree", "localized": "Policy tree"}
+        {"id": "policy-tree", "canonical": "Policy tree", "localized": "Policy tree"},
+        {"id": "contributing", "canonical": "Contributing", "localized": "コントリビューション"},
+        {"id": "maintainer-workflow", "canonical": "Policy maintainer workflow", "localized": "Policy メンテナワークフロー"},
+        {"id": "adr-review-authority", "canonical": "ADR-0008 Review authority and GitHub runtime boundary", "localized": "ADR-0008 レビュー権限と GitHub ランタイム境界"},
+        {"id": "adr-review-result", "canonical": "ADR-0009 Review result representation boundary", "localized": "ADR-0009 レビュー結果の表現境界"}
       ]
     }
   ]

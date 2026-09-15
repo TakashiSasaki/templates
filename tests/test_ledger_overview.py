@@ -31,7 +31,7 @@ class LedgerOverviewTests(unittest.TestCase):
         self.assertIn("owned by Policy", text)
         self.assertIn("Staged Policy repository-change candidate", text)
         self.assertIn("staged architecture here, not current", text)
-        self.assertIn("5574ea46d2076bb1f5c51d4b0e8c9483a17d8fe2", text)
+        self.assertIn("6023af1b6aed4a22407d9ca43106cd66cfee9fb6", text)
         self.assertIn("[Implementation evidence](implementation-evidence/)", text)
         self.assertIn("[Lifecycle checkpoints](checkpoints/)", text)
         self.assertIn("[Policy–Composition coexistence](../coexistence/)", text)
@@ -125,7 +125,7 @@ class LedgerOverviewTests(unittest.TestCase):
         text = PAGE.read_text(encoding="utf-8")
         sources = json.loads((ROOT / "publication-sources.json").read_text(encoding="utf-8"))
         policy_revision = sources["publications"]["policy"]["revision"]
-        self.assertEqual(policy_revision, "5574ea46d2076bb1f5c51d4b0e8c9483a17d8fe2")
+        self.assertEqual(policy_revision, "6023af1b6aed4a22407d9ca43106cd66cfee9fb6")
         self.assertIn(policy_revision, text)
         self.assertIn("Policy PR stack `#754 -> #755`", text)
         self.assertIn("c2e23789ebabee4d1f35653e86ebe8f61ab6e8bf", text)

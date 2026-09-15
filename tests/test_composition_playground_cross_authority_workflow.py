@@ -9,6 +9,7 @@ EXPECTED_BASES = {
     "codex/site-composition-playground-v1-shell",
     "site",
     "feat/site-*",
+                "feat/s4-*",
     "site-composition-audience-publication-staging",
     "site-*",
     "perf/site-*",

@@ -26,6 +26,12 @@ COMPOSITION_STAGING_IDS = (
     "composition-provider-maintenance",
     "composition-installer-release",
 )
+POLICY_MAINTAINER_STAGING_IDS = (
+    "contributing",
+    "maintainer-workflow",
+    "adr-review-authority-and-github-runtime-boundary",
+    "adr-review-result-representation-boundary",
+)
 
 
 def _copy_inputs(destination: Path) -> None:
@@ -145,6 +151,108 @@ def _configure_composition_mappings(site_root: Path) -> None:
             },
         ]
     )
+    staging_path.write_text(
+        json.dumps(staging, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
+def _configure_policy_maintainer_mappings(site_root: Path) -> None:
+    manifest_path = site_root / "site-manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+
+    def remove_promoted(nodes):
+        retained = []
+        for node in nodes:
+            children = node.get("children")
+            if isinstance(children, list):
+                remove_promoted(children)
+                retained.append(node)
+            elif not (
+                node.get("publication") == "policy"
+                and node.get("document") in set(POLICY_MAINTAINER_STAGING_IDS)
+            ):
+                retained.append(node)
+        nodes[:] = retained
+
+    remove_promoted(manifest["navigation"])
+    manifest_path.write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+    locales_path = site_root / "reader-navigation-locales.json"
+    locales = json.loads(locales_path.read_text(encoding="utf-8"))
+    label_ids_to_remove = {
+        "contributing",
+        "maintainer-workflow",
+        "adr-review-authority",
+        "adr-review-result",
+    }
+    for locale in locales["locales"]:
+        locale["labels"] = [
+            label
+            for label in locale["labels"]
+            if label.get("id") not in label_ids_to_remove
+        ]
+    locales_path.write_text(
+        json.dumps(locales, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+    staging_path = site_root / "publication-staging.json"
+    staging = json.loads(staging_path.read_text(encoding="utf-8"))
+    staging["mappings"] = [
+        mapping
+        for mapping in staging["mappings"]
+        if mapping["id"] not in set(POLICY_MAINTAINER_STAGING_IDS)
+    ]
+    staging["mappings"].extend([
+        {
+            "id": "contributing",
+            "publication": "policy",
+            "document": "contributing",
+            "title": "Contributing",
+            "destination": "policy/contributing.md",
+            "insert_after": {"publication": "policy", "document": "threat-model"},
+            "localizations": [
+                {"language": "ja", "label_id": "contributing", "localized": "コントリビューション"}
+            ],
+        },
+        {
+            "id": "maintainer-workflow",
+            "publication": "policy",
+            "document": "maintainer-workflow",
+            "title": "Policy maintainer workflow",
+            "destination": "policy/policy-maintainer-workflow.md",
+            "insert_after": {"publication": "policy", "document": "threat-model"},
+            "localizations": [
+                {"language": "ja", "label_id": "maintainer-workflow", "localized": "Policy メンテナワークフロー"}
+            ],
+        },
+        {
+            "id": "adr-review-authority-and-github-runtime-boundary",
+            "publication": "policy",
+            "document": "adr-review-authority-and-github-runtime-boundary",
+            "title": "ADR-0008 Review authority and GitHub runtime boundary",
+            "destination": "policy/adr/0008-review-authority-and-github-runtime-boundary.md",
+            "insert_after": {"publication": "policy", "document": "adr-single-agent-policy-skill-runtime-cache"},
+            "localizations": [
+                {"language": "ja", "label_id": "adr-review-authority", "localized": "ADR-0008 レビュー権限と GitHub ランタイム境界"}
+            ],
+        },
+        {
+            "id": "adr-review-result-representation-boundary",
+            "publication": "policy",
+            "document": "adr-review-result-representation-boundary",
+            "title": "ADR-0009 Review result representation boundary",
+            "destination": "policy/adr/0009-review-result-representation-boundary.md",
+            "insert_after": {"publication": "policy", "document": "adr-single-agent-policy-skill-runtime-cache"},
+            "localizations": [
+                {"language": "ja", "label_id": "adr-review-result", "localized": "ADR-0009 レビュー結果の表現境界"}
+            ],
+        },
+    ])
     staging_path.write_text(
         json.dumps(staging, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
@@ -634,22 +742,16 @@ class PublicationStagingMaterializationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary_directory:
             site_root = Path(temporary_directory)
             _copy_inputs(site_root)
-            
+            _configure_policy_maintainer_mappings(site_root)
+
             from scripts.materialize_publication_staging import materialize_many
-            snapshot_root = materialize_many(site_root, [
-                "contributing",
-                "maintainer-workflow",
-                "adr-review-authority-and-github-runtime-boundary",
-                "adr-review-result-representation-boundary"
-            ])
-            
+            snapshot_root = materialize_many(site_root, list(POLICY_MAINTAINER_STAGING_IDS))
+
             manifest_path = snapshot_root / "site-manifest.json"
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-            
-            # Check they were added
-            
+
             documents = json.dumps(manifest)
-            for doc in ["contributing", "maintainer-workflow", "adr-review-authority-and-github-runtime-boundary", "adr-review-result-representation-boundary"]:
+            for doc in POLICY_MAINTAINER_STAGING_IDS:
                 self.assertIn(doc, documents)
 
 class PublicationStagingWorkflowTests(unittest.TestCase):

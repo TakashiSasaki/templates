@@ -22,7 +22,8 @@ class PublicationFreshnessWorkflowTests(unittest.TestCase):
         pull_request = triggers["pull_request"]
 
         self.assertEqual(
-            ["site", "feat/site-*", "site-composition-audience-publication-staging", "site-*", "perf/site-*", "codex/site-composition-playground-v1-shell"],
+            ["site", "feat/site-*",
+                "feat/s4-*", "site-composition-audience-publication-staging", "site-*", "perf/site-*", "codex/site-composition-playground-v1-shell"],
             pull_request["branches"],
         )
         self.assertEqual(
