@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import ExitStack
 import os
 import subprocess
 import sys
@@ -34,7 +35,7 @@ class PreflightFailure(RuntimeError):
 
 
 def command(*args: str) -> list[str]:
-    return [str(PYTHON), *args]
+    return [str(PYTHON), "-B", *args]
 
 
 def configure_validation_environment() -> None:
@@ -243,6 +244,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv)
+    resources = ExitStack()
     try:
         configure_validation_environment()
         head = git_output("rev-parse", "HEAD")
@@ -269,6 +271,22 @@ def main(argv: Sequence[str] | None = None) -> int:
             os.environ["SITE_PUBLICATION_PROTOCOL_ROOT"] = str(
                 args.site_publication_protocol.resolve()
             )
+        if not args.validators_only:
+            if args.profile == "full" and args.site_publication_protocol is None:
+                raise PreflightFailure("full preflight requires --site-publication-protocol")
+            # Reject source/environment failures before publication generation or core.
+            run_check("phase-zero-source", command("-I", "scripts/composition_phase_zero.py"))
+            if args.profile == "full":
+                driver = os.environ.get("CHROMEWEBDRIVER")
+                if not driver:
+                    directory = resources.enter_context(tempfile.TemporaryDirectory(prefix="composition-phase-zero-"))
+                    result = subprocess.run(command("-I", "scripts/prepare_chromedriver.py", "--output-dir", directory),
+                                            cwd=ROOT, text=True, capture_output=True, check=False)
+                    if result.returncode:
+                        raise PreflightFailure(f"browser-runtime-preparation failed: {result.stderr.strip()}")
+                    driver = result.stdout.strip().splitlines()[-1]
+                run_check("phase-zero-browser", command("-I", "scripts/composition_phase_zero.py", "--driver", driver))
+                os.environ["CHROMEWEBDRIVER"] = driver
         run_owned_validators(
             component_version_base,
             publication_already_validated=args.publication_already_validated,
@@ -296,6 +314,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     except (OSError, PreflightFailure) as exc:
         print(f"COMPOSITION_PREFLIGHT_FAIL: {exc}", file=sys.stderr, flush=True)
         return 1
+    finally:
+        resources.close()
 
 
 if __name__ == "__main__":
