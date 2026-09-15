@@ -37,9 +37,12 @@ class BrowserWorkflowTests(unittest.TestCase):
         for name in ('reference_consumer', 'cross_authority'):
             self.assertIn('needs.classify_browser.outputs.browser_required', dispatcher['jobs'][name]['with']['browser_required'])
 
-    def test_exact_candidate_build_is_unique_and_conditional(self):
+    def test_exact_candidate_build_is_unique_and_browser_or_cross_authority_conditional(self):
         jobs = workflow('build-pages.yml')['jobs']
-        self.assertIn("outputs.cross_authority_required == 'true'", jobs['cross_authority']['if'])
+        condition = jobs['cross_authority']['if']
+        self.assertIn("outputs.browser_required == 'true'", condition)
+        self.assertIn("outputs.cross_authority_required == 'true'", condition)
+        self.assertIn(' || ', condition)
         self.assertEqual(jobs['build']['uses'], './.github/workflows/site-producer.yml')
         self.assertIn('build', jobs['cross_authority']['needs'])
         worker = workflow('site-composition-playground-cross-authority.yml')['jobs']

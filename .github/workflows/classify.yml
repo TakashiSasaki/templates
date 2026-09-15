@@ -9,6 +9,8 @@ on:
         type: boolean
         default: false
     outputs:
+      browser_priority:
+        value: ${{ jobs.classify.outputs.browser_priority }}
       reason:
         value: ${{ jobs.classify.outputs.reason }}
       changed_count:
@@ -48,6 +50,7 @@ jobs:
   classify:
     runs-on: ubuntu-24.04
     outputs:
+      browser_priority: ${{ steps.classify.outputs.browser_priority }}
       reason: ${{ steps.classify.outputs.reason }}
       changed_count: ${{ steps.classify.outputs.changed_count }}
       requiring_count: ${{ steps.classify.outputs.requiring_count }}
