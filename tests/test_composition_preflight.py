@@ -114,3 +114,27 @@ class CompositionPreflightTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+class PhaseZeroBoundaryTests(unittest.TestCase):
+    def test_existing_bytecode_is_rejected_before_source_loader(self):
+        import tempfile
+        import composition_phase_zero as phase_zero
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            cache = root / 'components/example/files/__pycache__'
+            cache.mkdir(parents=True)
+            with self.assertRaisesRegex(RuntimeError, 'pre-existing generated source contamination'):
+                phase_zero.check_source(root)
+
+    def test_phase_zero_precedes_owned_validators_and_full_core(self):
+        source = (SCRIPTS / 'run_composition_preflight.py').read_text()
+        main = source[source.index('def main('):]
+        self.assertLess(main.index('"phase-zero-browser"'), main.index('run_owned_validators('))
+        self.assertLess(main.index('run_owned_validators('), main.index('run_full_tests()'))
+
+    def test_driver_build_mismatch_fails_before_launch(self):
+        import composition_phase_zero as phase_zero
+        import prepare_chromedriver
+        with mock.patch.object(prepare_chromedriver, 'command_version', side_effect=['140.0.1.1', '139.0.1.1']):
+            with self.assertRaisesRegex(RuntimeError, 'browser/driver build mismatch'):
+                phase_zero.check_browser(Path(sys.executable))

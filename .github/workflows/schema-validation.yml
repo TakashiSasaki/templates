@@ -89,6 +89,9 @@ jobs:
       - name: Verify dependency graph
         run: .venv/bin/python -m pip check
 
+      - name: Reject source and environment defects before publication and core shard
+        run: .venv/bin/python -B -I scripts/composition_phase_zero.py
+
       - name: Materialize Composition publication once for primary validation
         run: .venv/bin/python -I scripts/materialize_publication.py --source-root .
 
@@ -156,6 +159,9 @@ jobs:
 
       - name: Verify dependency graph
         run: .venv/bin/python -m pip check
+
+      - name: Reject source and environment defects before materialization and core shard
+        run: .venv/bin/python -B -I scripts/composition_phase_zero.py
 
       - name: Materialize Composition publication for shard-local test inputs
         run: .venv/bin/python -I scripts/materialize_publication.py --source-root .

@@ -92,3 +92,14 @@ The main deeper references are:
 - [Composition schema guide](schemas/README.md)
 
 Historical migration provenance is intentionally separated from the current operational and architecture documentation. The reader-facing summary is [Composition authority migration history](docs/migrations/composition-authority-migration.md); stage-specific implementation notes remain Composition authority maintenance records rather than portal pages.
+
+### Local qualification order
+
+Use `scripts/run_composition_preflight.py full --component-version-base <SHA>
+--site-publication-protocol <pinned Site checkout>` from a committed source tree.
+Before expensive validation, phase zero checks the Python dependency graph,
+existing bytecode and undeclared component material, canonical source closure,
+and one minimal Chrome/compatible ChromeDriver session. Browser preparation fails
+before the core suite. `fast` runs source/environment checks without requiring a
+browser. `--validators-only` retains the CI primary shard's already-qualified
+publication contract from #866; it adds no producer job or cross-shard dependency.
