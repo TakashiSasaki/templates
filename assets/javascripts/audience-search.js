@@ -4,7 +4,22 @@
   if (window.TemplatesAudienceSearch) return;
   const states = new WeakMap();
   const pendingRoots = new WeakMap();
+  const resultIds = new WeakMap();
+  let nextResultId = 0;
   let model;
+  const results = root => [...root.querySelectorAll("ol a[href]")].filter(a => !a.closest("[data-site-search-history]"));
+  const visibleHits = root => results(root).filter(a => !a.closest("[hidden], [data-audience-filtered]") && a.getClientRects().length);
+  function clearSelection(root, state) {
+    state.selection = null;
+    state.input.removeAttribute("aria-activedescendant");
+    root.querySelectorAll("[data-audience-search-current]").forEach(a => a.removeAttribute("data-audience-search-current"));
+  }
+  function selectHit(root, state, hit) {
+    clearSelection(root, state);
+    state.selection = {hit, href:hit.href, id:hit.id};
+    state.input.setAttribute("aria-activedescendant", hit.id);
+    hit.setAttribute("data-audience-search-current", "");
+  }
   const strings = () => document.documentElement.lang?.startsWith("ja")
     ? {filter:"検索する目的", all:"すべての目的", use:"Use templates · 使う", maintain:"Maintain templates · 保守する", authority:"正本", primary:"主な目的", empty:"この目的の検索結果はありません。すべての目的も検索できます。"}
     : {filter:"Search audience", all:"All audiences", use:"Use templates", maintain:"Maintain templates", authority:"Authority", primary:"Primary", empty:"No matches for this audience. Try All audiences."};
@@ -13,8 +28,17 @@
     const text = strings();
     state.label.firstChild.textContent = text.filter + " ";
     for (const option of state.select.options) if (option.textContent !== text[option.value]) option.textContent = text[option.value];
-    const anchors = [...root.querySelectorAll("ol a[href]")].filter(a => !a.closest("[data-site-search-history]"));
+    const anchors = results(root);
     for (const anchor of anchors) {
+      // Allocate over the complete result set, never the filtered keyboard subset.
+      // A replacement/clone is a new node; a retained node keeps its stable ID.
+      if (!resultIds.has(anchor)) {
+        let id;
+        do { id = `audience-search-hit-${nextResultId++}`; }
+        while (root.getElementById(id) || document.getElementById(id));
+        resultIds.set(anchor, id);
+      }
+      if (anchor.id !== resultIds.get(anchor)) anchor.id = resultIds.get(anchor);
       const url = new URL(anchor.href, location.href);
       const doc = model?.documents[model.routes[url.pathname]];
       const item = anchor.closest("li") || anchor;
@@ -42,7 +66,14 @@
     }
     if (state.empty.textContent !== text.empty) state.empty.textContent = text.empty;
     state.empty.hidden = !anchors.length || anchors.some(a => !a.closest("[data-audience-filtered]"));
-    state.observer.observe(root, {childList:true, subtree:true});
+    const selection = state.selection;
+    if (selection && (!visibleHits(root).includes(selection.hit) || selection.hit.href !== selection.href || selection.hit.id !== selection.id)) clearSelection(root, state);
+    if (!state.selection) {
+      // Do not take ownership of the engine's unfiltered active descendant.
+      if (state.select.value !== "all") state.input.removeAttribute("aria-activedescendant");
+      root.querySelectorAll("[data-audience-search-current]").forEach(a => a.removeAttribute("data-audience-search-current"));
+    }
+    state.observer.observe(root, {childList:true, subtree:true, attributes:true, attributeFilter:["href", "id", "hidden"]});
   }
   function bind(root) {
     if (states.has(root)) { refresh(root, states.get(root)); return; }
@@ -74,23 +105,25 @@
     `;
     root.append(style);
     const state = {input,label,select,empty,observer:new MutationObserver(() => refresh(root,state))}; states.set(root,state);
-    select.addEventListener("change", () => { input.removeAttribute("aria-activedescendant"); refresh(root,state); });
+    select.addEventListener("change", () => { clearSelection(root,state); refresh(root,state); });
+    input.addEventListener("input", () => { if (state.selection || select.value !== "all") clearSelection(root,state); });
     // The engine owns unfiltered keyboard behavior. Filtering must never activate a hidden hit.
     root.addEventListener("keydown", event => {
-      if (event.defaultPrevented || event.target !== input || select.value === "all" || !["ArrowDown","ArrowUp","Enter"].includes(event.key)) return;
-      const hits = [...root.querySelectorAll("ol a[href]")].filter(a => !a.closest("[data-audience-filtered], [data-site-search-history]") && a.getClientRects().length);
-      if (!hits.length) { event.preventDefault(); event.stopImmediatePropagation(); return; }
+      if (event.target !== input || select.value === "all" || !["ArrowDown","ArrowUp","Enter"].includes(event.key)) return;
+      if (event.defaultPrevented) { event.stopImmediatePropagation(); return; }
+      refresh(root,state);
+      const hits = visibleHits(root);
+      if (!hits.length) { clearSelection(root,state); event.preventDefault(); event.stopImmediatePropagation(); return; }
       const selected = input.getAttribute("aria-activedescendant");
       let index = hits.findIndex(a => a.id === selected);
       if (event.key === "Enter") {
         // Give search-history's capture listener the real query before the link action.
-        event.preventDefault(); event.stopImmediatePropagation(); hits[Math.max(index,0)].click(); return;
+        event.preventDefault(); event.stopImmediatePropagation();
+        const hit = hits[Math.max(index,0)]; selectHit(root,state,hit); hit.click(); return;
       }
       event.preventDefault(); event.stopImmediatePropagation();
       index = event.key === "ArrowDown" ? (index + 1) % hits.length : (index < 0 ? hits.length - 1 : (index - 1 + hits.length) % hits.length);
-      hits.forEach((hit,i) => { if (!hit.id) hit.id = `audience-search-hit-${i}`; });
-      input.setAttribute("aria-activedescendant", hits[index].id);
-      hits.forEach((hit,i) => hit.toggleAttribute("data-audience-search-current", i === index));
+      selectHit(root,state,hits[index]);
       hits[index].scrollIntoView({block:"nearest"});
     });
     refresh(root,state);
@@ -106,7 +139,7 @@
     window.addEventListener("templates:audience-changed", () => {
       for (const host of document.body.children) {
         const state = states.get(host.shadowRoot);
-        if (state) {const audience=document.documentElement.dataset.audience; state.select.value=["use","maintain"].includes(audience)?audience:"all";}
+        if (state) {clearSelection(host.shadowRoot,state);const audience=document.documentElement.dataset.audience; state.select.value=["use","maintain"].includes(audience)?audience:"all";}
       }
       discover();
     });
