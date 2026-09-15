@@ -39,14 +39,17 @@ def test_runtime_missing_base_classifier_authority_forces_full_independently() -
     assert "force_compatibility=true" not in fallback
 
 
-def test_runtime_diff_and_unbounded_fallbacks_force_full_compatibility() -> None:
+def test_runtime_fail_closed_and_authority_sensitive_reasons_force_full_compatibility() -> None:
     workflow = WORKFLOW.read_text(encoding="utf-8")
     classification = workflow.split("python3 -I", 1)[1].split(
         "\n\n      - name: Record runtime CI selection", 1
     )[0]
 
     assert 'reason="$(sed -n \'s/^reason=//p\'' in classification
-    assert "unbounded-push|diff-unavailable)" in classification
+    assert (
+        "compatibility-sensitive-change|no-changes|unbounded-push|diff-unavailable)"
+        in classification
+    )
     assert 'echo "compatibility_requested=true"' in classification
 
 

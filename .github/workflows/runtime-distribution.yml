@@ -83,7 +83,7 @@ jobs:
 
           reason="$(sed -n 's/^reason=//p' "$GITHUB_OUTPUT" | tail -n 1)"
           case "$reason" in
-            unbounded-push|diff-unavailable)
+            compatibility-sensitive-change|no-changes|unbounded-push|diff-unavailable)
               echo "compatibility_requested=true" >> "$GITHUB_OUTPUT"
               ;;
           esac
