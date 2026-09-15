@@ -152,10 +152,11 @@ it does not fabricate Use membership. A fresh page lifetime retries the map.
 
 Browser history stores `{path, audience}` under `templatesAudienceContext`,
 preserving other history fields during audience operations. Zensical replaces
-history state with scroll offsets on scroll and before navigation; a narrow
-`replaceState` adapter preserves only the audience namespace on same-document
-replacements. New-document entries resolve independently. A record is used only
-for its recorded path;
+history state with scroll offsets on scroll and before navigation, while Site
+viewers create fragment entries with `pushState`. A narrow history adapter
+preserves only the audience namespace for same-document `replaceState` and
+`pushState` operations. New-document entries from either method resolve
+independently. A record is used only for its recorded path;
 a valid query parameter still takes precedence. History is consulted before the
 session's last journey, restoring shared pages correctly on back/forward. Shared
 services preserve journey context, while the root remains neutral and retains
