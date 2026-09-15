@@ -178,14 +178,35 @@ def test_candidate_smoke_binds_remote_source_to_stable_runtime(
     assert observed["commands"] == ["render", "check"]
 
 
-def test_runtime_workflow_qualifies_exact_head_on_linux_and_windows() -> None:
+def test_runtime_workflow_qualifies_exact_head_skill_source_once_per_os() -> None:
     workflow = WORKFLOW.read_text(encoding="utf-8")
-    assert "skill-source-candidate:" in workflow
-    assert "github.event.pull_request.head.sha" in workflow
-    assert "Check out exact skill-source candidate" in workflow
-    assert "smoke_test_agent_policy_skill_source.py" in workflow
-    assert "ubuntu-24.04" in workflow
-    assert "windows-2022" in workflow
-    assert "SKILL_SOURCE_RESULT" in workflow
-    assert 'test "$SKILL_SOURCE_RESULT" = success' in workflow
-    assert 'test "$SKILL_SOURCE_RESULT" = skipped' in workflow
+    baseline = workflow.split("\n  runtime-checks:\n", 1)[1].split(
+        "\n  compatibility-runtime:\n", 1
+    )[0]
+    compatibility = workflow.split("\n  compatibility-runtime:\n", 1)[1].split(
+        "\n  validate:\n", 1
+    )[0]
+
+    exact_revision = (
+        "github.event.pull_request.head.sha || github.sha"
+    )
+    assert exact_revision in baseline
+    assert exact_revision in compatibility
+    assert "ref: ${{ env.CANDIDATE_REVISION }}" in baseline
+    assert "ref: ${{ env.CANDIDATE_REVISION }}" in compatibility
+
+    assert "runs-on: ubuntu-24.04" in baseline
+    assert "--check all" in baseline
+    assert (
+        "- os: windows-2022\n"
+        "            pip-config-file: NUL\n"
+        "            python-version: \"3.11\"\n"
+        "            check: all"
+    ) in compatibility
+    assert (
+        "needs.classify_runtime.outputs.compatibility_requested == 'true'"
+        in compatibility
+    )
+
+    assert workflow.count("scripts/run_policy_runtime_checks.py") == 2
+    assert "smoke_test_agent_policy_skill_source.py" not in workflow

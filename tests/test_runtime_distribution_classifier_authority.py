@@ -32,10 +32,22 @@ def test_runtime_missing_base_classifier_authority_forces_full_independently() -
     assert 'echo "required=true"' in fallback
     assert 'echo "reason=base-classifier-unavailable"' in fallback
     assert 'echo "changed_count=unknown"' in fallback
+    assert 'echo "compatibility_requested=true"' in fallback
     assert "cp scripts/classify_runtime_distribution_ci.py" not in fallback
     assert "cp scripts/ci_change_classification.py" not in fallback
     assert "classify_runtime_distribution_ci.py\" \\" not in fallback
     assert "force_compatibility=true" not in fallback
+
+
+def test_runtime_diff_and_unbounded_fallbacks_force_full_compatibility() -> None:
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    classification = workflow.split("python3 -I", 1)[1].split(
+        "\n\n      - name: Record runtime CI selection", 1
+    )[0]
+
+    assert 'reason="$(sed -n \'s/^reason=//p\'' in classification
+    assert "unbounded-push|diff-unavailable)" in classification
+    assert 'echo "compatibility_requested=true"' in classification
 
 
 def test_runtime_materialized_classifier_keeps_repository_workspace_binding() -> None:
