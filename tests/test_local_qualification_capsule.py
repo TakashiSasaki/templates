@@ -86,6 +86,22 @@ class LocalCapsuleTests(unittest.TestCase):
             self.assertTrue((capsule.root / 'result.tmp').is_symlink())
             self.assertEqual({}, capsule.read()['stages'])
 
+    def test_lock_binds_artifact_path_to_original_entry_directory(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            capsule = Capsule(root / 'capsules', {'exact': 'input'})
+            original = root / 'original-entry'
+            replacement = root / 'replacement-entry'
+            replacement.mkdir()
+            with capsule.locked():
+                capsule.root.rename(original)
+                replacement.rename(capsule.root)
+                pinned = capsule.artifact
+                pinned.mkdir(parents=True)
+                (pinned / 'index.html').write_text('original')
+            self.assertEqual('original', (original / 'build/site/index.html').read_text())
+            self.assertFalse((capsule.root / 'build/site/index.html').exists())
+
     def test_same_sha_is_insufficient_for_dirty_untracked_and_generated_sources(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

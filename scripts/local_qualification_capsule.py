@@ -116,12 +116,24 @@ class Capsule:
         if self.root.is_symlink() or not self.root.is_dir():
             raise ValueError(f'capsule entry must be a regular directory: {self.root}')
         self.record = self.root / 'result.json'
-        self.artifact = self.root / 'build/site'
+        self._locked_directory = None
+
+    @property
+    def artifact(self) -> Path:
+        if self._locked_directory is None:
+            return self.root / 'build/site'
+        # The descriptor path keeps the artifact within the exact entry that
+        # owns the advisory lock even if another process renames its pathname.
+        return Path('/proc/self/fd') / str(self._locked_directory) / 'build/site'
 
     @contextmanager
     def entry_fd(self):
         flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
-        descriptor = os.open(self.root, flags)
+        descriptor = (
+            os.dup(self._locked_directory)
+            if self._locked_directory is not None
+            else os.open(self.root, flags)
+        )
         try:
             if not stat.S_ISDIR(os.fstat(descriptor).st_mode):
                 raise ValueError(f'capsule entry must be a regular directory: {self.root}')
@@ -131,6 +143,8 @@ class Capsule:
 
     @contextmanager
     def locked(self):
+        if self._locked_directory is not None:
+            raise RuntimeError('capsule lock is not reentrant')
         with self.entry_fd() as directory:
             descriptor = os.open(
                 '.lock', os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600, dir_fd=directory
@@ -141,7 +155,14 @@ class Capsule:
                 with os.fdopen(descriptor, 'a') as lock:
                     descriptor = -1
                     fcntl.flock(lock, fcntl.LOCK_EX)
-                    yield self
+                    descriptor_path = Path('/proc/self/fd') / str(directory)
+                    if not descriptor_path.is_dir():
+                        raise ValueError('capsule lock requires descriptor-bound entry access')
+                    self._locked_directory = directory
+                    try:
+                        yield self
+                    finally:
+                        self._locked_directory = None
             finally:
                 if descriptor >= 0:
                     os.close(descriptor)
