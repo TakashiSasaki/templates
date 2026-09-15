@@ -96,6 +96,7 @@ class LocalCapsuleTests(unittest.TestCase):
             with capsule.locked():
                 capsule.root.rename(original)
                 replacement.rename(capsule.root)
+                self.assertNotEqual(capsule.workspace, capsule.root)
                 pinned = capsule.artifact
                 pinned.mkdir(parents=True)
                 (pinned / 'index.html').write_text('original')

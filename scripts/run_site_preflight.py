@@ -177,7 +177,7 @@ def check_audience_browser(args: argparse.Namespace) -> None:
     if args.capsule:
         args.capsule.verify_artifact()
         artifact = args.capsule.artifact
-        output = args.capsule.root / "audience-browser.json"
+        output = args.capsule.workspace / "audience-browser.json"
     elif args.site_root:
         artifact = args.site_root
         output = artifact.parent / "audience-browser.json"
@@ -324,7 +324,7 @@ def check_candidate_projection(args: argparse.Namespace) -> None:
 def check_cross_assembly(args: argparse.Namespace) -> None:
     composition, policy = require_provider_roots(args)
     retained = getattr(args, "capsule", None)
-    context = nullcontext(str(retained.root)) if retained else tempfile.TemporaryDirectory(prefix="site-preflight-")
+    context = nullcontext(str(retained.workspace)) if retained else tempfile.TemporaryDirectory(prefix="site-preflight-")
     with context as directory:
         temporary = Path(directory)
         site_publication = temporary / "site-publication"

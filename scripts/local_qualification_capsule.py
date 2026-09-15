@@ -119,12 +119,16 @@ class Capsule:
         self._locked_directory = None
 
     @property
-    def artifact(self) -> Path:
+    def workspace(self) -> Path:
         if self._locked_directory is None:
-            return self.root / 'build/site'
+            return self.root
         # The descriptor path keeps the artifact within the exact entry that
         # owns the advisory lock even if another process renames its pathname.
-        return Path('/proc/self/fd') / str(self._locked_directory) / 'build/site'
+        return Path('/proc/self/fd') / str(self._locked_directory)
+
+    @property
+    def artifact(self) -> Path:
+        return self.workspace / 'build/site'
 
     @contextmanager
     def entry_fd(self):
