@@ -77,6 +77,27 @@ class CanonicalManifestConsumerBoundaryTests(unittest.TestCase):
 
             self.assertEqual(sentinel.read_text(encoding="utf-8"), "preserve\n")
 
+    def test_preparation_rejects_duplicate_members_before_output_creation(self):
+        manifest = (ROOT / "site-manifest.json").read_text(encoding="utf-8")
+        duplicate = manifest.replace(
+            '  "schema_version": 3,',
+            '  "schema_version": 999,\n  "schema_version": 3,',
+            1,
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "site"
+            output = Path(tmp) / "prepared"
+            root.mkdir()
+            (root / "site-manifest.json").write_text(duplicate, encoding="utf-8")
+
+            with self.assertRaisesRegex(
+                PreparationError,
+                "site manifest contains duplicate member: schema_version",
+            ):
+                prepare(root, output)
+
+            self.assertFalse(output.exists())
+
 
 if __name__ == "__main__":
     unittest.main()

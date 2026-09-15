@@ -13,7 +13,11 @@ from typing import Any, Iterable
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from scripts.assemble_publications import AssemblyError, parse_manifest
+from scripts.assemble_publications import (
+    AssemblyError,
+    parse_manifest,
+    read_json as read_canonical_json,
+)
 
 OUTPUT_MARKER = ".repository-tree-publication-root"
 OUTPUT_MARKER_CONTENT = "managed by scripts/prepare_repository_tree_publication.py\n"
@@ -224,7 +228,10 @@ def prepare(site_root: Path, output_root: Path) -> list[str]:
             f"site manifest must be a regular file: {manifest_path}"
         )
 
-    manifest_data = read_json(manifest_path, "site manifest")
+    try:
+        manifest_data = read_canonical_json(manifest_path, "site manifest")
+    except AssemblyError as exc:
+        raise PreparationError(str(exc)) from exc
     prepared_manifest = augment_manifest(manifest_data)
 
     output_root = prepare_output_root(output_root, site_root)
