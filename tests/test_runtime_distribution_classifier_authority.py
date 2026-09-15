@@ -66,7 +66,7 @@ def test_runtime_fail_closed_and_authority_reasons_force_full_compatibility() ->
 
     assert 'reason="$(sed -n \'s/^reason=//p\'' in classification
     assert (
-        "compatibility-authority-change|no-changes|unrecognized-path|"
+        "compatibility-authority-change|no-changes|unrecognized-path|unsafe-path|"
         "unbounded-push|diff-unavailable)" in classification
     )
     assert "compatibility-sensitive-change)" in classification
@@ -78,6 +78,25 @@ def test_runtime_fail_closed_and_authority_reasons_force_full_compatibility() ->
     ):
         assert authority_path in classification
     assert classification.count('echo "compatibility_requested=true"') >= 3
+
+
+def test_runtime_classifier_reason_contract_distinguishes_fast_and_full_paths() -> None:
+    assert runtime_classifier.classify_paths(["src/agent_policy/cli.py"]) == (
+        True,
+        "compatibility-sensitive-change",
+    )
+    assert runtime_classifier.classify_paths(
+        [".github/workflows/runtime-distribution.yml"]
+    ) == (True, "compatibility-authority-change")
+    assert runtime_classifier.classify_paths(["docs\\windows-only-name.md"]) == (
+        True,
+        "unsafe-path",
+    )
+    assert runtime_classifier.classify_paths([]) == (True, "no-changes")
+    assert runtime_classifier.classify_paths(["unknown_dir/future.json"]) == (
+        True,
+        "unrecognized-path",
+    )
 
 
 def test_runtime_materialized_classifier_keeps_repository_workspace_binding() -> None:

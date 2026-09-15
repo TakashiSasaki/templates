@@ -118,7 +118,7 @@ def classify_paths(paths: list[str]) -> tuple[bool, str]:
         return True, "no-changes"
     for path in paths:
         if not is_safe_repository_path(path):
-            return True, "compatibility-sensitive-change"
+            return True, "unsafe-path"
     for path in paths:
         if not is_recognized_path(path):
             return True, "unrecognized-path"
