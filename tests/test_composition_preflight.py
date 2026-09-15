@@ -3,6 +3,7 @@ from __future__ import annotations
 import subprocess
 import sys
 import unittest
+from argparse import Namespace
 from pathlib import Path
 from unittest import mock
 
@@ -110,6 +111,36 @@ class CompositionPreflightTests(unittest.TestCase):
         browser_env = dict(recorded)["real-browser-tests"]
         self.assertIsNotNone(browser_env)
         self.assertEqual(browser_env["CHROMEWEBDRIVER"], sys.executable)
+
+    def test_full_runs_distinct_consumer_spine_without_focused_suite_duplication(self) -> None:
+        args = Namespace(
+            profile="full",
+            expected_head=None,
+            publication_already_validated=False,
+            validators_only=False,
+            component_version_base="base-sha",
+            site_publication_protocol=ROOT,
+        )
+        with (
+            mock.patch.object(preflight, "parse_args", return_value=args),
+            mock.patch.object(preflight, "git_output", return_value="head-sha"),
+            mock.patch.object(preflight, "run_check"),
+            mock.patch.object(preflight, "run_owned_validators"),
+            mock.patch.object(preflight, "run_consumer_spine") as consumer_spine,
+            mock.patch.object(preflight, "run_focused_tests") as focused_tests,
+            mock.patch.object(preflight, "run_full_tests") as full_tests,
+            mock.patch.object(preflight, "run_site_publication_contract"),
+            mock.patch.dict(
+                preflight.os.environ,
+                {"CHROMEWEBDRIVER": sys.executable},
+                clear=True,
+            ),
+        ):
+            self.assertEqual(preflight.main([]), 0)
+
+        consumer_spine.assert_called_once_with()
+        focused_tests.assert_not_called()
+        full_tests.assert_called_once_with()
 
 
 if __name__ == "__main__":

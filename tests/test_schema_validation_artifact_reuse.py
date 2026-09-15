@@ -65,6 +65,15 @@ class SchemaValidationArtifactReuseTests(unittest.TestCase):
                 self.assertEqual(job.count(phase_zero), 1)
                 self.assertLess(job.index(phase_zero), job.index(materialize))
 
+    def test_primary_runs_the_bounded_consumer_spine_before_expensive_core_work(self) -> None:
+        primary = job_block(self.workflow, "primary")
+        parallel = job_block(self.workflow, "parallel")
+        spine = "scripts/run_composition_consumer_smoke.py"
+        self.assertEqual(primary.count(spine), 1)
+        self.assertNotIn(spine, parallel)
+        self.assertLess(primary.index(spine), primary.index("scripts/materialize_publication.py --source-root ."))
+        self.assertLess(primary.index(spine), primary.index("--shard-index 1"))
+
     def test_real_browser_is_not_serialized_behind_core_publication_work(self) -> None:
         browser = job_block(self.workflow, "real_browser")
         self.assertIn("      - classify_browser\n", browser)

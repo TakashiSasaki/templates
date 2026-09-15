@@ -92,6 +92,9 @@ jobs:
       - name: Reject source and environment defects before publication and core shard
         run: .venv/bin/python -B -I scripts/composition_phase_zero.py
 
+      - name: Run bounded real-consumer spine before core shard
+        run: .venv/bin/python -B -I scripts/run_composition_consumer_smoke.py
+
       - name: Materialize Composition publication once for primary validation
         run: .venv/bin/python -I scripts/materialize_publication.py --source-root .
 
@@ -216,6 +219,9 @@ jobs:
         run: |
           google-chrome --version
           "$CHROMEWEBDRIVER" --version
+
+      - name: Probe canonical phase-zero browser environment
+        run: .venv/bin/python -B -I scripts/composition_phase_zero.py --driver "$CHROMEWEBDRIVER"
 
       - name: Run real-browser acceptance suite
         run: >-

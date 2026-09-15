@@ -105,3 +105,9 @@ Chrome/ChromeDriver の最小起動を検査します。browser 準備の不備�
 前に失敗します。`fast` は browser を要求せず source/environment を検査します。
 `--validators-only` は #866 の primary shard 内で検証済み publication を再利用する
 契約を維持し、producer job や shard 間の依存関係を追加しません。
+
+fast と full は、広範囲なテストの前に `scripts/run_composition_consumer_smoke.py`
+を実行します。既存テストから実際の resolve/apply/lock、managed registry と選択した
+validator の dispatch、公開 CLI dispatch、改変された validator や別 component が所有する
+validator の拒否を検証します。新しい E2E 基盤は作らず、full core や実 browser の
+qualification を置き換えません。
