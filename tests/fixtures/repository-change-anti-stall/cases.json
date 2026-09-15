@@ -38,5 +38,10 @@
     "id": "H-review-finding-separation",
     "setup": "anti-stall state and unresolved review findings both affect orchestration",
     "expected": ["durable resume state records orchestration effect and canonical reference only", "review finding ledger remains authoritative", "do not duplicate findings"]
+  },
+  {
+    "id": "I-bounded-external-wait-observation",
+    "setup": "a required CI or review dependency remains legitimately pending after a bounded status-observation interval and no authorized productive parallel work remains",
+    "expected": ["do not enter an unbounded synchronous wait or poll loop", "keep the dependency classified as external_wait", "checkpoint dependency identity and concrete resume condition", "yield control at a recoverable boundary without claiming completion", "refresh the dependency state on a later authorized resume"]
   }
 ]

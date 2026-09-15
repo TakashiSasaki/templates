@@ -104,6 +104,23 @@ def test_wait_stall_blocked_and_parallel_work_are_distinct() -> None:
         assert token in text
 
 
+def test_external_wait_observation_is_bounded_and_yieldable() -> None:
+    text = _policy()
+    for token in (
+        "observation of an `external_wait` must itself be bounded",
+        "must not enter an unbounded or long-lived synchronous",
+        "finite stop condition",
+        "does not impose a universal timeout on the external dependency itself",
+        "record its identity and concrete resume condition",
+        "productive_parallel_work",
+        "checkpoint recoverable state",
+        "yield control at a resumable boundary",
+        "must not be reported as task completion, acceptance",
+        "refresh the dependency state",
+    ):
+        assert token in text
+
+
 def test_resume_state_is_artifact_neutral_and_separate_from_review_findings() -> None:
     text = _policy()
     for token in (
@@ -120,9 +137,9 @@ def test_resume_state_is_artifact_neutral_and_separate_from_review_findings() ->
     assert "work ledger" not in text
 
 
-def test_regression_matrix_contains_cases_a_through_h() -> None:
+def test_regression_matrix_contains_cases_a_through_i() -> None:
     cases = json.loads(CASES.read_text(encoding="utf-8"))
-    assert [case["id"][0] for case in cases] == list("ABCDEFGH")
+    assert [case["id"][0] for case in cases] == list("ABCDEFGHI")
     joined = json.dumps(cases).lower()
     for token in (
         "evidence-unavailable failure class",
@@ -136,5 +153,9 @@ def test_regression_matrix_contains_cases_a_through_h() -> None:
         "unchanged pending or in_progress status",
         "do not restart investigation",
         "review finding ledger remains authoritative",
+        "unbounded synchronous wait or poll loop",
+        "checkpoint dependency identity and concrete resume condition",
+        "yield control at a recoverable boundary without claiming completion",
+        "refresh the dependency state on a later authorized resume",
     ):
         assert token in joined
