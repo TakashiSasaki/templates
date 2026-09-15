@@ -7,6 +7,7 @@ on:
     paths:
       - .github/workflows/s4-2-canonical-repair.yml
       - scripts/s4_2_canonical_repair_once.py
+      - scripts/s4_2_canonical_repair_expectations_once.py
 
 permissions:
   contents: write
@@ -27,7 +28,9 @@ jobs:
           python-version: '3.11'
 
       - name: Apply canonical-validation repair
-        run: python scripts/s4_2_canonical_repair_once.py
+        run: |
+          python scripts/s4_2_canonical_repair_once.py
+          python scripts/s4_2_canonical_repair_expectations_once.py
 
       - name: Run focused regression tests
         run: |
@@ -41,7 +44,7 @@ jobs:
 
       - name: Commit repair and remove one-shot helpers
         run: |
-          rm .github/workflows/s4-2-canonical-repair.yml scripts/s4_2_canonical_repair_once.py
+          rm .github/workflows/s4-2-canonical-repair.yml scripts/s4_2_canonical_repair_once.py scripts/s4_2_canonical_repair_expectations_once.py
           git diff --check
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
