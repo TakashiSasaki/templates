@@ -34,6 +34,7 @@
     for (const option of state.select.options) if (option.textContent !== text[option.value]) option.textContent = text[option.value];
     const anchors = results(root);
     const lists = [...new Set(anchors.map(anchor => anchor.closest("ol")).filter(Boolean))];
+    const filtering = state.select.value !== "all";
     for (const list of lists) {
       if (!resultListIds.has(list)) {
         let id = list.id;
@@ -44,9 +45,10 @@
         resultListIds.set(list, id);
       }
       if (!list.id) list.id = resultListIds.get(list);
-      list.setAttribute("role", "listbox");
+      if (filtering) list.setAttribute("role", "listbox");
+      else list.removeAttribute("role");
     }
-    if (lists.length) state.input.setAttribute("aria-controls", lists.map(list => list.id).join(" "));
+    if (filtering && lists.length) state.input.setAttribute("aria-controls", lists.map(list => list.id).join(" "));
     else state.input.removeAttribute("aria-controls");
     for (const anchor of anchors) {
       // Allocate over the complete result set, never the filtered keyboard subset.
@@ -58,8 +60,13 @@
         resultIds.set(anchor, id);
       }
       if (anchor.id !== resultIds.get(anchor)) anchor.id = resultIds.get(anchor);
-      anchor.setAttribute("role", "option");
-      anchor.setAttribute("aria-selected", state.selection?.hit === anchor ? "true" : "false");
+      if (filtering) {
+        anchor.setAttribute("role", "option");
+        anchor.setAttribute("aria-selected", state.selection?.hit === anchor ? "true" : "false");
+      } else {
+        anchor.removeAttribute("role");
+        anchor.removeAttribute("aria-selected");
+      }
       const url = new URL(anchor.href, location.href);
       const doc = model?.documents[model.routes[url.pathname]];
       const item = anchor.closest("li") || anchor;
