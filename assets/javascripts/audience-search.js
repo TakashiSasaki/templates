@@ -5,7 +5,9 @@
   const states = new WeakMap();
   const pendingRoots = new WeakMap();
   const resultIds = new WeakMap();
+  const resultListIds = new WeakMap();
   let nextResultId = 0;
+  let nextResultListId = 0;
   let model;
   const results = root => [...root.querySelectorAll("ol a[href]")].filter(a => !a.closest("[data-site-search-history]"));
   const visibleHits = root => results(root).filter(a => !a.closest("[hidden], [data-audience-filtered]") && a.getClientRects().length);
@@ -13,11 +15,13 @@
     state.selection = null;
     state.input.removeAttribute("aria-activedescendant");
     root.querySelectorAll("[data-audience-search-current]").forEach(a => a.removeAttribute("data-audience-search-current"));
+    root.querySelectorAll('ol a[role="option"][aria-selected="true"]').forEach(a => a.setAttribute("aria-selected", "false"));
   }
   function selectHit(root, state, hit) {
     clearSelection(root, state);
     state.selection = {hit, href:hit.href, id:hit.id};
     state.input.setAttribute("aria-activedescendant", hit.id);
+    hit.setAttribute("aria-selected", "true");
     hit.setAttribute("data-audience-search-current", "");
   }
   const strings = () => document.documentElement.lang?.startsWith("ja")
@@ -29,6 +33,21 @@
     state.label.firstChild.textContent = text.filter + " ";
     for (const option of state.select.options) if (option.textContent !== text[option.value]) option.textContent = text[option.value];
     const anchors = results(root);
+    const lists = [...new Set(anchors.map(anchor => anchor.closest("ol")).filter(Boolean))];
+    for (const list of lists) {
+      if (!resultListIds.has(list)) {
+        let id = list.id;
+        if (!id) {
+          do { id = `audience-search-results-${nextResultListId++}`; }
+          while (root.getElementById(id) || document.getElementById(id));
+        }
+        resultListIds.set(list, id);
+      }
+      if (!list.id) list.id = resultListIds.get(list);
+      list.setAttribute("role", "listbox");
+    }
+    if (lists.length) state.input.setAttribute("aria-controls", lists.map(list => list.id).join(" "));
+    else state.input.removeAttribute("aria-controls");
     for (const anchor of anchors) {
       // Allocate over the complete result set, never the filtered keyboard subset.
       // A replacement/clone is a new node; a retained node keeps its stable ID.
@@ -39,6 +58,8 @@
         resultIds.set(anchor, id);
       }
       if (anchor.id !== resultIds.get(anchor)) anchor.id = resultIds.get(anchor);
+      anchor.setAttribute("role", "option");
+      anchor.setAttribute("aria-selected", state.selection?.hit === anchor ? "true" : "false");
       const url = new URL(anchor.href, location.href);
       const doc = model?.documents[model.routes[url.pathname]];
       const item = anchor.closest("li") || anchor;
@@ -81,7 +102,7 @@
     if (!input) {
       if (!pendingRoots.has(root)) {
         const observer = new MutationObserver(() => bind(root));
-        pendingRoots.set(root, observer); observer.observe(root, {childList:true, subtree:true});
+        pendingRoots.set(root, observer); observer.observe(root, {childList:true,subtree:true});
       }
       return;
     }
