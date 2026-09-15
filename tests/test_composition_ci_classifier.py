@@ -162,7 +162,7 @@ class CompositionCIClassifierTests(unittest.TestCase):
     def test_consumer_workflow_uses_only_fail_closed_behavioral_classification(self) -> None:
         workflow = CONSUMER_WORKFLOW.read_text(encoding="utf-8")
         classifier = workflow.split("\n  classify_runtime:\n", 1)[1].split(
-            "\n  clean-runtime:\n", 1
+            "\n  runtime-core:\n", 1
         )[0]
         self.assertIn("name: classify consumer-runtime requirement", classifier)
         self.assertNotIn("if: ${{ github.event_name == 'pull_request' }}", classifier)
@@ -173,7 +173,10 @@ class CompositionCIClassifierTests(unittest.TestCase):
         self.assertNotIn("compatibility_required", classifier)
         self.assertNotIn("force-compatibility", classifier)
         self.assertIn("Record runtime CI selection", classifier)
-        self.assertIn("separate explicit qualification workflow", classifier)
+        self.assertIn(
+            "default qualification: Ubuntu 24.04 / Python 3.11", classifier
+        )
+        self.assertIn("explicit compatibility checkpoints only", classifier)
 
         validate = workflow.split("\n  validate:\n", 1)[1]
         self.assertIn("name: consumer runtime validate", validate)
@@ -181,8 +184,10 @@ class CompositionCIClassifierTests(unittest.TestCase):
         self.assertIn("RUNTIME_REQUIRED: ${{ needs.classify_runtime.outputs.required }}", validate)
         self.assertNotIn("COMPATIBILITY_REQUIRED", validate)
         self.assertIn('test "$CLASSIFIER_RESULT" = success', validate)
-        self.assertIn('test "$CLEAN_RUNTIME_RESULT" = success', validate)
-        self.assertIn('test "$CLEAN_RUNTIME_RESULT" = skipped', validate)
+        self.assertIn('test "$RUNTIME_CORE_RESULT" = success', validate)
+        self.assertIn('test "$RUNTIME_CORE_RESULT" = skipped', validate)
+        self.assertIn('test "$SKILL_RUNNER_RESULT" = success', validate)
+        self.assertIn('test "$SKILL_RUNNER_RESULT" = skipped', validate)
         self.assertNotIn("COMPATIBILITY_CLEAN_RESULT", validate)
         self.assertIn(
             'echo "invalid consumer-runtime classification: $RUNTIME_REQUIRED"', validate

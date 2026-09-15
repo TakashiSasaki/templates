@@ -59,19 +59,19 @@ jobs:
             echo "- fast runtime required: \`$RUNTIME_REQUIRED\`"
             echo "- reason: \`$RUNTIME_REASON\`"
             echo "- changed paths: \`$CHANGED_COUNT\`"
-            echo '- full OS/Python compatibility is a separate explicit qualification workflow'
+            echo '- default qualification: Ubuntu 24.04 / Python 3.11'
+            echo '- Windows and Python 3.12-3.14 are explicit compatibility checkpoints only'
           } >> "$GITHUB_STEP_SUMMARY"
 
-  # Ordinary PR/push correctness gate. Every behavior-sensitive change gets one
-  # stable maintainer environment: Ubuntu 24.04 with Python 3.12. Broad
-  # OS/Python qualification is intentionally separate from this merge path.
-  clean-runtime:
-    name: Ubuntu / Python 3.12
+  # Clean runtime and materialized validation share checkout/Python setup. They
+  # remain parallel with the slower skill runner, preserving the fast critical path.
+  runtime-core:
+    name: runtime core / Ubuntu / Python 3.11
     needs:
       - classify_runtime
     if: ${{ always() && !cancelled() && needs.classify_runtime.result == 'success' && needs.classify_runtime.outputs.required == 'true' }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 35
     env:
       PYTHONHOME: ""
       PYTHONPATH: ""
@@ -88,56 +88,25 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Set up Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
-          python-version: "3.12"
+          python-version: "3.11"
           cache: pip
           cache-dependency-path: 'requirements*.lock'
 
-      - name: Build and exercise clean consumer runtime
-        run: python -I scripts/smoke_test_runtime_distribution.py
-
-  materialized-validation:
-    name: materialized validation / Ubuntu / Python 3.12
-    needs:
-      - classify_runtime
-    if: ${{ always() && !cancelled() && needs.classify_runtime.result == 'success' && needs.classify_runtime.outputs.required == 'true' }}
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
-    env:
-      PYTHONHOME: ""
-      PYTHONPATH: ""
-      PYTHONUSERBASE: ""
-      PYTHONNOUSERSITE: "1"
-      PIP_PYTHON: ""
-      PIP_CACHE_DIR: ""
-      PIP_NO_CACHE_DIR: ""
-      PIP_QUIET: ""
-      PIP_LOG: ""
-      PIP_CONFIG_FILE: /dev/null
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Set up Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version: "3.12"
-          cache: pip
-          cache-dependency-path: 'requirements*.lock'
-
-      - name: Exercise materialized validation without host site packages
-        run: python -I scripts/smoke_test_materialized_validation.py
+      - name: Run canonical runtime-core checks
+        run: python -I scripts/run_composer_runtime_checks.py --check runtime-core
 
   skill-runner:
-    name: installed skill / Ubuntu / Python 3.12
+    name: installed skill / Ubuntu / Python 3.11
     needs:
       - classify_runtime
     if: ${{ always() && !cancelled() && needs.classify_runtime.result == 'success' && needs.classify_runtime.outputs.required == 'true' }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 35
     env:
       PYTHONHOME: ""
       PYTHONPATH: ""
@@ -152,27 +121,25 @@ jobs:
     steps:
       - name: Check out runner source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Set up Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
-          python-version: "3.12"
+          python-version: "3.11"
           cache: pip
           cache-dependency-path: 'requirements*.lock'
 
-      - name: Install skill and exercise immutable runner
-        run: python -I scripts/smoke_test_skill_runner.py
-
-      - name: Download and exercise immutable remote installer candidate
-        run: python -I scripts/smoke_test_remote_skill_installer.py
+      - name: Run canonical installed-skill checks
+        run: python -I scripts/run_composer_runtime_checks.py --check skill-runner
 
   validate:
     name: consumer runtime validate
     if: ${{ always() }}
     needs:
       - classify_runtime
-      - clean-runtime
-      - materialized-validation
+      - runtime-core
       - skill-runner
     runs-on: ubuntu-24.04
     timeout-minutes: 2
@@ -181,21 +148,18 @@ jobs:
         env:
           CLASSIFIER_RESULT: ${{ needs.classify_runtime.result }}
           RUNTIME_REQUIRED: ${{ needs.classify_runtime.outputs.required }}
-          CLEAN_RUNTIME_RESULT: ${{ needs.clean-runtime.result }}
-          MATERIALIZED_VALIDATION_RESULT: ${{ needs.materialized-validation.result }}
+          RUNTIME_CORE_RESULT: ${{ needs.runtime-core.result }}
           SKILL_RUNNER_RESULT: ${{ needs.skill-runner.result }}
         run: |
           test "$CLASSIFIER_RESULT" = success
 
           case "$RUNTIME_REQUIRED" in
             true)
-              test "$CLEAN_RUNTIME_RESULT" = success
-              test "$MATERIALIZED_VALIDATION_RESULT" = success
+              test "$RUNTIME_CORE_RESULT" = success
               test "$SKILL_RUNNER_RESULT" = success
               ;;
             false)
-              test "$CLEAN_RUNTIME_RESULT" = skipped
-              test "$MATERIALIZED_VALIDATION_RESULT" = skipped
+              test "$RUNTIME_CORE_RESULT" = skipped
               test "$SKILL_RUNNER_RESULT" = skipped
               ;;
             *)
