@@ -77,14 +77,32 @@ def validate_projection_parity(
     assert routes == complete_expected_routes, "assembled audience route projection drift"
 
 
-def catalog_optional_destinations(manifest, catalogs: dict[str, dict]) -> set[str]:
-    """Return optional provider destinations; generated manifest entries stay required."""
-    optional_destinations: set[str] = set()
+def skipped_optional_destinations(
+    manifest,
+    catalogs: dict[str, dict],
+    publication_roots: dict[str, Path],
+) -> set[str]:
+    """Return destinations assembly may skip because an optional source is absent."""
+    from scripts.publication_contract import resolve_without_symlinks
+
+    skipped_destinations: set[str] = set()
     for document in manifest.documents:
-        catalog_document = catalogs[document["publication"]].get(document["document"])
-        if catalog_document is not None and catalog_document.optional:
-            optional_destinations.add(str(document["destination"]))
-    return optional_destinations
+        publication = document["publication"]
+        catalog_document = catalogs[publication].get(document["document"])
+        # Generated manifest documents have no provider-catalog record and are
+        # required. Catalog-backed optional documents are skippable only when
+        # the exact provider checkout lacks their declared source, matching the
+        # successful assembly boundary rather than trusting the runtime output.
+        if catalog_document is None or not catalog_document.optional:
+            continue
+        source = resolve_without_symlinks(
+            publication_roots[publication],
+            catalog_document.source,
+            f"{publication}:{document['document']}",
+        )
+        if not source.exists():
+            skipped_destinations.add(str(document["destination"]))
+    return skipped_destinations
 
 
 def check(
@@ -109,7 +127,9 @@ def check(
         ).documents_by_id
         for publication, root in publication_roots.items()
     }
-    optional_destinations = catalog_optional_destinations(manifest, catalogs)
+    optional_destinations = skipped_optional_destinations(
+        manifest, catalogs, publication_roots
+    )
     validate_projection_parity(site_root, model, expected, optional_destinations)
     assert model["overviews"] == expected["overviews"], "assembled audience overview drift"
     provenance = json.loads((site_root / "build-provenance.json").read_text())

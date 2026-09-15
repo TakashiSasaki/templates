@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import tempfile
 import unittest
 from types import SimpleNamespace
 
 from scripts.check_audience_runtime import (
-    catalog_optional_destinations,
+    skipped_optional_destinations,
     validate_projection_parity,
 )
 
@@ -67,31 +67,46 @@ class AudienceRuntimeProjectionParityTests(unittest.TestCase):
             ):
                 validate_projection_parity(root, model, self.expected(), set())
 
-    def test_generated_manifest_document_is_not_looked_up_or_optional(self) -> None:
-        manifest = SimpleNamespace(
-            documents=[
-                {
-                    "publication": "site",
-                    "document": "optional-provider-document",
-                    "destination": "optional/index.md",
-                },
-                {
-                    "publication": "site",
-                    "document": "generated-repository-trees",
-                    "destination": "repository-trees/index.md",
-                },
-            ]
-        )
-        catalogs = {
-            "site": {
-                "optional-provider-document": SimpleNamespace(optional=True),
+    def test_only_absent_optional_provider_sources_are_skippable(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            present = root / "docs" / "present.md"
+            present.parent.mkdir()
+            present.write_text("present", encoding="utf-8")
+            manifest = SimpleNamespace(
+                documents=[
+                    {
+                        "publication": "site",
+                        "document": "absent-optional",
+                        "destination": "absent/index.md",
+                    },
+                    {
+                        "publication": "site",
+                        "document": "present-optional",
+                        "destination": "present/index.md",
+                    },
+                    {
+                        "publication": "site",
+                        "document": "generated-repository-trees",
+                        "destination": "repository-trees/index.md",
+                    },
+                ]
+            )
+            catalogs = {
+                "site": {
+                    "absent-optional": SimpleNamespace(
+                        optional=True, source=PurePosixPath("docs/absent.md")
+                    ),
+                    "present-optional": SimpleNamespace(
+                        optional=True, source=PurePosixPath("docs/present.md")
+                    ),
+                }
             }
-        }
 
-        self.assertEqual(
-            catalog_optional_destinations(manifest, catalogs),
-            {"optional/index.md"},
-        )
+            self.assertEqual(
+                skipped_optional_destinations(manifest, catalogs, {"site": root}),
+                {"absent/index.md"},
+            )
 
     def test_actual_translation_aliases_form_the_only_route_extension(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
