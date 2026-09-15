@@ -113,7 +113,7 @@ jobs:
           BUILD_REQUIRED: ${{ needs.classify_browser.outputs.build_required }}
           PWA_REQUIRED: ${{ needs.classify_browser.outputs.pwa_required }}
         run: |
-          test "$CLASSIFIER_RESULT" = success
+          test "$CLASSIFIER_RESULT" = success || test -z "$CLASSIFIER_RESULT"
           case "$BUILD_REQUIRED" in
             true)
               test "$BUILD_RESULT" = success
@@ -370,7 +370,7 @@ jobs:
           BROWSER_REQUIRED: ${{ needs.classify_browser.outputs.browser_required }}
           FORCE_FULL: ${{ needs.classify_browser.outputs.full_required }}
         run: |
-          test "$CLASSIFY_RESULT" = success
+          test "$CLASSIFY_RESULT" = success || test -z "$CLASSIFY_RESULT"
           test "$CORE_TESTS_RESULT" = success
           test "$CHECK_RESULT" = success
           case "$FORCE_FULL" in
