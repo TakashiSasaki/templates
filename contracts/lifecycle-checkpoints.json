@@ -161,6 +161,26 @@
       "snapshotPath": "artifacts/lifecycle/016-policy-maintainer-promotion-product",
       "manifestSha256": "c412c8931adc39488e8efb7410a3c7f91666976b8b178ba2ff94d03658a4b68d",
       "recordedAt": "2026-09-15T01:11:02.867868Z"
+    },
+    {
+      "id": "audience-manifest-foundation",
+      "sequence": 17,
+      "phase": "planning",
+      "changeKind": "specification-change",
+      "parentId": "policy-maintainer-promotion-product",
+      "snapshotPath": "artifacts/lifecycle/017-audience-manifest-foundation",
+      "manifestSha256": "9b9a2ba7bb728bba7da97b7db125ec2171872ada15b322933d58d60b1429daef",
+      "recordedAt": "2026-09-15T01:13:10.037406Z"
+    },
+    {
+      "id": "audience-manifest-foundation-product",
+      "sequence": 18,
+      "phase": "product",
+      "changeKind": "specification-change",
+      "parentId": "audience-manifest-foundation",
+      "snapshotPath": "artifacts/lifecycle/018-audience-manifest-foundation-product",
+      "manifestSha256": "6dfcc3b1ce589f53627a600a2eeb503feb246dfeb744a6a3277e36f3b3b2669e",
+      "recordedAt": "2026-09-15T01:13:12.945669Z"
     }
   ]
 }

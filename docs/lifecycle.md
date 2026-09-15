@@ -329,3 +329,13 @@ they do not claim that planning preceded the original implementation.
 | --- | --- | --- | --- | --- |
 | 15 | planning | policy-maintainer-promotion | artifacts/lifecycle/015-policy-maintainer-promotion | 7e7f00cabb3b7077641115a7bc1fb8271fc7d3e340678c61cdc872363aaee58b |
 | 16 | product | policy-maintainer-promotion-product | artifacts/lifecycle/016-policy-maintainer-promotion-product | c412c8931adc39488e8efb7410a3c7f91666976b8b178ba2ff94d03658a4b68d |
+
+### Audience manifest foundation remediation
+
+These checkpoints bind the current remediation contracts and validation.
+They do not retrospectively establish planning before the original implementation.
+
+| Sequence | Phase | ID | Snapshot | Manifest SHA-256 |
+| --- | --- | --- | --- | --- |
+| 17 | planning | audience-manifest-foundation | artifacts/lifecycle/017-audience-manifest-foundation | 9b9a2ba7bb728bba7da97b7db125ec2171872ada15b322933d58d60b1429daef |
+| 18 | product | audience-manifest-foundation-product | artifacts/lifecycle/018-audience-manifest-foundation-product | 6dfcc3b1ce589f53627a600a2eeb503feb246dfeb744a6a3277e36f3b3b2669e |
