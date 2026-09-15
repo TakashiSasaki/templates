@@ -6,6 +6,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from tests.publication_context import provider_root
 
 from scripts.generate_index_navigation import (
     IndexNavigationError,
@@ -26,7 +27,7 @@ POLICY_LAYER_INDEXES = {
 
 
 def checked_out_providers(test_case: unittest.TestCase) -> dict[str, Path]:
-    providers = {name: ROOT.parent / f"{name}-source" for name in PROVIDER_ORDER}
+    providers = {name: provider_root(name, ROOT) for name in PROVIDER_ORDER}
     missing = [name for name, path in providers.items() if not path.is_dir()]
     if missing:
         test_case.skipTest(

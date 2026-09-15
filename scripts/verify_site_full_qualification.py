@@ -22,7 +22,8 @@ import sys
 import time
 import urllib.error
 import urllib.request
-from datetime import datetime
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, NamedTuple
 
 # Workflows that subscribe to `pull_request: types: [labeled]` and are newly
@@ -259,6 +260,12 @@ class SuiteEvaluation(NamedTuple):
     run_id: int | None
     html_url: str | None
     workflow_path: str
+    run_attempt: int | None = None
+    job_run_attempt: int | None = None
+    steps: tuple[dict[str, Any], ...] = ()
+    job_started_at: str | None = None
+    job_completed_at: str | None = None
+    evidence_origin: str = "unknown"
 
 
 def evaluate_suites(
@@ -412,7 +419,8 @@ def evaluate_suites(
 
         # Find matching job
         target_names = (suite.job_name,) + suite.job_name_aliases
-        matched_job = next((j for j in jobs if j.get("name") in target_names), None)
+        matches = [j for j in jobs if j.get("name") in target_names]
+        matched_job = max(matches, key=lambda j: (j.get("run_attempt") or 0, j.get("id", 0))) if matches else None
 
         if matched_job is None:
             # Job not yet started / queued in workflow
@@ -424,6 +432,7 @@ def evaluate_suites(
                     conclusion=None,
                     job_id=None,
                     run_id=run_id,
+                    run_attempt=run_attempt,
                     html_url=selected_run.get("html_url"),
                     workflow_path=suite.workflow_path,
                 )
@@ -436,6 +445,7 @@ def evaluate_suites(
                     conclusion="missing",
                     job_id=None,
                     run_id=run_id,
+                    run_attempt=run_attempt,
                     html_url=selected_run.get("html_url"),
                     workflow_path=suite.workflow_path,
                 )
@@ -457,13 +467,27 @@ def evaluate_suites(
         else:
             state = "failed"
 
+        # GitHub can clone successful jobs into a retry with NEW job IDs and a
+        # NEW API run_attempt while preserving their original execution times.
+        # Keep raw attempt fields, but never count such records as fresh execution.
+        origin = "unknown"
+        if matched_job.get("started_at") and selected_run.get("run_started_at"):
+            origin = ("carried-forward" if parse_iso_timestamp(matched_job["started_at"])
+                      < parse_iso_timestamp(selected_run["run_started_at"]) else "current-attempt")
         evaluations[suite.key] = SuiteEvaluation(
             suite=suite,
             state=state,
+            job_started_at=matched_job.get("started_at"),
+            job_completed_at=matched_job.get("completed_at"),
+            evidence_origin=origin,
             status=job_status,
             conclusion=job_conclusion,
             job_id=job_id,
             run_id=run_id,
+            run_attempt=run_attempt,
+            job_run_attempt=matched_job.get("run_attempt"),
+            steps=tuple({k: step.get(k) for k in ("number", "name", "status", "conclusion", "started_at", "completed_at")}
+                        for step in matched_job.get("steps", [])),
             html_url=html_url,
             workflow_path=suite.workflow_path,
         )
@@ -480,6 +504,7 @@ def verify_qualification(
     min_run_id: int | None = None,
     timeout_seconds: int = 2400,
     poll_interval_seconds: int = 20,
+    output: Path | None = None,
 ) -> int:
     print(f"Starting Site Full Qualification verification for {repo} at {head_sha}")
     if qualification_trigger_time:
@@ -505,12 +530,24 @@ def verify_qualification(
                 min_run_id=min_run_id,
             )
         except Exception as exc:
+            if output is not None:
+                output.parent.mkdir(parents=True, exist_ok=True)
+                output.write_text(json.dumps({"schema_version": 1, "repository": repo, "head_sha": head_sha,
+                                              "observed_at": datetime.now(timezone.utc).isoformat(),
+                                              "state": "api_error", "error": str(exc), "suites": {}}, indent=2) + "\n")
             print(f"Transient error querying GitHub API: {exc}", file=sys.stderr)
             if time.time() >= deadline:
                 print("\n❌ Full Qualification TIMED OUT with API error", file=sys.stderr)
                 return 1
             time.sleep(poll_interval_seconds)
             continue
+
+        if output is not None:
+            output.parent.mkdir(parents=True, exist_ok=True)
+            output.write_text(json.dumps({"schema_version": 1, "repository": repo, "head_sha": head_sha,
+                                          "observed_at": datetime.now(timezone.utc).isoformat(),
+                                          "suites": {key: ev._asdict() for key, ev in evaluations.items()},
+                                          "missing_workflows": missing_workflows}, indent=2) + "\n")
 
         failed_items = [ev for ev in evaluations.values() if ev.state in ("failed", "skipped", "cancelled")]
         pending_items = [ev for ev in evaluations.values() if ev.state in ("pending", "missing")]
@@ -521,9 +558,12 @@ def verify_qualification(
             print("\n❌ Full Qualification FALSIFIED: one or more required L3 checks failed:", file=sys.stderr)
             for ev in failed_items:
                 print(
-                    f"  - [{ev.state.upper()}] {ev.suite.description} (workflow: {ev.suite.workflow_path}, job: {ev.suite.job_name}): status={ev.status} conclusion={ev.conclusion} url={ev.html_url}",
+                    f"  - [{ev.state.upper()}] {ev.suite.description} (workflow: {ev.suite.workflow_path}, job: {ev.suite.job_name}, run: {ev.run_id}, attempt: {ev.run_attempt}, job attempt: {ev.job_run_attempt}): status={ev.status} conclusion={ev.conclusion} url={ev.html_url}",
                     file=sys.stderr,
                 )
+                for step in ev.steps:
+                    if step['conclusion'] in ('failure', 'cancelled', 'timed_out'):
+                        print(f"      step {step['number']}: {step['name']} = {step['conclusion']}", file=sys.stderr)
             if pending_items:
                 print("\nPending checks at time of failure:", file=sys.stderr)
                 for ev in pending_items:
@@ -533,11 +573,11 @@ def verify_qualification(
         # Success condition: all 19 suites are successful and no missing external workflows
         if len(successful_items) == len(REQUIRED_SUITES) and not missing_workflows:
             print("\n✅ All required L3 Full Qualification suites COMPLETED and GREEN:")
-            print("| Stage / Role | Workflow | Check Run / Job Name | Run ID | Status | Conclusion |")
-            print("| --- | --- | --- | --- | --- | --- |")
+            print("| Stage / Role | Workflow | Check Run / Job Name | Run ID | Attempt / API job attempt / origin | Status | Conclusion |")
+            print("| --- | --- | --- | --- | --- | --- | --- |")
             for suite in REQUIRED_SUITES:
                 ev = evaluations[suite.key]
-                print(f"| {suite.description} | {suite.workflow_path} | {suite.job_name} | {ev.run_id} | {ev.status} | {ev.conclusion} |")
+                print(f"| {suite.description} | {suite.workflow_path} | {suite.job_name} | {ev.run_id} | {ev.run_attempt} / {ev.job_run_attempt} / {ev.evidence_origin} | {ev.status} | {ev.conclusion} |")
             return 0
 
         # Pending condition: wait for remaining checks
@@ -579,7 +619,8 @@ def main() -> int:
         default=None,
         help="Minimum run ID to accept as evidence",
     )
-    parser.add_argument("--timeout-seconds", type=int, default=2400, help="Max seconds to wait")
+    parser.add_argument("--output", type=Path, help="Compact attempt/job/step JSON snapshot")
+    parser.add_argument("--timeout-seconds", type=int, default=0, help="Max seconds to wait")
     parser.add_argument("--poll-interval-seconds", type=int, default=20, help="Poll interval in seconds")
     args = parser.parse_args()
 
@@ -592,6 +633,7 @@ def main() -> int:
         min_run_id=args.min_run_id,
         timeout_seconds=args.timeout_seconds,
         poll_interval_seconds=args.poll_interval_seconds,
+        output=args.output,
     )
 
 

@@ -36,6 +36,27 @@ class RunCoreTestsContractTests(unittest.TestCase):
         self.assertEqual(all_modules, reconstructed)
         self.assertGreaterEqual(len(core_set), 180)
 
+    def test_core_and_integration_preserve_discovery_case_union(self) -> None:
+        def ids(suite):
+            result = []
+            for child in suite:
+                result.extend(ids(child) if isinstance(child, unittest.TestSuite) else [child.id()])
+            return result
+        core = ids(load_test_suite("core"))
+        integration = ids(load_test_suite("integration"))
+        discovered = ids(unittest.defaultTestLoader.discover(str(Path(__file__).resolve().parent)))
+        self.assertFalse(set(core) & set(integration))
+        self.assertCountEqual(core + integration, discovered)
+        self.assertTrue(any('test_exact_checked_out_provider_descriptors' in name for name in integration))
+        self.assertFalse(any('test_exact_checked_out_provider_descriptors' in name for name in core))
+
+    def test_missing_integration_prerequisite_is_failure(self) -> None:
+        class Missing(unittest.TestCase):
+            def runTest(self):
+                self.skipTest("provider absent")
+        with patch('scripts.run_core_tests.load_test_suite', return_value=unittest.TestSuite([Missing()])), patch('sys.stderr', io.StringIO()):
+            self.assertEqual(run_tests('integration'), 1)
+
     def test_load_core_test_suite_succeeds(self) -> None:
         suite = load_test_suite("core")
         self.assertGreater(suite.countTestCases(), 1000)

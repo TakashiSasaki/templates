@@ -80,6 +80,7 @@ jobs:
       contents: read
       actions: read
     with:
+      core_tests_scheduled: ${{ inputs.site_ref == '' && needs.classify_browser.result == 'success' }}
       reuse_pr_build: ${{ inputs.reuse_pr_build || false }}
       site_ref: ${{ inputs.site_ref || github.event.pull_request.head.sha || github.sha }}
       composition_ref: ${{ inputs.composition_ref }}

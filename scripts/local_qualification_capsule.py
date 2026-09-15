@@ -13,6 +13,7 @@ import os
 from pathlib import Path
 import platform
 import stat
+import shutil
 import subprocess
 import time
 
@@ -103,10 +104,12 @@ def source_identity(root: Path) -> dict:
 def input_identity(roots: dict[str, Path]) -> dict:
     names = [line.split('==')[0] for line in (roots['site'] / 'requirements-build.lock').read_text().splitlines()
              if '==' in line and not line.startswith('#')]
+    node = shutil.which('node')
+    node_identity = {'path': node, 'version': subprocess.check_output([node, '--version'], text=True).strip()} if node else None
     return {'schema_version': SCHEMA,
             'sources': {name: source_identity(root) for name, root in sorted(roots.items())},
             'runtime': {'python': platform.python_version(), 'implementation': platform.python_implementation(),
-                        'platform': platform.platform(),
+                        'platform': platform.platform(), 'node': node_identity,
                         'packages': sorted([name, importlib.metadata.version(name)] for name in names)}}
 
 
@@ -123,6 +126,7 @@ class Capsule:
         root.mkdir(parents=True, exist_ok=True)
         if root.is_symlink() or not root.is_dir():
             raise ValueError(f'capsule root must be a regular directory: {root}')
+        self.lock_wait_seconds = 0.0
         self.root = root / key(inputs)
         try:
             self.root.mkdir()
@@ -178,7 +182,9 @@ class Capsule:
                     raise ValueError('capsule lock must be a regular file')
                 with os.fdopen(descriptor, 'a') as lock:
                     descriptor = -1
+                    start = time.monotonic()
                     fcntl.flock(lock, fcntl.LOCK_EX)
+                    self.lock_wait_seconds = time.monotonic() - start
                     descriptor_path = Path('/proc/self/fd') / str(directory)
                     if not descriptor_path.is_dir():
                         raise ValueError('capsule lock requires descriptor-bound entry access')
@@ -265,7 +271,7 @@ class Capsule:
                 self.verify_artifact()
             if validate_reuse is not None:
                 validate_reuse()
-            print(f'LOCAL_CAPSULE stage={name} reuse=hit wait_seconds=0', flush=True)
+            print(f'LOCAL_CAPSULE stage={name} reuse=hit wait_seconds={self.lock_wait_seconds:.6f}', flush=True)
             return
         data['stages'][name] = {'result': 'running', 'attempt': previous.get('attempt', 0) + 1}
         self.write(data)

@@ -46,6 +46,18 @@ class QualificationDagTests(unittest.TestCase):
             self.assertIn(suite.job_name, names, suite.key)
             self.assertIn(names[suite.job_name], gate['needs'], suite.key)
 
+    def test_standalone_producer_keeps_full_suite_without_serializing_pr_core(self):
+        producer = workflow('site-producer.yml')
+        self.assertFalse(producer[True]['workflow_call']['inputs']['core_tests_scheduled']['default'])
+        step = next(s for s in producer['jobs']['build']['steps'] if s['name'] == 'Run site assembly tests')
+        self.assertIn('--check integration-tests', step['run'])
+        self.assertIn('--check unit-tests', step['run'])
+        jobs = workflow('build-pages.yml')['jobs']
+        self.assertEqual(jobs['build']['with']['core_tests_scheduled'],
+                         "${{ inputs.site_ref == '' && needs.classify_browser.result == 'success' }}")
+        self.assertNotIn('core_tests', jobs['build']['needs'])
+        self.assertIn('core_tests', jobs['validate']['needs'])
+
     def test_gate_rejects_failed_cancelled_skipped_pending_and_missing_results(self):
         gate = workflow('build-pages.yml')['jobs']['full_qualification']
         script = gate['steps'][0]['run']

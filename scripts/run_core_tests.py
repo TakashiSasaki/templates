@@ -26,6 +26,7 @@ PROVIDER_INTEGRATION_MODULES = frozenset(
         "test_composition_translation_reader_integration",
         "test_generated_contract_manifest_translation_integration",
         "test_glossary_locked_providers",
+        "test_agent_bootstrap_locked_providers",
         "test_index_navigation_locked_providers",
     }
 )
@@ -92,6 +93,8 @@ def load_test_suite(
         selected = categories["provider"]
     elif suite_name == "browser":
         selected = categories["browser"]
+    elif suite_name == "integration":
+        selected = sorted(categories["provider"] + categories["browser"])
     elif suite_name == "all":
         selected = sorted(
             categories["core"] + categories["provider"] + categories["browser"]
@@ -115,6 +118,9 @@ def run_tests(
     suite = load_test_suite(suite_name=suite_name, tests_dir=tests_dir)
     runner = unittest.TextTestRunner(verbosity=verbosity)
     result = runner.run(suite)
+    if suite_name == "integration" and result.skipped:
+        print("Integration prerequisites missing: required cases were skipped", file=sys.stderr)
+        return 1
     if not result.wasSuccessful():
         return 1
     return 0
@@ -124,7 +130,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--suite",
-        choices=["core", "provider", "browser", "all"],
+        choices=["core", "provider", "browser", "integration", "all"],
         default="core",
         help="Test suite boundary to execute (default: core)",
     )

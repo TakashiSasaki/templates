@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import unittest
 from pathlib import Path
+from tests.publication_context import provider_root
 
 from scripts.glossary import integrate_glossaries
 
@@ -64,7 +65,7 @@ class LockedProviderGlossaryTests(unittest.TestCase):
         providers = {
             "site": ROOT,
             **{
-                name: ROOT.parent / f"{name}-source"
+                name: provider_root(name, ROOT)
                 for name in PROVIDER_ORDER
             },
         }
