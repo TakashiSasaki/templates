@@ -208,5 +208,5 @@ def test_runtime_workflow_qualifies_exact_head_skill_source_once_per_os() -> Non
         in compatibility
     )
 
-    assert workflow.count("scripts/run_policy_runtime_checks.py") == 2
+    assert workflow.count("python -I scripts/run_policy_runtime_checks.py") == 2
     assert "smoke_test_agent_policy_skill_source.py" not in workflow

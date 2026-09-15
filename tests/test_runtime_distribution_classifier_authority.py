@@ -46,6 +46,7 @@ def test_runtime_classifier_distinguishes_ci_authority_from_ordinary_sensitive_c
         ".github/workflows/runtime-distribution.yml",
         "scripts/classify_runtime_distribution_ci.py",
         "scripts/ci_change_classification.py",
+        "scripts/run_policy_runtime_checks.py",
     ):
         assert runtime_classifier.classify_paths([path]) == (
             True,
@@ -74,6 +75,7 @@ def test_runtime_only_explicit_fast_path_reasons_skip_full_compatibility() -> No
         ".github/workflows",
         "scripts/classify_runtime_distribution_ci.py",
         "scripts/ci_change_classification.py",
+        "scripts/run_policy_runtime_checks.py",
     ):
         assert authority_path in classification
     assert classification.count('echo "compatibility_requested=true"') >= 3
@@ -86,6 +88,7 @@ def test_runtime_unknown_classifier_reason_forces_full_compatibility() -> None:
     )[0]
 
     default = classification.split("            *)\n", 1)[1].split("            ;;", 1)[0]
+    assert 'echo "required=true"' in default
     assert 'echo "compatibility_requested=true"' in default
 
 

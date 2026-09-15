@@ -32,6 +32,7 @@ COMPATIBILITY_AUTHORITY_FILES = frozenset(
     {
         "scripts/classify_runtime_distribution_ci.py",
         "scripts/ci_change_classification.py",
+        "scripts/run_policy_runtime_checks.py",
     }
 )
 COMPATIBILITY_SENSITIVE_PREFIXES = (

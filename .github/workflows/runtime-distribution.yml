@@ -92,7 +92,8 @@ jobs:
                 git diff --name-only --no-renames "$BASE_SHA" "$HEAD_SHA" -- \
                   .github/workflows \
                   scripts/classify_runtime_distribution_ci.py \
-                  scripts/ci_change_classification.py
+                  scripts/ci_change_classification.py \
+                  scripts/run_policy_runtime_checks.py
               )"; then
                 if [ -n "$authority_paths" ]; then
                   echo "compatibility_requested=true" >> "$GITHUB_OUTPUT"
@@ -107,6 +108,7 @@ jobs:
               # The base classifier can evolve independently of this workflow.
               # Only the explicitly ordinary fast-path reasons may omit the
               # supplemental matrix; every other outcome is conservative.
+              echo "required=true" >> "$GITHUB_OUTPUT"
               echo "compatibility_requested=true" >> "$GITHUB_OUTPUT"
               ;;
           esac
