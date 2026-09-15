@@ -30,8 +30,14 @@ class AudienceContextError(RuntimeError):
 class AudienceContextResolver:
     """Normative audience context resolution engine conforming to audience-model.md."""
 
-    def __init__(self, manifest: Manifest) -> None:
+    def __init__(
+        self,
+        manifest: Manifest,
+        *,
+        documents: list[dict[str, Any]] | None = None,
+    ) -> None:
         self.manifest = manifest
+        self.documents = manifest.documents if documents is None else documents
         self.audiences = list(manifest.audiences)
         self.home_key = manifest.home
         self.landing_destination = PurePosixPath("index.md")
@@ -39,11 +45,12 @@ class AudienceContextResolver:
         # Map destinations (and normalized routes) to document entries
         self.docs_by_destination: dict[PurePosixPath, dict[str, Any]] = {}
         self.docs_by_route: dict[str, dict[str, Any]] = {}
-        self.docs_by_key: dict[tuple[str, str], dict[str, Any]] = dict(manifest.document_by_key)
+        self.docs_by_key: dict[tuple[str, str], dict[str, Any]] = {}
 
-        for doc in manifest.documents:
+        for doc in self.documents:
             dest = PurePosixPath(doc["destination"])
             self.docs_by_destination[dest] = doc
+            self.docs_by_key[(doc["publication"], doc["document"])] = doc
 
             # Register multiple normalized route variations for resilient resolution
             # e.g. "index.md", "/index.md", "/", "web/index.md", "/web/", "/web/index.html"
@@ -193,7 +200,7 @@ class AudienceContextResolver:
     def export_runtime_map(self) -> dict[str, Any]:
         """Export runtime map for browser execution and static qualification."""
         doc_map: dict[str, Any] = {}
-        for doc in self.manifest.documents:
+        for doc in self.documents:
             dest = str(doc["destination"])
             is_landing = self.is_landing_page(doc)
             doc_map[dest] = {

@@ -14,18 +14,27 @@
   let initialized = false;
   let lastState = null;
 
-  // Zensical replaces history.state with scroll offsets before pushing an
-  // instant-navigation entry and on scroll. Preserve only our namespaced field
-  // on same-document replacements; new documents must resolve their own state.
-  const replaceState = history.replaceState.bind(history);
-  history.replaceState = function (state, title, url) {
+  // Zensical and Site viewers update same-document history entries for scroll
+  // positions and fragments. Preserve only our namespaced field for those
+  // entries; new documents must resolve their own state.
+  function preserveSameDocumentAudience(state, url) {
     const path = url == null ? location.pathname : new URL(url, location.href).pathname;
     const recorded = history.state?.[HISTORY_KEY];
     if (path === location.pathname && recorded?.path === path &&
         !Object.prototype.hasOwnProperty.call(state || {}, HISTORY_KEY)) {
-      state = { ...state, [HISTORY_KEY]: recorded };
+      return { ...state, [HISTORY_KEY]: recorded };
     }
-    return replaceState(state, title, url);
+    return state;
+  }
+
+  const replaceState = history.replaceState.bind(history);
+  history.replaceState = function (state, title, url) {
+    return replaceState(preserveSameDocumentAudience(state, url), title, url);
+  };
+
+  const pushState = history.pushState.bind(history);
+  history.pushState = function (state, title, url) {
+    return pushState(preserveSameDocumentAudience(state, url), title, url);
   };
 
   function loadRuntimeMap() {

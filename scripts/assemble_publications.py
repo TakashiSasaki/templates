@@ -703,7 +703,9 @@ def assemble(
             from scripts.audience_context import AudienceContextResolver
         except ImportError:
             from audience_context import AudienceContextResolver
-        resolver = AudienceContextResolver(manifest)
+        # Optional documents absent from the selected publication are not part
+        # of the built site and must not acquire audience metadata on their 404s.
+        resolver = AudienceContextResolver(manifest, documents=included)
         (docs_root / "audience-runtime.json").write_text(
             json.dumps(resolver.export_runtime_map(), indent=2, ensure_ascii=False) + "\n",
             encoding="utf-8",
