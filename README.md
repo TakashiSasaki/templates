@@ -103,3 +103,9 @@ and one minimal Chrome/compatible ChromeDriver session. Browser preparation fail
 before the core suite. `fast` runs source/environment checks without requiring a
 browser. `--validators-only` retains the CI primary shard's already-qualified
 publication contract from #866; it adds no producer job or cross-shard dependency.
+
+The fast and full profiles both run `scripts/run_composition_consumer_smoke.py`
+before broad tests. It selects existing tests for real resolve/apply/lock,
+managed registry/selected-validator dispatch, public CLI dispatch, and tampered or
+foreign validator ownership rejection. It creates no new E2E framework and does
+not replace full core or real-browser qualification.

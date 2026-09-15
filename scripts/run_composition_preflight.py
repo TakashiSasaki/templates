@@ -154,6 +154,7 @@ def run_site_publication_contract(protocol_root: Path) -> None:
 
 
 def run_focused_tests() -> None:
+    run_check("real-consumer-spine", command("-I", "scripts/run_composition_consumer_smoke.py"))
     for path in FOCUSED_TESTS:
         if (ROOT / path).is_file():
             run_check(f"focused-{Path(path).stem}", command("-I", path))
@@ -305,6 +306,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     "full preflight requires --site-publication-protocol pointing to "
                     "the pinned Site publication protocol checkout"
                 )
+            run_focused_tests()
             run_full_tests()
             # Materialization intentionally runs after clean-source tests and
             # runtime smoke checks because it creates publication build products.
