@@ -97,6 +97,17 @@ class AudienceArtifactIntegrationTests(unittest.TestCase):
                         with self.assertRaises(AssertionError):
                             check()
                 path.write_text(original)
+                canonical = artifact / 'index.html'
+                canonical.unlink()
+                reordered = json.loads(original)
+                routes = reordered['routes']
+                reordered['routes'] = {
+                    **{route: destination for route, destination in routes.items() if route.startswith('/ja/')},
+                    **{route: destination for route, destination in routes.items() if not route.startswith('/ja/')},
+                }
+                path.write_text(json.dumps(reordered))
+                with self.assertRaisesRegex(AssertionError, 'missing canonical document'):
+                    check()
                 alias = artifact / 'ja/index.html'
                 alias.unlink()
                 with self.assertRaisesRegex(AssertionError, 'translation alias has no published page'):

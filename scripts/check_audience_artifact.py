@@ -11,6 +11,8 @@ from urllib.parse import urlsplit
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from scripts.site_website_contract import public_path
+
 def validate_projection_parity(
     site_root: Path,
     model: dict,
@@ -129,10 +131,12 @@ def check_artifact(site_root: Path, publication_roots: dict[str, Path],
     assert model["audiences"] == ["use", "maintain"]
     # Every canonical published page must load the single generated controller.
     documents = model["documents"]
-    def route(destination):
-        return next(p for p, d in model["routes"].items() if d == destination and p.startswith("/") and p.endswith("/"))
     for destination in documents:
-        html = site_root / route(destination).lstrip("/") / "index.html"
+        canonical_route = public_path(destination)
+        assert model["routes"].get(canonical_route) == destination, (
+            f"canonical route drift for {destination}: {canonical_route}"
+        )
+        html = site_root / canonical_route.lstrip("/") / "index.html"
         assert html.is_file(), f"missing canonical document: {html}"
         assert len(re.findall(r'<script\b[^>]*src="[^"]*javascripts/audience-context\.js"', html.read_text())) == 1, str(html)
     return model
