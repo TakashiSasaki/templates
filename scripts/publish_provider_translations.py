@@ -115,6 +115,22 @@ def main() -> int:
             docs_root / "reader-navigation-runtime.json",
             build_runtime_map(overlays, records),
         )
+        # Extend the single assembled audience projection with actual published
+        # translation aliases; memberships remain those of the canonical document.
+        audience_path = docs_root / "audience-runtime.json"
+        if audience_path.is_file():
+            from scripts.site_website_contract import public_path
+            audience_map = json.loads(audience_path.read_text(encoding="utf-8"))
+            for record in records:
+                canonical = record.canonical_destination.as_posix()
+                route = public_path(record.translation_destination.as_posix())
+                if canonical in audience_map["documents"]:
+                    audience_map["routes"][route] = canonical
+                    audience_map["routes"][route + "index.html"] = canonical
+            audience_path.write_text(
+                json.dumps(audience_map, ensure_ascii=False, indent=2) + "\n",
+                encoding="utf-8",
+            )
         coverage = build_reader_coverage(publications, included_pages)
         write_coverage(
             args.output_root / "translation-coverage.json",

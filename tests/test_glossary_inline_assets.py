@@ -229,6 +229,7 @@ class GlossaryInlineAssetTests(unittest.TestCase):
                 "javascripts/repository-tree-viewer.js",
                 "javascripts/pwa.js",
                 "javascripts/reader-navigation.js",
+                "javascripts/audience-context.js",
                 "javascripts/search-history.js",
                 "javascripts/glossary-inline.js",
                 "javascripts/composition-playground.js",
