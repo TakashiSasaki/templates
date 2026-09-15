@@ -44,6 +44,27 @@ def source_identity(root: Path) -> dict:
     for directory in ('generated', 'artifacts'):
         if (root / directory).is_dir():
             paths.update(os.fsencode(p.relative_to(root)) for p in (root / directory).rglob('*') if not p.is_dir())
+    catalog_path = root / 'docs' / 'publication-catalog.json'
+    if catalog_path.is_file():
+        # Publication catalogs are the generic authority for provider inputs.
+        # Include declared ignored inputs wherever the provider places them;
+        # this does not interpret any provider-specific generator semantics.
+        from scripts.publication_contract import load_publication_catalog, resolve_without_symlinks
+        catalog = load_publication_catalog(root, validate_sources=False)
+        declared = [document.source for document in catalog.documents]
+        declared.extend(asset.source for asset in catalog.assets)
+        if catalog.glossary_source is not None:
+            declared.append(catalog.glossary_source)
+        for relative in declared:
+            path = resolve_without_symlinks(root, relative, 'capsule publication input')
+            if path.is_dir():
+                paths.update(
+                    os.fsencode(item.relative_to(root))
+                    for item in path.rglob('*')
+                    if not item.is_dir()
+                )
+            else:
+                paths.add(os.fsencode(relative))
     files = {}
     for raw in sorted(paths):
         relative = os.fsdecode(raw)
@@ -118,6 +139,8 @@ class Capsule:
             operation()
             if name == 'build':
                 data['stages'][name]['artifact_digest'] = artifact_digest(self.artifact)
+            elif artifact:
+                self.verify_artifact()
             data['stages'][name]['result'] = 'success'
         except BaseException:
             data['stages'][name]['result'] = 'failure'

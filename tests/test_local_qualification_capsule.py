@@ -28,6 +28,13 @@ class LocalCapsuleTests(unittest.TestCase):
                 self.assertEqual(calls, ['build'])
                 capsule.stage('browser', lambda: calls.append('browser'), artifact=True)
                 self.assertEqual(capsule.read()['stages']['browser']['attempt'], 2)
+                with self.assertRaisesRegex(ValueError, 'modified capsule artifact'):
+                    capsule.stage(
+                        'audience-static',
+                        lambda: (capsule.artifact / 'index.html').write_text('changed during check'),
+                        artifact=True,
+                    )
+                self.assertEqual(capsule.read()['stages']['audience-static']['result'], 'failure')
                 (capsule.artifact / 'index.html').write_text('tampered')
                 with self.assertRaisesRegex(ValueError, 'modified capsule artifact'):
                     capsule.stage('browser', lambda: None, artifact=True)
@@ -64,3 +71,34 @@ class LocalCapsuleTests(unittest.TestCase):
                 self.assertEqual(original['revision'], current['revision'])
                 self.assertNotEqual(original['files'], current['files'])
                 original = current
+
+    def test_contract_declared_ignored_input_participates_in_identity(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            subprocess.run(['git', 'init', '-q', str(root)], check=True)
+            (root / 'docs').mkdir()
+            (root / 'docs' / 'publication-catalog.json').write_text(json.dumps({
+                'schema_version': 3,
+                'documents': [
+                    {'id': 'home', 'source': 'materialized/home.md', 'optional': False, 'home': True},
+                ],
+                'assets': [],
+            }))
+            (root / '.gitignore').write_text('materialized/\n')
+            subprocess.run(
+                ['git', '-C', str(root), 'add', 'docs/publication-catalog.json', '.gitignore'],
+                check=True,
+            )
+            subprocess.run(
+                ['git', '-C', str(root), '-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid',
+                 'commit', '-qm', 'fixture'],
+                check=True,
+            )
+            before = source_identity(root)
+            output = root / 'materialized' / 'home.md'
+            output.parent.mkdir()
+            output.write_text('generated')
+            after = source_identity(root)
+
+        self.assertEqual(before['revision'], after['revision'])
+        self.assertNotEqual(before['files'], after['files'])
