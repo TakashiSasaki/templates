@@ -175,3 +175,13 @@ repository 全体の ownership model と Policy / Composition の分離につい
 | 8 | product | topology-publication-remediation-product | artifacts/lifecycle/008-topology-publication-remediation-product | 3c10eceba4ada27893a6868a7fe9188ce02aab90e8cd641c68237d67cf9f94b8 |
 | 9 | planning | topology-consumer-overview-remediation | artifacts/lifecycle/009-topology-consumer-overview-remediation | acdd54017dd8e0ca560cf1e91d25b3124953ea07b00faa49fe1d3f3cde7543ce |
 | 10 | product | topology-consumer-overview-remediation-product | artifacts/lifecycle/010-topology-consumer-overview-remediation-product | 5c5f8aa08dfe96393a1de3552c16a1ccbeb366411d8688a044b31dca353cac57 |
+
+### Policy メンテナー文書の公開修正
+
+以下のチェックポイントは、修正後の公開契約と現在の検証結果を記録します。
+元の実装より前に計画が完了していたことを遡及的に証明するものではありません。
+
+| 順序 | フェーズ | ID | スナップショット | マニフェスト SHA-256 |
+| --- | --- | --- | --- | --- |
+| 15 | planning | policy-maintainer-promotion | artifacts/lifecycle/015-policy-maintainer-promotion | 7e7f00cabb3b7077641115a7bc1fb8271fc7d3e340678c61cdc872363aaee58b |
+| 16 | product | policy-maintainer-promotion-product | artifacts/lifecycle/016-policy-maintainer-promotion-product | c412c8931adc39488e8efb7410a3c7f91666976b8b178ba2ff94d03658a4b68d |
