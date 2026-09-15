@@ -94,3 +94,14 @@ Site は reader-facing information architecture、publication mapping、およ�
 - [Composition schema guide](schemas/README.md)
 
 過去の migration provenance は、現在の operation および architecture documentation から意図的に分離されています。reader-facing summary は [Composition authority migration history](docs/migrations/composition-authority-migration.md) です。stage-specific implementation notes は portal pages ではなく、Composition authority の保守記録として保持されます。
+
+### ローカル qualification の順序
+
+commit 済み source tree から `scripts/run_composition_preflight.py full
+--component-version-base <SHA> --site-publication-protocol <固定した Site checkout>`
+を実行します。高コストな検証より前に、phase zero が Python の依存関係、既存の
+bytecode と未宣言の component material、canonical source closure、互換性のある
+Chrome/ChromeDriver の最小起動を検査します。browser 準備の不備は core suite より
+前に失敗します。`fast` は browser を要求せず source/environment を検査します。
+`--validators-only` は #866 の primary shard 内で検証済み publication を再利用する
+契約を維持し、producer job や shard 間の依存関係を追加しません。
