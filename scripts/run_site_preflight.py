@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 import argparse
-from contextlib import nullcontext
+from contextlib import contextmanager, nullcontext
 import json
 import shutil
 import os
@@ -105,6 +105,80 @@ def require_composition_root(args: argparse.Namespace) -> Path:
     if args.composition_root is None:
         raise PreflightFailure("this check requires --composition-root at the locked revision")
     return args.composition_root.resolve(strict=True)
+
+
+@contextmanager
+def capsule_source_snapshot(args: argparse.Namespace, stage: str):
+    """Run one cacheable stage from source bytes frozen at its input identity.
+
+    A capsule lock protects its entry, not the working trees.  Cloning each
+    repository at its recorded revision and then overlaying the working tree
+    gives the stage an immutable copy of tracked, dirty, untracked, generated,
+    and catalog-declared inputs.  Re-identifying the copy rejects a source
+    change observed while the snapshot was made; a transient change that is
+    restored later cannot affect the stage unless it was captured, in which
+    case its identity differs and fails closed.
+    """
+    if not getattr(args, "capsule", None):
+        yield
+        return
+    from scripts.local_qualification_capsule import input_identity
+
+    original_root = ROOT
+    original_composition = args.composition_root
+    original_policy = args.policy_root
+    # Keep source snapshots in a mode-0700 temporary directory rather than
+    # below the descriptor-addressed cache entry: subprocesses which inspect a
+    # snapshot with Git do not inherit that descriptor unless they are an
+    # explicit capsule consumer.
+    snapshot_root = Path(tempfile.mkdtemp(prefix=f"site-capsule-{stage}-"))
+    snapshots: dict[str, Path] = {}
+    descriptor = args.capsule.inherited_fd
+    try:
+        for name, source in args.capsule_roots.items():
+            destination = snapshot_root / name
+            revision = args.capsule.inputs["sources"][name]["revision"]
+            subprocess.run(
+                ["git", "clone", "--shared", "--no-checkout", str(source), str(destination)],
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
+                pass_fds=() if descriptor is None else (descriptor,),
+            )
+            subprocess.run(
+                ["git", "-C", str(destination), "checkout", "--detach", "--force", revision],
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
+                pass_fds=() if descriptor is None else (descriptor,),
+            )
+            for child in destination.iterdir():
+                if child.name == ".git":
+                    continue
+                if child.is_dir() and not child.is_symlink():
+                    shutil.rmtree(child)
+                else:
+                    child.unlink()
+            shutil.copytree(
+                source,
+                destination,
+                dirs_exist_ok=True,
+                symlinks=True,
+                ignore=lambda _directory, names: {".git"} & set(names),
+            )
+            snapshots[name] = destination
+        if input_identity(snapshots) != args.capsule.inputs:
+            raise PreflightFailure("capsule inputs changed while snapshotting")
+        globals()["ROOT"] = snapshots["site"]
+        args.composition_root = snapshots["composition"]
+        args.policy_root = snapshots["policy"]
+        yield
+    finally:
+        globals()["ROOT"] = original_root
+        args.composition_root = original_composition
+        args.policy_root = original_policy
+        if snapshot_root.exists():
+            shutil.rmtree(snapshot_root)
 
 
 def check_reference_projections(args: argparse.Namespace) -> None:
@@ -520,7 +594,8 @@ def execute_checks(args, selected, head):
                         raise PreflightFailure("capsule inputs changed during validation")
                 validate_capsule_inputs()
                 def operation():
-                    CHECKS[name](args)
+                    with capsule_source_snapshot(args, stage):
+                        CHECKS[name](args)
                     validate_capsule_inputs()
                 args.capsule.stage(stage, operation, artifact=name in {"audience-static", "audience-browser"},
                                    reuse=name not in {"focused-tests", "audience-browser"},

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import argparse
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -99,6 +100,41 @@ class SitePreflightTests(unittest.TestCase):
                 preflight.run('consumer', args=args)
                 descriptor = capsule.inherited_fd
                 self.assertEqual((descriptor,), run.call_args.kwargs['pass_fds'])
+
+    def test_cached_stage_uses_an_identity_checked_source_snapshot(self) -> None:
+        from scripts.local_qualification_capsule import Capsule, input_identity
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            roots = {}
+            for name in ('site', 'composition', 'policy'):
+                source = root / name
+                source.mkdir()
+                (source / 'source.txt').write_text(name)
+                if name == 'site':
+                    (source / 'requirements-build.lock').write_text('')
+                subprocess.run(['git', 'init', '-q', str(source)], check=True)
+                subprocess.run(['git', '-C', str(source), 'add', '.'], check=True)
+                subprocess.run(
+                    ['git', '-C', str(source), '-c', 'user.name=Fixture',
+                     '-c', 'user.email=fixture@example.invalid', 'commit', '-qm', 'fixture'],
+                    check=True,
+                )
+                roots[name] = source
+            capsule = Capsule(root / 'capsules', input_identity(roots))
+            args = argparse.Namespace(
+                capsule=capsule,
+                capsule_roots=roots,
+                composition_root=roots['composition'],
+                policy_root=roots['policy'],
+            )
+            original_root = preflight.ROOT
+            with capsule.locked(), preflight.capsule_source_snapshot(args, 'focused-tests'):
+                self.assertNotEqual(preflight.ROOT, original_root)
+                self.assertEqual('site', (preflight.ROOT / 'source.txt').read_text())
+                (preflight.ROOT / 'source.txt').write_text('snapshot-only')
+            self.assertEqual(original_root, preflight.ROOT)
+            self.assertEqual('site', (roots['site'] / 'source.txt').read_text())
 
 
 if __name__ == "__main__":
