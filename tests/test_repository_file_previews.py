@@ -40,6 +40,7 @@ class RepositoryFilePreviewTests(unittest.TestCase):
         (root / "site-manifest.json").write_text(
             json.dumps(
                 {
+                    "schema_version": 2,
                     "navigation": [
                         {
                             "title": "Skill",
