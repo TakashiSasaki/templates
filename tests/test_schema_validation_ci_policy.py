@@ -104,6 +104,15 @@ class SchemaValidationCIPolicyTests(unittest.TestCase):
                     job.index("scripts/materialize_publication.py --source-root ."),
                 )
 
+    def test_primary_schema_ci_executes_the_fast_real_consumer_spine(self) -> None:
+        primary = _job_block(self.workflow, "primary")
+        spine = "scripts/run_composition_consumer_smoke.py"
+        self.assertEqual(primary.count(spine), 1)
+        self.assertLess(
+            primary.index(spine),
+            primary.index("scripts/run_unittest_shard.py"),
+        )
+
     def test_execution_jobs_are_bound_to_the_exact_pull_request_head(self) -> None:
         checkout_ref = "ref: ${{ github.event.pull_request.head.sha || github.sha }}"
         for job_name in (
