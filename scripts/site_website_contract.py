@@ -8,7 +8,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
+
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from scripts.assemble_publications import AssemblyError, load_manifest
 
 
 def read(root: Path, path: str):
@@ -34,7 +40,11 @@ def public_path(destination: str) -> str:
 def documents(root: Path) -> dict:
     import tomllib
     project = tomllib.loads((root / "zensical.template.toml").read_text().replace("__GENERATED_NAV__", "[]"))["project"]
-    navigation = list(leaves(read(root, "site-manifest.json")["navigation"]))
+    try:
+        manifest = load_manifest(root / "site-manifest.json")
+    except AssemblyError as exc:
+        raise ValueError(str(exc)) from exc
+    navigation = manifest.documents
     pages, routes, metadata = [], [], []
     seen = set()
     for item in navigation:

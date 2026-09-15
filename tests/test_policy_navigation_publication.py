@@ -9,7 +9,13 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def _walk_navigation(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _walk_navigation(items: list[dict[str, Any]] | dict[str, Any]) -> list[dict[str, Any]]:
+    if isinstance(items, dict):
+        leaves: list[dict[str, Any]] = []
+        for child in items.values():
+            if isinstance(child, list):
+                leaves.extend(_walk_navigation(child))
+        return leaves
     leaves: list[dict[str, Any]] = []
     for item in items:
         children = item.get("children")
@@ -34,10 +40,15 @@ class PolicyNavigationPublicationTests(unittest.TestCase):
         manifest = json.loads(
             (ROOT / "site-manifest.json").read_text(encoding="utf-8")
         )
-        leaves = _walk_navigation(manifest["navigation"])
-        policy_items = [
-            item for item in leaves if item.get("publication") == "policy"
-        ]
+        if manifest.get("schema_version") == 3:
+            policy_items = [
+                item for item in manifest["documents"] if item.get("publication") == "policy"
+            ]
+        else:
+            leaves = _walk_navigation(manifest["navigation"])
+            policy_items = [
+                item for item in leaves if item.get("publication") == "policy"
+            ]
         document_ids = [item["document"] for item in policy_items]
         self.assertEqual(len(document_ids), len(set(document_ids)))
         policy_documents = {item["document"]: item for item in policy_items}
@@ -73,6 +84,42 @@ class PolicyNavigationPublicationTests(unittest.TestCase):
                 item = policy_documents[document_id]
                 self.assertEqual(item["title"], title)
                 self.assertEqual(item["destination"], destination)
+
+        if manifest.get("schema_version") == 3:
+            maintain_nav = manifest["navigation"]["maintain"]
+            authorities = next(node for node in maintain_nav if node["title"] == "Authorities")
+            policy_section = next(child for child in authorities["children"] if child["title"] == "Policy")
+            policy_section_docs = [c["document"] for c in policy_section["children"]]
+            self.assertIn("provider-navigation", policy_section_docs)
+            self.assertIn("shared-policy-navigation", policy_section_docs)
+
+            use_nav = manifest["navigation"]["use"]
+            policy_use = next(node for node in use_nav if node["title"] == "Policy")
+            policy_use_docs = [c["document"] for c in _walk_navigation(policy_use["children"])]
+            self.assertIn("consumer-policy-navigation", policy_use_docs)
+
+            configuration_index = policy_section_docs.index("configuration")
+            self.assertEqual(
+                policy_section_docs[configuration_index : configuration_index + 3],
+                ["configuration", "policy-profiles", "policy-authoring"],
+            )
+
+            adr_section = next(node for node in maintain_nav if node["title"] == "Architecture decisions")
+            adr_node = next(child for child in adr_section["children"] if child["title"] == "Policy")
+            self.assertEqual(
+                [child["document"] for child in adr_node["children"]],
+                [
+                    "adr-index",
+                    "adr-repository-adoption",
+                    "adr-application-neutral-scope",
+                    "adr-single-policy-authority",
+                    "adr-copyable-artifact-policy-adoption",
+                    "adr-single-agent-policy-skill-runtime-cache",
+                    "adr-review-authority-and-github-runtime-boundary",
+                    "adr-review-result-representation-boundary",
+                ],
+            )
+            return
 
         policy_section = next(
             node for node in manifest["navigation"] if node["title"] == "Policy"

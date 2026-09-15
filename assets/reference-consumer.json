@@ -489,7 +489,7 @@
   },
   "evidence": {
     "ledger": "contracts/implementation-evidence.json",
-    "verified": 506,
+    "verified": 518,
     "deferred": 20
   },
   "validation": {

@@ -73,7 +73,12 @@ def wait_results(page: Any) -> list[str]:
 def pointer_activate_without_navigation(page: Any) -> str:
     """Use a trusted pointer click while suppressing only its default navigation."""
     wait_results(page)
-    result = page.locator('ol a[href]').first
+    # Audience navigation adds breadcrumb ordered lists to the light DOM.
+    # Select the actual search result within the search host's shadow root.
+    search_host = page.locator("body > *").filter(
+        has=page.locator('input[role="combobox"]')
+    )
+    result = search_host.locator('ol a[href]').first
     href = result.evaluate("(anchor) => anchor.href")
     page.evaluate(
         f"""() => {{

@@ -6,8 +6,18 @@ from __future__ import annotations
 import argparse
 import json
 import shutil
+import sys
 from pathlib import Path
 from typing import Any, Iterable
+
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from scripts.assemble_publications import (
+    AssemblyError,
+    parse_manifest,
+    read_json as read_canonical_json,
+)
 
 OUTPUT_MARKER = ".repository-tree-publication-root"
 OUTPUT_MARKER_CONTENT = "managed by scripts/prepare_repository_tree_publication.py\n"
@@ -185,9 +195,14 @@ def augment_catalog(
 
 
 def augment_manifest(manifest: dict[str, Any]) -> dict[str, Any]:
-    navigation = manifest.get("navigation")
-    if not isinstance(navigation, list) or not navigation:
-        raise PreparationError("site manifest navigation must be a non-empty array")
+    try:
+        validated = parse_manifest(manifest)
+    except AssemblyError as exc:
+        raise PreparationError(str(exc)) from exc
+    if validated.schema_version == 3:
+        return dict(manifest)
+
+    navigation = manifest["navigation"]
     if any(
         isinstance(node, dict) and node.get("title") == TREE_NAVIGATION["title"]
         for node in navigation
@@ -212,6 +227,12 @@ def prepare(site_root: Path, output_root: Path) -> list[str]:
         raise PreparationError(
             f"site manifest must be a regular file: {manifest_path}"
         )
+
+    try:
+        manifest_data = read_canonical_json(manifest_path, "site manifest")
+    except AssemblyError as exc:
+        raise PreparationError(str(exc)) from exc
+    prepared_manifest = augment_manifest(manifest_data)
 
     output_root = prepare_output_root(output_root, site_root)
     copy_tree(site_root / "docs", output_root / "docs", "site docs")
@@ -243,7 +264,7 @@ def prepare(site_root: Path, output_root: Path) -> list[str]:
     )
     write_json(
         prepared_manifest_path,
-        augment_manifest(read_json(manifest_path, "site manifest")),
+        prepared_manifest,
     )
 
     for document in TREE_DOCUMENTS:

@@ -8,11 +8,17 @@ import html
 import json
 import re
 import subprocess
+import sys
 import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 from typing import Any
 from urllib.parse import quote, quote_from_bytes, urlsplit
+
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from scripts.assemble_publications import AssemblyError, load_manifest
 
 
 NAME = re.compile(r"\A[a-z0-9]+(?:-[a-z0-9]+)*\Z")
@@ -193,38 +199,14 @@ def published_url(base_path: str, document_destination: str) -> str:
 
 
 def manifest_destinations(site_root: Path) -> dict[tuple[str, str], str]:
-    manifest = read_json(site_root / "site-manifest.json", "site manifest")
-    navigation = manifest.get("navigation")
-    if not isinstance(navigation, list):
-        raise RepositoryTreeError("site manifest navigation must be an array")
-
-    result: dict[tuple[str, str], str] = {}
-
-    def visit(nodes: list[Any]) -> None:
-        for node in nodes:
-            if not isinstance(node, dict):
-                raise RepositoryTreeError("site manifest nodes must be objects")
-            if "children" in node:
-                children = node["children"]
-                if not isinstance(children, list):
-                    raise RepositoryTreeError("site manifest children must be an array")
-                visit(children)
-                continue
-            publication = node.get("publication")
-            document = node.get("document")
-            destination = node.get("destination")
-            if not all(
-                isinstance(value, str)
-                for value in (publication, document, destination)
-            ):
-                raise RepositoryTreeError("site manifest page fields must be strings")
-            key = (publication, document)
-            if key in result:
-                raise RepositoryTreeError("site manifest contains a duplicate document")
-            result[key] = destination
-
-    visit(navigation)
-    return result
+    try:
+        manifest = load_manifest(site_root / "site-manifest.json")
+    except AssemblyError as exc:
+        raise RepositoryTreeError(str(exc)) from exc
+    return {
+        (document["publication"], document["document"]): document["destination"].as_posix()
+        for document in manifest.documents
+    }
 
 
 def published_sources(

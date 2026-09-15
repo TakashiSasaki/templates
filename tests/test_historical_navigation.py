@@ -10,7 +10,13 @@ ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "site-manifest.json"
 
 
-def _walk_navigation(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _walk_navigation(items: list[dict[str, Any]] | dict[str, Any]) -> list[dict[str, Any]]:
+    if isinstance(items, dict):
+        leaves: list[dict[str, Any]] = []
+        for child in items.values():
+            if isinstance(child, list):
+                leaves.extend(_walk_navigation(child))
+        return leaves
     leaves: list[dict[str, Any]] = []
     for item in items:
         children = item.get("children")
@@ -24,6 +30,33 @@ def _walk_navigation(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
 class HistoricalNavigationTests(unittest.TestCase):
     def test_composition_exposes_only_consolidated_authority_history(self) -> None:
         manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+        if manifest.get("schema_version") == 3:
+            maintain_nav = manifest["navigation"]["maintain"]
+            history_section = next(
+                node for node in maintain_nav if node["title"] == "Repository history"
+            )
+            composition = next(
+                child for child in history_section["children"] if child.get("title") == "Composition"
+            )
+            self.assertEqual(
+                composition["children"],
+                [
+                    {
+                        "title": "Authority migration history",
+                        "publication": "composition",
+                        "document": "composition-authority-migration",
+                        "destination": "composition/migrations/authority-migration.md",
+                    }
+                ],
+            )
+            self.assertFalse(
+                any(
+                    node.get("title") == "Composition migration history"
+                    for node in _walk_navigation(manifest["navigation"])
+                )
+            )
+            return
+
         composition = next(
             node
             for node in manifest["navigation"]

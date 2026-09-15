@@ -308,18 +308,25 @@ def materialize_many(site_root: Path, staging_ids: list[str]) -> Path:
         ) from exc
 
     navigation = manifest.get("navigation")
-    if not isinstance(navigation, list):
-        raise PublicationStagingError("site manifest navigation must be an array")
-    existing_pages = list(_walk_pages(navigation))
+    if isinstance(navigation, dict):
+        existing_pages = []
+        for aud, audience_tree in navigation.items():
+            if isinstance(audience_tree, list):
+                for parent, index, node in _walk_pages(audience_tree):
+                    existing_pages.append((aud, parent, index, node))
+    elif isinstance(navigation, list):
+        existing_pages = [("use", parent, index, node) for parent, index, node in _walk_pages(navigation)]
+    else:
+        raise PublicationStagingError("site manifest navigation must be an object or array")
     existing_keys = {
         (node.get("publication"), node.get("document"))
-        for _, _, node in existing_pages
+        for _, _, _, node in existing_pages
     }
-    existing_destinations = {node.get("destination") for _, _, node in existing_pages}
+    existing_destinations = {node.get("destination") for _, _, _, node in existing_pages}
     selected_keys: set[tuple[str, str]] = set()
     selected_destinations: set[str] = set()
     anchor_operations: dict[
-        tuple[str, str], tuple[list[dict[str, Any]], int, list[dict[str, Any]]]
+        tuple[str, str], tuple[str, list[dict[str, Any]], int, list[dict[str, Any]]]
     ] = {}
     original_titles = navigation_titles(prepared_navigation)
     selected_titles: set[str] = set()
@@ -351,8 +358,8 @@ def materialize_many(site_root: Path, staging_ids: list[str]) -> Path:
             mapping["insert_after"]["document"],
         )
         anchor_matches = [
-            (parent, index)
-            for parent, index, node in existing_pages
+            (aud, parent, index)
+            for aud, parent, index, node in existing_pages
             if (node.get("publication"), node.get("document")) == anchor_key
         ]
         if len(anchor_matches) != 1:
@@ -360,9 +367,11 @@ def materialize_many(site_root: Path, staging_ids: list[str]) -> Path:
                 "staging insertion anchor must match exactly one active page: "
                 f"{anchor_key[0]}:{anchor_key[1]}"
             )
-        anchor_parent, anchor_index = anchor_matches[0]
-        operation = anchor_operations.setdefault(anchor_key, (anchor_parent, anchor_index, []))
-        operation[2].append(mapping)
+        anchor_aud, anchor_parent, anchor_index = anchor_matches[0]
+        operation = anchor_operations.setdefault(
+            anchor_key, (anchor_aud, anchor_parent, anchor_index, [])
+        )
+        operation[3].append(mapping)
 
         title = mapping["title"]
         if title in selected_titles:
@@ -416,8 +425,8 @@ def materialize_many(site_root: Path, staging_ids: list[str]) -> Path:
 
     # Apply all insertions to the in-memory manifest in explicit selection order.
     # Multiple mappings may share an active anchor; their order remains stable.
-    for parent, index, grouped in sorted(
-        anchor_operations.values(), key=lambda operation: operation[1], reverse=True
+    for anchor_aud, parent, index, grouped in sorted(
+        anchor_operations.values(), key=lambda operation: operation[2], reverse=True
     ):
         parent[index + 1:index + 1] = [
             {
@@ -428,6 +437,20 @@ def materialize_many(site_root: Path, staging_ids: list[str]) -> Path:
             }
             for mapping in grouped
         ]
+
+    if manifest.get("schema_version") == 3 and "documents" in manifest:
+        for anchor_aud, _, _, grouped in anchor_operations.values():
+            for mapping in grouped:
+                manifest["documents"].append(
+                    {
+                        "publication": mapping["publication"],
+                        "document": mapping["document"],
+                        "title": mapping["title"],
+                        "destination": mapping["destination"],
+                        "primary_audience": anchor_aud,
+                        "additional_audiences": [],
+                    }
+                )
 
     for mapping in mappings:
         if mapping["title"] in original_titles:

@@ -77,6 +77,11 @@ def _configure_composition_mappings(site_root: Path) -> None:
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
 
     def remove_promoted(nodes):
+        if isinstance(nodes, dict):
+            for child in nodes.values():
+                if isinstance(child, list):
+                    remove_promoted(child)
+            return
         retained = []
         for node in nodes:
             children = node.get("children")
@@ -91,6 +96,15 @@ def _configure_composition_mappings(site_root: Path) -> None:
         nodes[:] = retained
 
     remove_promoted(manifest["navigation"])
+    if "documents" in manifest:
+        manifest["documents"] = [
+            doc
+            for doc in manifest["documents"]
+            if not (
+                doc.get("publication") == "composition"
+                and doc.get("document") in {"provider-maintenance", "installer-release"}
+            )
+        ]
     write = json.dumps(manifest, ensure_ascii=False, indent=2) + "\n"
     manifest_path.write_text(write, encoding="utf-8")
 
@@ -162,6 +176,11 @@ def _configure_policy_maintainer_mappings(site_root: Path) -> None:
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
 
     def remove_promoted(nodes):
+        if isinstance(nodes, dict):
+            for child in nodes.values():
+                if isinstance(child, list):
+                    remove_promoted(child)
+            return
         retained = []
         for node in nodes:
             children = node.get("children")
@@ -176,6 +195,15 @@ def _configure_policy_maintainer_mappings(site_root: Path) -> None:
         nodes[:] = retained
 
     remove_promoted(manifest["navigation"])
+    if "documents" in manifest:
+        manifest["documents"] = [
+            doc
+            for doc in manifest["documents"]
+            if not (
+                doc.get("publication") == "policy"
+                and doc.get("document") in set(POLICY_MAINTAINER_STAGING_IDS)
+            )
+        ]
     manifest_path.write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
@@ -214,7 +242,7 @@ def _configure_policy_maintainer_mappings(site_root: Path) -> None:
             "document": "contributing",
             "title": "Contributing",
             "destination": "policy/contributing.md",
-            "insert_after": {"publication": "policy", "document": "threat-model"},
+            "insert_after": {"publication": "policy", "document": "publication-catalog"},
             "localizations": [
                 {"language": "ja", "label_id": "contributing", "localized": "コントリビューション"}
             ],
@@ -225,7 +253,7 @@ def _configure_policy_maintainer_mappings(site_root: Path) -> None:
             "document": "maintainer-workflow",
             "title": "Policy maintainer workflow",
             "destination": "policy/policy-maintainer-workflow.md",
-            "insert_after": {"publication": "policy", "document": "threat-model"},
+            "insert_after": {"publication": "policy", "document": "publication-catalog"},
             "localizations": [
                 {"language": "ja", "label_id": "maintainer-workflow", "localized": "Policy メンテナワークフロー"}
             ],
@@ -260,6 +288,11 @@ def _configure_policy_maintainer_mappings(site_root: Path) -> None:
 
 
 def _pages(nodes):
+    if isinstance(nodes, dict):
+        for child in nodes.values():
+            if isinstance(child, list):
+                yield from _pages(child)
+        return
     for node in nodes:
         if "children" in node:
             yield from _pages(node["children"])

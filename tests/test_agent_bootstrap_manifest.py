@@ -463,7 +463,12 @@ class AgentBootstrapManifestTests(unittest.TestCase):
         )
         document_ids: set[str] = set()
 
-        def collect_document_ids(nodes: list[dict[str, object]]) -> None:
+        def collect_document_ids(nodes: list[dict[str, object]] | dict[str, Any]) -> None:
+            if isinstance(nodes, dict):
+                for child in nodes.values():
+                    if isinstance(child, list):
+                        collect_document_ids(child)
+                return
             for node in nodes:
                 publication = node.get("publication")
                 document = node.get("document")

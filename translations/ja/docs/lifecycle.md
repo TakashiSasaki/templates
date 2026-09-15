@@ -185,3 +185,13 @@ repository 全体の ownership model と Policy / Composition の分離につい
 | --- | --- | --- | --- | --- |
 | 15 | planning | policy-maintainer-promotion | artifacts/lifecycle/015-policy-maintainer-promotion | 7e7f00cabb3b7077641115a7bc1fb8271fc7d3e340678c61cdc872363aaee58b |
 | 16 | product | policy-maintainer-promotion-product | artifacts/lifecycle/016-policy-maintainer-promotion-product | c412c8931adc39488e8efb7410a3c7f91666976b8b178ba2ff94d03658a4b68d |
+
+### オーディエンスマニフェスト基盤の修正
+
+以下のチェックポイントは、修正後の公開契約と現在の検証結果を記録します。
+元の実装より前に計画が完了していたことを遡及的に証明するものではありません。
+
+| 順序 | フェーズ | ID | スナップショット | マニフェスト SHA-256 |
+| --- | --- | --- | --- | --- |
+| 17 | planning | audience-manifest-foundation | artifacts/lifecycle/017-audience-manifest-foundation | 9b9a2ba7bb728bba7da97b7db125ec2171872ada15b322933d58d60b1429daef |
+| 18 | product | audience-manifest-foundation-product | artifacts/lifecycle/018-audience-manifest-foundation-product | 6dfcc3b1ce589f53627a600a2eeb503feb246dfeb744a6a3277e36f3b3b2669e |
