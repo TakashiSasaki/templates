@@ -45,6 +45,17 @@ def _trigger_branches(workflow: str, event: str) -> list[str]:
     ]
 
 
+def _job_block(workflow: str, name: str) -> str:
+    jobs = workflow.split("\njobs:\n", 1)[1]
+    matches = list(re.finditer(r"(?m)^  ([A-Za-z0-9_-]+):\n", jobs))
+    for index, match in enumerate(matches):
+        if match.group(1) != name:
+            continue
+        end = matches[index + 1].start() if index + 1 < len(matches) else len(jobs)
+        return jobs[match.start():end]
+    raise AssertionError(f"missing workflow job: {name}")
+
+
 class SchemaValidationCIPolicyTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -61,11 +72,12 @@ class SchemaValidationCIPolicyTests(unittest.TestCase):
         self.assertNotIn("agent/composition-", trigger)
 
     def test_schema_validation_reuses_canonical_validator_preflight(self) -> None:
-        primary = self.workflow.split("\n  primary:\n", 1)[1].split("\n  parallel:\n", 1)[0]
+        primary = _job_block(self.workflow, "primary")
         self.assertEqual(primary.count("scripts/run_composition_preflight.py fast"), 1)
         self.assertIn("--validators-only", primary)
+        self.assertIn("--publication-already-validated", primary)
+        self.assertEqual(primary.count("scripts/validate_publication.py"), 1)
         for duplicate in (
-            "scripts/validate_publication.py",
             "scripts/validate_translations.py",
             "scripts/validate_component_versions.py",
             "scripts/verify_composition_skill_installer_release.py",
@@ -73,15 +85,36 @@ class SchemaValidationCIPolicyTests(unittest.TestCase):
         ):
             self.assertNotIn(duplicate, primary)
 
-    def test_provider_checkouts_are_bound_to_the_exact_pull_request_head(self) -> None:
+    def test_core_jobs_remain_parallel_instead_of_waiting_for_a_producer(self) -> None:
+        primary = _job_block(self.workflow, "primary")
+        parallel = _job_block(self.workflow, "parallel")
+        self.assertNotIn("needs:\n", primary)
+        self.assertNotIn("needs:\n", parallel)
+        self.assertNotIn("\n  publication:\n", self.workflow)
+        self.assertNotIn("actions/upload-artifact@", self.workflow)
+        self.assertNotIn("actions/download-artifact@", self.workflow)
+
+    def test_execution_jobs_are_bound_to_the_exact_pull_request_head(self) -> None:
         checkout_ref = "ref: ${{ github.event.pull_request.head.sha || github.sha }}"
-        self.assertEqual(self.workflow.count(checkout_ref), 4)
-        self.assertEqual(
-            self.workflow.count(
-                "ref: 3ae5d1e60c65e7a8ebf5f9af0436044484e42983"
-            ),
-            3,
-        )
+        for job_name in (
+            "classify_browser",
+            "primary",
+            "parallel",
+            "real_browser",
+        ):
+            with self.subTest(job=job_name):
+                self.assertIn(checkout_ref, _job_block(self.workflow, job_name))
+
+    def test_site_protocol_checkout_is_limited_to_core_jobs_that_need_it(self) -> None:
+        site_protocol_ref = "ref: 3ae5d1e60c65e7a8ebf5f9af0436044484e42983"
+        for job_name in ("primary", "parallel"):
+            with self.subTest(job=job_name):
+                job = _job_block(self.workflow, job_name)
+                self.assertIn(site_protocol_ref, job)
+                self.assertIn("Check out Site publication protocol", job)
+        browser = _job_block(self.workflow, "real_browser")
+        self.assertNotIn(site_protocol_ref, browser)
+        self.assertNotIn("Check out Site publication protocol", browser)
 
 
 if __name__ == "__main__":

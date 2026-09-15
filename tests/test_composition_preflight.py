@@ -52,6 +52,40 @@ class CompositionPreflightTests(unittest.TestCase):
         self.assertEqual(commands.count("validate_component_versions.py"), 1)
         self.assertIn("--base base-sha", commands)
 
+    def test_validated_publication_artifact_skips_only_publication_checks(self) -> None:
+        recorded: list[tuple[str, tuple[str, ...]]] = []
+
+        def record(name: str, argv, **_kwargs) -> None:
+            recorded.append((name, tuple(argv)))
+
+        with mock.patch.object(preflight, "run_check", side_effect=record):
+            preflight.run_owned_validators(
+                "base-sha",
+                publication_already_validated=True,
+            )
+
+        self.assertEqual(
+            [name for name, _ in recorded],
+            [
+                "translation-freshness",
+                "component-version-monotonicity",
+                "installer-release",
+                "core-test-partition",
+            ],
+        )
+        commands = "\n".join(" ".join(argv) for _, argv in recorded)
+        self.assertNotIn("generate_composition_playground_publication.py", commands)
+        self.assertNotIn("validate_publication.py", commands)
+        self.assertIn("validate_translations.py", commands)
+        self.assertIn("validate_component_versions.py", commands)
+
+    def test_publication_reuse_flag_is_explicit(self) -> None:
+        args = preflight.parse_args(
+            ["fast", "--validators-only", "--publication-already-validated"]
+        )
+        self.assertTrue(args.validators_only)
+        self.assertTrue(args.publication_already_validated)
+
     def test_failed_named_check_is_fail_closed(self) -> None:
         completed = subprocess.CompletedProcess(["false"], 7)
         with mock.patch("subprocess.run", return_value=completed):
