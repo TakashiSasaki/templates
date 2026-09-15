@@ -25,6 +25,15 @@ FULL_SHA = common.FULL_SHA
 ClassificationError = common.ClassificationError
 validate_sha = common.validate_sha
 is_safe_repository_path = common.is_safe_repository_path
+COMPATIBILITY_AUTHORITY_PREFIXES = (
+    ".github/workflows/",
+)
+COMPATIBILITY_AUTHORITY_FILES = frozenset(
+    {
+        "scripts/classify_runtime_distribution_ci.py",
+        "scripts/ci_change_classification.py",
+    }
+)
 COMPATIBILITY_SENSITIVE_PREFIXES = (
     ".github/workflows/",
     "release/",
@@ -74,6 +83,13 @@ RECOGNIZED_COMPATIBILITY_INSENSITIVE_FILES = frozenset(
 )
 
 
+def is_compatibility_authority_path(path: str) -> bool:
+    """Return whether a path controls runtime compatibility classification/execution."""
+    if path in COMPATIBILITY_AUTHORITY_FILES:
+        return True
+    return any(path.startswith(prefix) for prefix in COMPATIBILITY_AUTHORITY_PREFIXES)
+
+
 def is_compatibility_sensitive_path(path: str) -> bool:
     """Return whether one path can affect Policy runtime portability."""
     if not is_safe_repository_path(path):
@@ -106,6 +122,9 @@ def classify_paths(paths: list[str]) -> tuple[bool, str]:
     for path in paths:
         if not is_recognized_path(path):
             return True, "unrecognized-path"
+    for path in paths:
+        if is_compatibility_authority_path(path):
+            return True, "compatibility-authority-change"
     for path in paths:
         if is_compatibility_sensitive_path(path):
             return True, "compatibility-sensitive-change"

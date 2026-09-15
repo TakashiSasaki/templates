@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from scripts import classify_runtime_distribution_ci as runtime_classifier
+
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github" / "workflows" / "runtime-distribution.yml"
 CLASSIFIER = ROOT / "scripts" / "classify_runtime_distribution_ci.py"
@@ -39,7 +41,24 @@ def test_runtime_missing_base_classifier_authority_forces_full_independently() -
     assert "force_compatibility=true" not in fallback
 
 
-def test_runtime_fail_closed_and_authority_sensitive_reasons_force_full_compatibility() -> None:
+def test_runtime_classifier_distinguishes_ci_authority_from_ordinary_sensitive_changes() -> None:
+    for path in (
+        ".github/workflows/runtime-distribution.yml",
+        "scripts/classify_runtime_distribution_ci.py",
+        "scripts/ci_change_classification.py",
+    ):
+        assert runtime_classifier.classify_paths([path]) == (
+            True,
+            "compatibility-authority-change",
+        )
+
+    assert runtime_classifier.classify_paths(["src/agent_policy/cli.py"]) == (
+        True,
+        "compatibility-sensitive-change",
+    )
+
+
+def test_runtime_fail_closed_and_authority_reasons_force_full_compatibility() -> None:
     workflow = WORKFLOW.read_text(encoding="utf-8")
     classification = workflow.split("python3 -I", 1)[1].split(
         "\n\n      - name: Record runtime CI selection", 1
@@ -47,10 +66,18 @@ def test_runtime_fail_closed_and_authority_sensitive_reasons_force_full_compatib
 
     assert 'reason="$(sed -n \'s/^reason=//p\'' in classification
     assert (
-        "compatibility-sensitive-change|no-changes|unbounded-push|diff-unavailable)"
-        in classification
+        "compatibility-authority-change|no-changes|unrecognized-path|"
+        "unbounded-push|diff-unavailable)" in classification
     )
-    assert 'echo "compatibility_requested=true"' in classification
+    assert "compatibility-sensitive-change)" in classification
+    assert "git diff --name-only --no-renames" in classification
+    for authority_path in (
+        ".github/workflows",
+        "scripts/classify_runtime_distribution_ci.py",
+        "scripts/ci_change_classification.py",
+    ):
+        assert authority_path in classification
+    assert classification.count('echo "compatibility_requested=true"') >= 3
 
 
 def test_runtime_materialized_classifier_keeps_repository_workspace_binding() -> None:

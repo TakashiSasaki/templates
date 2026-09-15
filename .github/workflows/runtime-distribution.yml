@@ -83,8 +83,26 @@ jobs:
 
           reason="$(sed -n 's/^reason=//p' "$GITHUB_OUTPUT" | tail -n 1)"
           case "$reason" in
-            compatibility-sensitive-change|no-changes|unbounded-push|diff-unavailable)
+            compatibility-authority-change|no-changes|unrecognized-path|unbounded-push|diff-unavailable)
               echo "compatibility_requested=true" >> "$GITHUB_OUTPUT"
+              ;;
+            compatibility-sensitive-change)
+              # Bootstrap authority-path detection while the pull request is still
+              # classified by a base revision that predates the distinct
+              # compatibility-authority-change reason. Any diff failure here is
+              # conservative and requests the supplemental matrix.
+              if authority_paths="$(
+                git diff --name-only --no-renames "$BASE_SHA" "$HEAD_SHA" -- \
+                  .github/workflows \
+                  scripts/classify_runtime_distribution_ci.py \
+                  scripts/ci_change_classification.py
+              )"; then
+                if [ -n "$authority_paths" ]; then
+                  echo "compatibility_requested=true" >> "$GITHUB_OUTPUT"
+                fi
+              else
+                echo "compatibility_requested=true" >> "$GITHUB_OUTPUT"
+              fi
               ;;
           esac
 
@@ -101,7 +119,7 @@ jobs:
             echo "- reason: \`$RUNTIME_REASON\`"
             echo "- full compatibility requested: \`$COMPATIBILITY_REQUESTED\`"
             echo '- default qualification: Ubuntu 24.04 / Python 3.11'
-            echo '- Windows and Python 3.12-3.14 run at explicit checkpoints or fail-closed classifier fallbacks'
+            echo '- Windows and Python 3.12-3.14 run at explicit checkpoints, CI-authority changes, or fail-closed classifier fallbacks'
           } >> "$GITHUB_STEP_SUMMARY"
 
   runtime-checks:
