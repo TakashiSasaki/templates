@@ -216,8 +216,21 @@ class AudienceContextResolver:
         for route_str, doc in self.docs_by_route.items():
             routes_map[route_str] = str(doc["destination"])
 
+        def project_navigation(nodes):
+            result = []
+            for node in nodes:
+                if "children" in node:
+                    children = project_navigation(node["children"])
+                    if children:
+                        result.append({"title": node["title"], "children": children})
+                elif str(node["destination"]) in doc_map:
+                    result.append({"title": node["title"], "destination": str(node["destination"]),
+                                   "href": public_path(node["destination"])})
+            return result
+
         return {
             "schema_version": 1,
+            "navigation": {aud: project_navigation(self.manifest.navigation[aud]) for aud in self.audiences},
             "audiences": self.audiences,
             "landing_destination": str(self.landing_destination),
             "overviews": {
