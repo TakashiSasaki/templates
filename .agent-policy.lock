@@ -21,7 +21,7 @@ inputs:
     sha256: eb45d47fafa2e406dabb2536a818e206acede23f229eda19e8fdaa37d8445542
 outputs:
   .agents/skills/orchestrate-repository-change/SKILL.md:
-    sha256: 6ab97baffc8aa275ae121bd95bfddfc212f8401bb660feb0a8089e794ab84919
+    sha256: 8b6287dc50c6130dac9bc6c5a9a039f7414d24fd3af8d5c298d6c45eaede193e
   .agents/skills/orchestrate-repository-change/references/generated-artifact-transport.md:
     sha256: 129a99646b222be5eb51a1ca5f6baba29b937a3630c84b7b03e0f43e576052b2
   .agents/skills/orchestrate-repository-change/references/github-review-finding-representation.md:
@@ -47,7 +47,7 @@ outputs:
   .agents/skills/orchestrate-repository-change/references/staged-ci-execution.md:
     sha256: f43cd831aa5f423f7c0968b1570e059af75b4db07fa431095cbbea72d33c2e33
   .agents/skills/orchestrate-repository-change/references/work-ledger.md:
-    sha256: 5e6df81d67f71f6dfae80544f1ef01ecb4b32fe7c1f9813a357bde96ea67dc1e
+    sha256: a7eedfc98d8a10b383693dd982568752f32e4e5641edc9298637e74e62c30303
   .agents/skills/pr-review/SKILL.md:
     sha256: ed44e1db3549e41342ced28b50fbd37189bef0e43e783c309300432e5df979f1
   .agents/skills/pr-review/references/github-pull-request-review-api.md:
