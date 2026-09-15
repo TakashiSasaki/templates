@@ -124,6 +124,25 @@ class LocalCapsuleTests(unittest.TestCase):
                 self.assertNotEqual(original['files'], current['files'])
                 original = current
 
+    def test_rejects_generated_directory_symlink_from_source_identity(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            subprocess.run(['git', 'init', '-q', str(root)], check=True)
+            (root / '.gitignore').write_text('generated/\n')
+            (root / 'source.py').write_text('source')
+            subprocess.run(['git', '-C', str(root), 'add', '.'], check=True)
+            subprocess.run(
+                ['git', '-C', str(root), '-c', 'user.name=Fixture',
+                 '-c', 'user.email=fixture@example.invalid', 'commit', '-qm', 'fixture'],
+                check=True,
+            )
+            outside = root / 'outside'
+            outside.mkdir()
+            (outside / 'mutable.txt').write_text('mutable')
+            (root / 'generated').symlink_to(outside, target_is_directory=True)
+            with self.assertRaisesRegex(ValueError, 'must not be a symlink'):
+                source_identity(root)
+
     def test_contract_declared_ignored_input_participates_in_identity(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

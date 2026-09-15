@@ -43,7 +43,14 @@ def source_identity(root: Path) -> dict:
     # Provider materialization can create ignored but semantically relevant inputs.
     for directory in ('generated', 'artifacts'):
         if (root / directory).is_dir():
-            paths.update(os.fsencode(p.relative_to(root)) for p in (root / directory).rglob('*') if not p.is_dir())
+            # ``Path.is_dir`` follows symlinks.  Keep a directory symlink in
+            # the identity candidate set so ``file_identity`` rejects it
+            # instead of silently allowing mutable content outside the root.
+            paths.update(
+                os.fsencode(p.relative_to(root))
+                for p in (root / directory).rglob('*')
+                if p.is_symlink() or not p.is_dir()
+            )
     catalog_path = root / 'docs' / 'publication-catalog.json'
     if catalog_path.is_file():
         # Publication catalogs are the generic authority for provider inputs.
