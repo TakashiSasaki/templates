@@ -73,7 +73,13 @@ def wait_results(page: Any) -> list[str]:
 def pointer_activate_without_navigation(page: Any) -> str:
     """Use a trusted pointer click while suppressing only its default navigation."""
     wait_results(page)
-    result = page.locator('ol a[href]').first
+    # Audience navigation adds breadcrumb ordered lists to the light DOM.
+    # Select the actual search result within the search host's shadow root.
+    result = page.evaluate_handle(
+        f"() => {{ const root = {ROOT_EXPR}; return root.querySelector('ol a[href]'); }}"
+    ).as_element()
+    if result is None:
+        raise CheckError("search result disappeared before pointer activation")
     href = result.evaluate("(anchor) => anchor.href")
     page.evaluate(
         f"""() => {{
