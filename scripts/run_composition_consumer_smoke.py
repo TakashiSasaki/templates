@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Run existing real-consumer tests as a bounded pre-qualification spine."""
 from __future__ import annotations
+import os
 import sys
 from pathlib import Path
 import unittest
@@ -16,7 +17,13 @@ TESTS = (
 )
 
 
+def configure_validation_environment() -> None:
+    """Make the bytecode contract apply to subprocesses started by selected tests."""
+    os.environ['PYTHONDONTWRITEBYTECODE'] = '1'
+
+
 def main() -> int:
+    configure_validation_environment()
     suite = unittest.defaultTestLoader.loadTestsFromNames(TESTS)
     result = unittest.TextTestRunner(verbosity=2).run(suite)
     return 0 if result.wasSuccessful() and not result.skipped else 1
