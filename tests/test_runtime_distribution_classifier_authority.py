@@ -58,18 +58,17 @@ def test_runtime_classifier_distinguishes_ci_authority_from_ordinary_sensitive_c
     )
 
 
-def test_runtime_fail_closed_and_authority_reasons_force_full_compatibility() -> None:
+def test_runtime_only_explicit_fast_path_reasons_skip_full_compatibility() -> None:
     workflow = WORKFLOW.read_text(encoding="utf-8")
     classification = workflow.split("python3 -I", 1)[1].split(
         "\n\n      - name: Record runtime CI selection", 1
     )[0]
 
     assert 'reason="$(sed -n \'s/^reason=//p\'' in classification
-    assert (
-        "compatibility-authority-change|no-changes|unrecognized-path|unsafe-path|"
-        "unbounded-push|diff-unavailable)" in classification
-    )
     assert "compatibility-sensitive-change)" in classification
+    assert "compatibility-insensitive-change)" in classification
+    assert "*)" in classification
+    assert "Only the explicitly ordinary fast-path reasons may omit the" in classification
     assert "git diff --name-only --no-renames" in classification
     for authority_path in (
         ".github/workflows",
@@ -78,6 +77,16 @@ def test_runtime_fail_closed_and_authority_reasons_force_full_compatibility() ->
     ):
         assert authority_path in classification
     assert classification.count('echo "compatibility_requested=true"') >= 3
+
+
+def test_runtime_unknown_classifier_reason_forces_full_compatibility() -> None:
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    classification = workflow.split("python3 -I", 1)[1].split(
+        "\n\n      - name: Record runtime CI selection", 1
+    )[0]
+
+    default = classification.split("            *)\n", 1)[1].split("            ;;", 1)[0]
+    assert 'echo "compatibility_requested=true"' in default
 
 
 def test_runtime_classifier_reason_contract_distinguishes_fast_and_full_paths() -> None:
