@@ -16,7 +16,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 from urllib.parse import quote, unquote
 
-from scripts.assemble_publications import load_catalog, load_manifest, pages, resolve
+from scripts.assemble_publications import load_catalog, load_manifest, resolve
 
 SCHEME = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*:")
 FENCE = re.compile(r"^[ ]{0,3}(?P<fence>`{3,}|~{3,})(?:[^`~].*)?$")
@@ -307,13 +307,13 @@ def rebase_publication_links(
         documents, assets = load_catalog(name, resolved_root)
         catalogs[name] = (resolved_root, documents, assets)
 
-    _, navigation = load_manifest(site_root / "site-manifest.json")
-    navigation_pages = list(pages(navigation))
+    manifest = load_manifest(site_root / "site-manifest.json")
+    canonical_documents = manifest.documents
 
     document_targets: dict[str, dict[PurePosixPath, PurePosixPath]] = {
         name: {} for name in catalogs
     }
-    for page in navigation_pages:
+    for page in canonical_documents:
         publication = page["publication"]
         _, documents, _ = catalogs[publication]
         source = documents[page["document"]]["source"]
@@ -333,7 +333,7 @@ def rebase_publication_links(
             )
 
     total = 0
-    for page in navigation_pages:
+    for page in canonical_documents:
         publication = page["publication"]
         _, documents, _ = catalogs[publication]
         source_document = documents[page["document"]]["source"]
