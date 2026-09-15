@@ -1,0 +1,2010 @@
+{
+  "schema_version": 1,
+  "audiences": [
+    "use",
+    "maintain"
+  ],
+  "landing_destination": "index.md",
+  "overviews": {
+    "use": "/web/",
+    "maintain": "/repository-trees/"
+  },
+  "documents": {
+    "index.md": {
+      "key": "site:portal-home",
+      "title": "Documentation portal",
+      "destination": "index.md",
+      "primary": "use",
+      "audiences": [
+        "use",
+        "maintain"
+      ],
+      "is_landing": true
+    },
+    "coexistence/index.md": {
+      "key": "site:policy-composition-coexistence",
+      "title": "Policy–Composition coexistence",
+      "destination": "coexistence/index.md",
+      "primary": "maintain",
+      "audiences": [
+        "maintain",
+        "use"
+      ],
+      "is_landing": false
+    },
+    "playground/index.md": {
+      "key": "site:composition-playground",
+      "title": "Composition Playground",
+      "destination": "playground/index.md",
+      "primary": "use",
+      "audiences": [
+        "use"
+      ],
+      "is_landing": false
+    },
+    "capabilities/index.md": {
+      "key": "site:capabilities-overview",
+      "title": "Overview",
+      "destination": "capabilities/index.md",
+      "primary": "use",
+      "audiences": [
+        "use"
+      ],
+      "is_landing": false
+    },
+    "capabilities/webmcp/index.md": {
+      "key": "site:webmcp-guide",
+      "title": "WebMCP overview",
+      "destination": "capabilities/webmcp/index.md",
+      "primary": "use",
+      "audiences": [
+        "use"
+      ],
+      "is_landing": false
+    },
+    "topology/index.md": {
+      "key": "site:repository-topology-overview",
+      "title": "Overview",
+      "destination": "topology/index.md",
+      "primary": "use",
+      "audiences": [
+        "use",
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "workspace/index.md": {
+      "key": "site:workspace-topology-overview",
+      "title": "Overview",
+      "destination": "workspace/index.md",
+      "primary": "use",
+      "audiences": [
+        "use",
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "lifecycle/index.md": {
+      "key": "site:lifecycle-overview",
+      "title": "Overview",
+      "destination": "lifecycle/index.md",
+      "primary": "use",
+      "audiences": [
+        "use",
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "repository-trees/index.md": {
+      "key": "site:repository-trees",
+      "title": "Overview",
+      "destination": "repository-trees/index.md",
+      "primary": "maintain",
+      "audiences": [
+        "maintain",
+        "use"
+      ],
+      "is_landing": false
+    },
+    "repository-trees/composition.md": {
+      "key": "site:repository-tree-composition",
+      "title": "Composition tree",
+      "destination": "repository-trees/composition.md",
+      "primary": "maintain",
+      "audiences": [
+        "maintain",
+        "use"
+      ],
+      "is_landing": false
+    },
+    "repository-trees/policy.md": {
+      "key": "site:repository-tree-policy",
+      "title": "Policy tree",
+      "destination": "repository-trees/policy.md",
+      "primary": "maintain",
+      "audiences": [
+        "maintain",
+        "use"
+      ],
+      "is_landing": false
+    },
+    "composition/index.md": {
+      "key": "composition:overview",
+      "title": "Overview",
+      "destination": "composition/index.md",
+      "primary": "use",
+      "audiences": [
+        "use",
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "composition/concepts/index.md": {
+      "key": "composition:composition-concepts",
+      "title": "Concepts and terminology",
+      "destination": "composition/concepts/index.md",
+      "primary": "use",
+      "audiences": [
+        "use"
+      ],
+      "is_landing": false
+    },
+    "composition/evaluate/index.md": {
+      "key": "composition:evaluation-guide",
+      "title": "Evaluate Composition",
+      "destination": "composition/evaluate/index.md",
+      "primary": "maintain",
+      "audiences": [
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "composition/use/index.md": {
+      "key": "composition:consumer-guide",
+      "title": "Use Composition",
+      "destination": "composition/use/index.md",
+      "primary": "use",
+      "audiences": [
+        "use"
+      ],
+      "is_landing": false
+    },
+    "composition/release/index.md": {
+      "key": "composition:release-guide",
+      "title": "Produce a product release",
+      "destination": "composition/release/index.md",
+      "primary": "use",
+      "audiences": [
+        "use"
+      ],
+      "is_landing": false
+    },
+    "composition/reference/composer.md": {
+      "key": "composition:composer-reference",
+      "title": "Composer reference",
+      "destination": "composition/reference/composer.md",
+      "primary": "use",
+      "audiences": [
+        "use",
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "composition/docs/index.md": {
+      "key": "composition:documentation-index",
+      "title": "Documentation index",
+      "destination": "composition/docs/index.md",
+      "primary": "use",
+      "audiences": [
+        "use",
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "composition/architecture/composition-model.md": {
+      "key": "composition:composition-model",
+      "title": "Composition model",
+      "destination": "composition/architecture/composition-model.md",
+      "primary": "use",
+      "audiences": [
+        "use",
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "composition/architecture/catalog.md": {
+      "key": "composition:catalog-architecture",
+      "title": "Production catalog",
+      "destination": "composition/architecture/catalog.md",
+      "primary": "use",
+      "audiences": [
+        "use",
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "composition/architecture/generated-contract-manifest.md": {
+      "key": "composition:generated-contract-manifest",
+      "title": "Generated contract manifest",
+      "destination": "composition/architecture/generated-contract-manifest.md",
+      "primary": "use",
+      "audiences": [
+        "use",
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "composition/architecture/composer-mvp.md": {
+      "key": "composition:composer-mvp",
+      "title": "Composer architecture",
+      "destination": "composition/architecture/composer-mvp.md",
+      "primary": "use",
+      "audiences": [
+        "use",
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "composition/catalog/index.md": {
+      "key": "composition:catalog-guide",
+      "title": "Catalog guide",
+      "destination": "composition/catalog/index.md",
+      "primary": "use",
+      "audiences": [
+        "use",
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "composition/schemas/index.md": {
+      "key": "composition:schema-guide",
+      "title": "Schema guide",
+      "destination": "composition/schemas/index.md",
+      "primary": "use",
+      "audiences": [
+        "use",
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "composition/docs/publication-catalog.md": {
+      "key": "composition:publication-boundary",
+      "title": "Publication boundary",
+      "destination": "composition/docs/publication-catalog.md",
+      "primary": "maintain",
+      "audiences": [
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "composition/authorities/provider-maintenance.md": {
+      "key": "composition:provider-maintenance",
+      "title": "Composition maintainer overview",
+      "destination": "composition/authorities/provider-maintenance.md",
+      "primary": "maintain",
+      "audiences": [
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "composition/authorities/installer-release.md": {
+      "key": "composition:installer-release",
+      "title": "Installer release",
+      "destination": "composition/authorities/installer-release.md",
+      "primary": "maintain",
+      "audiences": [
+        "maintain",
+        "use"
+      ],
+      "is_landing": false
+    },
+    "composition/migrations/authority-migration.md": {
+      "key": "composition:composition-authority-migration",
+      "title": "Authority migration history",
+      "destination": "composition/migrations/authority-migration.md",
+      "primary": "maintain",
+      "audiences": [
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "composition/use/skill-first-use-walkthrough.md": {
+      "key": "composition:skill-first-use-walkthrough",
+      "title": "First-use walkthrough",
+      "destination": "composition/use/skill-first-use-walkthrough.md",
+      "primary": "use",
+      "audiences": [
+        "use"
+      ],
+      "is_landing": false
+    },
+    "skill/index.md": {
+      "key": "composition:skill-overview",
+      "title": "Overview",
+      "destination": "skill/index.md",
+      "primary": "use",
+      "audiences": [
+        "use"
+      ],
+      "is_landing": false
+    },
+    "skill/SKILL.md": {
+      "key": "composition:skill-contract",
+      "title": "Skill contract",
+      "destination": "skill/SKILL.md",
+      "primary": "use",
+      "audiences": [
+        "use"
+      ],
+      "is_landing": false
+    },
+    "skill/docs/index.md": {
+      "key": "composition:skill-documentation-index",
+      "title": "Documentation index",
+      "destination": "skill/docs/index.md",
+      "primary": "use",
+      "audiences": [
+        "use"
+      ],
+      "is_landing": false
+    },
+    "skill/docs/skill-profiles.md": {
+      "key": "composition:skill-profiles",
+      "title": "Skill profiles",
+      "destination": "skill/docs/skill-profiles.md",
+      "primary": "use",
+      "audiences": [
+        "use"
+      ],
+      "is_landing": false
+    },
+    "skill/docs/skill-capability-map.md": {
+      "key": "composition:skill-capability-map",
+      "title": "Skill/capability map",
+      "destination": "skill/docs/skill-capability-map.md",
+      "primary": "use",
+      "audiences": [
+        "use"
+      ],
+      "is_landing": false
+    },
+    "skill/docs/architecture.md": {
+      "key": "composition:skill-architecture",
+      "title": "Architecture",
+      "destination": "skill/docs/architecture.md",
+      "primary": "use",
+      "audiences": [
+        "use"
+      ],
+      "is_landing": false
+    },
+    "web/index.md": {
+      "key": "composition:website-webapp-selection",
+      "title": "Choose Website or Web application",
+      "destination": "web/index.md",
+      "primary": "use",
+      "audiences": [
+        "use"
+      ],
+      "is_landing": false
+    },
+    "web/url-path-design-guidance.md": {
+      "key": "composition:web-url-path-design-guidance",
+      "title": "URL and path design guidance",
+      "destination": "web/url-path-design-guidance.md",
+      "primary": "use",
+      "audiences": [
+        "use"
+      ],
+      "is_landing": false
+    },
+    "web/migrations/routes-v1-to-v2.md": {
+      "key": "composition:web-routes-v1-migration",
+      "title": "Routes v1 to v2",
+      "destination": "web/migrations/routes-v1-to-v2.md",
+      "primary": "use",
+      "audiences": [
+        "use"
+      ],
+      "is_landing": false
+    },
+    "web/migrations/routes-v2-to-v3.md": {
+      "key": "composition:web-routes-v2-migration",
+      "title": "Routes v2 to v3",
+      "destination": "web/migrations/routes-v2-to-v3.md",
+      "primary": "use",
+      "audiences": [
+        "use"
+      ],
+      "is_landing": false
+    },
+    "web/migrations/routes-v3-to-v4.md": {
+      "key": "composition:web-routes-v3-migration",
+      "title": "Routes v3 to v4",
+      "destination": "web/migrations/routes-v3-to-v4.md",
+      "primary": "use",
+      "audiences": [
+        "use"
+      ],
+      "is_landing": false
+    },
+    "web/migrations/routes-v4-to-v5.md": {
+      "key": "composition:web-routes-v4-migration",
+      "title": "Routes v4 to v5",
+      "destination": "web/migrations/routes-v4-to-v5.md",
+      "primary": "use",
+      "audiences": [
+        "use"
+      ],
+      "is_landing": false
+    },
+    "website/index.md": {
+      "key": "composition:website-product-walkthrough",
+      "title": "Product walkthrough",
+      "destination": "website/index.md",
+      "primary": "use",
+      "audiences": [
+        "use"
+      ],
+      "is_landing": false
+    },
+    "webapp/product-walkthrough.md": {
+      "key": "composition:webapp-product-walkthrough",
+      "title": "Product walkthrough",
+      "destination": "webapp/product-walkthrough.md",
+      "primary": "use",
+      "audiences": [
+        "use"
+      ],
+      "is_landing": false
+    },
+    "webapp/index.md": {
+      "key": "composition:webapp-overview",
+      "title": "Overview",
+      "destination": "webapp/index.md",
+      "primary": "use",
+      "audiences": [
+        "use"
+      ],
+      "is_landing": false
+    },
+    "webapp/TEMPLATE.md": {
+      "key": "composition:webapp-template",
+      "title": "Template contract",
+      "destination": "webapp/TEMPLATE.md",
+      "primary": "use",
+      "audiences": [
+        "use"
+      ],
+      "is_landing": false
+    },
+    "webapp/docs/index.md": {
+      "key": "composition:webapp-documentation-index",
+      "title": "Documentation index",
+      "destination": "webapp/docs/index.md",
+      "primary": "use",
+      "audiences": [
+        "use"
+      ],
+      "is_landing": false
+    },
+    "webapp/docs/architecture/contracts.md": {
+      "key": "composition:webapp-contracts",
+      "title": "Webapp contracts",
+      "destination": "webapp/docs/architecture/contracts.md",
+      "primary": "use",
+      "audiences": [
+        "use"
+      ],
+      "is_landing": false
+    },
+    "webapp/docs/architecture/responsibility-boundaries.md": {
+      "key": "composition:webapp-responsibility-boundaries",
+      "title": "Responsibility boundaries",
+      "destination": "webapp/docs/architecture/responsibility-boundaries.md",
+      "primary": "use",
+      "audiences": [
+        "use"
+      ],
+      "is_landing": false
+    },
+    "webapp/docs/architecture/validation-toolchain.md": {
+      "key": "composition:webapp-validation-toolchain",
+      "title": "Validation toolchain",
+      "destination": "webapp/docs/architecture/validation-toolchain.md",
+      "primary": "use",
+      "audiences": [
+        "use"
+      ],
+      "is_landing": false
+    },
+    "webapp/docs/migrations/surfaces-v1-to-v2.md": {
+      "key": "composition:surfaces-v2-migration",
+      "title": "Surfaces v1 to v2",
+      "destination": "webapp/docs/migrations/surfaces-v1-to-v2.md",
+      "primary": "use",
+      "audiences": [
+        "use"
+      ],
+      "is_landing": false
+    },
+    "webapp/docs/migrations/ui-states-v1-to-v2.md": {
+      "key": "composition:ui-states-migration",
+      "title": "UI states v1 to v2",
+      "destination": "webapp/docs/migrations/ui-states-v1-to-v2.md",
+      "primary": "use",
+      "audiences": [
+        "use"
+      ],
+      "is_landing": false
+    },
+    "capabilities/runtime/index.md": {
+      "key": "composition:runtime-decision-record",
+      "title": "Runtime decision record",
+      "destination": "capabilities/runtime/index.md",
+      "primary": "use",
+      "audiences": [
+        "use"
+      ],
+      "is_landing": false
+    },
+    "capabilities/runtime/selection.md": {
+      "key": "composition:runtime-selection",
+      "title": "Runtime selection",
+      "destination": "capabilities/runtime/selection.md",
+      "primary": "use",
+      "audiences": [
+        "use"
+      ],
+      "is_landing": false
+    },
+    "capabilities/cli/index.md": {
+      "key": "composition:cli-interface",
+      "title": "Packaged CLI interface",
+      "destination": "capabilities/cli/index.md",
+      "primary": "use",
+      "audiences": [
+        "use"
+      ],
+      "is_landing": false
+    },
+    "capabilities/cli/migrations/v1-to-v2.md": {
+      "key": "composition:cli-interface-v2-migration",
+      "title": "CLI interface v1 to v2",
+      "destination": "capabilities/cli/migrations/v1-to-v2.md",
+      "primary": "use",
+      "audiences": [
+        "use"
+      ],
+      "is_landing": false
+    },
+    "capabilities/mcp/index.md": {
+      "key": "composition:mcp-interface",
+      "title": "MCP interface",
+      "destination": "capabilities/mcp/index.md",
+      "primary": "use",
+      "audiences": [
+        "use"
+      ],
+      "is_landing": false
+    },
+    "capabilities/mcp/transports.md": {
+      "key": "composition:mcp-transports",
+      "title": "MCP transports",
+      "destination": "capabilities/mcp/transports.md",
+      "primary": "use",
+      "audiences": [
+        "use"
+      ],
+      "is_landing": false
+    },
+    "capabilities/mcp/migrations/v1-to-v2.md": {
+      "key": "composition:mcp-interface-v2-migration",
+      "title": "MCP interface v1 to v2",
+      "destination": "capabilities/mcp/migrations/v1-to-v2.md",
+      "primary": "use",
+      "audiences": [
+        "use"
+      ],
+      "is_landing": false
+    },
+    "capabilities/mcp-apps/index.md": {
+      "key": "composition:mcp-apps-interface",
+      "title": "MCP Apps interface",
+      "destination": "capabilities/mcp-apps/index.md",
+      "primary": "use",
+      "audiences": [
+        "use"
+      ],
+      "is_landing": false
+    },
+    "capabilities/mcp-apps/guidance.md": {
+      "key": "composition:mcp-apps-guidance",
+      "title": "MCP Apps guidance",
+      "destination": "capabilities/mcp-apps/guidance.md",
+      "primary": "use",
+      "audiences": [
+        "use"
+      ],
+      "is_landing": false
+    },
+    "capabilities/mcp-apps/migrations/v1-to-v2.md": {
+      "key": "composition:mcp-apps-v2-migration",
+      "title": "MCP Apps v1 to v2",
+      "destination": "capabilities/mcp-apps/migrations/v1-to-v2.md",
+      "primary": "use",
+      "audiences": [
+        "use"
+      ],
+      "is_landing": false
+    },
+    "capabilities/webmcp/provider.md": {
+      "key": "composition:webmcp-capability",
+      "title": "WebMCP provider contract",
+      "destination": "capabilities/webmcp/provider.md",
+      "primary": "use",
+      "audiences": [
+        "use"
+      ],
+      "is_landing": false
+    },
+    "capabilities/webmcp/tool-design.md": {
+      "key": "composition:webmcp-tool-design",
+      "title": "WebMCP tool design",
+      "destination": "capabilities/webmcp/tool-design.md",
+      "primary": "use",
+      "audiences": [
+        "use"
+      ],
+      "is_landing": false
+    },
+    "capabilities/webmcp/security.md": {
+      "key": "composition:webmcp-security",
+      "title": "WebMCP security",
+      "destination": "capabilities/webmcp/security.md",
+      "primary": "use",
+      "audiences": [
+        "use"
+      ],
+      "is_landing": false
+    },
+    "capabilities/webmcp/testing.md": {
+      "key": "composition:webmcp-testing",
+      "title": "WebMCP testing",
+      "destination": "capabilities/webmcp/testing.md",
+      "primary": "use",
+      "audiences": [
+        "use"
+      ],
+      "is_landing": false
+    },
+    "capabilities/browser/index.md": {
+      "key": "composition:browser-interface",
+      "title": "Standalone browser interface",
+      "destination": "capabilities/browser/index.md",
+      "primary": "use",
+      "audiences": [
+        "use"
+      ],
+      "is_landing": false
+    },
+    "capabilities/pwa/index.md": {
+      "key": "composition:pwa-capability",
+      "title": "Progressive Web App",
+      "destination": "capabilities/pwa/index.md",
+      "primary": "use",
+      "audiences": [
+        "use"
+      ],
+      "is_landing": false
+    },
+    "capabilities/pwa/migrations/offline-v1-to-v2.md": {
+      "key": "composition:pwa-offline-v2-migration",
+      "title": "PWA offline v1 to v2",
+      "destination": "capabilities/pwa/migrations/offline-v1-to-v2.md",
+      "primary": "use",
+      "audiences": [
+        "use"
+      ],
+      "is_landing": false
+    },
+    "capabilities/pwa/migrations/update-v1-to-v2.md": {
+      "key": "composition:pwa-update-v2-migration",
+      "title": "PWA update v1 to v2",
+      "destination": "capabilities/pwa/migrations/update-v1-to-v2.md",
+      "primary": "use",
+      "audiences": [
+        "use"
+      ],
+      "is_landing": false
+    },
+    "capabilities/browser/migrations/v1-to-v2.md": {
+      "key": "composition:web-interface-v2-migration",
+      "title": "Web interface v1 to v2",
+      "destination": "capabilities/browser/migrations/v1-to-v2.md",
+      "primary": "use",
+      "audiences": [
+        "use"
+      ],
+      "is_landing": false
+    },
+    "capabilities/service/index.md": {
+      "key": "composition:service-interface",
+      "title": "Headless service interface",
+      "destination": "capabilities/service/index.md",
+      "primary": "use",
+      "audiences": [
+        "use"
+      ],
+      "is_landing": false
+    },
+    "capabilities/service/migrations/v1-to-v2.md": {
+      "key": "composition:service-interface-v2-migration",
+      "title": "Service interface v1 to v2",
+      "destination": "capabilities/service/migrations/v1-to-v2.md",
+      "primary": "use",
+      "audiences": [
+        "use"
+      ],
+      "is_landing": false
+    },
+    "topology/contract/index.md": {
+      "key": "composition:topology-contract",
+      "title": "Topology contract",
+      "destination": "topology/contract/index.md",
+      "primary": "use",
+      "audiences": [
+        "use",
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "topology/architecture/index.md": {
+      "key": "composition:repository-topology-architecture",
+      "title": "Topology architecture",
+      "destination": "topology/architecture/index.md",
+      "primary": "use",
+      "audiences": [
+        "use",
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "workspace/bare-worktree/index.md": {
+      "key": "composition:bare-worktree",
+      "title": "Bare Worktree",
+      "destination": "workspace/bare-worktree/index.md",
+      "primary": "use",
+      "audiences": [
+        "use",
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "workspace/architecture/index.md": {
+      "key": "composition:local-checkout-topology-architecture",
+      "title": "Local-checkout architecture",
+      "destination": "workspace/architecture/index.md",
+      "primary": "use",
+      "audiences": [
+        "use",
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "lifecycle/composition-state/index.md": {
+      "key": "composition:composition-state",
+      "title": "Composition state",
+      "destination": "lifecycle/composition-state/index.md",
+      "primary": "use",
+      "audiences": [
+        "use",
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "lifecycle/contract-evolution/index.md": {
+      "key": "composition:contract-evolution",
+      "title": "Contract evolution",
+      "destination": "lifecycle/contract-evolution/index.md",
+      "primary": "use",
+      "audiences": [
+        "use",
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "lifecycle/implementation-evidence/index.md": {
+      "key": "composition:implementation-evidence",
+      "title": "Implementation evidence",
+      "destination": "lifecycle/implementation-evidence/index.md",
+      "primary": "use",
+      "audiences": [
+        "use",
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "lifecycle/implementation-evidence/migrations/v1-to-v2.md": {
+      "key": "composition:implementation-evidence-v2-migration",
+      "title": "Implementation evidence v1 to v2",
+      "destination": "lifecycle/implementation-evidence/migrations/v1-to-v2.md",
+      "primary": "use",
+      "audiences": [
+        "use"
+      ],
+      "is_landing": false
+    },
+    "lifecycle/implementation-evidence/migrations/v2-to-v3.md": {
+      "key": "composition:implementation-evidence-v3-migration",
+      "title": "Implementation evidence v2 to v3",
+      "destination": "lifecycle/implementation-evidence/migrations/v2-to-v3.md",
+      "primary": "use",
+      "audiences": [
+        "use"
+      ],
+      "is_landing": false
+    },
+    "lifecycle/implementation-evidence/migrations/v3-to-v4.md": {
+      "key": "composition:implementation-evidence-v4-migration",
+      "title": "Implementation evidence v3 to v4",
+      "destination": "lifecycle/implementation-evidence/migrations/v3-to-v4.md",
+      "primary": "use",
+      "audiences": [
+        "use"
+      ],
+      "is_landing": false
+    },
+    "lifecycle/implementation-evidence/migrations/v4-to-v5.md": {
+      "key": "composition:implementation-evidence-v5-migration",
+      "title": "Implementation evidence v4 to v5",
+      "destination": "lifecycle/implementation-evidence/migrations/v4-to-v5.md",
+      "primary": "use",
+      "audiences": [
+        "use"
+      ],
+      "is_landing": false
+    },
+    "lifecycle/implementation-evidence/migrations/v5-to-v6.md": {
+      "key": "composition:implementation-evidence-v6-migration",
+      "title": "Implementation evidence v5 to v6",
+      "destination": "lifecycle/implementation-evidence/migrations/v5-to-v6.md",
+      "primary": "use",
+      "audiences": [
+        "use"
+      ],
+      "is_landing": false
+    },
+    "lifecycle/checkpoints/index.md": {
+      "key": "composition:lifecycle-checkpoints",
+      "title": "Lifecycle checkpoints",
+      "destination": "lifecycle/checkpoints/index.md",
+      "primary": "use",
+      "audiences": [
+        "use",
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "lifecycle/release-execution/index.md": {
+      "key": "composition:release-execution",
+      "title": "Release execution",
+      "destination": "lifecycle/release-execution/index.md",
+      "primary": "use",
+      "audiences": [
+        "use",
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "lifecycle/release-execution/migrations/v1-to-v2.md": {
+      "key": "composition:release-execution-v2-migration",
+      "title": "Release execution v1 to v2",
+      "destination": "lifecycle/release-execution/migrations/v1-to-v2.md",
+      "primary": "use",
+      "audiences": [
+        "use"
+      ],
+      "is_landing": false
+    },
+    "lifecycle/release-evidence/index.md": {
+      "key": "composition:release-evidence",
+      "title": "Release evidence",
+      "destination": "lifecycle/release-evidence/index.md",
+      "primary": "use",
+      "audiences": [
+        "use",
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "lifecycle/release-bundle/index.md": {
+      "key": "composition:release-bundle",
+      "title": "Release bundle",
+      "destination": "lifecycle/release-bundle/index.md",
+      "primary": "use",
+      "audiences": [
+        "use",
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "policy/index.md": {
+      "key": "policy:overview",
+      "title": "Overview",
+      "destination": "policy/index.md",
+      "primary": "use",
+      "audiences": [
+        "use",
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "policy/provider/index.md": {
+      "key": "policy:provider-navigation",
+      "title": "Provider and toolchain",
+      "destination": "policy/provider/index.md",
+      "primary": "maintain",
+      "audiences": [
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "policy/shared-policy/index.md": {
+      "key": "policy:shared-policy-navigation",
+      "title": "Shared policy corpus",
+      "destination": "policy/shared-policy/index.md",
+      "primary": "use",
+      "audiences": [
+        "use",
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "policy/consumer/index.md": {
+      "key": "policy:consumer-policy-navigation",
+      "title": "Consumer effective policy",
+      "destination": "policy/consumer/index.md",
+      "primary": "use",
+      "audiences": [
+        "use"
+      ],
+      "is_landing": false
+    },
+    "policy/getting-started.md": {
+      "key": "policy:getting-started",
+      "title": "Getting started",
+      "destination": "policy/getting-started.md",
+      "primary": "use",
+      "audiences": [
+        "use"
+      ],
+      "is_landing": false
+    },
+    "policy/policy-concepts.md": {
+      "key": "policy:policy-concepts",
+      "title": "Policy concepts for first-time readers",
+      "destination": "policy/policy-concepts.md",
+      "primary": "use",
+      "audiences": [
+        "use"
+      ],
+      "is_landing": false
+    },
+    "policy/managed-operation.md": {
+      "key": "policy:managed-operation",
+      "title": "Managed repository operation",
+      "destination": "policy/managed-operation.md",
+      "primary": "use",
+      "audiences": [
+        "use"
+      ],
+      "is_landing": false
+    },
+    "policy/cli.md": {
+      "key": "policy:cli",
+      "title": "CLI",
+      "destination": "policy/cli.md",
+      "primary": "use",
+      "audiences": [
+        "use",
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "policy/bootstrap.md": {
+      "key": "policy:bootstrap",
+      "title": "Bootstrap skill",
+      "destination": "policy/bootstrap.md",
+      "primary": "use",
+      "audiences": [
+        "use"
+      ],
+      "is_landing": false
+    },
+    "policy/adoption.md": {
+      "key": "policy:adoption",
+      "title": "Repository adoption",
+      "destination": "policy/adoption.md",
+      "primary": "use",
+      "audiences": [
+        "use"
+      ],
+      "is_landing": false
+    },
+    "policy/release-lifecycle.md": {
+      "key": "policy:release-lifecycle",
+      "title": "Toolchain release lifecycle",
+      "destination": "policy/release-lifecycle.md",
+      "primary": "maintain",
+      "audiences": [
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "policy/policy-readiness.md": {
+      "key": "policy:policy-readiness",
+      "title": "Policy completion roadmap",
+      "destination": "policy/policy-readiness.md",
+      "primary": "maintain",
+      "audiences": [
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "policy/documentation-publication.md": {
+      "key": "policy:documentation-publication",
+      "title": "Documentation publication",
+      "destination": "policy/documentation-publication.md",
+      "primary": "maintain",
+      "audiences": [
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "policy/publication-catalog.md": {
+      "key": "policy:publication-catalog",
+      "title": "Publication catalog",
+      "destination": "policy/publication-catalog.md",
+      "primary": "maintain",
+      "audiences": [
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "policy/pwa.md": {
+      "key": "policy:pwa",
+      "title": "PWA usage",
+      "destination": "policy/pwa.md",
+      "primary": "use",
+      "audiences": [
+        "use",
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "policy/agent-environments/google-ai-studio.md": {
+      "key": "policy:google-ai-studio",
+      "title": "Google AI Studio Build mode",
+      "destination": "policy/agent-environments/google-ai-studio.md",
+      "primary": "use",
+      "audiences": [
+        "use",
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "policy/repository-structure.md": {
+      "key": "policy:repository-structure",
+      "title": "Repository structure",
+      "destination": "policy/repository-structure.md",
+      "primary": "maintain",
+      "audiences": [
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "policy/architecture.md": {
+      "key": "policy:architecture",
+      "title": "Architecture",
+      "destination": "policy/architecture.md",
+      "primary": "maintain",
+      "audiences": [
+        "maintain",
+        "use"
+      ],
+      "is_landing": false
+    },
+    "policy/configuration.md": {
+      "key": "policy:configuration",
+      "title": "Configuration",
+      "destination": "policy/configuration.md",
+      "primary": "use",
+      "audiences": [
+        "use",
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "policy/shared-policy/profiles.md": {
+      "key": "policy:policy-profiles",
+      "title": "Policy profiles",
+      "destination": "policy/shared-policy/profiles.md",
+      "primary": "use",
+      "audiences": [
+        "use",
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "policy/policy-authoring.md": {
+      "key": "policy:policy-authoring",
+      "title": "Policy authoring",
+      "destination": "policy/policy-authoring.md",
+      "primary": "maintain",
+      "audiences": [
+        "maintain",
+        "use"
+      ],
+      "is_landing": false
+    },
+    "policy/policy-authority-inventory.md": {
+      "key": "policy:policy-authority-inventory",
+      "title": "Policy authority inventory",
+      "destination": "policy/policy-authority-inventory.md",
+      "primary": "maintain",
+      "audiences": [
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "policy/review-policy.md": {
+      "key": "policy:review-policy",
+      "title": "Shared review policy",
+      "destination": "policy/review-policy.md",
+      "primary": "use",
+      "audiences": [
+        "use",
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "policy/external-artifact-intake.md": {
+      "key": "policy:external-artifact-intake",
+      "title": "External artifact intake",
+      "destination": "policy/external-artifact-intake.md",
+      "primary": "use",
+      "audiences": [
+        "use",
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "policy/regression-prevention.md": {
+      "key": "policy:regression-prevention",
+      "title": "Regression prevention",
+      "destination": "policy/regression-prevention.md",
+      "primary": "use",
+      "audiences": [
+        "use",
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "policy/bootstrap-model.md": {
+      "key": "policy:bootstrap-model",
+      "title": "Bootstrap model",
+      "destination": "policy/bootstrap-model.md",
+      "primary": "use",
+      "audiences": [
+        "use",
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "policy/threat-model.md": {
+      "key": "policy:threat-model",
+      "title": "Threat model",
+      "destination": "policy/threat-model.md",
+      "primary": "maintain",
+      "audiences": [
+        "maintain",
+        "use"
+      ],
+      "is_landing": false
+    },
+    "policy/contributing.md": {
+      "key": "policy:contributing",
+      "title": "Contributing",
+      "destination": "policy/contributing.md",
+      "primary": "maintain",
+      "audiences": [
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "policy/policy-maintainer-workflow.md": {
+      "key": "policy:maintainer-workflow",
+      "title": "Policy maintainer workflow",
+      "destination": "policy/policy-maintainer-workflow.md",
+      "primary": "maintain",
+      "audiences": [
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "policy/adr/index.md": {
+      "key": "policy:adr-index",
+      "title": "Overview",
+      "destination": "policy/adr/index.md",
+      "primary": "maintain",
+      "audiences": [
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "policy/adr/0002-repository-adoption.md": {
+      "key": "policy:adr-repository-adoption",
+      "title": "ADR-0002 Repository adoption",
+      "destination": "policy/adr/0002-repository-adoption.md",
+      "primary": "maintain",
+      "audiences": [
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "policy/adr/0003-application-neutral-policy-scope.md": {
+      "key": "policy:adr-application-neutral-scope",
+      "title": "ADR-0003 Application-neutral scope",
+      "destination": "policy/adr/0003-application-neutral-policy-scope.md",
+      "primary": "maintain",
+      "audiences": [
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "policy/adr/0005-single-policy-authority.md": {
+      "key": "policy:adr-single-policy-authority",
+      "title": "ADR-0005 Single policy authority",
+      "destination": "policy/adr/0005-single-policy-authority.md",
+      "primary": "maintain",
+      "audiences": [
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "policy/adr/0006-copyable-artifact-policy-adoption.md": {
+      "key": "policy:adr-copyable-artifact-policy-adoption",
+      "title": "ADR-0006 Copyable artifact policy adoption",
+      "destination": "policy/adr/0006-copyable-artifact-policy-adoption.md",
+      "primary": "maintain",
+      "audiences": [
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "policy/adr/0007-single-agent-policy-skill-runtime-cache.md": {
+      "key": "policy:adr-single-agent-policy-skill-runtime-cache",
+      "title": "ADR-0007 Single agent-policy skill runtime cache",
+      "destination": "policy/adr/0007-single-agent-policy-skill-runtime-cache.md",
+      "primary": "maintain",
+      "audiences": [
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "policy/adr/0008-review-authority-and-github-runtime-boundary.md": {
+      "key": "policy:adr-review-authority-and-github-runtime-boundary",
+      "title": "ADR-0008 Review authority and GitHub runtime boundary",
+      "destination": "policy/adr/0008-review-authority-and-github-runtime-boundary.md",
+      "primary": "maintain",
+      "audiences": [
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "policy/adr/0009-review-result-representation-boundary.md": {
+      "key": "policy:adr-review-result-representation-boundary",
+      "title": "ADR-0009 Review result representation boundary",
+      "destination": "policy/adr/0009-review-result-representation-boundary.md",
+      "primary": "maintain",
+      "audiences": [
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "policy/adr/0004-integrated-bootstrap-skill.md": {
+      "key": "policy:adr-integrated-bootstrap-skill",
+      "title": "ADR-0004 Integrated bootstrap skill (superseded)",
+      "destination": "policy/adr/0004-integrated-bootstrap-skill.md",
+      "primary": "maintain",
+      "audiences": [
+        "maintain"
+      ],
+      "is_landing": false
+    }
+  },
+  "routes": {
+    "index.md": "index.md",
+    "/index.md": "index.md",
+    "/": "index.md",
+    "": "index.md",
+    "/index.html": "index.md",
+    "index.html": "index.md",
+    "coexistence/index.md": "coexistence/index.md",
+    "/coexistence/index.md": "coexistence/index.md",
+    "/coexistence/": "coexistence/index.md",
+    "coexistence": "coexistence/index.md",
+    "coexistence/": "coexistence/index.md",
+    "/coexistence/index.html": "coexistence/index.md",
+    "playground/index.md": "playground/index.md",
+    "/playground/index.md": "playground/index.md",
+    "/playground/": "playground/index.md",
+    "playground": "playground/index.md",
+    "playground/": "playground/index.md",
+    "/playground/index.html": "playground/index.md",
+    "capabilities/index.md": "capabilities/index.md",
+    "/capabilities/index.md": "capabilities/index.md",
+    "/capabilities/": "capabilities/index.md",
+    "capabilities": "capabilities/index.md",
+    "capabilities/": "capabilities/index.md",
+    "/capabilities/index.html": "capabilities/index.md",
+    "capabilities/webmcp/index.md": "capabilities/webmcp/index.md",
+    "/capabilities/webmcp/index.md": "capabilities/webmcp/index.md",
+    "/capabilities/webmcp/": "capabilities/webmcp/index.md",
+    "capabilities/webmcp": "capabilities/webmcp/index.md",
+    "capabilities/webmcp/": "capabilities/webmcp/index.md",
+    "/capabilities/webmcp/index.html": "capabilities/webmcp/index.md",
+    "topology/index.md": "topology/index.md",
+    "/topology/index.md": "topology/index.md",
+    "/topology/": "topology/index.md",
+    "topology": "topology/index.md",
+    "topology/": "topology/index.md",
+    "/topology/index.html": "topology/index.md",
+    "workspace/index.md": "workspace/index.md",
+    "/workspace/index.md": "workspace/index.md",
+    "/workspace/": "workspace/index.md",
+    "workspace": "workspace/index.md",
+    "workspace/": "workspace/index.md",
+    "/workspace/index.html": "workspace/index.md",
+    "lifecycle/index.md": "lifecycle/index.md",
+    "/lifecycle/index.md": "lifecycle/index.md",
+    "/lifecycle/": "lifecycle/index.md",
+    "lifecycle": "lifecycle/index.md",
+    "lifecycle/": "lifecycle/index.md",
+    "/lifecycle/index.html": "lifecycle/index.md",
+    "repository-trees/index.md": "repository-trees/index.md",
+    "/repository-trees/index.md": "repository-trees/index.md",
+    "/repository-trees/": "repository-trees/index.md",
+    "repository-trees": "repository-trees/index.md",
+    "repository-trees/": "repository-trees/index.md",
+    "/repository-trees/index.html": "repository-trees/index.md",
+    "repository-trees/composition.md": "repository-trees/composition.md",
+    "/repository-trees/composition.md": "repository-trees/composition.md",
+    "/repository-trees/composition/": "repository-trees/composition.md",
+    "/repository-trees/composition": "repository-trees/composition.md",
+    "/repository-trees/composition.html": "repository-trees/composition.md",
+    "repository-trees/policy.md": "repository-trees/policy.md",
+    "/repository-trees/policy.md": "repository-trees/policy.md",
+    "/repository-trees/policy/": "repository-trees/policy.md",
+    "/repository-trees/policy": "repository-trees/policy.md",
+    "/repository-trees/policy.html": "repository-trees/policy.md",
+    "composition/index.md": "composition/index.md",
+    "/composition/index.md": "composition/index.md",
+    "/composition/": "composition/index.md",
+    "composition": "composition/index.md",
+    "composition/": "composition/index.md",
+    "/composition/index.html": "composition/index.md",
+    "composition/concepts/index.md": "composition/concepts/index.md",
+    "/composition/concepts/index.md": "composition/concepts/index.md",
+    "/composition/concepts/": "composition/concepts/index.md",
+    "composition/concepts": "composition/concepts/index.md",
+    "composition/concepts/": "composition/concepts/index.md",
+    "/composition/concepts/index.html": "composition/concepts/index.md",
+    "composition/evaluate/index.md": "composition/evaluate/index.md",
+    "/composition/evaluate/index.md": "composition/evaluate/index.md",
+    "/composition/evaluate/": "composition/evaluate/index.md",
+    "composition/evaluate": "composition/evaluate/index.md",
+    "composition/evaluate/": "composition/evaluate/index.md",
+    "/composition/evaluate/index.html": "composition/evaluate/index.md",
+    "composition/use/index.md": "composition/use/index.md",
+    "/composition/use/index.md": "composition/use/index.md",
+    "/composition/use/": "composition/use/index.md",
+    "composition/use": "composition/use/index.md",
+    "composition/use/": "composition/use/index.md",
+    "/composition/use/index.html": "composition/use/index.md",
+    "composition/release/index.md": "composition/release/index.md",
+    "/composition/release/index.md": "composition/release/index.md",
+    "/composition/release/": "composition/release/index.md",
+    "composition/release": "composition/release/index.md",
+    "composition/release/": "composition/release/index.md",
+    "/composition/release/index.html": "composition/release/index.md",
+    "composition/reference/composer.md": "composition/reference/composer.md",
+    "/composition/reference/composer.md": "composition/reference/composer.md",
+    "/composition/reference/composer/": "composition/reference/composer.md",
+    "/composition/reference/composer": "composition/reference/composer.md",
+    "/composition/reference/composer.html": "composition/reference/composer.md",
+    "composition/docs/index.md": "composition/docs/index.md",
+    "/composition/docs/index.md": "composition/docs/index.md",
+    "/composition/docs/": "composition/docs/index.md",
+    "composition/docs": "composition/docs/index.md",
+    "composition/docs/": "composition/docs/index.md",
+    "/composition/docs/index.html": "composition/docs/index.md",
+    "composition/architecture/composition-model.md": "composition/architecture/composition-model.md",
+    "/composition/architecture/composition-model.md": "composition/architecture/composition-model.md",
+    "/composition/architecture/composition-model/": "composition/architecture/composition-model.md",
+    "/composition/architecture/composition-model": "composition/architecture/composition-model.md",
+    "/composition/architecture/composition-model.html": "composition/architecture/composition-model.md",
+    "composition/architecture/catalog.md": "composition/architecture/catalog.md",
+    "/composition/architecture/catalog.md": "composition/architecture/catalog.md",
+    "/composition/architecture/catalog/": "composition/architecture/catalog.md",
+    "/composition/architecture/catalog": "composition/architecture/catalog.md",
+    "/composition/architecture/catalog.html": "composition/architecture/catalog.md",
+    "composition/architecture/generated-contract-manifest.md": "composition/architecture/generated-contract-manifest.md",
+    "/composition/architecture/generated-contract-manifest.md": "composition/architecture/generated-contract-manifest.md",
+    "/composition/architecture/generated-contract-manifest/": "composition/architecture/generated-contract-manifest.md",
+    "/composition/architecture/generated-contract-manifest": "composition/architecture/generated-contract-manifest.md",
+    "/composition/architecture/generated-contract-manifest.html": "composition/architecture/generated-contract-manifest.md",
+    "composition/architecture/composer-mvp.md": "composition/architecture/composer-mvp.md",
+    "/composition/architecture/composer-mvp.md": "composition/architecture/composer-mvp.md",
+    "/composition/architecture/composer-mvp/": "composition/architecture/composer-mvp.md",
+    "/composition/architecture/composer-mvp": "composition/architecture/composer-mvp.md",
+    "/composition/architecture/composer-mvp.html": "composition/architecture/composer-mvp.md",
+    "composition/catalog/index.md": "composition/catalog/index.md",
+    "/composition/catalog/index.md": "composition/catalog/index.md",
+    "/composition/catalog/": "composition/catalog/index.md",
+    "composition/catalog": "composition/catalog/index.md",
+    "composition/catalog/": "composition/catalog/index.md",
+    "/composition/catalog/index.html": "composition/catalog/index.md",
+    "composition/schemas/index.md": "composition/schemas/index.md",
+    "/composition/schemas/index.md": "composition/schemas/index.md",
+    "/composition/schemas/": "composition/schemas/index.md",
+    "composition/schemas": "composition/schemas/index.md",
+    "composition/schemas/": "composition/schemas/index.md",
+    "/composition/schemas/index.html": "composition/schemas/index.md",
+    "composition/docs/publication-catalog.md": "composition/docs/publication-catalog.md",
+    "/composition/docs/publication-catalog.md": "composition/docs/publication-catalog.md",
+    "/composition/docs/publication-catalog/": "composition/docs/publication-catalog.md",
+    "/composition/docs/publication-catalog": "composition/docs/publication-catalog.md",
+    "/composition/docs/publication-catalog.html": "composition/docs/publication-catalog.md",
+    "composition/authorities/provider-maintenance.md": "composition/authorities/provider-maintenance.md",
+    "/composition/authorities/provider-maintenance.md": "composition/authorities/provider-maintenance.md",
+    "/composition/authorities/provider-maintenance/": "composition/authorities/provider-maintenance.md",
+    "/composition/authorities/provider-maintenance": "composition/authorities/provider-maintenance.md",
+    "/composition/authorities/provider-maintenance.html": "composition/authorities/provider-maintenance.md",
+    "composition/authorities/installer-release.md": "composition/authorities/installer-release.md",
+    "/composition/authorities/installer-release.md": "composition/authorities/installer-release.md",
+    "/composition/authorities/installer-release/": "composition/authorities/installer-release.md",
+    "/composition/authorities/installer-release": "composition/authorities/installer-release.md",
+    "/composition/authorities/installer-release.html": "composition/authorities/installer-release.md",
+    "composition/migrations/authority-migration.md": "composition/migrations/authority-migration.md",
+    "/composition/migrations/authority-migration.md": "composition/migrations/authority-migration.md",
+    "/composition/migrations/authority-migration/": "composition/migrations/authority-migration.md",
+    "/composition/migrations/authority-migration": "composition/migrations/authority-migration.md",
+    "/composition/migrations/authority-migration.html": "composition/migrations/authority-migration.md",
+    "composition/use/skill-first-use-walkthrough.md": "composition/use/skill-first-use-walkthrough.md",
+    "/composition/use/skill-first-use-walkthrough.md": "composition/use/skill-first-use-walkthrough.md",
+    "/composition/use/skill-first-use-walkthrough/": "composition/use/skill-first-use-walkthrough.md",
+    "/composition/use/skill-first-use-walkthrough": "composition/use/skill-first-use-walkthrough.md",
+    "/composition/use/skill-first-use-walkthrough.html": "composition/use/skill-first-use-walkthrough.md",
+    "skill/index.md": "skill/index.md",
+    "/skill/index.md": "skill/index.md",
+    "/skill/": "skill/index.md",
+    "skill": "skill/index.md",
+    "skill/": "skill/index.md",
+    "/skill/index.html": "skill/index.md",
+    "skill/SKILL.md": "skill/SKILL.md",
+    "/skill/SKILL.md": "skill/SKILL.md",
+    "/skill/SKILL/": "skill/SKILL.md",
+    "/skill/SKILL": "skill/SKILL.md",
+    "/skill/SKILL.html": "skill/SKILL.md",
+    "skill/docs/index.md": "skill/docs/index.md",
+    "/skill/docs/index.md": "skill/docs/index.md",
+    "/skill/docs/": "skill/docs/index.md",
+    "skill/docs": "skill/docs/index.md",
+    "skill/docs/": "skill/docs/index.md",
+    "/skill/docs/index.html": "skill/docs/index.md",
+    "skill/docs/skill-profiles.md": "skill/docs/skill-profiles.md",
+    "/skill/docs/skill-profiles.md": "skill/docs/skill-profiles.md",
+    "/skill/docs/skill-profiles/": "skill/docs/skill-profiles.md",
+    "/skill/docs/skill-profiles": "skill/docs/skill-profiles.md",
+    "/skill/docs/skill-profiles.html": "skill/docs/skill-profiles.md",
+    "skill/docs/skill-capability-map.md": "skill/docs/skill-capability-map.md",
+    "/skill/docs/skill-capability-map.md": "skill/docs/skill-capability-map.md",
+    "/skill/docs/skill-capability-map/": "skill/docs/skill-capability-map.md",
+    "/skill/docs/skill-capability-map": "skill/docs/skill-capability-map.md",
+    "/skill/docs/skill-capability-map.html": "skill/docs/skill-capability-map.md",
+    "skill/docs/architecture.md": "skill/docs/architecture.md",
+    "/skill/docs/architecture.md": "skill/docs/architecture.md",
+    "/skill/docs/architecture/": "skill/docs/architecture.md",
+    "/skill/docs/architecture": "skill/docs/architecture.md",
+    "/skill/docs/architecture.html": "skill/docs/architecture.md",
+    "web/index.md": "web/index.md",
+    "/web/index.md": "web/index.md",
+    "/web/": "web/index.md",
+    "web": "web/index.md",
+    "web/": "web/index.md",
+    "/web/index.html": "web/index.md",
+    "web/url-path-design-guidance.md": "web/url-path-design-guidance.md",
+    "/web/url-path-design-guidance.md": "web/url-path-design-guidance.md",
+    "/web/url-path-design-guidance/": "web/url-path-design-guidance.md",
+    "/web/url-path-design-guidance": "web/url-path-design-guidance.md",
+    "/web/url-path-design-guidance.html": "web/url-path-design-guidance.md",
+    "web/migrations/routes-v1-to-v2.md": "web/migrations/routes-v1-to-v2.md",
+    "/web/migrations/routes-v1-to-v2.md": "web/migrations/routes-v1-to-v2.md",
+    "/web/migrations/routes-v1-to-v2/": "web/migrations/routes-v1-to-v2.md",
+    "/web/migrations/routes-v1-to-v2": "web/migrations/routes-v1-to-v2.md",
+    "/web/migrations/routes-v1-to-v2.html": "web/migrations/routes-v1-to-v2.md",
+    "web/migrations/routes-v2-to-v3.md": "web/migrations/routes-v2-to-v3.md",
+    "/web/migrations/routes-v2-to-v3.md": "web/migrations/routes-v2-to-v3.md",
+    "/web/migrations/routes-v2-to-v3/": "web/migrations/routes-v2-to-v3.md",
+    "/web/migrations/routes-v2-to-v3": "web/migrations/routes-v2-to-v3.md",
+    "/web/migrations/routes-v2-to-v3.html": "web/migrations/routes-v2-to-v3.md",
+    "web/migrations/routes-v3-to-v4.md": "web/migrations/routes-v3-to-v4.md",
+    "/web/migrations/routes-v3-to-v4.md": "web/migrations/routes-v3-to-v4.md",
+    "/web/migrations/routes-v3-to-v4/": "web/migrations/routes-v3-to-v4.md",
+    "/web/migrations/routes-v3-to-v4": "web/migrations/routes-v3-to-v4.md",
+    "/web/migrations/routes-v3-to-v4.html": "web/migrations/routes-v3-to-v4.md",
+    "web/migrations/routes-v4-to-v5.md": "web/migrations/routes-v4-to-v5.md",
+    "/web/migrations/routes-v4-to-v5.md": "web/migrations/routes-v4-to-v5.md",
+    "/web/migrations/routes-v4-to-v5/": "web/migrations/routes-v4-to-v5.md",
+    "/web/migrations/routes-v4-to-v5": "web/migrations/routes-v4-to-v5.md",
+    "/web/migrations/routes-v4-to-v5.html": "web/migrations/routes-v4-to-v5.md",
+    "website/index.md": "website/index.md",
+    "/website/index.md": "website/index.md",
+    "/website/": "website/index.md",
+    "website": "website/index.md",
+    "website/": "website/index.md",
+    "/website/index.html": "website/index.md",
+    "webapp/product-walkthrough.md": "webapp/product-walkthrough.md",
+    "/webapp/product-walkthrough.md": "webapp/product-walkthrough.md",
+    "/webapp/product-walkthrough/": "webapp/product-walkthrough.md",
+    "/webapp/product-walkthrough": "webapp/product-walkthrough.md",
+    "/webapp/product-walkthrough.html": "webapp/product-walkthrough.md",
+    "webapp/index.md": "webapp/index.md",
+    "/webapp/index.md": "webapp/index.md",
+    "/webapp/": "webapp/index.md",
+    "webapp": "webapp/index.md",
+    "webapp/": "webapp/index.md",
+    "/webapp/index.html": "webapp/index.md",
+    "webapp/TEMPLATE.md": "webapp/TEMPLATE.md",
+    "/webapp/TEMPLATE.md": "webapp/TEMPLATE.md",
+    "/webapp/TEMPLATE/": "webapp/TEMPLATE.md",
+    "/webapp/TEMPLATE": "webapp/TEMPLATE.md",
+    "/webapp/TEMPLATE.html": "webapp/TEMPLATE.md",
+    "webapp/docs/index.md": "webapp/docs/index.md",
+    "/webapp/docs/index.md": "webapp/docs/index.md",
+    "/webapp/docs/": "webapp/docs/index.md",
+    "webapp/docs": "webapp/docs/index.md",
+    "webapp/docs/": "webapp/docs/index.md",
+    "/webapp/docs/index.html": "webapp/docs/index.md",
+    "webapp/docs/architecture/contracts.md": "webapp/docs/architecture/contracts.md",
+    "/webapp/docs/architecture/contracts.md": "webapp/docs/architecture/contracts.md",
+    "/webapp/docs/architecture/contracts/": "webapp/docs/architecture/contracts.md",
+    "/webapp/docs/architecture/contracts": "webapp/docs/architecture/contracts.md",
+    "/webapp/docs/architecture/contracts.html": "webapp/docs/architecture/contracts.md",
+    "webapp/docs/architecture/responsibility-boundaries.md": "webapp/docs/architecture/responsibility-boundaries.md",
+    "/webapp/docs/architecture/responsibility-boundaries.md": "webapp/docs/architecture/responsibility-boundaries.md",
+    "/webapp/docs/architecture/responsibility-boundaries/": "webapp/docs/architecture/responsibility-boundaries.md",
+    "/webapp/docs/architecture/responsibility-boundaries": "webapp/docs/architecture/responsibility-boundaries.md",
+    "/webapp/docs/architecture/responsibility-boundaries.html": "webapp/docs/architecture/responsibility-boundaries.md",
+    "webapp/docs/architecture/validation-toolchain.md": "webapp/docs/architecture/validation-toolchain.md",
+    "/webapp/docs/architecture/validation-toolchain.md": "webapp/docs/architecture/validation-toolchain.md",
+    "/webapp/docs/architecture/validation-toolchain/": "webapp/docs/architecture/validation-toolchain.md",
+    "/webapp/docs/architecture/validation-toolchain": "webapp/docs/architecture/validation-toolchain.md",
+    "/webapp/docs/architecture/validation-toolchain.html": "webapp/docs/architecture/validation-toolchain.md",
+    "webapp/docs/migrations/surfaces-v1-to-v2.md": "webapp/docs/migrations/surfaces-v1-to-v2.md",
+    "/webapp/docs/migrations/surfaces-v1-to-v2.md": "webapp/docs/migrations/surfaces-v1-to-v2.md",
+    "/webapp/docs/migrations/surfaces-v1-to-v2/": "webapp/docs/migrations/surfaces-v1-to-v2.md",
+    "/webapp/docs/migrations/surfaces-v1-to-v2": "webapp/docs/migrations/surfaces-v1-to-v2.md",
+    "/webapp/docs/migrations/surfaces-v1-to-v2.html": "webapp/docs/migrations/surfaces-v1-to-v2.md",
+    "webapp/docs/migrations/ui-states-v1-to-v2.md": "webapp/docs/migrations/ui-states-v1-to-v2.md",
+    "/webapp/docs/migrations/ui-states-v1-to-v2.md": "webapp/docs/migrations/ui-states-v1-to-v2.md",
+    "/webapp/docs/migrations/ui-states-v1-to-v2/": "webapp/docs/migrations/ui-states-v1-to-v2.md",
+    "/webapp/docs/migrations/ui-states-v1-to-v2": "webapp/docs/migrations/ui-states-v1-to-v2.md",
+    "/webapp/docs/migrations/ui-states-v1-to-v2.html": "webapp/docs/migrations/ui-states-v1-to-v2.md",
+    "capabilities/runtime/index.md": "capabilities/runtime/index.md",
+    "/capabilities/runtime/index.md": "capabilities/runtime/index.md",
+    "/capabilities/runtime/": "capabilities/runtime/index.md",
+    "capabilities/runtime": "capabilities/runtime/index.md",
+    "capabilities/runtime/": "capabilities/runtime/index.md",
+    "/capabilities/runtime/index.html": "capabilities/runtime/index.md",
+    "capabilities/runtime/selection.md": "capabilities/runtime/selection.md",
+    "/capabilities/runtime/selection.md": "capabilities/runtime/selection.md",
+    "/capabilities/runtime/selection/": "capabilities/runtime/selection.md",
+    "/capabilities/runtime/selection": "capabilities/runtime/selection.md",
+    "/capabilities/runtime/selection.html": "capabilities/runtime/selection.md",
+    "capabilities/cli/index.md": "capabilities/cli/index.md",
+    "/capabilities/cli/index.md": "capabilities/cli/index.md",
+    "/capabilities/cli/": "capabilities/cli/index.md",
+    "capabilities/cli": "capabilities/cli/index.md",
+    "capabilities/cli/": "capabilities/cli/index.md",
+    "/capabilities/cli/index.html": "capabilities/cli/index.md",
+    "capabilities/cli/migrations/v1-to-v2.md": "capabilities/cli/migrations/v1-to-v2.md",
+    "/capabilities/cli/migrations/v1-to-v2.md": "capabilities/cli/migrations/v1-to-v2.md",
+    "/capabilities/cli/migrations/v1-to-v2/": "capabilities/cli/migrations/v1-to-v2.md",
+    "/capabilities/cli/migrations/v1-to-v2": "capabilities/cli/migrations/v1-to-v2.md",
+    "/capabilities/cli/migrations/v1-to-v2.html": "capabilities/cli/migrations/v1-to-v2.md",
+    "capabilities/mcp/index.md": "capabilities/mcp/index.md",
+    "/capabilities/mcp/index.md": "capabilities/mcp/index.md",
+    "/capabilities/mcp/": "capabilities/mcp/index.md",
+    "capabilities/mcp": "capabilities/mcp/index.md",
+    "capabilities/mcp/": "capabilities/mcp/index.md",
+    "/capabilities/mcp/index.html": "capabilities/mcp/index.md",
+    "capabilities/mcp/transports.md": "capabilities/mcp/transports.md",
+    "/capabilities/mcp/transports.md": "capabilities/mcp/transports.md",
+    "/capabilities/mcp/transports/": "capabilities/mcp/transports.md",
+    "/capabilities/mcp/transports": "capabilities/mcp/transports.md",
+    "/capabilities/mcp/transports.html": "capabilities/mcp/transports.md",
+    "capabilities/mcp/migrations/v1-to-v2.md": "capabilities/mcp/migrations/v1-to-v2.md",
+    "/capabilities/mcp/migrations/v1-to-v2.md": "capabilities/mcp/migrations/v1-to-v2.md",
+    "/capabilities/mcp/migrations/v1-to-v2/": "capabilities/mcp/migrations/v1-to-v2.md",
+    "/capabilities/mcp/migrations/v1-to-v2": "capabilities/mcp/migrations/v1-to-v2.md",
+    "/capabilities/mcp/migrations/v1-to-v2.html": "capabilities/mcp/migrations/v1-to-v2.md",
+    "capabilities/mcp-apps/index.md": "capabilities/mcp-apps/index.md",
+    "/capabilities/mcp-apps/index.md": "capabilities/mcp-apps/index.md",
+    "/capabilities/mcp-apps/": "capabilities/mcp-apps/index.md",
+    "capabilities/mcp-apps": "capabilities/mcp-apps/index.md",
+    "capabilities/mcp-apps/": "capabilities/mcp-apps/index.md",
+    "/capabilities/mcp-apps/index.html": "capabilities/mcp-apps/index.md",
+    "capabilities/mcp-apps/guidance.md": "capabilities/mcp-apps/guidance.md",
+    "/capabilities/mcp-apps/guidance.md": "capabilities/mcp-apps/guidance.md",
+    "/capabilities/mcp-apps/guidance/": "capabilities/mcp-apps/guidance.md",
+    "/capabilities/mcp-apps/guidance": "capabilities/mcp-apps/guidance.md",
+    "/capabilities/mcp-apps/guidance.html": "capabilities/mcp-apps/guidance.md",
+    "capabilities/mcp-apps/migrations/v1-to-v2.md": "capabilities/mcp-apps/migrations/v1-to-v2.md",
+    "/capabilities/mcp-apps/migrations/v1-to-v2.md": "capabilities/mcp-apps/migrations/v1-to-v2.md",
+    "/capabilities/mcp-apps/migrations/v1-to-v2/": "capabilities/mcp-apps/migrations/v1-to-v2.md",
+    "/capabilities/mcp-apps/migrations/v1-to-v2": "capabilities/mcp-apps/migrations/v1-to-v2.md",
+    "/capabilities/mcp-apps/migrations/v1-to-v2.html": "capabilities/mcp-apps/migrations/v1-to-v2.md",
+    "capabilities/webmcp/provider.md": "capabilities/webmcp/provider.md",
+    "/capabilities/webmcp/provider.md": "capabilities/webmcp/provider.md",
+    "/capabilities/webmcp/provider/": "capabilities/webmcp/provider.md",
+    "/capabilities/webmcp/provider": "capabilities/webmcp/provider.md",
+    "/capabilities/webmcp/provider.html": "capabilities/webmcp/provider.md",
+    "capabilities/webmcp/tool-design.md": "capabilities/webmcp/tool-design.md",
+    "/capabilities/webmcp/tool-design.md": "capabilities/webmcp/tool-design.md",
+    "/capabilities/webmcp/tool-design/": "capabilities/webmcp/tool-design.md",
+    "/capabilities/webmcp/tool-design": "capabilities/webmcp/tool-design.md",
+    "/capabilities/webmcp/tool-design.html": "capabilities/webmcp/tool-design.md",
+    "capabilities/webmcp/security.md": "capabilities/webmcp/security.md",
+    "/capabilities/webmcp/security.md": "capabilities/webmcp/security.md",
+    "/capabilities/webmcp/security/": "capabilities/webmcp/security.md",
+    "/capabilities/webmcp/security": "capabilities/webmcp/security.md",
+    "/capabilities/webmcp/security.html": "capabilities/webmcp/security.md",
+    "capabilities/webmcp/testing.md": "capabilities/webmcp/testing.md",
+    "/capabilities/webmcp/testing.md": "capabilities/webmcp/testing.md",
+    "/capabilities/webmcp/testing/": "capabilities/webmcp/testing.md",
+    "/capabilities/webmcp/testing": "capabilities/webmcp/testing.md",
+    "/capabilities/webmcp/testing.html": "capabilities/webmcp/testing.md",
+    "capabilities/browser/index.md": "capabilities/browser/index.md",
+    "/capabilities/browser/index.md": "capabilities/browser/index.md",
+    "/capabilities/browser/": "capabilities/browser/index.md",
+    "capabilities/browser": "capabilities/browser/index.md",
+    "capabilities/browser/": "capabilities/browser/index.md",
+    "/capabilities/browser/index.html": "capabilities/browser/index.md",
+    "capabilities/pwa/index.md": "capabilities/pwa/index.md",
+    "/capabilities/pwa/index.md": "capabilities/pwa/index.md",
+    "/capabilities/pwa/": "capabilities/pwa/index.md",
+    "capabilities/pwa": "capabilities/pwa/index.md",
+    "capabilities/pwa/": "capabilities/pwa/index.md",
+    "/capabilities/pwa/index.html": "capabilities/pwa/index.md",
+    "capabilities/pwa/migrations/offline-v1-to-v2.md": "capabilities/pwa/migrations/offline-v1-to-v2.md",
+    "/capabilities/pwa/migrations/offline-v1-to-v2.md": "capabilities/pwa/migrations/offline-v1-to-v2.md",
+    "/capabilities/pwa/migrations/offline-v1-to-v2/": "capabilities/pwa/migrations/offline-v1-to-v2.md",
+    "/capabilities/pwa/migrations/offline-v1-to-v2": "capabilities/pwa/migrations/offline-v1-to-v2.md",
+    "/capabilities/pwa/migrations/offline-v1-to-v2.html": "capabilities/pwa/migrations/offline-v1-to-v2.md",
+    "capabilities/pwa/migrations/update-v1-to-v2.md": "capabilities/pwa/migrations/update-v1-to-v2.md",
+    "/capabilities/pwa/migrations/update-v1-to-v2.md": "capabilities/pwa/migrations/update-v1-to-v2.md",
+    "/capabilities/pwa/migrations/update-v1-to-v2/": "capabilities/pwa/migrations/update-v1-to-v2.md",
+    "/capabilities/pwa/migrations/update-v1-to-v2": "capabilities/pwa/migrations/update-v1-to-v2.md",
+    "/capabilities/pwa/migrations/update-v1-to-v2.html": "capabilities/pwa/migrations/update-v1-to-v2.md",
+    "capabilities/browser/migrations/v1-to-v2.md": "capabilities/browser/migrations/v1-to-v2.md",
+    "/capabilities/browser/migrations/v1-to-v2.md": "capabilities/browser/migrations/v1-to-v2.md",
+    "/capabilities/browser/migrations/v1-to-v2/": "capabilities/browser/migrations/v1-to-v2.md",
+    "/capabilities/browser/migrations/v1-to-v2": "capabilities/browser/migrations/v1-to-v2.md",
+    "/capabilities/browser/migrations/v1-to-v2.html": "capabilities/browser/migrations/v1-to-v2.md",
+    "capabilities/service/index.md": "capabilities/service/index.md",
+    "/capabilities/service/index.md": "capabilities/service/index.md",
+    "/capabilities/service/": "capabilities/service/index.md",
+    "capabilities/service": "capabilities/service/index.md",
+    "capabilities/service/": "capabilities/service/index.md",
+    "/capabilities/service/index.html": "capabilities/service/index.md",
+    "capabilities/service/migrations/v1-to-v2.md": "capabilities/service/migrations/v1-to-v2.md",
+    "/capabilities/service/migrations/v1-to-v2.md": "capabilities/service/migrations/v1-to-v2.md",
+    "/capabilities/service/migrations/v1-to-v2/": "capabilities/service/migrations/v1-to-v2.md",
+    "/capabilities/service/migrations/v1-to-v2": "capabilities/service/migrations/v1-to-v2.md",
+    "/capabilities/service/migrations/v1-to-v2.html": "capabilities/service/migrations/v1-to-v2.md",
+    "topology/contract/index.md": "topology/contract/index.md",
+    "/topology/contract/index.md": "topology/contract/index.md",
+    "/topology/contract/": "topology/contract/index.md",
+    "topology/contract": "topology/contract/index.md",
+    "topology/contract/": "topology/contract/index.md",
+    "/topology/contract/index.html": "topology/contract/index.md",
+    "topology/architecture/index.md": "topology/architecture/index.md",
+    "/topology/architecture/index.md": "topology/architecture/index.md",
+    "/topology/architecture/": "topology/architecture/index.md",
+    "topology/architecture": "topology/architecture/index.md",
+    "topology/architecture/": "topology/architecture/index.md",
+    "/topology/architecture/index.html": "topology/architecture/index.md",
+    "workspace/bare-worktree/index.md": "workspace/bare-worktree/index.md",
+    "/workspace/bare-worktree/index.md": "workspace/bare-worktree/index.md",
+    "/workspace/bare-worktree/": "workspace/bare-worktree/index.md",
+    "workspace/bare-worktree": "workspace/bare-worktree/index.md",
+    "workspace/bare-worktree/": "workspace/bare-worktree/index.md",
+    "/workspace/bare-worktree/index.html": "workspace/bare-worktree/index.md",
+    "workspace/architecture/index.md": "workspace/architecture/index.md",
+    "/workspace/architecture/index.md": "workspace/architecture/index.md",
+    "/workspace/architecture/": "workspace/architecture/index.md",
+    "workspace/architecture": "workspace/architecture/index.md",
+    "workspace/architecture/": "workspace/architecture/index.md",
+    "/workspace/architecture/index.html": "workspace/architecture/index.md",
+    "lifecycle/composition-state/index.md": "lifecycle/composition-state/index.md",
+    "/lifecycle/composition-state/index.md": "lifecycle/composition-state/index.md",
+    "/lifecycle/composition-state/": "lifecycle/composition-state/index.md",
+    "lifecycle/composition-state": "lifecycle/composition-state/index.md",
+    "lifecycle/composition-state/": "lifecycle/composition-state/index.md",
+    "/lifecycle/composition-state/index.html": "lifecycle/composition-state/index.md",
+    "lifecycle/contract-evolution/index.md": "lifecycle/contract-evolution/index.md",
+    "/lifecycle/contract-evolution/index.md": "lifecycle/contract-evolution/index.md",
+    "/lifecycle/contract-evolution/": "lifecycle/contract-evolution/index.md",
+    "lifecycle/contract-evolution": "lifecycle/contract-evolution/index.md",
+    "lifecycle/contract-evolution/": "lifecycle/contract-evolution/index.md",
+    "/lifecycle/contract-evolution/index.html": "lifecycle/contract-evolution/index.md",
+    "lifecycle/implementation-evidence/index.md": "lifecycle/implementation-evidence/index.md",
+    "/lifecycle/implementation-evidence/index.md": "lifecycle/implementation-evidence/index.md",
+    "/lifecycle/implementation-evidence/": "lifecycle/implementation-evidence/index.md",
+    "lifecycle/implementation-evidence": "lifecycle/implementation-evidence/index.md",
+    "lifecycle/implementation-evidence/": "lifecycle/implementation-evidence/index.md",
+    "/lifecycle/implementation-evidence/index.html": "lifecycle/implementation-evidence/index.md",
+    "lifecycle/implementation-evidence/migrations/v1-to-v2.md": "lifecycle/implementation-evidence/migrations/v1-to-v2.md",
+    "/lifecycle/implementation-evidence/migrations/v1-to-v2.md": "lifecycle/implementation-evidence/migrations/v1-to-v2.md",
+    "/lifecycle/implementation-evidence/migrations/v1-to-v2/": "lifecycle/implementation-evidence/migrations/v1-to-v2.md",
+    "/lifecycle/implementation-evidence/migrations/v1-to-v2": "lifecycle/implementation-evidence/migrations/v1-to-v2.md",
+    "/lifecycle/implementation-evidence/migrations/v1-to-v2.html": "lifecycle/implementation-evidence/migrations/v1-to-v2.md",
+    "lifecycle/implementation-evidence/migrations/v2-to-v3.md": "lifecycle/implementation-evidence/migrations/v2-to-v3.md",
+    "/lifecycle/implementation-evidence/migrations/v2-to-v3.md": "lifecycle/implementation-evidence/migrations/v2-to-v3.md",
+    "/lifecycle/implementation-evidence/migrations/v2-to-v3/": "lifecycle/implementation-evidence/migrations/v2-to-v3.md",
+    "/lifecycle/implementation-evidence/migrations/v2-to-v3": "lifecycle/implementation-evidence/migrations/v2-to-v3.md",
+    "/lifecycle/implementation-evidence/migrations/v2-to-v3.html": "lifecycle/implementation-evidence/migrations/v2-to-v3.md",
+    "lifecycle/implementation-evidence/migrations/v3-to-v4.md": "lifecycle/implementation-evidence/migrations/v3-to-v4.md",
+    "/lifecycle/implementation-evidence/migrations/v3-to-v4.md": "lifecycle/implementation-evidence/migrations/v3-to-v4.md",
+    "/lifecycle/implementation-evidence/migrations/v3-to-v4/": "lifecycle/implementation-evidence/migrations/v3-to-v4.md",
+    "/lifecycle/implementation-evidence/migrations/v3-to-v4": "lifecycle/implementation-evidence/migrations/v3-to-v4.md",
+    "/lifecycle/implementation-evidence/migrations/v3-to-v4.html": "lifecycle/implementation-evidence/migrations/v3-to-v4.md",
+    "lifecycle/implementation-evidence/migrations/v4-to-v5.md": "lifecycle/implementation-evidence/migrations/v4-to-v5.md",
+    "/lifecycle/implementation-evidence/migrations/v4-to-v5.md": "lifecycle/implementation-evidence/migrations/v4-to-v5.md",
+    "/lifecycle/implementation-evidence/migrations/v4-to-v5/": "lifecycle/implementation-evidence/migrations/v4-to-v5.md",
+    "/lifecycle/implementation-evidence/migrations/v4-to-v5": "lifecycle/implementation-evidence/migrations/v4-to-v5.md",
+    "/lifecycle/implementation-evidence/migrations/v4-to-v5.html": "lifecycle/implementation-evidence/migrations/v4-to-v5.md",
+    "lifecycle/implementation-evidence/migrations/v5-to-v6.md": "lifecycle/implementation-evidence/migrations/v5-to-v6.md",
+    "/lifecycle/implementation-evidence/migrations/v5-to-v6.md": "lifecycle/implementation-evidence/migrations/v5-to-v6.md",
+    "/lifecycle/implementation-evidence/migrations/v5-to-v6/": "lifecycle/implementation-evidence/migrations/v5-to-v6.md",
+    "/lifecycle/implementation-evidence/migrations/v5-to-v6": "lifecycle/implementation-evidence/migrations/v5-to-v6.md",
+    "/lifecycle/implementation-evidence/migrations/v5-to-v6.html": "lifecycle/implementation-evidence/migrations/v5-to-v6.md",
+    "lifecycle/checkpoints/index.md": "lifecycle/checkpoints/index.md",
+    "/lifecycle/checkpoints/index.md": "lifecycle/checkpoints/index.md",
+    "/lifecycle/checkpoints/": "lifecycle/checkpoints/index.md",
+    "lifecycle/checkpoints": "lifecycle/checkpoints/index.md",
+    "lifecycle/checkpoints/": "lifecycle/checkpoints/index.md",
+    "/lifecycle/checkpoints/index.html": "lifecycle/checkpoints/index.md",
+    "lifecycle/release-execution/index.md": "lifecycle/release-execution/index.md",
+    "/lifecycle/release-execution/index.md": "lifecycle/release-execution/index.md",
+    "/lifecycle/release-execution/": "lifecycle/release-execution/index.md",
+    "lifecycle/release-execution": "lifecycle/release-execution/index.md",
+    "lifecycle/release-execution/": "lifecycle/release-execution/index.md",
+    "/lifecycle/release-execution/index.html": "lifecycle/release-execution/index.md",
+    "lifecycle/release-execution/migrations/v1-to-v2.md": "lifecycle/release-execution/migrations/v1-to-v2.md",
+    "/lifecycle/release-execution/migrations/v1-to-v2.md": "lifecycle/release-execution/migrations/v1-to-v2.md",
+    "/lifecycle/release-execution/migrations/v1-to-v2/": "lifecycle/release-execution/migrations/v1-to-v2.md",
+    "/lifecycle/release-execution/migrations/v1-to-v2": "lifecycle/release-execution/migrations/v1-to-v2.md",
+    "/lifecycle/release-execution/migrations/v1-to-v2.html": "lifecycle/release-execution/migrations/v1-to-v2.md",
+    "lifecycle/release-evidence/index.md": "lifecycle/release-evidence/index.md",
+    "/lifecycle/release-evidence/index.md": "lifecycle/release-evidence/index.md",
+    "/lifecycle/release-evidence/": "lifecycle/release-evidence/index.md",
+    "lifecycle/release-evidence": "lifecycle/release-evidence/index.md",
+    "lifecycle/release-evidence/": "lifecycle/release-evidence/index.md",
+    "/lifecycle/release-evidence/index.html": "lifecycle/release-evidence/index.md",
+    "lifecycle/release-bundle/index.md": "lifecycle/release-bundle/index.md",
+    "/lifecycle/release-bundle/index.md": "lifecycle/release-bundle/index.md",
+    "/lifecycle/release-bundle/": "lifecycle/release-bundle/index.md",
+    "lifecycle/release-bundle": "lifecycle/release-bundle/index.md",
+    "lifecycle/release-bundle/": "lifecycle/release-bundle/index.md",
+    "/lifecycle/release-bundle/index.html": "lifecycle/release-bundle/index.md",
+    "policy/index.md": "policy/index.md",
+    "/policy/index.md": "policy/index.md",
+    "/policy/": "policy/index.md",
+    "policy": "policy/index.md",
+    "policy/": "policy/index.md",
+    "/policy/index.html": "policy/index.md",
+    "policy/provider/index.md": "policy/provider/index.md",
+    "/policy/provider/index.md": "policy/provider/index.md",
+    "/policy/provider/": "policy/provider/index.md",
+    "policy/provider": "policy/provider/index.md",
+    "policy/provider/": "policy/provider/index.md",
+    "/policy/provider/index.html": "policy/provider/index.md",
+    "policy/shared-policy/index.md": "policy/shared-policy/index.md",
+    "/policy/shared-policy/index.md": "policy/shared-policy/index.md",
+    "/policy/shared-policy/": "policy/shared-policy/index.md",
+    "policy/shared-policy": "policy/shared-policy/index.md",
+    "policy/shared-policy/": "policy/shared-policy/index.md",
+    "/policy/shared-policy/index.html": "policy/shared-policy/index.md",
+    "policy/consumer/index.md": "policy/consumer/index.md",
+    "/policy/consumer/index.md": "policy/consumer/index.md",
+    "/policy/consumer/": "policy/consumer/index.md",
+    "policy/consumer": "policy/consumer/index.md",
+    "policy/consumer/": "policy/consumer/index.md",
+    "/policy/consumer/index.html": "policy/consumer/index.md",
+    "policy/getting-started.md": "policy/getting-started.md",
+    "/policy/getting-started.md": "policy/getting-started.md",
+    "/policy/getting-started/": "policy/getting-started.md",
+    "/policy/getting-started": "policy/getting-started.md",
+    "/policy/getting-started.html": "policy/getting-started.md",
+    "policy/policy-concepts.md": "policy/policy-concepts.md",
+    "/policy/policy-concepts.md": "policy/policy-concepts.md",
+    "/policy/policy-concepts/": "policy/policy-concepts.md",
+    "/policy/policy-concepts": "policy/policy-concepts.md",
+    "/policy/policy-concepts.html": "policy/policy-concepts.md",
+    "policy/managed-operation.md": "policy/managed-operation.md",
+    "/policy/managed-operation.md": "policy/managed-operation.md",
+    "/policy/managed-operation/": "policy/managed-operation.md",
+    "/policy/managed-operation": "policy/managed-operation.md",
+    "/policy/managed-operation.html": "policy/managed-operation.md",
+    "policy/cli.md": "policy/cli.md",
+    "/policy/cli.md": "policy/cli.md",
+    "/policy/cli/": "policy/cli.md",
+    "/policy/cli": "policy/cli.md",
+    "/policy/cli.html": "policy/cli.md",
+    "policy/bootstrap.md": "policy/bootstrap.md",
+    "/policy/bootstrap.md": "policy/bootstrap.md",
+    "/policy/bootstrap/": "policy/bootstrap.md",
+    "/policy/bootstrap": "policy/bootstrap.md",
+    "/policy/bootstrap.html": "policy/bootstrap.md",
+    "policy/adoption.md": "policy/adoption.md",
+    "/policy/adoption.md": "policy/adoption.md",
+    "/policy/adoption/": "policy/adoption.md",
+    "/policy/adoption": "policy/adoption.md",
+    "/policy/adoption.html": "policy/adoption.md",
+    "policy/release-lifecycle.md": "policy/release-lifecycle.md",
+    "/policy/release-lifecycle.md": "policy/release-lifecycle.md",
+    "/policy/release-lifecycle/": "policy/release-lifecycle.md",
+    "/policy/release-lifecycle": "policy/release-lifecycle.md",
+    "/policy/release-lifecycle.html": "policy/release-lifecycle.md",
+    "policy/policy-readiness.md": "policy/policy-readiness.md",
+    "/policy/policy-readiness.md": "policy/policy-readiness.md",
+    "/policy/policy-readiness/": "policy/policy-readiness.md",
+    "/policy/policy-readiness": "policy/policy-readiness.md",
+    "/policy/policy-readiness.html": "policy/policy-readiness.md",
+    "policy/documentation-publication.md": "policy/documentation-publication.md",
+    "/policy/documentation-publication.md": "policy/documentation-publication.md",
+    "/policy/documentation-publication/": "policy/documentation-publication.md",
+    "/policy/documentation-publication": "policy/documentation-publication.md",
+    "/policy/documentation-publication.html": "policy/documentation-publication.md",
+    "policy/publication-catalog.md": "policy/publication-catalog.md",
+    "/policy/publication-catalog.md": "policy/publication-catalog.md",
+    "/policy/publication-catalog/": "policy/publication-catalog.md",
+    "/policy/publication-catalog": "policy/publication-catalog.md",
+    "/policy/publication-catalog.html": "policy/publication-catalog.md",
+    "policy/pwa.md": "policy/pwa.md",
+    "/policy/pwa.md": "policy/pwa.md",
+    "/policy/pwa/": "policy/pwa.md",
+    "/policy/pwa": "policy/pwa.md",
+    "/policy/pwa.html": "policy/pwa.md",
+    "policy/agent-environments/google-ai-studio.md": "policy/agent-environments/google-ai-studio.md",
+    "/policy/agent-environments/google-ai-studio.md": "policy/agent-environments/google-ai-studio.md",
+    "/policy/agent-environments/google-ai-studio/": "policy/agent-environments/google-ai-studio.md",
+    "/policy/agent-environments/google-ai-studio": "policy/agent-environments/google-ai-studio.md",
+    "/policy/agent-environments/google-ai-studio.html": "policy/agent-environments/google-ai-studio.md",
+    "policy/repository-structure.md": "policy/repository-structure.md",
+    "/policy/repository-structure.md": "policy/repository-structure.md",
+    "/policy/repository-structure/": "policy/repository-structure.md",
+    "/policy/repository-structure": "policy/repository-structure.md",
+    "/policy/repository-structure.html": "policy/repository-structure.md",
+    "policy/architecture.md": "policy/architecture.md",
+    "/policy/architecture.md": "policy/architecture.md",
+    "/policy/architecture/": "policy/architecture.md",
+    "/policy/architecture": "policy/architecture.md",
+    "/policy/architecture.html": "policy/architecture.md",
+    "policy/configuration.md": "policy/configuration.md",
+    "/policy/configuration.md": "policy/configuration.md",
+    "/policy/configuration/": "policy/configuration.md",
+    "/policy/configuration": "policy/configuration.md",
+    "/policy/configuration.html": "policy/configuration.md",
+    "policy/shared-policy/profiles.md": "policy/shared-policy/profiles.md",
+    "/policy/shared-policy/profiles.md": "policy/shared-policy/profiles.md",
+    "/policy/shared-policy/profiles/": "policy/shared-policy/profiles.md",
+    "/policy/shared-policy/profiles": "policy/shared-policy/profiles.md",
+    "/policy/shared-policy/profiles.html": "policy/shared-policy/profiles.md",
+    "policy/policy-authoring.md": "policy/policy-authoring.md",
+    "/policy/policy-authoring.md": "policy/policy-authoring.md",
+    "/policy/policy-authoring/": "policy/policy-authoring.md",
+    "/policy/policy-authoring": "policy/policy-authoring.md",
+    "/policy/policy-authoring.html": "policy/policy-authoring.md",
+    "policy/policy-authority-inventory.md": "policy/policy-authority-inventory.md",
+    "/policy/policy-authority-inventory.md": "policy/policy-authority-inventory.md",
+    "/policy/policy-authority-inventory/": "policy/policy-authority-inventory.md",
+    "/policy/policy-authority-inventory": "policy/policy-authority-inventory.md",
+    "/policy/policy-authority-inventory.html": "policy/policy-authority-inventory.md",
+    "policy/review-policy.md": "policy/review-policy.md",
+    "/policy/review-policy.md": "policy/review-policy.md",
+    "/policy/review-policy/": "policy/review-policy.md",
+    "/policy/review-policy": "policy/review-policy.md",
+    "/policy/review-policy.html": "policy/review-policy.md",
+    "policy/external-artifact-intake.md": "policy/external-artifact-intake.md",
+    "/policy/external-artifact-intake.md": "policy/external-artifact-intake.md",
+    "/policy/external-artifact-intake/": "policy/external-artifact-intake.md",
+    "/policy/external-artifact-intake": "policy/external-artifact-intake.md",
+    "/policy/external-artifact-intake.html": "policy/external-artifact-intake.md",
+    "policy/regression-prevention.md": "policy/regression-prevention.md",
+    "/policy/regression-prevention.md": "policy/regression-prevention.md",
+    "/policy/regression-prevention/": "policy/regression-prevention.md",
+    "/policy/regression-prevention": "policy/regression-prevention.md",
+    "/policy/regression-prevention.html": "policy/regression-prevention.md",
+    "policy/bootstrap-model.md": "policy/bootstrap-model.md",
+    "/policy/bootstrap-model.md": "policy/bootstrap-model.md",
+    "/policy/bootstrap-model/": "policy/bootstrap-model.md",
+    "/policy/bootstrap-model": "policy/bootstrap-model.md",
+    "/policy/bootstrap-model.html": "policy/bootstrap-model.md",
+    "policy/threat-model.md": "policy/threat-model.md",
+    "/policy/threat-model.md": "policy/threat-model.md",
+    "/policy/threat-model/": "policy/threat-model.md",
+    "/policy/threat-model": "policy/threat-model.md",
+    "/policy/threat-model.html": "policy/threat-model.md",
+    "policy/contributing.md": "policy/contributing.md",
+    "/policy/contributing.md": "policy/contributing.md",
+    "/policy/contributing/": "policy/contributing.md",
+    "/policy/contributing": "policy/contributing.md",
+    "/policy/contributing.html": "policy/contributing.md",
+    "policy/policy-maintainer-workflow.md": "policy/policy-maintainer-workflow.md",
+    "/policy/policy-maintainer-workflow.md": "policy/policy-maintainer-workflow.md",
+    "/policy/policy-maintainer-workflow/": "policy/policy-maintainer-workflow.md",
+    "/policy/policy-maintainer-workflow": "policy/policy-maintainer-workflow.md",
+    "/policy/policy-maintainer-workflow.html": "policy/policy-maintainer-workflow.md",
+    "policy/adr/index.md": "policy/adr/index.md",
+    "/policy/adr/index.md": "policy/adr/index.md",
+    "/policy/adr/": "policy/adr/index.md",
+    "policy/adr": "policy/adr/index.md",
+    "policy/adr/": "policy/adr/index.md",
+    "/policy/adr/index.html": "policy/adr/index.md",
+    "policy/adr/0002-repository-adoption.md": "policy/adr/0002-repository-adoption.md",
+    "/policy/adr/0002-repository-adoption.md": "policy/adr/0002-repository-adoption.md",
+    "/policy/adr/0002-repository-adoption/": "policy/adr/0002-repository-adoption.md",
+    "/policy/adr/0002-repository-adoption": "policy/adr/0002-repository-adoption.md",
+    "/policy/adr/0002-repository-adoption.html": "policy/adr/0002-repository-adoption.md",
+    "policy/adr/0003-application-neutral-policy-scope.md": "policy/adr/0003-application-neutral-policy-scope.md",
+    "/policy/adr/0003-application-neutral-policy-scope.md": "policy/adr/0003-application-neutral-policy-scope.md",
+    "/policy/adr/0003-application-neutral-policy-scope/": "policy/adr/0003-application-neutral-policy-scope.md",
+    "/policy/adr/0003-application-neutral-policy-scope": "policy/adr/0003-application-neutral-policy-scope.md",
+    "/policy/adr/0003-application-neutral-policy-scope.html": "policy/adr/0003-application-neutral-policy-scope.md",
+    "policy/adr/0005-single-policy-authority.md": "policy/adr/0005-single-policy-authority.md",
+    "/policy/adr/0005-single-policy-authority.md": "policy/adr/0005-single-policy-authority.md",
+    "/policy/adr/0005-single-policy-authority/": "policy/adr/0005-single-policy-authority.md",
+    "/policy/adr/0005-single-policy-authority": "policy/adr/0005-single-policy-authority.md",
+    "/policy/adr/0005-single-policy-authority.html": "policy/adr/0005-single-policy-authority.md",
+    "policy/adr/0006-copyable-artifact-policy-adoption.md": "policy/adr/0006-copyable-artifact-policy-adoption.md",
+    "/policy/adr/0006-copyable-artifact-policy-adoption.md": "policy/adr/0006-copyable-artifact-policy-adoption.md",
+    "/policy/adr/0006-copyable-artifact-policy-adoption/": "policy/adr/0006-copyable-artifact-policy-adoption.md",
+    "/policy/adr/0006-copyable-artifact-policy-adoption": "policy/adr/0006-copyable-artifact-policy-adoption.md",
+    "/policy/adr/0006-copyable-artifact-policy-adoption.html": "policy/adr/0006-copyable-artifact-policy-adoption.md",
+    "policy/adr/0007-single-agent-policy-skill-runtime-cache.md": "policy/adr/0007-single-agent-policy-skill-runtime-cache.md",
+    "/policy/adr/0007-single-agent-policy-skill-runtime-cache.md": "policy/adr/0007-single-agent-policy-skill-runtime-cache.md",
+    "/policy/adr/0007-single-agent-policy-skill-runtime-cache/": "policy/adr/0007-single-agent-policy-skill-runtime-cache.md",
+    "/policy/adr/0007-single-agent-policy-skill-runtime-cache": "policy/adr/0007-single-agent-policy-skill-runtime-cache.md",
+    "/policy/adr/0007-single-agent-policy-skill-runtime-cache.html": "policy/adr/0007-single-agent-policy-skill-runtime-cache.md",
+    "policy/adr/0008-review-authority-and-github-runtime-boundary.md": "policy/adr/0008-review-authority-and-github-runtime-boundary.md",
+    "/policy/adr/0008-review-authority-and-github-runtime-boundary.md": "policy/adr/0008-review-authority-and-github-runtime-boundary.md",
+    "/policy/adr/0008-review-authority-and-github-runtime-boundary/": "policy/adr/0008-review-authority-and-github-runtime-boundary.md",
+    "/policy/adr/0008-review-authority-and-github-runtime-boundary": "policy/adr/0008-review-authority-and-github-runtime-boundary.md",
+    "/policy/adr/0008-review-authority-and-github-runtime-boundary.html": "policy/adr/0008-review-authority-and-github-runtime-boundary.md",
+    "policy/adr/0009-review-result-representation-boundary.md": "policy/adr/0009-review-result-representation-boundary.md",
+    "/policy/adr/0009-review-result-representation-boundary.md": "policy/adr/0009-review-result-representation-boundary.md",
+    "/policy/adr/0009-review-result-representation-boundary/": "policy/adr/0009-review-result-representation-boundary.md",
+    "/policy/adr/0009-review-result-representation-boundary": "policy/adr/0009-review-result-representation-boundary.md",
+    "/policy/adr/0009-review-result-representation-boundary.html": "policy/adr/0009-review-result-representation-boundary.md",
+    "policy/adr/0004-integrated-bootstrap-skill.md": "policy/adr/0004-integrated-bootstrap-skill.md",
+    "/policy/adr/0004-integrated-bootstrap-skill.md": "policy/adr/0004-integrated-bootstrap-skill.md",
+    "/policy/adr/0004-integrated-bootstrap-skill/": "policy/adr/0004-integrated-bootstrap-skill.md",
+    "/policy/adr/0004-integrated-bootstrap-skill": "policy/adr/0004-integrated-bootstrap-skill.md",
+    "/policy/adr/0004-integrated-bootstrap-skill.html": "policy/adr/0004-integrated-bootstrap-skill.md"
+  }
+}

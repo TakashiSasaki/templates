@@ -203,6 +203,71 @@ class MultiPublicationAssemblyTests(unittest.TestCase):
             )
             self.assertIn("publications: 3", summary)
 
+    def test_runtime_projection_excludes_skipped_optional_documents(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            site = base / "site"
+            output = base / "build"
+
+            (site / "docs").mkdir(parents=True)
+            (site / "docs" / "index.md").write_text("# Portal\n", encoding="utf-8")
+            self.write_catalog(
+                site,
+                [
+                    self.home_document(),
+                    {
+                        "id": "optional",
+                        "source": "docs/missing.md",
+                        "optional": True,
+                        "home": False,
+                    },
+                ],
+            )
+            home = {
+                "title": "Home",
+                "publication": "site",
+                "document": "portal-home",
+                "destination": "index.md",
+            }
+            optional = {
+                "title": "Optional",
+                "publication": "site",
+                "document": "optional",
+                "destination": "optional/index.md",
+            }
+            self.write_site(
+                site,
+                {
+                    "schema_version": 3,
+                    "audiences": ["use", "maintain"],
+                    "home": {"publication": "site", "document": "portal-home"},
+                    "documents": [
+                        {
+                            **home,
+                            "primary_audience": "use",
+                            "additional_audiences": ["maintain"],
+                        },
+                        {
+                            **optional,
+                            "primary_audience": "maintain",
+                            "additional_audiences": [],
+                        },
+                    ],
+                    "navigation": {
+                        "use": [home],
+                        "maintain": [home, optional],
+                    },
+                },
+            )
+
+            summary = assemble({"site": site}, site, output)
+            runtime = json.loads(
+                (output / "docs" / "audience-runtime.json").read_text(encoding="utf-8")
+            )
+            self.assertIn("optional documents skipped: site:optional", summary)
+            self.assertNotIn("optional/index.md", runtime["documents"])
+            self.assertNotIn("/optional/", runtime["routes"])
+
     def test_manifest_must_cover_every_catalog_document(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             base = Path(directory)

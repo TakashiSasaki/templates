@@ -698,6 +698,19 @@ def assemble(
     if site_assets.is_dir():
         copy_asset(site_assets, docs_root, "site assets")
 
+    if manifest.schema_version == 3:
+        try:
+            from scripts.audience_context import AudienceContextResolver
+        except ImportError:
+            from audience_context import AudienceContextResolver
+        # Optional documents absent from the selected publication are not part
+        # of the built site and must not acquire audience metadata on their 404s.
+        resolver = AudienceContextResolver(manifest, documents=included)
+        (docs_root / "audience-runtime.json").write_text(
+            json.dumps(resolver.export_runtime_map(), indent=2, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+        )
+
     template_path = site_root / "zensical.template.toml"
     template = template_path.read_text(encoding="utf-8")
     if template.count(NAV_PLACEHOLDER) != 1:
