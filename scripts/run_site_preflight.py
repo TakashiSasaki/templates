@@ -288,6 +288,11 @@ def check_unit_tests(args: argparse.Namespace) -> None:
     )
 
 
+def check_integration_tests(args: argparse.Namespace) -> None:
+    require_provider_roots(args)
+    run(PYTHON, "scripts/run_core_tests.py", "--suite", "integration", "--verbose", args=args)
+
+
 def check_node_explainability(args: argparse.Namespace) -> None:
     del args
     for test in NODE_EXPLAINABILITY_TESTS:
@@ -509,6 +514,7 @@ CHECKS: dict[str, Callable[[argparse.Namespace], None]] = {
     "website-contract": check_website_contract,
     "focused-tests": check_focused_tests,
     "unit-tests": check_unit_tests,
+    "integration-tests": check_integration_tests,
     "node-explainability": check_node_explainability,
     "materialization-tests": check_materialization_tests,
     "publication-contract-tests": check_publication_contract_tests,
@@ -592,6 +598,9 @@ def execute_checks(args, selected, head):
         for name in selected:
             print(f"SITE_PREFLIGHT_CHECK_START name={name} head={head}", flush=True)
             if args.capsule and name in {"cross-assembly", "focused-tests", "audience-static", "audience-browser", "unit-tests"}:
+                from scripts.local_qualification_capsule import input_identity
+                if input_identity(args.capsule_roots) != args.capsule.inputs:
+                    raise PreflightFailure("capsule inputs changed before stage reuse")
                 stage = "build" if name == "cross-assembly" else name
                 from scripts.local_qualification_capsule import input_identity
                 def validate_capsule_inputs():

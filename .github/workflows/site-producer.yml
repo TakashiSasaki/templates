@@ -2,6 +2,10 @@ name: Site canonical producer
 on:
   workflow_call:
     inputs:
+      core_tests_scheduled:
+        description: Caller schedules independent core tests and gates their result
+        type: boolean
+        default: false
       reuse_pr_build:
         description: Reuse the canonical exact-input PR artifact when provider/configuration inputs match
         required: false
@@ -129,6 +133,7 @@ jobs:
           STAGING_IDS: ${{ inputs.publication_staging_ids }}
           STAGING_ID: ${{ inputs.publication_staging_id }}
           DEPLOYMENT_TIMESTAMP: ${{ inputs.deployment_timestamp }}
+          CORE_TESTS_SCHEDULED: ${{ inputs.core_tests_scheduled }}
         run: python site-source/scripts/site_build_artifact.py --output "$GITHUB_OUTPUT" --workflow-file workflow-source/.github/workflows/site-producer.yml
       - name: Install pinned site dependencies
         if: ${{ steps.artifact.outputs.reused != 'true' }}
@@ -174,7 +179,13 @@ jobs:
         if: ${{ steps.artifact.outputs.reused != 'true' }}
         env:
           EXPECTED_SITE_REVISION: ${{ steps.site_revision.outputs.sha }}
-        run: python site-source/scripts/run_site_preflight.py full --check unit-tests --expected-head "$EXPECTED_SITE_REVISION" --composition-root composition-source --policy-root policy-source
+          CORE_TESTS_SCHEDULED: ${{ inputs.core_tests_scheduled }}
+        run: |
+          if [ "$CORE_TESTS_SCHEDULED" = true ]; then
+            python site-source/scripts/run_site_preflight.py full --check integration-tests --expected-head "$EXPECTED_SITE_REVISION" --composition-root composition-source --policy-root policy-source
+          else
+            python site-source/scripts/run_site_preflight.py full --check unit-tests --expected-head "$EXPECTED_SITE_REVISION" --composition-root composition-source --policy-root policy-source
+          fi
       - name: Prepare repository-tree publication
         if: ${{ steps.artifact.outputs.reused != 'true' }}
         run: |

@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import io
+import json
+import tempfile
+from pathlib import Path
 import unittest
 from unittest.mock import patch
 
@@ -92,6 +95,36 @@ def build_mock_hierarchy(
 
 
 class VerifySiteFullQualificationTests(unittest.TestCase):
+    @patch("scripts.verify_site_full_qualification.fetch_run_jobs")
+    @patch("scripts.verify_site_full_qualification.fetch_workflow_runs")
+    def test_snapshot_keeps_retry_job_and_skipped_step_conclusions(self, mock_runs, mock_jobs):
+        runs, jobs = build_mock_hierarchy()
+        runs[0]['run_attempt'] = 2
+        runs[0]['run_started_at'] = '2026-09-15T09:00:00Z'
+        inherited = next(j for j in jobs[1000] if j['name']=='build / build')
+        inherited.update(run_attempt=2, started_at='2026-09-15T08:50:00Z', completed_at='2026-09-15T08:52:00Z')
+        current = next(j for j in jobs[1000] if j['name'] == 'check')
+        old = dict(current, id=1, run_attempt=1, conclusion='success')
+        current.update(id=2, run_attempt=2, conclusion='failure', steps=[
+            {'number':1,'name':'PWA','status':'completed','conclusion':'failure'},
+            {'number':2,'name':'audience','status':'completed','conclusion':'skipped'}])
+        jobs[1000].insert(0,old)
+        mock_runs.return_value=runs
+        mock_jobs.return_value=jobs[1000]
+        with tempfile.TemporaryDirectory() as directory:
+            output=Path(directory)/'snapshot.json'
+            self.assertEqual(verify_qualification('repo','head','token',timeout_seconds=0,output=output),1)
+            snapshot=json.loads(output.read_text())['suites']['check']
+            self.assertEqual(json.loads(output.read_text())['suites']['build']['evidence_origin'], 'carried-forward')
+            mock_runs.side_effect=RuntimeError('API unavailable')
+            self.assertEqual(verify_qualification('repo','head','token',timeout_seconds=0,output=output),1)
+            self.assertEqual(json.loads(output.read_text())['state'],'api_error')
+            self.assertEqual(json.loads(output.read_text())['suites'],{})
+        self.assertEqual(snapshot['run_attempt'],2)
+        self.assertEqual(snapshot['job_run_attempt'],2)
+        self.assertEqual(snapshot['steps'][1]['conclusion'],'skipped')
+        mock_jobs.assert_called_once_with('repo',1000,'token',2)
+
     def test_required_suites_count(self) -> None:
         self.assertEqual(19, len(REQUIRED_SUITES))
         keys = [s.key for s in REQUIRED_SUITES]
@@ -518,7 +551,7 @@ class VerifySiteFullQualificationTests(unittest.TestCase):
     @patch("scripts.verify_site_full_qualification.fetch_run_jobs")
     @patch("scripts.verify_site_full_qualification.fetch_run_info")
     @patch("scripts.verify_site_full_qualification.fetch_workflow_runs")
-    def test_provider_managed_workflows_preserve_exact_head_runs_across_epochs(
+    def test_legacy_website_success_cannot_replace_current_dag_evidence(
         self, mock_runs, mock_info, mock_jobs
     ) -> None:
         # Qualification runner run ID has created_at 2026-09-11T10:00:00Z
@@ -527,10 +560,10 @@ class VerifySiteFullQualificationTests(unittest.TestCase):
         runs, jobs_by_id = build_mock_hierarchy()
         for r in runs:
             r["created_at"] = "2026-09-11T09:59:30Z"
-        # Validate-website is provider-managed and ran at PR opened (e.g. 2 hours before label event)
-        for r in runs:
-            if r["path"] == ".github/workflows/validate-website.yml":
-                r["created_at"] = "2026-09-11T08:00:00Z"
+        runs.append({'id':999, 'path':'.github/workflows/validate-website.yml',
+                     'created_at':'2026-09-11T08:00:00Z', 'status':'completed','conclusion':'success'})
+        jobs_by_id[999]=[{'id':99,'name':'validate','status':'completed','conclusion':'success'}]
+        jobs_by_id[1000]=[j for j in jobs_by_id[1000] if j['name']!='website_contract']
 
         mock_runs.return_value = runs
         mock_jobs.side_effect = lambda repo, run_id, token, run_attempt=1: jobs_by_id.get(run_id, [])
@@ -543,9 +576,8 @@ class VerifySiteFullQualificationTests(unittest.TestCase):
             timeout_seconds=0,
             poll_interval_seconds=0,
         )
-        # Succeeded because validate-website.yml is not in LABELED_DISPATCHED_WORKFLOW_PATHS,
-        # so its exact-head run from 08:00:00 is preserved without timing out.
-        self.assertEqual(0, result)
+        # A legacy external success cannot replace the required current DAG job.
+        self.assertEqual(1, result)
 
     @patch("scripts.verify_site_full_qualification.fetch_run_jobs")
     @patch("scripts.verify_site_full_qualification.fetch_workflow_runs")

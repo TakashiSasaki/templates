@@ -548,14 +548,6 @@ class AgentBootstrapManifestTests(unittest.TestCase):
                 (ROOT / "schemas/agent-bootstrap.schema.json").read_bytes(),
             )
 
-    def test_exact_checked_out_provider_descriptors_match_projection_when_available(self) -> None:
-        composition_root = ROOT.parent / "composition-source"
-        policy_root = ROOT.parent / "policy-source"
-        composition_release = composition_root / bootstrap.COMPOSITION_RELEASE_PATH
-        policy_release = policy_root / bootstrap.POLICY_RELEASE_PATH
-        if not composition_release.is_file() or not policy_release.is_file():
-            self.skipTest("exact provider publication checkouts are not available")
-        bootstrap.verify_site_projections(ROOT, composition_root, policy_root)
 
 
 if __name__ == "__main__":

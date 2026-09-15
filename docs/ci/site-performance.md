@@ -118,8 +118,9 @@ the aggregate check names. Full qualification checks the complete `needs` result
 set and rejects failed, cancelled, missing and skipped required jobs. Nested job
 names are mapped explicitly in `verify_site_full_qualification.py`. The standalone
 full-qualification workflow is a one-shot manual exact-head API audit. Its job
-queries bind `run_attempt`; successful inherited producer jobs remain evidence of
-the attempt that actually ran them. The provider-managed Website workflow remains
+queries bind `run_attempt`; inherited producer execution timestamps remain visible.
+GitHub can clone successful jobs into a retry with new IDs and API attempt fields,
+so jobs starting before the retry are explicitly marked `carried-forward`. The provider-managed Website workflow remains
 unchanged; the DAG invokes its canonical validator directly for its own gate.
 
 Wall time is the critical path; runner occupancy is the sum of job execution
@@ -150,3 +151,26 @@ failure after an actual worker update also produced diagnostic JSON. These sampl
 show no material local observation overhead, not a hosted-runner speed claim.
 Time-to-first-relevant-failure must be measured separately from total success time;
 priority removes preceding unrelated checker bodies, not the required checks.
+
+## Test containment and final audit boundary
+
+Normal PR construction schedules core and producer independently. Core owns all
+provider-independent modules; producer runs `integration-tests` (the provider and
+Node/browser module union) after provider materialization. The one bootstrap test
+that previously skipped without checked-out providers moved into the provider
+category. Its assertion is unchanged. Integration skips are failures, and a test
+checks that core + integration equals full unittest discovery with no overlap.
+New unclassified modules continue to run in core.
+
+Standalone/reusable producer calls default to full discovery. The dispatcher may
+select integration-only only when its independent core job is scheduled and its
+result is required by the construction gate. No `needs: core_tests` producer
+barrier exists. Candidate freshness builds retain their complete default suite.
+
+Capsule cache hits revalidate source identity after acquiring the lock and before
+each stage; unit-suite identity also includes the Node runtime. The manual
+`verify_site_full_qualification.py --output snapshot.json` defaults to a one-shot
+observation and records run attempt, API-reported job attempt, carried-forward origin and each step's direct
+status/conclusion. A retried run cannot inherit an older same-name job success in
+place of a newer failed/pending job. API errors overwrite prior output with an
+explicit error snapshot. This is Site CI evidence, not a second review authority.

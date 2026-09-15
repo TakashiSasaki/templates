@@ -6,7 +6,8 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import patch, Mock
+from types import SimpleNamespace
 
 from scripts import run_site_preflight as preflight
 from tests.publication_context import provider_root
@@ -156,3 +157,11 @@ class CapabilityPrecheckTests(unittest.TestCase):
         selected = focused_tests(['site-manifest.json'])
         self.assertIn('tests.test_audience_artifact_integration', selected)
         self.assertIn('tests.test_optional_document_source_type', selected)
+
+class CapsuleInputRaceTests(unittest.TestCase):
+    def test_input_mutation_before_cached_stage_is_rejected(self):
+        capsule = Mock(inputs={'source':'old'})
+        args = SimpleNamespace(capsule=capsule, capsule_roots={}, profile='ready')
+        with patch('scripts.local_qualification_capsule.input_identity', return_value={'source':'new'}):
+            self.assertEqual(preflight.execute_checks(args, ['audience-static'], 'head'), 1)
+        capsule.stage.assert_not_called()
