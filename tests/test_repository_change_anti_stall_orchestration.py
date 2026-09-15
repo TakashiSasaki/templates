@@ -76,6 +76,30 @@ def test_waiting_parallel_work_and_agent_stall_are_distinct() -> None:
     assert "progress is opaque" in ledger
 
 
+def test_external_wait_observation_is_bounded_and_resume_safe() -> None:
+    skill = _text(SKILL)
+    ledger = _text(LEDGER)
+    for token in (
+        "foreground observation of `external_wait` is itself bounded",
+        "finite observation interval",
+        "does not impose a universal timeout on the external dependency itself",
+        "checkpoint recoverable work-ledger state",
+        "yield control at a resumable boundary",
+        "refresh the dependency state before acting on it",
+    ):
+        assert token in skill
+    for token in (
+        "foreground observation of `external_wait` must itself be bounded",
+        "finite stop condition",
+        "preserve the dependency identity",
+        "`next_safe_action`",
+        "productive_parallel_work",
+        "checkpoint that recoverable state and yield control",
+        "refresh the dependency state before acting on it",
+    ):
+        assert token in ledger
+
+
 def test_work_ledger_carries_compact_anti_stall_state() -> None:
     ledger = _text(LEDGER)
     for token in (
