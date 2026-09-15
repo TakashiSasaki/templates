@@ -85,6 +85,9 @@ jobs:
     permissions:
       contents: read
       actions: read
+    outputs:
+      composition_revision: ${{ steps.publication_refs.outputs.composition }}
+      policy_revision: ${{ steps.publication_refs.outputs.policy }}
 
     steps:
       - name: Check out site implementation
@@ -638,6 +641,20 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
+      - name: Check out qualified Composition publication
+        if: ${{ needs.classify_browser.outputs.browser_required == 'true' }}
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.build.outputs.composition_revision }}
+          path: composition-source
+
+      - name: Check out qualified Policy publication
+        if: ${{ needs.classify_browser.outputs.browser_required == 'true' }}
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.build.outputs.policy_revision }}
+          path: policy-source
+
       - name: Download built Pages artifact
         if: ${{ needs.classify_browser.outputs.browser_required == 'true' }}
         uses: actions/download-artifact@v5
@@ -736,6 +753,15 @@ jobs:
           python scripts/check_pwa_capabilities.py \
             --site-root build/site \
             --output build/mobile-visual/pwa-capabilities.json
+
+      - name: Check assembled audience runtime and navigation
+        if: ${{ needs.classify_browser.outputs.browser_required == 'true' }}
+        run: |
+          python scripts/check_audience_runtime.py \
+            --site-root build/site \
+            --output build/mobile-visual/audience-runtime.json \
+            --composition-root composition-source \
+            --policy-root policy-source
 
       - name: Upload mobile visual evidence
         if: ${{ always() && needs.classify_browser.outputs.browser_required == 'true' }}
