@@ -217,6 +217,9 @@ jobs:
           google-chrome --version
           "$CHROMEWEBDRIVER" --version
 
+      - name: Probe canonical phase-zero browser environment
+        run: .venv/bin/python -B -I scripts/composition_phase_zero.py --driver "$CHROMEWEBDRIVER"
+
       - name: Run real-browser acceptance suite
         run: >-
           .venv/bin/python scripts/run_unittest_shard.py
