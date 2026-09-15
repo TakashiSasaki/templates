@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import nullcontext
+import shutil
 import os
 import subprocess
 import sys
@@ -160,10 +162,29 @@ def check_focused_tests(args: argparse.Namespace) -> None:
 
 def check_audience_static(args: argparse.Namespace) -> None:
     composition, policy = require_provider_roots(args)
+    if getattr(args, "capsule", None):
+        args.capsule.verify_artifact()
+        args.site_root = args.capsule.artifact
     if args.site_root is None:
         raise PreflightFailure("audience-static requires --site-root with an assembled artifact")
     run(PYTHON, "scripts/check_audience_artifact.py", "--site-root", args.site_root,
         "--composition-root", composition, "--policy-root", policy)
+
+
+def check_audience_browser(args: argparse.Namespace) -> None:
+    composition, policy = require_provider_roots(args)
+    if args.capsule:
+        args.capsule.verify_artifact()
+        artifact = args.capsule.artifact
+        output = args.capsule.root / "audience-browser.json"
+    elif args.site_root:
+        artifact = args.site_root
+        output = artifact.parent / "audience-browser.json"
+    else:
+        raise PreflightFailure("audience-browser requires a capsule or --site-root")
+    run(PYTHON, "scripts/check_audience_runtime.py", "--site-root", artifact,
+        "--composition-root", composition, "--policy-root", policy,
+        "--output", output, "--channel", args.channel)
 
 
 def check_unit_tests(args: argparse.Namespace) -> None:
@@ -280,10 +301,16 @@ def check_candidate_projection(args: argparse.Namespace) -> None:
 
 def check_cross_assembly(args: argparse.Namespace) -> None:
     composition, policy = require_provider_roots(args)
-    with tempfile.TemporaryDirectory(prefix="site-preflight-") as directory:
+    retained = getattr(args, "capsule", None)
+    context = nullcontext(str(retained.root)) if retained else tempfile.TemporaryDirectory(prefix="site-preflight-")
+    with context as directory:
         temporary = Path(directory)
         site_publication = temporary / "site-publication"
         build = temporary / "build"
+        if retained:
+            for path in (site_publication, build):
+                if path.exists():
+                    shutil.rmtree(path)
         run(
             PYTHON,
             "scripts/prepare_repository_tree_publication.py",
@@ -340,6 +367,16 @@ def check_cross_assembly(args: argparse.Namespace) -> None:
             "--clean",
             "--strict",
         )
+        run(PYTHON, "scripts/finalize_site_metadata.py", "--site-root", build / "site",
+            "--canonical-url", "https://templates.moukaeritai.work/")
+        run(PYTHON, "scripts/render_website_metadata.py", "--repository", ROOT, "--site-root", build / "site")
+        run(PYTHON, "scripts/finalize_translation_reader.py", "--site-root", build / "site",
+            "--translation-map", build / "translation-publication.json",
+            "--canonical-url", "https://templates.moukaeritai.work/")
+        run(PYTHON, "scripts/write_publication_provenance.py", "--output", build / "site/build-provenance.json",
+            "--repository", "TakashiSasaki/templates", "--site-commit", git_head(ROOT),
+            "--publication-commit", f"composition={git_head(composition)}",
+            "--publication-commit", f"policy={git_head(policy)}")
         for relative in (
             "site/index.html",
             "site/workspace/index.html",
@@ -353,6 +390,7 @@ def check_cross_assembly(args: argparse.Namespace) -> None:
 
 CHECKS: dict[str, Callable[[argparse.Namespace], None]] = {
     "audience-static": check_audience_static,
+    "audience-browser": check_audience_browser,
     "reference-projections": check_reference_projections,
     "website-contract": check_website_contract,
     "focused-tests": check_focused_tests,
@@ -367,7 +405,7 @@ CHECKS: dict[str, Callable[[argparse.Namespace], None]] = {
 }
 
 PROFILES = {
-    "ready": ("focused-tests", "audience-static"),
+    "ready": ("focused-tests", "cross-binding", "cross-assembly", "audience-static"),
     "fast": ("reference-projections", "website-contract", "focused-tests"),
     "full": (
         "reference-projections",
@@ -394,6 +432,8 @@ def parse_args(arguments: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--expected-head")
     parser.add_argument("--base", help="Exact comparison revision for local capability selection")
     parser.add_argument("--site-root", type=Path)
+    parser.add_argument("--channel", default="chrome")
+    parser.add_argument("--capsule-root", type=Path, help="Disposable local cache outside every source checkout")
     parser.add_argument("--composition-root", type=Path)
     parser.add_argument("--policy-root", type=Path)
     return parser.parse_args(arguments)
@@ -409,10 +449,41 @@ def main(arguments: Sequence[str] | None = None) -> int:
         )
         return 1
     selected = tuple(args.checks or PROFILES[args.profile])
+    if args.profile == "ready" and args.site_root and not args.checks:
+        selected = ("focused-tests", "audience-static")
+    args.capsule = None
+    try:
+        if args.capsule_root:
+            from scripts.local_qualification_capsule import Capsule, input_identity
+            composition, policy = require_provider_roots(args)
+            roots = {"site": ROOT, "composition": composition, "policy": policy}
+            target = args.capsule_root.resolve()
+            if any(target == root.resolve() or root.resolve() in target.parents for root in roots.values()):
+                raise PreflightFailure("capsule must be outside all source checkouts")
+            args.capsule_roots = roots
+            args.capsule = Capsule(target, input_identity(roots))
+        with args.capsule.locked() if args.capsule else nullcontext():
+            return execute_checks(args, selected, head)
+    except (OSError, RuntimeError, ValueError, subprocess.CalledProcessError) as exc:
+        print(f"SITE_PREFLIGHT_FAIL error={exc}", file=sys.stderr)
+        return 1
+
+
+def execute_checks(args, selected, head):
     try:
         for name in selected:
             print(f"SITE_PREFLIGHT_CHECK_START name={name} head={head}", flush=True)
-            CHECKS[name](args)
+            if args.capsule and name in {"cross-assembly", "focused-tests", "audience-static", "audience-browser", "unit-tests"}:
+                stage = "build" if name == "cross-assembly" else name
+                def operation():
+                    CHECKS[name](args)
+                    from scripts.local_qualification_capsule import input_identity
+                    if input_identity(args.capsule_roots) != args.capsule.inputs:
+                        raise PreflightFailure("capsule inputs changed during validation")
+                args.capsule.stage(stage, operation, artifact=name in {"audience-static", "audience-browser"},
+                                   reuse=name not in {"focused-tests", "audience-browser"})
+            else:
+                CHECKS[name](args)
             print(f"SITE_PREFLIGHT_CHECK_PASS name={name} head={head}", flush=True)
     except (OSError, RuntimeError, ValueError, subprocess.CalledProcessError) as exc:
         print(

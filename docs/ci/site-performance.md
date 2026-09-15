@@ -73,3 +73,24 @@ assembly and translation publication, then the actual static consumer setup. It
 covers required and generated document omission, optional source present/absent,
 unexpected documents/routes and actual translation aliases. HTML rendering is a
 fixture boundary; full exact-head browser acceptance remains required by CI.
+
+### Disposable local capsule
+
+Pass `--capsule-root /tmp/site-qualification` with both locked provider roots to
+`run_site_preflight.py ready --base <SHA>`. `cross-assembly` retains its local
+assembled output; `audience-static` and `audience-browser` consume that exact tree.
+Use `--check audience-browser --channel chromium` to retry browser acceptance
+without rebuilding; browser evidence is always fresh and is never cached as CI
+acceptance. Named stage results include attempts and elapsed seconds.
+
+Identity includes all three revisions, tracked/dirty/untracked source bytes,
+materialized generated provider inputs, script identities, dependency lock bytes,
+installed build dependency versions, Python/platform, and an artifact content and
+mode digest. Results are atomically written under an exclusive local lock outside
+all source checkouts. Modified artifacts and mismatched metadata are errors;
+changed inputs select a new entry. Failed/interrupted stages cannot become cache
+hits. Local capsules are disposable and do not authorize remote CI/review skips.
+
+The local assembly scope supports audience/static and lifecycle diagnosis; full
+remote production assembly additionally generates repository and guided viewers
+and retains all its existing URL/link checks. Local success never replaces it.
