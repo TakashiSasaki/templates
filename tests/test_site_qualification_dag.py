@@ -52,6 +52,8 @@ class QualificationDagTests(unittest.TestCase):
         step = next(s for s in producer['jobs']['build']['steps'] if s['name'] == 'Run site assembly tests')
         self.assertIn('--check integration-tests', step['run'])
         self.assertIn('--check unit-tests', step['run'])
+        artifact = next(s for s in producer['jobs']['build']['steps'] if s.get('id') == 'artifact')
+        self.assertEqual('${{ inputs.core_tests_scheduled }}', artifact['env']['CORE_TESTS_SCHEDULED'])
         jobs = workflow('build-pages.yml')['jobs']
         self.assertEqual(jobs['build']['with']['core_tests_scheduled'],
                          "${{ inputs.site_ref == '' && needs.classify_browser.result == 'success' }}")

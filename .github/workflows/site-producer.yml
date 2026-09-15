@@ -133,6 +133,7 @@ jobs:
           STAGING_IDS: ${{ inputs.publication_staging_ids }}
           STAGING_ID: ${{ inputs.publication_staging_id }}
           DEPLOYMENT_TIMESTAMP: ${{ inputs.deployment_timestamp }}
+          CORE_TESTS_SCHEDULED: ${{ inputs.core_tests_scheduled }}
         run: python site-source/scripts/site_build_artifact.py --output "$GITHUB_OUTPUT" --workflow-file workflow-source/.github/workflows/site-producer.yml
       - name: Install pinned site dependencies
         if: ${{ steps.artifact.outputs.reused != 'true' }}

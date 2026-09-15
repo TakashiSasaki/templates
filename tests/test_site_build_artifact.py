@@ -54,7 +54,8 @@ class BuildIdentityTests(unittest.TestCase):
         original = inputs()
         for key, value in dict(site='d'*40, composition='d'*40, policy='d'*40,
                                repository='other/templates', workflow=b'changed', staging='candidate', staging_ids='one,two',
-                               deployment_timestamp='timestamp', public_url='https://example.com/', runtime='new runner').items():
+                               deployment_timestamp='timestamp', public_url='https://example.com/', runtime='new runner',
+                               qualification_suite='integration-tests-with-core').items():
             with self.subTest(key=key):
                 self.assertNotEqual(artifact.identity_key(original), artifact.identity_key(inputs(**{key: value})))
         self.assertEqual(artifact.identity_key(original), artifact.identity_key(dict(reversed(list(original.items())))))

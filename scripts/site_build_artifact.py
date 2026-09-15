@@ -43,17 +43,19 @@ def revision(root: Path) -> str:
 def identity(*, repository: str, site: str, composition: str, policy: str,
              workflow: bytes, staging: str = '', staging_ids: str = '', deployment_timestamp: str = '',
              public_url: str = 'https://templates.moukaeritai.work/',
-             runtime: str = '') -> dict:
+             runtime: str = '', qualification_suite: str = 'unit-tests') -> dict:
     for value in (site, composition, policy):
         if not re.fullmatch(r'[0-9a-f]{40}', value):
             raise ArtifactError('build revisions must be full immutable SHAs')
     if not re.fullmatch(r'[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+', repository):
         raise ArtifactError('invalid repository')
+    if qualification_suite not in {'unit-tests', 'integration-tests-with-core'}:
+        raise ArtifactError('invalid build qualification suite')
     return dict(schema_version=1, repository=repository, site=site,
                 composition=composition, policy=policy,
                 workflow_sha256=digest(workflow), staging=staging, staging_ids=staging_ids,
                 deployment_timestamp=deployment_timestamp, public_url=public_url,
-                runtime=runtime)
+                runtime=runtime, qualification_suite=qualification_suite)
 
 
 def identity_key(inputs: dict) -> str:
@@ -245,7 +247,12 @@ def main() -> int:
                         workflow=args.workflow_file.read_bytes(), staging=os.environ.get('STAGING_ID', ''),
                         staging_ids=os.environ.get('STAGING_IDS', ''),
                         deployment_timestamp=os.environ.get('DEPLOYMENT_TIMESTAMP', ''),
-                        public_url=os.environ['PUBLIC_SITE_URL'], runtime=runtime)
+                        public_url=os.environ['PUBLIC_SITE_URL'], runtime=runtime,
+                        qualification_suite=(
+                            'integration-tests-with-core'
+                            if os.environ.get('CORE_TESTS_SCHEDULED') == 'true'
+                            else 'unit-tests'
+                        ))
     args.identity_file.write_text(json.dumps({'inputs': expected, 'identity': identity_key(expected)}, sort_keys=True) + '\n')
     # Only ordinary PR builds have a canonical producer. Provider overrides,
     # staged mappings and deployment timestamps must be compared before reuse.
