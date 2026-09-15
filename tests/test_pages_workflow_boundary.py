@@ -8,6 +8,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 BUILD_WORKFLOW = ROOT / ".github/workflows/build-pages.yml"
 DEPLOY_WORKFLOW = ROOT / ".github/workflows/deploy-pages.yml"
+PRODUCER_WORKFLOW = ROOT / ".github/workflows/site-producer.yml"
 SOURCE_LOCK = ROOT / "publication-sources.json"
 
 
@@ -27,7 +28,8 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
         self.assertNotIn("skill_ref:", workflow)
         self.assertNotIn("webapp_ref:", workflow)
         self.assertNotIn("source_ref:", workflow)
-        self.assertIn("actions/upload-pages-artifact@", build_block)
+        self.assertIn("uses: ./.github/workflows/site-producer.yml", build_block)
+        self.assertIn("actions/upload-pages-artifact@", PRODUCER_WORKFLOW.read_text())
         self.assertNotIn("actions/download-artifact@", build_block)
         self.assertNotIn("actions/configure-pages@", workflow)
         self.assertNotIn("actions/deploy-pages@", workflow)
@@ -54,8 +56,8 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
         )
         self.assertIn("test \"$BUILD_RESULT\" = success", check_block)
         self.assertIn("test \"$CLASSIFIER_RESULT\" = success", check_block)
-        self.assertIn("actions/download-artifact@v5", check_block)
-        self.assertIn("name: github-pages", check_block)
+        self.assertIn("scripts/consume_site_build_artifact.py", check_block)
+        self.assertIn("needs.build.outputs.artifact_digest", check_block)
 
     def test_browser_classifier_is_exact_head_fail_closed_and_parallel_to_build(self) -> None:
         workflow = BUILD_WORKFLOW.read_text(encoding="utf-8")
@@ -64,7 +66,7 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
 
         classify_workflow = (ROOT / ".github/workflows/classify.yml").read_text(encoding="utf-8")
 
-        self.assertIn("actions/upload-pages-artifact@v5", build_block)
+        self.assertIn("actions/upload-pages-artifact@v5", PRODUCER_WORKFLOW.read_text())
         self.assertNotIn("needs: build", classifier_block)
         self.assertIn("name: Classify browser acceptance scope", classifier_block)
         self.assertTrue(
@@ -106,8 +108,7 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
 
         heavy_steps = (
             "Check out proposed Site revision",
-            "Download built Pages artifact",
-            "Extract built site",
+            "Verify and consume scheduled Pages artifact",
             "Set up Python",
             "Install Playwright controller",
             "Cache Playwright binaries",
@@ -159,7 +160,7 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
                 )
 
     def test_reusable_workflow_checks_out_only_locked_external_providers(self) -> None:
-        workflow = BUILD_WORKFLOW.read_text(encoding="utf-8")
+        workflow = PRODUCER_WORKFLOW.read_text(encoding="utf-8")
 
         self.assertIn("publication-sources.json", workflow)
         self.assertIn("path: composition-source", workflow)
@@ -185,7 +186,7 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
         )
 
     def test_publication_resolver_runs_under_pinned_python(self) -> None:
-        workflow = BUILD_WORKFLOW.read_text(encoding="utf-8")
+        workflow = PRODUCER_WORKFLOW.read_text(encoding="utf-8")
 
         setup_position = workflow.index("- name: Set up Python")
         resolver_position = workflow.index("- name: Resolve publication source revisions")
@@ -270,52 +271,17 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
                 self.assertIn("ci/full-site-verification", job_if)
 
 
-    def test_all_labeled_workflows_isolate_unrelated_labels_in_concurrency_group(self) -> None:
+    def test_dispatcher_owns_label_concurrency(self) -> None:
         import yaml
-        workflows_dir = ROOT / ".github/workflows"
-        labeled_workflows = (
-            "build-pages.yml",
-            "check-publication-freshness.yml",
-            "provider-coexistence.yml",
-            "reference-consumer.yml",
-            "site-composition-playground.yml",
-            "site-composition-playground-explain.yml",
-            "site-composition-playground-cross-authority.yml",
-            "site-full-qualification.yml",
-            "publication-materialization.yml",
-            "publication-contract-v4.yml",
-            "check-agent-policy.yml",
-        )
-        for wf_name in labeled_workflows:
-            with self.subTest(workflow=wf_name):
-                wf_path = workflows_dir / wf_name
-                wf_data = yaml.safe_load(wf_path.read_text(encoding="utf-8"))
-                
-                # Verify pull_request trigger includes labeled
-                triggers = wf_data.get("on") or wf_data.get(True) or {}
-                pr_config = triggers.get("pull_request", {})
-                pr_types = pr_config.get("types", []) if isinstance(pr_config, dict) else []
-                self.assertIn("labeled", pr_types, f"{wf_name} missing 'labeled' trigger")
-
-                # Verify concurrency group isolates unrelated labels
-                concurrency = wf_data.get("concurrency", {})
-                group = concurrency.get("group", "")
-                self.assertIn("unrelated-label-", group)
-                self.assertIn("ci/full-qualification", group)
-                self.assertIn("ci/full-site-verification", group)
-                self.assertIn("github.run_id", group)
-
-                # Verify at least one job gates on the qualification label
-                jobs = wf_data.get("jobs", {})
-                has_qualification_gate = any(
-                    "ci/full-qualification" in job.get("if", "")
-                    and "github.event.action != 'labeled'" in job.get("if", "")
-                    for job in jobs.values()
-                )
-                self.assertTrue(
-                    has_qualification_gate,
-                    f"{wf_name} missing job-level qualification label gate",
-                )
+        workflow = yaml.safe_load(BUILD_WORKFLOW.read_text())
+        self.assertIn('labeled', workflow[True]['pull_request']['types'])
+        for token in ('unrelated-label-', 'ci/full-qualification', 'ci/full-site-verification', 'ci/browser', 'github.run_id'):
+            self.assertIn(token, workflow['concurrency']['group'])
+        for name in ('reference-consumer.yml', 'site-composition-playground-cross-authority.yml', 'site-producer.yml'):
+            worker = yaml.safe_load((BUILD_WORKFLOW.parent / name).read_text())
+            self.assertIn('workflow_call', worker[True])
+            self.assertNotIn('pull_request', worker[True])
+            self.assertNotIn('concurrency', worker)
 
 
 if __name__ == "__main__":

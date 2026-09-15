@@ -32,7 +32,7 @@ class SitePreflightTests(unittest.TestCase):
 
     def test_blocking_workflows_delegate_to_named_preflight_checks(self) -> None:
         workflows = {
-            "build-pages.yml": "--check unit-tests",
+            "site-producer.yml": "--check unit-tests",
             "publication-materialization.yml": "--check materialization-tests",
             "publication-contract-v4.yml": "--check publication-contract-tests",
             "site-composition-playground-explain.yml": "--check node-explainability",

@@ -13,15 +13,16 @@ class ReferenceEvidenceCommandTests(unittest.TestCase):
         evidence = json.loads((ROOT / "contracts/implementation-evidence.json").read_text())
         workflow = yaml.safe_load((ROOT / ".github/workflows/reference-consumer.yml").read_text())
         job = workflow["jobs"]["browser"]
-        self.assertEqual(job["needs"], ["classify", "build"])
-        self.assertIn("needs.classify.outputs.browser_required == 'true'", job["if"])
+        parent = yaml.safe_load((ROOT / ".github/workflows/build-pages.yml").read_text())
+        self.assertEqual(parent["jobs"]["reference_consumer"]["needs"], ["classify_browser", "build"])
+        self.assertIn("inputs.browser_required == 'true'", job["if"])
         for command in evidence["commands"]:
             with self.subTest(command=command["id"]):
                 tokens = shlex.split(command["command"])
                 matches = [step for step in job["steps"] if "run" in step and shlex.split(step["run"]) == tokens]
                 self.assertEqual(len(matches), 1, command["command"])
                 if "check_reference_pwa.py" in command["command"]:
-                    self.assertIn("needs.classify.outputs.pwa_required == 'true'", matches[0]["if"])
+                    self.assertIn("inputs.pwa_required == 'true'", matches[0]["if"])
                 else:
                     self.assertNotIn("if", matches[0])
                 self.assertNotIn("continue-on-error", matches[0])
@@ -36,8 +37,8 @@ class ReferenceEvidenceCommandTests(unittest.TestCase):
         steps = workflow["jobs"]["browser"]["steps"]
         cache_step = next(s for s in steps if s.get("name") == "Cache Playwright binaries")
         install_step = next(s for s in steps if s.get("name") == "Install worker-lifecycle browser")
-        self.assertIn("needs.classify.outputs.pwa_required == 'true'", cache_step.get("if", ""))
-        self.assertIn("needs.classify.outputs.pwa_required == 'true'", install_step.get("if", ""))
+        self.assertIn("inputs.pwa_required == 'true'", cache_step.get("if", ""))
+        self.assertIn("inputs.pwa_required == 'true'", install_step.get("if", ""))
 
 
 if __name__ == "__main__":

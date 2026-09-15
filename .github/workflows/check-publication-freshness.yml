@@ -1,44 +1,16 @@
 name: Check publication freshness
-
-# Normative contract: PUBLICATION_FRESHNESS.md
-# The reviewed publication lock remains the release input. A different current
-# Composition HEAD is informational by itself; the compatibility signal is
-# whether that exact candidate revision passes the normal full Site build when
-# the pull-request scope can affect publication integration. Scheduled/manual
-# diagnostics always execute the full candidate build.
 on:
-  pull_request:
-    branches:
-      - site
-      - 'feat/site-*'
-      - 'feat/s4-*'
-      - site-composition-audience-publication-staging
-      - 'site-*'
-      - 'perf/site-*'
-      - codex/site-composition-playground-v1-shell
-    types:
-      - opened
-      - synchronize
-      - reopened
-      - labeled
-
   schedule:
-    - cron: '23 17 * * *'
-  workflow_dispatch:
-
+    - cron: 23 17 * * *
+  workflow_dispatch: null
+  workflow_call: {}
 permissions:
   contents: read
   actions: read
-
-concurrency:
-  group: publication-freshness-${{ (github.event.action == 'labeled' && github.event.label.name != 'ci/full-qualification' && github.event.label.name != 'ci/full-site-verification') && format('unrelated-label-{0}', github.run_id) || github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
-
 jobs:
   resolve:
-    if: >-
-      github.repository == 'TakashiSasaki/templates' &&
-      (github.event_name != 'pull_request' ||
+    if: |-
+      github.repository == 'TakashiSasaki/templates' && (github.event_name != 'pull_request' ||
        github.event.action != 'labeled' ||
        github.event.label.name == 'ci/full-qualification' ||
        github.event.label.name == 'ci/full-site-verification')
@@ -52,7 +24,6 @@ jobs:
       candidate_required: ${{ steps.candidate_scope.outputs.freshness_candidate_required }}
       candidate_reason: ${{ steps.candidate_scope.outputs.reason }}
       candidate_changed_count: ${{ steps.candidate_scope.outputs.changed_count }}
-
     steps:
       - name: Check out Site diagnostic implementation
         uses: actions/checkout@v7
@@ -61,18 +32,15 @@ jobs:
           path: site-source
           fetch-depth: 0
           persist-credentials: false
-
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
           python-version: '3.12'
-
       - name: Capture exact Site revision
         id: site_revision
         env:
           SITE_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
         run: echo "sha=$SITE_REVISION" >> "$GITHUB_OUTPUT"
-
       - name: Select candidate build scope
         id: candidate_scope
         env:
@@ -126,14 +94,12 @@ jobs:
             echo "reason=base-classifier-unavailable-full" >> "$GITHUB_OUTPUT"
             echo "authority_source=base-unavailable-full" >> "$GITHUB_OUTPUT"
           fi
-
       - name: Resolve reviewed publication lock
         id: publication_refs
         run: |
           python site-source/scripts/resolve_publication_sources.py \
             --lock site-source/publication-sources.json \
             --output "$GITHUB_OUTPUT"
-
       - name: Resolve current Composition HEAD
         id: composition_head
         uses: actions/github-script@v8
@@ -146,7 +112,6 @@ jobs:
               branch: 'composition',
             });
             return data.commit.sha;
-
       - name: Classify publication freshness
         id: classify
         env:
@@ -157,7 +122,6 @@ jobs:
             --locked "$LOCKED_COMPOSITION" \
             --current "$CURRENT_COMPOSITION" \
             --output "$GITHUB_OUTPUT"
-
       - name: Classify merged-base compatibility lane
         id: provider_relation
         uses: actions/github-script@v8
@@ -180,7 +144,6 @@ jobs:
                 : 'blocked-by-declared-unmerged-provider';
             }
             core.setOutput('merged_lane', lane);
-
       - name: Report candidate build selection
         env:
           CANDIDATE_REQUIRED: ${{ steps.candidate_scope.outputs.freshness_candidate_required }}
@@ -203,34 +166,25 @@ jobs:
               exit 1
               ;;
           esac
-
-  # This diagnostic advances only Composition to a current immutable snapshot.
-  # Policy deliberately remains at the reviewed lock resolved by build-pages.yml.
-  # Pull requests proven to contain only CI-observability changes keep the
-  # workflow/check surface but do not spend a second full Site build.
   candidate_build:
     name: Build with current Composition HEAD
-    if: >-
-      github.repository == 'TakashiSasaki/templates' &&
-      needs.resolve.outputs.candidate_required == 'true' &&
-      needs.resolve.outputs.merged_lane != 'blocked-by-declared-unmerged-provider'
+    if: github.repository == 'TakashiSasaki/templates' && needs.resolve.outputs.candidate_required == 'true' && needs.resolve.outputs.merged_lane != 'blocked-by-declared-unmerged-provider'
     needs: resolve
-    uses: ./.github/workflows/build-pages.yml
+    uses: ./.github/workflows/site-producer.yml
     with:
       reuse_pr_build: true
       site_ref: ${{ needs.resolve.outputs.site_revision }}
       composition_ref: ${{ needs.resolve.outputs.composition_head }}
+      artifact_name: freshness-pages
     permissions:
       contents: read
       actions: read
-
   report:
     if: ${{ always() && github.repository == 'TakashiSasaki/templates' && needs.resolve.result == 'success' }}
     needs:
       - resolve
       - candidate_build
     runs-on: ubuntu-latest
-
     steps:
       - name: Report publication freshness
         env:

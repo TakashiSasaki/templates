@@ -1,17 +1,16 @@
 name: Build documentation artifact
-
 on:
   schedule:
-    - cron: "43 19 * * *"
-  workflow_dispatch:
+    - cron: 43 19 * * *
+  workflow_dispatch: null
   pull_request:
     branches:
       - site
-      - 'feat/site-*'
-      - 'feat/s4-*'
+      - feat/site-*
+      - feat/s4-*
       - site-composition-audience-publication-staging
-      - 'site-*'
-      - 'perf/site-*'
+      - site-*
+      - perf/site-*
       - codex/site-composition-playground-v1-shell
     types:
       - opened
@@ -55,23 +54,18 @@ on:
         required: false
         type: string
         default: ''
-
 permissions:
   contents: read
-
+  actions: read
 env:
   PUBLIC_SITE_URL: https://templates.moukaeritai.work/
-
 concurrency:
   group: documentation-build-${{ github.workflow }}-${{ (github.event.action == 'labeled' && github.event.label.name != 'ci/full-qualification' && github.event.label.name != 'ci/full-site-verification' && github.event.label.name != 'ci/browser') && format('unrelated-label-{0}', github.run_id) || github.ref }}
   cancel-in-progress: true
-
 jobs:
   build:
-    if: >-
-      always() &&
-      github.repository == 'TakashiSasaki/templates' &&
-      (github.event_name != 'pull_request' ||
+    if: |-
+      always() && github.repository == 'TakashiSasaki/templates' && (github.event_name != 'pull_request' ||
        github.event.action != 'labeled' ||
        github.event.label.name == 'ci/full-qualification' ||
        github.event.label.name == 'ci/full-site-verification' || github.event.label.name == 'ci/browser') &&
@@ -81,507 +75,34 @@ jobs:
        (needs.classify_browser.result == 'success' && needs.classify_browser.outputs.build_required == 'true'))
     needs:
       - classify_browser
-    runs-on: ubuntu-24.04
+    uses: ./.github/workflows/site-producer.yml
     permissions:
       contents: read
       actions: read
-    outputs:
-      composition_revision: ${{ steps.publication_refs.outputs.composition }}
-      policy_revision: ${{ steps.publication_refs.outputs.policy }}
-
-    steps:
-      - name: Check out site implementation
-        uses: actions/checkout@v7
-        with:
-          ref: ${{ inputs.site_ref || github.event.pull_request.head.sha || github.sha }}
-          path: site-source
-
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.12'
-          cache: pip
-          cache-dependency-path: 'site-source/requirements-build.lock'
-
-      - name: Resolve checked-out Site revision
-        id: site_revision
-        run: >-
-          python site-source/scripts/resolve_site_checkout.py
-          --root site-source
-          --output "$GITHUB_OUTPUT"
-
-      - name: Resolve publication source revisions
-        id: publication_refs
-        env:
-          COMPOSITION_REF_OVERRIDE: ${{ inputs.composition_ref }}
-          POLICY_REF_OVERRIDE: ${{ inputs.policy_ref }}
-        run: |
-          overrides=()
-          if [ -n "$COMPOSITION_REF_OVERRIDE" ]; then
-            overrides+=(--override "composition=$COMPOSITION_REF_OVERRIDE")
-          fi
-          if [ -n "$POLICY_REF_OVERRIDE" ]; then
-            overrides+=(--override "policy=$POLICY_REF_OVERRIDE")
-          fi
-          python site-source/scripts/resolve_publication_sources.py \
-            --lock site-source/publication-sources.json \
-            --output "$GITHUB_OUTPUT" \
-            "${overrides[@]}"
-
-      - name: Check out composition publication
-        uses: actions/checkout@v7
-        with:
-          ref: ${{ steps.publication_refs.outputs.composition }}
-          path: composition-source
-
-      - name: Check out policy publication
-        uses: actions/checkout@v7
-        with:
-          ref: ${{ steps.publication_refs.outputs.policy }}
-          path: policy-source
-
-      - name: Check out executed build workflow definition
-        uses: actions/checkout@v7
-        with:
-          ref: ${{ inputs.site_ref || github.sha }}
-          path: workflow-source
-          sparse-checkout: .github/workflows/build-pages.yml
-          sparse-checkout-cone-mode: false
-          persist-credentials: false
-
-      - name: Resolve exact build inputs and reuse qualified PR artifact
-        id: artifact
-        env:
-          GH_TOKEN: ${{ github.token }}
-          IS_CANONICAL_BUILD: ${{ inputs.site_ref == '' && github.workflow == 'Build documentation artifact' }}
-          REUSE_PR_BUILD: ${{ inputs.reuse_pr_build && github.event.pull_request.head.repo.full_name == github.repository }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          STAGING_IDS: ${{ inputs.publication_staging_ids }}
-          STAGING_ID: ${{ inputs.publication_staging_id }}
-          DEPLOYMENT_TIMESTAMP: ${{ inputs.deployment_timestamp }}
-        run: python site-source/scripts/site_build_artifact.py --output "$GITHUB_OUTPUT"
-
-      - name: Install pinned site dependencies
-        if: ${{ steps.artifact.outputs.reused != 'true' }}
-        run: |
-          python -m pip install --no-deps --requirement site-source/requirements-build.lock
-          python -m pip check
-
-      - name: Materialize provider publications
-        if: ${{ steps.artifact.outputs.reused != 'true' }}
-        run: |
-          python site-source/scripts/materialize_publication_assets.py \
-            --publication composition=composition-source \
-            --publication policy=policy-source
-
-      - name: Materialize staged publication mapping
-        if: ${{ steps.artifact.outputs.reused != 'true' && (inputs.publication_staging_id != '' || inputs.publication_staging_ids != '') }}
-        env:
-          PUBLICATION_STAGING_ID: ${{ inputs.publication_staging_id }}
-          PUBLICATION_STAGING_IDS: ${{ inputs.publication_staging_ids }}
-        run: |
-          if [ -n "$PUBLICATION_STAGING_ID" ] && [ -n "$PUBLICATION_STAGING_IDS" ]; then
-            echo "Select publication_staging_id or publication_staging_ids, not both" >&2
-            exit 1
-          fi
-          staging_args=()
-          if [ -n "$PUBLICATION_STAGING_IDS" ]; then
-            staging_args+=(--staging-ids "$PUBLICATION_STAGING_IDS")
-          else
-            staging_args+=(--staging-id "$PUBLICATION_STAGING_ID")
-          fi
-          staged_root="$(python site-source/scripts/materialize_publication_staging.py \
-            --site-root site-source \
-            "${staging_args[@]}")"
-          case "$staged_root" in
-            "$GITHUB_WORKSPACE"/*) ;;
-            *)
-              echo "Staging materializer returned an unexpected root: $staged_root" >&2
-              exit 1
-              ;;
-          esac
-          test -f "$staged_root/site-manifest.json"
-          test -f "$staged_root/reader-navigation-locales.json"
-          echo "SITE_PUBLICATION_ROOT=$staged_root" >> "$GITHUB_ENV"
-
-      - name: Run site assembly tests
-        if: ${{ steps.artifact.outputs.reused != 'true' }}
-        env:
-          EXPECTED_SITE_REVISION: ${{ steps.site_revision.outputs.sha }}
-        run: >-
-          python site-source/scripts/run_site_preflight.py full
-          --check unit-tests
-          --expected-head "$EXPECTED_SITE_REVISION"
-          --composition-root composition-source
-          --policy-root policy-source
-
-      - name: Prepare repository-tree publication
-        if: ${{ steps.artifact.outputs.reused != 'true' }}
-        run: |
-          python site-source/scripts/prepare_repository_tree_publication.py \
-            --site-root "${SITE_PUBLICATION_ROOT:-site-source}" \
-            --output-root site-publication
-
-      - name: Assemble the documentation project
-        if: ${{ steps.artifact.outputs.reused != 'true' }}
-        run: |
-          python site-source/scripts/assemble_publications_v3.py \
-            --publication site=site-publication \
-            --publication composition=composition-source \
-            --publication policy=policy-source \
-            --site-root site-publication \
-            --output-root build
-
-      - name: Publish declared translations
-        if: ${{ steps.artifact.outputs.reused != 'true' }}
-        run: |
-          python site-source/scripts/publish_provider_translations.py \
-            --reader-navigation-locales "${SITE_PUBLICATION_ROOT:-site-source}/reader-navigation-locales.json" \
-            --publication site=site-publication \
-            --publication composition=composition-source \
-            --publication policy=policy-source \
-            --site-root site-publication \
-            --output-root build
-
-      - name: Generate repository trees
-        if: ${{ steps.artifact.outputs.reused != 'true' }}
-        run: |
-          python site-source/scripts/generate_repository_trees_composition.py \
-            --repository "$GITHUB_REPOSITORY" \
-            --site-root site-publication \
-            --output-root build \
-            --publication composition=composition-source \
-            --publication policy=policy-source
-
-      - name: Generate inline file previews
-        if: ${{ steps.artifact.outputs.reused != 'true' }}
-        run: |
-          python site-source/scripts/generate_repository_file_previews_composition.py \
-            --repository "$GITHUB_REPOSITORY" \
-            --site-root site-publication \
-            --output-root build \
-            --publication composition=composition-source \
-            --publication policy=policy-source
-
-      - name: Prepare deployment metadata
-        if: ${{ steps.artifact.outputs.reused != 'true' }}
-        id: site_metadata
-        run: |
-          notice="$(
-            python site-source/scripts/prepare_site_metadata.py \
-              --config-file build/zensical.toml \
-              --deployment-timestamp "${{ inputs.deployment_timestamp }}" \
-              --canonical-url "${PUBLIC_SITE_URL}"
-          )"
-          printf 'notice=%s\n' "$notice" >> "$GITHUB_OUTPUT"
-
-      - name: Build the static site
-        if: ${{ steps.artifact.outputs.reused != 'true' }}
-        run: zensical build --config-file build/zensical.toml --clean --strict
-
-      - name: Generate integrated glossary
-        if: ${{ steps.artifact.outputs.reused != 'true' }}
-        run: |
-          python site-source/scripts/generate_glossary.py \
-            --repository "$GITHUB_REPOSITORY" \
-            --output build/site/glossary/index.json \
-            --publication site=site-publication \
-            --revision "site=$(git -C site-source rev-parse HEAD)" \
-            --publication composition=composition-source \
-            --revision "composition=$(git -C composition-source rev-parse HEAD)" \
-            --publication policy=policy-source \
-            --revision "policy=$(git -C policy-source rev-parse HEAD)"
-
-      - name: Normalize generated canonical links and PWA metadata
-        if: ${{ steps.artifact.outputs.reused != 'true' }}
-        run: |
-          python site-source/scripts/finalize_site_metadata.py \
-            --site-root build/site \
-            --canonical-url "${PUBLIC_SITE_URL}"
-
-      - name: Generate static repository browser
-        if: ${{ steps.artifact.outputs.reused != 'true' }}
-        run: |
-          python site-source/scripts/generate_repository_browser_composition.py \
-            --repository "$GITHUB_REPOSITORY" \
-            --output-root build/site \
-            --branch site=site-source \
-            --branch composition=composition-source \
-            --branch policy=policy-source
-
-      - name: Generate index navigation graph
-        if: ${{ steps.artifact.outputs.reused != 'true' }}
-        run: |
-          python site-source/scripts/run_composition_navigation.py graph \
-            --repository "$GITHUB_REPOSITORY" \
-            --output build/index-navigation.json \
-            --provider composition=composition-source \
-            --provider policy=policy-source
-
-      - name: Generate index navigation locale overlays
-        if: ${{ steps.artifact.outputs.reused != 'true' }}
-        run: |
-          python site-source/scripts/run_composition_navigation.py locales \
-            --graph build/index-navigation.json \
-            --output build/index-navigation-locales.json \
-            --provider composition=composition-source \
-            --provider policy=policy-source
-
-      - name: Generate index-guided navigation viewer
-        if: ${{ steps.artifact.outputs.reused != 'true' }}
-        run: |
-          python site-source/scripts/run_composition_navigation.py viewer \
-            --repository "$GITHUB_REPOSITORY" \
-            --graph build/index-navigation.json \
-            --site-root site-publication \
-            --output-root build/site \
-            --provider composition=composition-source \
-            --provider policy=policy-source
-
-      - name: Generate localized index-guided navigation viewer
-        if: ${{ steps.artifact.outputs.reused != 'true' }}
-        run: |
-          python site-source/scripts/run_composition_navigation.py locale-viewer \
-            --repository "$GITHUB_REPOSITORY" \
-            --graph build/index-navigation.json \
-            --locale-overlays build/index-navigation-locales.json \
-            --translation-map build/translation-publication.json \
-            --site-root site-publication \
-            --output-root build/site \
-            --pair-map build/guided-locale-publication.json \
-            --provider composition=composition-source \
-            --provider policy=policy-source
-
-      - name: Normalize guided canonical links and PWA metadata
-        if: ${{ steps.artifact.outputs.reused != 'true' }}
-        run: |
-          python site-source/scripts/finalize_site_metadata.py \
-            --site-root build/site/guided \
-            --canonical-url "${PUBLIC_SITE_URL}"
-
-      - name: Apply Site Website consumer metadata
-        if: ${{ steps.artifact.outputs.reused != 'true' }}
-        run: |
-          python site-source/scripts/render_website_metadata.py --repository site-source --site-root build/site
-
-      - name: Finalize per-page and translation reader metadata
-        if: ${{ steps.artifact.outputs.reused != 'true' }}
-        run: |
-          python site-source/scripts/finalize_translation_reader.py \
-            --site-root build/site \
-            --translation-map build/translation-publication.json \
-            --canonical-url "${PUBLIC_SITE_URL}"
-
-      - name: Validate generated translation reader pairs
-        if: ${{ steps.artifact.outputs.reused != 'true' }}
-        run: |
-          python site-source/scripts/validate_translation_pairs.py \
-            --site-root build/site \
-            --translation-map build/translation-publication.json \
-            --canonical-url "${PUBLIC_SITE_URL}"
-
-      - name: Finalize localized guided metadata
-        if: ${{ steps.artifact.outputs.reused != 'true' }}
-        run: |
-          python site-source/scripts/finalize_guided_locales.py \
-            --site-root build/site \
-            --pair-map build/guided-locale-publication.json \
-            --canonical-url "${PUBLIC_SITE_URL}"
-
-      - name: Annotate Glossary terms
-        if: ${{ steps.artifact.outputs.reused != 'true' }}
-        run: |
-          python site-source/scripts/finalize_glossary_annotations.py \
-            --site-root build/site \
-            --glossary build/site/glossary/index.json
-
-      - name: Verify generated public URL boundary
-        if: ${{ steps.artifact.outputs.reused != 'true' }}
-        run: |
-          python site-source/scripts/check_public_url_boundary.py \
-            --site-root build/site
-
-      - name: Verify the Pages entry point and deployment notice
-        if: ${{ steps.artifact.outputs.reused != 'true' }}
-        run: |
-          test -f build/site/index.html
-          test -f build/site/app.webmanifest
-          test -f build/site/icon.svg
-          test -f build/site/service-worker.js
-          test -f build/site/javascripts/pwa.js
-          test -f build/site/glossary/index.json
-          grep --recursive --include='*.html' --files-with-matches -- \
-            'data-glossary-id=' build/site | grep --quiet .
-          grep --fixed-strings -- \
-            '"id": "templates-provider-branch"' \
-            build/site/glossary/index.json
-          grep --fixed-strings -- \
-            '"id": "templates-composition-component"' \
-            build/site/glossary/index.json
-          site_revision="$(git -C site-source rev-parse HEAD)"
-          composition_revision="$(git -C composition-source rev-parse HEAD)"
-          grep --fixed-strings -- \
-            "\"source_revision\": \"${site_revision}\"" \
-            build/site/glossary/index.json
-          grep --fixed-strings -- \
-            "\"source_revision\": \"${composition_revision}\"" \
-            build/site/glossary/index.json
-          grep --fixed-strings -- \
-            '<link rel="manifest" href="/app.webmanifest">' \
-            build/site/index.html
-          grep --fixed-strings -- \
-            '<meta name="theme-color" content="#3f51b5">' \
-            build/site/index.html
-          test -f build/site/composition/index.html
-          test -f build/site/skill/index.html
-          test -f build/site/capabilities/runtime/index.html
-          test -f build/site/webapp/index.html
-          test -f build/site/lifecycle/composition-state/index.html
-          test -f build/site/policy/index.html
-          test -f build/site/policy/provider/index.html
-          test -f build/site/policy/shared-policy/index.html
-          test -f build/site/policy/consumer/index.html
-          test -f build/site/repository-trees/index.html
-          test -f build/site/repository-trees/composition/index.html
-          test -f build/site/repository-trees/policy/index.html
-          for publication in composition policy; do
-            page="build/site/repository-trees/${publication}/index.html"
-            grep --fixed-strings -- 'repository-file-viewer' "$page"
-            if grep --quiet --fixed-strings -- 'repository-file-preview-link' "$page"; then
-              test -n "$(
-                find \
-                  "build/site/repository-trees/previews/${publication}" \
-                  -type f \
-                  -name '*.html' \
-                  -print \
-                  -quit
-              )"
-            fi
-          done
-          test -f build/site/files/index.html
-          test -f build/site/files/repository-browser.js
-          for branch in site composition policy; do
-            page="build/site/files/${branch}/index.html"
-            test -f "$page"
-            grep --fixed-strings -- 'repository-file-viewer' "$page"
-            grep --fixed-strings -- \
-              '<script src="../repository-browser.js" defer></script>' "$page"
-            test -n "$(
-              find \
-                "build/site/files/${branch}/content" \
-                -type f \
-                -name '*.html' \
-                -print \
-                -quit
-            )"
-          done
-          test -f build/site/guided/index.html
-          test -f build/site/guided/graph.json
-          grep --fixed-strings -- 'Index-guided document discovery' \
-            build/site/guided/index.html
-          grep --fixed-strings -- \
-            '<link rel="manifest" href="/app.webmanifest">' \
-            build/site/guided/index.html
-          grep --fixed-strings -- \
-            '<meta name="theme-color" content="#3f51b5">' \
-            build/site/guided/index.html
-          for provider in composition policy; do
-            page="build/site/guided/${provider}/index.html"
-            revision="$(git -C "${provider}-source" rev-parse HEAD)"
-            test -f "$page"
-            grep --fixed-strings -- 'Index-guided navigation' "$page"
-            grep --fixed-strings -- "$revision" "$page"
-            grep --fixed-strings -- \
-              '<link rel="manifest" href="/app.webmanifest">' "$page"
-            grep --fixed-strings -- \
-              '<meta name="theme-color" content="#3f51b5">' "$page"
-          done
-          test -f build/site/ja/guided/index.html
-          test ! -e build/site/ja/guided/graph.json
-          grep --fixed-strings -- \
-            '<link rel="manifest" href="/app.webmanifest">' \
-            build/site/ja/guided/index.html
-          grep --fixed-strings -- \
-            'data-copy-name="public URL"' \
-            build/site/ja/guided/index.html
-          grep --fixed-strings -- \
-            '<script src="/javascripts/guided-copy.js" defer></script>' \
-            build/site/ja/guided/index.html
-          python - <<'PY'
-          import json
-          from pathlib import Path, PurePosixPath
-
-          root = Path("build/site")
-          graph = json.loads((root / "guided/graph.json").read_text(encoding="utf-8"))
-          if graph.get("schema_version") != 1:
-            raise SystemExit("guided graph schema version mismatch")
-          if [provider.get("name") for provider in graph.get("providers", [])] != ["composition", "policy"]:
-            raise SystemExit("guided graph provider order mismatch")
-          for provider in graph.get("providers", []):
-              name = provider["name"]
-              for index in provider["indexes"]:
-                  source = index["path"]
-                  if source == "docs/index.md":
-                      page = root / "guided" / name / "index.html"
-                  elif source == "index.md":
-                      page = root / "guided" / "_repository-root" / name / "index.html"
-                  else:
-                      page = root / "guided" / name / Path(PurePosixPath(source).parent.as_posix()) / "index.html"
-                  if not page.is_file():
-                      raise SystemExit(f"missing guided index page: {page}")
-          PY
-          grep --fixed-strings -- \
-            "${{ steps.site_metadata.outputs.notice }}" \
-            build/site/index.html
-
-      - name: Record build provenance
-        if: ${{ steps.artifact.outputs.reused != 'true' }}
-        run: |
-          python site-source/scripts/write_publication_provenance.py \
-            --output build/site/build-provenance.json \
-            --repository "$GITHUB_REPOSITORY" \
-            --site-commit "$(git -C site-source rev-parse HEAD)" \
-            --publication-commit "composition=$(git -C composition-source rev-parse HEAD)" \
-            --publication-commit "policy=$(git -C policy-source rev-parse HEAD)"
-
-      - name: Validate generated site links
-        if: ${{ steps.artifact.outputs.reused != 'true' }}
-        run: |
-          python site-source/scripts/validate_site_links.py \
-            --site-root build/site \
-            --config-file build/zensical.toml
-
-      - name: Embed exact build input identity
-        if: ${{ steps.artifact.outputs.reused != 'true' }}
-        run: cp build-inputs.json build/site/ci-build-inputs.json
-
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v5
-        with:
-          path: build/site
+    with:
+      reuse_pr_build: ${{ inputs.reuse_pr_build || false }}
+      site_ref: ${{ inputs.site_ref || github.event.pull_request.head.sha || github.sha }}
+      composition_ref: ${{ inputs.composition_ref }}
+      policy_ref: ${{ inputs.policy_ref }}
+      publication_staging_id: ${{ inputs.publication_staging_id }}
+      publication_staging_ids: ${{ inputs.publication_staging_ids }}
+      deployment_timestamp: ${{ inputs.deployment_timestamp }}
   classify_browser:
     name: Classify browser acceptance scope
     uses: ./.github/workflows/classify.yml
-    if: >-
+    if: |-
       github.repository == 'TakashiSasaki/templates' && (github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && inputs.site_ref == '' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && (github.event.action != 'labeled' ||
        github.event.label.name == 'ci/full-qualification' ||
        github.event.label.name == 'ci/full-site-verification' || github.event.label.name == 'ci/browser')
-
   check:
-    if: >-
-      always() &&
-      github.repository == 'TakashiSasaki/templates' &&
-      (github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') &&
-      inputs.site_ref == '' &&
-      (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) &&
-      (github.event.action != 'labeled' ||
+    if: |-
+      always() && github.repository == 'TakashiSasaki/templates' && (github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && inputs.site_ref == '' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && (github.event.action != 'labeled' ||
        github.event.label.name == 'ci/full-qualification' ||
        github.event.label.name == 'ci/full-site-verification' || github.event.label.name == 'ci/browser')
     needs:
       - build
       - classify_browser
     runs-on: ubuntu-24.04
-
     steps:
       - name: Require coherent build and browser classification
         env:
@@ -620,7 +141,6 @@ jobs:
               exit 1
               ;;
           esac
-
       - name: Record browser acceptance outcome
         env:
           BROWSER_REQUIRED: ${{ needs.classify_browser.outputs.browser_required }}
@@ -634,126 +154,103 @@ jobs:
             echo "- build_required: \`$BUILD_REQUIRED\`"
             echo "- reason: \`$BROWSER_REASON\`"
           } >> "$GITHUB_STEP_SUMMARY"
-
       - name: Check out proposed Site revision
         if: ${{ needs.classify_browser.outputs.browser_required == 'true' }}
         uses: actions/checkout@v7
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-
       - name: Check out qualified Composition publication
         if: ${{ needs.classify_browser.outputs.browser_required == 'true' }}
         uses: actions/checkout@v7
         with:
           ref: ${{ needs.build.outputs.composition_revision }}
           path: composition-source
-
       - name: Check out qualified Policy publication
         if: ${{ needs.classify_browser.outputs.browser_required == 'true' }}
         uses: actions/checkout@v7
         with:
           ref: ${{ needs.build.outputs.policy_revision }}
           path: policy-source
-
-      - name: Download built Pages artifact
+      - name: Verify and consume scheduled Pages artifact
         if: ${{ needs.classify_browser.outputs.browser_required == 'true' }}
-        uses: actions/download-artifact@v5
-        with:
-          name: github-pages
-          path: pages-artifact
-
-      - name: Extract built site
-        if: ${{ needs.classify_browser.outputs.browser_required == 'true' }}
-        run: |
-          mkdir -p build/site
-          tar --extract --file pages-artifact/artifact.tar --directory build/site
-          test -f build/site/index.html
-
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_ARTIFACT_ID: ${{ needs.build.outputs.artifact_id }}
+          BUILD_ARTIFACT_DIGEST: ${{ needs.build.outputs.artifact_digest }}
+          BUILD_INPUTS: ${{ needs.build.outputs.build_inputs }}
+        run: python3 scripts/consume_site_build_artifact.py
       - name: Set up Python
         if: ${{ needs.classify_browser.outputs.browser_required == 'true' }}
         uses: actions/setup-python@v6
         with:
           python-version: '3.12'
           cache: pip
-          cache-dependency-path: 'requirements-visual.txt'
-
+          cache-dependency-path: requirements-visual.txt
       - name: Install Playwright controller
         if: ${{ needs.classify_browser.outputs.browser_required == 'true' }}
         run: python -m pip install --disable-pip-version-check -r requirements-visual.txt
-
       - name: Cache Playwright binaries
         if: ${{ needs.classify_browser.outputs.browser_required == 'true' && (needs.classify_browser.outputs.pwa_required == 'true' || needs.classify_browser.outputs.full_required == 'true') }}
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-${{ runner.arch }}-playwright-shell-${{ hashFiles('requirements-visual.txt') }}
-
       - name: Install Playwright Chromium for PWA lifecycle
         if: ${{ needs.classify_browser.outputs.browser_required == 'true' && (needs.classify_browser.outputs.pwa_required == 'true' || needs.classify_browser.outputs.full_required == 'true') }}
         run: python -m playwright install --only-shell chromium
-
       - name: Verify system Chrome runtime
         if: ${{ needs.classify_browser.outputs.browser_required == 'true' }}
         run: |
           google-chrome --version | tee "$RUNNER_TEMP/system-chrome-version.txt"
           echo "Playwright launch mode: channel=chrome" >> "$GITHUB_STEP_SUMMARY"
-
       - name: Install Japanese browser font
         if: ${{ needs.classify_browser.outputs.browser_required == 'true' }}
         run: |
           sudo rm -f /etc/apt/sources.list.d/google-chrome.list
           sudo apt-get update || true
           sudo apt-get install --yes --no-install-recommends fonts-ipafont-gothic
-
       - name: Check mobile layout geometry
         if: ${{ needs.classify_browser.outputs.browser_required == 'true' }}
         run: |
           python scripts/check_mobile_layout.py \
             --site-root build/site \
             --output-root build/mobile-visual
-
       - name: Check localized inline Glossary chrome
         if: ${{ needs.classify_browser.outputs.browser_required == 'true' }}
         run: |
           python scripts/check_glossary_locale_chrome.py \
             --site-root build/site \
             --output build/mobile-visual/glossary-locale-chrome.json
-
       - name: Check PWA freshness lifecycle
         if: ${{ needs.classify_browser.outputs.browser_required == 'true' && (needs.classify_browser.outputs.pwa_required == 'true' || needs.classify_browser.outputs.full_required == 'true') }}
         run: |
           python scripts/check_pwa_freshness.py \
             --site-root build/site \
             --output build/mobile-visual/pwa-freshness.json
-
       - name: Check localized PWA freshness chrome
         if: ${{ needs.classify_browser.outputs.browser_required == 'true' && (needs.classify_browser.outputs.pwa_required == 'true' || needs.classify_browser.outputs.full_required == 'true') }}
         run: |
           python scripts/check_pwa_locale_chrome.py \
             --site-root build/site \
             --output build/mobile-visual/pwa-locale-chrome.json
-
       - name: Check PWA document commit correlation
         if: ${{ needs.classify_browser.outputs.browser_required == 'true' && (needs.classify_browser.outputs.pwa_required == 'true' || needs.classify_browser.outputs.full_required == 'true') }}
         run: |
           python scripts/check_pwa_commit_regressions.py \
             --site-root build/site \
             --output build/mobile-visual/pwa-document-commit.json
-
       - name: Check PWA slow-network convergence
         if: ${{ needs.classify_browser.outputs.browser_required == 'true' && (needs.classify_browser.outputs.pwa_required == 'true' || needs.classify_browser.outputs.full_required == 'true') }}
         run: |
           python scripts/check_pwa_slow_convergence.py \
             --site-root build/site \
             --output build/mobile-visual/pwa-slow-convergence.json
-
       - name: Check PWA freshness capability messaging
         if: ${{ needs.classify_browser.outputs.browser_required == 'true' && (needs.classify_browser.outputs.pwa_required == 'true' || needs.classify_browser.outputs.full_required == 'true') }}
         run: |
           python scripts/check_pwa_capabilities.py \
             --site-root build/site \
             --output build/mobile-visual/pwa-capabilities.json
-
       - name: Check assembled audience runtime and navigation
         if: ${{ needs.classify_browser.outputs.browser_required == 'true' }}
         run: |
@@ -762,7 +259,6 @@ jobs:
             --output build/mobile-visual/audience-runtime.json \
             --composition-root composition-source \
             --policy-root policy-source
-
       - name: Upload mobile visual evidence
         if: ${{ always() && needs.classify_browser.outputs.browser_required == 'true' }}
         uses: actions/upload-artifact@v4
@@ -771,21 +267,18 @@ jobs:
           path: build/mobile-visual
           if-no-files-found: warn
           retention-days: 7
-
       - name: Check Site search history
         if: ${{ needs.classify_browser.outputs.browser_required == 'true' }}
         run: |
           python scripts/check_search_history.py \
             --site-root build/site \
             --output build/search-history/search-history.json
-
       - name: Check review regressions for Site search history
         if: ${{ needs.classify_browser.outputs.browser_required == 'true' }}
         run: |
           python scripts/check_search_history_review_regressions.py \
             --site-root build/site \
             --output build/search-history/review-regressions.json
-
       - name: Upload search-history evidence
         if: ${{ always() && needs.classify_browser.outputs.browser_required == 'true' }}
         uses: actions/upload-artifact@v4
@@ -794,16 +287,10 @@ jobs:
           path: build/search-history
           if-no-files-found: warn
           retention-days: 7
-
   core_tests:
     name: Core repository unit and contract validation
-    if: >-
-      always() &&
-      github.repository == 'TakashiSasaki/templates' &&
-      inputs.site_ref == '' &&
-      (github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') &&
-      (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) &&
-      (github.event.action != 'labeled' ||
+    if: |-
+      always() && github.repository == 'TakashiSasaki/templates' && inputs.site_ref == '' && (github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && (github.event.action != 'labeled' ||
        github.event.label.name == 'ci/full-qualification' ||
        github.event.label.name == 'ci/full-site-verification' || github.event.label.name == 'ci/browser')
     needs:
@@ -816,29 +303,20 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 1
           persist-credentials: false
-
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
           python-version: '3.12'
           cache: pip
-          cache-dependency-path: 'requirements.txt'
-
+          cache-dependency-path: requirements.txt
       - name: Install dependencies
         run: python -m pip install --requirement requirements.txt
-
       - name: Run core unit and contract validation
         run: python scripts/run_core_tests.py --verbose
-
   validate:
     name: Site Construction CI / validate
-    if: >-
-      always() &&
-      github.repository == 'TakashiSasaki/templates' &&
-      (github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') &&
-      inputs.site_ref == '' &&
-      (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) &&
-      (github.event.action != 'labeled' ||
+    if: |-
+      always() && github.repository == 'TakashiSasaki/templates' && (github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && inputs.site_ref == '' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && (github.event.action != 'labeled' ||
        github.event.label.name == 'ci/full-qualification' ||
        github.event.label.name == 'ci/full-site-verification' || github.event.label.name == 'ci/browser')
     needs:
@@ -883,3 +361,117 @@ jobs:
               echo "Site Construction CI aggregate gate passed (build_required=$BUILD_REQUIRED, browser_required=$BROWSER_REQUIRED)"
               ;;
           esac
+  reference_consumer:
+    needs:
+      - classify_browser
+      - build
+    if: ${{ inputs.site_ref == '' && github.event_name == 'pull_request' && needs.classify_browser.result == 'success' && needs.classify_browser.outputs.reference_consumer_required == 'true' }}
+    uses: ./.github/workflows/reference-consumer.yml
+    with:
+      artifact_id: ${{ needs.build.outputs.artifact_id }}
+      artifact_digest: ${{ needs.build.outputs.artifact_digest }}
+      build_inputs: ${{ needs.build.outputs.build_inputs }}
+      browser_required: ${{ needs.classify_browser.outputs.browser_required }}
+      pwa_required: ${{ needs.classify_browser.outputs.pwa_required }}
+      reference_consumer_required: ${{ needs.classify_browser.outputs.reference_consumer_required }}
+      cross_authority_required: ${{ needs.classify_browser.outputs.cross_authority_required }}
+  cross_authority:
+    needs:
+      - classify_browser
+      - build
+    if: ${{ inputs.site_ref == '' && github.event_name == 'pull_request' && needs.classify_browser.result == 'success' && needs.classify_browser.outputs.cross_authority_required == 'true' }}
+    uses: ./.github/workflows/site-composition-playground-cross-authority.yml
+    with:
+      artifact_id: ${{ needs.build.outputs.artifact_id }}
+      artifact_digest: ${{ needs.build.outputs.artifact_digest }}
+      build_inputs: ${{ needs.build.outputs.build_inputs }}
+      browser_required: ${{ needs.classify_browser.outputs.browser_required }}
+      pwa_required: ${{ needs.classify_browser.outputs.pwa_required }}
+      reference_consumer_required: ${{ needs.classify_browser.outputs.reference_consumer_required }}
+      cross_authority_required: ${{ needs.classify_browser.outputs.cross_authority_required }}
+  coexistence:
+    needs:
+      - classify_browser
+    if: ${{ inputs.site_ref == '' && github.event_name == 'pull_request' && needs.classify_browser.result == 'success' && needs.classify_browser.outputs.coexistence_required == 'true' }}
+    uses: ./.github/workflows/provider-coexistence.yml
+  playground:
+    needs:
+      - classify_browser
+    if: ${{ inputs.site_ref == '' && github.event_name == 'pull_request' && needs.classify_browser.result == 'success' && needs.classify_browser.outputs.playground_required == 'true' }}
+    uses: ./.github/workflows/site-composition-playground.yml
+  explainability:
+    needs:
+      - classify_browser
+    if: ${{ inputs.site_ref == '' && github.event_name == 'pull_request' && needs.classify_browser.result == 'success' && needs.classify_browser.outputs.playground_required == 'true' }}
+    uses: ./.github/workflows/site-composition-playground-explain.yml
+  materialization:
+    needs:
+      - classify_browser
+    if: ${{ inputs.site_ref == '' && github.event_name == 'pull_request' && needs.classify_browser.result == 'success' }}
+    uses: ./.github/workflows/publication-materialization.yml
+  publication_contract:
+    needs:
+      - classify_browser
+    if: ${{ inputs.site_ref == '' && github.event_name == 'pull_request' && needs.classify_browser.result == 'success' }}
+    uses: ./.github/workflows/publication-contract-v4.yml
+  policy:
+    needs:
+      - classify_browser
+    if: ${{ inputs.site_ref == '' && github.event_name == 'pull_request' && needs.classify_browser.result == 'success' }}
+    uses: ./.github/workflows/check-agent-policy.yml
+  freshness:
+    needs:
+      - classify_browser
+    if: ${{ inputs.site_ref == '' && github.event_name == 'pull_request' && needs.classify_browser.result == 'success' }}
+    uses: ./.github/workflows/check-publication-freshness.yml
+  website_contract:
+    needs:
+      - classify_browser
+    if: ${{ inputs.site_ref == '' && github.event_name == 'pull_request' && needs.classify_browser.result == 'success' }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: 3.12.13
+      - run: python .template-composition/validate.py .
+  full_qualification:
+    name: Site Full Qualification / validate
+    needs:
+      - classify_browser
+      - build
+      - check
+      - core_tests
+      - validate
+      - reference_consumer
+      - cross_authority
+      - coexistence
+      - playground
+      - explainability
+      - materialization
+      - publication_contract
+      - policy
+      - freshness
+      - website_contract
+    if: ${{ always() && inputs.site_ref == '' && github.event_name == 'pull_request' && needs.classify_browser.result == 'success' && needs.classify_browser.outputs.full_required == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Require all scheduled qualification results
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          python3 - <<'PYCODE'
+          import json, os
+          needs = json.loads(os.environ['RESULTS'])
+          expected = {'classify_browser', 'build', 'check', 'core_tests', 'validate', 'reference_consumer', 'cross_authority', 'coexistence', 'playground', 'explainability', 'materialization', 'publication_contract', 'policy', 'freshness', 'website_contract'}
+          if set(needs) != expected:
+              raise SystemExit('Incomplete qualification job snapshot')
+          failed = {name: result['result'] for name, result in needs.items() if result['result'] != 'success'}
+          if failed:
+              raise SystemExit('Qualification incomplete: ' + json.dumps(failed, sort_keys=True))
+          print('Exact-head DAG qualification passed; runner polling seconds=0')
+          PYCODE

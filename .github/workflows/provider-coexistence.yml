@@ -1,79 +1,50 @@
 name: Provider coexistence integration
-
 on:
-  pull_request:
-    branches:
-      - site
-      - 'feat/site-*'
-      - 'feat/s4-*'
-      - site-composition-audience-publication-staging
-      - 'site-*'
-      - 'perf/site-*'
-      - codex/site-composition-playground-v1-shell
-    types:
-      - opened
-      - synchronize
-      - reopened
-      - labeled
-
+  workflow_call: {}
 permissions:
   contents: read
-
-concurrency:
-  group: provider-coexistence-${{ (github.event.action == 'labeled' && github.event.label.name != 'ci/full-qualification' && github.event.label.name != 'ci/full-site-verification') && format('unrelated-label-{0}', github.run_id) || github.ref }}
-  cancel-in-progress: true
-
 jobs:
   classify:
     name: Classify provider coexistence scope
     uses: ./.github/workflows/classify.yml
-    if: >-
+    if: |-
       github.repository == 'TakashiSasaki/templates' && (github.event_name != 'pull_request' ||
        github.event.action != 'labeled' ||
        github.event.label.name == 'ci/full-qualification' ||
        github.event.label.name == 'ci/full-site-verification')
-
   coexistence:
     name: Validate exact provider coexistence
-    if: >-
-      github.repository == 'TakashiSasaki/templates' &&
-      needs.classify.outputs.coexistence_required == 'true'
+    if: github.repository == 'TakashiSasaki/templates' && needs.classify.outputs.coexistence_required == 'true'
     needs: classify
     runs-on: ubuntu-24.04
-
     steps:
       - name: Check out Site implementation
         uses: actions/checkout@v7
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           path: site-source
-
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: '3.12.13'
-
+          python-version: 3.12.13
       - name: Resolve exact provider revisions
         id: publication_refs
         run: |
           python site-source/scripts/resolve_publication_sources.py \
             --lock site-source/publication-sources.json \
             --output "$GITHUB_OUTPUT"
-
       - name: Check out exact Composition provider
         uses: actions/checkout@v7
         with:
           ref: ${{ steps.publication_refs.outputs.composition }}
           path: composition-source
           fetch-depth: 0
-
       - name: Check out exact Policy provider
         uses: actions/checkout@v7
         with:
           ref: ${{ steps.publication_refs.outputs.policy }}
           path: policy-source
           fetch-depth: 0
-
       - name: Create isolated Composition environment
         run: |
           python -I -m venv --clear .venv-composition
@@ -82,7 +53,6 @@ jobs:
             --disable-pip-version-check \
             --no-deps \
             --requirement composition-source/requirements-dev.lock
-
       - name: Create isolated Policy environment
         run: |
           python -I -m venv --clear .venv-policy
@@ -98,8 +68,7 @@ jobs:
             --no-build-isolation \
             --editable policy-source
           .venv-policy/bin/python -m pip check
-
-      - name: Validate exact-revision Policy–Composition coexistence
+      - name: "Validate exact-revision Policy\u2013Composition coexistence"
         run: |
           python site-source/scripts/validate_provider_coexistence.py \
             --composition-root composition-source \
@@ -108,13 +77,10 @@ jobs:
             --policy-root policy-source \
             --policy-cli "$PWD/.venv-policy/bin/agent-policy" \
             --policy-revision "${{ steps.publication_refs.outputs.policy }}"
-
   gate:
     name: Provider coexistence gate
-    if: >-
-      always() &&
-      github.repository == 'TakashiSasaki/templates' &&
-      (github.event_name != 'pull_request' ||
+    if: |-
+      always() && github.repository == 'TakashiSasaki/templates' && (github.event_name != 'pull_request' ||
        github.event.action != 'labeled' ||
        github.event.label.name == 'ci/full-qualification' ||
        github.event.label.name == 'ci/full-site-verification')
@@ -122,7 +88,6 @@ jobs:
       - classify
       - coexistence
     runs-on: ubuntu-24.04
-
     steps:
       - name: Require coherent classification and validation result
         env:

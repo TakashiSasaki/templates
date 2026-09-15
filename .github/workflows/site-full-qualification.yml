@@ -1,80 +1,48 @@
 name: Site full qualification
-
 on:
-  pull_request:
-    branches:
-      - site
-      - 'feat/site-*'
-      - 'feat/s4-*'
-      - site-composition-audience-publication-staging
-      - 'site-*'
-      - 'perf/site-*'
-      - codex/site-composition-playground-v1-shell
-    types:
-      - opened
-      - synchronize
-      - reopened
-      - labeled
-
+  workflow_dispatch:
+    inputs:
+      head_sha:
+        description: Exact Site head to audit
+        required: true
+        type: string
 permissions:
   contents: read
   checks: read
   actions: read
-
 concurrency:
   group: site-full-qualification-${{ (github.event.action == 'labeled' && github.event.label.name != 'ci/full-qualification' && github.event.label.name != 'ci/full-site-verification') && format('unrelated-label-{0}', github.run_id) || (github.event.pull_request.number || github.ref) }}
   cancel-in-progress: true
-
 jobs:
-  classify:
-    name: Classify full qualification requirement
-    uses: ./.github/workflows/classify.yml
-    if: >-
-      github.repository == 'TakashiSasaki/templates' && (github.event_name != 'pull_request' ||
-       github.event.pull_request.head.repo.full_name == github.repository) &&
-      (github.event_name != 'pull_request' ||
-       github.event.action != 'labeled' ||
-       github.event.label.name == 'ci/full-qualification' ||
-       github.event.label.name == 'ci/full-site-verification')
-
   validate:
     name: Site Full Qualification / validate
-    needs: classify
-    if: >-
-      always() &&
-      github.repository == 'TakashiSasaki/templates' &&
-      needs.classify.result == 'success' &&
-      needs.classify.outputs.full_required == 'true' &&
-      (github.event_name != 'pull_request' ||
-       github.event.pull_request.head.repo.full_name == github.repository)
+    if: github.repository == 'TakashiSasaki/templates'
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
       - name: Check out Site candidate
         uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ inputs.head_sha }}
           fetch-depth: 1
           persist-credentials: false
-
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: '3.12.13'
-
+          python-version: 3.12.13
       - name: Validate exact-head Full Qualification across all Site workflows
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          HEAD_SHA: ${{ inputs.head_sha }}
           REPO: ${{ github.repository }}
-          TRIGGER_TIME: ${{ github.event.pull_request.updated_at }}
-          RUN_ID: ${{ github.run_id }}
+          TRIGGER_TIME: ''
+          RUN_ID: ''
         run: |
           args=(
             --repo "$REPO"
             --head-sha "$HEAD_SHA"
             --token "$GITHUB_TOKEN"
-            --timeout-seconds 2400
+            --timeout-seconds 0
             --poll-interval-seconds 20
           )
           if [ -n "$RUN_ID" ]; then

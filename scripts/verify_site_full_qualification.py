@@ -59,7 +59,7 @@ REQUIRED_SUITES: list[RequiredSuite] = [
         key="build",
         description="Direct Site assembly build",
         workflow_path=".github/workflows/build-pages.yml",
-        job_name="build",
+        job_name="build / build",
     ),
     RequiredSuite(
         key="check",
@@ -72,103 +72,102 @@ REQUIRED_SUITES: list[RequiredSuite] = [
         description="Site Construction CI validate gate",
         workflow_path=".github/workflows/build-pages.yml",
         job_name="Site Construction CI / validate",
-        job_name_aliases=("Site CI / validate",),
     ),
     RequiredSuite(
         key="provider_coexistence",
         description="Validate exact provider coexistence",
-        workflow_path=".github/workflows/provider-coexistence.yml",
-        job_name="Validate exact provider coexistence",
+        workflow_path=".github/workflows/build-pages.yml",
+        job_name="coexistence / Validate exact provider coexistence",
     ),
     RequiredSuite(
         key="provider_coexistence_gate",
         description="Provider coexistence gate",
-        workflow_path=".github/workflows/provider-coexistence.yml",
-        job_name="Provider coexistence gate",
+        workflow_path=".github/workflows/build-pages.yml",
+        job_name="coexistence / Provider coexistence gate",
     ),
     RequiredSuite(
         key="ref_consumer_composition",
         description="Reference consumer composition validation",
-        workflow_path=".github/workflows/reference-consumer.yml",
-        job_name="composition",
+        workflow_path=".github/workflows/build-pages.yml",
+        job_name="reference_consumer / composition",
     ),
     RequiredSuite(
         key="ref_consumer_build",
         description="Reference consumer site build",
-        workflow_path=".github/workflows/reference-consumer.yml",
+        workflow_path=".github/workflows/build-pages.yml",
         job_name="build / build",
     ),
     RequiredSuite(
         key="ref_consumer_browser",
         description="Reference consumer browser & PWA acceptance",
-        workflow_path=".github/workflows/reference-consumer.yml",
-        job_name="browser",
+        workflow_path=".github/workflows/build-pages.yml",
+        job_name="reference_consumer / browser",
     ),
     RequiredSuite(
         key="pub_freshness_resolve",
         description="Publication freshness resolve",
-        workflow_path=".github/workflows/check-publication-freshness.yml",
-        job_name="resolve",
+        workflow_path=".github/workflows/build-pages.yml",
+        job_name="freshness / resolve",
     ),
     RequiredSuite(
         key="pub_freshness_report",
         description="Publication freshness report",
-        workflow_path=".github/workflows/check-publication-freshness.yml",
-        job_name="report",
+        workflow_path=".github/workflows/build-pages.yml",
+        job_name="freshness / report",
     ),
     RequiredSuite(
         key="pub_materialization",
         description="Publication materialization regressions",
-        workflow_path=".github/workflows/publication-materialization.yml",
-        job_name="materialization",
+        workflow_path=".github/workflows/build-pages.yml",
+        job_name="materialization / materialization",
     ),
     RequiredSuite(
         key="pub_contract",
         description="Publication contract v4 regressions",
-        workflow_path=".github/workflows/publication-contract-v4.yml",
-        job_name="contract",
+        workflow_path=".github/workflows/build-pages.yml",
+        job_name="publication_contract / contract",
     ),
     RequiredSuite(
         key="cross_auth_build",
         description="Cross-authority candidate build",
-        workflow_path=".github/workflows/site-composition-playground-cross-authority.yml",
-        job_name="Build exact cross-authority candidate / build",
+        workflow_path=".github/workflows/build-pages.yml",
+        job_name="build / build",
     ),
     RequiredSuite(
         key="cross_auth_consumer",
         description="Real producer to Chromium consumer",
-        workflow_path=".github/workflows/site-composition-playground-cross-authority.yml",
-        job_name="Real producer to Chromium consumer",
+        workflow_path=".github/workflows/build-pages.yml",
+        job_name="cross_authority / Real producer to Chromium consumer",
     ),
     RequiredSuite(
         key="playground_consumer",
         description="Site Composition Playground consumer",
-        workflow_path=".github/workflows/site-composition-playground.yml",
-        job_name="projection consumer",
+        workflow_path=".github/workflows/build-pages.yml",
+        job_name="playground / projection consumer",
     ),
     RequiredSuite(
         key="playground_explain",
         description="Site Composition Playground explainability",
-        workflow_path=".github/workflows/site-composition-playground-explain.yml",
-        job_name="projection explanations",
+        workflow_path=".github/workflows/build-pages.yml",
+        job_name="explainability / projection explanations",
     ),
     RequiredSuite(
         key="playground_browser",
         description="Site Composition Playground browser acceptance",
-        workflow_path=".github/workflows/site-composition-playground-explain.yml",
-        job_name="Playground browser acceptance",
+        workflow_path=".github/workflows/build-pages.yml",
+        job_name="explainability / Playground browser acceptance",
     ),
     RequiredSuite(
         key="validate_website",
         description="Validate website contract",
-        workflow_path=".github/workflows/validate-website.yml",
-        job_name="validate-website",
+        workflow_path=".github/workflows/build-pages.yml",
+        job_name="website_contract",
     ),
     RequiredSuite(
         key="policy",
         description="Check agent policy",
-        workflow_path=".github/workflows/check-agent-policy.yml",
-        job_name="policy",
+        workflow_path=".github/workflows/build-pages.yml",
+        job_name="policy / policy",
     ),
 ]
 
@@ -176,6 +175,8 @@ EXTERNAL_WORKFLOW_PATHS: tuple[str, ...] = tuple(dict.fromkeys(s.workflow_path f
 assert ".github/workflows/site-full-qualification.yml" not in EXTERNAL_WORKFLOW_PATHS, (
     "Site full qualification must not depend on itself"
 )
+
+QUALIFICATION_GATE_JOB = "Site Full Qualification / validate"
 
 
 def fetch_workflow_runs(repo: str, head_sha: str, token: str) -> list[dict[str, Any]]:
@@ -205,11 +206,11 @@ def fetch_workflow_runs(repo: str, head_sha: str, token: str) -> list[dict[str, 
     return runs
 
 
-def fetch_run_jobs(repo: str, run_id: int, token: str) -> list[dict[str, Any]]:
+def fetch_run_jobs(repo: str, run_id: int, token: str, run_attempt: int = 1) -> list[dict[str, Any]]:
     jobs: list[dict[str, Any]] = []
     page = 1
     while True:
-        url = f"https://api.github.com/repos/{repo}/actions/runs/{run_id}/jobs?per_page=100&page={page}"
+        url = f"https://api.github.com/repos/{repo}/actions/runs/{run_id}/attempts/{run_attempt}/jobs?per_page=100&page={page}"
         req = urllib.request.Request(url)
         req.add_header("Accept", "application/vnd.github+json")
         req.add_header("User-Agent", "site-full-qualification-verifier")
@@ -314,6 +315,41 @@ def evaluate_suites(
                     pass
         valid_runs.append(r)
 
+    # An ordinary pull-request update (for example, an unrelated label) can
+    # create a newer exact-head build-pages run whose full-qualification gate
+    # is explicitly skipped.  Manual audit has no event timestamp to bind in
+    # that mode, so never let such a non-applicable run hide the latest real
+    # qualification evidence.  An executed gate may be pending, successful,
+    # or failed; only ``skipped`` means the run was not a qualification run.
+    if (
+        qualification_trigger_time is None
+        and qualification_run_id is None
+        and min_run_id is None
+    ):
+        applicable_runs: list[dict[str, Any]] = []
+        for r in valid_runs:
+            if r.get("path") != ".github/workflows/build-pages.yml":
+                applicable_runs.append(r)
+                continue
+            run_id = r.get("id")
+            if not isinstance(run_id, int):
+                continue
+            run_attempt = r.get("run_attempt", 1)
+            cache_key = (run_id, run_attempt)
+            jobs = completed_jobs_cache.get(cache_key)
+            if jobs is None:
+                jobs = fetch_run_jobs(repo, run_id, token, run_attempt)
+                if r.get("status") == "completed":
+                    completed_jobs_cache[cache_key] = jobs
+            gate = next((job for job in jobs if job.get("name") == QUALIFICATION_GATE_JOB), None)
+            # A missing gate is not evidence of non-applicability: GitHub can
+            # expose a partial job list while a run is being scheduled, and
+            # external callers can audit historical workflow definitions.
+            # Only an explicit skipped conclusion excludes the run.
+            if gate is None or gate.get("conclusion") != "skipped":
+                applicable_runs.append(r)
+        valid_runs = applicable_runs
+
     # Group runs by workflow path
     runs_by_path: dict[str, list[dict[str, Any]]] = {}
     for r in valid_runs:
@@ -366,12 +402,12 @@ def evaluate_suites(
             if cache_key in transient_jobs_cache:
                 jobs = transient_jobs_cache[cache_key]
             else:
-                jobs = fetch_run_jobs(repo, run_id, token)
+                jobs = fetch_run_jobs(repo, run_id, token, run_attempt)
                 transient_jobs_cache[cache_key] = jobs
         elif cache_key in completed_jobs_cache:
             jobs = completed_jobs_cache[cache_key]
         else:
-            jobs = fetch_run_jobs(repo, run_id, token)
+            jobs = fetch_run_jobs(repo, run_id, token, run_attempt)
             completed_jobs_cache[cache_key] = jobs
 
         # Find matching job

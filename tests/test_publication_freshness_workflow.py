@@ -19,7 +19,9 @@ class PublicationFreshnessWorkflowTests(unittest.TestCase):
 
     def test_workflow_is_read_only_and_runs_on_relevant_site_changes(self) -> None:
         triggers = self.workflow["on"]
-        pull_request = triggers["pull_request"]
+        dispatcher = yaml.safe_load((ROOT / ".github/workflows/build-pages.yml").read_text())
+        pull_request = (dispatcher.get("on") or dispatcher[True])["pull_request"]
+        self.assertIn("workflow_call", triggers)
 
         self.assertEqual(
             ["site", "feat/site-*",
@@ -41,14 +43,12 @@ class PublicationFreshnessWorkflowTests(unittest.TestCase):
         self.assertNotIn("actions/deploy-pages@", self.workflow_text)
 
     def test_concurrency_only_cancels_superseded_pull_request_runs(self) -> None:
-        concurrency = self.workflow["concurrency"]
-        self.assertIn("publication-freshness-", concurrency["group"])
+        self.assertNotIn("concurrency", self.workflow)
+        dispatcher = yaml.safe_load((ROOT / ".github/workflows/build-pages.yml").read_text())
+        concurrency = dispatcher["concurrency"]
+        self.assertIn("documentation-build-", concurrency["group"])
         self.assertIn("unrelated-label-", concurrency["group"])
-        self.assertIn("ci/full-qualification", concurrency["group"])
-        self.assertEqual(
-            "${{ github.event_name == 'pull_request' }}",
-            concurrency["cancel-in-progress"],
-        )
+        self.assertTrue(concurrency["cancel-in-progress"])
 
     def test_candidate_scope_uses_exact_pr_diff_and_fails_closed(self) -> None:
         resolve = self.workflow["jobs"]["resolve"]
@@ -140,7 +140,7 @@ class PublicationFreshnessWorkflowTests(unittest.TestCase):
             condition,
         )
         self.assertEqual(["resolve"], [candidate["needs"]])
-        self.assertEqual("./.github/workflows/build-pages.yml", candidate["uses"])
+        self.assertEqual("./.github/workflows/site-producer.yml", candidate["uses"])
         self.assertEqual(
             "${{ needs.resolve.outputs.site_revision }}",
             candidate["with"]["site_ref"],

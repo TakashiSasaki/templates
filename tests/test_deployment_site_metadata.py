@@ -170,7 +170,7 @@ class PublicUrlContractTests(unittest.TestCase):
 
 class DeploymentWorkflowWiringTests(unittest.TestCase):
     def test_deployment_workflow_supplies_timestamp_to_build_before_deploying(self) -> None:
-        build_workflow = (ROOT / ".github/workflows/build-pages.yml").read_text(
+        build_workflow = (ROOT / ".github/workflows/site-producer.yml").read_text(
             encoding="utf-8"
         )
         deploy_workflow = (ROOT / ".github/workflows/deploy-pages.yml").read_text(

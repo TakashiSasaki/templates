@@ -43,7 +43,7 @@ A single hosted-runner sample is not sufficient to claim an improvement; use rep
 Provider publications pass through an explicit, authority-preserving lifecycle in Pages CI:
 
 1. **Source state**: the provider checkout owns its catalog, inputs, and optional `scripts/materialize_publication.py`; Site does not implement provider generator semantics.
-2. **Explicit phase**: `.github/workflows/build-pages.yml` materializes providers before integration tests, assembly, and translation publication. The provider entrypoint runs in isolated Python mode with bytecode writes disabled.
+2. **Explicit phase**: `.github/workflows/site-producer.yml` materializes providers before integration tests, assembly, and translation publication. The provider entrypoint runs in isolated Python mode with bytecode writes disabled.
 3. **Stable state**: `.publication-materialization-stamp.json` binds the canonical root, exact Git revision when available, Git-visible tracked/untracked source state, catalog/materializer fingerprint, provider-owned semantic revision from `publication-descriptor.json` or `generated/publication-descriptor.json`, and SHA-256 snapshots of materialized products.
 4. **Boundary revalidation**: source identity, semantic identity, and outputs are rechecked at stamp acceptance, stamp commit, and success return. Observed changes fail closed.
 5. **Process-crossing reuse**: downstream processes validate the persistent stamp; missing, stale, malformed, or corrupted state cannot silently authorize reuse.
@@ -94,3 +94,35 @@ hits. Local capsules are disposable and do not authorize remote CI/review skips.
 The local assembly scope supports audience/static and lifecycle diagnosis; full
 remote production assembly additionally generates repository and guided viewers
 and retains all its existing URL/link checks. Local success never replaces it.
+
+## Scheduled producer and consumers
+
+The ordinary PR dispatcher is `build-pages.yml`. Its build calls the single
+`site-producer.yml`; core tests run independently of that producer. Browser,
+reference and cross-authority consumers depend on the producer and receive its
+artifact ID, immutable archive digest and complete build input identity. Each
+consumer verifies API run/head binding, locked provider revisions, archive digest,
+input manifest and publication provenance before extraction. No consumer searches
+or polls for producer completion. Producer reuse probes only already-completed
+eligible builds; it never occupies a runner waiting for another workflow.
+
+Publication freshness still builds a genuinely different current Composition
+candidate when required. Its artifact is separately named `freshness-pages` to
+avoid collision with the locked canonical artifact in the same run. Reusable
+workers have no concurrency group; the PR dispatcher owns cancellation. Scheduled
+and manual freshness diagnostics remain available. Fork handling preserves the
+conservative source build and read-only permissions of the existing boundary.
+
+`Site Construction CI / validate` and `Site Full Qualification / validate` remain
+the aggregate check names. Full qualification checks the complete `needs` result
+set and rejects failed, cancelled, missing and skipped required jobs. Nested job
+names are mapped explicitly in `verify_site_full_qualification.py`. The standalone
+full-qualification workflow is a one-shot manual exact-head API audit. Its job
+queries bind `run_attempt`; successful inherited producer jobs remain evidence of
+the attempt that actually ran them. The provider-managed Website workflow remains
+unchanged; the DAG invokes its canonical validator directly for its own gate.
+
+Wall time is the critical path; runner occupancy is the sum of job execution
+intervals. Waiting for dependency scheduling consumes no runner time. Reports must
+separate setup, test body, polling and inherited retry evidence, using each step's
+actual status/conclusion rather than inferring success from a later running step.

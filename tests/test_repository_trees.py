@@ -16,7 +16,7 @@ from scripts.prepare_repository_tree_publication import (
 )
 
 ROOT = Path(__file__).resolve().parents[1]
-WORKFLOW = ROOT / ".github/workflows/build-pages.yml"
+WORKFLOW = ROOT / ".github/workflows/site-producer.yml"
 POLICY = ROOT / "PUBLISHING.md"
 TREE_TEMPLATES = ROOT / "docs/repository-trees"
 

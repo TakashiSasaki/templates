@@ -21,7 +21,7 @@ from scripts.generate_repository_browser import (
 
 
 ROOT = Path(__file__).resolve().parents[1]
-WORKFLOW = ROOT / ".github/workflows/build-pages.yml"
+WORKFLOW = ROOT / ".github/workflows/site-producer.yml"
 PUBLIC_URL_BOUNDARY_CHECKER = ROOT / "scripts/check_public_url_boundary.py"
 POLICY = ROOT / "PUBLISHING.md"
 REQUIREMENTS = ROOT / "requirements.txt"

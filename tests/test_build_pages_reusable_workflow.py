@@ -8,7 +8,7 @@ from pathlib import Path
 from scripts.resolve_site_checkout import resolve_checkout
 
 ROOT = Path(__file__).resolve().parents[1]
-WORKFLOW = ROOT / ".github/workflows/build-pages.yml"
+WORKFLOW = ROOT / ".github/workflows/site-producer.yml"
 
 
 class BuildPagesReusableWorkflowTests(unittest.TestCase):
@@ -25,13 +25,13 @@ class BuildPagesReusableWorkflowTests(unittest.TestCase):
             "- name: Check out executed build workflow definition\n"
             "        uses: actions/checkout@v7\n"
             "        with:\n"
-            "          ref: ${{ inputs.site_ref || github.sha }}\n"
+            "          ref: ${{ github.workflow_sha }}\n"
             "          path: workflow-source"
         )
 
         self.assertIn(site_checkout, text)
         self.assertIn(workflow_checkout, text)
-        self.assertNotIn("workflow-source/.github/workflows/build-pages.yml", text)
+        self.assertIn("workflow-source/.github/workflows/site-producer.yml", text)
         self.assertIn("run: python site-source/scripts/site_build_artifact.py", text)
 
     def test_reusable_build_keeps_artifact_discovery_read_only(self) -> None:

@@ -1,49 +1,31 @@
 name: Site Composition Playground
-
 on:
-  pull_request:
-    types:
-      - opened
-      - synchronize
-      - reopened
-      - labeled
-
+  workflow_call: {}
 permissions:
   contents: read
-
-concurrency:
-  group: site-composition-playground-${{ github.workflow }}-${{ (github.event.action == 'labeled' && github.event.label.name != 'ci/full-qualification' && github.event.label.name != 'ci/full-site-verification' && github.event.label.name != 'ci/browser') && format('unrelated-label-{0}', github.run_id) || (github.event.pull_request.number || github.ref) }}
-  cancel-in-progress: true
-
 jobs:
   classify:
     name: Classify Playground consumer requirement
     uses: ./.github/workflows/classify.yml
     if: github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'ci/full-qualification' || github.event.label.name == 'ci/full-site-verification' || github.event.label.name == 'ci/browser'
-
   consumer:
     name: projection consumer
     needs: classify
-    if: >-
-      always() &&
-      needs.classify.result == 'success' &&
-      needs.classify.outputs.playground_required == 'true'
+    if: always() && needs.classify.result == 'success' && needs.classify.outputs.playground_required == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - name: Check out exact pull request head
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 1
           persist-credentials: false
-
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "22"
-          cache: ""
-
+          node-version: '22'
+          cache: ''
       - name: Run projection consumer regression tests
         run: |
           node --test tests/composition-playground.test.mjs
@@ -55,7 +37,6 @@ jobs:
           node --test tests/composition-playground-latest-five-review.test.mjs
           node --test tests/composition-playground-latest-two-review.test.mjs
           node --test tests/composition-playground-material-path-scope.test.mjs
-
       - name: Validate Site integration declarations
         env:
           EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}

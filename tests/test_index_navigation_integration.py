@@ -6,7 +6,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-WORKFLOW = ROOT / ".github/workflows/build-pages.yml"
+WORKFLOW = ROOT / ".github/workflows/site-producer.yml"
 LANDING = ROOT / "docs/landing.md"
 POLICY = ROOT / "PUBLISHING.md"
 MAINTENANCE = ROOT / "MAINTENANCE.md"

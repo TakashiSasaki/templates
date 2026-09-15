@@ -1,65 +1,41 @@
 name: Site Composition Playground explainability
-
 on:
-  pull_request:
-    types:
-      - opened
-      - synchronize
-      - reopened
-      - labeled
-
+  workflow_call: {}
 permissions:
   contents: read
-
-concurrency:
-  group: site-composition-playground-explain-${{ github.workflow }}-${{ (github.event.action == 'labeled' && github.event.label.name != 'ci/full-qualification' && github.event.label.name != 'ci/full-site-verification' && github.event.label.name != 'ci/browser') && format('unrelated-label-{0}', github.run_id) || (github.event.pull_request.number || github.ref) }}
-  cancel-in-progress: true
-
 jobs:
   classify:
     name: Classify Playground explainability requirement
     uses: ./.github/workflows/classify.yml
     if: github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'ci/full-qualification' || github.event.label.name == 'ci/full-site-verification' || github.event.label.name == 'ci/browser'
-
   explainability:
     name: projection explanations
     needs: classify
-    if: >-
-      always() &&
-      needs.classify.result == 'success' &&
-      needs.classify.outputs.playground_required == 'true'
+    if: always() && needs.classify.result == 'success' && needs.classify.outputs.playground_required == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - name: Check out exact pull request head
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
           persist-credentials: false
-
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "22"
-          cache: ""
-
+          node-version: '22'
+          cache: ''
       - name: Set up Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
-          python-version: "3.12"
-
+          python-version: '3.12'
       - name: Run Playground consumer and explainability tests
         env:
           EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
-        run: >-
-          python scripts/run_site_preflight.py fast
-          --check node-explainability
-          --expected-head "$EXPECTED_HEAD"
-
+        run: python scripts/run_site_preflight.py fast --check node-explainability --expected-head "$EXPECTED_HEAD"
       - name: Validate cross-authority trigger contract
         run: python -I tests/test_composition_playground_cross_authority_workflow.py
-
       - name: Verify exact-head and active publication binding
         env:
           EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
@@ -71,10 +47,11 @@ jobs:
           test "$(wc -l < "$RUNNER_TEMP/publication-sources.txt")" -eq 2
           grep --extended-regexp --line-regexp -- 'composition=[0-9a-f]{40}' "$RUNNER_TEMP/publication-sources.txt"
           grep --extended-regexp --line-regexp -- 'policy=[0-9a-f]{40}' "$RUNNER_TEMP/publication-sources.txt"
-
   browser:
     name: Playground browser acceptance
-    needs: [classify, explainability]
+    needs:
+      - classify
+      - explainability
     if: ${{ needs.classify.outputs.browser_required == 'true' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -90,12 +67,10 @@ jobs:
           cache-dependency-path: requirements-visual.txt
       - name: Install browser acceptance dependency
         run: python -m pip install --disable-pip-version-check --requirement requirements-visual.txt
-
       - name: Verify system Chrome runtime
         run: |
           google-chrome --version
           echo "Playwright launch mode: channel=chrome" >> "$GITHUB_STEP_SUMMARY"
-
       - name: Run 360px keyboard, share-state, and desktop-grid acceptance
         run: |
           python -I scripts/check_composition_playground_browser.py

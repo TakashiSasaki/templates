@@ -125,7 +125,7 @@ class PublicationStagingQualificationTests(unittest.TestCase):
                 publication_root(ROOT)
 
     def test_reusable_build_consumes_materializer_snapshot_before_tests(self) -> None:
-        workflow = (ROOT / ".github/workflows/build-pages.yml").read_text(encoding="utf-8")
+        workflow = (ROOT / ".github/workflows/site-producer.yml").read_text(encoding="utf-8")
         deploy = (ROOT / ".github/workflows/deploy-pages.yml").read_text(encoding="utf-8")
 
         materialize_step = workflow.index("- name: Materialize staged publication mapping")
