@@ -111,6 +111,7 @@ class SitePreflightTests(unittest.TestCase):
                 source = root / name
                 source.mkdir()
                 (source / 'source.txt').write_text(name)
+                (source / '.gitignore').write_text('unbound/\n')
                 if name == 'site':
                     (source / 'requirements-build.lock').write_text('')
                 subprocess.run(['git', 'init', '-q', str(source)], check=True)
@@ -121,6 +122,8 @@ class SitePreflightTests(unittest.TestCase):
                     check=True,
                 )
                 roots[name] = source
+            (roots['site'] / 'unbound').mkdir()
+            (roots['site'] / 'unbound' / 'ignored.txt').write_text('not an identity input')
             capsule = Capsule(root / 'capsules', input_identity(roots))
             args = argparse.Namespace(
                 capsule=capsule,
@@ -132,6 +135,7 @@ class SitePreflightTests(unittest.TestCase):
             with capsule.locked(), preflight.capsule_source_snapshot(args, 'focused-tests'):
                 self.assertNotEqual(preflight.ROOT, original_root)
                 self.assertEqual('site', (preflight.ROOT / 'source.txt').read_text())
+                self.assertFalse((preflight.ROOT / 'unbound' / 'ignored.txt').exists())
                 (preflight.ROOT / 'source.txt').write_text('snapshot-only')
             self.assertEqual(original_root, preflight.ROOT)
             self.assertEqual('site', (roots['site'] / 'source.txt').read_text())

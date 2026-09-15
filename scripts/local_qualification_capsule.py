@@ -36,7 +36,8 @@ def file_identity(path: Path) -> dict:
     return {'sha256': digest(path.read_bytes()), 'executable': bool(mode & 0o111)}
 
 
-def source_identity(root: Path) -> dict:
+def source_paths(root: Path) -> set[bytes]:
+    """Return the complete set of source files covered by a capsule identity."""
     def git(*args):
         return subprocess.check_output(['git', '-C', str(root), *args])
     paths = set(git('ls-files', '-z', '--cached', '--others', '--exclude-standard').split(b'\0')) - {b''}
@@ -84,6 +85,13 @@ def source_identity(root: Path) -> dict:
                 )
             else:
                 paths.add(os.fsencode(relative))
+    return paths
+
+
+def source_identity(root: Path) -> dict:
+    def git(*args):
+        return subprocess.check_output(['git', '-C', str(root), *args])
+    paths = source_paths(root)
     files = {}
     for raw in sorted(paths):
         relative = os.fsdecode(raw)

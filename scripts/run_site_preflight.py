@@ -122,7 +122,7 @@ def capsule_source_snapshot(args: argparse.Namespace, stage: str):
     if not getattr(args, "capsule", None):
         yield
         return
-    from scripts.local_qualification_capsule import input_identity
+    from scripts.local_qualification_capsule import input_identity, source_paths
 
     original_root = ROOT
     original_composition = args.composition_root
@@ -159,13 +159,18 @@ def capsule_source_snapshot(args: argparse.Namespace, stage: str):
                     shutil.rmtree(child)
                 else:
                     child.unlink()
-            shutil.copytree(
-                source,
-                destination,
-                dirs_exist_ok=True,
-                symlinks=True,
-                ignore=lambda _directory, names: {".git"} & set(names),
-            )
+            # Do not copy an ignored file merely because it exists in the
+            # checkout.  A cached stage may read every test or build input it
+            # can see; the snapshot therefore exposes exactly the files that
+            # participate in ``source_identity`` and no unbound extras.
+            for raw_relative in source_paths(source):
+                relative = Path(os.fsdecode(raw_relative))
+                original = source / relative
+                if not original.exists() and not original.is_symlink():
+                    continue
+                copied = destination / relative
+                copied.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(original, copied, follow_symlinks=False)
             snapshots[name] = destination
         if input_identity(snapshots) != args.capsule.inputs:
             raise PreflightFailure("capsule inputs changed while snapshotting")
