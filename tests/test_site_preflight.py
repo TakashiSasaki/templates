@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import os
+import argparse
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -64,6 +66,79 @@ class SitePreflightTests(unittest.TestCase):
             or "needs.classify.outputs.composition_revision" in text
         )
         self.assertNotIn("continue-on-error", text)
+
+    def test_cross_binding_dispatches_schema_v4_to_source_phase_validator(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for name in ('composition', 'policy'):
+                provider = root / name
+                (provider / 'docs').mkdir(parents=True)
+                (provider / 'docs' / 'publication-catalog.json').write_text(
+                    '{"schema_version":4,"documents":[{"id":"home","source":"README.md","optional":false,"home":true}],"assets":[]}'
+                )
+                (provider / 'README.md').write_text('home')
+            (root / 'publication-sources.json').write_text('{}')
+            calls = []
+            with patch.object(preflight, 'ROOT', root), \
+                 patch.object(preflight, 'require_provider_roots', return_value=(root / 'composition', root / 'policy')), \
+                 patch.object(preflight, 'resolve_sources', return_value={}), \
+                 patch.object(preflight, 'git_head', return_value='revision'), \
+                 patch.object(preflight, 'run', side_effect=lambda *args: calls.append(args)):
+                preflight.check_cross_binding(object())
+            validators = [call for call in calls if 'scripts/publication_contract_v4.py' in call]
+            self.assertEqual(2, len(validators))
+            self.assertTrue(all('--phase' in call and 'source' in call for call in validators))
+
+    def test_capsule_workspace_consumers_inherit_the_locked_descriptor(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            from scripts.local_qualification_capsule import Capsule
+
+            capsule = Capsule(Path(directory), {'exact': 'input'})
+            args = argparse.Namespace(capsule=capsule, composition_root=None, policy_root=None)
+            with capsule.locked(), patch.object(preflight.subprocess, 'run') as run:
+                run.return_value.returncode = 0
+                preflight.run('consumer', args=args)
+                descriptor = capsule.inherited_fd
+                self.assertEqual((descriptor,), run.call_args.kwargs['pass_fds'])
+
+    def test_cached_stage_uses_an_identity_checked_source_snapshot(self) -> None:
+        from scripts.local_qualification_capsule import Capsule, input_identity
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            roots = {}
+            for name in ('site', 'composition', 'policy'):
+                source = root / name
+                source.mkdir()
+                (source / 'source.txt').write_text(name)
+                (source / '.gitignore').write_text('unbound/\n')
+                if name == 'site':
+                    (source / 'requirements-build.lock').write_text('')
+                subprocess.run(['git', 'init', '-q', str(source)], check=True)
+                subprocess.run(['git', '-C', str(source), 'add', '.'], check=True)
+                subprocess.run(
+                    ['git', '-C', str(source), '-c', 'user.name=Fixture',
+                     '-c', 'user.email=fixture@example.invalid', 'commit', '-qm', 'fixture'],
+                    check=True,
+                )
+                roots[name] = source
+            (roots['site'] / 'unbound').mkdir()
+            (roots['site'] / 'unbound' / 'ignored.txt').write_text('not an identity input')
+            capsule = Capsule(root / 'capsules', input_identity(roots))
+            args = argparse.Namespace(
+                capsule=capsule,
+                capsule_roots=roots,
+                composition_root=roots['composition'],
+                policy_root=roots['policy'],
+            )
+            original_root = preflight.ROOT
+            with capsule.locked(), preflight.capsule_source_snapshot(args, 'focused-tests'):
+                self.assertNotEqual(preflight.ROOT, original_root)
+                self.assertEqual('site', (preflight.ROOT / 'source.txt').read_text())
+                self.assertFalse((preflight.ROOT / 'unbound' / 'ignored.txt').exists())
+                (preflight.ROOT / 'source.txt').write_text('snapshot-only')
+            self.assertEqual(original_root, preflight.ROOT)
+            self.assertEqual('site', (roots['site'] / 'source.txt').read_text())
 
 
 if __name__ == "__main__":
