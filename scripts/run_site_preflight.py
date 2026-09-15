@@ -15,6 +15,7 @@ if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from scripts.resolve_publication_sources import resolve_sources
+from scripts.classify_site_ci import classify_paths, ClassificationError
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -119,9 +120,50 @@ def check_website_contract(args: argparse.Namespace) -> None:
     run(PYTHON, ".template-composition/validate.py", ROOT)
 
 
+def focused_tests(paths: Sequence[str]) -> tuple[str, ...]:
+    """Local diagnostics only; never emits remote skip authority."""
+    try:
+        decision = classify_paths(paths)
+    except ClassificationError:
+        return ()  # empty selection means the complete core suite
+    if decision.full_required:
+        return ()
+    selected = set(FOCUSED_TESTS)
+    if decision.browser_required or decision.publication_required:
+        selected.update(("tests.test_audience_artifact_integration",
+                         "tests.test_audience_manifest", "tests.test_audience_context",
+                         "tests.test_check_audience_runtime"))
+    if decision.reference_consumer_required:
+        selected.update(("tests.test_reference_consumer", "tests.test_reference_browser_contracts"))
+    if decision.publication_required or decision.cross_authority_required:
+        selected.update(("tests.test_site_assembly", "tests.test_optional_document_source_type"))
+    return tuple(sorted(selected))
+
+
+def changed_paths(base: str | None) -> list[str]:
+    if not base:
+        return []
+    result = subprocess.run(["git", "diff", "--name-only", "-z", base],
+                            cwd=ROOT, capture_output=True, check=True)
+    untracked = subprocess.run(["git", "ls-files", "--others", "--exclude-standard", "-z"],
+                               cwd=ROOT, capture_output=True, check=True)
+    return [p.decode("utf-8") for p in (result.stdout + untracked.stdout).split(b"\0") if p]
+
+
 def check_focused_tests(args: argparse.Namespace) -> None:
-    del args
-    run(PYTHON, "-m", "unittest", *FOCUSED_TESTS, "--verbose")
+    selected = focused_tests(changed_paths(getattr(args, "base", None)))
+    if selected:
+        run(PYTHON, "-m", "unittest", *selected, "--verbose", args=args)
+    else:
+        run(PYTHON, "scripts/run_core_tests.py", "--suite", "core", args=args)
+
+
+def check_audience_static(args: argparse.Namespace) -> None:
+    composition, policy = require_provider_roots(args)
+    if args.site_root is None:
+        raise PreflightFailure("audience-static requires --site-root with an assembled artifact")
+    run(PYTHON, "scripts/check_audience_artifact.py", "--site-root", args.site_root,
+        "--composition-root", composition, "--policy-root", policy)
 
 
 def check_unit_tests(args: argparse.Namespace) -> None:
@@ -310,6 +352,7 @@ def check_cross_assembly(args: argparse.Namespace) -> None:
 
 
 CHECKS: dict[str, Callable[[argparse.Namespace], None]] = {
+    "audience-static": check_audience_static,
     "reference-projections": check_reference_projections,
     "website-contract": check_website_contract,
     "focused-tests": check_focused_tests,
@@ -324,6 +367,7 @@ CHECKS: dict[str, Callable[[argparse.Namespace], None]] = {
 }
 
 PROFILES = {
+    "ready": ("focused-tests", "audience-static"),
     "fast": ("reference-projections", "website-contract", "focused-tests"),
     "full": (
         "reference-projections",
@@ -348,6 +392,8 @@ def parse_args(arguments: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("profile", nargs="?", choices=sorted(PROFILES), default="fast")
     parser.add_argument("--check", choices=sorted(CHECKS), action="append", dest="checks")
     parser.add_argument("--expected-head")
+    parser.add_argument("--base", help="Exact comparison revision for local capability selection")
+    parser.add_argument("--site-root", type=Path)
     parser.add_argument("--composition-root", type=Path)
     parser.add_argument("--policy-root", type=Path)
     return parser.parse_args(arguments)
@@ -368,7 +414,7 @@ def main(arguments: Sequence[str] | None = None) -> int:
             print(f"SITE_PREFLIGHT_CHECK_START name={name} head={head}", flush=True)
             CHECKS[name](args)
             print(f"SITE_PREFLIGHT_CHECK_PASS name={name} head={head}", flush=True)
-    except (OSError, RuntimeError, ValueError) as exc:
+    except (OSError, RuntimeError, ValueError, subprocess.CalledProcessError) as exc:
         print(
             f"SITE_PREFLIGHT_FAIL profile={args.profile} head={head} error={exc}",
             file=sys.stderr,
