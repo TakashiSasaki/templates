@@ -75,11 +75,10 @@ def pointer_activate_without_navigation(page: Any) -> str:
     wait_results(page)
     # Audience navigation adds breadcrumb ordered lists to the light DOM.
     # Select the actual search result within the search host's shadow root.
-    result = page.evaluate_handle(
-        f"() => {{ const root = {ROOT_EXPR}; return root.querySelector('ol a[href]'); }}"
-    ).as_element()
-    if result is None:
-        raise CheckError("search result disappeared before pointer activation")
+    search_host = page.locator("body > *").filter(
+        has=page.locator('input[role="combobox"]')
+    )
+    result = search_host.locator('ol a[href]').first
     href = result.evaluate("(anchor) => anchor.href")
     page.evaluate(
         f"""() => {{
