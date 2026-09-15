@@ -197,6 +197,8 @@ def pages(
 def load_manifest(path: Path) -> Manifest:
     data = read_json(path, "site manifest")
     schema_version = data.get("schema_version")
+    if type(schema_version) is not int:
+        raise AssemblyError("site manifest schema_version must be an integer")
     if schema_version == 2:
         if set(data) != {"schema_version", "home", "navigation"}:
             raise AssemblyError(
