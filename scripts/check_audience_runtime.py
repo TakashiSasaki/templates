@@ -12,6 +12,64 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 
+def validate_projection_parity(site_root: Path, model: dict, expected: dict) -> None:
+    documents = model.get("documents")
+    routes = model.get("routes")
+    assert isinstance(documents, dict), "assembled audience documents must be an object"
+    assert isinstance(routes, dict), "assembled audience routes must be an object"
+
+    expected_documents = expected["documents"]
+    unexpected_documents = set(documents) - set(expected_documents)
+    assert not unexpected_documents, f"unexpected assembled audience documents: {sorted(unexpected_documents)}"
+    assert all(
+        document == expected_documents[destination]
+        for destination, document in documents.items()
+    ), "assembled document audience projection drift"
+
+    # Assembly may omit catalog documents whose optional source is absent. Keep
+    # exactly the canonical routes for the documents that were actually built.
+    expected_routes = {
+        route: destination
+        for route, destination in expected["routes"].items()
+        if destination in documents
+    }
+
+    # Translation aliases are independently projected from actual published
+    # records. Use that generated inventory, and require each alias to resolve to
+    # an included canonical document with a real generated HTML page.
+    reader_runtime = json.loads(
+        (site_root / "reader-navigation-runtime.json").read_text(encoding="utf-8")
+    )
+    assert reader_runtime.get("schema_version") == 1, "invalid reader navigation runtime"
+    assert isinstance(reader_runtime.get("locales"), list), "invalid reader locale inventory"
+    aliases: dict[str, str] = {}
+    for locale in reader_runtime["locales"]:
+        assert isinstance(locale, dict) and isinstance(locale.get("routes"), dict), (
+            "invalid reader locale routes"
+        )
+        for canonical_route, translated_route in locale["routes"].items():
+            assert isinstance(canonical_route, str) and isinstance(translated_route, str), (
+                "reader locale routes must be strings"
+            )
+            destination = expected_routes.get(canonical_route)
+            assert destination is not None, f"translation aliases omitted document: {canonical_route}"
+            assert (
+                translated_route.startswith("/")
+                and not translated_route.startswith("//")
+                and translated_route.endswith("/")
+                and ".." not in translated_route.split("/")
+                and urlsplit(translated_route).path == translated_route
+            ), f"invalid translated route: {translated_route}"
+            html = site_root / translated_route.lstrip("/") / "index.html"
+            assert html.is_file(), f"translation alias has no published page: {translated_route}"
+            for alias in (translated_route, translated_route + "index.html"):
+                previous = aliases.setdefault(alias, destination)
+                assert previous == destination, f"conflicting translation alias: {alias}"
+
+    complete_expected_routes = {**expected_routes, **aliases}
+    assert routes == complete_expected_routes, "assembled audience route projection drift"
+
+
 def check(site_root: Path, channel: str | None = "chrome") -> dict:
     from playwright.sync_api import sync_playwright
 
@@ -19,9 +77,8 @@ def check(site_root: Path, channel: str | None = "chrome") -> dict:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     from scripts.audience_context import create_resolver
     expected = create_resolver().export_runtime_map()
-    assert model["documents"] == expected["documents"], "assembled document audience projection drift"
+    validate_projection_parity(site_root, model, expected)
     assert model["overviews"] == expected["overviews"], "assembled audience overview drift"
-    assert all(model["routes"].get(r) == d for r, d in expected["routes"].items())
     provenance = json.loads((site_root / "build-provenance.json").read_text())
     assert model["audiences"] == ["use", "maintain"]
     # Every canonical published page must load the single generated controller.
