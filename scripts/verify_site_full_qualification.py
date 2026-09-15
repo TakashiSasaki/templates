@@ -176,6 +176,8 @@ assert ".github/workflows/site-full-qualification.yml" not in EXTERNAL_WORKFLOW_
     "Site full qualification must not depend on itself"
 )
 
+QUALIFICATION_GATE_JOB = "Site Full Qualification / validate"
+
 
 def fetch_workflow_runs(repo: str, head_sha: str, token: str) -> list[dict[str, Any]]:
     runs: list[dict[str, Any]] = []
@@ -312,6 +314,41 @@ def evaluate_suites(
                 except (ValueError, TypeError):
                     pass
         valid_runs.append(r)
+
+    # An ordinary pull-request update (for example, an unrelated label) can
+    # create a newer exact-head build-pages run whose full-qualification gate
+    # is explicitly skipped.  Manual audit has no event timestamp to bind in
+    # that mode, so never let such a non-applicable run hide the latest real
+    # qualification evidence.  An executed gate may be pending, successful,
+    # or failed; only ``skipped`` means the run was not a qualification run.
+    if (
+        qualification_trigger_time is None
+        and qualification_run_id is None
+        and min_run_id is None
+    ):
+        applicable_runs: list[dict[str, Any]] = []
+        for r in valid_runs:
+            if r.get("path") != ".github/workflows/build-pages.yml":
+                applicable_runs.append(r)
+                continue
+            run_id = r.get("id")
+            if not isinstance(run_id, int):
+                continue
+            run_attempt = r.get("run_attempt", 1)
+            cache_key = (run_id, run_attempt)
+            jobs = completed_jobs_cache.get(cache_key)
+            if jobs is None:
+                jobs = fetch_run_jobs(repo, run_id, token, run_attempt)
+                if r.get("status") == "completed":
+                    completed_jobs_cache[cache_key] = jobs
+            gate = next((job for job in jobs if job.get("name") == QUALIFICATION_GATE_JOB), None)
+            # A missing gate is not evidence of non-applicability: GitHub can
+            # expose a partial job list while a run is being scheduled, and
+            # external callers can audit historical workflow definitions.
+            # Only an explicit skipped conclusion excludes the run.
+            if gate is None or gate.get("conclusion") != "skipped":
+                applicable_runs.append(r)
+        valid_runs = applicable_runs
 
     # Group runs by workflow path
     runs_by_path: dict[str, list[dict[str, Any]]] = {}

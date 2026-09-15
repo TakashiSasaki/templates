@@ -160,6 +160,45 @@ class VerifySiteFullQualificationTests(unittest.TestCase):
 
     @patch("scripts.verify_site_full_qualification.fetch_run_jobs")
     @patch("scripts.verify_site_full_qualification.fetch_workflow_runs")
+    def test_manual_audit_ignores_newer_non_applicable_label_run(self, mock_runs, mock_jobs) -> None:
+        runs, jobs_by_id = build_mock_hierarchy()
+        qualified_run = next(
+            run for run in runs if run["path"] == ".github/workflows/build-pages.yml"
+        )
+        qualified_run_id = qualified_run["id"]
+        jobs_by_id[qualified_run_id].append(
+            {
+                "id": 9001,
+                "name": "Site Full Qualification / validate",
+                "status": "completed",
+                "conclusion": "success",
+                "html_url": "http://qualified-gate",
+            }
+        )
+        skipped_run = {**qualified_run, "id": 9002, "created_at": "2026-09-11T11:00:00Z"}
+        runs.append(skipped_run)
+        jobs_by_id[9002] = [
+            {
+                "id": 9003,
+                "name": "Site Full Qualification / validate",
+                "status": "completed",
+                "conclusion": "skipped",
+                "html_url": "http://unrelated-label-gate",
+            }
+        ]
+        mock_runs.return_value = runs
+        mock_jobs.side_effect = lambda repo, run_id, token, run_attempt=1: jobs_by_id.get(run_id, [])
+
+        evaluations, missing = evaluate_suites(
+            "TakashiSasaki/templates", "0123456789abcdef", "token", {}
+        )
+
+        self.assertFalse(missing)
+        self.assertTrue(all(ev.state == "successful" for ev in evaluations.values()))
+        self.assertTrue(all(ev.run_id == qualified_run_id for ev in evaluations.values()))
+
+    @patch("scripts.verify_site_full_qualification.fetch_run_jobs")
+    @patch("scripts.verify_site_full_qualification.fetch_workflow_runs")
     def test_same_job_name_in_two_workflows_selects_correct_identity(
         self, mock_runs, mock_jobs
     ) -> None:
