@@ -41,6 +41,7 @@ class RepositoryFilePreviewTests(unittest.TestCase):
             json.dumps(
                 {
                     "schema_version": 2,
+                    "home": {"publication": "skill", "document": "overview"},
                     "navigation": [
                         {
                             "title": "Skill",

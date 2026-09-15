@@ -8,7 +8,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
+
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from scripts.assemble_publications import AssemblyError, load_manifest
 
 
 def read(root: Path, path: str):
@@ -34,18 +40,11 @@ def public_path(destination: str) -> str:
 def documents(root: Path) -> dict:
     import tomllib
     project = tomllib.loads((root / "zensical.template.toml").read_text().replace("__GENERATED_NAV__", "[]"))["project"]
-    manifest_data = read(root, "site-manifest.json")
-    schema_version = manifest_data.get("schema_version")
-    if type(schema_version) is not int:
-        raise ValueError("site manifest schema_version must be an integer")
-    if schema_version == 3:
-        if "documents" not in manifest_data:
-            raise ValueError("site manifest schema version 3 must contain documents")
-        navigation = manifest_data["documents"]
-    elif schema_version == 2:
-        navigation = list(leaves(manifest_data["navigation"]))
-    else:
-        raise ValueError(f"unsupported site manifest schema_version: {schema_version}")
+    try:
+        manifest = load_manifest(root / "site-manifest.json")
+    except AssemblyError as exc:
+        raise ValueError(str(exc)) from exc
+    navigation = manifest.documents
     pages, routes, metadata = [], [], []
     seen = set()
     for item in navigation:

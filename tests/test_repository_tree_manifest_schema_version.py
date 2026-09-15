@@ -39,7 +39,7 @@ class RepositoryTreeManifestSchemaVersionTests(unittest.TestCase):
         with temporary:
             with self.assertRaisesRegex(
                 RepositoryTreeError,
-                "unsupported site manifest schema_version: 4",
+                "site manifest must be schema version 2 or 3",
             ):
                 manifest_destinations(root)
 
@@ -57,7 +57,7 @@ class RepositoryTreeManifestSchemaVersionTests(unittest.TestCase):
     def test_publication_preparation_rejects_unsupported_integer_schema_version(self) -> None:
         with self.assertRaisesRegex(
             PreparationError,
-            "unsupported site manifest schema_version: 4",
+            "site manifest must be schema version 2 or 3",
         ):
             augment_manifest({"schema_version": 4, "documents": [], "navigation": []})
 

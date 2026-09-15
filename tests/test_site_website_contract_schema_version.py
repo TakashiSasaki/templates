@@ -42,7 +42,7 @@ class SiteWebsiteContractSchemaVersionTests(unittest.TestCase):
 
     def test_rejects_unsupported_integer_schema_version(self) -> None:
         root = self._repository_with_manifest_version(4)
-        with self.assertRaisesRegex(ValueError, "unsupported site manifest schema_version: 4"):
+        with self.assertRaisesRegex(ValueError, "site manifest must be schema version 2 or 3"):
             website.documents(root)
 
 

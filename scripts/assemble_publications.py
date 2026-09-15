@@ -194,8 +194,7 @@ def pages(
             yield node
 
 
-def load_manifest(path: Path) -> Manifest:
-    data = read_json(path, "site manifest")
+def parse_manifest(data: dict[str, Any]) -> Manifest:
     schema_version = data.get("schema_version")
     if type(schema_version) is not int:
         raise AssemblyError("site manifest schema_version must be an integer")
@@ -402,6 +401,10 @@ def load_manifest(path: Path) -> Manifest:
         )
 
     raise AssemblyError("site manifest must be schema version 2 or 3")
+
+
+def load_manifest(path: Path) -> Manifest:
+    return parse_manifest(read_json(path, "site manifest"))
 
 
 def asset_entries(source: Path, field: str) -> list[Path]:
