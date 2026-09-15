@@ -148,7 +148,7 @@ def select_run(runs: list[dict], *, repository: str, head: str, pr: int,
 
 def qualified_artifact(run: dict, jobs: list[dict], artifacts: list[dict],
                        expected: dict) -> dict | None:
-    builds = [job for job in jobs if job['name'] == 'build']
+    builds = [job for job in jobs if job['name'] in {'build', 'build / build'}]
     if len(builds) != 1:
         if run['status'] == 'completed':
             raise ArtifactError('canonical run has no unique build job')
@@ -183,7 +183,7 @@ def reuse(expected: dict, target: Path, *, pr: int, current_run: int,
         # If none exists (including a previous docs-only skip), it must build.
         while run:
             jobs = list_all(f'repos/{repository}/actions/runs/{run["id"]}/jobs?filter=latest', 'jobs')
-            builds = [job for job in jobs if job['name'] == 'build']
+            builds = [job for job in jobs if job['name'] in {'build', 'build / build'}]
             # Unrelated label events intentionally create isolated same-head runs
             # whose build job is skipped. They are not producer failures and must
             # not hide an older applicable producer while consumers are waiting.
@@ -192,7 +192,7 @@ def reuse(expected: dict, target: Path, *, pr: int, current_run: int,
                 runs = [r for r in runs if r['id'] != run['id']]
                 run = select_run(runs, repository=repository, head=expected['site'], pr=pr, current_run=current_run)
                 continue
-            if wait or any(j['name'] == 'build' and j['status'] == 'completed' and j['conclusion'] == 'success' for j in jobs):
+            if wait or any(j['name'] in {'build', 'build / build'} and j['status'] == 'completed' and j['conclusion'] == 'success' for j in jobs):
                 break
             runs = [r for r in runs if r['id'] != run['id']]
             run = select_run(runs, repository=repository, head=expected['site'], pr=pr, current_run=current_run)
@@ -255,7 +255,7 @@ def main() -> int:
                                 requested=os.environ.get('REUSE_PR_BUILD') == 'true',
                                 event=os.environ.get('GITHUB_EVENT_NAME', ''))
     canonical = os.environ.get('IS_CANONICAL_BUILD') == 'true' and os.environ.get('GITHUB_EVENT_NAME') == 'pull_request'
-    evidence = reuse(expected, args.target, pr=int(os.environ['PR_NUMBER']), current_run=int(os.environ['GITHUB_RUN_ID']), wait=not canonical) if eligible or canonical else {}
+    evidence = reuse(expected, args.target, pr=int(os.environ['PR_NUMBER']), current_run=int(os.environ['GITHUB_RUN_ID']), wait=False) if eligible or canonical else {}
     reused = bool(evidence)
     with args.output.open('a') as output:
         output.write(f'reused={str(reused).lower()}\nidentity={identity_key(expected)}\n')

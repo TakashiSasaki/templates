@@ -214,7 +214,7 @@ class SearchHistoryRuntimeContractTests(unittest.TestCase):
         self.assertIn("needs:\n      - build\n      - classify_browser", check_block)
         self.assertIn("test \"$BUILD_RESULT\" = success", check_block)
         self.assertIn("test \"$CLASSIFIER_RESULT\" = success", check_block)
-        self.assertIn("actions/download-artifact@v5", check_block)
+        self.assertIn("scripts/consume_site_build_artifact.py", check_block)
         self.assertIn("python scripts/check_search_history.py", check_block)
         self.assertIn("python scripts/check_search_history_review_regressions.py", check_block)
         self.assertIn(

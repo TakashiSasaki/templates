@@ -7,7 +7,7 @@ from scripts import assemble_publications, assemble_publications_v3
 
 
 ROOT = Path(__file__).resolve().parents[1]
-WORKFLOW = ROOT / ".github/workflows/build-pages.yml"
+WORKFLOW = ROOT / ".github/workflows/site-producer.yml"
 TRANSLATION_PUBLISHER = ROOT / "scripts/publish_provider_translations.py"
 
 

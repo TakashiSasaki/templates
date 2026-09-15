@@ -243,7 +243,7 @@ class MobileLayoutRegressionTests(unittest.TestCase):
         self.assertIn("test \"$BUILD_RESULT\" = success", check_block)
         self.assertIn("test \"$CLASSIFIER_RESULT\" = success", check_block)
         self.assertIn("inputs.site_ref == ''", check_block)
-        self.assertIn("actions/download-artifact@v5", check_block)
+        self.assertIn("scripts/consume_site_build_artifact.py", check_block)
         self.assertIn(
             "if: ${{ needs.classify_browser.outputs.browser_required == 'true' }}",
             check_block,

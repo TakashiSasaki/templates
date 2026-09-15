@@ -28,6 +28,8 @@ from typing import TextIO
 CI_CONTROL_EXACT_PATHS = frozenset(
     {
         "scripts/site_build_artifact.py",
+        "scripts/consume_site_build_artifact.py",
+        "scripts/run_site_preflight.py",
         "scripts/classify_site_ci.py",
         "scripts/classify_site_browser_acceptance.py",
         "scripts/classify_provider_coexistence.py",

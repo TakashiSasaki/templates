@@ -58,6 +58,8 @@ def build_mock_hierarchy(
             continue
         status = status_overrides.get(suite.key, "completed")
         conclusion = conclusion_overrides.get(suite.key, "success" if status == "completed" else None)
+        if any(j["name"] == suite.job_name for j in jobs_by_run_id[run_id]):
+            continue
         jobs_by_run_id[run_id].append({
             "id": hash(suite.key) & 0x7FFFFFFF,
             "name": suite.job_name,
@@ -113,7 +115,7 @@ class VerifySiteFullQualificationTests(unittest.TestCase):
     def test_all_green_exact_head_l3_checks_returns_zero(self, mock_runs, mock_jobs) -> None:
         runs, jobs_by_id = build_mock_hierarchy()
         mock_runs.return_value = runs
-        mock_jobs.side_effect = lambda repo, run_id, token: jobs_by_id.get(run_id, [])
+        mock_jobs.side_effect = lambda repo, run_id, token, run_attempt=1: jobs_by_id.get(run_id, [])
 
         result = verify_qualification(
             repo="TakashiSasaki/templates",
@@ -144,7 +146,7 @@ class VerifySiteFullQualificationTests(unittest.TestCase):
         }
         runs, jobs_by_id = build_mock_hierarchy(extra_jobs_by_path=extra)
         mock_runs.return_value = runs
-        mock_jobs.side_effect = lambda repo, run_id, token: jobs_by_id.get(run_id, [])
+        mock_jobs.side_effect = lambda repo, run_id, token, run_attempt=1: jobs_by_id.get(run_id, [])
 
         result = verify_qualification(
             repo="TakashiSasaki/templates",
@@ -176,7 +178,7 @@ class VerifySiteFullQualificationTests(unittest.TestCase):
         }
         runs, jobs_by_id = build_mock_hierarchy(extra_jobs_by_path=extra)
         mock_runs.return_value = runs
-        mock_jobs.side_effect = lambda repo, run_id, token: jobs_by_id.get(run_id, [])
+        mock_jobs.side_effect = lambda repo, run_id, token, run_attempt=1: jobs_by_id.get(run_id, [])
 
         result = verify_qualification(
             repo="TakashiSasaki/templates",
@@ -192,10 +194,10 @@ class VerifySiteFullQualificationTests(unittest.TestCase):
     @patch("scripts.verify_site_full_qualification.fetch_workflow_runs")
     def test_required_check_missing_returns_one(self, mock_runs, mock_jobs) -> None:
         # A required workflow path is entirely missing
-        missing_wf = {".github/workflows/validate-website.yml"}
+        missing_wf = {".github/workflows/build-pages.yml"}
         runs, jobs_by_id = build_mock_hierarchy(missing_workflow_paths=missing_wf)
         mock_runs.return_value = runs
-        mock_jobs.side_effect = lambda repo, run_id, token: jobs_by_id.get(run_id, [])
+        mock_jobs.side_effect = lambda repo, run_id, token, run_attempt=1: jobs_by_id.get(run_id, [])
 
         result = verify_qualification(
             repo="TakashiSasaki/templates",
@@ -214,7 +216,7 @@ class VerifySiteFullQualificationTests(unittest.TestCase):
             conclusion_overrides={"build": "failure"},
         )
         mock_runs.return_value = runs
-        mock_jobs.side_effect = lambda repo, run_id, token: jobs_by_id.get(run_id, [])
+        mock_jobs.side_effect = lambda repo, run_id, token, run_attempt=1: jobs_by_id.get(run_id, [])
 
         stderr_capture = io.StringIO()
         with patch("sys.stderr", stderr_capture):
@@ -237,7 +239,7 @@ class VerifySiteFullQualificationTests(unittest.TestCase):
             conclusion_overrides={"check": "cancelled"},
         )
         mock_runs.return_value = runs
-        mock_jobs.side_effect = lambda repo, run_id, token: jobs_by_id.get(run_id, [])
+        mock_jobs.side_effect = lambda repo, run_id, token, run_attempt=1: jobs_by_id.get(run_id, [])
 
         stderr_capture = io.StringIO()
         with patch("sys.stderr", stderr_capture):
@@ -260,7 +262,7 @@ class VerifySiteFullQualificationTests(unittest.TestCase):
             conclusion_overrides={"ref_consumer_browser": "skipped"},
         )
         mock_runs.return_value = runs
-        mock_jobs.side_effect = lambda repo, run_id, token: jobs_by_id.get(run_id, [])
+        mock_jobs.side_effect = lambda repo, run_id, token, run_attempt=1: jobs_by_id.get(run_id, [])
 
         stderr_capture = io.StringIO()
         with patch("sys.stderr", stderr_capture):
@@ -298,7 +300,7 @@ class VerifySiteFullQualificationTests(unittest.TestCase):
                 return runs_pending
             return runs_success
 
-        def mock_jobs_fn(repo, run_id, token):
+        def mock_jobs_fn(repo, run_id, token, run_attempt=1):
             if call_count == 1:
                 return jobs_pending.get(run_id, [])
             return jobs_success.get(run_id, [])
@@ -326,7 +328,7 @@ class VerifySiteFullQualificationTests(unittest.TestCase):
             conclusion_overrides={"build": None},
         )
         mock_runs.return_value = runs
-        mock_jobs.side_effect = lambda repo, run_id, token: jobs_by_id.get(run_id, [])
+        mock_jobs.side_effect = lambda repo, run_id, token, run_attempt=1: jobs_by_id.get(run_id, [])
 
         stderr_capture = io.StringIO()
         with patch("sys.stderr", stderr_capture):
@@ -354,7 +356,7 @@ class VerifySiteFullQualificationTests(unittest.TestCase):
         for r in runs_completed:
             r["run_attempt"] = 1
         mock_runs.return_value = runs_completed
-        mock_jobs.side_effect = lambda repo, run_id, token: jobs_completed.get(run_id, [])
+        mock_jobs.side_effect = lambda repo, run_id, token, run_attempt=1: jobs_completed.get(run_id, [])
 
         evals, missing = evaluate_suites("TakashiSasaki/templates", "0123456789abcdef", "token", cache)
         self.assertEqual("successful", evals["build"].state)
@@ -370,7 +372,7 @@ class VerifySiteFullQualificationTests(unittest.TestCase):
         for r in runs_reattempted:
             r["run_attempt"] = 2
         mock_runs.return_value = runs_reattempted
-        mock_jobs.side_effect = lambda repo, run_id, token: jobs_reattempted.get(run_id, [])
+        mock_jobs.side_effect = lambda repo, run_id, token, run_attempt=1: jobs_reattempted.get(run_id, [])
 
         evals, missing = evaluate_suites("TakashiSasaki/templates", "0123456789abcdef", "token", cache)
         # Attempt 1 must be purged, and state must be pending, not stale successful
@@ -385,7 +387,7 @@ class VerifySiteFullQualificationTests(unittest.TestCase):
         for r in runs_failed:
             r["run_attempt"] = 2
         mock_runs.return_value = runs_failed
-        mock_jobs.side_effect = lambda repo, run_id, token: jobs_failed.get(run_id, [])
+        mock_jobs.side_effect = lambda repo, run_id, token, run_attempt=1: jobs_failed.get(run_id, [])
 
         evals, missing = evaluate_suites("TakashiSasaki/templates", "0123456789abcdef", "token", cache)
         self.assertEqual("failed", evals["build"].state)
@@ -401,7 +403,7 @@ class VerifySiteFullQualificationTests(unittest.TestCase):
         for r in runs:
             r["created_at"] = "2026-09-11T09:00:00Z"
         mock_runs.return_value = runs
-        mock_jobs.side_effect = lambda repo, run_id, token: jobs_by_id.get(run_id, [])
+        mock_jobs.side_effect = lambda repo, run_id, token, run_attempt=1: jobs_by_id.get(run_id, [])
 
         stderr_capture = io.StringIO()
         with patch("sys.stderr", stderr_capture):
@@ -426,7 +428,7 @@ class VerifySiteFullQualificationTests(unittest.TestCase):
         for r in runs:
             r["created_at"] = "2026-09-11T10:01:00Z"
         mock_runs.return_value = runs
-        mock_jobs.side_effect = lambda repo, run_id, token: jobs_by_id.get(run_id, [])
+        mock_jobs.side_effect = lambda repo, run_id, token, run_attempt=1: jobs_by_id.get(run_id, [])
 
         result = verify_qualification(
             repo="TakashiSasaki/templates",
@@ -454,11 +456,11 @@ class VerifySiteFullQualificationTests(unittest.TestCase):
             r["created_at"] = "2026-09-11T09:59:30Z"
         # Make one labeled-dispatched workflow run ancient (stale)
         for r in runs:
-            if r["path"] == ".github/workflows/check-agent-policy.yml":
+            if r["path"] == ".github/workflows/build-pages.yml":
                 r["created_at"] = "2026-09-11T08:00:00Z"
 
         mock_runs.return_value = runs
-        mock_jobs.side_effect = lambda repo, run_id, token: jobs_by_id.get(run_id, [])
+        mock_jobs.side_effect = lambda repo, run_id, token, run_attempt=1: jobs_by_id.get(run_id, [])
 
         stderr_capture = io.StringIO()
         with patch("sys.stderr", stderr_capture):
@@ -492,7 +494,7 @@ class VerifySiteFullQualificationTests(unittest.TestCase):
                 r["created_at"] = "2026-09-11T08:00:00Z"
 
         mock_runs.return_value = runs
-        mock_jobs.side_effect = lambda repo, run_id, token: jobs_by_id.get(run_id, [])
+        mock_jobs.side_effect = lambda repo, run_id, token, run_attempt=1: jobs_by_id.get(run_id, [])
 
         result = verify_qualification(
             repo="TakashiSasaki/templates",
@@ -515,7 +517,7 @@ class VerifySiteFullQualificationTests(unittest.TestCase):
         # All runs in build_mock_hierarchy start from id=1000
         # If min_run_id=1005, runs with id < 1005 are excluded
         mock_runs.return_value = runs
-        mock_jobs.side_effect = lambda repo, run_id, token: jobs_by_id.get(run_id, [])
+        mock_jobs.side_effect = lambda repo, run_id, token, run_attempt=1: jobs_by_id.get(run_id, [])
 
         stderr_capture = io.StringIO()
         with patch("sys.stderr", stderr_capture):

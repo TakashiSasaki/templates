@@ -135,7 +135,7 @@ class GlossaryViewerBoundaryTests(unittest.TestCase):
 
     def test_pages_pipeline_validates_landing_link_to_glossary(self) -> None:
         root = Path(__file__).resolve().parents[1]
-        workflow = (root / ".github/workflows/build-pages.yml").read_text(
+        workflow = (root / ".github/workflows/site-producer.yml").read_text(
             encoding="utf-8"
         )
         landing = (root / "docs/landing.md").read_text(encoding="utf-8")

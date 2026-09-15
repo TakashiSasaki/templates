@@ -789,7 +789,7 @@ class PublicationStagingMaterializationTests(unittest.TestCase):
 
 class PublicationStagingWorkflowTests(unittest.TestCase):
     def test_reusable_build_materializes_staging_only_when_explicitly_requested(self) -> None:
-        workflow = (ROOT / ".github/workflows/build-pages.yml").read_text(encoding="utf-8")
+        workflow = (ROOT / ".github/workflows/site-producer.yml").read_text(encoding="utf-8")
         deploy = (ROOT / ".github/workflows/deploy-pages.yml").read_text(encoding="utf-8")
 
         self.assertIn("publication_staging_id:", workflow)

@@ -16,7 +16,7 @@ from scripts.generate_repository_trees import generate
 
 
 ROOT = Path(__file__).resolve().parents[1]
-WORKFLOW = ROOT / ".github/workflows/build-pages.yml"
+WORKFLOW = ROOT / ".github/workflows/site-producer.yml"
 CONFIG_TEMPLATE = ROOT / "zensical.template.toml"
 POLICY = ROOT / "PUBLISHING.md"
 VIEWER_SCRIPT = ROOT / "assets/javascripts/repository-tree-viewer.js"

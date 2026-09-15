@@ -30,20 +30,18 @@ def pull_request_bases(text: str) -> set[str]:
 
 def main() -> int:
     text = WORKFLOW.read_text(encoding="utf-8")
-    bases = pull_request_bases(text)
+    dispatcher = (WORKFLOW.parent / "build-pages.yml").read_text()
+    bases = pull_request_bases(dispatcher)
     if bases != EXPECTED_BASES:
         raise AssertionError(
             f"cross-authority PR bases must be exactly {sorted(EXPECTED_BASES)}, got {sorted(bases)}"
         )
-    if "site_ref: ${{ github.event.pull_request.head.sha }}" not in text:
-        raise AssertionError("cross-authority build no longer binds to the exact PR head")
     if "ref: ${{ github.event.pull_request.head.sha }}" not in text:
-        raise AssertionError("cross-authority consumer checkout no longer binds to the exact PR head")
-    if (
-        "composition_ref: ${{ needs.resolve_candidate.outputs.composition_revision }}" not in text
-        and "composition_ref: ${{ needs.classify.outputs.composition_revision }}" not in text
-    ):
-        raise AssertionError("cross-authority candidate must resolve the declared exact provider pin")
+        raise AssertionError("cross-authority consumer checkout must bind the exact head")
+    if "scripts/consume_site_build_artifact.py" not in text or "BUILD_ARTIFACT_DIGEST: ${{ inputs.artifact_digest }}" not in text:
+        raise AssertionError("cross-authority must validate the exact scheduled producer artifact")
+    if "needs.build.outputs.artifact_id" not in dispatcher:
+        raise AssertionError("cross-authority must depend on the canonical producer")
     if "python scripts/resolve_publication_sources.py" not in text:
         raise AssertionError("cross-authority candidate must use the canonical publication resolver")
     if "python scripts/run_site_preflight.py cross" not in text or "--check candidate-projection" not in text:

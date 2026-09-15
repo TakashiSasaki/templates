@@ -1,27 +1,11 @@
 name: Publication contract v4
-
 on:
-  pull_request:
-    types:
-      - opened
-      - synchronize
-      - reopened
-      - labeled
-
+  workflow_call: {}
 permissions:
   contents: read
-
-concurrency:
-  group: publication-contract-v4-${{ (github.event.action == 'labeled' && github.event.label.name != 'ci/full-qualification' && github.event.label.name != 'ci/full-site-verification') && format('unrelated-label-{0}', github.run_id) || (github.event.pull_request.number || github.ref) }}
-  cancel-in-progress: true
-
 jobs:
   contract:
-    if: >-
-      github.event_name != 'pull_request' ||
-      github.event.action != 'labeled' ||
-      github.event.label.name == 'ci/full-qualification' ||
-      github.event.label.name == 'ci/full-site-verification'
+    if: github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'ci/full-qualification' || github.event.label.name == 'ci/full-site-verification'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -30,17 +14,11 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
-
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
           python-version: '3.12'
-
       - name: Install audience inventory dependencies
         run: python -m pip install jsonschema==4.26.0
-
       - name: Run publication protocol regressions
-        run: >-
-          python scripts/run_site_preflight.py full
-          --check publication-contract-tests
-          --expected-head "${{ github.event.pull_request.head.sha }}"
+        run: python scripts/run_site_preflight.py full --check publication-contract-tests --expected-head "${{ github.event.pull_request.head.sha }}"

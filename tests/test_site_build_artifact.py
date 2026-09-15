@@ -159,7 +159,7 @@ class ProducerBindingTests(unittest.TestCase):
 class ReuseWorkflowTests(unittest.TestCase):
     def test_reuse_skips_all_producer_steps_and_preserves_local_artifact_contract(self):
         root=Path(__file__).resolve().parents[1]
-        workflow=yaml.safe_load((root/artifact.WORKFLOW).read_text())
+        workflow=yaml.safe_load((root/".github/workflows/site-producer.yml").read_text())
         steps=workflow['jobs']['build']['steps']
         reuse_step=next(s for s in steps if s.get('id') == 'artifact')
         self.assertIn('github.event.pull_request.head.repo.full_name == github.repository', reuse_step['env']['REUSE_PR_BUILD'])
@@ -168,10 +168,11 @@ class ReuseWorkflowTests(unittest.TestCase):
         for step in steps[start:end]:
             self.assertIn("steps.artifact.outputs.reused != 'true'",step['if'],step['name'])
         self.assertNotIn('if', steps[end])
-        for name in ['reference-consumer.yml','site-composition-playground-cross-authority.yml',
-                     'check-publication-freshness.yml']:
+        for name in ['check-publication-freshness.yml']:
             text=(root/'.github/workflows'/name).read_text()
             self.assertIn('reuse_pr_build: true', text)
+        for name in ['reference-consumer.yml', 'site-composition-playground-cross-authority.yml']:
+            self.assertIn('consume_site_build_artifact.py', (root/'.github/workflows'/name).read_text())
         self.assertNotIn('reuse_pr_build: true', (root/'.github/workflows/deploy-pages.yml').read_text())
 
 class CanonicalProducerReuseTests(unittest.TestCase):
@@ -225,7 +226,7 @@ class BuildDependencyLockTests(unittest.TestCase):
         locked = packages(root / 'requirements-build.lock')
         for name, version in direct.items():
             self.assertEqual(locked.get(name), version, name)
-        workflow = yaml.safe_load((root / artifact.WORKFLOW).read_text())
+        workflow = yaml.safe_load((root / ".github/workflows/site-producer.yml").read_text())
         step = next(s for s in workflow['jobs']['build']['steps'] if s.get('name') == 'Install pinned site dependencies')
         self.assertIn('--no-deps --requirement site-source/requirements-build.lock', step['run'])
         self.assertIn('python -m pip check', step['run'])
