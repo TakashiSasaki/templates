@@ -5,7 +5,7 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 import yaml
 from scripts.classify_site_ci import classify_paths
-from scripts.pwa_failure_evidence import attach, snapshot
+from scripts.pwa_failure_evidence import SNAPSHOT_TIMEOUT_MS, attach, snapshot
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -53,3 +53,19 @@ class BrowserPriorityTests(unittest.TestCase):
         context.pages=[page]
         snapshot(context,evidence)
         self.assertEqual(evidence['pages'][0]['snapshot_error'],'page terminated')
+
+    def test_snapshot_lifecycle_probe_has_a_bounded_browser_deadline(self):
+        context = Mock()
+        page = Mock()
+        page.is_closed.return_value = False
+        page.url = 'http://fixture/'
+        page.evaluate.return_value = {'snapshot_timeout_ms': SNAPSHOT_TIMEOUT_MS}
+        context.pages = [page]
+        evidence = {}
+
+        snapshot(context, evidence)
+
+        expression = page.evaluate.call_args.args[0]
+        self.assertIn('Promise.race', expression)
+        self.assertIn(str(SNAPSHOT_TIMEOUT_MS), expression)
+        self.assertEqual(evidence['pages'][0]['snapshot_timeout_ms'], SNAPSHOT_TIMEOUT_MS)

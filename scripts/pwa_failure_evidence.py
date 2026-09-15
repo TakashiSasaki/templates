@@ -2,6 +2,15 @@
 from __future__ import annotations
 import time
 
+SNAPSHOT_TIMEOUT_MS = 5_000
+SNAPSHOT_EXPRESSION = f"""async () => await Promise.race([
+  (async () => await globalThis.__pwaFailureEvidence?.() || {{}})(),
+  new Promise(resolve => setTimeout(
+    () => resolve({{snapshot_timeout_ms: {SNAPSHOT_TIMEOUT_MS}}}),
+    {SNAPSHOT_TIMEOUT_MS},
+  )),
+])"""
+
 INIT_SCRIPT = r"""(() => {
   const events = [];
   const record = (kind, detail = {}) => {
@@ -72,6 +81,6 @@ def snapshot(context, evidence):
         if page.is_closed():
             continue
         try:
-            evidence['pages'].append({'url':page.url, **page.evaluate('async () => await globalThis.__pwaFailureEvidence?.() || {}')})
+            evidence['pages'].append({'url': page.url, **page.evaluate(SNAPSHOT_EXPRESSION)})
         except Exception as exc:
             evidence['pages'].append({'url':page.url,'snapshot_error':str(exc)})
