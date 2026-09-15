@@ -194,8 +194,11 @@ def published_url(base_path: str, document_destination: str) -> str:
 
 def manifest_destinations(site_root: Path) -> dict[tuple[str, str], str]:
     manifest = read_json(site_root / "site-manifest.json", "site manifest")
-    if manifest.get("schema_version") == 3 and "documents" in manifest:
-        documents = manifest["documents"]
+    schema_version = manifest.get("schema_version")
+    if type(schema_version) is not int:
+        raise RepositoryTreeError("site manifest schema_version must be an integer")
+    if schema_version == 3:
+        documents = manifest.get("documents")
         if not isinstance(documents, list):
             raise RepositoryTreeError("site manifest documents must be an array")
         result: dict[tuple[str, str], str] = {}
@@ -215,6 +218,10 @@ def manifest_destinations(site_root: Path) -> dict[tuple[str, str], str]:
                 raise RepositoryTreeError("site manifest contains a duplicate document")
             result[key] = destination
         return result
+    if schema_version != 2:
+        raise RepositoryTreeError(
+            f"unsupported site manifest schema_version: {schema_version}"
+        )
 
     navigation = manifest.get("navigation")
     if not isinstance(navigation, list):
