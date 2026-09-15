@@ -110,6 +110,7 @@
     // The engine owns unfiltered keyboard behavior. Filtering must never activate a hidden hit.
     root.addEventListener("keydown", event => {
       if (event.target !== input || select.value === "all" || !["ArrowDown","ArrowUp","Enter"].includes(event.key)) return;
+      if (event.isComposing) return;
       if (event.defaultPrevented) { event.stopImmediatePropagation(); return; }
       refresh(root,state);
       const hits = visibleHits(root);
