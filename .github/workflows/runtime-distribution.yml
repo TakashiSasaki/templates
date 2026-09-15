@@ -31,6 +31,7 @@ jobs:
       reason: ${{ steps.classify.outputs.reason }}
       changed_count: ${{ steps.classify.outputs.changed_count }}
       authority_source: ${{ steps.classify.outputs.authority_source }}
+      compatibility_requested: ${{ steps.classify.outputs.compatibility_requested }}
     steps:
       - name: Check out repository history for change classification
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -51,6 +52,7 @@ jobs:
           rm -rf "$classifier_dir"
           mkdir -p "$classifier_dir"
           authority_source="proposed-head"
+          echo "compatibility_requested=$FORCE_COMPATIBILITY" >> "$GITHUB_OUTPUT"
 
           if [ "$EVENT_NAME" = "pull_request" ]; then
             if git show "$BASE_SHA:scripts/classify_runtime_distribution_ci.py" > "$classifier_dir/classify_runtime_distribution_ci.py" \
@@ -63,6 +65,7 @@ jobs:
                 echo "required=true"
                 echo "reason=base-classifier-unavailable"
                 echo "changed_count=unknown"
+                echo "compatibility_requested=true"
               } >> "$GITHUB_OUTPUT"
               exit 0
             fi
@@ -78,64 +81,61 @@ jobs:
             --force-compatibility "$FORCE_COMPATIBILITY" \
             --github-output "$GITHUB_OUTPUT"
 
-  clean-install:
-    name: ${{ matrix.platform.os }} / Python ${{ matrix.python-version }}
+          reason="$(sed -n 's/^reason=//p' "$GITHUB_OUTPUT" | tail -n 1)"
+          case "$reason" in
+            compatibility-sensitive-change)
+              # Bootstrap authority-path detection while the pull request is still
+              # classified by a base revision that predates the distinct
+              # compatibility-authority-change reason. Any diff failure here is
+              # conservative and requests the supplemental matrix.
+              if authority_paths="$(
+                git diff --name-only --no-renames "$BASE_SHA" "$HEAD_SHA" -- \
+                  .github/workflows \
+                  scripts/classify_runtime_distribution_ci.py \
+                  scripts/ci_change_classification.py \
+                  scripts/run_policy_runtime_checks.py
+              )"; then
+                if [ -n "$authority_paths" ]; then
+                  echo "compatibility_requested=true" >> "$GITHUB_OUTPUT"
+                fi
+              else
+                echo "compatibility_requested=true" >> "$GITHUB_OUTPUT"
+              fi
+              ;;
+            compatibility-insensitive-change)
+              ;;
+            *)
+              # The base classifier can evolve independently of this workflow.
+              # Only the explicitly ordinary fast-path reasons may omit the
+              # supplemental matrix; every other outcome is conservative.
+              echo "required=true" >> "$GITHUB_OUTPUT"
+              echo "compatibility_requested=true" >> "$GITHUB_OUTPUT"
+              ;;
+          esac
+
+      - name: Record runtime CI selection
+        env:
+          RUNTIME_REQUIRED: ${{ steps.classify.outputs.required }}
+          RUNTIME_REASON: ${{ steps.classify.outputs.reason }}
+          COMPATIBILITY_REQUESTED: ${{ steps.classify.outputs.compatibility_requested }}
+        run: |
+          {
+            echo '### Policy runtime distribution selection'
+            echo
+            echo "- runtime checks required: \`$RUNTIME_REQUIRED\`"
+            echo "- reason: \`$RUNTIME_REASON\`"
+            echo "- full compatibility requested: \`$COMPATIBILITY_REQUESTED\`"
+            echo '- default qualification: Ubuntu 24.04 / Python 3.11'
+            echo '- Windows and Python 3.12-3.14 run at explicit checkpoints, CI-authority changes, or fail-closed classifier fallbacks'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  runtime-checks:
+    name: Ubuntu / Python 3.11
     needs:
       - classify_runtime
     if: ${{ always() && !cancelled() && needs.classify_runtime.result == 'success' && needs.classify_runtime.outputs.required == 'true' }}
-    strategy:
-      fail-fast: false
-      matrix:
-        platform:
-          - os: ubuntu-24.04
-            pip-config-file: /dev/null
-          - os: windows-2022
-            pip-config-file: NUL
-        python-version:
-          - "3.11"
-          - "3.12"
-          - "3.13"
-          - "3.14"
-    runs-on: ${{ matrix.platform.os }}
-    timeout-minutes: 15
-    env:
-      PYTHONHOME: ""
-      PYTHONPATH: ""
-      PYTHONUSERBASE: ""
-      PYTHONNOUSERSITE: "1"
-      PIP_PYTHON: ""
-      PIP_CACHE_DIR: ""
-      PIP_NO_CACHE_DIR: ""
-      PIP_QUIET: ""
-      PIP_LOG: ""
-      PIP_CONFIG_FILE: ${{ matrix.platform.pip-config-file }}
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
-
-      - name: Set up Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Install and verify runtime distribution in a clean environment
-        run: python -I scripts/run_policy_preflight.py --check runtime
-
-  skill-source-candidate:
-    name: skill source / ${{ matrix.os }}
-    needs:
-      - classify_runtime
-    if: ${{ always() && !cancelled() && needs.classify_runtime.result == 'success' && needs.classify_runtime.outputs.required == 'true' }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os:
-          - ubuntu-24.04
-          - windows-2022
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 15
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
     env:
       CANDIDATE_REVISION: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
       PYTHONHOME: ""
@@ -147,8 +147,9 @@ jobs:
       PIP_NO_CACHE_DIR: ""
       PIP_QUIET: ""
       PIP_LOG: ""
+      PIP_CONFIG_FILE: /dev/null
     steps:
-      - name: Check out exact skill-source candidate
+      - name: Check out exact candidate
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ env.CANDIDATE_REVISION }}
@@ -157,11 +158,82 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
-          python-version: "3.12"
+          python-version: "3.11"
 
-      - name: Verify remote skill-source candidate through stable runtime
+      - name: Run canonical Policy runtime checks
         run: >-
-          python -I scripts/smoke_test_agent_policy_skill_source.py
+          python -I scripts/run_policy_runtime_checks.py
+          --check all
+          --revision "${{ env.CANDIDATE_REVISION }}"
+
+  compatibility-runtime:
+    name: ${{ matrix.os }} / Python ${{ matrix.python-version }}
+    needs:
+      - classify_runtime
+      - runtime-checks
+    if: ${{ always() && !cancelled() && needs.classify_runtime.result == 'success' && needs.classify_runtime.outputs.required == 'true' && needs.classify_runtime.outputs.compatibility_requested == 'true' && needs.runtime-checks.result == 'success' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            pip-config-file: /dev/null
+            python-version: "3.12"
+            check: runtime
+          - os: ubuntu-24.04
+            pip-config-file: /dev/null
+            python-version: "3.13"
+            check: runtime
+          - os: ubuntu-24.04
+            pip-config-file: /dev/null
+            python-version: "3.14"
+            check: runtime
+          - os: windows-2022
+            pip-config-file: NUL
+            python-version: "3.11"
+            check: all
+          - os: windows-2022
+            pip-config-file: NUL
+            python-version: "3.12"
+            check: runtime
+          - os: windows-2022
+            pip-config-file: NUL
+            python-version: "3.13"
+            check: runtime
+          - os: windows-2022
+            pip-config-file: NUL
+            python-version: "3.14"
+            check: runtime
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    env:
+      CANDIDATE_REVISION: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+      PYTHONHOME: ""
+      PYTHONPATH: ""
+      PYTHONUSERBASE: ""
+      PYTHONNOUSERSITE: "1"
+      PIP_PYTHON: ""
+      PIP_CACHE_DIR: ""
+      PIP_NO_CACHE_DIR: ""
+      PIP_QUIET: ""
+      PIP_LOG: ""
+      PIP_CONFIG_FILE: ${{ matrix.pip-config-file }}
+    steps:
+      - name: Check out exact candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.CANDIDATE_REVISION }}
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Run canonical compatibility checks
+        run: >-
+          python -I scripts/run_policy_runtime_checks.py
+          --check "${{ matrix.check }}"
           --revision "${{ env.CANDIDATE_REVISION }}"
 
   validate:
@@ -169,8 +241,8 @@ jobs:
     if: ${{ always() }}
     needs:
       - classify_runtime
-      - clean-install
-      - skill-source-candidate
+      - runtime-checks
+      - compatibility-runtime
     runs-on: ubuntu-24.04
     timeout-minutes: 2
     steps:
@@ -178,18 +250,23 @@ jobs:
         env:
           CLASSIFIER_RESULT: ${{ needs.classify_runtime.result }}
           RUNTIME_REQUIRED: ${{ needs.classify_runtime.outputs.required }}
-          CLEAN_INSTALL_RESULT: ${{ needs.clean-install.result }}
-          SKILL_SOURCE_RESULT: ${{ needs.skill-source-candidate.result }}
+          COMPATIBILITY_REQUESTED: ${{ needs.classify_runtime.outputs.compatibility_requested }}
+          RUNTIME_CHECKS_RESULT: ${{ needs.runtime-checks.result }}
+          COMPATIBILITY_RUNTIME_RESULT: ${{ needs.compatibility-runtime.result }}
         run: |
           test "$CLASSIFIER_RESULT" = success
           case "$RUNTIME_REQUIRED" in
             true)
-              test "$CLEAN_INSTALL_RESULT" = success
-              test "$SKILL_SOURCE_RESULT" = success
+              test "$RUNTIME_CHECKS_RESULT" = success
+              if [ "$COMPATIBILITY_REQUESTED" = true ]; then
+                test "$COMPATIBILITY_RUNTIME_RESULT" = success
+              else
+                test "$COMPATIBILITY_RUNTIME_RESULT" = skipped
+              fi
               ;;
             false)
-              test "$CLEAN_INSTALL_RESULT" = skipped
-              test "$SKILL_SOURCE_RESULT" = skipped
+              test "$RUNTIME_CHECKS_RESULT" = skipped
+              test "$COMPATIBILITY_RUNTIME_RESULT" = skipped
               ;;
             *)
               echo "invalid runtime compatibility classification: $RUNTIME_REQUIRED" >&2

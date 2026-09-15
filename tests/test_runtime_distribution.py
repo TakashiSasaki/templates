@@ -6,9 +6,11 @@ import sys
 import tomllib
 from pathlib import Path
 
+import pytest
 import yaml
 from packaging.requirements import Requirement
 
+from scripts.run_policy_runtime_checks import commands_for
 from scripts.smoke_test_runtime_distribution import environment as smoke_environment
 from scripts.verify_ci_environment import load_locked_requirements as load_ci_lock
 from scripts.verify_runtime_environment import (
@@ -18,6 +20,23 @@ from scripts.verify_runtime_environment import (
 )
 
 ROOT = Path(__file__).resolve().parents[1]
+BASELINE = ("ubuntu-24.04", "3.11")
+SUPPLEMENTAL = {
+    ("ubuntu-24.04", "3.12"),
+    ("ubuntu-24.04", "3.13"),
+    ("ubuntu-24.04", "3.14"),
+    ("windows-2022", "3.11"),
+    ("windows-2022", "3.12"),
+    ("windows-2022", "3.13"),
+    ("windows-2022", "3.14"),
+}
+
+
+def _workflow() -> tuple[str, dict[str, object]]:
+    text = (ROOT / ".github/workflows/runtime-distribution.yml").read_text(
+        encoding="utf-8"
+    )
+    return text, yaml.load(text, Loader=yaml.BaseLoader)
 
 
 def test_runtime_lock_is_synchronized_with_ci_lock() -> None:
@@ -74,22 +93,17 @@ def test_smoke_environment_removes_external_python_and_pip_inputs() -> None:
 
 
 def test_runtime_workflow_does_not_use_pip_cache_before_sanitization() -> None:
-    workflow = (ROOT / ".github/workflows/runtime-distribution.yml").read_text(
-        encoding="utf-8"
-    )
+    workflow, _document = _workflow()
 
     assert "cache: pip" not in workflow
     assert "PIP_CONFIG_FILE:" in workflow
     assert "PYTHONHOME:" in workflow
     assert "PYTHONPATH:" in workflow
-    assert "run: python -I scripts/run_policy_preflight.py --check runtime" in workflow
+    assert "scripts/run_policy_runtime_checks.py" in workflow
 
 
 def test_runtime_workflow_trigger_tiers_are_exact() -> None:
-    workflow = (ROOT / ".github/workflows/runtime-distribution.yml").read_text(
-        encoding="utf-8"
-    )
-    document = yaml.load(workflow, Loader=yaml.BaseLoader)
+    _workflow_text, document = _workflow()
 
     triggers = document["on"]
     assert set(triggers) == {"push", "pull_request"}
@@ -104,59 +118,136 @@ def test_runtime_workflow_trigger_tiers_are_exact() -> None:
     assert "workflow_dispatch" not in triggers
 
 
-def test_runtime_workflow_classifies_before_running_full_matrix() -> None:
-    workflow = (ROOT / ".github/workflows/runtime-distribution.yml").read_text(
-        encoding="utf-8"
-    )
-    document = yaml.load(workflow, Loader=yaml.BaseLoader)
+def test_runtime_workflow_classifies_before_selecting_tier() -> None:
+    workflow, document = _workflow()
     jobs = document["jobs"]
 
     classifier = jobs["classify_runtime"]
     assert classifier["runs-on"] == "ubuntu-24.04"
     assert classifier["outputs"]["required"] == "${{ steps.classify.outputs.required }}"
+    assert classifier["outputs"]["compatibility_requested"] == (
+        "${{ steps.classify.outputs.compatibility_requested }}"
+    )
     command = classifier["steps"][1]["run"]
     assert "scripts/classify_runtime_distribution_ci.py" in command
     assert "--force-compatibility" in command
+    assert 'echo "compatibility_requested=$FORCE_COMPATIBILITY"' in command
     classifier_text = workflow.split("\n  classify_runtime:\n", 1)[1].split(
-        "\n  clean-install:\n", 1
+        "\n  runtime-checks:\n", 1
     )[0]
     assert "ci/full-compatibility" in classifier_text
     assert "refs/tags/policy-compatibility-" in classifier_text
     assert "github.event.before" in classifier_text
 
-    clean_install = jobs["clean-install"]
-    assert clean_install["needs"] == ["classify_runtime"]
-    assert "needs.classify_runtime.outputs.required == 'true'" in clean_install["if"]
-    assert clean_install["strategy"]["fail-fast"] == "false"
-    assert clean_install["strategy"]["matrix"] == {
-        "platform": [
-            {"os": "ubuntu-24.04", "pip-config-file": "/dev/null"},
-            {"os": "windows-2022", "pip-config-file": "NUL"},
-        ],
-        "python-version": ["3.11", "3.12", "3.13", "3.14"],
+
+def test_runtime_workflow_default_is_one_ubuntu_python_311_job() -> None:
+    workflow, document = _workflow()
+    jobs = document["jobs"]
+    baseline = jobs["runtime-checks"]
+
+    assert baseline["runs-on"] == BASELINE[0]
+    assert baseline["needs"] == ["classify_runtime"]
+    assert "needs.classify_runtime.outputs.required == 'true'" in baseline["if"]
+    assert "strategy" not in baseline
+    setup = next(
+        step for step in baseline["steps"] if step.get("name") == "Set up Python"
+    )
+    assert setup["with"]["python-version"] == BASELINE[1]
+    command = baseline["steps"][-1]["run"]
+    assert "scripts/run_policy_runtime_checks.py" in command
+    assert "--check all" in command
+    assert "--revision" in command
+
+    baseline_text = workflow.split("\n  runtime-checks:\n", 1)[1].split(
+        "\n  compatibility-runtime:\n", 1
+    )[0]
+    assert "windows-2022" not in baseline_text
+    for version in ("3.12", "3.13", "3.14"):
+        assert f'python-version: "{version}"' not in baseline_text
+
+
+def test_runtime_workflow_explicit_matrix_adds_only_missing_environments() -> None:
+    _workflow_text, document = _workflow()
+    job = document["jobs"]["compatibility-runtime"]
+
+    assert job["strategy"]["fail-fast"] == "false"
+    rows = job["strategy"]["matrix"]["include"]
+    pairs = {(row["os"], row["python-version"]) for row in rows}
+    assert pairs == SUPPLEMENTAL
+    assert BASELINE not in pairs
+    assert "compatibility_requested == 'true'" in job["if"]
+    assert "needs.runtime-checks.result == 'success'" in job["if"]
+
+    checks = {
+        (row["os"], row["python-version"]): row["check"]
+        for row in rows
+    }
+    assert checks[("windows-2022", "3.11")] == "all"
+    assert all(
+        check == "runtime"
+        for pair, check in checks.items()
+        if pair != ("windows-2022", "3.11")
+    )
+
+
+def test_runtime_workflow_has_no_obsolete_duplicate_jobs() -> None:
+    _workflow_text, document = _workflow()
+    jobs = document["jobs"]
+
+    assert "clean-install" not in jobs
+    assert "skill-source-candidate" not in jobs
+    assert set(jobs) == {
+        "classify_runtime",
+        "runtime-checks",
+        "compatibility-runtime",
+        "validate",
     }
 
 
 def test_runtime_workflow_final_gate_enforces_skip_and_success_semantics() -> None:
-    workflow = (ROOT / ".github/workflows/runtime-distribution.yml").read_text(
-        encoding="utf-8"
-    )
-    document = yaml.load(workflow, Loader=yaml.BaseLoader)
+    _workflow_text, document = _workflow()
     validate = document["jobs"]["validate"]
 
     assert validate["if"] == "${{ always() }}"
     assert validate["needs"] == [
         "classify_runtime",
-        "clean-install",
-        "skill-source-candidate",
+        "runtime-checks",
+        "compatibility-runtime",
     ]
     run = validate["steps"][0]["run"]
     assert 'test "$CLASSIFIER_RESULT" = success' in run
-    assert 'test "$CLEAN_INSTALL_RESULT" = success' in run
-    assert 'test "$SKILL_SOURCE_RESULT" = success' in run
-    assert 'test "$CLEAN_INSTALL_RESULT" = skipped' in run
-    assert 'test "$SKILL_SOURCE_RESULT" = skipped' in run
+    assert 'test "$RUNTIME_CHECKS_RESULT" = success' in run
+    assert 'test "$RUNTIME_CHECKS_RESULT" = skipped' in run
+    assert 'test "$COMPATIBILITY_RUNTIME_RESULT" = success' in run
+    assert 'test "$COMPATIBILITY_RUNTIME_RESULT" = skipped' in run
+    assert 'if [ "$COMPATIBILITY_REQUESTED" = true ]' in run
     assert "invalid runtime compatibility classification" in run
+
+
+def test_canonical_runner_matches_local_and_ci_commands() -> None:
+    revision = "a" * 40
+    commands = commands_for("all", revision)
+
+    assert commands == (
+        (
+            sys.executable,
+            "-I",
+            str(ROOT / "scripts/run_policy_preflight.py"),
+            "--check",
+            "runtime",
+        ),
+        (
+            sys.executable,
+            "-I",
+            str(ROOT / "scripts/smoke_test_agent_policy_skill_source.py"),
+            "--revision",
+            revision,
+        ),
+    )
+    assert commands_for("runtime", None) == (commands[0],)
+    assert commands_for("skill-source", revision) == (commands[1],)
+    with pytest.raises(ValueError, match="--revision is required"):
+        commands_for("skill-source", None)
 
 
 def test_runtime_verifier_imports_shared_helpers_under_isolated_python() -> None:

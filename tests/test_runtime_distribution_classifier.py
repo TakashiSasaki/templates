@@ -41,7 +41,7 @@ def test_unsafe_paths_and_empty_change_sets_fail_closed() -> None:
         assert runtime_ci.is_compatibility_sensitive_path(path)
         required, reason = runtime_ci.classify_paths([path])
         assert required is True
-        assert reason == "compatibility-sensitive-change"
+        assert reason == "unsafe-path"
 
     required, reason = runtime_ci.classify_paths([])
     assert required is True
@@ -153,6 +153,54 @@ def test_explicit_checkpoint_promotes_insensitive_change(monkeypatch) -> None:
         text = output.read_text(encoding="utf-8")
         assert "required=true\n" in text
         assert "reason=explicit-checkpoint\n" in text
+
+
+def test_unbounded_push_fails_closed(monkeypatch) -> None:
+    with tempfile.TemporaryDirectory() as temporary:
+        output = Path(temporary) / "output"
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            [
+                "classify_runtime_distribution_ci.py",
+                "--base",
+                runtime_ci.ZERO_SHA,
+                "--head",
+                "2" * 40,
+                "--github-output",
+                str(output),
+            ],
+        )
+        assert runtime_ci.main() == 0
+        assert output.read_text(encoding="utf-8") == (
+            "required=true\nreason=unbounded-push\nchanged_count=0\n"
+        )
+
+
+def test_diff_unavailable_fails_closed(monkeypatch) -> None:
+    def unavailable(base: str, head: str) -> list[str]:
+        raise runtime_ci.ClassificationError("missing base")
+
+    with tempfile.TemporaryDirectory() as temporary:
+        output = Path(temporary) / "output"
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            [
+                "classify_runtime_distribution_ci.py",
+                "--base",
+                "1" * 40,
+                "--head",
+                "2" * 40,
+                "--github-output",
+                str(output),
+            ],
+        )
+        monkeypatch.setattr(runtime_ci, "changed_paths", unavailable)
+        assert runtime_ci.main() == 0
+        assert output.read_text(encoding="utf-8") == (
+            "required=true\nreason=diff-unavailable\nchanged_count=0\n"
+        )
 
 
 def test_zero_sha_is_the_unbounded_push_sentinel() -> None:

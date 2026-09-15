@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from scripts import classify_runtime_distribution_ci as runtime_classifier
+
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github" / "workflows" / "runtime-distribution.yml"
 CLASSIFIER = ROOT / "scripts" / "classify_runtime_distribution_ci.py"
@@ -32,10 +34,81 @@ def test_runtime_missing_base_classifier_authority_forces_full_independently() -
     assert 'echo "required=true"' in fallback
     assert 'echo "reason=base-classifier-unavailable"' in fallback
     assert 'echo "changed_count=unknown"' in fallback
+    assert 'echo "compatibility_requested=true"' in fallback
     assert "cp scripts/classify_runtime_distribution_ci.py" not in fallback
     assert "cp scripts/ci_change_classification.py" not in fallback
     assert "classify_runtime_distribution_ci.py\" \\" not in fallback
     assert "force_compatibility=true" not in fallback
+
+
+def test_runtime_classifier_distinguishes_ci_authority_from_ordinary_sensitive_changes() -> None:
+    for path in (
+        ".github/workflows/runtime-distribution.yml",
+        "scripts/classify_runtime_distribution_ci.py",
+        "scripts/ci_change_classification.py",
+        "scripts/run_policy_runtime_checks.py",
+    ):
+        assert runtime_classifier.classify_paths([path]) == (
+            True,
+            "compatibility-authority-change",
+        )
+
+    assert runtime_classifier.classify_paths(["src/agent_policy/cli.py"]) == (
+        True,
+        "compatibility-sensitive-change",
+    )
+
+
+def test_runtime_only_explicit_fast_path_reasons_skip_full_compatibility() -> None:
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    classification = workflow.split("python3 -I", 1)[1].split(
+        "\n\n      - name: Record runtime CI selection", 1
+    )[0]
+
+    assert 'reason="$(sed -n \'s/^reason=//p\'' in classification
+    assert "compatibility-sensitive-change)" in classification
+    assert "compatibility-insensitive-change)" in classification
+    assert "*)" in classification
+    assert "Only the explicitly ordinary fast-path reasons may omit the" in classification
+    assert "git diff --name-only --no-renames" in classification
+    for authority_path in (
+        ".github/workflows",
+        "scripts/classify_runtime_distribution_ci.py",
+        "scripts/ci_change_classification.py",
+        "scripts/run_policy_runtime_checks.py",
+    ):
+        assert authority_path in classification
+    assert classification.count('echo "compatibility_requested=true"') >= 3
+
+
+def test_runtime_unknown_classifier_reason_forces_full_compatibility() -> None:
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    classification = workflow.split("python3 -I", 1)[1].split(
+        "\n\n      - name: Record runtime CI selection", 1
+    )[0]
+
+    default = classification.split("            *)\n", 1)[1].split("            ;;", 1)[0]
+    assert 'echo "required=true"' in default
+    assert 'echo "compatibility_requested=true"' in default
+
+
+def test_runtime_classifier_reason_contract_distinguishes_fast_and_full_paths() -> None:
+    assert runtime_classifier.classify_paths(["src/agent_policy/cli.py"]) == (
+        True,
+        "compatibility-sensitive-change",
+    )
+    assert runtime_classifier.classify_paths(
+        [".github/workflows/runtime-distribution.yml"]
+    ) == (True, "compatibility-authority-change")
+    assert runtime_classifier.classify_paths(["docs\\windows-only-name.md"]) == (
+        True,
+        "unsafe-path",
+    )
+    assert runtime_classifier.classify_paths([]) == (True, "no-changes")
+    assert runtime_classifier.classify_paths(["unknown_dir/future.json"]) == (
+        True,
+        "unrecognized-path",
+    )
 
 
 def test_runtime_materialized_classifier_keeps_repository_workspace_binding() -> None:
