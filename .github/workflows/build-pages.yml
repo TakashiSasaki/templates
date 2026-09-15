@@ -80,7 +80,7 @@ jobs:
       contents: read
       actions: read
     with:
-      reuse_pr_build: ${{ inputs.reuse_pr_build }}
+      reuse_pr_build: ${{ inputs.reuse_pr_build || false }}
       site_ref: ${{ inputs.site_ref || github.event.pull_request.head.sha || github.sha }}
       composition_ref: ${{ inputs.composition_ref }}
       policy_ref: ${{ inputs.policy_ref }}

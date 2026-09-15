@@ -23,6 +23,8 @@ class QualificationDagTests(unittest.TestCase):
     def test_complete_suite_mapping_and_no_core_serial_barrier(self):
         jobs = workflow('build-pages.yml')['jobs']
         gate = jobs['full_qualification']
+        # pull_request events have no workflow_call inputs: an empty string is not a boolean.
+        self.assertEqual(jobs['build']['with']['reuse_pr_build'], '${{ inputs.reuse_pr_build || false }}')
         self.assertNotIn('core_tests', jobs['build']['needs'])
         self.assertNotIn('build', jobs['core_tests']['needs'])
         self.assertEqual(jobs['build']['uses'], './.github/workflows/site-producer.yml')
