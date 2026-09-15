@@ -18,6 +18,7 @@ if __package__ in (None, ""):
 from scripts.check_audience_artifact import (
     check_artifact, skipped_optional_destinations, validate_projection_parity,
 )
+from scripts.check_audience_search_identity import check_search_identity
 
 
 def check(
@@ -43,6 +44,10 @@ def check(
     try:
         with sync_playwright() as p:
             browser = p.chromium.launch(**({"channel": channel} if channel else {}))
+            identity_context = browser.new_context(service_workers="block")
+            identity_page = identity_context.new_page()
+            results.extend(check_search_identity(identity_page, base))
+            identity_context.close()
             for path, expected in [('/web/', 'use'), ('/policy/contributing/', 'maintain'),
                     ('/composition/architecture/composer-mvp/', 'use'), ('/policy/architecture/', 'maintain'),
                     ('/?audience=maintain', 'neutral'), ('/policy/architecture/?audience=admin', 'maintain'),
