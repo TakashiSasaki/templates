@@ -185,8 +185,15 @@ def augment_catalog(
 
 
 def augment_manifest(manifest: dict[str, Any]) -> dict[str, Any]:
-    if manifest.get("schema_version") == 3:
+    schema_version = manifest.get("schema_version")
+    if type(schema_version) is not int:
+        raise PreparationError("site manifest schema_version must be an integer")
+    if schema_version == 3:
         return dict(manifest)
+    if schema_version != 2:
+        raise PreparationError(
+            f"unsupported site manifest schema_version: {schema_version}"
+        )
     navigation = manifest.get("navigation")
     if not isinstance(navigation, list) or not navigation:
         raise PreparationError("site manifest navigation must be a non-empty array")
