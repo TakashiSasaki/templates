@@ -737,6 +737,13 @@ jobs:
             --site-root build/site \
             --output build/mobile-visual/pwa-capabilities.json
 
+      - name: Check assembled audience runtime and navigation
+        if: ${{ needs.classify_browser.outputs.browser_required == 'true' }}
+        run: |
+          python scripts/check_audience_runtime.py \
+            --site-root build/site \
+            --output build/mobile-visual/audience-runtime.json
+
       - name: Upload mobile visual evidence
         if: ${{ always() && needs.classify_browser.outputs.browser_required == 'true' }}
         uses: actions/upload-artifact@v4
