@@ -4,8 +4,12 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from types import SimpleNamespace
 
-from scripts.check_audience_runtime import validate_projection_parity
+from scripts.check_audience_runtime import (
+    catalog_optional_destinations,
+    validate_projection_parity,
+)
 
 
 class AudienceRuntimeProjectionParityTests(unittest.TestCase):
@@ -62,6 +66,32 @@ class AudienceRuntimeProjectionParityTests(unittest.TestCase):
                 AssertionError, "missing required audience documents"
             ):
                 validate_projection_parity(root, model, self.expected(), set())
+
+    def test_generated_manifest_document_is_not_looked_up_or_optional(self) -> None:
+        manifest = SimpleNamespace(
+            documents=[
+                {
+                    "publication": "site",
+                    "document": "optional-provider-document",
+                    "destination": "optional/index.md",
+                },
+                {
+                    "publication": "site",
+                    "document": "generated-repository-trees",
+                    "destination": "repository-trees/index.md",
+                },
+            ]
+        )
+        catalogs = {
+            "site": {
+                "optional-provider-document": SimpleNamespace(optional=True),
+            }
+        }
+
+        self.assertEqual(
+            catalog_optional_destinations(manifest, catalogs),
+            {"optional/index.md"},
+        )
 
     def test_actual_translation_aliases_form_the_only_route_extension(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

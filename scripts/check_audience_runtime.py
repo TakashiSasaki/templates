@@ -77,6 +77,16 @@ def validate_projection_parity(
     assert routes == complete_expected_routes, "assembled audience route projection drift"
 
 
+def catalog_optional_destinations(manifest, catalogs: dict[str, dict]) -> set[str]:
+    """Return optional provider destinations; generated manifest entries stay required."""
+    optional_destinations: set[str] = set()
+    for document in manifest.documents:
+        catalog_document = catalogs[document["publication"]].get(document["document"])
+        if catalog_document is not None and catalog_document.optional:
+            optional_destinations.add(str(document["destination"]))
+    return optional_destinations
+
+
 def check(
     site_root: Path,
     publication_roots: dict[str, Path],
@@ -99,11 +109,7 @@ def check(
         ).documents_by_id
         for publication, root in publication_roots.items()
     }
-    optional_destinations = {
-        str(document["destination"])
-        for document in manifest.documents
-        if catalogs[document["publication"]][document["document"]].optional
-    }
+    optional_destinations = catalog_optional_destinations(manifest, catalogs)
     validate_projection_parity(site_root, model, expected, optional_destinations)
     assert model["overviews"] == expected["overviews"], "assembled audience overview drift"
     provenance = json.loads((site_root / "build-provenance.json").read_text())
