@@ -20,6 +20,12 @@ class LocalCapsuleTests(unittest.TestCase):
                 capsule.stage('build', build)
                 capsule.stage('build', build)
                 self.assertEqual(calls, ['build'])
+                with self.assertRaisesRegex(ValueError, 'source identity changed'):
+                    capsule.stage(
+                        'build',
+                        lambda: self.fail('cache hit must not execute the operation'),
+                        validate_reuse=lambda: (_ for _ in ()).throw(ValueError('source identity changed')),
+                    )
                 def failed():
                     raise RuntimeError('browser environment')
                 with self.assertRaises(RuntimeError):
@@ -67,6 +73,18 @@ class LocalCapsuleTests(unittest.TestCase):
             entry.symlink_to(target, target_is_directory=True)
             with self.assertRaisesRegex(ValueError, 'capsule entry'):
                 Capsule(capsule_root, {'exact': 'input'})
+
+    def test_result_write_does_not_follow_legacy_temporary_symlink(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            capsule = Capsule(root / 'capsules', {'exact': 'input'})
+            outside = root / 'outside.json'
+            outside.write_text('protected')
+            (capsule.root / 'result.tmp').symlink_to(outside)
+            capsule.write({'schema_version': 1, 'inputs': capsule.inputs, 'stages': {}})
+            self.assertEqual('protected', outside.read_text())
+            self.assertTrue((capsule.root / 'result.tmp').is_symlink())
+            self.assertEqual({}, capsule.read()['stages'])
 
     def test_same_sha_is_insufficient_for_dirty_untracked_and_generated_sources(self):
         with tempfile.TemporaryDirectory() as directory:

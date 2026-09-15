@@ -119,30 +119,98 @@ class Capsule:
         self.artifact = self.root / 'build/site'
 
     @contextmanager
+    def entry_fd(self):
+        flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+        descriptor = os.open(self.root, flags)
+        try:
+            if not stat.S_ISDIR(os.fstat(descriptor).st_mode):
+                raise ValueError(f'capsule entry must be a regular directory: {self.root}')
+            yield descriptor
+        finally:
+            os.close(descriptor)
+
+    @contextmanager
     def locked(self):
-        with (self.root / '.lock').open('a') as lock:
-            fcntl.flock(lock, fcntl.LOCK_EX)
-            yield self
+        with self.entry_fd() as directory:
+            descriptor = os.open(
+                '.lock', os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600, dir_fd=directory
+            )
+            try:
+                if not stat.S_ISREG(os.fstat(descriptor).st_mode):
+                    raise ValueError('capsule lock must be a regular file')
+                with os.fdopen(descriptor, 'a') as lock:
+                    descriptor = -1
+                    fcntl.flock(lock, fcntl.LOCK_EX)
+                    yield self
+            finally:
+                if descriptor >= 0:
+                    os.close(descriptor)
 
     def read(self) -> dict:
-        if not self.record.exists():
-            return {'schema_version': SCHEMA, 'inputs': self.inputs, 'stages': {}}
-        data = json.loads(self.record.read_text())
+        with self.entry_fd() as directory:
+            try:
+                descriptor = os.open(self.record.name, os.O_RDONLY | os.O_NOFOLLOW, dir_fd=directory)
+            except FileNotFoundError:
+                return {'schema_version': SCHEMA, 'inputs': self.inputs, 'stages': {}}
+            try:
+                if not stat.S_ISREG(os.fstat(descriptor).st_mode):
+                    raise ValueError('capsule result must be a regular file')
+                with os.fdopen(descriptor, 'r') as record:
+                    descriptor = -1
+                    data = json.load(record)
+            finally:
+                if descriptor >= 0:
+                    os.close(descriptor)
         if data.get('schema_version') != SCHEMA or data.get('inputs') != self.inputs:
             raise ValueError('stale or mismatched capsule identity')
         return data
 
     def write(self, data: dict) -> None:
-        temporary = self.record.with_suffix('.tmp')
-        temporary.write_text(json.dumps(data, sort_keys=True, indent=2) + '\n')
-        temporary.replace(self.record)
+        payload = (json.dumps(data, sort_keys=True, indent=2) + '\n').encode()
+        with self.entry_fd() as directory:
+            temporary = None
+            try:
+                for _ in range(16):
+                    candidate = f'.result-{os.urandom(16).hex()}.tmp'
+                    try:
+                        descriptor = os.open(
+                            candidate,
+                            os.O_CREAT | os.O_EXCL | os.O_WRONLY | os.O_NOFOLLOW,
+                            0o600,
+                            dir_fd=directory,
+                        )
+                    except FileExistsError:
+                        continue
+                    temporary = candidate
+                    with os.fdopen(descriptor, 'wb') as record:
+                        record.write(payload)
+                        record.flush()
+                        os.fsync(record.fileno())
+                    os.replace(temporary, self.record.name, src_dir_fd=directory, dst_dir_fd=directory)
+                    temporary = None
+                    return
+                raise ValueError('unable to create a unique capsule result temporary')
+            finally:
+                if temporary is not None:
+                    try:
+                        os.unlink(temporary, dir_fd=directory)
+                    except FileNotFoundError:
+                        pass
 
     def verify_artifact(self) -> None:
         expected = self.read()['stages'].get('build', {}).get('artifact_digest')
         if expected is None or artifact_digest(self.artifact) != expected:
             raise ValueError('missing, stale or modified capsule artifact')
 
-    def stage(self, name: str, operation, *, artifact: bool = False, reuse: bool = True):
+    def stage(
+        self,
+        name: str,
+        operation,
+        *,
+        artifact: bool = False,
+        reuse: bool = True,
+        validate_reuse=None,
+    ):
         data = self.read()
         if artifact:
             self.verify_artifact()
@@ -150,6 +218,8 @@ class Capsule:
         if reuse and previous.get('result') == 'success':
             if name == 'build':
                 self.verify_artifact()
+            if validate_reuse is not None:
+                validate_reuse()
             print(f'LOCAL_CAPSULE stage={name} reuse=hit wait_seconds=0', flush=True)
             return
         data['stages'][name] = {'result': 'running', 'attempt': previous.get('attempt', 0) + 1}

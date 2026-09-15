@@ -502,14 +502,16 @@ def execute_checks(args, selected, head):
             if args.capsule and name in {"cross-assembly", "focused-tests", "audience-static", "audience-browser", "unit-tests"}:
                 stage = "build" if name == "cross-assembly" else name
                 from scripts.local_qualification_capsule import input_identity
-                if input_identity(args.capsule_roots) != args.capsule.inputs:
-                    raise PreflightFailure("capsule inputs changed before stage reuse")
-                def operation():
-                    CHECKS[name](args)
+                def validate_capsule_inputs():
                     if input_identity(args.capsule_roots) != args.capsule.inputs:
                         raise PreflightFailure("capsule inputs changed during validation")
+                validate_capsule_inputs()
+                def operation():
+                    CHECKS[name](args)
+                    validate_capsule_inputs()
                 args.capsule.stage(stage, operation, artifact=name in {"audience-static", "audience-browser"},
-                                   reuse=name not in {"focused-tests", "audience-browser"})
+                                   reuse=name not in {"focused-tests", "audience-browser"},
+                                   validate_reuse=validate_capsule_inputs)
             else:
                 CHECKS[name](args)
             print(f"SITE_PREFLIGHT_CHECK_PASS name={name} head={head}", flush=True)
