@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 from contextlib import nullcontext
+import json
 import shutil
 import os
 import subprocess
@@ -255,8 +256,29 @@ def check_cross_binding(args: argparse.Namespace) -> None:
         "--policy-root",
         policy,
     )
-    run(PYTHON, "scripts/publication_contract.py", "--source-root", composition)
-    run(PYTHON, "scripts/publication_contract.py", "--source-root", policy)
+    for provider_root in (composition, policy):
+        catalog = provider_root / "docs" / "publication-catalog.json"
+        try:
+            schema_version = json.loads(catalog.read_text(encoding="utf-8")).get("schema_version")
+        except (OSError, json.JSONDecodeError) as exc:
+            raise PreflightFailure(f"unable to read publication catalog {catalog}: {exc}") from exc
+        if schema_version == 3:
+            run(PYTHON, "scripts/publication_contract.py", "--source-root", provider_root)
+        elif schema_version == 4:
+            # Ready preflight runs before materialization, so generated v4 assets
+            # may legitimately be absent while every tracked source is validated.
+            run(
+                PYTHON,
+                "scripts/publication_contract_v4.py",
+                "--source-root",
+                provider_root,
+                "--phase",
+                "source",
+            )
+        else:
+            raise PreflightFailure(
+                f"publication catalog schema must be 3 or 4: {catalog}"
+            )
     print(
         "SITE_CROSS_AUTHORITY_BINDING "
         f"composition={actual['composition']} policy={actual['policy']}",
@@ -463,6 +485,10 @@ def main(arguments: Sequence[str] | None = None) -> int:
             args.capsule_roots = roots
             args.capsule = Capsule(target, input_identity(roots))
         with args.capsule.locked() if args.capsule else nullcontext():
+            if args.capsule:
+                from scripts.local_qualification_capsule import input_identity
+                if input_identity(args.capsule_roots) != args.capsule.inputs:
+                    raise PreflightFailure("capsule inputs changed before validation")
             return execute_checks(args, selected, head)
     except (OSError, RuntimeError, ValueError, subprocess.CalledProcessError) as exc:
         print(f"SITE_PREFLIGHT_FAIL error={exc}", file=sys.stderr)
@@ -475,9 +501,11 @@ def execute_checks(args, selected, head):
             print(f"SITE_PREFLIGHT_CHECK_START name={name} head={head}", flush=True)
             if args.capsule and name in {"cross-assembly", "focused-tests", "audience-static", "audience-browser", "unit-tests"}:
                 stage = "build" if name == "cross-assembly" else name
+                from scripts.local_qualification_capsule import input_identity
+                if input_identity(args.capsule_roots) != args.capsule.inputs:
+                    raise PreflightFailure("capsule inputs changed before stage reuse")
                 def operation():
                     CHECKS[name](args)
-                    from scripts.local_qualification_capsule import input_identity
                     if input_identity(args.capsule_roots) != args.capsule.inputs:
                         raise PreflightFailure("capsule inputs changed during validation")
                 args.capsule.stage(stage, operation, artifact=name in {"audience-static", "audience-browser"},

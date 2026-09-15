@@ -49,8 +49,20 @@ def source_identity(root: Path) -> dict:
         # Publication catalogs are the generic authority for provider inputs.
         # Include declared ignored inputs wherever the provider places them;
         # this does not interpret any provider-specific generator semantics.
-        from scripts.publication_contract import load_publication_catalog, resolve_without_symlinks
-        catalog = load_publication_catalog(root, validate_sources=False)
+        from scripts.publication_contract import (
+            PublicationContractError,
+            load_publication_catalog,
+            read_json_object,
+            resolve_without_symlinks,
+        )
+        version = read_json_object(catalog_path, 'publication catalog').get('schema_version')
+        if version == 3:
+            catalog = load_publication_catalog(root, validate_sources=False)
+        elif version == 4:
+            from scripts.publication_contract_v4 import parse_publication_catalog_v4
+            catalog = parse_publication_catalog_v4(catalog_path)
+        else:
+            raise PublicationContractError('publication catalog schema must be 3 or 4')
         declared = [document.source for document in catalog.documents]
         declared.extend(asset.source for asset in catalog.assets)
         if catalog.glossary_source is not None:
@@ -93,8 +105,16 @@ def artifact_digest(root: Path) -> str:
 class Capsule:
     def __init__(self, root: Path, inputs: dict):
         self.inputs = inputs
+        root.mkdir(parents=True, exist_ok=True)
+        if root.is_symlink() or not root.is_dir():
+            raise ValueError(f'capsule root must be a regular directory: {root}')
         self.root = root / key(inputs)
-        self.root.mkdir(parents=True, exist_ok=True)
+        try:
+            self.root.mkdir()
+        except FileExistsError:
+            pass
+        if self.root.is_symlink() or not self.root.is_dir():
+            raise ValueError(f'capsule entry must be a regular directory: {self.root}')
         self.record = self.root / 'result.json'
         self.artifact = self.root / 'build/site'
 

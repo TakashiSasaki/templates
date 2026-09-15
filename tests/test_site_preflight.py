@@ -65,6 +65,28 @@ class SitePreflightTests(unittest.TestCase):
         )
         self.assertNotIn("continue-on-error", text)
 
+    def test_cross_binding_dispatches_schema_v4_to_source_phase_validator(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for name in ('composition', 'policy'):
+                provider = root / name
+                (provider / 'docs').mkdir(parents=True)
+                (provider / 'docs' / 'publication-catalog.json').write_text(
+                    '{"schema_version":4,"documents":[{"id":"home","source":"README.md","optional":false,"home":true}],"assets":[]}'
+                )
+                (provider / 'README.md').write_text('home')
+            (root / 'publication-sources.json').write_text('{}')
+            calls = []
+            with patch.object(preflight, 'ROOT', root), \
+                 patch.object(preflight, 'require_provider_roots', return_value=(root / 'composition', root / 'policy')), \
+                 patch.object(preflight, 'resolve_sources', return_value={}), \
+                 patch.object(preflight, 'git_head', return_value='revision'), \
+                 patch.object(preflight, 'run', side_effect=lambda *args: calls.append(args)):
+                preflight.check_cross_binding(object())
+            validators = [call for call in calls if 'scripts/publication_contract_v4.py' in call]
+            self.assertEqual(2, len(validators))
+            self.assertTrue(all('--phase' in call and 'source' in call for call in validators))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -52,6 +52,22 @@ class LocalCapsuleTests(unittest.TestCase):
             capsule.stage('core', lambda: None)
             self.assertEqual(capsule.read()['stages']['core']['attempt'], 2)
 
+    def test_rejects_symlinked_capsule_root_and_entry(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            target = root / 'target'
+            target.mkdir()
+            (root / 'root-link').symlink_to(target, target_is_directory=True)
+            with self.assertRaisesRegex(ValueError, 'capsule root'):
+                Capsule(root / 'root-link', {'exact': 'input'})
+
+            capsule_root = root / 'capsules'
+            capsule_root.mkdir()
+            entry = capsule_root / 'f68edb85b67d3173f60de888719c1b66ed38c4205e609b121de38d56b0a68260'
+            entry.symlink_to(target, target_is_directory=True)
+            with self.assertRaisesRegex(ValueError, 'capsule entry'):
+                Capsule(capsule_root, {'exact': 'input'})
+
     def test_same_sha_is_insufficient_for_dirty_untracked_and_generated_sources(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -96,6 +112,37 @@ class LocalCapsuleTests(unittest.TestCase):
             )
             before = source_identity(root)
             output = root / 'materialized' / 'home.md'
+            output.parent.mkdir()
+            output.write_text('generated')
+            after = source_identity(root)
+
+        self.assertEqual(before['revision'], after['revision'])
+        self.assertNotEqual(before['files'], after['files'])
+
+    def test_schema_v4_contract_input_participates_in_identity(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            subprocess.run(['git', 'init', '-q', str(root)], check=True)
+            (root / 'docs').mkdir()
+            (root / 'docs' / 'publication-catalog.json').write_text(json.dumps({
+                'schema_version': 4,
+                'documents': [
+                    {'id': 'home', 'source': 'README.md', 'optional': False, 'home': True},
+                ],
+                'assets': [
+                    {'source': 'generated/input.json', 'destination': 'input.json',
+                     'optional': False, 'source_kind': 'generated'},
+                ],
+            }))
+            (root / 'README.md').write_text('home')
+            (root / '.gitignore').write_text('generated/\n')
+            subprocess.run(['git', '-C', str(root), 'add', '.'], check=True)
+            subprocess.run(
+                ['git', '-C', str(root), '-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid',
+                 'commit', '-qm', 'fixture'], check=True,
+            )
+            before = source_identity(root)
+            output = root / 'generated' / 'input.json'
             output.parent.mkdir()
             output.write_text('generated')
             after = source_identity(root)
