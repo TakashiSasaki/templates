@@ -59,10 +59,13 @@
     const path = location.pathname;
     const destination = runtimeMap?.routes[path] || runtimeMap?.routes[path.replace(/index\.html$/, "")];
     const doc = runtimeMap?.documents[destination];
+    const isService = Array.isArray(runtimeMap?.services) &&
+      (runtimeMap.services.includes(path) || runtimeMap.services.includes(path.replace(/index\.html$/, "")));
     const audiences = new Set(Array.isArray(doc?.audiences) ? doc.audiences.filter(a => VALID_AUDIENCES.has(a)) : []);
+    if (isService) VALID_AUDIENCES.forEach(a => audiences.add(a));
     const primary = audiences.has(doc?.primary) ? doc.primary : null;
     return {
-      primary, audiences,
+      primary, audiences, document: doc || null, isService,
       isLanding: Boolean(doc?.is_landing) || path === "/" || path === "/index.html",
     };
   }
@@ -137,7 +140,7 @@
       recordAudience(targetAudience);
       applyAudience(targetAudience);
     } else {
-      const overview = map.overviews[targetAudience];
+      const overview = map.localized_overviews?.[document.documentElement.lang]?.[targetAudience] || map.overviews[targetAudience];
       if (typeof overview !== "string" || !overview.startsWith("/") || overview.startsWith("//")) return;
       setStoredJourney(targetAudience);
       location.assign(overview);
