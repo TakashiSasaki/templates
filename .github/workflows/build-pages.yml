@@ -412,7 +412,7 @@ jobs:
     needs:
       - classify_browser
       - build
-    if: ${{ inputs.site_ref == '' && github.event_name == 'pull_request' && needs.classify_browser.result == 'success' && needs.classify_browser.outputs.cross_authority_required == 'true' }}
+    if: ${{ inputs.site_ref == '' && github.event_name == 'pull_request' && needs.classify_browser.result == 'success' && (needs.classify_browser.outputs.browser_required == 'true' || needs.classify_browser.outputs.cross_authority_required == 'true') }}
     uses: ./.github/workflows/site-composition-playground-cross-authority.yml
     with:
       artifact_id: ${{ needs.build.outputs.artifact_id }}
