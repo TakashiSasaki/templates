@@ -68,3 +68,16 @@ class SitePreflightTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+class CapabilityPrecheckTests(unittest.TestCase):
+    def test_unknown_and_authority_changes_select_complete_core(self):
+        from scripts.run_site_preflight import focused_tests
+        for paths in ([], ['unknown.bin'], ['.github/workflows/build-pages.yml'], ['../escape']):
+            with self.subTest(paths=paths):
+                self.assertEqual(focused_tests(paths), ())
+
+    def test_publication_change_reaches_real_consumer_and_sibling_boundaries(self):
+        from scripts.run_site_preflight import focused_tests
+        selected = focused_tests(['site-manifest.json'])
+        self.assertIn('tests.test_audience_artifact_integration', selected)
+        self.assertIn('tests.test_optional_document_source_type', selected)

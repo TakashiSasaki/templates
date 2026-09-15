@@ -53,3 +53,23 @@ Provider publications pass through an explicit, authority-preserving lifecycle i
 ## Validation status
 
 The final candidate records the exact GitHub Actions run IDs and measured before/after samples in the pull request description after CI completion.
+
+## Qualification-ready local precheck
+
+Before pushing a repaired invariant, run `scripts/run_site_preflight.py fast
+--base <exact-base-sha>` with the Site Python environment. Capability selection uses
+`classify_site_ci.py`; missing, ambiguous, unknown, and CI-authority changes select
+the complete core suite. Focused checks are local diagnostic evidence only.
+
+For a built artifact, `scripts/run_site_preflight.py ready --base <exact-base-sha>
+--site-root <artifact> --composition-root <locked-checkout> --policy-root
+<locked-checkout>` runs the focused integration spine and audience static contract
+before browser qualification. `scripts/check_audience_artifact.py` also exposes the
+static checker directly. The real audience browser checker still validates that
+contract before running all browser lifecycle assertions.
+
+The small integration fixture traverses canonical manifest/catalog loaders,
+assembly and translation publication, then the actual static consumer setup. It
+covers required and generated document omission, optional source present/absent,
+unexpected documents/routes and actual translation aliases. HTML rendering is a
+fixture boundary; full exact-head browser acceptance remains required by CI.

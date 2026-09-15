@@ -188,3 +188,11 @@ Report:
 - `SITE_ACCEPTANCE_READY_FOR_MERGE_GATE` or the specific Site blocker;
 - after handoff, refer to the merge gate's separate review/merge evidence rather than duplicating it;
 - post-merge publication/deployment status when relevant.
+
+## Qualification-ready invariant closure
+
+Before expensive qualification, run the canonical `run_site_preflight.py fast`
+with `--base <exact comparison SHA>`. Derive material sibling boundaries from the
+changed invariant and run the relevant real consumer integration tests. Against an
+assembled artifact, use `run_site_preflight.py ready --site-root <artifact>` with
+both exact provider roots. This is local diagnostic evidence, not CI skip authority.
