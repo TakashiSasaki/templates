@@ -127,6 +127,11 @@ class Capsule:
         return Path('/proc/self/fd') / str(self._locked_directory)
 
     @property
+    def inherited_fd(self) -> int | None:
+        """Descriptor a child needs to resolve the lock-bound workspace."""
+        return self._locked_directory
+
+    @property
     def artifact(self) -> Path:
         return self.workspace / 'build/site'
 

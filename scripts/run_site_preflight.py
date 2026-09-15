@@ -64,7 +64,15 @@ def environment(args: argparse.Namespace | None = None) -> dict[str, str]:
 def run(*arguments: str, args: argparse.Namespace | None = None) -> None:
     command = [str(argument) for argument in arguments]
     print("+", " ".join(command), flush=True)
-    completed = subprocess.run(command, cwd=ROOT, env=environment(args), check=False)
+    capsule = getattr(args, "capsule", None) if args is not None else None
+    descriptor = capsule.inherited_fd if capsule is not None else None
+    completed = subprocess.run(
+        command,
+        cwd=ROOT,
+        env=environment(args),
+        check=False,
+        pass_fds=() if descriptor is None else (descriptor,),
+    )
     if completed.returncode != 0:
         raise PreflightFailure(
             f"{' '.join(command)} failed with exit code {completed.returncode}"
