@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import argparse
 import tempfile
 import unittest
 from pathlib import Path
@@ -86,6 +87,18 @@ class SitePreflightTests(unittest.TestCase):
             validators = [call for call in calls if 'scripts/publication_contract_v4.py' in call]
             self.assertEqual(2, len(validators))
             self.assertTrue(all('--phase' in call and 'source' in call for call in validators))
+
+    def test_capsule_workspace_consumers_inherit_the_locked_descriptor(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            from scripts.local_qualification_capsule import Capsule
+
+            capsule = Capsule(Path(directory), {'exact': 'input'})
+            args = argparse.Namespace(capsule=capsule, composition_root=None, policy_root=None)
+            with capsule.locked(), patch.object(preflight.subprocess, 'run') as run:
+                run.return_value.returncode = 0
+                preflight.run('consumer', args=args)
+                descriptor = capsule.inherited_fd
+                self.assertEqual((descriptor,), run.call_args.kwargs['pass_fds'])
 
 
 if __name__ == "__main__":

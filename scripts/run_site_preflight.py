@@ -177,7 +177,7 @@ def check_audience_static(args: argparse.Namespace) -> None:
     if args.site_root is None:
         raise PreflightFailure("audience-static requires --site-root with an assembled artifact")
     run(PYTHON, "scripts/check_audience_artifact.py", "--site-root", args.site_root,
-        "--composition-root", composition, "--policy-root", policy)
+        "--composition-root", composition, "--policy-root", policy, args=args)
 
 
 def check_audience_browser(args: argparse.Namespace) -> None:
@@ -193,7 +193,7 @@ def check_audience_browser(args: argparse.Namespace) -> None:
         raise PreflightFailure("audience-browser requires a capsule or --site-root")
     run(PYTHON, "scripts/check_audience_runtime.py", "--site-root", artifact,
         "--composition-root", composition, "--policy-root", policy,
-        "--output", output, "--channel", args.channel)
+        "--output", output, "--channel", args.channel, args=args)
 
 
 def check_unit_tests(args: argparse.Namespace) -> None:
@@ -348,6 +348,7 @@ def check_cross_assembly(args: argparse.Namespace) -> None:
             ROOT,
             "--output-root",
             site_publication,
+            args=args,
         )
         run(
             PYTHON,
@@ -362,6 +363,7 @@ def check_cross_assembly(args: argparse.Namespace) -> None:
             site_publication,
             "--output-root",
             build,
+            args=args,
         )
         run(
             PYTHON,
@@ -378,6 +380,7 @@ def check_cross_assembly(args: argparse.Namespace) -> None:
             site_publication,
             "--output-root",
             build,
+            args=args,
         )
         run(
             PYTHON,
@@ -388,6 +391,7 @@ def check_cross_assembly(args: argparse.Namespace) -> None:
             "",
             "--canonical-url",
             "https://templates.moukaeritai.work/",
+            args=args,
         )
         run(
             ZENSICAL,
@@ -396,17 +400,18 @@ def check_cross_assembly(args: argparse.Namespace) -> None:
             build / "zensical.toml",
             "--clean",
             "--strict",
+            args=args,
         )
         run(PYTHON, "scripts/finalize_site_metadata.py", "--site-root", build / "site",
-            "--canonical-url", "https://templates.moukaeritai.work/")
-        run(PYTHON, "scripts/render_website_metadata.py", "--repository", ROOT, "--site-root", build / "site")
+            "--canonical-url", "https://templates.moukaeritai.work/", args=args)
+        run(PYTHON, "scripts/render_website_metadata.py", "--repository", ROOT, "--site-root", build / "site", args=args)
         run(PYTHON, "scripts/finalize_translation_reader.py", "--site-root", build / "site",
             "--translation-map", build / "translation-publication.json",
-            "--canonical-url", "https://templates.moukaeritai.work/")
+            "--canonical-url", "https://templates.moukaeritai.work/", args=args)
         run(PYTHON, "scripts/write_publication_provenance.py", "--output", build / "site/build-provenance.json",
             "--repository", "TakashiSasaki/templates", "--site-commit", git_head(ROOT),
             "--publication-commit", f"composition={git_head(composition)}",
-            "--publication-commit", f"policy={git_head(policy)}")
+            "--publication-commit", f"policy={git_head(policy)}", args=args)
         for relative in (
             "site/index.html",
             "site/workspace/index.html",
