@@ -29,6 +29,18 @@ A repository may collapse roles. Do not invent a preflight stage merely to satis
 
 ## Parallelism and automatic CI
 
+### Prepare a repair for qualification
+
+Apply `testing.require-adversarial-invariant-coverage` and the candidate-freeze rules with this bounded local sequence:
+
+1. Identify the changed invariant and group known findings by root cause. Select only material sibling dimensions. For input/evidence binding, useful examples are source selection, file indirection, mutation timing, actual consumer process, and fresh versus reused or interrupted evidence; these are examples, not a universal matrix.
+2. Check cheap environment and source prerequisites before dependent expensive work, including a real launch probe when applicable. Report expected and observed identities or prerequisites when diagnosis requires them.
+3. Repair the owning member, run focused sibling regressions, exercise the actual canonical consumer entrypoint, and validate the relevant assembled-artifact contract when applicable. Do not substitute wrapper-call assertions for the consumer boundary.
+4. Once no planned mutation remains within that repair scope, propagate the coherent repair through dependent members and publish the intended qualification candidate. Avoid repeatedly restacking and qualifying a partially repaired family. This does not prohibit provisional commits, required automatic CI, independent downstream work, or urgent repairs under canonical policy.
+5. Acquire the required exact-head qualification and independently applicable review only at their authorized boundaries. After a parent lands, prefer base retargeting when the unchanged descendant tree is correct; reassess the effective diff and base-sensitive evidence instead of rewriting heads for appearance.
+
+For source or environment failures, reuse existing canonical validators and retain their ownership. A cheap precheck changes detection order, not the authority or coverage of later acceptance.
+
 The stage order expresses dependency and early-failure intent, not a requirement for a purely serial workflow. Independent checks may run in parallel when doing so shortens the critical path or is operationally cheaper. Repository-required automatic checks must not be suppressed merely to force staged execution; the repository workflow owns whether a check is unconditional, conditional, or explicitly triggered.
 
 When the agent controls only observation rather than job scheduling, apply the model to diagnosis and decision order: inspect preflight/core failures first, do not wait on an expensive downstream result to repair a candidate already known invalid, and do not misreport skipped or still-running later stages as successful.
@@ -42,7 +54,10 @@ For validation evidence that materially affects the next safe action, record eno
 - applicability state (`applicable`, `stale`, or `unknown`), invalidation reason, and reuse decision;
 - validation requiring reacquisition, and next safe landing action;
 - workflow/check identity and run locator;
+- run attempt, job/step identity and direct status/conclusion when needed for diagnosis or retry applicability, preserving any provider-supported retained-job provenance;
 - observed result and whether the evidence is diagnostic or qualification-bound; and
 - any supersession or invalidation condition.
 
 Do not create a second acceptance authority in the Work ledger. The stage label is operational metadata; the workflow, canonical Policy, exact-head review requirements, and exact-head/evidence-binding rules remain authoritative. A ledger-derived next action may invoke the merge gate after qualification evidence is ready, but the ledger itself must never declare a member authorized to land.
+
+Keep the observation compact: current head/base and effective scope, latest applicable review request/result locators, reviewed revision, inspected channels and retrieval limitations, and references to finding dispositions. Review submissions, ordinary comments, inline threads and their resolution, and applicable reactions have separate observation state. Apply `pull-request.discover-review-results-across-applicable-surfaces` before concluding that review is complete or has no findings. Refresh pending results according to the existing bounded external-wait procedure, not a new polling loop.
