@@ -74,51 +74,28 @@ def validate_static_svg(path: Path) -> None:
 
 
 class LandingPageTests(unittest.TestCase):
-    def test_graphical_cover_exposes_primary_destinations(self) -> None:
+    def test_neutral_landing_offers_exactly_two_primary_journeys(self) -> None:
         text = LANDING.read_text(encoding="utf-8")
         self.assertTrue(text.startswith("# Templates documentation portal\n\n"))
-        self.assertIn('class="portal-landing portal-landing--cover"', text)
-        self.assertIn('class="portal-cover"', text)
-        self.assertNotIn('href="overview/"', text)
-        self.assertIn(
-            'class="portal-cover__button portal-cover__button--primary" href="web/"',
-            text,
-        )
-        self.assertEqual(text.count('class="portal-cover__button '), 2)
-        for destination in (
-            "web/",
-            "playground/",
-            "website/",
-            "webapp/",
-            "composition/use/skill-first-use-walkthrough/",
-            "composition/",
-            "capabilities/",
-            "lifecycle/",
-            "skill/",
-            "policy/",
-            "policy/getting-started/",
-            "/glossary/",
-            "/guided/",
-            "repository-trees/",
-            "files/",
-        ):
-            self.assertIn(f'href="{destination}"', text)
-        self.assertIn("Browse by index.md", text)
-        self.assertIn(">Source files</a>", text)
-        self.assertIn('class="portal-artifact-grid"', text)
-        self.assertIn('class="portal-artifact-card portal-artifact-card--skill"', text)
-        self.assertIn('class="portal-artifact-card portal-artifact-card--webapp"', text)
-        self.assertIn("Choose Website or Web application", text)
-        self.assertNotIn("portal-artifact-card--policy", text)
-        self.assertIn('class="portal-policy-panel"', text)
-        self.assertIn("Independent task · Policy", text)
+        primary, discovery = text.split('<details class="audience-discovery">', 1)
+        self.assertEqual(re.findall(r'data-audience-entry="([^"]+)"', primary), ["use", "maintain"])
+        self.assertEqual(len(re.findall(r'<a ', primary)), 2)
+        self.assertIn("What are you here to do?", primary)
+        self.assertIn("Use templates", primary)
+        self.assertIn("Maintain templates", primary)
+        self.assertIn("in another repository", primary)
+        self.assertIn("TakashiSasaki/templates itself", primary)
+        self.assertIn('href="/web/?audience=use"', primary)
+        self.assertIn('href="/repository-trees/?audience=maintain"', primary)
+        for destination in ("web/", "composition/use/skill-first-use-walkthrough/", "policy/getting-started/", "/glossary/", "files/"):
+            self.assertIn(f'href="{destination}"', discovery)
 
     def test_landing_page_references_only_declared_svg_artwork(self) -> None:
         text = LANDING.read_text(encoding="utf-8")
         references = set(
             re.findall(r'src="(?:\.\./)?images/([a-z0-9-]+\.svg)"', text)
         )
-        self.assertEqual(references, EXPECTED_SVGS)
+        self.assertEqual(references, EXPECTED_SVGS - {"landing-architecture.svg"})
         self.assertEqual(
             {path.name for path in IMAGES.glob("*.svg")},
             EXPECTED_SVGS,
@@ -247,6 +224,7 @@ class LandingPageTests(unittest.TestCase):
                 "javascripts/pwa.js",
                 "javascripts/reader-navigation.js",
                 "javascripts/audience-context.js",
+                "javascripts/audience-shell.js",
                 "javascripts/search-history.js",
                 "javascripts/glossary-inline.js",
                 "javascripts/composition-playground.js",

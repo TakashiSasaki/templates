@@ -101,7 +101,7 @@ class HumanFirstOnboardingTests(unittest.TestCase):
 
     def test_separate_product_repository_mental_model_is_explicit(self) -> None:
         landing = LANDING.read_text(encoding="utf-8")
-        self.assertIn("do <strong>not</strong> turn this <code>templates</code> repository", landing)
+        self.assertIn("Use the systems supplied by this repository in another repository.", landing)
         self.assertIn("your separate product repository", landing)
         self.assertIn("provides tooling and contracts", landing)
 

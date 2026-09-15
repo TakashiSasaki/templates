@@ -3,39 +3,27 @@
 > **参考訳（非正本）:** このページは英語正本の参考訳です。内容に差異がある場合は英語正本が優先されます。
 
 <div class="portal-landing portal-landing--cover">
-
-<section class="portal-cover" aria-labelledby="portal-cover-title">
-  <div class="portal-cover__copy">
-    <p class="portal-cover__kicker">まず、達成したい作業から選ぶ</p>
-    <h1 id="portal-cover-title">
-      <span class="portal-accent portal-accent--webapp">Website または Web アプリケーション</span>を作る、
-      <span class="portal-accent portal-accent--skill">Agent Skill</span>を作る、
-      または coding-agent rules を導入する
-    </h1>
-    <p class="portal-cover__lead">
-      通常、この <code>templates</code> repository 自体を product repository にするのではありません。
-      product は別 repository に置き、そこへ目的に合った templates の tooling と contracts を適用します。
-    </p>
-    <div class="portal-cover__actions">
-      <a class="portal-cover__button portal-cover__button--primary" href="/web/">
-        Website / Web アプリケーション <span aria-hidden="true">→</span>
-      </a>
-      <a class="portal-cover__button portal-cover__button--secondary" href="/composition/use/skill-first-use-walkthrough/">
-        Agent Skill を作る <span aria-hidden="true">→</span>
-      </a>
-    </div>
-    <ul class="portal-cover__signals" role="list">
-      <li>具体的な作業から始め、architecture は必要になってから確認します。</li>
-      <li>browser product の選択と shared Web semantics は Composition が所有します。</li>
-      <li>Policy は optional で、Composition とは独立しています。</li>
-    </ul>
-  </div>
-
-  <div class="portal-cover__visual">
-    <img src="/images/landing-architecture.svg" alt="Composition が Agent Skill、Website、Web application の artifact を定義し、Policy が coding-agent operation を独立して定義し、Site が両 authority を検証済みの一つのポータルとして公開する構成">
-  </div>
+<section class="portal-cover audience-landing" aria-labelledby="portal-cover-title">
+<p class="portal-cover__kicker">Templates</p>
+<h1 id="portal-cover-title">何をしに来ましたか？</h1>
+<p class="portal-cover__lead">作業する repository に合わせて、入口を選んでください。</p>
+<div class="audience-journeys">
+<a class="audience-journey" data-audience-entry="use" href="/web/?audience=use">
+<strong>Use templates · テンプレートを使う</strong>
+<span>この repository が提供する仕組みを、あなたの別 repository で使う。</span>
+<small>Website · Web application · Agent Skill · Policy · Composition</small>
+<span class="audience-journey__action">使い始める <span aria-hidden="true">→</span></span>
+</a>
+<a class="audience-journey" data-audience-entry="maintain" href="/repository-trees/?audience=maintain">
+<strong>Maintain templates · テンプレートを保守する</strong>
+<span>TakashiSasaki/templates 自体と、その authority / provider を保守・発展させる。</span>
+<small>Site · Composition provider · Policy provider · 公開 · CI · ソース</small>
+<span class="audience-journey__action">保守の入口へ <span aria-hidden="true">→</span></span>
+</a>
+</div>
 </section>
-
+<details class="audience-discovery">
+<summary>すでに目的が決まっていますか？ ドキュメントと共通ツール</summary>
 <section class="portal-authority" aria-labelledby="portal-build-title">
   <div class="portal-section-heading">
     <p class="portal-section-heading__kicker">何をしたいですか？</p>
@@ -147,4 +135,6 @@ TakashiSasaki/templates
   </div>
 </section>
 
+
+</details>
 </div>
