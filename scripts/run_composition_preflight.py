@@ -26,6 +26,7 @@ RUNTIME_SMOKES = (
     "scripts/smoke_test_skill_runner.py",
     "scripts/smoke_test_remote_skill_installer.py",
 )
+PUBLICATION_DESCRIPTOR = ROOT / "generated" / "publication-descriptor.json"
 
 
 class PreflightFailure(RuntimeError):
@@ -82,26 +83,54 @@ def resolve_component_version_base(explicit: str | None) -> str:
     )
 
 
-def run_owned_validators(component_version_base: str) -> None:
-    checks = (
-        (
-            "playground-generated-state",
-            command("scripts/generate_composition_playground_publication.py", "--check-dir", "generated"),
-        ),
-        ("composition-publication", command("-I", "scripts/validate_publication.py")),
-        ("translation-freshness", command("-I", "scripts/validate_translations.py")),
-        (
-            "component-version-monotonicity",
-            command("scripts/validate_component_versions.py", "--base", component_version_base),
-        ),
-        (
-            "installer-release",
-            command("-I", "scripts/verify_composition_skill_installer_release.py", "--git-ref", "HEAD"),
-        ),
-        (
-            "core-test-partition",
-            command("scripts/run_unittest_shard.py", "--suite", "core", "--shard-count", "2", "--verify-only"),
-        ),
+def run_owned_validators(
+    component_version_base: str,
+    *,
+    publication_already_validated: bool = False,
+) -> None:
+    checks: list[tuple[str, list[str]]] = []
+    if not publication_already_validated:
+        checks.extend(
+            [
+                (
+                    "playground-generated-state",
+                    command(
+                        "scripts/generate_composition_playground_publication.py",
+                        "--check-dir",
+                        "generated",
+                    ),
+                ),
+                ("composition-publication", command("-I", "scripts/validate_publication.py")),
+            ]
+        )
+    checks.extend(
+        [
+            ("translation-freshness", command("-I", "scripts/validate_translations.py")),
+            (
+                "component-version-monotonicity",
+                command("scripts/validate_component_versions.py", "--base", component_version_base),
+            ),
+            (
+                "installer-release",
+                command(
+                    "-I",
+                    "scripts/verify_composition_skill_installer_release.py",
+                    "--git-ref",
+                    "HEAD",
+                ),
+            ),
+            (
+                "core-test-partition",
+                command(
+                    "scripts/run_unittest_shard.py",
+                    "--suite",
+                    "core",
+                    "--shard-count",
+                    "2",
+                    "--verify-only",
+                ),
+            ),
+        ]
     )
     for name, argv in checks:
         run_check(name, argv)
@@ -201,6 +230,14 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="run only the shared owned-validator stage used by sharded CI",
     )
+    parser.add_argument(
+        "--publication-already-validated",
+        action="store_true",
+        help=(
+            "skip publication regeneration and publication semantics only when the "
+            "same exact-head execution path already completed those checks"
+        ),
+    )
     return parser.parse_args(argv)
 
 
@@ -214,6 +251,17 @@ def main(argv: Sequence[str] | None = None) -> int:
             raise PreflightFailure(
                 f"exact-head mismatch: expected {args.expected_head}, found {head}"
             )
+        if args.publication_already_validated:
+            if not args.validators_only:
+                raise PreflightFailure(
+                    "--publication-already-validated requires --validators-only"
+                )
+            if not PUBLICATION_DESCRIPTOR.is_file() or PUBLICATION_DESCRIPTOR.is_symlink():
+                raise PreflightFailure(
+                    "--publication-already-validated requires an existing non-symlink "
+                    "generated/publication-descriptor.json from the same exact-head "
+                    "execution path"
+                )
         component_version_base = resolve_component_version_base(
             args.component_version_base
         )
@@ -221,7 +269,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             os.environ["SITE_PUBLICATION_PROTOCOL_ROOT"] = str(
                 args.site_publication_protocol.resolve()
             )
-        run_owned_validators(component_version_base)
+        run_owned_validators(
+            component_version_base,
+            publication_already_validated=args.publication_already_validated,
+        )
         if args.validators_only:
             print(
                 f"COMPOSITION_PREFLIGHT_PASS profile={args.profile} stage=validators head={head}",

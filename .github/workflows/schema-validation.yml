@@ -49,7 +49,7 @@ jobs:
           --github-output "$GITHUB_OUTPUT"
 
   primary:
-    name: preflight + core tests (2/2)
+    name: publication + preflight + core tests (2/2)
     runs-on: ubuntu-24.04
     timeout-minutes: 8
     env:
@@ -59,11 +59,8 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          # Managed update/upgrade validates that the lock's old source revision
-          # exists locally and is an ancestor of the target source revision.
-          # Release verification also checks the immutable T -> S -> I ancestry.
-          # Keep real history available for both contracts.
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Check out Site publication protocol
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -92,19 +89,23 @@ jobs:
       - name: Verify dependency graph
         run: .venv/bin/python -m pip check
 
-      - name: Materialize Composition publication
+      - name: Materialize Composition publication once for primary validation
         run: .venv/bin/python -I scripts/materialize_publication.py --source-root .
 
-      - name: Validate Site-owned publication contract
+      - name: Validate Site-owned publication contract once
         run: .venv/bin/python -I "$SITE_PUBLICATION_PROTOCOL_ROOT/scripts/publication_contract.py" --source-root .
 
-      - name: Run canonical Composition validator preflight
+      - name: Validate Composition-owned publication semantics once
+        run: .venv/bin/python -I scripts/validate_publication.py
+
+      - name: Run canonical Composition validator preflight without rebuilding publication
         env:
           COMPONENT_VERSION_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
           EXPECTED_HEAD: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
         run: >-
           .venv/bin/python -I scripts/run_composition_preflight.py fast
           --validators-only
+          --publication-already-validated
           --component-version-base "$COMPONENT_VERSION_BASE"
           --expected-head "$EXPECTED_HEAD"
 
@@ -127,6 +128,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Check out Site publication protocol
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -155,7 +157,7 @@ jobs:
       - name: Verify dependency graph
         run: .venv/bin/python -m pip check
 
-      - name: Materialize Composition publication
+      - name: Materialize Composition publication for shard-local test inputs
         run: .venv/bin/python -I scripts/materialize_publication.py --source-root .
 
       - name: Run core schema and semantic contract test shard 1/2
@@ -172,25 +174,13 @@ jobs:
     if: needs.classify_browser.outputs.required == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 8
-    env:
-      SITE_PUBLICATION_PROTOCOL_ROOT: ${{ github.workspace }}/.site-publication-protocol
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
-
-      - name: Check out Site publication protocol
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: 3ae5d1e60c65e7a8ebf5f9af0436044484e42983
-          path: .site-publication-protocol
-          sparse-checkout: |
-            scripts/publication_contract.py
-          sparse-checkout-cone-mode: false
           persist-credentials: false
-          fetch-depth: 1
 
       - name: Set up Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
