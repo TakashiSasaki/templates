@@ -19,6 +19,18 @@ Staged CI separates **early falsification** from **final qualification**. Cheap 
 
 Repositories do not need four physical workflows or jobs. A simple repository may collapse roles. Conversely, one stage may contain several jobs. The taxonomy describes evidence role and execution intent, not a mandatory GitHub Actions topology.
 
+## Optimize the repair cycle
+
+The first optimization target is fewer incomplete candidates entering expensive qualification and independent review. The canonical [invariant coverage rule](https://github.com/TakashiSasaki/templates/blob/policy/policy/core/adversarial-invariant-testing.md) closes material sibling cases and reaches the actual consumer boundary. The [staged execution procedure](https://github.com/TakashiSasaki/templates/blob/policy/skills/orchestrate-repository-change/references/staged-ci-execution.md) puts cheap source/environment checks and bounded consumer validation before publishing a repaired qualification candidate. Independent review strength and required coverage remain unchanged.
+
+Safe reuse is governed by [evidence applicability](https://github.com/TakashiSasaki/templates/blob/policy/policy/pull-request/reuse-valid-evidence.md). Local cached stages are disposable evidence tied to effective inputs and artifact integrity, not remote CI skip authority. A successful stage can be reused only while all its bindings hold; a browser or environment repair need not invalidate unrelated build evidence when those bindings are positively re-established. Review applicability remains separate.
+
+When assessing an optimization, compare like-for-like evidence scopes and report sample count, median and range (or P90 when supported). Separate end-to-end wall time from summed job execution intervals; label the latter as an occupancy estimate, not provider billing. Separate setup, actual validation, copy/hash verification, and lock or producer waiting where observable. An aggregate-only workflow and a workflow containing producer plus consumers cannot establish a total compute improvement by comparing their run durations alone.
+
+Useful measures include candidate heads and qualification attempts per repair, review rounds and reopened findings per family, time to first relevant failure, source/environment diagnosis time, runner polling seconds, retry rate, and net artifact reuse savings after copy/hash costs. Record limitations rather than inventing missing timings. These are measurement aids, not extra acceptance gates or a requirement to build a new telemetry system.
+
+Measure ordering before adding browser shards, accounting for duplicated setup and initialization. Investigate containment overlap at the actual environment and consumer boundary before deduplicating tests: similarly named tests can establish different guarantees after provider materialization. Removing applicable verification, extending timeouts to hide defects, or trading concurrent core checks for a reuse-only serial barrier does not satisfy the staged-validation policy. Required checks omitted should remain zero.
+
 ## CI preflight
 
 A useful CI preflight is substantially cheaper than the dependent work it protects and is deterministic enough to provide fast negative feedback. Prefer checks that can establish that continuing an expensive dependent path would be wasted work—for example, an invalid manifest, malformed configuration, broken generated-state invariant, or structural policy error.

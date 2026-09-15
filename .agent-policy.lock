@@ -45,7 +45,7 @@ outputs:
   .agents/skills/orchestrate-repository-change/references/stacked-pr-workflow.md:
     sha256: ba4c0affd16a74a96dbdc9f5f8f53b1ad1fe278aba6737c733132536f4bcacce
   .agents/skills/orchestrate-repository-change/references/staged-ci-execution.md:
-    sha256: f43cd831aa5f423f7c0968b1570e059af75b4db07fa431095cbbea72d33c2e33
+    sha256: 7a43a6d6a3a3cbfb2e6df6f8a5dc350cc485bdb40942893e90024e87fd737ca7
   .agents/skills/orchestrate-repository-change/references/work-ledger.md:
     sha256: a7eedfc98d8a10b383693dd982568752f32e4e5641edc9298637e74e62c30303
   .agents/skills/pr-review/SKILL.md:
@@ -75,6 +75,6 @@ outputs:
   .agents/skills/pr-review/references/risk-domains/state-mutation-and-recovery.md:
     sha256: 0cd5b71178b43da5128f4d2e1bfab8f3df5d71439531a9010f351c4ed1468f44
   .review-authority/review-policy.md:
-    sha256: 5f66caead181c4cb2bdb862ce1db4e18cbe18a23f8e3a6fabaea0620d5dce901
+    sha256: 79145660748115a8eaab0888dd25555a80cfd9faf66df6a41ee13bc0cc382c2e
   AGENTS.md:
-    sha256: 58bead97e8c496f078e50ada67a7b26a50bc7140da8596475bcedef0b4617c09
+    sha256: b399a78f3756908837c5a63010b4abd3e3b9e480ff4ba3409f1233d985ef66e7
