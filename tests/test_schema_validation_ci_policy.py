@@ -94,6 +94,16 @@ class SchemaValidationCIPolicyTests(unittest.TestCase):
         self.assertNotIn("actions/upload-artifact@", self.workflow)
         self.assertNotIn("actions/download-artifact@", self.workflow)
 
+    def test_phase_zero_source_precedes_expensive_core_work_in_each_shard(self) -> None:
+        for name in ("primary", "parallel"):
+            with self.subTest(job=name):
+                job = _job_block(self.workflow, name)
+                self.assertIn("scripts/composition_phase_zero.py", job)
+                self.assertLess(
+                    job.index("scripts/composition_phase_zero.py"),
+                    job.index("scripts/materialize_publication.py --source-root ."),
+                )
+
     def test_execution_jobs_are_bound_to_the_exact_pull_request_head(self) -> None:
         checkout_ref = "ref: ${{ github.event.pull_request.head.sha || github.sha }}"
         for job_name in (

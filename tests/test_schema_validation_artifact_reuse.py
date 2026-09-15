@@ -56,6 +56,15 @@ class SchemaValidationArtifactReuseTests(unittest.TestCase):
         self.assertEqual(parallel.count("scripts/materialize_publication.py --source-root ."), 1)
         self.assertNotIn("scripts/run_composition_preflight.py", parallel)
 
+    def test_each_concurrent_core_shard_runs_phase_zero_before_materialization(self) -> None:
+        for name in ("primary", "parallel"):
+            with self.subTest(job=name):
+                job = job_block(self.workflow, name)
+                phase_zero = "scripts/composition_phase_zero.py"
+                materialize = "scripts/materialize_publication.py --source-root ."
+                self.assertEqual(job.count(phase_zero), 1)
+                self.assertLess(job.index(phase_zero), job.index(materialize))
+
     def test_real_browser_is_not_serialized_behind_core_publication_work(self) -> None:
         browser = job_block(self.workflow, "real_browser")
         self.assertIn("      - classify_browser\n", browser)
