@@ -39,12 +39,16 @@ jobs:
           python scripts/generate_repository_trees.py --help >/dev/null
           python scripts/prepare_repository_tree_publication.py --help >/dev/null
 
+      - name: Remove one-shot helpers before repository qualification
+        run: |
+          rm .github/workflows/s4-2-canonical-repair.yml scripts/s4_2_canonical_repair_once.py scripts/s4_2_canonical_repair_expectations_once.py
+          git diff --check
+
       - name: Run repository test suite
         run: python -m unittest discover --start-directory tests --verbose
 
-      - name: Commit repair and remove one-shot helpers
+      - name: Commit canonical-validation repair
         run: |
-          rm .github/workflows/s4-2-canonical-repair.yml scripts/s4_2_canonical_repair_once.py scripts/s4_2_canonical_repair_expectations_once.py
           git diff --check
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
