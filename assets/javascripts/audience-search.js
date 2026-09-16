@@ -33,7 +33,9 @@
     state.label.firstChild.textContent = text.filter + " ";
     for (const option of state.select.options) if (option.textContent !== text[option.value]) option.textContent = text[option.value];
     const anchors = results(root);
-    const lists = [...new Set(anchors.map(anchor => anchor.closest("ol")).filter(Boolean))];
+    const currentLists = anchors.map(anchor => anchor.closest("ol")).filter(Boolean);
+    const retainedLists = [...root.querySelectorAll("ol")].filter(list => resultListIds.has(list));
+    const lists = [...new Set([...currentLists, ...retainedLists])];
     const filtering = state.select.value !== "all";
     for (const list of lists) {
       if (!resultListIds.has(list)) {
