@@ -5,6 +5,7 @@ from pathlib import Path
 import tempfile
 import unittest
 from publication_bundle.contract import BundleError, MODELS, canonical, digest, seal, validate
+from publication_bundle.paths import audience_routes
 
 PRODUCER={'authority':'site-internal-integration','revision':'a'*40}
 PROVIDERS={'composition':'b'*40,'policy':'c'*40}
@@ -14,7 +15,7 @@ def fixture(root):
     root.mkdir()
     models={name:{} for name in MODELS}
     models['documents.json']=[{'publication':'composition','document':'intro','source':'docs/index.md','destination':'intro.md','slot':False}]
-    models['navigation.json']={'schema_version':1,'navigation':{'use':[{'publication':'composition','document':'intro','destination':'intro.md','title':'Intro'}]},'locale_labels':{'schema_version':1,'canonical_language':'en','locales':[{'language':'ja','labels':[{'id':'intro','canonical':'Intro','localized':'はじめに'},{'id':'use','canonical':'Use templates','localized':'利用'}]}]},'audience_runtime':{'schema_version':1,'audiences':['use'],'documents':{'intro.md':{'destination':'intro.md','key':'composition:intro','audiences':['use'],'primary':'use','is_landing':False,'title':'Intro'}},'routes':{'/intro/':'intro.md','/intro/index.html':'intro.md'},'navigation':{'use':[{'title':'Intro','destination':'intro.md','href':'/intro/'}]},'overviews':{'use':'/intro/'},'landing_destination':'intro.md'}}
+    models['navigation.json']={'schema_version':1,'navigation':{'use':[{'publication':'composition','document':'intro','destination':'intro.md','title':'Intro'}]},'locale_labels':{'schema_version':1,'canonical_language':'en','locales':[{'language':'ja','labels':[{'id':'intro','canonical':'Intro','localized':'はじめに'},{'id':'use','canonical':'Use templates','localized':'利用'}]}]},'audience_runtime':{'schema_version':1,'audiences':['use'],'documents':{'intro.md':{'destination':'intro.md','key':'composition:intro','audiences':['use'],'primary':'use','is_landing':False,'title':'Intro'}},'routes':audience_routes(['intro.md']),'navigation':{'use':[{'title':'Intro','destination':'intro.md','href':'/intro/'}]},'overviews':{'use':'/intro/'},'landing_destination':'intro.md'}}
     models['guided-locales.json']={'schema_version':1,'canonical_graph_schema_version':1,'canonical_language':'en','locales':[]}
     models['reader-navigation-runtime.json']={'schema_version':1,'canonical_language':'en','locales':[{'language':'ja','labels':{'Intro':'はじめに','Use templates':'利用'},'routes':{}}]}
     models['provider-repositories.json']={k:{'revision':v,'entries':[],'browser':[],'previews':[],'nonviewable_blobs':{},'published':({'docs/index.md':'intro.md'} if k=='composition' else {})} for k,v in PROVIDERS.items()}
@@ -115,3 +116,28 @@ class BundleTests(unittest.TestCase):
             else:model['audience_runtime']['routes']['https://untrusted.example/']='intro.md'
             (root/name).write_bytes(canonical(model))
             with self.subTest(name=name),self.assertRaises(BundleError):finish(root)
+
+    def test_audience_routes_require_every_producer_alias(self):
+        for alias in audience_routes(['intro.md']):
+            with self.subTest(alias=alias):
+                with tempfile.TemporaryDirectory() as temporary:
+                    root=fixture(Path(temporary)/'bundle')
+                    model=json.loads((root/'navigation.json').read_text())
+                    del model['audience_runtime']['routes'][alias]
+                    (root/'navigation.json').write_bytes(canonical(model))
+                    with self.assertRaisesRegex(BundleError,'route projection'):finish(root)
+
+    def test_audience_routes_reject_extra_and_misbound_aliases(self):
+        for mutation in ('extra','wrong-target'):
+            with self.subTest(mutation=mutation),tempfile.TemporaryDirectory() as temporary:
+                root=fixture(Path(temporary)/'bundle');model=json.loads((root/'navigation.json').read_text())
+                if mutation=='extra':model['audience_runtime']['routes']['/intro/index.html']='intro.md'
+                else:model['audience_runtime']['routes']['/intro.html']='absent.md'
+                (root/'navigation.json').write_bytes(canonical(model))
+                with self.assertRaisesRegex(BundleError,'route projection'):finish(root)
+
+    def test_shared_alias_projection_preserves_root_directory_and_file_rules(self):
+        self.assertEqual(set(audience_routes(['index.md'])),{'index.md','/index.md','/','','/index.html','index.html'})
+        self.assertEqual(set(audience_routes(['web/index.md'])),{'web/index.md','/web/index.md','/web/','web','web/','/web/index.html'})
+        self.assertEqual(set(audience_routes(['guide.md'])),{'guide.md','/guide.md','/guide/','/guide','/guide.html'})
+        with self.assertRaisesRegex(ValueError,'route collision'):audience_routes(['guide.md','guide/index.md'])

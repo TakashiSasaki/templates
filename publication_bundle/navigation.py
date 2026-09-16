@@ -2,7 +2,7 @@
 from pathlib import PurePosixPath
 from types import SimpleNamespace
 from publication_bundle.contract import BundleError, read_json
-from publication_bundle.paths import public_path
+from publication_bundle.paths import public_path, audience_routes
 from publication_bundle.authority_content.reader_navigation_locales import load_overlays, build_runtime_map
 
 
@@ -22,13 +22,10 @@ def validate_navigation(root, model, documents):
         document=destinations[destination]
         if record['destination']!=destination or record['key']!=document['publication']+':'+document['document'] or record['primary'] not in record['audiences'] or not set(record['audiences'])<=set(audiences):
             raise BundleError('audience document identity mismatch')
-    for route,destination in audience['routes'].items():
-        if destination not in destinations:raise BundleError('audience route references absent document')
-        public=public_path(destination)
-        aliases={destination,'/'+destination,public,public+'index.html',public.rstrip('/'),public.rstrip('/')+'.html'}
-        if PurePosixPath(destination).name=='index.md':aliases|={public.lstrip('/'),public.strip('/')}
-        if destination=='index.md':aliases|={'','index.html','/index.html'}
-        if route not in aliases:raise BundleError('audience route identity mismatch')
+    try:expected_routes=audience_routes(destinations)
+    except ValueError as exc:raise BundleError(str(exc)) from exc
+    if audience['routes']!=expected_routes:
+        raise BundleError('audience route projection is incomplete or inconsistent')
     def project(nodes):
         return [({'title':n['title'],'children':project(n['children'])} if 'children' in n else
                  {'title':n['title'],'destination':n['destination'],'href':public_path(n['destination'])}) for n in nodes]
