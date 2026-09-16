@@ -20,13 +20,22 @@ import tarfile
 import tempfile
 import zipfile
 
-from scripts.site_build_artifact import (
-    ArtifactError,
-    MANIFEST,
-    WORKFLOW,
-    identity_key,
-    validate_and_extract,
-)
+if __package__ in (None, ""):
+    from site_build_artifact import (
+        ArtifactError,
+        MANIFEST,
+        WORKFLOW,
+        identity_key,
+        validate_and_extract,
+    )
+else:
+    from scripts.site_build_artifact import (
+        ArtifactError,
+        MANIFEST,
+        WORKFLOW,
+        identity_key,
+        validate_and_extract,
+    )
 
 
 class NoArtifact(ArtifactError):
