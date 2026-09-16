@@ -132,6 +132,26 @@ class BaseArtifactSelectionTests(unittest.TestCase):
                 base_sha=BASE,
             )
 
+    def test_select_artifact_rejects_reversed_attempt_window(self) -> None:
+        run = {"id": 7}
+        jobs = [{
+            "name": "build / build",
+            "status": "completed",
+            "conclusion": "success",
+            "started_at": "2026-09-16T04:05:00Z",
+            "completed_at": "2026-09-16T04:00:00Z",
+        }]
+        artifact = {
+            "id": 11,
+            "name": "github-pages",
+            "expired": False,
+            "created_at": "2026-09-16T04:03:00Z",
+            "digest": "sha256:" + "a" * 64,
+            "workflow_run": {"id": 7, "head_sha": BASE},
+        }
+        with self.assertRaisesRegex(ArtifactError, "timestamps are out of order"):
+            select_artifact(run, jobs, [artifact], base_sha=BASE)
+
     def test_manifest_reader_binds_repository_and_base_sha(self) -> None:
         inputs = {
             "schema_version": 1,
