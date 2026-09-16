@@ -180,10 +180,15 @@ def main():
     p.add_argument('--policy-revision',required=True)
     p.add_argument('--staging-ids',default='')
     p.add_argument('--output',type=Path,required=True)
+    p.add_argument('--github-output',type=Path)
     args=p.parse_args()
     try:
         result=produce(root=args.integration_root,producer_revision=args.producer_revision,provider_roots={'composition':args.composition_root,'policy':args.policy_root},provider_revisions={'composition':args.composition_revision,'policy':args.policy_revision},staging_ids=args.staging_ids.split(',') if args.staging_ids else [],output=args.output)
     except (ValueError,RuntimeError,OSError) as exc:p.error(str(exc))
-    print(json.dumps(result,sort_keys=True))
+    if args.github_output:
+        with args.github_output.open('a') as stream:
+            stream.write('bundle_identity='+result['identity']+'\n')
+            stream.write('bundle_content_digest='+result['content_digest']+'\n')
+    print(json.dumps({k:v for k,v in result.items() if k!='files'},sort_keys=True))
 
 if __name__=='__main__':main()

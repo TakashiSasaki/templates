@@ -789,40 +789,15 @@ class PublicationStagingMaterializationTests(unittest.TestCase):
 
 class PublicationStagingWorkflowTests(unittest.TestCase):
     def test_reusable_build_materializes_staging_only_when_explicitly_requested(self) -> None:
-        workflow = (ROOT / ".github/workflows/site-producer.yml").read_text(encoding="utf-8")
-        deploy = (ROOT / ".github/workflows/deploy-pages.yml").read_text(encoding="utf-8")
-
-        self.assertIn("publication_staging_id:", workflow)
-        self.assertIn("publication_staging_ids:", workflow)
-        self.assertIn("Materialize staged publication mapping", workflow)
-        self.assertIn("inputs.publication_staging_id != ''", workflow)
-        self.assertIn("inputs.publication_staging_ids != ''", workflow)
-        self.assertIn("scripts/materialize_publication_staging.py", workflow)
-        self.assertIn(
-            "PUBLICATION_STAGING_ID: ${{ inputs.publication_staging_id }}",
-            workflow,
-        )
-        self.assertIn('--staging-id "$PUBLICATION_STAGING_ID"', workflow)
-        self.assertIn('--staging-ids "$PUBLICATION_STAGING_IDS"', workflow)
-        self.assertNotIn('--staging-id "${{ inputs.publication_staging_id }}"', workflow)
-        composition_checkout = workflow.index("- name: Check out composition publication")
-        policy_checkout = workflow.index("- name: Check out policy publication")
-        tests = workflow.index("- name: Run site assembly tests")
-        materialize_step = workflow.index("- name: Materialize staged publication mapping")
-        prepare = workflow.index("- name: Prepare repository-tree publication")
-        self.assertLess(composition_checkout, materialize_step)
-        self.assertLess(policy_checkout, materialize_step)
-        self.assertLess(materialize_step, tests)
-        self.assertLess(tests, prepare)
-        self.assertIn('staged_root="$(python site-source/scripts/materialize_publication_staging.py', workflow)
-        self.assertIn('SITE_PUBLICATION_ROOT=$staged_root', workflow)
-        self.assertIn('--site-root "${SITE_PUBLICATION_ROOT:-site-source}"', workflow)
-        self.assertIn(
-            '--reader-navigation-locales "${SITE_PUBLICATION_ROOT:-site-source}/reader-navigation-locales.json"',
-            workflow,
-        )
-        self.assertNotIn("publication_staging_id", deploy)
-        self.assertNotIn("publication_staging_ids", deploy)
+        workflow = (ROOT / '.github/workflows/site-producer.yml').read_text()
+        self.assertIn('publication_staging_id:',workflow)
+        self.assertIn('publication_staging_ids:',workflow)
+        self.assertIn('if [ -n "$STAGING_IDS" ] && [ -n "$STAGING_ID" ]; then',workflow)
+        self.assertIn('--staging-ids "${STAGING_IDS:-$STAGING_ID}"',workflow)
+        producer = (Path(__file__).resolve().parents[1] / 'integration/producer.py').read_text()
+        self.assertIn('if staging_ids:',producer)
+        self.assertIn('stage_models(',producer)
+        self.assertNotIn('publication_staging_id',(ROOT / '.github/workflows/deploy-pages.yml').read_text())
 
 
 if __name__ == "__main__":

@@ -171,14 +171,13 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
         self.assertIn("path: policy-source", workflow)
         self.assertNotIn("path: skill-source", workflow)
         self.assertNotIn("path: webapp-source", workflow)
-        self.assertIn(
-            "python site-source/scripts/prepare_repository_tree_publication.py",
-            workflow,
-        )
-        self.assertIn("--publication site=site-publication", workflow)
-        self.assertIn("--publication composition=composition-source", workflow)
-        self.assertIn("--publication policy=policy-source", workflow)
-        self.assertIn("--site-source-root site-source", workflow)
+        self.assertIn('scripts/produce_publication_bundle.py',workflow)
+        self.assertIn('scripts/render_publication_bundle.py',workflow)
+        self.assertIn('--composition-root composition-source',workflow)
+        self.assertIn('--policy-root policy-source',workflow)
+        renderer_step=workflow.split('- name: Render Site from validated Publication Bundle')[1].split('- name:')[0]
+        self.assertNotIn('--composition-root',renderer_step)
+        self.assertNotIn('--policy-root',renderer_step)
         self.assertNotIn("--publication skill=", workflow)
         self.assertNotIn("--publication webapp=", workflow)
         self.assertNotIn("generate_skill_template_tree.py", workflow)

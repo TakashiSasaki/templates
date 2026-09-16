@@ -1,0 +1,72 @@
+"""Fill declared slots from Site's own content, never from provider checkouts."""
+from pathlib import Path, PurePosixPath
+import json
+from publication_bundle.contract import BundleError, regular, safe_path
+from publication_bundle.paths import public_path
+from publication_bundle.markdown import _rewrite_markdown
+from publication_bundle.source_reader import read_entries
+from publication_bundle.repository import entry_label
+from publication_bundle.authority_content.publish_translations import publish_translations
+from publication_bundle.authority_content.translation_fragment_reconciliation import reconcile_translation_fragments
+from publication_bundle.authority_content.translation_link_selection import rewrite_current_localized_links
+from publication_bundle.authority_content.translation_coverage import build_reader_coverage
+from publication_bundle.authority_content.reader_navigation_locales import build_runtime_map, load_overlays
+
+
+def put(source, target):
+    if target.exists() or target.is_symlink():raise BundleError('Site content destination collision: '+str(target))
+    target.parent.mkdir(parents=True,exist_ok=True)
+    target.write_bytes(source.read_bytes())
+
+
+def copy_assets(source,target):
+    if source.is_symlink() or not source.is_dir():raise BundleError('invalid Site asset root')
+    for path in sorted(source.rglob('*')):
+        if path.is_symlink():raise BundleError('Site assets contain a symlink')
+        if path.is_dir():continue
+        if not path.is_file():raise BundleError('Site assets contain a special file')
+        put(path,target/path.relative_to(source))
+
+
+def fill(site_root,docs_root,documents,nav,provider_translations,coverage,output):
+    slots=[d for d in documents if d['slot']]
+    local_docs={d['document']:{'source':PurePosixPath(d['source']),'optional':False,'home':d['destination']=='index.md'} for d in slots}
+    pages=[{**d,'destination':PurePosixPath(d['destination'])} for d in slots]
+    for d in slots:put(regular(site_root,d['source']),docs_root/safe_path(d['destination']))
+    copy_assets(site_root/'assets',docs_root)
+    published={PurePosixPath(d['source']):PurePosixPath(d['destination']) for d in slots}
+    source_paths=frozenset(e.path for e in read_entries(site_root) if entry_label(e)=='file')
+    for d in slots:
+        path=docs_root/d['destination']
+        text,_=_rewrite_markdown(path.read_text(encoding='utf-8'),source_document=PurePosixPath(d['source']),site_document=PurePosixPath(d['destination']),document_targets=published,asset_rules=[],docs_root=docs_root,publication='site',site_source_paths=source_paths)
+        path.write_text(text,encoding='utf-8')
+    local={'site':(site_root,local_docs,[])}
+    records=publish_translations(local,pages,docs_root,skip_stale=True)
+    reconcile_translation_fragments(local,pages,records,docs_root)
+    # Provider statuses are carried through unchanged; only Site-owned source is compiled here.
+    local_coverage=build_reader_coverage(local,pages)
+    combined=provider_translations['translations']+[{'publication':'site','language':r.language,'canonical_destination':str(r.canonical_destination),'translation_destination':str(r.translation_destination)} for r in records]
+    translations={**provider_translations,'translations':combined}
+    write=lambda path,data:path.write_text(json.dumps(data,indent=2,ensure_ascii=False)+'\n',encoding='utf-8')
+    write(output/'translation-publication.json',translations)
+    write(output/'translation-coverage.json',coverage)
+    write(output/'site-translation-coverage.json',local_coverage)
+    # Existing label projection is shared; no provider source or manifest enters this stage.
+    label_path=output/'reader-navigation-locales.json';write(label_path,nav['locale_labels'])
+    labels=load_overlays(label_path,nav['navigation'])
+    # build_runtime_map consumes only identity fields on each record.
+    from types import SimpleNamespace
+    runtime_records=[SimpleNamespace(**{**r,'canonical_destination':PurePosixPath(r['canonical_destination']),'translation_destination':PurePosixPath(r['translation_destination'])}) for r in combined]
+    # Bundle publication records already certify current derivatives. Combine them
+    # with Site-owned records for cross-authority reader-link projection.
+    rewrite_current_localized_links(runtime_records,docs_root)
+    write(docs_root/'reader-navigation-runtime.json',build_runtime_map(labels,runtime_records))
+    audience=nav['audience_runtime']
+    for r in combined:
+        canonical=r['canonical_destination'];route=public_path(r['translation_destination'])
+        if canonical in audience['documents']:
+            audience['routes'][route]=canonical;audience['routes'][route+'index.html']=canonical
+            for aud,overview in audience['overviews'].items():
+                if audience['routes'].get(overview)==canonical:audience.setdefault('localized_overviews',{}).setdefault(r['language'],{})[aud]=route
+    write(docs_root/'audience-runtime.json',audience)
+    return translations

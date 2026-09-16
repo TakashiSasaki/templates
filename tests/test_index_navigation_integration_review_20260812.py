@@ -14,7 +14,7 @@ class CurrentIndexNavigationIntegrationReviewTests(unittest.TestCase):
     def test_guided_retired_url_boundary_checks_url_attributes_not_visible_prose(self) -> None:
         workflow = WORKFLOW.read_text(encoding="utf-8")
         checker = PUBLIC_URL_BOUNDARY_CHECKER.read_text(encoding="utf-8")
-        self.assertIn("scripts/check_public_url_boundary.py", workflow)
+        self.assertIn("check_public_url_boundary.py", (Path(__file__).resolve().parents[1] / 'site_renderer/render.py').read_text())
         self.assertIn('relative.parts[0] == "guided"', checker)
         self.assertIn("return browser_source_view or guided_view", checker)
 

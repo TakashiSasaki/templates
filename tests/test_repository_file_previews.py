@@ -190,38 +190,12 @@ class RepositoryFilePreviewTests(unittest.TestCase):
 
 class RepositoryFilePreviewConfigurationTests(unittest.TestCase):
     def test_workflow_generates_previews_between_trees_and_static_build(self) -> None:
-        workflow = WORKFLOW.read_text(encoding="utf-8")
-        tree_generation = workflow.index("- name: Generate repository trees")
-        preview_generation = workflow.index("- name: Generate inline file previews")
-        static_build = workflow.index("- name: Build the static site")
-
-        self.assertLess(tree_generation, preview_generation)
-        self.assertLess(preview_generation, static_build)
-        self.assertIn(
-            "python site-source/scripts/generate_repository_file_previews_composition.py",
-            workflow,
-        )
-        self.assertIn("--publication composition=composition-source", workflow)
-        self.assertIn("--publication policy=policy-source", workflow)
-        self.assertNotIn("--publication skill=", workflow)
-        self.assertNotIn("--publication webapp=", workflow)
-        self.assertIn(
-            "build/site/repository-trees/previews",
-            workflow,
-        )
-        self.assertIn(
-            "if grep --quiet --fixed-strings -- "
-            "'repository-file-preview-link' \"$page\"; then",
-            workflow,
-        )
-        self.assertIn(
-            '"build/site/repository-trees/previews/${publication}"',
-            workflow,
-        )
-        self.assertNotIn(
-            "find build/site/repository-trees/previews -type f",
-            workflow,
-        )
+        workflow = WORKFLOW.read_text()
+        text = (Path(__file__).resolve().parents[1] / 'site_renderer/render.py').read_text()
+        self.assertLess(text.index('trees.render_tree('),text.index('previews.write_preview_pages('))
+        self.assertLess(text.index('previews.write_preview_pages('),text.index("'zensical'))"))
+        self.assertIn('"build/site/repository-trees/previews/${publication}"',workflow)
+        self.assertIn("'repository-file-preview-link'",workflow)
 
     def test_viewer_assets_and_policy_define_the_security_boundary(self) -> None:
         config = CONFIG_TEMPLATE.read_text(encoding="utf-8")

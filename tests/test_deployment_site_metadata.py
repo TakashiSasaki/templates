@@ -181,35 +181,14 @@ class DeploymentWorkflowWiringTests(unittest.TestCase):
 
         self.assertIn(f"PUBLIC_SITE_URL: {CANONICAL_URL}", build_workflow)
         self.assertIn("deployment_timestamp:", build_workflow)
-        self.assertIn("scripts/prepare_site_metadata.py", build_workflow)
-        self.assertIn(
-            '--deployment-timestamp "${{ inputs.deployment_timestamp }}"',
-            build_workflow,
-        )
-        self.assertIn("scripts/finalize_site_metadata.py", build_workflow)
-        self.assertIn("scripts/finalize_translation_reader.py", build_workflow)
-        self.assertIn("scripts/finalize_guided_locales.py", build_workflow)
-        self.assertIn("scripts/validate_translation_pairs.py", build_workflow)
-        self.assertIn("scripts/finalize_glossary_annotations.py", build_workflow)
-        self.assertIn("'data-glossary-id=' build/site", build_workflow)
-        # The prepare step, two generic metadata passes, reader finalizer,
-        # translation-pair validator, and localized guided finalizer all receive
-        # the same public canonical URL.
-        self.assertEqual(
-            6,
-            build_workflow.count('--canonical-url "${PUBLIC_SITE_URL}"'),
-        )
-        translation_validate = build_workflow.index(
-            "- name: Validate generated translation reader pairs"
-        )
-        guided_finalize = build_workflow.index("- name: Finalize localized guided metadata")
-        glossary_finalize = build_workflow.index("- name: Annotate Glossary terms")
-        verify_boundary = build_workflow.index("- name: Verify generated public URL boundary")
-        self.assertLess(translation_validate, guided_finalize)
-        self.assertLess(guided_finalize, glossary_finalize)
-        self.assertLess(glossary_finalize, verify_boundary)
-        self.assertIn("Verify generated public URL boundary", build_workflow)
-        self.assertIn("scripts/check_public_url_boundary.py", build_workflow)
+        self.assertIn('scripts/render_publication_bundle.py',build_workflow)
+        self.assertIn('--deployment-timestamp "$DEPLOYMENT_TIMESTAMP"',build_workflow)
+        self.assertIn('DEPLOYMENT_TIMESTAMP: ${{ inputs.deployment_timestamp }}',build_workflow)
+        renderer=(ROOT/'site_renderer/render.py').read_text()
+        self.assertIn("'--deployment-timestamp',deployment_timestamp",renderer)
+        self.assertEqual(renderer.count("'--canonical-url',public_url"),6)
+        ordered=['validate_translation_pairs.py','finalize_guided_locales.py','finalize_glossary_annotations.py','check_public_url_boundary.py']
+        self.assertEqual([renderer.index(t) for t in ordered],sorted(renderer.index(t) for t in ordered))
         self.assertIn("https://takashisasaki.github.io/templates/", boundary_checker)
 
         self.assertIn(f"PUBLIC_SITE_URL: {CANONICAL_URL}", deploy_workflow)

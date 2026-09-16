@@ -164,7 +164,7 @@ class RepositoryBrowserSafetyTests(unittest.TestCase):
             output.mkdir()
             self.make_repository(repository)
             branches = {branch: repository for branch in BASE_BRANCH_ORDER}
-            with mock.patch("integration.repository.MAX_TOTAL_TEXT_BYTES", 1):
+            with mock.patch("publication_bundle.source_reader.MAX_TOTAL_TEXT_BYTES", 1):
                 with self.assertRaisesRegex(
                     RepositoryBrowserError,
                     "text candidates exceed",
@@ -242,23 +242,14 @@ class CurrentAuthorityRepositoryBrowserTests(unittest.TestCase):
             self.assertFalse((output / "files/webapp").exists())
 
     def test_workflow_uses_composition_browser_after_static_build(self) -> None:
-        workflow = WORKFLOW.read_text(encoding="utf-8")
-        boundary_checker = PUBLIC_URL_BOUNDARY_CHECKER.read_text(encoding="utf-8")
-        static_build = workflow.index("- name: Build the static site")
-        browser_build = workflow.index("- name: Generate static repository browser")
-        link_validation = workflow.index("- name: Validate generated site links")
-        self.assertLess(static_build, browser_build)
-        self.assertLess(browser_build, link_validation)
-        self.assertIn("generate_repository_browser_composition.py", workflow)
-        self.assertIn("--branch site=site-source", workflow)
-        self.assertIn("--branch composition=composition-source", workflow)
-        self.assertIn("--branch policy=policy-source", workflow)
-        self.assertNotIn("--branch skill=", workflow)
-        self.assertNotIn("--branch webapp=", workflow)
-        self.assertIn("build/site/files/${branch}/index.html", workflow)
-        self.assertIn("scripts/check_public_url_boundary.py", workflow)
-        self.assertIn("browser_source_view", boundary_checker)
-        self.assertIn("URLAttributeParser", boundary_checker)
+        workflow = WORKFLOW.read_text()
+        text = (Path(__file__).resolve().parents[1] / 'site_renderer/render.py').read_text()
+        self.assertLess(text.index("'zensical'))"),text.index('browser.prepare_browser_root('))
+        self.assertLess(text.index('browser.prepare_browser_root('),text.index("'validate_site_links.py'"))
+        self.assertIn("collect_records('site',repository,site_revision,site_root)",text)
+        self.assertIn("read_json(bundle/'provider-repositories.json')",text)
+        self.assertIn('build/site/files/${branch}/index.html',workflow)
+        self.assertIn('browser_source_view',PUBLIC_URL_BOUNDARY_CHECKER.read_text())
 
     def test_policy_and_dependencies_preserve_browser_safety_boundary(self) -> None:
         policy = " ".join(POLICY.read_text(encoding="utf-8").split())
