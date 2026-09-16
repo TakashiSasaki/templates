@@ -37,6 +37,288 @@
       "source_blob": "8ecedbfb35dae0354e0c7d58594d73d143f5981b",
       "source_sha256": "3412df38df98d9560277b45fca05aaddce34cd236c3a130d101967b574b4d22d",
       "adaptation": "none"
+    },
+    "integration/__init__.py": {
+      "source_path": "integration/__init__.py",
+      "source_blob": "809b736a01016b0a78e40bc5903ba7b0a3288840",
+      "source_sha256": "a26847c71745896e536ee4a441bfdae590c764b6c2dc5e50bd4b0cad3078a1b1",
+      "adaptation": "none"
+    },
+    "integration/audience.py": {
+      "source_path": "integration/audience.py",
+      "source_blob": "de3e334921e6da59169096cc626fc3b52eea9c22",
+      "source_sha256": "0f5ab9136ae0e202777edd5ff0c0f230a09686ade4b91a3eac559ee4c283f878",
+      "adaptation": "none"
+    },
+    "integration/generate_index_navigation.py": {
+      "source_path": "integration/generate_index_navigation.py",
+      "source_blob": "bbd83c3229e750a05b2a713a7111f3d574622a17",
+      "source_sha256": "c81e971e9c23244f832562d091f550ea3599f4498c09f476c3f50002c8536ab1",
+      "adaptation": "none"
+    },
+    "integration/generate_index_navigation_base.py": {
+      "source_path": "integration/generate_index_navigation_base.py",
+      "source_blob": "5024c40ce1bc7c3c304f4354a24f26ded3dd9f65",
+      "source_sha256": "2995279b8103ee7fb6101ece2fd700cef163694133274d285913d0f32f4d003b",
+      "adaptation": "none"
+    },
+    "integration/generate_index_navigation_locales.py": {
+      "source_path": "integration/generate_index_navigation_locales.py",
+      "source_blob": "de687371eeaf7be75f07c6b3c6d0258df4dadfdc",
+      "source_sha256": "43232f26b9f913912290e2fe67e51e020e9d68d8b2ce86414024400d99932fc2",
+      "adaptation": "none"
+    },
+    "integration/glossary.py": {
+      "source_path": "integration/glossary.py",
+      "source_blob": "53c4af3c70d73d911147b935b029eb801d170ecd",
+      "source_sha256": "1f91c50314f06160a7a73f611dee4ee83c624e8374857035ea52b5986619dbe7",
+      "adaptation": "none"
+    },
+    "integration/materialize_publication_assets.py": {
+      "source_path": "integration/materialize_publication_assets.py",
+      "source_blob": "76cbeab55bbb999b58be7ccdfb4e9e94f601b35d",
+      "source_sha256": "1938be3e0b5f26d9902556458517a469b28cd32c5ba521e859d7c3e16a4976cb",
+      "adaptation": "none"
+    },
+    "integration/producer.py": {
+      "source_path": "integration/producer.py",
+      "source_blob": "f08b7307d2db05eb6af22225c52fc8f8e07a51b6",
+      "source_sha256": "e024c984b435ce47b3ab469d351b3c80d3675d89458dbe10bcc41c16f6451f9c",
+      "adaptation": "independent Integration producer/own-glossary authority attribution; provider semantics unchanged"
+    },
+    "integration/publication_contract.py": {
+      "source_path": "integration/publication_contract.py",
+      "source_blob": "902ad97419c5100c87561a501fbf93c268ad189d",
+      "source_sha256": "6a2fec8028753d43f7ce2c5e57d857681f1dad17528c8797a4037a9ceb447253",
+      "adaptation": "none"
+    },
+    "integration/publication_contract_v4.py": {
+      "source_path": "integration/publication_contract_v4.py",
+      "source_blob": "585399b66e69a5b5d2979805e44fe008f93e8c60",
+      "source_sha256": "1a9bb4e0e242d05bdbfe18189e9fcf11bdff4461bdd26ec0cf1b407ab54dc17f",
+      "adaptation": "none"
+    },
+    "integration/publication_model.py": {
+      "source_path": "integration/publication_model.py",
+      "source_blob": "09f4687063d8ded8a3d1999f0624f9f93e148d10",
+      "source_sha256": "c8c520e5cbb74515d478cef1eace2e79625ef65965e3b54418ec3c05ae746f2c",
+      "adaptation": "none"
+    },
+    "integration/publish_translations.py": {
+      "source_path": "integration/publish_translations.py",
+      "source_blob": "4714f702f4c52645ed99af166454808ef9e0f827",
+      "source_sha256": "b23935fea996b1df6091a0b007226f7f21617aed058fca19ffea28c2d438d95b",
+      "adaptation": "none"
+    },
+    "integration/reader_navigation_locales.py": {
+      "source_path": "integration/reader_navigation_locales.py",
+      "source_blob": "f7a301ab41ce812877cc3305087ebe0cc5c9202b",
+      "source_sha256": "0474a15c083b256729bfec0519a313d980f8d5e90183703f790e84fd73b76ece",
+      "adaptation": "none"
+    },
+    "integration/repository.py": {
+      "source_path": "integration/repository.py",
+      "source_blob": "7b4d24204f010a1aaa60f04eede63a0d5d8ac04d",
+      "source_sha256": "d6121ce486fee96084a6283ef70235131bac414da13bea04d4ea7d1bacb3bca3",
+      "adaptation": "none"
+    },
+    "integration/staging.py": {
+      "source_path": "integration/staging.py",
+      "source_blob": "e8da16dc1dce809f9e5201cf48f1966a0adc4edb",
+      "source_sha256": "7296b8661301346139da7bcc36ed5cda138ae993f441a6083d0fb09574bdc879",
+      "adaptation": "none"
+    },
+    "integration/translation_coverage.py": {
+      "source_path": "integration/translation_coverage.py",
+      "source_blob": "e9b615bae320db6571319bd6a4fe50ca39e4dc29",
+      "source_sha256": "0e0407f3a12356316dfd688eb335b7477bc6cf792e3e05666e7d8eafcd4ec706",
+      "adaptation": "none"
+    },
+    "integration/translation_fragment_reconciliation.py": {
+      "source_path": "integration/translation_fragment_reconciliation.py",
+      "source_blob": "d3589fcc011e3d75f2f1d44e5861229f89e5f170",
+      "source_sha256": "0217fd5b02eacce948b7f0bc0f8e24deb4c69b3196ba9192d017d15b63d69226",
+      "adaptation": "none"
+    },
+    "integration/translation_link_identity.py": {
+      "source_path": "integration/translation_link_identity.py",
+      "source_blob": "470324de4b0652b929674bef720aac762d3aba8c",
+      "source_sha256": "9d227cf4160f1ae5740d269024f53f3b7dd69e7ac28caaec64e5f2066d4ae5a2",
+      "adaptation": "none"
+    },
+    "integration/translation_link_selection.py": {
+      "source_path": "integration/translation_link_selection.py",
+      "source_blob": "d2105e17470157f8c3cd8efb5a336c48a9cc1736",
+      "source_sha256": "f29c676c42b768281c1f7ea6845059654211e0d1706254789d7d0a657ba5c108",
+      "adaptation": "none"
+    },
+    "integration/translation_manifest.py": {
+      "source_path": "integration/translation_manifest.py",
+      "source_blob": "5bcf05cbddcd58d8333af83b66d4663c338a3b23",
+      "source_sha256": "7a8d3c14460fedd83c89151cd5c34fbded6c3d9be674cf941053a6098572b0df",
+      "adaptation": "none"
+    },
+    "publication_bundle/__init__.py": {
+      "source_path": "publication_bundle/__init__.py",
+      "source_blob": "9c985fd8bd4e2ff14e6ac0beefc9113a9c25a2ff",
+      "source_sha256": "7264363ec26c0c537fd8dfa4a9cbb15cc33577bcf8bae458b27c85b584ba2658",
+      "adaptation": "none"
+    },
+    "publication_bundle/authority_content/__init__.py": {
+      "source_path": "publication_bundle/authority_content/__init__.py",
+      "source_blob": "af17c94e11fa30c7187658ec5abe11e81b0602c4",
+      "source_sha256": "332d9983361be8c529014b46e27de0e4af26b136b73274bef640d79d70de766d",
+      "adaptation": "none"
+    },
+    "publication_bundle/authority_content/publish_translations.py": {
+      "source_path": "publication_bundle/authority_content/publish_translations.py",
+      "source_blob": "93afcc877d4a3a7aaf7e06109d19041ece9f6bab",
+      "source_sha256": "399362204a9770ab3a5d9ebd01a676f02882fb0b273ab67af98a0a3f0b1f75ac",
+      "adaptation": "none"
+    },
+    "publication_bundle/authority_content/reader_navigation_locales.py": {
+      "source_path": "publication_bundle/authority_content/reader_navigation_locales.py",
+      "source_blob": "f0e6d15520b9bbe279d1a3734e47d02fe30018ba",
+      "source_sha256": "12fee8be9b87a4b33cde67dad53beda34ceeaf3f462518589929fff698131fb7",
+      "adaptation": "none"
+    },
+    "publication_bundle/authority_content/translation_coverage.py": {
+      "source_path": "publication_bundle/authority_content/translation_coverage.py",
+      "source_blob": "a3f130e765c8aea42d1130b25fe1b5a20d247596",
+      "source_sha256": "61a6aacaa07e7dcd4ab5c180adda962626a1cc943b7073d4aa28ee067e2db402",
+      "adaptation": "none"
+    },
+    "publication_bundle/authority_content/translation_fragment_reconciliation.py": {
+      "source_path": "publication_bundle/authority_content/translation_fragment_reconciliation.py",
+      "source_blob": "25a8351c8863ddd6127f2108b74895067becfb5a",
+      "source_sha256": "bfe9782ee2856bfc8ad2cfaa65f1f4d9dc80743fbf157544ded75b58a1dc7468",
+      "adaptation": "none"
+    },
+    "publication_bundle/authority_content/translation_link_identity.py": {
+      "source_path": "publication_bundle/authority_content/translation_link_identity.py",
+      "source_blob": "56ca4343a928b261ada94312d9ec0d4545668e6c",
+      "source_sha256": "16330ab1a68764c45b416e21c5b3dd602a4af88a2e8d02e01a7dc2793ea0bab0",
+      "adaptation": "none"
+    },
+    "publication_bundle/authority_content/translation_link_selection.py": {
+      "source_path": "publication_bundle/authority_content/translation_link_selection.py",
+      "source_blob": "6174753743f02feb5b9109cdb5401e44daf11dfe",
+      "source_sha256": "4a6826a645e2f9d99772f9e9ddaa7e5e8288df33bea3da92d37ae8b9db72cfc6",
+      "adaptation": "none"
+    },
+    "publication_bundle/authority_content/translation_manifest.py": {
+      "source_path": "publication_bundle/authority_content/translation_manifest.py",
+      "source_blob": "66c6af8d55cdd0770fa4475fb0fca39b5ffaa4dd",
+      "source_sha256": "895d7ad1617e04b55ac43958f0b2f8eab43f7ee3d449c95c198996158846d3e0",
+      "adaptation": "none"
+    },
+    "publication_bundle/contract.py": {
+      "source_path": "publication_bundle/contract.py",
+      "source_blob": "44b88ed3d0968a872df33b26bb34d6ceec46b9fc",
+      "source_sha256": "51bb6c895d5a1c9335d69db53aeaa42422550bd48930061f267e35153687fdef",
+      "adaptation": "independent Integration producer/own-glossary authority attribution; provider semantics unchanged"
+    },
+    "publication_bundle/glossary.py": {
+      "source_path": "publication_bundle/glossary.py",
+      "source_blob": "4d04d0901589df8b426db6f89ad9cae11ecd8baf",
+      "source_sha256": "02618f1c9a5b210b269c3b02033c408d1b3ebf577cf0ea85dfde8d7995d6845f",
+      "adaptation": "none"
+    },
+    "publication_bundle/graph.py": {
+      "source_path": "publication_bundle/graph.py",
+      "source_blob": "35d82806174da340c092a32b78fb70b1769bdb6c",
+      "source_sha256": "80b6cd733abd9d50804d71e92703f2b0d08640e5d63e8aa4c211f60764e2c7e6",
+      "adaptation": "none"
+    },
+    "publication_bundle/locales.py": {
+      "source_path": "publication_bundle/locales.py",
+      "source_blob": "9057722f67d8158a163ca894c9ff4048af782abe",
+      "source_sha256": "fcd4ee968618d206ab78b513d7fb817c0263f161a625856c5c92590df2b17d87",
+      "adaptation": "none"
+    },
+    "publication_bundle/markdown.py": {
+      "source_path": "publication_bundle/markdown.py",
+      "source_blob": "44cfb5ad33d5ecac8cf62bccf4509c6a40ea88c8",
+      "source_sha256": "e9ec67da1452223938dcc012fd3c34c0bd635b7c2c3794b8a29129a54d6a543e",
+      "adaptation": "none"
+    },
+    "publication_bundle/navigation.py": {
+      "source_path": "publication_bundle/navigation.py",
+      "source_blob": "efb349da71a42bf63ace44c797e856574d7d0a30",
+      "source_sha256": "9e186f3df302ca794117de4bd6b7ee5606cdaf4d4c4c16b50cd9637a575c0446",
+      "adaptation": "none"
+    },
+    "publication_bundle/paths.py": {
+      "source_path": "publication_bundle/paths.py",
+      "source_blob": "93aaa368cca18c3a5bae2b5f09c3ae8808921b0c",
+      "source_sha256": "a26491a2aeb7c3f0482b9b0d3aab9d84cc971f87c57a0c35c7ba29b9d6477e51",
+      "adaptation": "none"
+    },
+    "publication_bundle/repository.py": {
+      "source_path": "publication_bundle/repository.py",
+      "source_blob": "4351a6ccdddaf543c7c73caeaaf3776ba1281ab7",
+      "source_sha256": "436315ce36b3f2d86e0919822bca65058e6f5debf66597604c19043c9d0a315e",
+      "adaptation": "none"
+    },
+    "publication_bundle/source_models.py": {
+      "source_path": "publication_bundle/source_models.py",
+      "source_blob": "eabf79945126526eba6a8859e176a2920971bc37",
+      "source_sha256": "afd5aa86f33468304c67951973c11509c9d13dc6ee5626982fd26bde58729af2",
+      "adaptation": "none"
+    },
+    "publication_bundle/source_reader.py": {
+      "source_path": "publication_bundle/source_reader.py",
+      "source_blob": "8b8e2718bb8b3dbb3dccbe31aa344c65d420b95b",
+      "source_sha256": "19e1f93e71b87c0cff4fe46ffcd42e3555216c1ae0afdb895f013b6c9bf8fb31",
+      "adaptation": "none"
+    },
+    "publication_bundle/translations.py": {
+      "source_path": "publication_bundle/translations.py",
+      "source_blob": "d92f09b7888f41b7bfe36291b851f6919687ec2a",
+      "source_sha256": "5fd98f9eaa83f91bd8a635b1917f067ff193dfba44139fac98b1e78b5bdc3e10",
+      "adaptation": "none"
+    },
+    "publication_bundle/url_contract.py": {
+      "source_path": "publication_bundle/url_contract.py",
+      "source_blob": "fdec23050788fe1a244f5248368940dd83e171cb",
+      "source_sha256": "9eb86af60ded940f2f4ebb78102da9b695bc1a9add4bbb7e5f943813215ac2c5",
+      "adaptation": "none"
+    },
+    "scripts/produce_publication_bundle.py": {
+      "source_path": "scripts/produce_publication_bundle.py",
+      "source_blob": "927f81cf186bcafd8e32fec58f264192105438aa",
+      "source_sha256": "5c2407f0344f6281918ff13aedf3f89e1680812e2bfff2120aeff52bea96d8bb",
+      "adaptation": "none"
+    },
+    "scripts/materialize_publication_assets.py": {
+      "source_path": "scripts/materialize_publication_assets.py",
+      "source_blob": "23ae00908ff65e73acca2f2517892110af7ec38f",
+      "source_sha256": "5f732913c9cb3075be26bcd181cef7f65e78945dc7318e7d52146c133e61cc68",
+      "adaptation": "CLI description; behavior unchanged"
+    },
+    "scripts/resolve_publication_sources.py": {
+      "source_path": "scripts/resolve_publication_sources.py",
+      "source_blob": "f6d603ffcab9054e5aa04bbc0ac1dac47ade0107",
+      "source_sha256": "a138ea35db16d4496b97484f5dd694c3623656d9b108d5d493fe15a02271d061",
+      "adaptation": "none"
+    },
+    "tests/test_publication_bundle.py": {
+      "source_path": "tests/test_publication_bundle.py",
+      "source_blob": "94823905a90641c57fa2bc7bfe4c2cce932091d3",
+      "source_sha256": "b9fb4b8343d8f5d9edf99d5add0231c5e7b6bb9eaf768a38f7d465ab17453dfe",
+      "adaptation": "independent Integration producer/own-glossary authority attribution; provider semantics unchanged"
+    },
+    "tests/test_bundle_review_invariants.py": {
+      "source_path": "tests/test_bundle_review_invariants.py",
+      "source_blob": "fa66245c281c548d6eb0720f0d7dcfae23ec3e25",
+      "source_sha256": "e104607a0c0e1dd0c2fee208db732d6524b9d2e8eaec73740531181fa7d60a2b",
+      "adaptation": "none"
+    },
+    "docs/glossary.yml": {
+      "source_path": "docs/glossary.yml",
+      "source_blob": "8635bce0c45946d2b89a0cc6b5085246c92bab77",
+      "source_sha256": "82f10143d1f75e06b762dbd809b4d6207ee6af969dc341ae6a2e633808c73713",
+      "adaptation": "independent Integration producer/own-glossary authority attribution; provider semantics unchanged"
     }
   }
 }
