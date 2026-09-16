@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "authority": "integration",
+  "status": "bootstrap-candidate",
+  "upstream_authorities": [
+    "composition",
+    "policy"
+  ],
+  "output_contract": "Integrated Publication Bundle v1",
+  "site_upstream": "historical Site-local integration path; no adoption of this authority",
+  "promotion": "explicit reviewed Integration PR and exact-input qualification",
+  "site_adoption": "separate explicit human instruction",
+  "deployment_authority": "site",
+  "automatic_provider_following": false,
+  "automatic_site_adoption": false
+}

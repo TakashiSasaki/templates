@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "repository": "TakashiSasaki/templates",
+  "publications": {
+    "composition": {
+      "revision": "8c6c1884fa97f3ef1ec6c1aa7deba4ad38c9f4ff"
+    },
+    "policy": {
+      "revision": "6023af1b6aed4a22407d9ca43106cd66cfee9fb6"
+    }
+  }
+}

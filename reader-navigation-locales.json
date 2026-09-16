@@ -1,0 +1,806 @@
+{
+  "schema_version": 1,
+  "canonical_language": "en",
+  "locales": [
+    {
+      "language": "ja",
+      "labels": [
+        {
+          "id": "adr-0002-repository-adoption",
+          "canonical": "ADR-0002 Repository adoption",
+          "localized": "ADR-0002 Repository adoption"
+        },
+        {
+          "id": "adr-0003-application-neutral-scope",
+          "canonical": "ADR-0003 Application-neutral scope",
+          "localized": "ADR-0003 Application-neutral scope"
+        },
+        {
+          "id": "adr-0004-integrated-bootstrap-skill",
+          "canonical": "ADR-0004 Integrated bootstrap skill (superseded)",
+          "localized": "ADR-0004 Integrated bootstrap skill (superseded)"
+        },
+        {
+          "id": "adr-0005-single-policy-authority",
+          "canonical": "ADR-0005 Single policy authority",
+          "localized": "ADR-0005 Single policy authority"
+        },
+        {
+          "id": "adr-0006-copyable-artifact-policy-adoption",
+          "canonical": "ADR-0006 Copyable artifact policy adoption",
+          "localized": "ADR-0006 Copyable artifact policy adoption"
+        },
+        {
+          "id": "adr-0007-single-agent-policy-skill-runtime-cache",
+          "canonical": "ADR-0007 Single agent-policy skill runtime cache",
+          "localized": "ADR-0007 Single agent-policy skill runtime cache"
+        },
+        {
+          "id": "adr-review-authority",
+          "canonical": "ADR-0008 Review authority and GitHub runtime boundary",
+          "localized": "ADR-0008 レビュー権限と GitHub ランタイム境界"
+        },
+        {
+          "id": "adr-review-result",
+          "canonical": "ADR-0009 Review result representation boundary",
+          "localized": "ADR-0009 レビュー結果の表現境界"
+        },
+        {
+          "id": "agent-skill",
+          "canonical": "Agent Skill",
+          "localized": "Agent Skill"
+        },
+        {
+          "id": "architecture",
+          "canonical": "Architecture",
+          "localized": "アーキテクチャ"
+        },
+        {
+          "id": "architecture-decisions",
+          "canonical": "Architecture decisions",
+          "localized": "Architecture decisions"
+        },
+        {
+          "id": "authorities",
+          "canonical": "Authorities",
+          "localized": "Authorities"
+        },
+        {
+          "id": "authority-coexistence",
+          "canonical": "Authority coexistence",
+          "localized": "Authority 共存"
+        },
+        {
+          "id": "authority-migration-history",
+          "canonical": "Authority migration history",
+          "localized": "Authority 移行履歴"
+        },
+        {
+          "id": "bare-worktree",
+          "canonical": "Bare Worktree",
+          "localized": "ベアワークツリー"
+        },
+        {
+          "id": "bootstrap-model",
+          "canonical": "Bootstrap model",
+          "localized": "Bootstrap model"
+        },
+        {
+          "id": "bootstrap-skill",
+          "canonical": "Bootstrap skill",
+          "localized": "Bootstrap Skill"
+        },
+        {
+          "id": "cli",
+          "canonical": "CLI",
+          "localized": "CLI"
+        },
+        {
+          "id": "cli-interface-v1-v2",
+          "canonical": "CLI interface v1 to v2",
+          "localized": "CLI interface v1 → v2"
+        },
+        {
+          "id": "capabilities-and-lifecycle",
+          "canonical": "Capabilities and lifecycle",
+          "localized": "Capabilities とライフサイクル"
+        },
+        {
+          "id": "catalog-guide",
+          "canonical": "Catalog guide",
+          "localized": "Catalog ガイド"
+        },
+        {
+          "id": "choose-website-webapp",
+          "canonical": "Choose Website or Web application",
+          "localized": "Website と Web application を選ぶ"
+        },
+        {
+          "id": "composer-mvp",
+          "canonical": "Composer architecture",
+          "localized": "Composer architecture"
+        },
+        {
+          "id": "composer-reference",
+          "canonical": "Composer reference",
+          "localized": "Composer リファレンス"
+        },
+        {
+          "id": "composition",
+          "canonical": "Composition",
+          "localized": "Composition"
+        },
+        {
+          "id": "composition-playground",
+          "canonical": "Composition Playground",
+          "localized": "Composition Playground"
+        },
+        {
+          "id": "composition-provider-maintenance",
+          "canonical": "Composition maintainer overview",
+          "localized": "Composition メンテナー概要"
+        },
+        {
+          "id": "composition-model",
+          "canonical": "Composition model",
+          "localized": "Composition モデル"
+        },
+        {
+          "id": "composition-state",
+          "canonical": "Composition state",
+          "localized": "Composition state"
+        },
+        {
+          "id": "composition-tree",
+          "canonical": "Composition tree",
+          "localized": "Composition tree"
+        },
+        {
+          "id": "concepts-and-terminology",
+          "canonical": "Concepts and terminology",
+          "localized": "概念と用語"
+        },
+        {
+          "id": "configuration",
+          "canonical": "Configuration",
+          "localized": "Configuration"
+        },
+        {
+          "id": "consumer-effective-policy",
+          "canonical": "Consumer effective policy",
+          "localized": "Consumer effective policy"
+        },
+        {
+          "id": "contract-evolution",
+          "canonical": "Contract evolution",
+          "localized": "Contract evolution"
+        },
+        {
+          "id": "contributing",
+          "canonical": "Contributing",
+          "localized": "コントリビューション"
+        },
+        {
+          "id": "development-workflow",
+          "canonical": "Development workflow",
+          "localized": "開発ワークフロー"
+        },
+        {
+          "id": "documentation-index",
+          "canonical": "Documentation index",
+          "localized": "ドキュメント索引"
+        },
+        {
+          "id": "documentation-portal",
+          "canonical": "Documentation portal",
+          "localized": "ドキュメントポータル"
+        },
+        {
+          "id": "documentation-publication",
+          "canonical": "Documentation publication",
+          "localized": "ドキュメント公開"
+        },
+        {
+          "id": "evaluate-composition",
+          "canonical": "Evaluate Composition",
+          "localized": "Composition 評価"
+        },
+        {
+          "id": "external-artifact-intake",
+          "canonical": "External artifact intake",
+          "localized": "外部 artifact intake"
+        },
+        {
+          "id": "first-use-walkthrough",
+          "canonical": "First-use walkthrough",
+          "localized": "初回ウォークスルー"
+        },
+        {
+          "id": "generated-contract-manifest",
+          "canonical": "Generated contract manifest",
+          "localized": "Generated contract manifest"
+        },
+        {
+          "id": "getting-started",
+          "canonical": "Getting started",
+          "localized": "はじめに"
+        },
+        {
+          "id": "google-ai-studio-build-mode",
+          "canonical": "Google AI Studio Build mode",
+          "localized": "Google AI Studio Build mode"
+        },
+        {
+          "id": "headless-service-interface",
+          "canonical": "Headless service interface",
+          "localized": "Headless service interface"
+        },
+        {
+          "id": "implementation-evidence",
+          "canonical": "Implementation evidence",
+          "localized": "実装 evidence"
+        },
+        {
+          "id": "implementation-evidence-v1-v2",
+          "canonical": "Implementation evidence v1 to v2",
+          "localized": "Implementation evidence v1 → v2"
+        },
+        {
+          "id": "implementation-evidence-v2-v3",
+          "canonical": "Implementation evidence v2 to v3",
+          "localized": "Implementation evidence v2 → v3"
+        },
+        {
+          "id": "implementation-evidence-v3-v4",
+          "canonical": "Implementation evidence v3 to v4",
+          "localized": "Implementation evidence v3 → v4"
+        },
+        {
+          "id": "implementation-evidence-v4-v5",
+          "canonical": "Implementation evidence v4 to v5",
+          "localized": "Implementation evidence v4 → v5"
+        },
+        {
+          "id": "implementation-evidence-v5-v6",
+          "canonical": "Implementation evidence v5 to v6",
+          "localized": "Implementation evidence v5 → v6"
+        },
+        {
+          "id": "composition-installer-release",
+          "canonical": "Installer release",
+          "localized": "インストーラーリリース"
+        },
+        {
+          "id": "integration",
+          "canonical": "Integration",
+          "localized": "統合"
+        },
+        {
+          "id": "lifecycle-checkpoints",
+          "canonical": "Lifecycle checkpoints",
+          "localized": "Lifecycle checkpoints"
+        },
+        {
+          "id": "local-policy",
+          "canonical": "Local policy",
+          "localized": "ローカルポリシー"
+        },
+        {
+          "id": "local-checkout-architecture",
+          "canonical": "Local-checkout architecture",
+          "localized": "ローカルチェックアウトアーキテクチャ"
+        },
+        {
+          "id": "mcp-apps-guidance",
+          "canonical": "MCP Apps guidance",
+          "localized": "MCP Apps ガイダンス"
+        },
+        {
+          "id": "mcp-apps-interface",
+          "canonical": "MCP Apps interface",
+          "localized": "MCP Apps interface"
+        },
+        {
+          "id": "mcp-apps-v1-v2",
+          "canonical": "MCP Apps v1 to v2",
+          "localized": "MCP Apps v1 → v2"
+        },
+        {
+          "id": "mcp-interface",
+          "canonical": "MCP interface",
+          "localized": "MCP interface"
+        },
+        {
+          "id": "mcp-interface-v1-v2",
+          "canonical": "MCP interface v1 to v2",
+          "localized": "MCP interface v1 → v2"
+        },
+        {
+          "id": "mcp-transports",
+          "canonical": "MCP transports",
+          "localized": "MCP transports"
+        },
+        {
+          "id": "maintain-templates",
+          "canonical": "Maintain templates",
+          "localized": "テンプレートを保守する"
+        },
+        {
+          "id": "maintainer-overview",
+          "canonical": "Maintainer overview",
+          "localized": "メンテナー概要"
+        },
+        {
+          "id": "managed-repository-operation",
+          "canonical": "Managed repository operation",
+          "localized": "Managed repository の運用"
+        },
+        {
+          "id": "migrations",
+          "canonical": "Migrations",
+          "localized": "マイグレーション"
+        },
+        {
+          "id": "overview",
+          "canonical": "Overview",
+          "localized": "概要"
+        },
+        {
+          "id": "pwa-offline-v1-v2",
+          "canonical": "PWA offline v1 to v2",
+          "localized": "PWA offline v1 → v2"
+        },
+        {
+          "id": "pwa-update-v1-v2",
+          "canonical": "PWA update v1 to v2",
+          "localized": "PWA update v1 → v2"
+        },
+        {
+          "id": "pwa-usage",
+          "canonical": "PWA usage",
+          "localized": "PWA の利用"
+        },
+        {
+          "id": "packaged-cli-interface",
+          "canonical": "Packaged CLI interface",
+          "localized": "パッケージ CLI interface"
+        },
+        {
+          "id": "policy",
+          "canonical": "Policy",
+          "localized": "Policy"
+        },
+        {
+          "id": "policy-authoring",
+          "canonical": "Policy authoring",
+          "localized": "Policy authoring"
+        },
+        {
+          "id": "policy-authority-inventory",
+          "canonical": "Policy authority inventory",
+          "localized": "Policy authority inventory"
+        },
+        {
+          "id": "policy-completion-roadmap",
+          "canonical": "Policy completion roadmap",
+          "localized": "Policy completion roadmap"
+        },
+        {
+          "id": "policy-concepts",
+          "canonical": "Policy concepts for first-time readers",
+          "localized": "Policy の概念（初めての読者向け）"
+        },
+        {
+          "id": "maintainer-workflow",
+          "canonical": "Policy maintainer workflow",
+          "localized": "Policy メンテナワークフロー"
+        },
+        {
+          "id": "policy-profiles",
+          "canonical": "Policy profiles",
+          "localized": "Policy profiles"
+        },
+        {
+          "id": "policy-tree",
+          "canonical": "Policy tree",
+          "localized": "Policy tree"
+        },
+        {
+          "id": "policy-composition-coexistence",
+          "canonical": "Policy–Composition coexistence",
+          "localized": "Policy–Composition 共存"
+        },
+        {
+          "id": "produce-product-release",
+          "canonical": "Produce a product release",
+          "localized": "プロダクトリリースを作成"
+        },
+        {
+          "id": "product-lifecycle",
+          "canonical": "Product lifecycle",
+          "localized": "プロダクトライフサイクル"
+        },
+        {
+          "id": "product-walkthrough",
+          "canonical": "Product walkthrough",
+          "localized": "プロダクト実装ウォークスルー"
+        },
+        {
+          "id": "production-catalog",
+          "canonical": "Production catalog",
+          "localized": "Production catalog"
+        },
+        {
+          "id": "progressive-web-app",
+          "canonical": "Progressive Web App",
+          "localized": "Progressive Web App"
+        },
+        {
+          "id": "provider-and-toolchain",
+          "canonical": "Provider and toolchain",
+          "localized": "Provider と toolchain"
+        },
+        {
+          "id": "publication",
+          "canonical": "Publication",
+          "localized": "公開"
+        },
+        {
+          "id": "publication-boundary",
+          "canonical": "Publication boundary",
+          "localized": "公開境界"
+        },
+        {
+          "id": "publication-catalog",
+          "canonical": "Publication catalog",
+          "localized": "Publication catalog"
+        },
+        {
+          "id": "reader-help",
+          "canonical": "Reader help",
+          "localized": "読者向けヘルプ"
+        },
+        {
+          "id": "reference",
+          "canonical": "Reference",
+          "localized": "リファレンス"
+        },
+        {
+          "id": "reference-consumer",
+          "canonical": "Reference consumer",
+          "localized": "参照コンシューマー"
+        },
+        {
+          "id": "regression-prevention",
+          "canonical": "Regression prevention",
+          "localized": "Regression prevention"
+        },
+        {
+          "id": "release-bundle",
+          "canonical": "Release bundle",
+          "localized": "Release bundle"
+        },
+        {
+          "id": "release-evidence",
+          "canonical": "Release evidence",
+          "localized": "Release evidence"
+        },
+        {
+          "id": "release-execution",
+          "canonical": "Release execution",
+          "localized": "Release execution"
+        },
+        {
+          "id": "release-execution-v1-v2",
+          "canonical": "Release execution v1 to v2",
+          "localized": "Release execution v1 → v2"
+        },
+        {
+          "id": "repository-adoption",
+          "canonical": "Repository adoption",
+          "localized": "Repository adoption"
+        },
+        {
+          "id": "repository-history",
+          "canonical": "Repository history",
+          "localized": "リポジトリ履歴"
+        },
+        {
+          "id": "repository-operation",
+          "canonical": "Repository operation",
+          "localized": "リポジトリ運用"
+        },
+        {
+          "id": "repository-structure",
+          "canonical": "Repository structure",
+          "localized": "Repository 構造"
+        },
+        {
+          "id": "repository-topology",
+          "canonical": "Repository topology",
+          "localized": "リポジトリトポロジ"
+        },
+        {
+          "id": "repository-trees",
+          "canonical": "Repository trees",
+          "localized": "リポジトリツリー"
+        },
+        {
+          "id": "responsibility-boundaries",
+          "canonical": "Responsibility boundaries",
+          "localized": "責務境界"
+        },
+        {
+          "id": "reusable-capabilities",
+          "canonical": "Reusable capabilities",
+          "localized": "再利用可能な capability"
+        },
+        {
+          "id": "routes-v1-v2",
+          "canonical": "Routes v1 to v2",
+          "localized": "Routes v1 → v2"
+        },
+        {
+          "id": "routes-v2-v3",
+          "canonical": "Routes v2 to v3",
+          "localized": "Routes v2 → v3"
+        },
+        {
+          "id": "routes-v3-v4",
+          "canonical": "Routes v3 to v4",
+          "localized": "Routes v3 → v4"
+        },
+        {
+          "id": "routes-v4-to-v5",
+          "canonical": "Routes v4 to v5",
+          "localized": "Routes v4 から v5 への移行"
+        },
+        {
+          "id": "runtime-decision-record",
+          "canonical": "Runtime decision record",
+          "localized": "Runtime decision record"
+        },
+        {
+          "id": "runtime-selection",
+          "canonical": "Runtime selection",
+          "localized": "Runtime 選択"
+        },
+        {
+          "id": "schema-guide",
+          "canonical": "Schema guide",
+          "localized": "Schema ガイド"
+        },
+        {
+          "id": "self-hosting",
+          "canonical": "Self-hosting",
+          "localized": "セルフホスティング"
+        },
+        {
+          "id": "service-interface-v1-v2",
+          "canonical": "Service interface v1 to v2",
+          "localized": "Service interface v1 → v2"
+        },
+        {
+          "id": "shared-policy-corpus",
+          "canonical": "Shared policy corpus",
+          "localized": "共有 policy corpus"
+        },
+        {
+          "id": "shared-review-policy",
+          "canonical": "Shared review policy",
+          "localized": "共有 review policy"
+        },
+        {
+          "id": "site-authority",
+          "canonical": "Site",
+          "localized": "Site"
+        },
+        {
+          "id": "site-operation",
+          "canonical": "Site operation",
+          "localized": "Site 運用"
+        },
+        {
+          "id": "skill-contract",
+          "canonical": "Skill contract",
+          "localized": "Skill contract"
+        },
+        {
+          "id": "skill-profiles",
+          "canonical": "Skill profiles",
+          "localized": "Skill profiles"
+        },
+        {
+          "id": "skill-capability-map",
+          "canonical": "Skill/capability map",
+          "localized": "Skill / capability map"
+        },
+        {
+          "id": "standalone-browser-interface",
+          "canonical": "Standalone browser interface",
+          "localized": "Standalone browser interface"
+        },
+        {
+          "id": "start-here",
+          "canonical": "Start here",
+          "localized": "ここから始める"
+        },
+        {
+          "id": "surfaces-v1-v2",
+          "canonical": "Surfaces v1 to v2",
+          "localized": "Surfaces v1 → v2"
+        },
+        {
+          "id": "template-contract",
+          "canonical": "Template contract",
+          "localized": "Template contract"
+        },
+        {
+          "id": "threat-model",
+          "canonical": "Threat model",
+          "localized": "Threat model"
+        },
+        {
+          "id": "toolchain-release-lifecycle",
+          "canonical": "Toolchain release lifecycle",
+          "localized": "Toolchain release lifecycle"
+        },
+        {
+          "id": "topology-architecture",
+          "canonical": "Topology architecture",
+          "localized": "トポロジアーキテクチャ"
+        },
+        {
+          "id": "topology-contract",
+          "canonical": "Topology contract",
+          "localized": "トポロジ契約"
+        },
+        {
+          "id": "ui-states-v1-v2",
+          "canonical": "UI states v1 to v2",
+          "localized": "UI states v1 → v2"
+        },
+        {
+          "id": "url-path-design-guidance",
+          "canonical": "URL and path design guidance",
+          "localized": "URL / path 設計ガイダンス"
+        },
+        {
+          "id": "use-composition",
+          "canonical": "Use Composition",
+          "localized": "Composition を使う"
+        },
+        {
+          "id": "use-templates",
+          "canonical": "Use templates",
+          "localized": "テンプレートを使う"
+        },
+        {
+          "id": "validation-and-qualification",
+          "canonical": "Validation and qualification",
+          "localized": "検証と認定"
+        },
+        {
+          "id": "validation-toolchain",
+          "canonical": "Validation toolchain",
+          "localized": "検証 toolchain"
+        },
+        {
+          "id": "web",
+          "canonical": "Web",
+          "localized": "Web"
+        },
+        {
+          "id": "web-application",
+          "canonical": "Web application",
+          "localized": "Web application"
+        },
+        {
+          "id": "web-interface-v1-v2",
+          "canonical": "Web interface v1 to v2",
+          "localized": "Web interface v1 → v2"
+        },
+        {
+          "id": "web-routes",
+          "canonical": "Web routes",
+          "localized": "Web ルート"
+        },
+        {
+          "id": "webmcp-section",
+          "canonical": "WebMCP",
+          "localized": "WebMCP"
+        },
+        {
+          "id": "webmcp-overview",
+          "canonical": "WebMCP overview",
+          "localized": "WebMCP 概要"
+        },
+        {
+          "id": "webmcp-provider-contract",
+          "canonical": "WebMCP provider contract",
+          "localized": "WebMCP provider contract"
+        },
+        {
+          "id": "webmcp-security",
+          "canonical": "WebMCP security",
+          "localized": "WebMCP セキュリティ"
+        },
+        {
+          "id": "webmcp-testing",
+          "canonical": "WebMCP testing",
+          "localized": "WebMCP テスト"
+        },
+        {
+          "id": "webmcp-tool-design",
+          "canonical": "WebMCP tool design",
+          "localized": "WebMCP tool 設計"
+        },
+        {
+          "id": "webapp-contracts",
+          "canonical": "Webapp contracts",
+          "localized": "Webapp contracts"
+        },
+        {
+          "id": "website",
+          "canonical": "Website",
+          "localized": "Website"
+        },
+        {
+          "id": "workspace-topology-overview",
+          "canonical": "Workspace topology overview",
+          "localized": "ワークスペーストポロジ概要"
+        },
+        {
+          "id": "site-maintenance",
+          "canonical": "Site maintenance",
+          "localized": "Site メンテナンス"
+        },
+        {
+          "id": "authority-model",
+          "canonical": "Authority model",
+          "localized": "Authority モデル"
+        },
+        {
+          "id": "integrated-publication",
+          "canonical": "Integrated publication",
+          "localized": "統合公開"
+        },
+        {
+          "id": "staging-and-cutover",
+          "canonical": "Staging and cutover",
+          "localized": "ステージングと切替"
+        },
+        {
+          "id": "provider-source-freshness",
+          "canonical": "Provider source freshness",
+          "localized": "Provider ソースの鮮度"
+        },
+        {
+          "id": "runtime-freshness",
+          "canonical": "Runtime freshness",
+          "localized": "Runtime の鮮度"
+        },
+        {
+          "id": "glossary-integration",
+          "canonical": "Glossary integration",
+          "localized": "用語集統合"
+        },
+        {
+          "id": "language-and-translation",
+          "canonical": "Language and translation",
+          "localized": "言語と翻訳"
+        },
+        {
+          "id": "site-pwa-contract",
+          "canonical": "Site PWA contract",
+          "localized": "Site PWA 契約"
+        },
+        {
+          "id": "site-ci-performance",
+          "canonical": "Site CI performance",
+          "localized": "Site CI パフォーマンス"
+        }
+      ]
+    }
+  ]
+}
