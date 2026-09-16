@@ -38,16 +38,15 @@ class BrowserWorkflowTests(unittest.TestCase):
             self.assertIn('needs.classify_browser.outputs.browser_required', dispatcher['jobs'][name]['with']['browser_required'])
 
     def test_exact_candidate_build_is_unique_and_browser_or_cross_authority_conditional(self):
-        jobs = workflow('build-pages.yml')['jobs']
-        condition = jobs['cross_authority']['if']
-        self.assertIn("outputs.browser_required == 'true'", condition)
-        self.assertIn("outputs.cross_authority_required == 'true'", condition)
-        self.assertIn(' || ', condition)
-        self.assertEqual(jobs['build']['uses'], './.github/workflows/site-producer.yml')
-        self.assertIn('build', jobs['cross_authority']['needs'])
-        worker = workflow('site-composition-playground-cross-authority.yml')['jobs']
-        self.assertNotIn('build_candidate', worker)
-        self.assertIn('consume_site_build_artifact.py', str(worker['producer_consumer']['steps']))
+        jobs=workflow('build-pages.yml')['jobs']
+        self.assertEqual(jobs['build']['uses'],'./.github/workflows/site-producer.yml')
+        self.assertIn('build',jobs['cross_authority']['needs'])
+        worker=workflow('site-composition-playground-cross-authority.yml')['jobs']
+        self.assertEqual(set(worker),{'producer_consumer'})
+        self.assertIn('consume_site_build_artifact.py',str(worker['producer_consumer']['steps']))
+        self.assertIn('--from-bundle',str(worker['producer_consumer']['steps']))
+        self.assertNotIn('composition-source',str(worker))
+        self.assertNotIn('resolve_publication_sources',str(worker))
 
     def test_safety_nets(self):
         # PyYAML's YAML 1.1 loader represents unquoted 'on' as True.

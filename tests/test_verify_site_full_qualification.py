@@ -126,7 +126,7 @@ class VerifySiteFullQualificationTests(unittest.TestCase):
         mock_jobs.assert_called_once_with('repo',1000,'token',2)
 
     def test_required_suites_count(self) -> None:
-        self.assertEqual(19, len(REQUIRED_SUITES))
+        self.assertEqual(11, len(REQUIRED_SUITES))
         keys = [s.key for s in REQUIRED_SUITES]
         self.assertEqual(len(keys), len(set(keys)), "Suite keys must be unique")
 
@@ -301,7 +301,7 @@ class VerifySiteFullQualificationTests(unittest.TestCase):
             )
         self.assertEqual(1, result)
         self.assertIn("Full Qualification FALSIFIED", stderr_capture.getvalue())
-        self.assertIn("[FAILED] Direct Site assembly build", stderr_capture.getvalue())
+        self.assertIn("[FAILED] Exact Bundle-only Site build", stderr_capture.getvalue())
 
     @patch("scripts.verify_site_full_qualification.fetch_run_jobs")
     @patch("scripts.verify_site_full_qualification.fetch_workflow_runs")
@@ -324,7 +324,7 @@ class VerifySiteFullQualificationTests(unittest.TestCase):
             )
         self.assertEqual(1, result)
         self.assertIn("Full Qualification FALSIFIED", stderr_capture.getvalue())
-        self.assertIn("[CANCELLED] Direct Site browser and PWA check", stderr_capture.getvalue())
+        self.assertIn("[CANCELLED] Site browser, accessibility and PWA acceptance", stderr_capture.getvalue())
 
     @patch("scripts.verify_site_full_qualification.fetch_run_jobs")
     @patch("scripts.verify_site_full_qualification.fetch_workflow_runs")
@@ -347,7 +347,7 @@ class VerifySiteFullQualificationTests(unittest.TestCase):
             )
         self.assertEqual(1, result)
         self.assertIn("Full Qualification FALSIFIED", stderr_capture.getvalue())
-        self.assertIn("[SKIPPED] Reference consumer browser & PWA acceptance", stderr_capture.getvalue())
+        self.assertIn("[SKIPPED] Reference Website and PWA consumer", stderr_capture.getvalue())
 
     @patch("scripts.verify_site_full_qualification.fetch_run_jobs")
     @patch("scripts.verify_site_full_qualification.fetch_workflow_runs")
@@ -413,7 +413,7 @@ class VerifySiteFullQualificationTests(unittest.TestCase):
             )
         self.assertEqual(1, result)
         stderr_output = stderr_capture.getvalue()
-        self.assertIn("Full Qualification TIMED OUT waiting for: Direct Site assembly build", stderr_output)
+        self.assertIn("Full Qualification TIMED OUT waiting for: Exact Bundle-only Site build", stderr_output)
         self.assertNotIn("Full Qualification FALSIFIED", stderr_output)
 
     @patch("scripts.verify_site_full_qualification.fetch_run_jobs")
@@ -546,7 +546,7 @@ class VerifySiteFullQualificationTests(unittest.TestCase):
             )
         self.assertEqual(1, result)
         self.assertIn("Full Qualification TIMED OUT", stderr_capture.getvalue())
-        self.assertIn("Check agent policy", stderr_capture.getvalue())
+        self.assertIn("Site maintenance Policy consumer", stderr_capture.getvalue())
 
     @patch("scripts.verify_site_full_qualification.fetch_run_jobs")
     @patch("scripts.verify_site_full_qualification.fetch_run_info")

@@ -104,8 +104,7 @@ class AgentSkillContractTests(unittest.TestCase):
         for reference in (
             "MAINTENANCE.md",
             "PUBLISHING.md",
-            "publication-sources.json",
-            "site-manifest.json",
+            "integration-source.json",
         ):
             with self.subTest(reference=reference):
                 self.assertIn(reference, publication)
@@ -117,9 +116,9 @@ class AgentSkillContractTests(unittest.TestCase):
             with self.subTest(reference=reference):
                 self.assertIn(reference, exact_head)
 
-        self.assertIn("exactly `composition` and `policy`", publication)
+        self.assertIn("Integration owns all provider selection", publication)
         self.assertIn(
-            "exactly `composition` and `policy`",
+            "Site consumes only the versioned Integration output contract",
             AGENTS.read_text(encoding="utf-8"),
         )
 
@@ -232,11 +231,11 @@ class AgentSkillContractTests(unittest.TestCase):
             SKILLS_ROOT / "site-publication-cutover" / "SKILL.md"
         ).read_text(encoding="utf-8")
         for invariant in (
-            "full 40-character lowercase provider SHA",
-            "provider diff",
+            "full 40-character lowercase Integration SHA",
+            "Integration diff",
             "generated provenance",
             "Do not infer the target SHA from a branch name",
-            "Do not expose uncataloged provider files",
+            "Do not expose undeclared Bundle content",
             "site-pr-exact-head-acceptance` and `pr-merge-gate",
             "sole committed authority",
         ):

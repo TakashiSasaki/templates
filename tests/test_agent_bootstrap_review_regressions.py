@@ -43,7 +43,7 @@ class AgentBootstrapReviewRegressionTests(unittest.TestCase):
             (ROOT / "schemas/agent-bootstrap.schema.json").read_text(encoding="utf-8")
         )
         required = schema["required"]
-        for field in ("integration_contracts", "requirements"):
+        for field in ("integration_contracts", "integration_source", "dependency_direction"):
             with self.subTest(field=field):
                 self.assertIn(field, required)
 

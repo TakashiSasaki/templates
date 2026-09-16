@@ -1,5 +1,16 @@
 # TakashiSasaki/templates
 
+Site is the presentation, runtime, and deployment authority.
+
+> **Integration-only publication input:** `integration-source.json` selects an exact
+> reviewed Integration release and Bundle identity. Composition/Policy publication
+> selection, staging, translation availability and read models belong to Integration.
+> Site consumes the Bundle; it never advances provider publication locks. Historical
+> direct-provider procedures below are migration evidence pending P11 cleanup, and
+> are not the canonical Site build path. Site-only fixes retain the same Integration
+> selection. Adoption and deployment each require explicit authorization.
+
+
 This repository provides two reusable provider authorities for building and maintaining software repositories, plus one Site authority for repository integration and publication:
 
 - **Composition** helps you choose and materialize Agent Skill, Website, or Web application structure, capabilities, lifecycle contracts, and validation.

@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from scripts.assemble_publications import assemble, load_catalog, load_manifest
 from scripts.check_audience_artifact import check_artifact
@@ -73,7 +74,12 @@ class AudienceArtifactIntegrationTests(unittest.TestCase):
             with self.subTest(optional_present=present), tempfile.TemporaryDirectory() as directory:
                 source, artifact = self.fixture(Path(directory), present)
                 def check():
-                    return check_artifact(artifact, {'site': source}, source / 'site-manifest.json')
+                    bundle=source/'bundle';bundle.mkdir(exist_ok=True)
+                    expected=json.loads((artifact/'audience-runtime.json').read_text()) if not (bundle/'navigation.json').exists() else json.loads((bundle/'navigation.json').read_text())['audience_runtime']
+                    expected['routes']={r:d for r,d in expected['routes'].items() if not r.startswith('/ja/')}
+                    (bundle/'navigation.json').write_text(json.dumps({'audience_runtime':expected}))
+                    with patch('site_renderer.bundle.validate_locked'):
+                        return check_artifact(artifact,bundle)
                 model = check()
                 self.assertEqual(model['routes']['/ja/'], 'index.md')
                 self.assertEqual('optional/index.md' in model['documents'], present)

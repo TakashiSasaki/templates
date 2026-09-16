@@ -42,10 +42,7 @@ class RoutesV5PromotionTests(unittest.TestCase):
         published_agent = (ROOT / "assets/agent.json").read_bytes()
         self.assertEqual(repository_agent, published_agent)
         agent = json.loads(repository_agent.decode("utf-8"))
-        self.assertEqual(
-            current_composition_revision,
-            agent["authorities"]["composition"]["publication_revision"],
-        )
+        self.assertEqual(agent["integration_source"]["lock"], "integration-source.json")
 
         manifest = json.loads(
             (ROOT / "site-manifest.json").read_text(encoding="utf-8")

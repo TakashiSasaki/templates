@@ -18,13 +18,13 @@ function clone(value) {
 
 function buildProvenance(compositionRevision = "b".repeat(40)) {
   return {
-    schema_version: 2,
+    schema_version: 3,
     repository: "TakashiSasaki/templates",
     site_commit: "c".repeat(40),
-    publication_commits: {
+    integration: { schema_version: 2, producer: {authority: "integration", revision: "e".repeat(40)}, identity: "f".repeat(64), content_digest: "a".repeat(64), providers: {
       composition: compositionRevision,
       policy: "d".repeat(40)
-    }
+    }}
   };
 }
 
@@ -369,7 +369,7 @@ test("semantic source revision and published provider revision are distinct iden
 
 test("malformed Site build provenance fails closed", () => {
   const missingComposition = buildProvenance();
-  delete missingComposition.publication_commits.composition;
+  delete missingComposition.integration.providers.composition;
   assert.throws(
     () => playground.validateBuildProvenance(missingComposition),
     (error) => error.code === "MALFORMED_PROVENANCE"

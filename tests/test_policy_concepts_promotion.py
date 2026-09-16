@@ -37,10 +37,7 @@ class PolicyConceptsPromotionTests(unittest.TestCase):
         published_agent = (ROOT / "assets/agent.json").read_bytes()
         self.assertEqual(repository_agent, published_agent)
         agent = json.loads(repository_agent.decode("utf-8"))
-        self.assertEqual(
-            POLICY_MERGE_SHA,
-            agent["authorities"]["policy"]["publication_revision"],
-        )
+        self.assertEqual(agent["integration_source"]["lock"], "integration-source.json")
 
         manifest = json.loads(
             (ROOT / "site-manifest.json").read_text(encoding="utf-8")

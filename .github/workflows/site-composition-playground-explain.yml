@@ -34,19 +34,6 @@ jobs:
         env:
           EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
         run: python scripts/run_site_preflight.py fast --check node-explainability --expected-head "$EXPECTED_HEAD"
-      - name: Validate cross-authority trigger contract
-        run: python -I tests/test_composition_playground_cross_authority_workflow.py
-      - name: Verify exact-head and active publication binding
-        env:
-          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
-        run: |
-          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
-          grep --fixed-strings -- 'composition-playground-explain.js' zensical.template.toml
-          grep --fixed-strings -- 'composition-playground-v1.json.gz' docs/composition-playground.md
-          python -I scripts/resolve_publication_sources.py > "$RUNNER_TEMP/publication-sources.txt"
-          test "$(wc -l < "$RUNNER_TEMP/publication-sources.txt")" -eq 2
-          grep --extended-regexp --line-regexp -- 'composition=[0-9a-f]{40}' "$RUNNER_TEMP/publication-sources.txt"
-          grep --extended-regexp --line-regexp -- 'policy=[0-9a-f]{40}' "$RUNNER_TEMP/publication-sources.txt"
   browser:
     name: Playground browser acceptance
     needs:

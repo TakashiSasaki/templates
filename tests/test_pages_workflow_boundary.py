@@ -24,7 +24,7 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
         )
         self.assertIn("  workflow_call:", trigger_block)
         self.assertNotIn("\n  push:\n", trigger_block)
-        self.assertIn("composition_ref:", workflow)
+        self.assertNotIn("composition_ref:", workflow)
         self.assertNotIn("skill_ref:", workflow)
         self.assertNotIn("webapp_ref:", workflow)
         self.assertNotIn("source_ref:", workflow)
@@ -171,7 +171,7 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
         downstream=PRODUCER_WORKFLOW.read_text().split('  build:')[1]
         self.assertNotIn('composition-source',downstream)
         self.assertNotIn('policy-source',downstream)
-        self.assertIn('publication_bundle_artifact.py consume',downstream)
+        self.assertIn('acquire_integration_bundle.py consume',downstream)
         self.assertEqual(set(json.loads(SOURCE_LOCK.read_text())['publications']),{'composition','policy'})
 
     def test_publication_resolver_runs_under_pinned_python(self) -> None:

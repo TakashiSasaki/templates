@@ -19,7 +19,7 @@ class BuildPagesReusableWorkflowTests(unittest.TestCase):
             "- name: Check out site implementation\n"
             "        uses: actions/checkout@v7\n"
             "        with:\n"
-            "          ref: ${{ needs.integration.outputs.producer_revision }}"
+            "          ref: ${{ inputs.site_ref }}"
         )
         workflow_checkout = (
             "- name: Check out executed build workflow definition\n"
@@ -40,12 +40,14 @@ class BuildPagesReusableWorkflowTests(unittest.TestCase):
         self.assertIn("    permissions:\n      contents: read\n      actions: read", text)
         self.assertIn("persist-credentials: false", text)
 
-    def test_reusable_build_passes_resolved_checkout_sha_to_preflight(self) -> None:
+    def test_reusable_build_passes_resolved_checkout_sha_to_preflight(self):
         text = WORKFLOW.read_text()
-        self.assertIn('python site-source/scripts/resolve_site_checkout.py',text)
-        self.assertIn('ref: ${{ needs.integration.outputs.producer_revision }}',text)
-        self.assertIn('--producer "${{ needs.integration.outputs.producer_revision }}"',text)
-        self.assertIn('--bundle-identity "${{ needs.integration.outputs.bundle_identity }}"',text)
+        self.assertIn('python site-source/scripts/resolve_site_checkout.py', text)
+        self.assertIn('ref: ${{ inputs.site_ref }}', text)
+        self.assertIn('--lock site-source/integration-source.json', text)
+        self.assertIn('scripts/render_publication_bundle.py', text)
+        self.assertNotIn('composition_ref', text)
+        self.assertNotIn('policy_ref', text)
 
     def test_commit_branch_tag_and_default_refs_bind_to_checked_out_head(self) -> None:
         for site_ref in ("full-sha", "branch", "tag", "default"):
@@ -96,10 +98,12 @@ class BuildPagesReusableWorkflowTests(unittest.TestCase):
                 )
                 self.assertEqual(resolve_checkout(repository), expected)
 
-    def test_reusable_site_ref_default_remains_site_branch(self) -> None:
-        text = WORKFLOW.read_text(encoding="utf-8")
-        site_ref = text[text.index("site_ref:") : text.index("composition_ref:")]
-        self.assertIn("default: site", site_ref)
+    def test_reusable_site_ref_default_remains_site_branch(self):
+        import yaml
+        inputs=yaml.safe_load(WORKFLOW.read_text())[True]['workflow_call']['inputs']
+        self.assertEqual(inputs['site_ref']['default'], '')
+        self.assertNotIn('composition_ref', inputs)
+        self.assertNotIn('policy_ref', inputs)
 
 if __name__ == "__main__":
     unittest.main()

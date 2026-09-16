@@ -1,4 +1,38 @@
 name: Site canonical producer
+on:
+  workflow_call:
+    inputs:
+      core_tests_scheduled:
+        description: Caller schedules independent core tests and gates their result
+        type: boolean
+        default: false
+      reuse_pr_build:
+        description: Reuse the canonical exact-input PR artifact when provider/configuration inputs match
+        required: false
+        type: boolean
+        default: false
+      site_ref:
+        description: Exact Site implementation commit
+        required: false
+        type: string
+        default: ''
+      deployment_timestamp:
+        description: JST deployment timestamp rendered in the footer; empty for non-deploying builds
+        required: false
+        type: string
+        default: ''
+      artifact_name:
+        type: string
+        default: github-pages
+    outputs:
+      artifact_id:
+        value: ${{ jobs.build.outputs.artifact_id }}
+      artifact_digest:
+        value: ${{ jobs.build.outputs.artifact_digest }}
+      build_inputs:
+        value: ${{ jobs.build.outputs.build_inputs }}
+      bundle_receipt:
+        value: ${{ jobs.build.outputs.bundle_receipt }}
 permissions:
   contents: read
   actions: read
@@ -117,7 +151,7 @@ jobs:
             --github-output "$GITHUB_OUTPUT"
       - name: Verify the Pages entry point and deployment notice
         if: ${{ steps.artifact.outputs.reused != 'true' }}
-        run: |-
+        run: |
           python site-source/scripts/check_audience_artifact.py --site-root build/site --bundle publication-bundle
           test -f build/site/index.html
           test -f build/site/app.webmanifest
@@ -135,6 +169,7 @@ jobs:
           assert provenance['integration']['identity']==lock['bundle_identity']
           assert provenance['integration']['content_digest']==lock['content_digest']
           PYCODE
+          python site-source/scripts/check_bundle_reader.py --site-root build/site --bundle publication-bundle
       - name: Embed exact build input identity
         if: ${{ steps.artifact.outputs.reused != 'true' }}
         run: cp build-inputs.json build/site/ci-build-inputs.json
@@ -158,37 +193,3 @@ jobs:
           print('artifact_digest=' + artifact['digest'])
           print('build_inputs=' + json.dumps(json.loads(Path('build-inputs.json').read_text())['inputs'], separators=(',', ':')))
           PYCODE
-on:
-  workflow_call:
-    inputs:
-      core_tests_scheduled:
-        description: Caller schedules independent core tests and gates their result
-        type: boolean
-        default: false
-      reuse_pr_build:
-        description: Reuse the canonical exact-input PR artifact when provider/configuration inputs match
-        required: false
-        type: boolean
-        default: false
-      site_ref:
-        description: Exact Site implementation commit
-        required: false
-        type: string
-        default: ''
-      deployment_timestamp:
-        description: JST deployment timestamp rendered in the footer; empty for non-deploying builds
-        required: false
-        type: string
-        default: ''
-      artifact_name:
-        type: string
-        default: github-pages
-    outputs:
-      artifact_id:
-        value: ${{ jobs.build.outputs.artifact_id }}
-      artifact_digest:
-        value: ${{ jobs.build.outputs.artifact_digest }}
-      build_inputs:
-        value: ${{ jobs.build.outputs.build_inputs }}
-      bundle_receipt:
-        value: ${{ jobs.build.outputs.bundle_receipt }}

@@ -36,11 +36,10 @@ class SitePreflightTests(unittest.TestCase):
             "publication-materialization.yml": "--check materialization-tests",
             "publication-contract-v4.yml": "--check publication-contract-tests",
             "site-composition-playground-explain.yml": "--check node-explainability",
-            "site-composition-playground-cross-authority.yml": "--check candidate-projection",
         }
         producer=(ROOT/'.github/workflows/site-producer.yml').read_text()
         self.assertIn('scripts/run_core_tests.py --suite core',producer)
-        self.assertIn('./.github/workflows/integration-qualification.yml',producer)
+        self.assertIn('TakashiSasaki/templates/.github/workflows/integration-qualification.yml@',producer)
         for name, expected in workflows.items():
             with self.subTest(name=name):
                 text = (ROOT / ".github/workflows" / name).read_text(encoding="utf-8")
@@ -63,11 +62,10 @@ class SitePreflightTests(unittest.TestCase):
             ROOT
             / ".github/workflows/site-composition-playground-cross-authority.yml"
         ).read_text(encoding="utf-8")
-        self.assertIn("resolve_publication_sources.py", text)
-        self.assertTrue(
-            "needs.resolve_candidate.outputs.composition_revision" in text
-            or "needs.classify.outputs.composition_revision" in text
-        )
+        self.assertNotIn("resolve_publication_sources.py", text)
+        self.assertIn("--from-bundle", text)
+        self.assertIn('EXPECTED_SITE_REVISION',text)
+        self.assertNotIn('composition-source',text)
         self.assertNotIn("continue-on-error", text)
 
     def test_cross_binding_dispatches_schema_v4_to_source_phase_validator(self) -> None:

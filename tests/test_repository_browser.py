@@ -248,7 +248,7 @@ class CurrentAuthorityRepositoryBrowserTests(unittest.TestCase):
         self.assertLess(text.index('browser.prepare_browser_root('),text.index("'validate_site_links.py'"))
         self.assertIn("collect_records('site',repository,site_revision,site_root)",text)
         self.assertIn("read_json(bundle/'provider-repositories.json')",text)
-        self.assertIn('build/site/files/${branch}/index.html',workflow)
+        self.assertIn('scripts/check_bundle_reader.py',workflow)
         self.assertIn('browser_source_view',PUBLIC_URL_BOUNDARY_CHECKER.read_text())
 
     def test_policy_and_dependencies_preserve_browser_safety_boundary(self) -> None:

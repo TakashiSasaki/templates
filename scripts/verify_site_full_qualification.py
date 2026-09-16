@@ -62,6 +62,11 @@ REQUIRED_SUITES: list[RequiredSuite] = [
     RequiredSuite('construction_gate','Site construction aggregate',".github/workflows/build-pages.yml",'Site Construction CI / validate'),
     RequiredSuite('validate_website','Installed Website contract',".github/workflows/build-pages.yml",'website_contract'),
     RequiredSuite('policy','Site maintenance Policy consumer',".github/workflows/build-pages.yml",'policy / policy'),
+    RequiredSuite('ref_consumer_browser','Reference Website and PWA consumer',".github/workflows/build-pages.yml",'reference_consumer / browser'),
+    RequiredSuite('cross_auth_consumer','Integrated Playground UI',".github/workflows/build-pages.yml",'cross_authority / Real producer to Chromium consumer'),
+    RequiredSuite('playground_consumer','Playground Node consumer',".github/workflows/build-pages.yml",'playground / projection consumer'),
+    RequiredSuite('playground_explain','Playground explanations',".github/workflows/build-pages.yml",'explainability / projection explanations'),
+    RequiredSuite('playground_browser','Playground browser',".github/workflows/build-pages.yml",'explainability / Playground browser acceptance'),
 ]
 
 EXTERNAL_WORKFLOW_PATHS: tuple[str, ...] = tuple(dict.fromkeys(s.workflow_path for s in REQUIRED_SUITES))

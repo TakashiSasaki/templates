@@ -117,10 +117,10 @@ function projection() {
 
 function provenance() {
   return {
-    schema_version: 2,
+    schema_version: 3,
     repository: "TakashiSasaki/templates",
     site_commit: "c".repeat(40),
-    publication_commits: { composition: "b".repeat(40), policy: "d".repeat(40) },
+    integration: { schema_version: 2, producer: {authority: "integration", revision: "e".repeat(40)}, identity: "f".repeat(64), content_digest: "a".repeat(64), providers: { composition: "b".repeat(40), policy: "d".repeat(40) }},
   };
 }
 

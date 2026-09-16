@@ -1,4 +1,40 @@
 name: Build documentation artifact
+on:
+  schedule:
+    - cron: 43 19 * * *
+  workflow_dispatch: null
+  pull_request:
+    branches:
+      - site
+      - feat/site-*
+      - feat/s4-*
+      - site-composition-audience-publication-staging
+      - site-*
+      - perf/site-*
+      - codex/site-composition-playground-v1-shell
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - labeled
+      - ready_for_review
+  workflow_call:
+    inputs:
+      reuse_pr_build:
+        description: Reuse the canonical exact-input PR artifact when provider/configuration inputs match
+        required: false
+        type: boolean
+        default: false
+      site_ref:
+        description: Commit, branch, or tag containing the site implementation
+        required: false
+        type: string
+        default: ''
+      deployment_timestamp:
+        description: JST deployment timestamp rendered in the footer; empty for non-deploying builds
+        required: false
+        type: string
+        default: ''
 permissions:
   contents: read
   actions: read
@@ -362,6 +398,10 @@ jobs:
       - validate
       - policy
       - website_contract
+      - reference_consumer
+      - cross_authority
+      - explainability
+      - playground
     if: ${{ always() && inputs.site_ref == '' && github.event_name == 'pull_request' && needs.classify_browser.result == 'success' && needs.classify_browser.outputs.full_required == 'true' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 2
@@ -373,7 +413,7 @@ jobs:
           python3 - <<'PYCODE'
           import json, os
           needs = json.loads(os.environ['RESULTS'])
-          expected = {'check', 'build', 'policy', 'classify_browser', 'core_tests', 'website_contract', 'validate'}
+          expected = {'website_contract', 'cross_authority', 'reference_consumer', 'policy', 'core_tests', 'build', 'validate', 'classify_browser', 'check', 'explainability', 'playground'}
           if set(needs) != expected:
               raise SystemExit('Incomplete qualification job snapshot')
           failed = {name: result['result'] for name, result in needs.items() if result['result'] != 'success'}
@@ -381,39 +421,41 @@ jobs:
               raise SystemExit('Qualification incomplete: ' + json.dumps(failed, sort_keys=True))
           print('Exact-head DAG qualification passed; runner polling seconds=0')
           PYCODE
-on:
-  schedule:
-    - cron: 43 19 * * *
-  workflow_dispatch: null
-  pull_request:
-    branches:
-      - site
-      - feat/site-*
-      - feat/s4-*
-      - site-composition-audience-publication-staging
-      - site-*
-      - perf/site-*
-      - codex/site-composition-playground-v1-shell
-    types:
-      - opened
-      - synchronize
-      - reopened
-      - labeled
-      - ready_for_review
-  workflow_call:
-    inputs:
-      reuse_pr_build:
-        description: Reuse the canonical exact-input PR artifact when provider/configuration inputs match
-        required: false
-        type: boolean
-        default: false
-      site_ref:
-        description: Commit, branch, or tag containing the site implementation
-        required: false
-        type: string
-        default: ''
-      deployment_timestamp:
-        description: JST deployment timestamp rendered in the footer; empty for non-deploying builds
-        required: false
-        type: string
-        default: ''
+  reference_consumer:
+    needs:
+      - classify_browser
+      - build
+    if: ${{ inputs.site_ref == '' && github.event_name == 'pull_request' && needs.classify_browser.result == 'success' && needs.classify_browser.outputs.reference_consumer_required == 'true' }}
+    uses: ./.github/workflows/reference-consumer.yml
+    with:
+      artifact_id: ${{ needs.build.outputs.artifact_id }}
+      artifact_digest: ${{ needs.build.outputs.artifact_digest }}
+      build_inputs: ${{ needs.build.outputs.build_inputs }}
+      browser_required: ${{ needs.classify_browser.outputs.browser_required }}
+      pwa_required: ${{ needs.classify_browser.outputs.pwa_required }}
+      reference_consumer_required: ${{ needs.classify_browser.outputs.reference_consumer_required }}
+      cross_authority_required: ${{ needs.classify_browser.outputs.cross_authority_required }}
+  cross_authority:
+    needs:
+      - classify_browser
+      - build
+    if: ${{ inputs.site_ref == '' && github.event_name == 'pull_request' && needs.classify_browser.result == 'success' && (needs.classify_browser.outputs.browser_required == 'true' || needs.classify_browser.outputs.cross_authority_required == 'true') }}
+    uses: ./.github/workflows/site-composition-playground-cross-authority.yml
+    with:
+      artifact_id: ${{ needs.build.outputs.artifact_id }}
+      artifact_digest: ${{ needs.build.outputs.artifact_digest }}
+      build_inputs: ${{ needs.build.outputs.build_inputs }}
+      browser_required: ${{ needs.classify_browser.outputs.browser_required }}
+      pwa_required: ${{ needs.classify_browser.outputs.pwa_required }}
+      reference_consumer_required: ${{ needs.classify_browser.outputs.reference_consumer_required }}
+      cross_authority_required: ${{ needs.classify_browser.outputs.cross_authority_required }}
+  explainability:
+    needs:
+      - classify_browser
+    if: ${{ inputs.site_ref == '' && github.event_name == 'pull_request' && needs.classify_browser.result == 'success' && needs.classify_browser.outputs.playground_required == 'true' }}
+    uses: ./.github/workflows/site-composition-playground-explain.yml
+  playground:
+    needs:
+      - classify_browser
+    if: ${{ inputs.site_ref == '' && github.event_name == 'pull_request' && needs.classify_browser.result == 'success' && needs.classify_browser.outputs.playground_required == 'true' }}
+    uses: ./.github/workflows/site-composition-playground.yml

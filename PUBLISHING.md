@@ -1,5 +1,14 @@
 # Integrated publication policy
 
+> **Integration-only publication input:** `integration-source.json` selects an exact
+> reviewed Integration release and Bundle identity. Composition/Policy publication
+> selection, staging, translation availability and read models belong to Integration.
+> Site consumes the Bundle; it never advances provider publication locks. Historical
+> direct-provider procedures below are migration evidence pending P11 cleanup, and
+> are not the canonical Site build path. Site-only fixes retain the same Integration
+> selection. Adoption and deployment each require explicit authorization.
+
+
 This policy applies to the `site`, `composition`, and `policy` authorities in
 `TakashiSasaki/templates`.
 
@@ -14,7 +23,7 @@ reviewed revisions of two external Provider branches:
 - `policy` — canonical coding-agent operating policy and the agent-policy
   toolchain.
 
-`site` is the repository integration and publication authority. Pages deployment
+`site` is the presentation, runtime, and deployment authority. Pages deployment
 is part of that publication authority. Site is not an external Provider branch
 and is not a parent or super-authority above Composition or Policy. The portal may
 group Composition material under reader-oriented paths such as `/skill/`,
