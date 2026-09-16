@@ -81,3 +81,12 @@ def validate_translations(root, coverage, publication, providers, documents, rep
                     for p in (root/'publication'/language).rglob('*') if p.is_file()}
     if actual_files != destinations:
         raise BundleError('unexpected/missing derivative publication files')
+    # Reader derivatives are Markdown. Provider catalog contracts prohibit
+    # Markdown assets, so all Markdown must be a canonical document or a
+    # qualified derivative, even when a language has no declarations anymore.
+    expected_markdown = {d['destination'] for d in documents if not d['slot']} | destinations
+    actual_markdown = {p.relative_to(root/'publication').as_posix()
+                       for p in (root/'publication').rglob('*')
+                       if p.is_file() and p.suffix.lower() == '.md'}
+    if actual_markdown != expected_markdown:
+        raise BundleError('unaccounted/missing Markdown publication files')

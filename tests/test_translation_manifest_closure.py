@@ -121,3 +121,11 @@ class ManifestClosureTests(unittest.TestCase):
                 target=self.root/('publication/ja/extra.md' if status=='current' else 'publication/ja/intro.md')
                 target.parent.mkdir(exist_ok=True);target.write_text('orphan derivative')
                 with self.assertRaisesRegex(BundleError,'derivative publication files'):finish(self.root)
+
+    def test_undeclared_and_removed_language_derivatives_are_rejected(self):
+        for mutation in ('undeclared','removed-last-language','uppercase','nested'):
+            with self.subTest(mutation=mutation),self.fresh_bundle():
+                if mutation!='removed-last-language':self.translations()
+                path={'undeclared':'fr/intro.md','removed-last-language':'ja/intro.md','uppercase':'fr/intro.MD','nested':'composition/old-translation.md'}[mutation]
+                target=self.root/'publication'/path;target.parent.mkdir(parents=True,exist_ok=True);target.write_text('undeclared reader derivative')
+                with self.assertRaisesRegex(BundleError,'unaccounted/missing Markdown'):finish(self.root)

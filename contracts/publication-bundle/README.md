@@ -30,7 +30,10 @@ and all declared paths must be regular sources without symlink traversal.
 
 Derivative destinations use the same deterministic language namespace function as
 the producer. The complete files in each declared language namespace must equal
-the qualified derivative set; undeclared/orphan stale files fail acceptance.
+the qualified derivative set. All Markdown publication files must also be canonical
+documents or qualified derivatives, because provider catalog contracts prohibit
+Markdown assets. This rejects orphan translations even after a language loses its
+last declaration.
 
 Only current translations are published. Stale and missing availability remain distinct;
 P5 does not implement P8. Provider translation content and synchronization metadata are
