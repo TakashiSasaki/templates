@@ -338,6 +338,36 @@ class RepositoryTreePreparationTests(unittest.TestCase):
             with self.assertRaisesRegex(PreparationError, "contains a symlink"):
                 prepare(site_root, root / "prepared")
 
+    def test_preparation_skips_only_absent_optional_document_sources(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            site_root = root / "site"
+            site_root.mkdir()
+            self.make_site_source(site_root)
+            catalog_path = site_root / "docs/publication-catalog.json"
+            catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
+            catalog["documents"].append(
+                {
+                    "id": "optional-missing",
+                    "source": "OPTIONAL.md",
+                    "optional": True,
+                    "home": False,
+                }
+            )
+            catalog_path.write_text(json.dumps(catalog), encoding="utf-8")
+
+            output_root = root / "prepared"
+            prepare(site_root, output_root)
+            self.assertFalse((output_root / "OPTIONAL.md").exists())
+
+            catalog["documents"][-1]["optional"] = False
+            catalog_path.write_text(json.dumps(catalog), encoding="utf-8")
+            with self.assertRaisesRegex(
+                PreparationError,
+                "site publication source must be a regular file: OPTIONAL.md",
+            ):
+                prepare(site_root, output_root)
+
 
 class RepositoryTreeConfigurationTests(unittest.TestCase):
     def test_repository_tree_templates_are_present(self) -> None:

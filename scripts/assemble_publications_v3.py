@@ -25,6 +25,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--publication", action="append", default=[])
     parser.add_argument("--site-root", required=True, type=Path)
+    parser.add_argument("--site-source-root", required=True, type=Path)
     parser.add_argument("--output-root", required=True, type=Path)
     args = parser.parse_args()
 
@@ -35,6 +36,7 @@ def main() -> int:
             publication_roots,
             args.site_root,
             args.output_root,
+            site_source_root=args.site_source_root,
         )
         summary.append(f"publication links rebased: {rebased}")
         print("\n".join(summary))

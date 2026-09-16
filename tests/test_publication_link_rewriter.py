@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import json
+import os
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
 
+from scripts.assemble_publications import AssemblyError
 from scripts.publication_link_rewriter import rebase_publication_links
 
 
@@ -235,10 +238,42 @@ class PublicationLinkRewriterTests(unittest.TestCase):
                 "[Optional](docs/optional.md)\n",
             )
 
-    def test_site_uncataloged_source_link_uses_repository_browser(self) -> None:
+    def test_site_uncataloged_tracked_source_link_uses_repository_browser(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
-            site = Path(directory) / "site"
+            site_source = Path(directory) / "site-source"
+            site = Path(directory) / "site-publication"
             output = Path(directory) / "build"
+            site_source.mkdir()
+            subprocess.run(
+                ["git", "-C", str(site_source), "init", "--quiet"],
+                check=True,
+            )
+            subprocess.run(
+                [
+                    "git",
+                    "-C",
+                    str(site_source),
+                    "config",
+                    "user.email",
+                    "tests@example.invalid",
+                ],
+                check=True,
+            )
+            subprocess.run(
+                ["git", "-C", str(site_source), "config", "user.name", "Tests"],
+                check=True,
+            )
+            (site_source / "README.md").write_text("# Repository\n", encoding="utf-8")
+            (site_source / "untracked.md").write_text("secret\n", encoding="utf-8")
+            os.symlink("README.md", site_source / "readme-link")
+            subprocess.run(
+                ["git", "-C", str(site_source), "add", "README.md", "readme-link"],
+                check=True,
+            )
+            subprocess.run(
+                ["git", "-C", str(site_source), "commit", "--quiet", "-m", "fixture"],
+                check=True,
+            )
             catalog_path = site / "docs/publication-catalog.json"
             catalog_path.parent.mkdir(parents=True)
             catalog_path.write_text(
@@ -258,12 +293,11 @@ class PublicationLinkRewriterTests(unittest.TestCase):
                 encoding="utf-8",
             )
             (site / "MAINTENANCE.md").write_text(
-                "[Audience](docs/architecture/audience/README.md)\n",
+                "[Repository](README.md)\n"
+                "[Untracked](untracked.md)\n"
+                "[Symlink](readme-link)\n",
                 encoding="utf-8",
             )
-            source_target = site / "docs/architecture/audience/README.md"
-            source_target.parent.mkdir(parents=True)
-            source_target.write_text("# Audience\n", encoding="utf-8")
             (site / "site-manifest.json").write_text(
                 json.dumps(
                     {
@@ -284,16 +318,31 @@ class PublicationLinkRewriterTests(unittest.TestCase):
             target = output / "docs/maintain/site/maintenance.md"
             target.parent.mkdir(parents=True)
             target.write_text(
-                "[Audience](docs/architecture/audience/README.md)\n",
+                "[Repository](README.md)\n"
+                "[Untracked](untracked.md)\n"
+                "[Symlink](readme-link)\n",
                 encoding="utf-8",
             )
 
-            count = rebase_publication_links({"site": site}, site, output)
+            with self.assertRaisesRegex(
+                AssemblyError,
+                "original Site source root is required",
+            ):
+                rebase_publication_links({"site": site}, site, output)
+
+            count = rebase_publication_links(
+                {"site": site},
+                site,
+                output,
+                site_source_root=site_source,
+            )
 
             self.assertEqual(count, 1)
             self.assertEqual(
                 target.read_text(encoding="utf-8"),
-                "[Audience](/files/site/#file=docs/architecture/audience/README.md)\n",
+                "[Repository](/files/site/#file=README.md)\n"
+                "[Untracked](untracked.md)\n"
+                "[Symlink](readme-link)\n",
             )
 
 

@@ -445,6 +445,8 @@ def check_cross_assembly(args: argparse.Namespace) -> None:
             f"policy={policy}",
             "--site-root",
             site_publication,
+            "--site-source-root",
+            ROOT,
             "--output-root",
             build,
             args=args,

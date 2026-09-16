@@ -200,6 +200,7 @@ jobs:
             --publication composition=composition-source \
             --publication policy=policy-source \
             --site-root site-publication \
+            --site-source-root site-source \
             --output-root build
       - name: Publish declared translations
         if: ${{ steps.artifact.outputs.reused != 'true' }}

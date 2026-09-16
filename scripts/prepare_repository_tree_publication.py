@@ -190,6 +190,8 @@ def copy_declared_document_sources(
                 raise PreparationError(
                     f"site publication source must not traverse a symlink: {relative}"
                 )
+        if not source.exists() and document.get("optional") is True:
+            continue
         if not source.is_file():
             raise PreparationError(
                 f"site publication source must be a regular file: {relative}"
