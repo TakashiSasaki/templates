@@ -63,6 +63,13 @@ concurrency:
   group: documentation-build-${{ github.workflow }}-${{ (github.event.action == 'labeled' && github.event.label.name != 'ci/full-qualification' && github.event.label.name != 'ci/full-site-verification' && github.event.label.name != 'ci/browser') && format('unrelated-label-{0}', github.run_id) || github.ref }}
   cancel-in-progress: true
 jobs:
+  integration_only:
+    needs: classify_browser
+    if: ${{ inputs.site_ref == '' && needs.classify_browser.result == 'success' && needs.classify_browser.outputs.integration_required == 'true' && needs.classify_browser.outputs.build_required == 'false' }}
+    uses: ./.github/workflows/integration-qualification.yml
+    with:
+      producer_ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      artifact_namespace: construction
   build:
     if: |-
       always() && github.repository == 'TakashiSasaki/templates' && (github.event_name != 'pull_request' ||
@@ -193,6 +200,15 @@ jobs:
       - name: Install Playwright controller
         if: ${{ needs.classify_browser.outputs.browser_required == 'true' }}
         run: python -m pip install --disable-pip-version-check -r requirements-visual.txt
+      - name: Validate full Site and provider integration contracts
+        if: ${{ needs.classify_browser.outputs.full_required == 'true' }}
+        env:
+          EXPECTED_SITE_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          python -m pip install --no-deps -r requirements-build.lock
+          python -m pip check
+          python scripts/materialize_publication_assets.py --publication composition=composition-source --publication policy=policy-source
+          python scripts/run_site_preflight.py full --check integration-tests --expected-head "$EXPECTED_SITE_REVISION" --composition-root composition-source --policy-root policy-source
       - name: Cache Playwright binaries
         if: ${{ needs.classify_browser.outputs.browser_required == 'true' && (needs.classify_browser.outputs.pwa_required == 'true' || needs.classify_browser.outputs.full_required == 'true') }}
         uses: actions/cache@v4
@@ -358,6 +374,7 @@ jobs:
       - classify_browser
       - check
       - core_tests
+      - integration_only
     runs-on: ubuntu-24.04
     steps:
       - name: Verify build, classifier, and browser gate results
@@ -365,6 +382,8 @@ jobs:
           BUILD_RESULT: ${{ needs.build.result }}
           CLASSIFY_RESULT: ${{ needs.classify_browser.result }}
           CHECK_RESULT: ${{ needs.check.result }}
+          INTEGRATION_RESULT: ${{ needs.integration_only.result }}
+          INTEGRATION_REQUIRED: ${{ needs.classify_browser.outputs.integration_required }}
           CORE_TESTS_RESULT: ${{ needs.core_tests.result }}
           BUILD_REQUIRED: ${{ needs.classify_browser.outputs.build_required }}
           BROWSER_REQUIRED: ${{ needs.classify_browser.outputs.browser_required }}
@@ -373,6 +392,11 @@ jobs:
           test "$CLASSIFY_RESULT" = success
           test "$CORE_TESTS_RESULT" = success
           test "$CHECK_RESULT" = success
+          if [ "$INTEGRATION_REQUIRED" = true ] && [ "$BUILD_REQUIRED" = false ]; then
+            test "$INTEGRATION_RESULT" = success
+          else
+            test "$INTEGRATION_RESULT" = skipped
+          fi
           case "$FORCE_FULL" in
             true)
               test "$BUILD_RESULT" = success

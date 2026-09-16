@@ -36,10 +36,14 @@ CI_CONTROL_EXACT_PATHS = frozenset(
         "scripts/classify_publication_freshness.py",
         "scripts/verify_site_full_qualification.py",
         "scripts/run_core_tests.py",
+        "scripts/qualify_integration.py",
+        "integration/qualification.py",
+        "scripts/publication_bundle_artifact.py",
     }
 )
 CI_CONTROL_PREFIXES = (
     ".github/workflows/",
+    "ci_artifacts/",
     "tests/test_site_build_artifact",
     "tests/test_site_browser_qualification_workflows",
     "tests/test_site_ci_classifier",
@@ -315,6 +319,7 @@ class ClassificationDecision:
     coexistence_required: bool = False
     playground_required: bool = False
     browser_priority: str = "none"
+    integration_required: bool = False
 
     @property
     def freshness_required(self) -> bool:
@@ -428,7 +433,8 @@ def classify_paths(paths: Iterable[str], *, force_full: bool = False,
         if any(any(marker in path for marker in markers) for path in paths):
             priority = capability
             break
-    decision = replace(decision, playground_required=playground, browser_priority=priority)
+    decision = replace(decision, playground_required=playground, browser_priority=priority,
+                       integration_required=decision.build_required or any(normalize_path(p).startswith("integration/") for p in paths))
     if force_browser and not decision.full_required:
         decision = replace(
             decision, build_required=True, browser_required=True, pwa_required=True,
@@ -484,6 +490,18 @@ def _classify_paths(
             reason="CI workflow or classification controls changed",
             changed_count=changed_count,
             requiring_paths=control_paths,
+        )
+
+    # Internal Integration construction qualifies a Bundle without adopting it.
+    # Shared wire contracts and CI controls still require cross-boundary evidence.
+    if all(p.startswith('integration/') for p in normalized):
+        return ClassificationDecision(
+            core_required=True, build_required=False, browser_required=False,
+            pwa_required=False, reference_consumer_required=False,
+            cross_authority_required=False, publication_required=True,
+            full_required=False, risk_class='integration-only',
+            reason='Integration construction ends at qualified Publication Bundle',
+            changed_count=changed_count, requiring_paths=normalized,
         )
 
     # 2. Check for unknown paths -> fail closed
@@ -650,6 +668,7 @@ def write_outputs(output: TextIO, decision: ClassificationDecision) -> None:
     output.write(f"browser_priority={decision.browser_priority}\n")
     output.write(f"playground_required={b2s(decision.playground_required)}\n")
     output.write(f"core_required={b2s(decision.core_required)}\n")
+    output.write(f"integration_required={b2s(decision.integration_required)}\n")
     output.write(f"build_required={b2s(decision.build_required)}\n")
     output.write(f"browser_required={b2s(decision.browser_required)}\n")
     output.write(f"pwa_required={b2s(decision.pwa_required)}\n")

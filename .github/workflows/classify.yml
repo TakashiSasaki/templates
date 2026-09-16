@@ -19,6 +19,8 @@ on:
         value: ${{ jobs.classify.outputs.requiring_count }}
       requiring_paths:
         value: ${{ jobs.classify.outputs.requiring_paths }}
+      integration_required:
+        value: ${{ jobs.classify.outputs.integration_required }}
       core_required:
         value: ${{ jobs.classify.outputs.core_required }}
       build_required:
@@ -55,6 +57,7 @@ jobs:
       changed_count: ${{ steps.classify.outputs.changed_count }}
       requiring_count: ${{ steps.classify.outputs.requiring_count }}
       requiring_paths: ${{ steps.classify.outputs.requiring_paths }}
+      integration_required: ${{ steps.classify.outputs.integration_required }}
       core_required: ${{ steps.classify.outputs.core_required }}
       build_required: ${{ steps.classify.outputs.build_required }}
       browser_required: ${{ steps.classify.outputs.browser_required }}
@@ -98,7 +101,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ "$EVENT_NAME" != pull_request ]; then
-            for capability in core_required build_required browser_required pwa_required reference_consumer_required cross_authority_required publication_required full_required playground_required coexistence_required freshness_candidate_required; do
+            for capability in integration_required core_required build_required browser_required pwa_required reference_consumer_required cross_authority_required publication_required full_required playground_required coexistence_required freshness_candidate_required; do
               echo "$capability=true" >> "$GITHUB_OUTPUT"
             done
             echo "reason=scheduled-or-manual-full-site-browser-qualification" >> "$GITHUB_OUTPUT"
@@ -130,6 +133,7 @@ jobs:
             authority_source="base-unavailable-full"
             {
               echo "authority_source=$authority_source"
+              echo "integration_required=true"
               echo "core_required=true"
               echo "build_required=true"
               echo "browser_required=true"

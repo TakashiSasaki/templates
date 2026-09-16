@@ -33,12 +33,14 @@ class SitePreflightTests(unittest.TestCase):
 
     def test_blocking_workflows_delegate_to_named_preflight_checks(self) -> None:
         workflows = {
-            "site-producer.yml": "--check unit-tests",
             "publication-materialization.yml": "--check materialization-tests",
             "publication-contract-v4.yml": "--check publication-contract-tests",
             "site-composition-playground-explain.yml": "--check node-explainability",
             "site-composition-playground-cross-authority.yml": "--check candidate-projection",
         }
+        producer=(ROOT/'.github/workflows/site-producer.yml').read_text()
+        self.assertIn('scripts/run_core_tests.py --suite core',producer)
+        self.assertIn('./.github/workflows/integration-qualification.yml',producer)
         for name, expected in workflows.items():
             with self.subTest(name=name):
                 text = (ROOT / ".github/workflows" / name).read_text(encoding="utf-8")

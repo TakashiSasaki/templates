@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:templates:publication-bundle:1",
+  "title": "Integrated Publication Bundle v1 identity manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "producer",
+    "providers",
+    "configuration_digest",
+    "files",
+    "content_digest",
+    "identity"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "producer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authority",
+        "revision"
+      ],
+      "properties": {
+        "authority": {
+          "enum": [
+            "site-internal-integration",
+            "integration"
+          ]
+        },
+        "revision": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        }
+      }
+    },
+    "providers": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "composition",
+        "policy"
+      ],
+      "properties": {
+        "composition": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "policy": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        }
+      }
+    },
+    "configuration_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "content_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "identity": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "files": {
+      "type": "object",
+      "minProperties": 10,
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "size",
+          "sha256"
+        ],
+        "properties": {
+          "size": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        }
+      }
+    }
+  },
+  "$comment": "publication_bundle.contract additionally enforces safe physical paths, exact bounded inventory, content and identity hashes, semantic model closure, translations, glossary, graph and provenance."
+}

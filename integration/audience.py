@@ -9,7 +9,7 @@ import sys
 from pathlib import Path, PurePosixPath
 from typing import Any
 
-from publication_bundle.paths import public_path
+from publication_bundle.paths import public_path, audience_routes
 from integration.publication_model import AssemblyError, Manifest, load_manifest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -45,27 +45,13 @@ class AudienceContextResolver:
             self.docs_by_destination[dest] = doc
             self.docs_by_key[(doc["publication"], doc["document"])] = doc
 
-            # Register multiple normalized route variations for resilient resolution
-            # e.g. "index.md", "/index.md", "/", "web/index.md", "/web/", "/web/index.html"
-            dest_str = str(dest)
-            self.docs_by_route[dest_str] = doc
-            self.docs_by_route[f"/{dest_str}"] = doc
-            if dest == PurePosixPath("index.md"):
-                self.docs_by_route["/"] = doc
-                self.docs_by_route[""] = doc
-                self.docs_by_route["/index.html"] = doc
-                self.docs_by_route["index.html"] = doc
-            elif dest.name == "index.md":
-                route_dir = f"/{dest.parent}/"
-                self.docs_by_route[route_dir] = doc
-                self.docs_by_route[str(dest.parent)] = doc
-                self.docs_by_route[f"{dest.parent}/"] = doc
-                self.docs_by_route[f"/{dest.parent}/index.html"] = doc
-            elif dest.suffix == ".md":
-                route_dir = f"/{dest.parent / dest.stem}/"
-                self.docs_by_route[route_dir] = doc
-                self.docs_by_route[f"/{dest.parent / dest.stem}"] = doc
-                self.docs_by_route[f"/{dest.parent / dest.stem}.html"] = doc
+        try:
+            self.docs_by_route = {
+                route: self.docs_by_destination[PurePosixPath(destination)]
+                for route, destination in audience_routes(self.docs_by_destination).items()
+            }
+        except ValueError as exc:
+            raise AudienceContextError(str(exc)) from exc
 
     def find_document(self, target: str | PurePosixPath) -> dict[str, Any] | None:
         """Find a canonical document by destination, route, or key."""

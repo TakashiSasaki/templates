@@ -121,3 +121,41 @@ edge in `site_renderer/`. Remaining mixed orchestration is migration compatibili
 until the S2/S3 cutover; it is not an independent authority. The deployment regression
 now enforces dispatch-only Site execution. Core construction validation: 1,368 tests
 passed; focused Integration/translation/catalog/glossary validation: 73 tests passed.
+
+## S2–S4 implementation checkpoint
+
+The versioned `publication_bundle/` package is the shared wire contract, including
+bounded provider source records. `integration/producer.py` owns semantic generation;
+`site_renderer/` renders that output and fills only declared Site-owned content slots.
+`publication_bundle/authority_content/` supplies reusable authority-local document and
+translation contract helpers: Integration invokes these for providers, Site only for
+its own source. Provider availability arrives already derived in the Bundle.
+
+The canonical workflow now qualifies Integration in a separate job, uploads one
+immutable Bundle, and consumes it in a renderer job with no provider checkouts.
+`ci_artifacts/` generalizes existing Pages archive and attempt-window safeguards.
+Its direct scheduled-artifact handoff verifies run/head/attempt, invocation name,
+successful producing job, creation window, archive digest, exact Bundle producer and
+provider revisions, all payload digests, model closure and provenance. It does not
+introduce another cache or polling lane. Existing exact-input Pages reuse includes
+the Bundle identity; absence may regenerate, invalid evidence fails closed.
+
+Integration-only construction is classified by the existing base-authoritative CI
+classifier. It schedules Integration qualification and requires its result at the
+construction gate, without Site browser/PWA or Pages generation. CI-control or shared
+contract changes still fail closed to full qualification. The current-provider
+freshness diagnostic now uses Integration qualification exclusively. Direct provider
+authority workflows remain unchanged pending P6; their existing Site compatibility
+calls are transitional and do not establish the final upstream cadence yet.
+
+`integration-qualification.yml` may be invoked with exact Composition and/or Policy
+candidate overrides; omitted companions use the reviewed lock. It generates twice,
+validates all Bundle models and requires deterministic regeneration. A green result
+is compatibility evidence only. Promotion, reviewed release, Site adoption and
+deployment are separate actions; none is performed here. The existing Policy
+construction/qualification frontier and evidence applicability rules remain in use.
+
+Local `run_site_preflight.py cross` now uses the same producer/renderer boundary.
+The full Site qualification DAG remains for explicit migration/adoption validation;
+normal Integration qualification ends before it. Legacy CLI orchestration remains
+migration compatibility until P5/P9/P11 retirement, not a competing canonical build.

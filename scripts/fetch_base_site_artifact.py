@@ -76,29 +76,7 @@ def candidate_runs(runs: list[dict], *, repository: str, base_sha: str,
     )
 
 
-def parse_api_timestamp(value: object, *, field: str) -> datetime:
-    """Parse one required GitHub API timestamp as an aware UTC instant."""
-    if not isinstance(value, str):
-        raise ArtifactError(f"base artifact {field} timestamp is missing or malformed")
-    try:
-        instant = datetime.fromisoformat(value.replace("Z", "+00:00"))
-    except ValueError as exc:
-        raise ArtifactError(
-            f"base artifact {field} timestamp is missing or malformed"
-        ) from exc
-    if instant.tzinfo is None:
-        raise ArtifactError(f"base artifact {field} timestamp is missing or malformed")
-    return instant.astimezone(timezone.utc)
-
-
-def artifact_matches_successful_build_attempt(artifact: dict, build: dict) -> bool:
-    """Require artifact creation during the selected successful build attempt."""
-    started = parse_api_timestamp(build.get("started_at"), field="build started_at")
-    completed = parse_api_timestamp(build.get("completed_at"), field="build completed_at")
-    created = parse_api_timestamp(artifact.get("created_at"), field="created_at")
-    if completed < started:
-        raise ArtifactError("base artifact build attempt timestamps are out of order")
-    return started <= created <= completed
+from ci_artifacts.transport import parse_api_timestamp, artifact_matches_successful_build_attempt
 
 
 def select_artifact(run: dict, jobs: list[dict], artifacts: list[dict], *, base_sha: str) -> dict | None:

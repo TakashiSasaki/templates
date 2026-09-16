@@ -24,8 +24,11 @@ WORKFLOW = '.github/workflows/build-pages.yml'
 MANIFEST = 'ci-build-inputs.json'
 
 
-class ArtifactError(ValueError):
-    pass
+# Both direct scripts and package imports retain this public error alias.
+import sys
+if __package__ in (None, ''):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from ci_artifacts.transport import ArtifactError, verified_tar
 
 
 class InputMismatch(ArtifactError):
@@ -43,19 +46,23 @@ def revision(root: Path) -> str:
 def identity(*, repository: str, site: str, composition: str, policy: str,
              workflow: bytes, staging: str = '', staging_ids: str = '', deployment_timestamp: str = '',
              public_url: str = 'https://templates.moukaeritai.work/',
-             runtime: str = '', qualification_suite: str = 'unit-tests') -> dict:
+             runtime: str = '', qualification_suite: str = 'unit-tests', bundle: dict | None = None) -> dict:
     for value in (site, composition, policy):
         if not re.fullmatch(r'[0-9a-f]{40}', value):
             raise ArtifactError('build revisions must be full immutable SHAs')
     if not re.fullmatch(r'[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+', repository):
         raise ArtifactError('invalid repository')
-    if qualification_suite not in {'unit-tests', 'integration-tests-with-core'}:
+    if qualification_suite not in {'unit-tests', 'integration-tests-with-core', 'bundle-renderer', 'bundle-renderer-with-core'}:
         raise ArtifactError('invalid build qualification suite')
-    return dict(schema_version=1, repository=repository, site=site,
+    result = dict(schema_version=1, repository=repository, site=site,
                 composition=composition, policy=policy,
                 workflow_sha256=digest(workflow), staging=staging, staging_ids=staging_ids,
                 deployment_timestamp=deployment_timestamp, public_url=public_url,
                 runtime=runtime, qualification_suite=qualification_suite)
+    if bundle is not None:
+        result['schema_version'] = 2
+        result['publication_bundle'] = bundle
+    return result
 
 
 def identity_key(inputs: dict) -> str:
@@ -83,33 +90,12 @@ def validate_provenance(provenance: dict, expected: dict) -> None:
 
 def validate_and_extract(archive: Path, expected: dict, expected_digest: str,
                          target: Path) -> None:
-    # Verify immutable API digest before parsing any downloaded content.
-    with archive.open('rb') as source:
-        archive_digest = hashlib.file_digest(source, 'sha256').hexdigest()
-    if expected_digest != 'sha256:' + archive_digest:
-        raise ArtifactError('artifact archive digest mismatch')
     if target.exists() or target.is_symlink():
         raise ArtifactError('artifact destination already exists')
     with tempfile.TemporaryDirectory(dir=target.parent) as temporary:
         root = Path(temporary)
-        with zipfile.ZipFile(archive) as bundle:
-            if bundle.namelist() != ['artifact.tar']:
-                raise ArtifactError('expected exactly one Pages artifact.tar')
-            with bundle.open('artifact.tar') as source, (root / 'artifact.tar').open('wb') as output:
-                shutil.copyfileobj(source, output)
-        with tarfile.open(root / 'artifact.tar') as pages:
+        with verified_tar(archive, expected_digest, member_name='artifact.tar', parent=root) as pages:
             members = pages.getmembers()
-            seen = set()
-            for member in members:
-                path = PurePosixPath(member.name)
-                if path.is_absolute() or '..' in path.parts or '\\' in member.name:
-                    raise ArtifactError('unsafe artifact path')
-                if not member.isfile() and not member.isdir():
-                    raise ArtifactError('artifact links and special files are forbidden')
-                key = path.as_posix()
-                if key in seen:
-                    raise ArtifactError('duplicate artifact path')
-                seen.add(key)
             def document(name):
                 matches = [m for m in members if PurePosixPath(m.name).as_posix() == name and m.isfile()]
                 if len(matches) != 1:
@@ -242,16 +228,19 @@ def main() -> int:
     parser.add_argument('--identity-file', type=Path, default=Path('build-inputs.json'))
     args = parser.parse_args()
     runtime = '|'.join([platform.python_version(), os.environ.get('RUNNER_OS', ''), os.environ.get('RUNNER_ARCH', ''), os.environ.get('ImageOS', ''), os.environ.get('ImageVersion', '')])
+    from publication_bundle.contract import validate as validate_bundle
+    bundle = validate_bundle(Path(os.environ['PUBLICATION_BUNDLE_ROOT'])) if os.environ.get('PUBLICATION_BUNDLE_ROOT') else None
     expected = identity(repository=os.environ['GITHUB_REPOSITORY'], site=revision(args.site_root),
-                        composition=revision(Path('composition-source')), policy=revision(Path('policy-source')),
+                        composition=bundle['providers']['composition'] if bundle else revision(Path('composition-source')), policy=bundle['providers']['policy'] if bundle else revision(Path('policy-source')),
+                        bundle={k:bundle[k] for k in ('schema_version','producer','providers','identity','content_digest')} if bundle else None,
                         workflow=args.workflow_file.read_bytes(), staging=os.environ.get('STAGING_ID', ''),
                         staging_ids=os.environ.get('STAGING_IDS', ''),
                         deployment_timestamp=os.environ.get('DEPLOYMENT_TIMESTAMP', ''),
                         public_url=os.environ['PUBLIC_SITE_URL'], runtime=runtime,
                         qualification_suite=(
-                            'integration-tests-with-core'
+                            ('bundle-renderer-with-core' if bundle else 'integration-tests-with-core')
                             if os.environ.get('CORE_TESTS_SCHEDULED') == 'true'
-                            else 'unit-tests'
+                            else ('bundle-renderer' if bundle else 'unit-tests')
                         ))
     args.identity_file.write_text(json.dumps({'inputs': expected, 'identity': identity_key(expected)}, sort_keys=True) + '\n')
     # Only ordinary PR builds have a canonical producer. Provider overrides,
