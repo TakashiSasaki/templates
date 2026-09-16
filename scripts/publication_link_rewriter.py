@@ -108,6 +108,8 @@ def _rewrite_destination(
     document_targets: dict[PurePosixPath, PurePosixPath],
     asset_rules: list[AssetRule],
     docs_root: Path,
+    publication: str,
+    publication_root: Path,
 ) -> str:
     parsed = _split_destination(destination)
     if parsed is None:
@@ -124,6 +126,15 @@ def _rewrite_destination(
     if site_target is None:
         site_target = _asset_target(source_target, asset_rules, docs_root)
     if site_target is None:
+        if publication == "site" and not suffix:
+            source = publication_root
+            for part in source_target.parts:
+                source = source / part
+                if source.is_symlink():
+                    return destination
+            if source.is_file():
+                encoded = quote(source_target.as_posix(), safe="/@-._~")
+                return f"/files/site/#file={encoded}"
         return destination
 
     start = site_document.parent.as_posix()
@@ -248,6 +259,8 @@ def _rewrite_markdown(
     document_targets: dict[PurePosixPath, PurePosixPath],
     asset_rules: list[AssetRule],
     docs_root: Path,
+    publication: str,
+    publication_root: Path,
 ) -> tuple[str, int]:
     def rewrite(destination: str) -> str:
         return _rewrite_destination(
@@ -257,6 +270,8 @@ def _rewrite_markdown(
             document_targets=document_targets,
             asset_rules=asset_rules,
             docs_root=docs_root,
+            publication=publication,
+            publication_root=publication_root,
         )
 
     output: list[str] = []
@@ -315,7 +330,7 @@ def rebase_publication_links(
     }
     for page in canonical_documents:
         publication = page["publication"]
-        _, documents, _ = catalogs[publication]
+        publication_root, documents, _ = catalogs[publication]
         source = documents[page["document"]]["source"]
         destination = page["destination"]
         if docs_root.joinpath(*destination.parts).is_file():
@@ -335,7 +350,7 @@ def rebase_publication_links(
     total = 0
     for page in canonical_documents:
         publication = page["publication"]
-        _, documents, _ = catalogs[publication]
+        publication_root, documents, _ = catalogs[publication]
         source_document = documents[page["document"]]["source"]
         site_document = page["destination"]
         target = docs_root.joinpath(*site_document.parts)
@@ -350,6 +365,8 @@ def rebase_publication_links(
             document_targets=document_targets[publication],
             asset_rules=asset_rules[publication],
             docs_root=docs_root,
+            publication=publication,
+            publication_root=publication_root,
         )
         if count:
             target.write_text(updated, encoding="utf-8")

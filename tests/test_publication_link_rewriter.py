@@ -235,6 +235,67 @@ class PublicationLinkRewriterTests(unittest.TestCase):
                 "[Optional](docs/optional.md)\n",
             )
 
+    def test_site_uncataloged_source_link_uses_repository_browser(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            site = Path(directory) / "site"
+            output = Path(directory) / "build"
+            catalog_path = site / "docs/publication-catalog.json"
+            catalog_path.parent.mkdir(parents=True)
+            catalog_path.write_text(
+                json.dumps(
+                    {
+                        "schema_version": 3,
+                        "documents": [
+                            {
+                                "id": "maintenance",
+                                "source": "MAINTENANCE.md",
+                                "optional": False,
+                                "home": True,
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            (site / "MAINTENANCE.md").write_text(
+                "[Audience](docs/architecture/audience/README.md)\n",
+                encoding="utf-8",
+            )
+            source_target = site / "docs/architecture/audience/README.md"
+            source_target.parent.mkdir(parents=True)
+            source_target.write_text("# Audience\n", encoding="utf-8")
+            (site / "site-manifest.json").write_text(
+                json.dumps(
+                    {
+                        "schema_version": 2,
+                        "home": {"publication": "site", "document": "maintenance"},
+                        "navigation": [
+                            {
+                                "title": "Maintenance",
+                                "publication": "site",
+                                "document": "maintenance",
+                                "destination": "maintain/site/maintenance.md",
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            target = output / "docs/maintain/site/maintenance.md"
+            target.parent.mkdir(parents=True)
+            target.write_text(
+                "[Audience](docs/architecture/audience/README.md)\n",
+                encoding="utf-8",
+            )
+
+            count = rebase_publication_links({"site": site}, site, output)
+
+            self.assertEqual(count, 1)
+            self.assertEqual(
+                target.read_text(encoding="utf-8"),
+                "[Audience](/files/site/#file=docs/architecture/audience/README.md)\n",
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
