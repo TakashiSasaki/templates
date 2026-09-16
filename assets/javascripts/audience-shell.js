@@ -99,7 +99,10 @@
     }
     for (const nav of document.querySelectorAll("nav.md-nav--primary")) {
       // Replace only the Site navigation projection; provider index content stays intact.
-      if (!nav.hasAttribute("data-audience-original")) {
+      // Zensical reuses this nav element during instant navigation but replaces its
+      // native children. Whenever our projection is absent, refresh the snapshot so
+      // neutral restoration uses the target page's native state, not the source page's.
+      if (!nav.querySelector(":scope > .audience-navigation")) {
         nav.dataset.audienceOriginal = nav.innerHTML;
         const originalLabel = nav.getAttribute("aria-label");
         nav.dataset.audienceOriginalLabel = originalLabel ?? "";
