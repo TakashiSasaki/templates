@@ -1,7 +1,8 @@
 name: Composition Integration compatibility
 on:
+  # This workflow belongs to the provider base history, including arbitrarily
+  # named authority-local stacked bases. Branch spelling is not authority.
   pull_request:
-    branches: [composition, 'composition-*']
     types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [composition]

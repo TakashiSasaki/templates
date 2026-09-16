@@ -12,6 +12,8 @@ class IntegrationCompatibilityTests(unittest.TestCase):
         self.assertIn("producer_ref: " + PIN, text)
         self.assertIn("composition_ref: ${{ github.event.pull_request.head.sha || github.sha }}", text)
         self.assertNotIn("policy_ref:", text)
+        pull_request = text.split("  pull_request:", 1)[1].split("  push:", 1)[0]
+        self.assertNotIn("branches:", pull_request)
         self.assertIn("ready_for_review", text)
         self.assertIn("!github.event.pull_request.draft", text)
         self.assertIn("branches: [composition]", text)
