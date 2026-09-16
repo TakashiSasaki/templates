@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-import scripts.generate_repository_browser as repository_browser
+from site_renderer import repository_browser
 from scripts.generate_repository_browser import (
     BRANCH_ORDER,
     RepositoryBrowserError,
