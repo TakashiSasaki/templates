@@ -90,7 +90,7 @@ class TranslationContractTests(unittest.TestCase):
             "guided" in entry["surfaces"] for entry in translations
         )
 
-        result = validate(ROOT)
+        result = validate(ROOT, allow_stale=True)
         self.assertIn("canonical language: en", result)
         self.assertIn(f"translations validated: {len(translations)}", result)
         self.assertIn(f"reader translations: {reader_count}", result)
@@ -277,6 +277,20 @@ class TranslationContractTests(unittest.TestCase):
             write_manifest(root, sha=blob_sha(canonical))
             with self.assertRaisesRegex(TranslationError, "undeclared translation Markdown"):
                 validate(root)
+
+
+    def test_allow_stale_preserves_exact_evidence_and_structural_failures(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            canonical = prepare_translation(root)
+            write_catalog(root)
+            write_manifest(root, sha=blob_sha(canonical))
+            (root / "README.md").write_text("# Changed canonical\n")
+            result = validate(root, allow_stale=True)
+            self.assertTrue(any("stale translation" in row and blob_sha(canonical) in row for row in result))
+            (root / "translations/ja/README.md").unlink()
+            with self.assertRaises(TranslationError):
+                validate(root, allow_stale=True)
 
 
 if __name__ == "__main__":

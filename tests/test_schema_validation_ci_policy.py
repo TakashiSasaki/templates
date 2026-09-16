@@ -124,16 +124,16 @@ class SchemaValidationCIPolicyTests(unittest.TestCase):
             with self.subTest(job=job_name):
                 self.assertIn(checkout_ref, _job_block(self.workflow, job_name))
 
-    def test_site_protocol_checkout_is_limited_to_core_jobs_that_need_it(self) -> None:
-        site_protocol_ref = "ref: 3ae5d1e60c65e7a8ebf5f9af0436044484e42983"
+    def test_integration_protocol_checkout_is_limited_to_core_jobs_that_need_it(self) -> None:
+        integration_protocol_ref = "ref: a30699cf7dc56bf3ef7a1b6fd8f6ffd45cdd426d"
         for job_name in ("primary", "parallel"):
             with self.subTest(job=job_name):
                 job = _job_block(self.workflow, job_name)
-                self.assertIn(site_protocol_ref, job)
-                self.assertIn("Check out Site publication protocol", job)
+                self.assertIn(integration_protocol_ref, job)
+                self.assertIn("Check out Integration publication protocol", job)
         browser = _job_block(self.workflow, "real_browser")
-        self.assertNotIn(site_protocol_ref, browser)
-        self.assertNotIn("Check out Site publication protocol", browser)
+        self.assertNotIn(integration_protocol_ref, browser)
+        self.assertNotIn("Check out Integration publication protocol", browser)
 
 
 if __name__ == "__main__":

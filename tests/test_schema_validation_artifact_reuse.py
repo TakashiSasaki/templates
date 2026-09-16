@@ -29,7 +29,7 @@ class SchemaValidationArtifactReuseTests(unittest.TestCase):
         primary = job_block(self.workflow, "primary")
         materialize_command = "scripts/materialize_publication.py --source-root ."
         site_contract_command = (
-            '"$SITE_PUBLICATION_PROTOCOL_ROOT/scripts/publication_contract.py" --source-root .'
+            '"$INTEGRATION_PUBLICATION_PROTOCOL_ROOT/integration/publication_contract.py" --source-root .'
         )
         composition_contract_command = "scripts/validate_publication.py"
 
@@ -80,7 +80,7 @@ class SchemaValidationArtifactReuseTests(unittest.TestCase):
         self.assertNotIn("      - primary\n", browser)
         self.assertNotIn("      - parallel\n", browser)
         self.assertNotIn("      - publication\n", browser)
-        self.assertNotIn("Check out Site publication protocol", browser)
+        self.assertNotIn("Check out Integration publication protocol", browser)
         self.assertNotIn("scripts/materialize_publication.py", browser)
 
     def test_schema_validation_uses_the_reviewed_python_312_lock_contract(self) -> None:

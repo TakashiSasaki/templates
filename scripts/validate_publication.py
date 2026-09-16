@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Validate Composition-specific publication semantics.
 
-The generic schema-v3 publication protocol is owned by Site and is loaded from
+The generic schema-v3 publication protocol is owned by Integration and is loaded from
 an explicitly supplied reviewed checkout. This module retains only
 Composition-owned publication classification, coverage, and glossary semantics.
 """
@@ -19,8 +19,8 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 CLASSIFICATION_PATH = ROOT / "docs" / "publication-classification.json"
 TRANSLATION_MANIFEST_PATH = ROOT / "translations" / "manifest.json"
-SITE_PROTOCOL_ENV = "SITE_PUBLICATION_PROTOCOL_ROOT"
-SITE_PROTOCOL_RELATIVE = Path("scripts/publication_contract.py")
+INTEGRATION_PROTOCOL_ENV = "INTEGRATION_PUBLICATION_PROTOCOL_ROOT"
+INTEGRATION_PROTOCOL_RELATIVE = Path("integration/publication_contract.py")
 TERM_RE = re.compile(r"^(?:templates|external)-[a-z0-9]+(?:-[a-z0-9]+)*$")
 READER_BASENAMES = {
     "README.md",
@@ -40,7 +40,7 @@ IGNORED_ROOT_MARKDOWN_DISCOVERY_DIRS = {
     ".mypy_cache",
     ".pytest_cache",
     ".ruff_cache",
-    ".site-publication-protocol",
+    ".integration-publication-protocol",
     ".venv",
     "__pycache__",
 }
@@ -57,14 +57,14 @@ class PublicationError(RuntimeError):
     pass
 
 
-def _site_protocol_root(explicit_root: Path | None = None) -> Path:
+def _integration_protocol_root(explicit_root: Path | None = None) -> Path:
     if explicit_root is not None:
         root = explicit_root
     else:
-        configured = os.environ.get(SITE_PROTOCOL_ENV)
+        configured = os.environ.get(INTEGRATION_PROTOCOL_ENV)
         if not configured:
             raise PublicationError(
-                f"{SITE_PROTOCOL_ENV} must identify a reviewed Site protocol checkout"
+                f"{INTEGRATION_PROTOCOL_ENV} must identify a reviewed Integration protocol checkout"
             )
         root = Path(configured)
     if not root.is_absolute():
@@ -72,22 +72,22 @@ def _site_protocol_root(explicit_root: Path | None = None) -> Path:
     try:
         return root.resolve(strict=True)
     except OSError as exc:
-        raise PublicationError(f"Site publication protocol root is unavailable: {root}") from exc
+        raise PublicationError(f"Integration publication protocol root is unavailable: {root}") from exc
 
 
-def load_site_publication_protocol(explicit_root: Path | None = None) -> Any:
-    protocol_root = _site_protocol_root(explicit_root)
-    protocol_path = protocol_root / SITE_PROTOCOL_RELATIVE
+def load_integration_publication_protocol(explicit_root: Path | None = None) -> Any:
+    protocol_root = _integration_protocol_root(explicit_root)
+    protocol_path = protocol_root / INTEGRATION_PROTOCOL_RELATIVE
     if not protocol_path.is_file() or protocol_path.is_symlink():
         raise PublicationError(
-            "reviewed Site publication protocol file is unavailable: "
+            "reviewed Integration publication protocol file is unavailable: "
             f"{protocol_path}"
         )
 
-    module_name = "_templates_site_publication_contract"
+    module_name = "_templates_integration_publication_contract"
     spec = importlib.util.spec_from_file_location(module_name, protocol_path)
     if spec is None or spec.loader is None:
-        raise PublicationError(f"unable to load Site publication protocol: {protocol_path}")
+        raise PublicationError(f"unable to load Integration publication protocol: {protocol_path}")
     module = importlib.util.module_from_spec(spec)
     sys.modules[module_name] = module
     try:
@@ -95,26 +95,26 @@ def load_site_publication_protocol(explicit_root: Path | None = None) -> Any:
     except Exception as exc:
         sys.modules.pop(module_name, None)
         raise PublicationError(
-            f"unable to execute Site publication protocol: {protocol_path}: {exc}"
+            f"unable to execute Integration publication protocol: {protocol_path}: {exc}"
         ) from exc
 
     for attribute in ("PublicationContractError", "load_publication_catalog"):
         if not hasattr(module, attribute):
             raise PublicationError(
-                f"Site publication protocol is missing required interface: {attribute}"
+                f"Integration publication protocol is missing required interface: {attribute}"
             )
     return module
 
 
 def load_publication_catalog(explicit_protocol_root: Path | None = None) -> Any:
-    protocol = load_site_publication_protocol(explicit_protocol_root)
+    protocol = load_integration_publication_protocol(explicit_protocol_root)
     try:
         return protocol.load_publication_catalog(
             ROOT,
             label="composition publication catalog",
         )
     except protocol.PublicationContractError as exc:
-        raise PublicationError(f"Site publication protocol rejected catalog: {exc}") from exc
+        raise PublicationError(f"Integration publication protocol rejected catalog: {exc}") from exc
 
 
 def strict_json(path: Path, label: str) -> dict[str, Any]:

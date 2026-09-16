@@ -53,7 +53,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 8
     env:
-      SITE_PUBLICATION_PROTOCOL_ROOT: ${{ github.workspace }}/.site-publication-protocol
+      INTEGRATION_PUBLICATION_PROTOCOL_ROOT: ${{ github.workspace }}/.integration-publication-protocol
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -62,13 +62,13 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Check out Site publication protocol
+      - name: Check out Integration publication protocol
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: 3ae5d1e60c65e7a8ebf5f9af0436044484e42983
-          path: .site-publication-protocol
+          ref: a30699cf7dc56bf3ef7a1b6fd8f6ffd45cdd426d
+          path: .integration-publication-protocol
           sparse-checkout: |
-            scripts/publication_contract.py
+            integration/publication_contract.py
           sparse-checkout-cone-mode: false
           persist-credentials: false
           fetch-depth: 1
@@ -98,8 +98,8 @@ jobs:
       - name: Materialize Composition publication once for primary validation
         run: .venv/bin/python -I scripts/materialize_publication.py --source-root .
 
-      - name: Validate Site-owned publication contract once
-        run: .venv/bin/python -I "$SITE_PUBLICATION_PROTOCOL_ROOT/scripts/publication_contract.py" --source-root .
+      - name: Validate Integration-owned publication contract once
+        run: .venv/bin/python -I "$INTEGRATION_PUBLICATION_PROTOCOL_ROOT/integration/publication_contract.py" --source-root .
 
       - name: Validate Composition-owned publication semantics once
         run: .venv/bin/python -I scripts/validate_publication.py
@@ -127,7 +127,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 8
     env:
-      SITE_PUBLICATION_PROTOCOL_ROOT: ${{ github.workspace }}/.site-publication-protocol
+      INTEGRATION_PUBLICATION_PROTOCOL_ROOT: ${{ github.workspace }}/.integration-publication-protocol
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -136,13 +136,13 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Check out Site publication protocol
+      - name: Check out Integration publication protocol
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: 3ae5d1e60c65e7a8ebf5f9af0436044484e42983
-          path: .site-publication-protocol
+          ref: a30699cf7dc56bf3ef7a1b6fd8f6ffd45cdd426d
+          path: .integration-publication-protocol
           sparse-checkout: |
-            scripts/publication_contract.py
+            integration/publication_contract.py
           sparse-checkout-cone-mode: false
           persist-credentials: false
           fetch-depth: 1

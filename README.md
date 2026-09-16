@@ -96,7 +96,7 @@ Historical migration provenance is intentionally separated from the current oper
 ### Local qualification order
 
 Use `scripts/run_composition_preflight.py full --component-version-base <SHA>
---site-publication-protocol <pinned Site checkout>` from a committed source tree.
+--integration-publication-protocol <pinned Integration checkout>` from a committed source tree.
 Before expensive validation, phase zero checks the Python dependency graph,
 existing bytecode and undeclared component material, canonical source closure,
 and one minimal Chrome/compatible ChromeDriver session. Browser preparation fails
