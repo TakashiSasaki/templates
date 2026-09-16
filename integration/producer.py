@@ -14,7 +14,7 @@ from publication_bundle.markdown import _rewrite_markdown
 from integration.publication_model import load_catalog, parse_manifest, copy_asset, resolve, read_json
 from integration.publish_translations import publish_translations
 from integration.translation_fragment_reconciliation import reconcile_translation_fragments
-from integration.translation_link_selection import rewrite_current_localized_links
+from integration.translation_link_selection import rewrite_available_localized_links
 from integration.translation_coverage import build_reader_coverage
 from integration.reader_navigation_locales import load_overlays, build_runtime_map
 from integration.glossary import integrate_glossaries
@@ -122,9 +122,9 @@ def produce(*, root, provider_roots, provider_revisions, producer_revision, outp
             target=docs_root/doc['destination']
             text,_=_rewrite_markdown(target.read_text(encoding='utf-8'),source_document=PurePosixPath(doc['source']),site_document=doc['destination'],document_targets={PurePosixPath(k):PurePosixPath(v) for k,v in published[name].items()},asset_rules=asset_rules[name],docs_root=docs_root,publication=name,site_source_paths=None)
             target.write_text(text,encoding='utf-8')
-        translations=publish_translations(publications,included,docs_root,skip_stale=True)
+        translations=publish_translations(publications,included,docs_root)
         reconcile_translation_fragments(publications,included,translations,docs_root)
-        rewrite_current_localized_links(translations,docs_root)
+        rewrite_available_localized_links(translations,docs_root)
         write(bundle/'documents.json',documents)
         # Filter only genuinely absent optional provider documents. Site slots stay required.
         included_keys={(d['publication'],d['document']) for d in documents}

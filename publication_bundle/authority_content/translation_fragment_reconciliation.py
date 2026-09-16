@@ -29,6 +29,7 @@ class TranslationFragmentReconciliationError(RuntimeError):
 
 class TranslationRecordLike(Protocol):
     publication: str
+    status: str
     canonical_source: PurePosixPath
     translation_source: PurePosixPath
     translation_destination: PurePosixPath
@@ -256,7 +257,8 @@ def reconcile_translation_fragments(
 ) -> int:
     """Repair only fragment drift that has unique canonical-link evidence.
 
-    A translation may keep a historical cross-page fragment even while its
+    Stale derivatives retain their projected links without reconciliation against
+    newer English. A current translation may keep a historical fragment even while its
     canonical blob freshness binding is current. For each translated document,
     this function derives canonical fragment candidates from the current canonical
     source, keyed by the already-published canonical destination. A differing
@@ -282,6 +284,10 @@ def reconcile_translation_fragments(
 
     total_changed = 0
     for record in records:
+        # Current English cannot prove which fragment a stale derivative meant.
+        # Keep its projected link and exact stale evidence; do not guess from newer prose.
+        if record.status == "stale":
+            continue
         root = roots.get(record.publication)
         if root is None:
             raise TranslationFragmentReconciliationError(

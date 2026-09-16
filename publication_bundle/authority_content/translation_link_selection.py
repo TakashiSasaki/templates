@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Select localized reader routes only when a current translation exists."""
+"""Select localized reader routes only when a qualified translation is published."""
 
 from __future__ import annotations
 
@@ -68,7 +68,7 @@ def _split_link_target(raw: str) -> tuple[str, str, str]:
     return leading, match.group(1), match.group(2)
 
 
-def _current_route_map(
+def _available_route_map(
     records: Iterable[TranslationRouteRecord],
 ) -> dict[tuple[str, str], str]:
     routes: dict[tuple[str, str], str] = {}
@@ -193,23 +193,23 @@ def _rewrite_markdown(
     return "".join(output), rewrite_count
 
 
-def rewrite_current_localized_links(
+def rewrite_available_localized_links(
     records: Iterable[TranslationRouteRecord],
     docs_root: Path,
 ) -> int:
     """Rewrite root-relative reader links to available localized destinations.
 
-    ``records`` must contain only translations that are current and actually
-    published. A canonical route therefore remains untouched when its localized
-    derivative is missing or stale. Cross-page fragment links also remain
+    ``records`` contain structurally qualified current or stale translations that
+    are actually published. A canonical route remains untouched when its localized
+    derivative is missing. Cross-page fragment links also remain
     canonical because translated headings may generate different fragment IDs.
     """
-    current = list(records)
-    routes = _current_route_map(current)
+    available = list(records)
+    routes = _available_route_map(available)
     root = docs_root.resolve(strict=True)
     rewrite_count = 0
 
-    for record in current:
+    for record in available:
         path = docs_root.joinpath(*record.translation_destination.parts)
         try:
             path.relative_to(docs_root)

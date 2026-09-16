@@ -1,4 +1,4 @@
-# Integrated Publication Bundle v1
+# Integrated Publication Bundle v2
 
 The public `publication_bundle.contract` validator and JSON schema define the versioned
 Integration output. `integration/producer.py` is the independent implementation;
@@ -10,7 +10,7 @@ and the complete payload inventory/digest. Canonical JSON sorts keys with ASCII 
 compact separators, no nonfinite numbers, and an LF. Execution timestamps and workflow
 run/attempt IDs belong to separate transport evidence, never content identity.
 
-The Bundle includes canonical and current translated publication content/assets, public
+The Bundle includes canonical and structurally valid current/stale translated publication content/assets, public
 destinations, navigation and locale projections, exact translation availability, integrated
 glossary, validated guided graph, immutable provider repository inventory and source bytes.
 Site content slots contain declarations only; downstream Site supplies its own bytes.
@@ -35,8 +35,16 @@ documents or qualified derivatives, because provider catalog contracts prohibit
 Markdown assets. This rejects orphan translations even after a language loses its
 last declaration.
 
-Only current translations are published. Stale and missing availability remain distinct;
-P5 does not implement P8. Provider translation content and synchronization metadata are
+Both current and stale declared reader translations must be published. Missing means
+no reader declaration exists for that canonical page/language; declared missing files
+remain failures. Availability preserves the owning provider, language, canonical and
+translation paths, reviewed canonical blob and current authenticated canonical blob.
+A stale derivative is never relabelled current. The availability submodel remains v1;
+Bundle v2 explicitly changes the derivative publication contract from current-only v1.
+Current-only fragment reconciliation is not applied to stale prose: newer English cannot
+prove its intended fragment. Existing safe path/link projection remains mandatory.
+Consumers must use the supplied status and canonical destination; freshness is not a
+runtime computation. Site warning UI and adoption require separate authorization. Provider translation content and synchronization metadata are
 read directly from their owning exact authority checkouts and are not Integration sources.
 
 The P5 comparison records landed Site Bundle identity and payload hashes in

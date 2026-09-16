@@ -45,6 +45,7 @@ class TranslationRecord:
     canonical_destination: PurePosixPath
     translation_destination: PurePosixPath
     source_file: Path
+    status: str
 
 
 @dataclass(frozen=True)
@@ -399,8 +400,6 @@ def _load_records(
         tuple[Path, dict[str, dict[str, Any]], list[dict[str, Any]]],
     ],
     included_pages: list[dict[str, Any]],
-    *,
-    skip_stale: bool,
 ) -> tuple[
     list[TranslationRecord],
     dict[tuple[str, PurePosixPath], PurePosixPath],
@@ -476,13 +475,6 @@ def _load_records(
                 raise TranslationPublicationError(
                     f"{field}.canonical freshness was not bound to provider bytes"
                 )
-            if not entry.is_current:
-                if skip_stale:
-                    continue
-                raise TranslationPublicationError(
-                    f"stale translation for {publication}:{canonical}: expected "
-                    f"{entry.canonical_blob_sha}, current {entry.current_blob_sha}"
-                )
             try:
                 text = source_file.read_text(encoding="utf-8")
             except (OSError, UnicodeError) as exc:
@@ -501,6 +493,7 @@ def _load_records(
                     canonical_destination=canonical_destination,
                     translation_destination=derivative_destination(language, canonical_destination),
                     source_file=source_file,
+                    status="current" if entry.is_current else "stale",
                 )
             )
 
@@ -519,14 +512,12 @@ def publish_translations(
     ],
     included_pages: list[dict[str, Any]],
     docs_root: Path,
-    *,
-    skip_stale: bool = False,
 ) -> list[TranslationRecord]:
     """Publish explicitly declared reader translations.
 
-    Direct callers remain strict by default. The integrated Site build passes
-    ``skip_stale=True`` so stale non-authoritative derivatives are unavailable
-    without invalidating otherwise valid canonical English pages.
+    Structurally valid current and stale derivatives are available. Freshness is
+    derived from provider-owned metadata and canonical bytes; it is never changed
+    by publication. Missing explicitly declared sources remain contract failures.
     """
     (
         records,
@@ -536,7 +527,6 @@ def publish_translations(
     ) = _load_records(
         publications,
         included_pages,
-        skip_stale=skip_stale,
     )
     translated_destinations = {
         (record.publication, record.language, record.canonical_source):

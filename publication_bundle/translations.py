@@ -64,7 +64,7 @@ def validate_translations(root, coverage, publication, providers, documents, rep
     if coverage != expected_coverage:
         raise BundleError('translation availability differs from provider manifest/source identity closure')
     if not isinstance(publication,dict) or set(publication)!={'schema_version','canonical_language','translations'} or publication['schema_version']!=1 or publication['canonical_language']!='en' or not isinstance(publication['translations'],list):raise BundleError('invalid translation publication map')
-    expected={(r['publication'],r['language'],r['canonical_destination']) for r in coverage['records'] if r['status']=='current'};actual=set();destinations=set()
+    expected={(r['publication'],r['language'],r['canonical_destination']) for r in coverage['records'] if r['status'] in {'current','stale'}};actual=set();destinations=set()
     for r in publication['translations']:
         if not isinstance(r,dict) or set(r)!={'publication','language','canonical_destination','translation_destination'}:raise BundleError('invalid derivative record')
         key=(r['publication'],r['language'],r['canonical_destination'])
@@ -73,7 +73,7 @@ def validate_translations(root, coverage, publication, providers, documents, rep
         if r['translation_destination'] != destination:
             raise BundleError('derivative destination differs from manifest-derived publication path')
         actual.add(key);destinations.add(destination);regular(root,'publication/'+safe_path(destination).as_posix())
-    if expected!=actual:raise BundleError('missing current derivative')
+    if expected!=actual:raise BundleError('missing declared derivative')
     # A map alone cannot prove publication exclusion: account for every file
     # under each manifest-derived language namespace, including orphan derivatives.
     actual_files = {p.relative_to(root/'publication').as_posix()
