@@ -1,5 +1,11 @@
 # Audience architecture
 
+> **Historical design record:** This pre-cutover design records the audience migration.
+> The current public destination/semantic navigation authority is Integration's selected
+> Publication Bundle. Site owns its audience UI and rendering. References below to
+> a Site manifest or Site-owned integration describe the historical implementation.
+
+
 This is the Site-owned design contract for two reader journeys: **Use templates**
 and **Maintain templates**. It specifies future publication projections; it does
 not activate them. The current production manifest and provider catalogs remain

@@ -64,7 +64,7 @@ class AuthorityModelTests(unittest.TestCase):
         coexistence = COEXISTENCE.read_text(encoding="utf-8")
 
         self.assertIn(
-            "This coexistence contract applies that model to the Policy–Composition boundary",
+            "This coexistence guide applies that model to the Policy–Composition boundary",
             coexistence,
         )
         self.assertIn(
@@ -75,6 +75,14 @@ class AuthorityModelTests(unittest.TestCase):
             "does not perform consumer adoption, composition, update, render, recovery, or migration",
             coexistence,
         )
+
+    def test_current_coexistence_projection_has_no_historical_provider_selection(self):
+        source=COEXISTENCE.read_text()
+        self.assertIn('cross-authority contract belongs to Integration',source)
+        self.assertNotIn('Site already owns integrated publication',source)
+        self.assertNotIn('repository integration and publication authority',source)
+        self.assertNotIn('8c6c1884fa97f3ef1ec6c1aa7deba4ad38c9f4ff',source)
+        self.assertIn('integration-source.json',source)
 
 
 if __name__ == "__main__":

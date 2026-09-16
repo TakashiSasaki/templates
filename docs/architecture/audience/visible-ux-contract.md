@@ -1,5 +1,11 @@
 # Visible audience UX
 
+> **Historical design record:** This pre-cutover design records the audience migration.
+> The current public destination/semantic navigation authority is Integration's selected
+> Publication Bundle. Site owns its audience UI and rendering. References below to
+> a Site manifest or Site-owned integration describe the historical implementation.
+
+
 This Site implementation consumes the reviewed architecture at
 `af55c7dc0176dd24393b4296b43c8e31d6171a11` and the
 [foundation contract](foundation-contract.md). It defines reader presentation;

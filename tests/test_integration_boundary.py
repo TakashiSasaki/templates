@@ -32,3 +32,20 @@ class BoundaryTests(unittest.TestCase):
   jobs=yaml.safe_load((ROOT/'.github/workflows/build-pages.yml').read_text())['jobs']
   self.assertIn("github.event_name == 'workflow_dispatch'",jobs['full_qualification']['if'])
   self.assertTrue({'check','reference_consumer','cross_authority','core_tests','website_contract','policy','playground','explainability'}<=set(jobs['full_qualification']['needs']))
+
+ def test_manual_chromium_leaf_is_reachable_but_fork_prs_are_rejected(self):
+  condition=yaml.safe_load((ROOT/'.github/workflows/site-composition-playground-cross-authority.yml').read_text())['jobs']['producer_consumer']['if']
+  cases=[('workflow_dispatch','TakashiSasaki/templates','',True),('pull_request','TakashiSasaki/templates','TakashiSasaki/templates',True),('pull_request','TakashiSasaki/templates','fork/repo',False),('workflow_dispatch','fork/repo','',False),('push','TakashiSasaki/templates','',False)]
+  for event,repository,head_repository,expected in cases:
+   expression=condition
+   for name,value in [('github.event.pull_request.head.repo.full_name',head_repository),('github.repository',repository),('github.event_name',event),('inputs.browser_required','true')]:expression=expression.replace(name,repr(value))
+   self.assertEqual(eval(expression.replace('&&',' and ').replace('||',' or '),{'__builtins__':{}}),expected,(event,repository,head_repository))
+ def test_routed_preflight_commands_match_current_bundle_only_cli(self):
+  import shlex,subprocess,sys
+  for path in (ROOT/'.agents/skills/site-pr-exact-head-acceptance/SKILL.md',ROOT/'docs/ci/site-performance.md'):
+   text=path.read_text()
+   self.assertNotIn('--base ',text);self.assertNotIn('--composition-root',text);self.assertNotIn('--policy-root',text)
+   self.assertIn('--bundle <verified Bundle directory>',text)
+  help_result=subprocess.run([sys.executable,str(ROOT/'scripts/run_site_preflight.py'),'ready','--help'],capture_output=True,text=True)
+  self.assertEqual(help_result.returncode,0)
+  for option in ('--expected-head','--bundle','--site-root'):self.assertIn(option,help_result.stdout)

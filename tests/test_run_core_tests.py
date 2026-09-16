@@ -34,6 +34,7 @@ class RunCoreTestsContractTests(unittest.TestCase):
 
         reconstructed = sorted(list(core_set | provider_set | browser_set))
         self.assertEqual(all_modules, reconstructed)
+        self.assertGreaterEqual(len(core_set), 100)  # Retained post-cutover consumer/UI module floor.
         self.assertIn("test_publication_bundle", core_set)
         self.assertIn("test_stale_translation_reader", core_set)
         self.assertIn("test_integration_boundary", core_set)
@@ -61,7 +62,7 @@ class RunCoreTestsContractTests(unittest.TestCase):
 
     def test_load_core_test_suite_succeeds(self) -> None:
         suite = load_test_suite("core")
-        self.assertGreater(suite.countTestCases(), 0)
+        self.assertGreaterEqual(suite.countTestCases(), 760)  # Post-cutover baseline: 767 retained cases.
 
     def test_doc_contract_breakage_fails_core_validation(self) -> None:
         """Regression test: broken reader/documentation contract must fail core validation."""

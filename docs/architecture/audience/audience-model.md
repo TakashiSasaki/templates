@@ -1,5 +1,11 @@
 # Audience model
 
+> **Historical design record:** This pre-cutover design records the audience migration.
+> The current public destination/semantic navigation authority is Integration's selected
+> Publication Bundle. Site owns its audience UI and rendering. References below to
+> a Site manifest or Site-owned integration describe the historical implementation.
+
+
 ## Purpose and vocabulary
 
 The audience axis separates the repository in which the reader intends to act.

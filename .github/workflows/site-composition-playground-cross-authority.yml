@@ -29,7 +29,7 @@ permissions:
 jobs:
   producer_consumer:
     name: Real producer to Chromium consumer
-    if: github.repository == 'TakashiSasaki/templates' && github.event.pull_request.head.repo.full_name == github.repository && inputs.browser_required == 'true'
+    if: github.repository == 'TakashiSasaki/templates' && (github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && inputs.browser_required == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:

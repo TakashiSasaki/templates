@@ -98,3 +98,12 @@ PWA and stale warnings, using one timestamped artifact shared by the consumers.
 A failed or skipped required acceptance job prevents deployment. Final deployment
 and live-reader evidence are recorded separately after the reviewed P11 candidate
 lands; this document is not a claim that a provisional head has deployed.
+
+## Discovery follow-up from the final audit
+
+Integration's current authority discovery still described the historical bootstrap
+(non-adoption and current-only publication). Independent Integration PR #904 corrects
+those statements without changing provider locks or Site's frozen adoption revision.
+Site's coexistence reader projection now identifies Integration as owner and removes
+obsolete provider publication SHAs. Pre-cutover audience design documents are explicitly
+historical records; the adopted Bundle is the current IA authority.
