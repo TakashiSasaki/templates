@@ -42,6 +42,13 @@ def validate_inventory(inventory,proof):
     if len(paths)!=len(set(paths)):raise ValueError('duplicate ownership path')
     if set(paths)!=expected:raise ValueError('missing or extra ownership path')
     if any(not isinstance(r['intended_owner'],str) or not r['intended_owner'].strip() for r in records):raise ValueError('missing owner')
+    lock=proof['composition_lock_object'].encode()
+    entry=next(e for e in proof['entries'] if e['path']=='.template-composition/lock.json')
+    if git_hash('blob',lock)!=entry['object']:raise ValueError('audited Composition lock mismatch')
+    owners={r['path']:r['intended_owner'] for r in records}
+    for managed in json.loads(lock)['files']:
+        if managed['ownership']=='managed' and owners.get(managed['destination'])!='Composition-owned managed semantics / Site consumer projection':
+            raise ValueError('managed destination lost Composition ownership')
 
 
 class OwnershipInventoryTests(unittest.TestCase):
@@ -53,13 +60,14 @@ class OwnershipInventoryTests(unittest.TestCase):
         validate_inventory(self.inventory,self.proof)
 
     def test_missing_extra_duplicate_and_changed_revision_fail(self):
-        for mutation in ('missing','extra','duplicate','revision','owner'):
+        for mutation in ('missing','extra','duplicate','revision','owner','managed-owner'):
             with self.subTest(mutation=mutation):
                 data=copy.deepcopy(self.inventory)
                 if mutation=='missing':data['paths'].pop()
                 elif mutation=='extra':data['paths'].append({'path':'invented','intended_owner':'site'})
                 elif mutation=='duplicate':data['paths'].append(data['paths'][0])
                 elif mutation=='owner':data['paths'][0]['intended_owner']=''
+                elif mutation=='managed-owner':next(r for r in data['paths'] if r['path']=='schemas/routes.schema.json')['intended_owner']='future Site presentation/runtime-owned'
                 else:data['audited_site']='0'*40
                 with self.assertRaises(ValueError):validate_inventory(data,self.proof)
 
@@ -71,3 +79,8 @@ class OwnershipInventoryTests(unittest.TestCase):
                 elif mutation=='extra':proof['entries'].append({'path':'invented','mode':'100644','object':'0'*40})
                 else:proof['entries'][0]['object']='0'*40
                 with self.assertRaises(ValueError):validate_inventory(self.inventory,proof)
+
+    def test_managed_relation_cannot_be_forged(self):
+        proof=copy.deepcopy(self.proof)
+        proof['composition_lock_object']=proof['composition_lock_object'].replace('"ownership": "managed"','"ownership": "scaffold"')
+        with self.assertRaisesRegex(ValueError,'Composition lock mismatch'):validate_inventory(self.inventory,proof)
