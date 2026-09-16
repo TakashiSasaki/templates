@@ -46,3 +46,11 @@ class BoundaryTests(unittest.TestCase):
                 with self.subTest(module=module,invocation=invocation):
                     result=subprocess.run([sys.executable,*invocation],cwd=ROOT,capture_output=True,text=True)
                     self.assertEqual(result.returncode,0,result.stderr)
+
+    def test_shared_contract_has_no_implementation_imports(self):
+        for path in (ROOT/'publication_bundle').rglob('*.py'):
+            for node in ast.walk(ast.parse(path.read_text())):
+                names=([x.name for x in node.names] if isinstance(node,ast.Import)
+                       else [node.module or ''] if isinstance(node,ast.ImportFrom) else [])
+                for name in names:
+                    self.assertFalse(name.startswith(('integration','site_renderer','scripts')),f'{path}: {name}')

@@ -164,7 +164,7 @@ class ReuseWorkflowTests(unittest.TestCase):
         steps=workflow['jobs']['build']['steps']
         reuse_step=next(s for s in steps if s.get('id') == 'artifact')
         self.assertIn('github.event.pull_request.head.repo.full_name == github.repository', reuse_step['env']['REUSE_PR_BUILD'])
-        start=next(i for i,s in enumerate(steps) if s.get('name')=='Install pinned site dependencies')
+        start=next(i for i,s in enumerate(steps) if s.get('name')=='Run Site contract regression tests')
         end=next(i for i,s in enumerate(steps) if s.get('name')=='Upload Pages artifact')
         for step in steps[start:end]:
             self.assertIn("steps.artifact.outputs.reused != 'true'",step['if'],step['name'])
@@ -229,7 +229,7 @@ class BuildDependencyLockTests(unittest.TestCase):
         for name, version in direct.items():
             self.assertEqual(locked.get(name), version, name)
         workflow = yaml.safe_load((root / ".github/workflows/site-producer.yml").read_text())
-        step = next(s for s in workflow['jobs']['build']['steps'] if s.get('name') == 'Install pinned site dependencies')
+        step = next(s for s in workflow['jobs']['build']['steps'] if s.get('name') == 'Install pinned contract and renderer dependencies')
         self.assertIn('--no-deps --requirement site-source/requirements-build.lock', step['run'])
         self.assertIn('python -m pip check', step['run'])
 

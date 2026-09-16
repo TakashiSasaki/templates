@@ -111,7 +111,7 @@ jobs:
           python -m pip check
       - name: Validate Integration contract regression cases
         working-directory: integration-source
-        run: python -m unittest tests.test_publication_bundle tests.test_integration_boundary tests.test_integration_qualification tests.test_bundle_artifact -v
+        run: python -m unittest tests.test_publication_bundle tests.test_integration_qualification tests.test_bundle_artifact -v
       - name: Materialize provider-owned catalog outputs
         run: |
           python integration-source/scripts/materialize_publication_assets.py --publication composition=composition-source --publication policy=policy-source

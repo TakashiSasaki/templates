@@ -14,7 +14,9 @@ def fixture(root):
     root.mkdir()
     models={name:{} for name in MODELS}
     models['documents.json']=[{'publication':'composition','document':'intro','source':'docs/index.md','destination':'intro.md','slot':False}]
-    models['navigation.json']={'navigation':{'use':[{'publication':'composition','document':'intro','destination':'intro.md'}]}}
+    models['navigation.json']={'schema_version':1,'navigation':{'use':[{'publication':'composition','document':'intro','destination':'intro.md','title':'Intro'}]},'locale_labels':{'schema_version':1,'canonical_language':'en','locales':[{'language':'ja','labels':[{'id':'intro','canonical':'Intro','localized':'はじめに'},{'id':'use','canonical':'Use templates','localized':'利用'}]}]},'audience_runtime':{'schema_version':1,'audiences':['use'],'documents':{'intro.md':{'destination':'intro.md','key':'composition:intro','audiences':['use'],'primary':'use','is_landing':False,'title':'Intro'}},'routes':{'/intro/':'intro.md','/intro/index.html':'intro.md'},'navigation':{'use':[{'title':'Intro','destination':'intro.md','href':'/intro/'}]},'overviews':{'use':'/intro/'},'landing_destination':'intro.md'}}
+    models['guided-locales.json']={'schema_version':1,'canonical_graph_schema_version':1,'canonical_language':'en','locales':[]}
+    models['reader-navigation-runtime.json']={'schema_version':1,'canonical_language':'en','locales':[{'language':'ja','labels':{'Intro':'はじめに','Use templates':'利用'},'routes':{}}]}
     models['provider-repositories.json']={k:{'revision':v,'entries':[],'browser':[],'previews':[],'nonviewable_blobs':{},'published':({'docs/index.md':'intro.md'} if k=='composition' else {})} for k,v in PROVIDERS.items()}
     models['guided-navigation.json']={'schema_version':1,'repository':'TakashiSasaki/templates','providers':[{'name':k,'revision':v,'root_index':'docs/index.md','indexes':[{'path':'docs/index.md','title':'Intro','sections':[],'depth':0,'object_id':'f'*40}],'edges':[],'diagnostics':{'index_count':1,'edge_count':0,'max_index_depth':0,'cycle_edges':[],'multiple_parent_indexes':[]}} for k,v in PROVIDERS.items()]}
     models['translation-availability.json']={'schema_version':1,'canonical_language':'en','surface':'reader','languages':[],'summary':{'current':0,'stale':0,'missing':0},'by_language':{},'records':[]}
@@ -103,3 +105,13 @@ class BundleTests(unittest.TestCase):
         root=fixture(self.base/'bundle')
         (root/'navigation.json').write_bytes(canonical({'navigation':{'use':[{'publication':'policy','document':'absent','destination':'absent.md'}]}}))
         with self.assertRaises(BundleError):finish(root)
+
+    def test_secondary_read_models_are_checked_during_qualification(self):
+        for name in ('guided-locales.json','reader-navigation-runtime.json','navigation.json'):
+            root=fixture(self.base/name)
+            model=json.loads((root/name).read_text())
+            if name=='guided-locales.json':model['canonical_graph_schema_version']=99
+            elif name=='reader-navigation-runtime.json':model['locales'][0]['routes']['/intro/']='/absent/'
+            else:model['audience_runtime']['routes']['https://untrusted.example/']='intro.md'
+            (root/name).write_bytes(canonical(model))
+            with self.subTest(name=name),self.assertRaises(BundleError):finish(root)
