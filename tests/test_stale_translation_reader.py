@@ -19,9 +19,10 @@ class StaleTranslationReaderTests(unittest.TestCase):
         row={'publication':'policy','language':'ja','canonical_destination':'policy/cli.md','translation_destination':'ja/policy/cli.md'}
         mapping=root/'map.json';mapping.write_text(json.dumps({'schema_version':1,'canonical_language':'en','translations':[] if status=='missing' else [row]}))
         availability=root/'availability.json';availability.write_text(json.dumps({'schema_version':1,'canonical_language':'en','surface':'reader','records':[{'publication':'policy','language':'ja','canonical_destination':'policy/cli.md','status':status,'canonical_blob_sha':'a'*40,'current_blob_sha':'b'*40}]}))
+        (root/'inventory.json').write_text(json.dumps({'schema_version':1,'coverage':[{'publication':'policy','language':'ja','canonical_destination':'policy/cli.md'}]}))
         return site,mapping,availability
     def render(self,site,mapping,availability):
-        return finalize(site,mapping,'https://templates.moukaeritai.work/',availability_paths=(availability,))
+        return finalize(site,mapping,'https://templates.moukaeritai.work/',availability_paths=(availability,),coverage_inventory=availability.parent/'inventory.json')
     def test_stale_warning_is_static_accessible_and_links_to_current_english(self):
         with tempfile.TemporaryDirectory() as tmp:
             site,mapping,availability=self.fixture(Path(tmp));self.render(site,mapping,availability)
@@ -76,3 +77,16 @@ class StaleTranslationReaderTests(unittest.TestCase):
         source=(ROOT/'scripts/finalize_translation_reader.py').read_text()
         for forbidden in ('canonical_blob_sha','current_blob_sha','hashlib','translations/manifest.json','git rev-parse'):
             self.assertNotIn(forbidden,source)
+
+    def test_omitted_or_invented_missing_record_is_rejected_before_writes(self):
+        for mutation in ('omit', 'extra'):
+            with self.subTest(mutation=mutation), tempfile.TemporaryDirectory() as tmp:
+                site,mapping,availability=self.fixture(Path(tmp),'missing')
+                before={p:p.read_bytes() for p in site.rglob('*.html')}
+                data=json.loads(availability.read_text())
+                if mutation=='omit':data['records']=[]
+                else:data['records'].append({'publication':'policy','language':'ja','canonical_destination':'policy/undeclared.md','status':'missing'})
+                availability.write_text(json.dumps(data))
+                with self.assertRaisesRegex(TranslationReaderError,'coverage inventory'):
+                    self.render(site,mapping,availability)
+                self.assertEqual(before,{p:p.read_bytes() for p in site.rglob('*.html')})

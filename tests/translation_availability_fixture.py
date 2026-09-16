@@ -11,4 +11,5 @@ def finalize(site, mapping, canonical, *args):
     records=[{'publication':r.get('publication'),'language':r.get('language'),'canonical_destination':r.get('canonical_destination'),'status':'current'} for r in data.get('translations',[]) if isinstance(r,dict)]
     with tempfile.TemporaryDirectory() as tmp:
         p=Path(tmp)/'availability.json';p.write_text(json.dumps({'schema_version':1,'canonical_language':'en','surface':'reader','records':records}))
-        return finalize_reader(site,mapping,canonical,*args,availability_paths=(p,))
+        inventory=Path(tmp)/'inventory.json';inventory.write_text(json.dumps({'schema_version':1,'coverage':[{k:r[k] for k in ('publication','language','canonical_destination')} for r in records]}))
+        return finalize_reader(site,mapping,canonical,*args,availability_paths=(p,),coverage_inventory=inventory)

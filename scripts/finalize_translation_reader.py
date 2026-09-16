@@ -381,7 +381,7 @@ STALE_TEXT = {
 }
 
 
-def reader_statuses(paths, pairs):
+def reader_statuses(paths, pairs, inventory_path):
     """Project supplied availability, without calculating provider freshness."""
     statuses = {}
     for path in paths:
@@ -398,6 +398,21 @@ def reader_statuses(paths, pairs):
             if key in statuses:raise TranslationReaderError('duplicate availability record')
             if record.get('status') not in ('current','stale','missing'):raise TranslationReaderError('invalid translation availability status')
             statuses[key]=record['status']
+    if inventory_path is None:
+        raise TranslationReaderError('missing independent reader coverage inventory')
+    inventory = read_json(inventory_path)
+    if set(inventory) != {'schema_version', 'coverage'} or inventory['schema_version'] != 1 or not isinstance(inventory['coverage'], list):
+        raise TranslationReaderError('invalid reader coverage inventory')
+    expected = set()
+    for item in inventory['coverage']:
+        if not isinstance(item, dict) or set(item) != {'publication', 'canonical_destination', 'language'}:
+            raise TranslationReaderError('invalid reader coverage item')
+        key = (item['publication'], safe_markdown_destination(item['canonical_destination'], 'coverage destination'), item['language'])
+        if key in expected:
+            raise TranslationReaderError('duplicate reader coverage item')
+        expected.add(key)
+    if set(statuses) != expected:
+        raise TranslationReaderError('availability differs from complete reader coverage inventory')
     # Site-owned untranslated/stale slots retain their existing publication policy.
     # Every available provider derivative, including stale, must be present.
     available={(p['publication'],p['canonical'],p['language']) for p in pairs}
@@ -429,11 +444,12 @@ def finalize(
     canonical_base: str,
     chrome_path: Path = SITE_CHROME_LOCALES,
     availability_paths: tuple[Path, ...] = (),
+    coverage_inventory: Path | None = None,
 ) -> tuple[int, int]:
     canonical_base = validate_canonical_url(canonical_base)
     site_root = site_root.resolve(strict=True)
     pairs = load_pairs(map_path)
-    statuses = reader_statuses(availability_paths, pairs)
+    statuses = reader_statuses(availability_paths, pairs, coverage_inventory)
     chrome = load_site_chrome_locales(chrome_path)
     canonical_language = chrome["canonical_language"]
 
@@ -564,6 +580,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--site-root", required=True, type=Path)
     parser.add_argument("--translation-map", required=True, type=Path)
     parser.add_argument("--canonical-url", required=True)
+    parser.add_argument("--coverage-inventory", type=Path, required=True)
     parser.add_argument("--availability", action="append", type=Path, required=True)
     parser.add_argument(
         "--site-chrome-locales",
@@ -582,6 +599,7 @@ def main() -> int:
             args.canonical_url,
             args.site_chrome_locales,
             tuple(args.availability),
+            args.coverage_inventory,
         )
     except (
         OSError,
