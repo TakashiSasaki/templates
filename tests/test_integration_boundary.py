@@ -2,6 +2,8 @@
 import ast
 from pathlib import Path
 import unittest
+import subprocess
+import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -33,3 +35,14 @@ class BoundaryTests(unittest.TestCase):
         self.assertNotIn('  push:', workflow)
         self.assertEqual(workflow.count("github.event_name == 'workflow_dispatch'"), 3)
         self.assertEqual(workflow.count("github.ref == 'refs/heads/site'"), 3)
+
+    def test_definition_only_adapters_preserve_direct_execution(self):
+        modules = ('glossary', 'publish_translations', 'reader_navigation_locales',
+                   'translation_coverage', 'translation_fragment_reconciliation',
+                   'translation_link_identity', 'translation_link_selection',
+                   'translation_manifest')
+        for module in modules:
+            for invocation in ([str(ROOT/'scripts'/f'{module}.py')], ['-m', 'scripts.'+module]):
+                with self.subTest(module=module,invocation=invocation):
+                    result=subprocess.run([sys.executable,*invocation],cwd=ROOT,capture_output=True,text=True)
+                    self.assertEqual(result.returncode,0,result.stderr)

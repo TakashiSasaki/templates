@@ -6,7 +6,9 @@ if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from integration import translation_link_identity as _implementation
 if __name__ == "__main__":
-    raise SystemExit(_implementation.main())
+    entrypoint = getattr(_implementation, 'main', None)
+    if entrypoint is not None:
+        raise SystemExit(entrypoint())
 else:
     sys.modules[__name__] = _implementation
     globals().update({key: value for key, value in vars(_implementation).items()
