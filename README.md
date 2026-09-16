@@ -327,7 +327,7 @@ or through `workflow_call`, but it has read-only repository permission and no
 Pages deployment authority.
 
 `.github/workflows/deploy-pages.yml` is the only Pages deployment route and runs
-only on a push to `site`. The external `github-pages` environment is configured
+only by explicit `workflow_dispatch` on `site`. The external `github-pages` environment is configured
 to allow exactly the `site` branch. Pull requests cannot change this setting;
 changing it requires repository/environment administration. Do not broaden the
 environment to all branches or introduce a second deployment workflow.
