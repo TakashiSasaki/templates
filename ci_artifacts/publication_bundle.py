@@ -7,7 +7,7 @@ import subprocess
 import tarfile
 import tempfile
 from ci_artifacts.transport import ArtifactError, verified_tar, artifact_matches_successful_build_attempt
-from publication_bundle.contract import validate
+from site_renderer.bundle import validate
 
 
 def binding(metadata, run, jobs, *, artifact_id, archive_digest, run_id, attempt,
@@ -52,7 +52,7 @@ def pack(bundle, target):
             archive.addfile(entry,io.BytesIO(data))
 
 
-def extract(archive,target,*,archive_digest,identity,producer,providers,validator=validate,producer_authority="site-internal-integration"):
+def extract(archive,target,*,archive_digest,identity,producer,providers,validator=validate,producer_authority="integration"):
     if target.exists() or target.is_symlink():raise ArtifactError('Bundle destination already exists')
     target.parent.mkdir(parents=True,exist_ok=True)
     with tempfile.TemporaryDirectory(dir=target.parent) as tmp:
@@ -67,33 +67,3 @@ def extract(archive,target,*,archive_digest,identity,producer,providers,validato
 def api(path):
     return json.loads(subprocess.check_output(['gh','api',path],text=True))
 
-
-def main():
-    p=argparse.ArgumentParser(description=__doc__)
-    sub=p.add_subparsers(dest='command',required=True)
-    a=sub.add_parser('pack');a.add_argument('--bundle',type=Path,required=True);a.add_argument('--output',type=Path,required=True)
-    a=sub.add_parser('consume')
-    for field in ('repository','archive-digest','bundle-identity','producer','workflow-head','composition','policy','artifact-name'):a.add_argument('--'+field,required=True)
-    for field in ('artifact-id','run-id','attempt'):a.add_argument('--'+field,type=int,required=True)
-    a.add_argument('--output',type=Path,required=True)
-    args=p.parse_args()
-    if args.command=='pack':pack(args.bundle,args.output);return
-    if not re.fullmatch(r'[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+',args.repository):p.error('invalid repository')
-    prefix=f'repos/{args.repository}/actions'
-    metadata=api(f'{prefix}/artifacts/{args.artifact_id}')
-    run=api(f'{prefix}/runs/{args.run_id}/attempts/{args.attempt}')
-    jobs=[]
-    for page in range(1,101):
-        batch=api(f'{prefix}/runs/{args.run_id}/attempts/{args.attempt}/jobs?per_page=100&page={page}')['jobs']
-        jobs+=batch
-        if len(batch)<100:break
-    else:raise ArtifactError('Bundle job pagination limit exceeded')
-    binding(metadata,run,jobs,artifact_id=args.artifact_id,archive_digest=args.archive_digest,run_id=args.run_id,attempt=args.attempt,producer=args.producer,workflow_head=args.workflow_head,repository=args.repository,identity=args.bundle_identity,artifact_name=args.artifact_name)
-    with tempfile.TemporaryDirectory() as tmp:
-        archive=Path(tmp)/'bundle.zip'
-        with archive.open('wb') as output:
-            subprocess.run(['gh','api',f'{prefix}/artifacts/{args.artifact_id}/zip'],stdout=output,check=True)
-        extract(archive,args.output,archive_digest=args.archive_digest,identity=args.bundle_identity,producer=args.producer,providers={'composition':args.composition,'policy':args.policy})
-
-
-if __name__=='__main__':main()

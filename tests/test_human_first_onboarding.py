@@ -32,47 +32,12 @@ class HumanFirstOnboardingTests(unittest.TestCase):
             'href="composition/use/webapp-product-walkthrough/"',
             landing,
         )
-        manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
-        serialized = MANIFEST.read_text(encoding="utf-8")
-        self.assertIn('"document": "website-webapp-selection"', serialized)
-        self.assertIn('"destination": "web/index.md"', serialized)
-        self.assertIn('"document": "website-product-walkthrough"', serialized)
-        self.assertIn('"destination": "website/index.md"', serialized)
-        self.assertIn('"document": "webapp-product-walkthrough"', serialized)
-        self.assertIn('"destination": "webapp/product-walkthrough.md"', serialized)
-        nodes = (
-            manifest["navigation"]["use"]
-            if isinstance(manifest["navigation"], dict)
-            else manifest["navigation"]
-        )
-        selection_node = next(
-            child
-            for node in nodes
-            for child in node.get("children", [])
-            if child.get("document") == "website-webapp-selection"
-        )
-        self.assertEqual(selection_node["document"], "website-webapp-selection")
 
     def test_skill_task_links_directly_to_canonical_walkthrough(self) -> None:
         landing = LANDING.read_text(encoding="utf-8")
         self.assertIn(
             'href="composition/use/skill-first-use-walkthrough/"',
             landing,
-        )
-        manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
-        nodes = (
-            manifest["navigation"]["use"]
-            if isinstance(manifest["navigation"], dict)
-            else manifest["navigation"]
-        )
-        agent_skill = next(
-            node for node in nodes if node["title"] == "Agent Skill"
-        )
-        first = agent_skill["children"][0]
-        self.assertEqual(first["document"], "skill-first-use-walkthrough")
-        self.assertEqual(
-            first["destination"],
-            "composition/use/skill-first-use-walkthrough.md",
         )
 
     def test_composition_concepts_is_secondary_not_primary_onboarding(self) -> None:
@@ -82,22 +47,6 @@ class HumanFirstOnboardingTests(unittest.TestCase):
         self.assertGreater(concepts, explore_section)
         self.assertNotIn("Composition concepts", landing[:explore_section])
 
-        manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
-        nodes = (
-            manifest["navigation"]["use"]
-            if isinstance(manifest["navigation"], dict)
-            else manifest["navigation"]
-        )
-        composition = next(
-            node for node in nodes if node["title"] == "Composition"
-        )
-        concepts_entry = next(
-            node
-            for node in composition["children"]
-            if node.get("document") == "composition-concepts"
-        )
-        self.assertEqual(concepts_entry["title"], "Concepts and terminology")
-        self.assertEqual(concepts_entry["destination"], "composition/concepts/index.md")
 
     def test_separate_product_repository_mental_model_is_explicit(self) -> None:
         landing = LANDING.read_text(encoding="utf-8")
@@ -125,13 +74,6 @@ class HumanFirstOnboardingTests(unittest.TestCase):
         concepts = landing.index('href="/composition/concepts/"')
         self.assertGreater(concepts, explore_section)
 
-    def test_concepts_navigation_has_japanese_label(self) -> None:
-        locales = json.loads(NAV_LOCALES.read_text(encoding="utf-8"))
-        ja = next(locale for locale in locales["locales"] if locale["language"] == "ja")
-        label = next(
-            item for item in ja["labels"] if item["canonical"] == "Concepts and terminology"
-        )
-        self.assertEqual(label["localized"], "概念と用語")
 
 
 if __name__ == "__main__":

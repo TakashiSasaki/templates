@@ -6,11 +6,14 @@ import argparse
 import functools
 import json
 import threading
+import sys
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urljoin, urlsplit
 from xml.etree import ElementTree
 
+
+if __package__ in (None,''):sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 
 def require(condition, message):
     if not condition:
@@ -275,7 +278,8 @@ def check(repository: Path, site_root: Path):
                 require(page.locator("html").get_attribute("lang") == language, "reference explanation locale mismatch")
                 check_reference_consumer_navigation(page, prefix, probe["heading"])
             projection = context.request.get(f"http://127.0.0.1:{server.server_port}/reference-consumer.json").json()
-            require(projection == json.loads((repository / "assets/reference-consumer.json").read_text()), "served reference projection mismatch")
+            from scripts.render_reference_consumer import project
+            require(projection == project(repository), "served reference projection mismatch")
             browser.close()
     finally:
         server.shutdown()

@@ -3,7 +3,7 @@ from __future__ import annotations
 import copy
 import unittest
 
-from scripts.generate_index_navigation_viewer import (
+from site_renderer.guided import (
     IndexNavigationViewerError,
     index_page_path,
     validate_provider_graph,

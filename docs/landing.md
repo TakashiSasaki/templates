@@ -124,7 +124,7 @@ your separate product repository
     </article>
     <article>
       <span class="portal-guarantees__mark" aria-hidden="true">02</span>
-      <div><h3>Locked for integrity</h3><p>The Site selects reviewed Composition and Policy revisions by full commit SHA.</p></div>
+      <div><h3>Locked for integrity</h3><p>Integration selects reviewed Composition and Policy revisions by full commit SHA; Site adopts an exact Integration Bundle.</p></div>
     </article>
     <article>
       <span class="portal-guarantees__mark" aria-hidden="true">03</span>

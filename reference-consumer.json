@@ -18,10 +18,10 @@
       "validation_workflow": ".github/workflows/check-agent-policy.yml"
     },
     "publication": {
-      "selection": "publication-sources.json",
+      "selection": "integration-source.json",
       "provenance": "/build-provenance.json"
     }
   },
-  "projection": "assets/reference-consumer.json",
+  "projection": "/reference-consumer.json",
   "documentation": "docs/policy-composition-coexistence.md"
 }

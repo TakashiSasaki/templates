@@ -23,7 +23,6 @@ import idna
 
 from publication_bundle.glossary import *
 
-PROVIDER_ORDER = ("site", "composition", "policy")
 PROVIDER_LABELS = {
     "site": "Site",
     "composition": "Composition",
@@ -266,9 +265,7 @@ def render(model: dict[str, Any]) -> str:
         for term in terms
     )
     repository_providers = {term["provider"] for term in repository_terms}
-    provider_order = [
-        provider for provider in PROVIDER_ORDER if provider in repository_providers
-    ] + sorted(repository_providers - set(PROVIDER_ORDER))
+    provider_order = sorted(repository_providers)
     provider_sections = []
     for provider in provider_order:
         owned = sorted(

@@ -1,6 +1,6 @@
 import unittest
 
-from scripts.generate_index_navigation_viewer import heading_anchors
+from site_renderer.guided import heading_anchors
 
 
 class LatestIndexNavigationViewerReviewRoundHTests(unittest.TestCase):

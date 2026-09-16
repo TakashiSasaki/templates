@@ -1,61 +1,31 @@
 # Repository authority model
 
-## Status and scope
+The repository has four independent authorities and Git histories:
 
-This is the human-facing Site projection of the four independent repository
-authorities. Integration's `authority.json`, `AGENTS.md`, `RELEASE.md` and versioned
-Publication Bundle contract govern cross-authority integration. Site publishes this
-explanation; it does not become a parent, override or super-authority.
+| Authority | Responsibility |
+|---|---|
+| Composition | Composition-specific artifacts, capabilities, lifecycle/topology semantics, Composer, schemas, validators and consumer contracts |
+| Policy | Coding-agent operating policy, procedures, profiles, review/release semantics and adoption/validation tooling |
+| Integration | Reviewed provider selection, cross-authority contracts, publication mapping and staging, IA, translation availability, glossary, guided/source models and deterministic Publication Bundles |
+| Site | Presentation, browser runtime, accessibility, PWA, Pages packaging and explicit deployment |
 
-```text
-composition ─┐
-             ├──> integration ───> site ───> GitHub Pages
-policy ──────┘
-```
+`composition + policy → integration → site → GitHub Pages`
 
-## Authority boundaries
+Site is not a parent or super-authority. Integration is independent of Site runtime.
+Site consumes only an exact versioned Integration output selected by
+`integration-source.json`. It has no independent provider publication lock.
+A provider/Integration release does not cause Site adoption or deployment. A Site-only
+fix may retain the same Integration revision. Consumer tooling used to maintain
+Site is distinct from its provider-publication input.
 
-### Composition
+Provider-specific rules belong to their provider. Cross-authority publication rules
+belong to Integration. Site may render those rules and detect projection corruption;
+it cannot redefine them. The Integration [authority contract](https://github.com/TakashiSasaki/templates/blob/integration/AUTHORITY.md)
+is canonical for cross-authority integration. This page is the Site reader projection.
 
-Composition owns Composition semantics, artifacts, capabilities, foundations,
-lifecycle and repository/workspace topology semantics, recipes, Composer, schemas,
-validators and consumer behavior. It owns its canonical documents, translations,
-synchronization metadata, glossary concepts and publication catalog.
-
-### Policy
-
-Policy owns operating policy, procedures, profiles, review/release semantics,
-adoption/validation/rendering/release tooling, Work-ledger policy and consumer
-behavior. It owns its canonical documents, translations, synchronization metadata,
-glossary concepts and publication catalog.
-
-### Integration
-
-Integration owns exact reviewed provider selection, provider locks, compatibility,
-publication mapping and staging, destinations and reader information architecture,
-semantic navigation, translation availability, integrated glossary, guided graphs,
-provider source/read models, provenance and deterministic Publication Bundles.
-Provider semantics and provider translations remain provider-owned.
-
-The ownership test is whether a contract governs interaction between independent
-authorities and cannot correctly belong to either provider independently.
-
-### Site
-
-Site owns HTML/static rendering, CSS/layout, navigation/search/browser/glossary UI,
-translation warnings and switching, accessibility, browser interactions, PWA and
-Service Worker behavior, runtime freshness, Pages packaging and explicit deployment.
-`integration-source.json` selects one exact reviewed Integration release and Bundle
-identity. Site does not select provider revisions or derive provider freshness.
-
-Site qualification consumes only that Bundle and Site-owned source. Missing artifact
-evidence may cause regeneration by the pinned Integration qualification workflow;
-it does not authorize following upstream heads or changing provider selection.
-
-An Integration release stops before Site. Explicit Site adoption, Site qualification,
-Site release and deployment are separate operations. A Site-only fix can retain the
-same Integration lock. Independent Git histories remain independent and do not imply
-adoption of Composition's reusable hub-and-orphan consumer topology.
+Translation ownership follows canonical ownership. Integration derives provider
+current/stale/missing status; Site renders it. Site compiles only its own translations.
+English remains authoritative and stale derivatives retain a visible canonical link.
 
 ## Semantic roles
 
@@ -168,50 +138,15 @@ evidence or projection a new source of semantics.
 
 ## Machine discovery
 
-`agent.json` remains the machine bootstrap surface. Its Site role token
-`publication-integration`, the `consumer_repository_mutation: false` boundary,
-and its Integration-owned integration contract registry are stable machine anchors for
-this model.
-
-The repository-wide model is directly discoverable as:
-
-```text
-agent.json
-  -> integration_contracts.authority_model
-  -> docs/authority-model.md
-```
-
-The Policy–Composition coexistence contract remains a separate Site-owned entry
-because it governs one concrete cross-provider boundary rather than the general
-repository-wide semantic vocabulary.
-
-Schema version 5 adds only this direct canonical repository path. It does not
-introduce a semantic-classification system, universal document metadata, or a
-requirement to classify existing repository material. A future schema expansion
-is warranted only if a machine consumer needs to make an automated decision that
-cannot be made safely from the authority role, non-mutation boundary, direct
-contract path, and canonical prose.
+`agent.json` schema 6 projects all four roles and the dependency direction.
+Its Site token is `presentation-runtime-deployment`; Integration's token is
+`cross-authority-publication-integration`. The integration contract registry is
+Integration-owned. Published discovery adds exact immutable Bundle/provider provenance.
+Human prose and machine discovery must agree; neither creates new provider semantics.
 
 ## Change rule
 
-Reader classification is an independent axis defined in the
-[audience architecture](architecture/audience/README.md). Integration owns that
-projection; assigning an audience never changes the semantic owner defined here.
-
-A change to this document requires Site review because it changes repository-wide
-integration semantics. Such a change must not be used to alter provider-specific
-behavior indirectly.
-
-When a new rule is proposed:
-
-1. identify the semantic owner before choosing the file or representation;
-2. apply the Site ownership test if the rule crosses independent authorities;
-3. state whether the rule is a normative requirement, guidance, evidence rule,
-   projection rule, example, or explanation;
-4. keep provider-specific rules in the provider authority; and
-5. verify that human and machine projections still describe the same authority
-   boundaries.
-
-This model intentionally does not require repository-wide front matter,
-retrospective classification of every existing document, or a universal
-semantic-role metadata schema.
+Change provider semantics in the owning authority and cross-authority publication
+semantics in Integration. Site changes update only this presentation/projection or
+Site runtime. Review ownership before editing, preserve normative versus explanatory
+meaning, and mechanically verify the Bundle boundary and discovery parity.

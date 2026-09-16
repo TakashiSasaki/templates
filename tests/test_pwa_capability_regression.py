@@ -10,7 +10,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CHECKER = ROOT / "scripts/check_pwa_capabilities.py"
-WORKFLOW = ROOT / ".github/workflows/mobile-visual-regression.yml"
+WORKFLOW = ROOT / ".github/workflows/build-pages.yml"
 WORKER = ROOT / "assets/service-worker.js"
 sys.path.insert(0, str(ROOT / "scripts"))
 

@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path, PurePosixPath
 from typing import Any
 
-from scripts.publish_translations import (
+from site_renderer.owned_content.publish_translations import (
     TranslationPublicationError,
     publish_translations,
 )
@@ -148,24 +148,24 @@ class TranslationPublicationTests(unittest.TestCase):
         ]
         pages = [
             {
-                "publication": "policy",
+                "publication": "site",
                 "document": "overview",
-                "destination": PurePosixPath("policy/index.md"),
+                "destination": PurePosixPath("site/index.md"),
             },
             {
-                "publication": "policy",
+                "publication": "site",
                 "document": "details",
-                "destination": PurePosixPath("policy/details.md"),
+                "destination": PurePosixPath("site/details.md"),
             },
             {
-                "publication": "policy",
+                "publication": "site",
                 "document": "english",
-                "destination": PurePosixPath("policy/english.md"),
+                "destination": PurePosixPath("site/english.md"),
             },
             {
-                "publication": "policy",
+                "publication": "site",
                 "document": "nested-guide",
-                "destination": PurePosixPath("policy/nested/guide.md"),
+                "destination": PurePosixPath("site/nested/guide.md"),
             },
         ]
         return documents, assets, pages
@@ -173,34 +173,34 @@ class TranslationPublicationTests(unittest.TestCase):
     def publish(self, root: Path, output: Path) -> list[object]:
         documents, assets, pages = self.prepare_publication(root)
         docs_root = output / "docs"
-        (docs_root / "policy").mkdir(parents=True)
+        (docs_root / "site").mkdir(parents=True)
         for page in pages:
             destination = page["destination"]
             assert isinstance(destination, PurePosixPath)
             target = docs_root.joinpath(*destination.parts)
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text("# canonical\n", encoding="utf-8")
-        publications = {"policy": (root, documents, assets)}
+        publications = {"site": (root, documents, assets)}
         return publish_translations(publications, pages, docs_root)
 
     def test_declared_translations_publish_under_language_prefix(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             base = Path(directory)
-            records = self.publish(base / "policy", base / "output")
+            records = self.publish(base / "site", base / "output")
             docs = base / "output" / "docs"
 
             self.assertEqual(len(records), 3)
-            self.assertTrue((docs / "ja" / "policy" / "index.md").is_file())
-            self.assertTrue((docs / "ja" / "policy" / "details.md").is_file())
+            self.assertTrue((docs / "ja" / "site" / "index.md").is_file())
+            self.assertTrue((docs / "ja" / "site" / "details.md").is_file())
             self.assertTrue(
-                (docs / "ja" / "policy" / "nested" / "guide.md").is_file()
+                (docs / "ja" / "site" / "nested" / "guide.md").is_file()
             )
-            self.assertFalse((docs / "ja" / "policy" / "english.md").exists())
+            self.assertFalse((docs / "ja" / "site" / "english.md").exists())
 
     def test_guided_only_entry_is_not_published_as_reader_content(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             base = Path(directory)
-            root = base / "policy"
+            root = base / "site"
             documents, assets, pages = self.prepare_publication(root)
             manifest_path = root / "translations" / "manifest.json"
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -210,55 +210,55 @@ class TranslationPublicationTests(unittest.TestCase):
             docs_root.mkdir(parents=True)
 
             records = publish_translations(
-                {"policy": (root, documents, assets)},
+                {"site": (root, documents, assets)},
                 pages,
                 docs_root,
             )
             self.assertEqual(len(records), 2)
-            self.assertFalse((docs_root / "ja" / "policy" / "index.md").exists())
+            self.assertFalse((docs_root / "ja" / "site" / "index.md").exists())
 
     def test_links_images_and_references_are_rewritten(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             base = Path(directory)
-            self.publish(base / "policy", base / "output")
+            self.publish(base / "site", base / "output")
             docs = base / "output" / "docs"
-            overview = (docs / "ja" / "policy" / "index.md").read_text(
+            overview = (docs / "ja" / "site" / "index.md").read_text(
                 encoding="utf-8"
             )
-            nested = (docs / "ja" / "policy" / "nested" / "guide.md").read_text(
+            nested = (docs / "ja" / "site" / "nested" / "guide.md").read_text(
                 encoding="utf-8"
             )
 
             self.assertIn("[translated](details.md)", overview)
-            self.assertIn("[canonical fallback](../../policy/english.md)", overview)
-            self.assertIn("[fallback](../../policy/english.md#section)", overview)
-            self.assertIn("[asset](../../policy/assets/example.txt)", overview)
-            self.assertIn("![image](../../policy/assets/example.png)", overview)
-            self.assertIn("[asset-ref]: ../../policy/assets/example.txt", overview)
+            self.assertIn("[canonical fallback](../../site/english.md)", overview)
+            self.assertIn("[fallback](../../site/english.md#section)", overview)
+            self.assertIn("[asset](../../site/assets/example.txt)", overview)
+            self.assertIn("![image](../../site/assets/example.png)", overview)
+            self.assertIn("[asset-ref]: ../../site/assets/example.txt", overview)
             self.assertIn("[external](https://example.com/docs.md)", overview)
             self.assertIn("[code](details.md)", overview)
             self.assertIn(
-                "[parent asset](../../../policy/assets/example.txt)",
+                "[parent asset](../../../site/assets/example.txt)",
                 nested,
             )
             self.assertIn(
-                "![parent image](../../../policy/assets/example.png)",
+                "![parent image](../../../site/assets/example.png)",
                 nested,
             )
 
     def test_translation_source_depth_controls_direct_canonical_asset_resolution(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             base = Path(directory)
-            self.publish(base / "policy", base / "output")
+            self.publish(base / "site", base / "output")
             overview = (
-                base / "output" / "docs" / "ja" / "policy" / "index.md"
+                base / "output" / "docs" / "ja" / "site" / "index.md"
             ).read_text(encoding="utf-8")
-            self.assertIn("[asset](../../policy/assets/example.txt)", overview)
+            self.assertIn("[asset](../../site/assets/example.txt)", overview)
 
     def test_unmapped_translation_tree_target_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             base = Path(directory)
-            root = base / "policy"
+            root = base / "site"
             documents, assets, pages = self.prepare_publication(root)
             translated = root / "translations" / "ja" / "docs" / "overview.md"
             translated.write_text(
@@ -273,13 +273,13 @@ class TranslationPublicationTests(unittest.TestCase):
                 "does not resolve to a published canonical document or asset",
             ):
                 publish_translations(
-                    {"policy": (root, documents, assets)}, pages, docs_root
+                    {"site": (root, documents, assets)}, pages, docs_root
                 )
 
-    def test_stale_translation_is_rejected(self) -> None:
+    def test_site_owned_stale_translation_is_available_without_rewriting_review_evidence(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             base = Path(directory)
-            root = base / "policy"
+            root = base / "site"
             documents, assets, pages = self.prepare_publication(root)
             manifest_path = root / "translations" / "manifest.json"
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -288,17 +288,14 @@ class TranslationPublicationTests(unittest.TestCase):
             docs_root = base / "output" / "docs"
             docs_root.mkdir(parents=True)
 
-            with self.assertRaisesRegex(TranslationPublicationError, "stale translation"):
-                publish_translations(
-                    {"policy": (root, documents, assets)},
-                    pages,
-                    docs_root,
-                )
+            records = publish_translations({'site': (root, documents, assets)}, pages, docs_root)
+            self.assertEqual(len(records), 3)
+            self.assertEqual(manifest['translations'][0]['canonical_blob_sha'], '0' * 40)
 
     def test_unmanifested_translation_is_not_discovered(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             base = Path(directory)
-            root = base / "policy"
+            root = base / "site"
             documents, assets, pages = self.prepare_publication(root)
             extra = root / "translations" / "ja" / "docs" / "english.md"
             extra.write_text(
@@ -309,17 +306,17 @@ class TranslationPublicationTests(unittest.TestCase):
             docs_root.mkdir(parents=True)
 
             records = publish_translations(
-                {"policy": (root, documents, assets)},
+                {"site": (root, documents, assets)},
                 pages,
                 docs_root,
             )
             self.assertEqual(len(records), 3)
-            self.assertFalse((docs_root / "ja" / "policy" / "english.md").exists())
+            self.assertFalse((docs_root / "ja" / "site" / "english.md").exists())
 
     def test_mirrored_translation_path_is_required(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             base = Path(directory)
-            root = base / "policy"
+            root = base / "site"
             documents, assets, pages = self.prepare_publication(root)
             manifest_path = root / "translations" / "manifest.json"
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -330,7 +327,7 @@ class TranslationPublicationTests(unittest.TestCase):
 
             with self.assertRaisesRegex(TranslationPublicationError, "must mirror canonical"):
                 publish_translations(
-                    {"policy": (root, documents, assets)},
+                    {"site": (root, documents, assets)},
                     pages,
                     docs_root,
                 )
@@ -338,7 +335,7 @@ class TranslationPublicationTests(unittest.TestCase):
     def test_float_manifest_version_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             base = Path(directory)
-            root = base / "policy"
+            root = base / "site"
             documents, assets, pages = self.prepare_publication(root)
             manifest_path = root / "translations" / "manifest.json"
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -352,7 +349,7 @@ class TranslationPublicationTests(unittest.TestCase):
                 "schema_version must be integer 2",
             ):
                 publish_translations(
-                    {"policy": (root, documents, assets)},
+                    {"site": (root, documents, assets)},
                     pages,
                     docs_root,
                 )
@@ -361,7 +358,7 @@ class TranslationPublicationTests(unittest.TestCase):
     def test_symlink_translation_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             base = Path(directory)
-            root = base / "policy"
+            root = base / "site"
             documents, assets, pages = self.prepare_publication(root)
             translation = root / "translations" / "ja" / "docs" / "overview.md"
             target = translation.with_name("target.md")
@@ -373,7 +370,7 @@ class TranslationPublicationTests(unittest.TestCase):
 
             with self.assertRaisesRegex(TranslationPublicationError, "must not traverse"):
                 publish_translations(
-                    {"policy": (root, documents, assets)},
+                    {"site": (root, documents, assets)},
                     pages,
                     docs_root,
                 )
@@ -382,7 +379,7 @@ class TranslationPublicationTests(unittest.TestCase):
     def test_broken_manifest_symlink_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             base = Path(directory)
-            root = base / "policy"
+            root = base / "site"
             documents, assets, pages = self.prepare_publication(root)
             manifest = root / "translations" / "manifest.json"
             manifest.unlink()
@@ -392,7 +389,7 @@ class TranslationPublicationTests(unittest.TestCase):
 
             with self.assertRaisesRegex(TranslationPublicationError, "must not traverse"):
                 publish_translations(
-                    {"policy": (root, documents, assets)},
+                    {"site": (root, documents, assets)},
                     pages,
                     docs_root,
                 )

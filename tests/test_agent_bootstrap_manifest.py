@@ -14,8 +14,8 @@ class AgentBootstrapManifestTests(unittest.TestCase):
         self.template=json.loads((ROOT/'agent.json').read_text())
         self.bundle={'schema_version':2,'identity':'a'*64,'content_digest':'b'*64,'producer':{'authority':'integration','revision':'c'*40},'providers':{'composition':'d'*40,'policy':'e'*40}}
     def test_repository_and_public_projections_are_identical(self):
-        self.assertEqual((ROOT/'agent.json').read_bytes(),(ROOT/'assets/agent.json').read_bytes())
-        self.assertEqual((ROOT/'schemas/agent-bootstrap.schema.json').read_bytes(),(ROOT/'assets/schemas/agent-bootstrap.schema.json').read_bytes())
+        self.assertFalse((ROOT/'assets/agent.json').exists())
+        self.assertFalse((ROOT/'assets/schemas/agent-bootstrap.schema.json').exists())
         schema=json.loads((ROOT/'schemas/agent-bootstrap.schema.json').read_text())
         jsonschema.validate(self.template,schema)
         jsonschema.validate(project(self.template,self.bundle),schema)

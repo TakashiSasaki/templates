@@ -1,3 +1,9 @@
+# Historical P0 migration audit
+
+This document records the pre-cutover audit. Its observations are historical, not
+active build instructions. See [the final audit](migration/final-architecture-audit.md)
+for current reachability and dispositions.
+
 # Integration / Site migration contract
 
 Status: P0 audit; independent Integration authority does not yet exist.

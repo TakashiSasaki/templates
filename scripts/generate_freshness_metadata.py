@@ -21,7 +21,7 @@ DEPLOYMENT_NOTICE_PATTERN = re.compile(
 )
 PREVIEW_NOTICE = "Preview build (not deployed)"
 SITE_REVISION_META_NAME = "templates-site-revision"
-EXPECTED_PUBLICATIONS = ("composition", "policy")
+EXPECTED_PUBLICATIONS = ("integration",)
 
 
 class FreshnessMetadataError(RuntimeError):
@@ -142,7 +142,7 @@ def parse_args() -> argparse.Namespace:
         action="append",
         default=[],
         metavar="NAME=REVISION",
-        help="Resolved provider publication revision; repeat for composition and policy.",
+        help="Exact selected Integration release revision.",
     )
     return parser.parse_args()
 
@@ -198,10 +198,6 @@ def deployment_timestamp_from_index(site_root: Path) -> str:
 
 
 def validate_publications(publications: dict[str, str]) -> dict[str, str]:
-    # The runtime identity now selects Integration. Legacy provider pairs are
-    # accepted only by historical fixture/provenance tooling during cutover.
-    if set(publications)=={'integration'}:
-        return {'integration':validate_revision(publications['integration'],'integration')}
     unexpected = sorted(set(publications) - set(EXPECTED_PUBLICATIONS))
     if unexpected:
         raise FreshnessMetadataError(

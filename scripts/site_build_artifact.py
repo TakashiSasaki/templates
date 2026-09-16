@@ -43,27 +43,23 @@ def revision(root: Path) -> str:
     return subprocess.check_output(['git', '-C', str(root), 'rev-parse', 'HEAD'], text=True).strip()
 
 
-def identity(*, repository: str, site: str, composition: str, policy: str,
-             workflow: bytes, staging: str = '', staging_ids: str = '', deployment_timestamp: str = '',
-             public_url: str = 'https://templates.moukaeritai.work/',
-             runtime: str = '', qualification_suite: str = 'unit-tests', bundle: dict | None = None) -> dict:
-    for value in (site, composition, policy):
-        if not re.fullmatch(r'[0-9a-f]{40}', value):
-            raise ArtifactError('build revisions must be full immutable SHAs')
-    if not re.fullmatch(r'[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+', repository):
-        raise ArtifactError('invalid repository')
-    if qualification_suite not in {'unit-tests', 'integration-tests-with-core', 'bundle-renderer', 'bundle-renderer-with-core'}:
-        raise ArtifactError('invalid build qualification suite')
-    result = dict(schema_version=1, repository=repository, site=site,
-                composition=composition, policy=policy,
-                workflow_sha256=digest(workflow), staging=staging, staging_ids=staging_ids,
-                deployment_timestamp=deployment_timestamp, public_url=public_url,
-                runtime=runtime, qualification_suite=qualification_suite)
-    if bundle is not None:
-        result['schema_version'] = 3
-        result['publication_bundle'] = bundle
-        for obsolete in ('composition','policy','staging','staging_ids'):result.pop(obsolete)
-    return result
+def identity(*, repository: str, site: str, bundle: dict, workflow: bytes,
+             deployment_timestamp: str = '', public_url: str = 'https://templates.moukaeritai.work/',
+             runtime: str = '', qualification_suite: str = 'bundle-renderer') -> dict:
+    if not re.fullmatch(r'[0-9a-f]{40}', site):
+        raise ArtifactError('build revisions must be full immutable SHAs')
+    if (not isinstance(bundle,dict) or set(bundle)!={'schema_version','producer','providers','identity','content_digest'}
+            or type(bundle['schema_version']) is not int or bundle['schema_version']!=2
+            or bundle['producer'].get('authority')!='integration'
+            or not re.fullmatch(r'[0-9a-f]{40}',bundle['producer'].get('revision',''))
+            or any(not re.fullmatch(r'[0-9a-f]{40}',v) for v in bundle['providers'].values())
+            or any(not re.fullmatch(r'[0-9a-f]{64}',bundle[k]) for k in ('identity','content_digest'))):
+        raise ArtifactError('invalid immutable Bundle input identity')
+    if not re.fullmatch(r'[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+',repository):raise ArtifactError('invalid repository')
+    if qualification_suite not in {'bundle-renderer','bundle-renderer-with-core'}:raise ArtifactError('invalid build qualification suite')
+    return dict(schema_version=3,repository=repository,site=site,publication_bundle=bundle,
+                workflow_sha256=digest(workflow),deployment_timestamp=deployment_timestamp,
+                public_url=public_url,runtime=runtime,qualification_suite=qualification_suite)
 
 
 def identity_key(inputs: dict) -> str:
@@ -81,16 +77,8 @@ def validate_manifest(manifest: dict, expected: dict) -> None:
 
 
 def validate_provenance(provenance: dict, expected: dict) -> None:
-    if not isinstance(provenance, dict) or type(provenance.get('schema_version')) is not int:
-        raise ArtifactError('invalid artifact publication provenance schema')
-    if 'publication_bundle' in expected:
-        if provenance != dict(schema_version=3,repository=expected['repository'],site_commit=expected['site'],integration=expected['publication_bundle']):
-            raise ArtifactError('artifact Integration provenance mismatch')
-        return
-    if provenance != dict(schema_version=2, repository=expected['repository'],
-                          site_commit=expected['site'], publication_commits={
-                              'composition': expected['composition'], 'policy': expected['policy']}):
-        raise ArtifactError('artifact publication provenance mismatch')
+    if not isinstance(provenance,dict) or type(provenance.get('schema_version')) is not int or provenance != dict(schema_version=3,repository=expected['repository'],site_commit=expected['site'],integration=expected['publication_bundle']):
+        raise ArtifactError('artifact Integration provenance mismatch')
 
 
 def validate_and_extract(archive: Path, expected: dict, expected_digest: str,
@@ -218,12 +206,8 @@ def reuse(expected: dict, target: Path, *, pr: int, current_run: int,
 
 
 def reuse_applicable(expected: dict, locked: dict, *, requested: bool, event: str) -> bool:
-    if 'publication_bundle' in expected:
-        return requested and event=='pull_request' and not expected['deployment_timestamp'] and expected['publication_bundle']['producer']['revision']==locked['revision'] and expected['publication_bundle']['identity']==locked['bundle_identity']
-    return (requested and event == 'pull_request'
-            and expected['composition'] == locked['composition']
-            and expected['policy'] == locked['policy']
-            and not expected['staging'] and not expected['staging_ids'] and not expected['deployment_timestamp'])
+    from scripts.consume_site_build_artifact import selected_input_matches
+    return requested and event=='pull_request' and not expected['deployment_timestamp'] and selected_input_matches(expected,locked)
 
 
 def main() -> int:
@@ -239,16 +223,14 @@ def main() -> int:
     locked=load_lock(args.site_root/'integration-source.json')
     bundle=validate_locked(Path(os.environ['PUBLICATION_BUNDLE_ROOT']),locked)
     expected = identity(repository=os.environ['GITHUB_REPOSITORY'], site=revision(args.site_root),
-                        composition=bundle['producer']['revision'], policy=bundle['producer']['revision'],
-                        bundle={k:bundle[k] for k in ('schema_version','producer','providers','identity','content_digest')} if bundle else None,
-                        workflow=args.workflow_file.read_bytes(), staging=os.environ.get('STAGING_ID', ''),
-                        staging_ids=os.environ.get('STAGING_IDS', ''),
+                        bundle={k:bundle[k] for k in ('schema_version','producer','providers','identity','content_digest')},
+                        workflow=args.workflow_file.read_bytes(),
                         deployment_timestamp=os.environ.get('DEPLOYMENT_TIMESTAMP', ''),
                         public_url=os.environ['PUBLIC_SITE_URL'], runtime=runtime,
                         qualification_suite=(
-                            ('bundle-renderer-with-core' if bundle else 'integration-tests-with-core')
+                            'bundle-renderer-with-core'
                             if os.environ.get('CORE_TESTS_SCHEDULED') == 'true'
-                            else ('bundle-renderer' if bundle else 'unit-tests')
+                            else 'bundle-renderer'
                         ))
     args.identity_file.write_text(json.dumps({'inputs': expected, 'identity': identity_key(expected)}, sort_keys=True) + '\n')
     # Only ordinary PR builds have a canonical producer. Provider overrides,

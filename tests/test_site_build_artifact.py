@@ -13,8 +13,10 @@ from scripts import site_build_artifact as artifact
 
 
 def inputs(**overrides):
-    values = dict(repository='TakashiSasaki/templates', site='a'*40,
-                  composition='b'*40, policy='c'*40, workflow=b'workflow', runtime='python|runner')
+    selection=dict(schema_version=2,producer={'authority':'integration','revision':'f'*40},providers={'composition':'b'*40,'policy':'c'*40},identity='1'*64,content_digest='2'*64)
+    for name in ('composition','policy'):
+        if name in overrides:selection['providers'][name]=overrides.pop(name)
+    values=dict(repository='TakashiSasaki/templates',site='a'*40,bundle=selection,workflow=b'workflow',runtime='python|runner')
     values.update(overrides)
     return artifact.identity(**values)
 
@@ -23,8 +25,8 @@ def bundle(root, expected, *, extra=None, provenance=None, manifest=None):
     files = {'index.html': b'<html>Site</html>',
              artifact.MANIFEST: json.dumps(manifest if manifest is not None else {'inputs': expected, 'identity': artifact.identity_key(expected)}).encode(),
              'build-provenance.json': json.dumps(provenance if provenance is not None else dict(
-                 schema_version=2, repository=expected['repository'], site_commit=expected['site'],
-                 publication_commits={'composition': expected['composition'], 'policy': expected['policy']})).encode()}
+                 schema_version=3, repository=expected['repository'], site_commit=expected['site'],
+                 integration=expected['publication_bundle'])).encode()}
     with tarfile.open(root / 'artifact.tar', 'w') as tar:
         for name, data in files.items():
             member = tarfile.TarInfo('./' + name)
@@ -53,9 +55,9 @@ class BuildIdentityTests(unittest.TestCase):
     def test_every_material_input_changes_identity(self):
         original = inputs()
         for key, value in dict(site='d'*40, composition='d'*40, policy='d'*40,
-                               repository='other/templates', workflow=b'changed', staging='candidate', staging_ids='one,two',
+                               repository='other/templates', workflow=b'changed',
                                deployment_timestamp='timestamp', public_url='https://example.com/', runtime='new runner',
-                               qualification_suite='integration-tests-with-core').items():
+                               qualification_suite='bundle-renderer-with-core').items():
             with self.subTest(key=key):
                 self.assertNotEqual(artifact.identity_key(original), artifact.identity_key(inputs(**{key: value})))
         self.assertEqual(artifact.identity_key(original), artifact.identity_key(dict(reversed(list(original.items())))))
@@ -65,15 +67,15 @@ class BuildIdentityTests(unittest.TestCase):
             with self.assertRaises(artifact.ArtifactError):
                 inputs(**{name: 'site'})
 
-    def test_freshness_equivalence_and_provider_mismatch(self):
-        expected = inputs()
-        locked = dict(composition='b'*40, policy='c'*40)
-        self.assertTrue(artifact.reuse_applicable(expected, locked, requested=True, event='pull_request'))
-        for key, value in [('composition','d'*40), ('policy','d'*40), ('staging','candidate'), ('staging_ids','one,two'), ('deployment_timestamp','now')]:
-            with self.subTest(key=key):
-                self.assertFalse(artifact.reuse_applicable(inputs(**{key: value}), locked, requested=True, event='pull_request'))
-        self.assertFalse(artifact.reuse_applicable(expected, locked, requested=True, event='schedule'))
-        self.assertFalse(artifact.reuse_applicable(expected, locked, requested=False, event='pull_request'))
+    def test_reuse_requires_the_exact_selected_bundle_and_non_deploying_input(self):
+        expected=inputs()
+        locked=dict(revision='f'*40,bundle_schema=2,bundle_identity='1'*64,content_digest='2'*64)
+        self.assertTrue(artifact.reuse_applicable(expected,locked,requested=True,event='pull_request'))
+        for key,value in [('revision','d'*40),('bundle_identity','3'*64),('content_digest','4'*64),('bundle_schema',1)]:
+            self.assertFalse(artifact.reuse_applicable(expected,{**locked,key:value},requested=True,event='pull_request'))
+        self.assertFalse(artifact.reuse_applicable(inputs(deployment_timestamp='now'),locked,requested=True,event='pull_request'))
+        self.assertFalse(artifact.reuse_applicable(expected,locked,requested=True,event='schedule'))
+        self.assertFalse(artifact.reuse_applicable(expected,locked,requested=False,event='pull_request'))
 
 
 class ArtifactArchiveTests(unittest.TestCase):
@@ -169,10 +171,7 @@ class ReuseWorkflowTests(unittest.TestCase):
         for step in steps[start:end]:
             self.assertIn("steps.artifact.outputs.reused != 'true'",step['if'],step['name'])
         self.assertNotIn('if', steps[end])
-        for name in ['check-publication-freshness.yml']:
-            text=(root/'.github/workflows'/name).read_text()
-            self.assertIn('./.github/workflows/integration-qualification.yml',text)
-            self.assertNotIn('site-producer.yml',text)
+        self.assertFalse((root/'.github/workflows/check-publication-freshness.yml').exists())
         for name in ['reference-consumer.yml', 'site-composition-playground-cross-authority.yml']:
             self.assertIn('consume_site_build_artifact.py', (root/'.github/workflows'/name).read_text())
         self.assertNotIn('reuse_pr_build: true', (root/'.github/workflows/deploy-pages.yml').read_text())

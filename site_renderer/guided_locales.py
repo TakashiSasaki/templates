@@ -534,7 +534,7 @@ def generate_from_bundle(repository, graph, overlays, reader_translations, publi
             }
         )
         page_count = 1
-        for name in PROVIDER_ORDER:
+        for name in providers_by_name:
             provider_overlays = locale.get(name, {})
             if not provider_overlays:
                 continue

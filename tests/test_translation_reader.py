@@ -15,8 +15,8 @@ from finalize_translation_reader import (  # noqa: E402
     replace_alternates,
     replace_html_language,
 )
-from publish_provider_translations import write_publication_map  # noqa: E402
-from publish_translations import TranslationRecord  # noqa: E402
+from tests.translation_availability_fixture import write_publication_map  # noqa: E402
+from site_renderer.owned_content.publish_translations import TranslationRecord  # noqa: E402
 
 from tests.translation_availability_fixture import finalize
 

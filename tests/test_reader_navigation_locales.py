@@ -5,8 +5,8 @@ import tempfile
 import unittest
 from pathlib import Path, PurePosixPath
 
-from scripts.publish_translations import TranslationRecord
-from scripts.reader_navigation_locales import (
+from site_renderer.owned_content.publish_translations import TranslationRecord
+from site_renderer.owned_content.reader_navigation_locales import (
     ReaderNavigationLocaleError,
     build_runtime_map,
     load_overlays,

@@ -20,7 +20,7 @@ Use this skill when:
 - the `site` target may advance while work is in progress;
 - prior successful Site CI evidence exists and its continued applicability must be established.
 
-For provider publication changes, run `site-publication-cutover` first and use this skill for Site-specific PR acceptance. After it succeeds, use `pr-merge-gate` for the independent review and merge boundary.
+For Integration release adoption, run `site-publication-cutover` first and use this skill for Site-specific PR acceptance. After it succeeds, use `pr-merge-gate` for the independent review and merge boundary.
 
 ## Do not use when
 
@@ -59,7 +59,7 @@ Build one Site acceptance snapshot containing:
 4. observed current `site` head SHA and the base-drift decision;
 5. intended semantic scope and effective changed-file set;
 6. applicable Site checks and accepted exact-head CI evidence;
-7. any scope-specific browser, publication, provider-lock, or deployment evidence;
+7. any scope-specific browser, publication, Integration-lock, or deployment evidence;
 8. the binding facts whose change would invalidate each evidence item.
 
 A proposed-head change invalidates exact-head Site CI and head-bound scope evidence. A target-branch change invalidates the base-drift decision and requires impact evaluation, but does not automatically invalidate unrelated evidence. Do not discard the entire snapshot when only one binding changes.
@@ -76,7 +76,7 @@ Record the accepted base/head/effective-scope tuple. Recompute the effective dif
 
 Use current workflow definitions and changed scope to determine the applicable Site checks for the accepted head. Do not hard-code a historical workflow/check list if the repository has changed.
 
-For a normal Site change, determine whether the head is covered by the applicable build/unit/assembly, generated-site validation, provider-coexistence, publication-freshness, and browser/PWA checks. Scope-specific tests may add gates.
+For a normal Site change, determine whether the head is covered by the applicable Bundle consumer/build/unit, generated-site validation, exact Integration provenance, and browser/PWA checks. Scope-specific tests may add gates.
 
 A successful run attached to an older head is historical evidence only. Once applicable exact-head Site checks are identified and accepted, retain that evidence with its binding facts; do not repeat discovery merely to make a still-valid result newer.
 
@@ -191,8 +191,15 @@ Report:
 
 ## Qualification-ready invariant closure
 
-Before expensive qualification, run the canonical `run_site_preflight.py fast`
-with `--base <exact comparison SHA>`. Derive material sibling boundaries from the
-changed invariant and run the relevant real consumer integration tests. Against an
-assembled artifact, use `run_site_preflight.py ready --site-root <artifact>` with
-both exact provider roots. This is local diagnostic evidence, not CI skip authority.
+Before expensive qualification, run `python scripts/run_site_preflight.py fast
+--expected-head <exact Site SHA>`. This reaches all Site core contracts without
+provider checkout roots. CI path classification remains the canonical remote scope
+selector; the local preflight does not introduce a separate mandatory frontier.
+
+For a qualified immutable Bundle and its built Site artifact, run
+`python scripts/run_site_preflight.py ready --expected-head <exact Site SHA>
+--bundle <verified Bundle directory> --site-root <artifact directory>`. This reaches
+core, browser-controller and Bundle reader checks. Full browser/PWA acceptance remains
+required at the final stable release frontier. Provider qualification belongs to
+Integration and is not a Site preflight step. Local results do not replace exact-head
+GitHub CI or independent review evidence.

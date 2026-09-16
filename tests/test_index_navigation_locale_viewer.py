@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.generate_index_navigation_locale_viewer import (
+from site_renderer.guided_locales import (
     LocaleViewerError,
     load_overlays,
     load_reader_translations,

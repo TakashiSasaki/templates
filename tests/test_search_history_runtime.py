@@ -14,7 +14,7 @@ WORKER = ROOT / "assets/service-worker.js"
 BROWSER_CHECK = ROOT / "scripts/check_search_history.py"
 REVIEW_BROWSER_CHECK = ROOT / "scripts/check_search_history_review_regressions.py"
 BUILD_WORKFLOW = ROOT / ".github/workflows/build-pages.yml"
-SEARCH_WORKFLOW = ROOT / ".github/workflows/search-history-regression.yml"
+SEARCH_WORKFLOW = ROOT / ".github/workflows/build-pages.yml"
 SEARCH_HISTORY_MARKER = (
     "/* Site-local search history integrated through Zensical's open Shadow DOM contract. */"
 )
@@ -202,11 +202,11 @@ class SearchHistoryRuntimeContractTests(unittest.TestCase):
         self.assertIn("fallback Enter left pending state after confirmation", review_checker)
 
         self.assertIn("workflow_dispatch:", search_workflow)
-        self.assertIn("run_id:", search_workflow)
+        self.assertIn("scripts/consume_site_build_artifact.py", search_workflow)
         self.assertIn("site_ref:", search_workflow)
         self.assertNotIn("Wait for documentation artifact build", search_workflow)
         self.assertNotIn("actions/github-script", search_workflow)
-        self.assertNotIn("pull_request:", search_workflow)
+        self.assertIn("pull_request:", search_workflow)
         self.assertIn("python scripts/check_search_history.py", search_workflow)
         self.assertIn("python scripts/check_search_history_review_regressions.py", search_workflow)
 

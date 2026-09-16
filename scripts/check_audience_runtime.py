@@ -17,7 +17,7 @@ if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from scripts.check_audience_artifact import (
-    check_artifact, skipped_optional_destinations, validate_projection_parity,
+    check_artifact, validate_projection_parity,
 )
 from scripts.check_audience_search_identity import check_search_identity
 

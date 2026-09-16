@@ -1,12 +1,12 @@
-# Policy–Composition coexistence contract
+# Policy–Composition coexistence reader guide
 
 ## Purpose
 
-`policy` and `composition` are independent canonical authorities that may be used separately or together in the same consumer repository. This contract defines the minimum cross-authority boundaries required for safe coexistence without introducing a direct runtime dependency, a shared consumer lock, or a third consumer-management tool.
+`policy` and `composition` are independent canonical authorities that may be used separately or together in the same consumer repository. This Site reader guide summarizes their public consumer contracts and the Integration boundary; it does not define provider semantics or a third consumer-management tool.
 
-The contract is an integration boundary. It does not transfer Policy semantics to Composition or Composition semantics to Policy.
+The cross-authority contract belongs to Integration. This page is an explanatory projection. It does not transfer Policy semantics to Composition or Composition semantics to Policy.
 
-Repository-wide authority ownership, semantic-role definitions, the Site ownership test, and the distinction between normative requirements and guidance are defined in `docs/authority-model.md`. This coexistence contract applies that model to the Policy–Composition boundary; it does not redefine the repository-wide model here.
+Repository-wide authority ownership, semantic-role definitions, the Integration ownership boundary, and the distinction between normative requirements and guidance are defined in `docs/authority-model.md`. This coexistence guide applies that model to the Policy–Composition boundary; it does not redefine the repository-wide model here.
 
 ## Authority matrix
 
@@ -14,7 +14,8 @@ Repository-wide authority ownership, semantic-role definitions, the Site ownersh
 | --- | --- | --- |
 | `policy` | application-type-independent coding-agent operating semantics; the `agent-policy` toolchain; Policy adoption, render, validate, and check behavior; Policy configuration, lock, runtime selection, cache, and release identity | artifact semantics; Composition component selection; Composition material ownership; Composer update/upgrade/recovery |
 | `composition` | `artifact.*`, `capability.*`, and `lifecycle.*` semantics; recipes and schemas; deterministic resolution/materialization; Composition lock, ownership, update/upgrade, and recovery | coding-agent operating policy; Policy profiles; Policy runtime/release; interpretation of Policy configuration or lock state |
-| `site` | repository integration and publication semantics at this boundary; reviewed provider revision selection; reader-facing information architecture; cross-provider integration validation; Pages/PWA publication | Policy semantics; Composition semantics; mutation of consumer repository state; provider-specific consumer management |
+| `integration` | reviewed provider selection; reader IA; cross-authority validation and immutable Publication Bundle | provider semantics; Site runtime or deployment |
+| `site` | presentation, browser runtime, PWA and explicit Pages deployment | provider revision selection; provider freshness derivation; provider-specific semantics or consumer management |
 
 ## Independent adoption states
 
@@ -92,7 +93,7 @@ Cross-authority collision handling follows these rules:
 2. An ordinary repository path already controlled by another authority must not be overwritten merely because the second authority is being adopted or upgraded.
 3. Ownership transfer is valid only where the current owning contract explicitly releases ownership and the receiving operation explicitly accepts/migrates the existing state.
 4. Absence of a known collision is not permission to introduce a hidden dependency on the other provider's internal schema.
-5. Conflict resolution belongs to the authority that is attempting the new claim; Site integration validation may detect the conflict but does not mutate the consumer to resolve it.
+5. Conflict resolution belongs to the authority that is attempting the new claim; Integration validation may detect the conflict but does not mutate the consumer to resolve it.
 
 ## Cross-authority invariants
 
@@ -106,7 +107,7 @@ For a repository using both authorities:
 - Each provider must remain independently valid when the other provider is absent.
 - A failure in one provider's managed state must not authorize the other provider to repair, rewrite, or discard that state.
 
-These invariants are candidates for exact-revision integration tests in Site. Provider-local tests remain responsible for each provider's own semantics.
+These invariants are candidates for exact-revision qualification tests in Integration. Provider-local tests remain responsible for each provider's own semantics.
 
 ## Consumer coexistence validation checklist
 
@@ -151,7 +152,7 @@ Repeat the relevant side of this checklist after a managed operation from either
 
 Code duplication alone is not sufficient reason to couple the providers. A mechanism should be shared only when it implements one genuinely shared protocol with one semantic owner.
 
-The repository-wide publication catalog protocol is such a candidate: Site already owns integrated publication and can own one generic catalog parser/validator used by provider documentation CI. Provider-specific publication classification, translation semantics, artifact inventory rules, and other domain-specific checks remain with their provider.
+The repository-wide publication catalog protocol is such a candidate: Integration owns publication integration and its catalog validation boundary. Site consumes the resulting Bundle and does not parse provider catalogs. Provider-specific publication classification, translation semantics, artifact inventory rules, and other domain-specific checks remain with their provider.
 
 Small primitives with similar names do not automatically form a shared protocol. For example, Policy repository-write path safety and Composition portable material-destination safety have different contracts and may remain separate implementations. Likewise Policy diagnostics and Composer diagnostics encode different domain semantics and remain provider-owned.
 
@@ -164,11 +165,11 @@ one genuinely shared protocol -> one implementation
 small domain-specific primitives -> local implementation when that preserves independence
 ```
 
-## Site integration responsibility
+## Integration and Site responsibilities
 
-Site validates coexistence at exact reviewed Policy and Composition revisions recorded in `publication-sources.json`. Integration validation may check reserved-path collisions, known ownership handoffs, stale cross-provider references, and representative repositories using both systems.
+Integration validates coexistence at its selected reviewed provider revisions. Site adopts the resulting immutable Publication Bundle through `integration-source.json`; it does not repeat provider semantic qualification.
 
-Site is the repository integration and publication authority at this boundary and remains an observer/integrator with respect to provider consumer state. It does not become the authority for Policy or Composition semantics, and it does not perform consumer adoption, composition, update, render, recovery, or migration on behalf of either provider outside test fixtures.
+Integration owns publication semantics at this boundary. Site renders the resulting Bundle and remains an observer with respect to provider consumer state. It does not become the authority for Policy or Composition semantics, and it does not perform consumer adoption, composition, update, render, recovery, or migration on behalf of either provider outside test fixtures.
 
 ## Change rule
 
@@ -191,21 +192,20 @@ This Site consumes the systems it provides. Its Website product uses the
 Composition `website` recipe and `capability.pwa`; its maintenance uses Policy.
 The Website consumer explicitly excludes `capability.webmcp`; provider availability
 therefore does not imply adoption.
-The relationships below are generated from their canonical declarations.
+The consumer relationships below are independent of the selected publication Bundle. The public machine projection supplies their canonical declarations and exact Bundle provenance.
 
 | Relationship | Immutable revision | Meaning |
 | --- | --- | --- |
 | Composition consumer | `a739b3823660e3db742ff0e1e159d279126cba7c` | Governs the Site Website contracts and material ownership |
 | Policy consumer | `733c86941f8154f301a225054d88c6b8a477058a` | Governs Site maintenance and generated agent instructions |
-| Composition publication | `8c6c1884fa97f3ef1ec6c1aa7deba4ad38c9f4ff` | Provider material exposed to readers |
-| Policy publication | `6023af1b6aed4a22407d9ca43106cd66cfee9fb6` | Provider material exposed to readers |
+| Publication input | `integration-source.json` | Exact reviewed Integration release and Bundle; provider identities are supplied by that Bundle |
 
 ```mermaid
 flowchart TD
   C["Composition: immutable consumer revision"] -->|"Website and PWA contracts"|S["Site product"]
   P["Policy: immutable toolchain revision"] -->|"Maintenance rules"|M["Site maintenance"]
   M -->|"Changes and verifies"|S
-  CP["Separately selected publication revisions"] -->|"Reader content"|S
+  CP["Explicitly selected Integration Bundle"] -->|"Reader content"|S
 ```
 
 This is a temporal bootstrap, not a runtime cycle: known provider revision N
@@ -222,7 +222,7 @@ There is no combined lock or shared transaction manager.
 
 Composition-managed schemas, validators, and generated registry remain provider
 material. Site owns its implementation and customized seed worksheets. Its
-primary publication entrypoints are projected from `site-manifest.json` into
+primary Site product entrypoints are described by consumer-owned worksheets in
 Website contracts. Generated source viewers, guided views, translations, and
 other secondary surfaces continue to use their existing Site acceptance tests;
 the primary Website inventory does not claim to enumerate those derived pages.

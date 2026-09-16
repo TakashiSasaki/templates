@@ -1,5 +1,11 @@
 # Audience architecture reconciliation and context contract
 
+> **Historical design record:** This pre-cutover design records the audience migration.
+> The current public destination/semantic navigation authority is Integration's selected
+> Publication Bundle. Site owns its audience UI and rendering. References below to
+> a Site manifest or Site-owned integration describe the historical implementation.
+
+
 ## 1. Overview and Status
 
 This document reconciles the audited candidate statuses from Sessions 1–3 with the production Site audience foundation established in Session 4. It defines the authoritative runtime contract for audience context resolution, journey persistence, and audience transitions.

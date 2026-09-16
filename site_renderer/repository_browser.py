@@ -12,7 +12,6 @@ from pygments.lexers import TextLexer, get_lexer_for_filename
 from pygments.util import ClassNotFound
 from publication_bundle.repository import *
 
-BRANCH_ORDER = ("site", "composition", "policy")
 
 
 BROWSER_ROOT = Path("files")
@@ -43,9 +42,9 @@ def human_size(size: int) -> str:
     return f"{size / (1024 * 1024):.1f} MiB"
 
 
-def branch_nav(active: str, prefix: str = "") -> str:
+def branch_nav(active: str, prefix: str = "", branches=("site",)) -> str:
     links = []
-    for branch in BRANCH_ORDER:
+    for branch in branches:
         href = f"{prefix}{branch}/"
         current = ' aria-current="page"' if branch == active else ""
         links.append(
@@ -114,6 +113,7 @@ def render_browser_page(
     revision: str,
     tree: TreeEntry,
     records: dict[bytes, FileRecord],
+    branches=("site",),
 ) -> str:
     items: list[str] = []
     for child in sorted(
@@ -202,7 +202,7 @@ aside {{ min-width: 0; border-right: 1px solid color-mix(in srgb, CanvasText 22%
       <p class="browser-meta">revision {escaped_revision}<br>{viewable}/{total} regular files available as bounded UTF-8 text</p>
     </div>
     <nav class="branch-tabs" aria-label="Branches">
-{branch_nav(branch, prefix='../')}
+{branch_nav(branch, prefix='../', branches=branches)}
     </nav>
     <div class="tree">
       <ul>
@@ -410,17 +410,17 @@ def prepare_browser_root(output_root: Path) -> Path:
     return browser_root
 
 
-def write_root_index(browser_root: Path) -> None:
+def write_root_index(browser_root: Path, branches=("site",)) -> None:
     links = "".join(
         f'<li><a href="{branch}/">{html.escape(branch)}</a></li>'
-        for branch in BRANCH_ORDER
+        for branch in branches
     )
     (browser_root / "index.html").write_text(
         f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
 <title>Repository file browser</title><style>:root{{color-scheme:light dark;font-family:system-ui,sans-serif}}body{{max-width:48rem;margin:4rem auto;padding:0 1rem}}a{{color:LinkText}}code{{font-family:ui-monospace,monospace}}</style></head>
-<body><h1>Repository file browser</h1><p>Browse immutable build-time snapshots of the Site, Composition, and Policy authorities.</p><ul>{links}</ul></body></html>\n""",
+<body><h1>Repository file browser</h1><p>Browse immutable build-time snapshots of Site and the selected Integration provider models.</p><ul>{links}</ul></body></html>\n""",
         encoding="utf-8",
     )
 

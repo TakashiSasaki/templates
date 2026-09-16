@@ -15,8 +15,7 @@ import generate_freshness_metadata  # noqa: E402
 
 SITE_REVISION = "a" * 40
 PUBLICATIONS = {
-    "composition": "b" * 40,
-    "policy": "c" * 40,
+    "integration": "b" * 40,
 }
 DEPLOYMENT_TIMESTAMP = "2026-08-26 07:00:00 JST"
 

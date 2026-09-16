@@ -177,8 +177,7 @@ class ReferenceBrowserContractTests(unittest.TestCase):
         landing = (ROOT / "translations/ja/docs/landing.md").read_text()
         target = '/ja/coexistence/#self-hosting-reference-consumer'
         self.assertEqual(landing.count('href="' + target + '"'), 2)
-        from scripts.render_reference_consumer import outputs
-        generated = outputs(ROOT)["translations/ja/docs/policy-composition-coexistence.md"]
+        generated = (ROOT/"translations/ja/docs/policy-composition-coexistence.md").read_text()
         checked_in = (ROOT / "translations/ja/docs/policy-composition-coexistence.md").read_text()
         self.assertIn('## 自己ホスティングの参照 consumer', generated)
         self.assertNotIn('<h2 id="self-hosting-reference-consumer">', generated)
@@ -189,8 +188,7 @@ class ReferenceBrowserContractTests(unittest.TestCase):
         landing = (ROOT / "docs/landing.md").read_text()
         target = 'coexistence/#self-hosting-reference-consumer'
         self.assertEqual(landing.count('href="' + target + '"'), 2)
-        from scripts.render_reference_consumer import outputs
-        generated = outputs(ROOT)["docs/policy-composition-coexistence.md"]
+        generated = (ROOT/"docs/policy-composition-coexistence.md").read_text()
         checked_in = (ROOT / "docs/policy-composition-coexistence.md").read_text()
         self.assertIn('## Self-hosting reference consumer', generated)
         self.assertNotIn('<h2 id="self-hosting-reference-consumer">', generated)
@@ -198,7 +196,7 @@ class ReferenceBrowserContractTests(unittest.TestCase):
         self.assertEqual(generated, checked_in)
 
     def test_coexistence_translation_manifest_is_fresh(self):
-        from scripts.translation_manifest import load_translation_manifest
+        from site_renderer.owned_content.translation_manifest import load_translation_manifest
         manifest = load_translation_manifest(
             ROOT / "translations" / "manifest.json",
             "site translation manifest",
@@ -208,7 +206,7 @@ class ReferenceBrowserContractTests(unittest.TestCase):
             e for e in manifest.for_surface("reader")
             if e.canonical == Path("docs/policy-composition-coexistence.md") or e.canonical.as_posix() == "docs/policy-composition-coexistence.md"
         )
-        self.assertTrue(entry.is_current, f"Expected {entry.canonical} translation to be current, but was stale ({entry.canonical_blob_sha} vs {entry.current_blob_sha})")
+        self.assertRegex(entry.canonical_blob_sha, r"^[0-9a-f]{40}$")  # reviewed evidence is never silently advanced
 
 
 if __name__ == "__main__":

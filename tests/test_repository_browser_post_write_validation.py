@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from scripts.generate_repository_browser import (
+from site_renderer.repository_browser import (
     FileRecord,
     RepositoryBrowserError,
     write_verified_file_page,

@@ -5,7 +5,7 @@ import unittest
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
-from scripts.translation_link_selection import rewrite_current_localized_links
+from site_renderer.owned_content.translation_link_selection import rewrite_current_localized_links
 
 
 ROOT = Path(__file__).resolve().parents[1]

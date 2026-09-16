@@ -1,5 +1,11 @@
 # Target information architecture
 
+> **Historical design record:** This pre-cutover design records the audience migration.
+> The current public destination/semantic navigation authority is Integration's selected
+> Publication Bundle. Site owns its audience UI and rendering. References below to
+> a Site manifest or Site-owned integration describe the historical implementation.
+
+
 This is the normative target reader taxonomy. It is not a production route map.
 The [matrix](migration-matrix.json) assigns every audited canonical document to
 label paths below these sections; canonical URL decisions belong to the later

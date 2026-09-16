@@ -298,7 +298,7 @@ class PwaAssetTests(unittest.TestCase):
         self.assertIn('headers: { "Content-Type": "text/plain; charset=utf-8" }', worker)
 
     def test_browser_regression_check_is_wired_into_visual_ci(self) -> None:
-        workflow = (ROOT / ".github/workflows/mobile-visual-regression.yml").read_text(encoding="utf-8")
+        workflow = (ROOT / ".github/workflows/build-pages.yml").read_text(encoding="utf-8")
         checker = (ROOT / "scripts/check_pwa_freshness.py").read_text(encoding="utf-8")
         self.assertIn("Check PWA freshness lifecycle", workflow)
         self.assertIn("python scripts/check_pwa_freshness.py", workflow)

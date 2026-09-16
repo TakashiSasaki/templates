@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.reader_navigation_locales import ReaderNavigationLocaleError, load_overlays
+from site_renderer.owned_content.reader_navigation_locales import ReaderNavigationLocaleError, load_overlays
 
 
 class ReaderNavigationLocaleRejectionTests(unittest.TestCase):

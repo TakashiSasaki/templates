@@ -4,8 +4,8 @@ import tempfile
 import unittest
 from pathlib import Path, PurePosixPath
 
-from scripts.publish_translations import TranslationRecord
-from scripts.translation_fragment_reconciliation import (
+from site_renderer.owned_content.publish_translations import TranslationRecord
+from site_renderer.owned_content.translation_fragment_reconciliation import (
     TranslationFragmentReconciliationError,
     reconcile_translation_fragments,
 )
