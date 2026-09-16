@@ -197,7 +197,7 @@ def check(
                     assert not data['active'] and not data['styled'], ('stale filtered selection', data)
                 return data
             cleared = assert_filtered_search()
-            stable_ids = {hit['href']: hit['id'] for hit in cleared['all']}
+            stable_ids = [hit['id'] for hit in cleared['all']]
             search.focus(); search.press('ArrowDown')
             assert_filtered_search(require_active=True)
             search.press('ArrowUp')
@@ -232,10 +232,10 @@ def check(
             assert clicked == active, ('Enter did not activate active descendant', active, clicked)
             select.select_option('use')
             use_state = assert_filtered_search()
-            assert {hit['href']: hit['id'] for hit in use_state['all']} == stable_ids, ('result IDs changed across filter transition', stable_ids, use_state)
+            assert [hit['id'] for hit in use_state['all']] == stable_ids, ('result IDs changed across filter transition', stable_ids, use_state)
             select.select_option('maintain')
             maintain_state = assert_filtered_search()
-            assert {hit['href']: hit['id'] for hit in maintain_state['all']} == stable_ids, ('result IDs changed after returning to filter', stable_ids, maintain_state)
+            assert [hit['id'] for hit in maintain_state['all']] == stable_ids, ('result IDs changed after returning to filter', stable_ids, maintain_state)
             search.fill('zzzzs5nomatcheszzzz')
             page.wait_for_function("""id => {
                 const root=[...document.body.children].map(h=>h.shadowRoot).find(r=>r?.querySelector('input[role=combobox]'));
