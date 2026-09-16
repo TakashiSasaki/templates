@@ -59,6 +59,8 @@ def produce(*, root, provider_roots, provider_revisions, producer_revision, outp
         raise BundleError('exact Composition and Policy inputs required')
     require_revision(root, producer_revision)
     for name in PROVIDERS:require_revision(provider_roots[name], provider_revisions[name])
+    if root.resolve() != Path(__file__).resolve().parents[1]:
+        raise BundleError('producer code and configuration must use the same exact checkout')
     configuration = {p:digest(regular(root,p).read_bytes()) for p in CONFIGURATION_FILES}
     configuration['staging_ids'] = list(staging_ids)
     if staging_ids:
@@ -80,6 +82,11 @@ def produce(*, root, provider_roots, provider_revisions, producer_revision, outp
     expected = {('site',key) for key in slot_documents} | {(name,key) for name,(_,docs,_) in publications.items() for key in docs}
     if declared != expected:
         raise BundleError(f'publication closure mismatch: missing={sorted(expected-declared)} extra={sorted(declared-expected)}')
+    resolved_output=output.resolve()
+    for source_root in (root,*provider_roots.values()):
+        source=Path(source_root).resolve()
+        if resolved_output==source or resolved_output in source.parents or source in resolved_output.parents:
+            raise BundleError('Bundle output must not overlap any source checkout')
     if output.exists() or output.is_symlink():raise BundleError('refusing to replace existing Bundle')
     output.parent.mkdir(parents=True,exist_ok=True)
     with tempfile.TemporaryDirectory(dir=output.parent,prefix='.publication-bundle-') as temp:

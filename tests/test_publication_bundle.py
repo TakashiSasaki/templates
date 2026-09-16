@@ -15,8 +15,11 @@ def fixture(root):
     models={name:{} for name in MODELS}
     models['documents.json']=[{'publication':'composition','document':'intro','source':'docs/index.md','destination':'intro.md','slot':False}]
     models['navigation.json']={'navigation':{'use':[{'publication':'composition','document':'intro','destination':'intro.md'}]}}
-    models['provider-repositories.json']={k:{'revision':v} for k,v in PROVIDERS.items()}
-    models['guided-navigation.json']={'providers':[{'name':k,'revision':v} for k,v in PROVIDERS.items()]}
+    models['provider-repositories.json']={k:{'revision':v,'entries':[],'browser':[],'previews':[],'published':({'docs/index.md':'intro.md'} if k=='composition' else {})} for k,v in PROVIDERS.items()}
+    models['guided-navigation.json']={'schema_version':1,'repository':'TakashiSasaki/templates','providers':[{'name':k,'revision':v,'root_index':'docs/index.md','indexes':[{'path':'docs/index.md','title':'Intro','sections':[],'depth':0,'object_id':'f'*40}],'edges':[],'diagnostics':{'index_count':1,'edge_count':0,'max_index_depth':0}} for k,v in PROVIDERS.items()]}
+    models['translation-availability.json']={'schema_version':1,'canonical_language':'en','surface':'reader','languages':[],'summary':{'current':0,'stale':0,'missing':0},'by_language':{},'records':[]}
+    models['translation-publication.json']={'schema_version':1,'canonical_language':'en','translations':[]}
+    models['glossary.json']={'schema_version':1,'repository':'TakashiSasaki/templates','terms':[]}
     models['provenance.json']={'schema_version':1,'producer':PRODUCER,'providers':PROVIDERS}
     for name,value in models.items():(root/name).write_bytes(canonical(value))
     (root/'publication').mkdir();(root/'publication/intro.md').write_text('# Intro\n')

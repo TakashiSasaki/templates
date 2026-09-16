@@ -57,7 +57,7 @@ def safe_path(value):
 
 def regular(root, relative):
     p = safe_path(relative)
-    if root.is_symlink() or not root.is_dir():
+    if any(p.is_symlink() for p in (root,*root.parents)) or not root.is_dir():
         raise BundleError('Bundle root must be a directory without symlinks')
     current = root
     for part in p.parts:
@@ -180,4 +180,22 @@ def validate(root, *, expected_identity=None, expected_producer=None, expected_p
     graph = read_json(regular(root, 'guided-navigation.json'))
     if not isinstance(graph, dict) or {p.get('name'):p.get('revision') for p in graph.get('providers', [])} != providers:
         raise BundleError('guided graph provenance mismatch')
+    from publication_bundle.source_models import validate_sources
+    from publication_bundle.graph import validate_provider_graph, IndexNavigationViewerError
+    from publication_bundle.glossary import load_model, GlossaryViewerError
+    try:
+        load_model(root / 'glossary.json')
+        for provider in graph['providers']:
+            validate_provider_graph(provider)
+        repository = graph.get('repository')
+        for name, model in repos.items():
+            validate_sources(name, model, repository)
+            wanted = {d['source']: d['destination'] for d in documents if d['publication'] == name}
+            if model['published'] != wanted:
+                raise BundleError('source/publication destination mismatch')
+    except (ValueError, RuntimeError, KeyError, TypeError, UnicodeError) as exc:
+        raise BundleError('invalid Bundle read model: ' + str(exc)) from exc
+    from publication_bundle.translations import validate_translations
+    validate_translations(root, read_json(root / 'translation-availability.json'),
+                          read_json(root / 'translation-publication.json'), providers, documents)
     return data

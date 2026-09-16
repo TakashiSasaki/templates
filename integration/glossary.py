@@ -15,21 +15,18 @@ from urllib.parse import urlsplit
 import idna
 import yaml
 
-TERM_ID = re.compile(
-    r"\A(?:templates-[a-z0-9]+(?:-[a-z0-9]+)*|"
-    r"external-[a-z0-9]+-[a-z0-9]+(?:-[a-z0-9]+)*)\Z"
+from publication_bundle.glossary import (
+    ALLOWED_TEXT_CONTROLS,
+    AUTHORITY_KINDS,
+    EXTERNAL_TERM_ID,
+    FULL_SHA,
+    LANGUAGE_TAG,
+    PROVIDER_NAME,
+    REPOSITORY_TERM_ID,
+    TERM_ID,
 )
-REPOSITORY_TERM_ID = re.compile(r"\Atemplates-[a-z0-9]+(?:-[a-z0-9]+)*\Z")
-EXTERNAL_TERM_ID = re.compile(
-    r"\Aexternal-[a-z0-9]+-[a-z0-9]+(?:-[a-z0-9]+)*\Z"
-)
-LANGUAGE_TAG = re.compile(r"\A[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*\Z")
-PROVIDER_NAME = re.compile(r"\A[a-z0-9]+(?:-[a-z0-9]+)*\Z")
-FULL_SHA = re.compile(r"\A[0-9a-f]{40}\Z")
-AUTHORITY_KINDS = {"normative", "upstream", "conventional"}
 ORIGINS = {"repository", "external"}
 MERGE_TAG = "tag:yaml.org,2002:merge"
-ALLOWED_TEXT_CONTROLS = {"\t", "\n", "\r"}
 
 
 class GlossaryError(RuntimeError):
