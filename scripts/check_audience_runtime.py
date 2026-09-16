@@ -24,13 +24,13 @@ from scripts.check_audience_search_identity import check_search_identity
 
 def check(
     site_root: Path,
-    publication_roots: dict[str, Path],
+    bundle: Path,
     channel: str | None = "chrome",
 ) -> dict:
     from playwright.sync_api import sync_playwright
     from scripts.check_search_history import _open_search
 
-    model = check_artifact(site_root, publication_roots)
+    model = check_artifact(site_root, bundle)
     documents = model['documents']
     provenance = json.loads((site_root / 'build-provenance.json').read_text())
     reader_model = json.loads((site_root / 'reader-navigation-runtime.json').read_text())
@@ -381,11 +381,10 @@ def main():
     parser.add_argument('--site-root',type=Path,default=Path('build/site'))
     parser.add_argument('--output',type=Path,default=Path('build/audience-runtime.json'))
     parser.add_argument('--channel',default='chrome',help='Browser channel; chromium uses Playwright bundled Chromium')
-    parser.add_argument('--composition-root',type=Path,default=Path('../composition'))
-    parser.add_argument('--policy-root',type=Path,default=Path('../policy'))
+    parser.add_argument('--bundle',type=Path,required=True)
     args=parser.parse_args(); result=check(
         args.site_root,
-        {"site": Path.cwd(), "composition": args.composition_root, "policy": args.policy_root},
+        args.bundle,
         None if args.channel=='chromium' else args.channel,
     )
     args.output.parent.mkdir(parents=True,exist_ok=True); args.output.write_text(json.dumps(result,indent=2)+'\n')

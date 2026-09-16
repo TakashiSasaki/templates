@@ -1,4 +1,4 @@
-"""Build the complete Site artifact from Publication Bundle v1 and Site-owned source."""
+"""Build the complete Site artifact from Publication Bundle v2 and Site-owned source."""
 from __future__ import annotations
 import argparse
 import ctypes
@@ -12,7 +12,8 @@ import subprocess
 import sys
 import tempfile
 
-from publication_bundle.contract import BundleError, validate, read_json, regular, canonical, digest
+from publication_bundle.contract import BundleError, read_json, regular, canonical, digest
+from site_renderer.bundle import validate, validate_locked, load_lock
 from publication_bundle.repository import TreeEntry, FileRecord, PreviewRecord, build_tree, configured_base_path
 from publication_bundle.source_models import raw_path
 from publication_bundle.source_reader import checked_revision, collect_records
@@ -167,6 +168,9 @@ def render(*,bundle,site_root,output,expected_identity,public_url='https://templ
     bundle,site_root=Path(bundle).resolve(),Path(site_root).resolve()
     output=checked_output(output,(bundle,site_root))
     site_revision=require_clean_site(site_root)
+    selected=load_lock(regular(site_root,"integration-source.json"))
+    if expected_identity!=selected["bundle_identity"]:raise BundleError("renderer identity differs from Site Integration lock")
+    validate_locked(bundle,selected)
     with tempfile.TemporaryDirectory(prefix='site-input-snapshot-') as temporary:
         snapshot=Path(temporary)/'bundle'
         identity=snapshot_bundle(bundle,snapshot,expected_identity)
@@ -198,6 +202,8 @@ def render_snapshot(*,bundle,site_root,output,identity,site_revision,parent_iden
         metadata=importlib.util.module_from_spec(spec);spec.loader.exec_module(metadata)
         for translation in translations['translations']:
             metadata.exclude_translation_from_search(docs/translation['translation_destination'])
+        from site_renderer.discovery import write as write_discovery
+        write_discovery(site_root,docs,identity)
         template=regular(site_root,'zensical.template.toml').read_text(encoding='utf-8')
         if template.count('__GENERATED_NAV__')!=1:raise BundleError('Site template must have one navigation slot')
         navigation=[{'title':{'use':'Use templates','maintain':'Maintain templates'}.get(aud,aud),'children':nodes} for aud in nav['audience_runtime']['audiences'] for nodes in [nav['navigation'][aud]] if nodes]
@@ -243,10 +249,12 @@ def render_snapshot(*,bundle,site_root,output,identity,site_revision,parent_iden
         run(site_root,'finalize_guided_locales.py','--site-root',site,'--pair-map',build/'guided-locale-publication.json','--canonical-url',public_url)
         run(site_root,'finalize_glossary_annotations.py','--site-root',site,'--glossary',site/'glossary/index.json')
         run(site_root,'check_public_url_boundary.py','--site-root',site)
-        provenance_args=[]
-        for name,revision in identity['providers'].items():provenance_args+=['--publication-commit',name+'='+revision]
-        run(site_root,'write_publication_provenance.py','--output',site/'build-provenance.json','--repository',repository,'--site-commit',site_revision,*provenance_args)
-        write(site/'publication-bundle.json',{'schema_version':1,'identity':identity['identity'],'producer':identity['producer'],'providers':identity['providers']})
+        selected_bundle={k:identity[k] for k in ('schema_version','identity','content_digest','producer','providers')}
+        write(site/'build-provenance.json',{'schema_version':3,'repository':repository,'site_commit':site_revision,'integration':selected_bundle})
+        write(site/'publication-bundle.json',selected_bundle)
+        # Runtime/deployed-document freshness remains separate from translation status.
+        from scripts.write_publication_provenance import project_freshness_metadata
+        project_freshness_metadata(site/'build-provenance.json',site_revision,{'integration':identity['producer']['revision']})
         run(site_root,'validate_site_links.py','--site-root',site,'--config-file',build/'zensical.toml')
         publish_build(build,output,parent_identity,(original_bundle,site_root,original_site),site_revision,parent_directory)
     return {'site_revision':site_revision,'bundle_identity':identity['identity'],'output':str(output)}

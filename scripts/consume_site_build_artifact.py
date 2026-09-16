@@ -12,7 +12,18 @@ import sys
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from scripts.site_build_artifact import ArtifactError, api, validate_and_extract
-from scripts.resolve_publication_sources import resolve_sources
+from site_renderer.bundle import load_lock
+
+
+def selected_input_matches(expected, locked):
+    if 'revision' in locked:
+        bundle=expected.get('publication_bundle',{})
+        return (bundle.get('producer')=={'authority':'integration','revision':locked['revision']}
+            and bundle.get('schema_version')==locked['bundle_schema']
+            and bundle.get('identity')==locked['bundle_identity']
+            and bundle.get('content_digest')==locked['content_digest']
+            and not any(k in expected for k in ('composition','policy','staging','staging_ids')))
+    return all(expected.get(provider)==sha for provider,sha in locked.items())
 
 
 def validate_binding(metadata: dict, expected: dict, *, artifact_id: int, archive_digest: str,
@@ -23,7 +34,7 @@ def validate_binding(metadata: dict, expected: dict, *, artifact_id: int, archiv
             or metadata.get('workflow_run', {}).get('head_sha') != head):
         raise ArtifactError('scheduled artifact metadata binding mismatch')
     if (expected.get('site') != head or expected.get('repository') != repository
-            or any(expected.get(provider) != sha for provider, sha in locked.items())
+            or not selected_input_matches(expected, locked)
             or expected.get('staging') or expected.get('staging_ids')
             or expected.get('deployment_timestamp')):
         raise ArtifactError('scheduled artifact input binding mismatch')
@@ -40,7 +51,7 @@ def main() -> None:
     head = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
     validate_binding(metadata, expected, artifact_id=artifact_id, archive_digest=archive_digest,
                      run_id=int(os.environ['GITHUB_RUN_ID']), head=head, repository=repository,
-                     locked=resolve_sources(Path('publication-sources.json'), {}))
+                     locked=load_lock(Path('integration-source.json')))
     target = Path('build/site')
     target.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory() as directory:

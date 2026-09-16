@@ -1,94 +1,57 @@
 name: Site canonical producer
-on:
-  workflow_call:
-    inputs:
-      core_tests_scheduled:
-        description: Caller schedules independent core tests and gates their result
-        type: boolean
-        default: false
-      reuse_pr_build:
-        description: Reuse the canonical exact-input PR artifact when provider/configuration inputs match
-        required: false
-        type: boolean
-        default: false
-      site_ref:
-        description: Commit, branch, or tag containing the site implementation
-        required: false
-        type: string
-        default: site
-      composition_ref:
-        description: Optional override for the locked composition publication revision
-        required: false
-        type: string
-        default: ''
-      policy_ref:
-        description: Optional override for the locked policy publication revision
-        required: false
-        type: string
-        default: ''
-      publication_staging_id:
-        description: Optional Site-owned staged mapping ID for non-deploying compatibility builds
-        required: false
-        type: string
-        default: ''
-      publication_staging_ids:
-        description: Optional comma-separated ordered Site-owned staged mapping IDs for one non-deploying compatibility build
-        required: false
-        type: string
-        default: ''
-      deployment_timestamp:
-        description: JST deployment timestamp rendered in the footer; empty for non-deploying builds
-        required: false
-        type: string
-        default: ''
-      artifact_name:
-        type: string
-        default: github-pages
-    outputs:
-      composition_revision:
-        value: ${{ jobs.build.outputs.composition_revision }}
-      policy_revision:
-        value: ${{ jobs.build.outputs.policy_revision }}
-      artifact_id:
-        value: ${{ jobs.build.outputs.artifact_id }}
-      artifact_digest:
-        value: ${{ jobs.build.outputs.artifact_digest }}
-      build_inputs:
-        value: ${{ jobs.build.outputs.build_inputs }}
 permissions:
   contents: read
   actions: read
 env:
   PUBLIC_SITE_URL: https://templates.moukaeritai.work/
 jobs:
-  integration:
-    uses: ./.github/workflows/integration-qualification.yml
+  selection:
+    runs-on: ubuntu-24.04
+    outputs:
+      available: ${{ steps.select.outputs.available }}
+      integration_revision: ${{ steps.select.outputs.integration_revision }}
+      receipt: ${{ steps.select.outputs.receipt }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.site_ref }}
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Resolve exact reviewed Integration artifact
+        id: select
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python scripts/acquire_integration_bundle.py locate --receipt receipt.json --github-output "$GITHUB_OUTPUT"
+  regenerate:
+    needs: selection
+    if: ${{ needs.selection.outputs.available == 'false' }}
+    uses: TakashiSasaki/templates/.github/workflows/integration-qualification.yml@d2316a54db4011ba2936355065a86c80c2942c74
     with:
-      producer_ref: ${{ inputs.site_ref || github.event.pull_request.head.sha || github.sha }}
-      composition_ref: ${{ inputs.composition_ref }}
-      policy_ref: ${{ inputs.policy_ref }}
-      publication_staging_id: ${{ inputs.publication_staging_id }}
-      publication_staging_ids: ${{ inputs.publication_staging_ids }}
-      artifact_namespace: site
+      producer_ref: ${{ needs.selection.outputs.integration_revision }}
+      artifact_namespace: site-adoption
   build:
-    needs: integration
-    if: github.repository == 'TakashiSasaki/templates'
+    needs:
+      - selection
+      - regenerate
+    if: ${{ always() && needs.selection.result == 'success' && (needs.regenerate.result == 'success' || needs.regenerate.result == 'skipped') }}
     runs-on: ubuntu-24.04
     permissions:
       contents: read
       actions: read
     outputs:
-      composition_revision: ${{ needs.integration.outputs.composition_revision }}
-      policy_revision: ${{ needs.integration.outputs.policy_revision }}
       artifact_id: ${{ steps.published.outputs.artifact_id }}
       artifact_digest: ${{ steps.published.outputs.artifact_digest }}
       build_inputs: ${{ steps.published.outputs.build_inputs }}
+      bundle_receipt: ${{ steps.bundle.outputs.receipt }}
     steps:
       - name: Check out site implementation
         uses: actions/checkout@v7
         with:
-          ref: ${{ needs.integration.outputs.producer_revision }}
+          ref: ${{ inputs.site_ref }}
           path: site-source
+          persist-credentials: false
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
@@ -105,19 +68,17 @@ jobs:
       - name: Consume exact qualified Publication Bundle
         env:
           GH_TOKEN: ${{ github.token }}
-          BUNDLE_ARTIFACT_NAME: ${{ needs.integration.outputs.artifact_name }}
+          RECEIPT: ${{ needs.selection.outputs.receipt }}
+          REGENERATED_ARTIFACT: ${{ needs.regenerate.outputs.artifact_id }}
         run: |
-          python site-source/scripts/publication_bundle_artifact.py consume \
-            --repository "$GITHUB_REPOSITORY" --run-id "$GITHUB_RUN_ID" --attempt "$GITHUB_RUN_ATTEMPT" \
-            --workflow-head "${{ github.event.pull_request.head.sha || github.sha }}" \
-            --artifact-id "${{ needs.integration.outputs.artifact_id }}" \
-            --archive-digest "${{ needs.integration.outputs.artifact_digest }}" \
-            --artifact-name "$BUNDLE_ARTIFACT_NAME" \
-            --bundle-identity "${{ needs.integration.outputs.bundle_identity }}" \
-            --producer "${{ needs.integration.outputs.producer_revision }}" \
-            --composition "${{ needs.integration.outputs.composition_revision }}" \
-            --policy "${{ needs.integration.outputs.policy_revision }}" \
-            --output publication-bundle
+          if [ -n "$REGENERATED_ARTIFACT" ]; then
+            python site-source/scripts/acquire_integration_bundle.py receipt --lock site-source/integration-source.json --receipt receipt.json --artifact-id "$REGENERATED_ARTIFACT" --run-id "$GITHUB_RUN_ID" --attempt "$GITHUB_RUN_ATTEMPT"
+          else
+            python -c 'import os; from pathlib import Path; Path("receipt.json").write_text(os.environ["RECEIPT"])'
+          fi
+          python site-source/scripts/acquire_integration_bundle.py consume --lock site-source/integration-source.json --receipt receipt.json --output publication-bundle
+          python -c 'import json; print("receipt=" + json.dumps(json.load(open("receipt.json")),separators=(",",":")))' >> "$GITHUB_OUTPUT"
+        id: bundle
       - name: Check out executed build workflow definition
         uses: actions/checkout@v7
         with:
@@ -134,8 +95,6 @@ jobs:
           IS_CANONICAL_BUILD: ${{ inputs.artifact_name == 'github-pages' }}
           REUSE_PR_BUILD: ${{ inputs.reuse_pr_build && github.event.pull_request.head.repo.full_name == github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
-          STAGING_IDS: ${{ inputs.publication_staging_ids }}
-          STAGING_ID: ${{ inputs.publication_staging_id }}
           DEPLOYMENT_TIMESTAMP: ${{ inputs.deployment_timestamp }}
           CORE_TESTS_SCHEDULED: ${{ inputs.core_tests_scheduled }}
         run: python site-source/scripts/site_build_artifact.py --output "$GITHUB_OUTPUT" --workflow-file workflow-source/.github/workflows/site-producer.yml
@@ -150,7 +109,7 @@ jobs:
         run: |
           python site-source/scripts/render_publication_bundle.py \
             --bundle publication-bundle \
-            --bundle-identity "${{ needs.integration.outputs.bundle_identity }}" \
+            --bundle-identity "$(python -c 'import json; print(json.load(open("site-source/integration-source.json"))["bundle_identity"])')" \
             --site-root site-source \
             --output build \
             --public-url "$PUBLIC_SITE_URL" \
@@ -158,136 +117,24 @@ jobs:
             --github-output "$GITHUB_OUTPUT"
       - name: Verify the Pages entry point and deployment notice
         if: ${{ steps.artifact.outputs.reused != 'true' }}
-        run: |
+        run: |-
+          python site-source/scripts/check_audience_artifact.py --site-root build/site --bundle publication-bundle
           test -f build/site/index.html
           test -f build/site/app.webmanifest
-          test -f build/site/icon.svg
           test -f build/site/service-worker.js
-          test -f build/site/javascripts/pwa.js
           test -f build/site/glossary/index.json
-          grep --recursive --include='*.html' --files-with-matches -- \
-            'data-glossary-id=' build/site | grep . > /dev/null
-          grep --fixed-strings -- \
-            '"id": "templates-provider-branch"' \
-            build/site/glossary/index.json
-          grep --fixed-strings -- \
-            '"id": "templates-composition-component"' \
-            build/site/glossary/index.json
-          site_revision="$(git -C site-source rev-parse HEAD)"
-          composition_revision="${{ needs.integration.outputs.composition_revision }}"
-          grep --fixed-strings -- \
-            "\"source_revision\": \"${site_revision}\"" \
-            build/site/glossary/index.json
-          grep --fixed-strings -- \
-            "\"source_revision\": \"${composition_revision}\"" \
-            build/site/glossary/index.json
-          grep --fixed-strings -- \
-            '<link rel="manifest" href="/app.webmanifest">' \
-            build/site/index.html
-          grep --fixed-strings -- \
-            '<meta name="theme-color" content="#3f51b5">' \
-            build/site/index.html
-          test -f build/site/composition/index.html
-          test -f build/site/skill/index.html
-          test -f build/site/capabilities/runtime/index.html
-          test -f build/site/webapp/index.html
-          test -f build/site/lifecycle/composition-state/index.html
-          test -f build/site/policy/index.html
-          test -f build/site/policy/provider/index.html
-          test -f build/site/policy/shared-policy/index.html
-          test -f build/site/policy/consumer/index.html
-          test -f build/site/repository-trees/index.html
-          test -f build/site/repository-trees/composition/index.html
-          test -f build/site/repository-trees/policy/index.html
-          for publication in composition policy; do
-            page="build/site/repository-trees/${publication}/index.html"
-            grep --fixed-strings -- 'repository-file-viewer' "$page"
-            if grep --quiet --fixed-strings -- 'repository-file-preview-link' "$page"; then
-              test -n "$(
-                find \
-                  "build/site/repository-trees/previews/${publication}" \
-                  -type f \
-                  -name '*.html' \
-                  -print \
-                  -quit
-              )"
-            fi
-          done
-          test -f build/site/files/index.html
-          test -f build/site/files/repository-browser.js
-          for branch in site composition policy; do
-            page="build/site/files/${branch}/index.html"
-            test -f "$page"
-            grep --fixed-strings -- 'repository-file-viewer' "$page"
-            grep --fixed-strings -- \
-              '<script src="../repository-browser.js" defer></script>' "$page"
-            test -n "$(
-              find \
-                "build/site/files/${branch}/content" \
-                -type f \
-                -name '*.html' \
-                -print \
-                -quit
-            )"
-          done
-          test -f build/site/guided/index.html
           test -f build/site/guided/graph.json
-          grep --fixed-strings -- 'Index-guided document discovery' \
-            build/site/guided/index.html
-          grep --fixed-strings -- \
-            '<link rel="manifest" href="/app.webmanifest">' \
-            build/site/guided/index.html
-          grep --fixed-strings -- \
-            '<meta name="theme-color" content="#3f51b5">' \
-            build/site/guided/index.html
-          for provider in composition policy; do
-            page="build/site/guided/${provider}/index.html"
-            revision="$(python -c 'import json,sys; print(json.load(open("publication-bundle/bundle.json"))["providers"][sys.argv[1]])' "$provider")"
-            test -f "$page"
-            grep --fixed-strings -- 'Index-guided navigation' "$page"
-            grep --fixed-strings -- "$revision" "$page"
-            grep --fixed-strings -- \
-              '<link rel="manifest" href="/app.webmanifest">' "$page"
-            grep --fixed-strings -- \
-              '<meta name="theme-color" content="#3f51b5">' "$page"
-          done
-          test -f build/site/ja/guided/index.html
-          test ! -e build/site/ja/guided/graph.json
-          grep --fixed-strings -- \
-            '<link rel="manifest" href="/app.webmanifest">' \
-            build/site/ja/guided/index.html
-          grep --fixed-strings -- \
-            'data-copy-name="public URL"' \
-            build/site/ja/guided/index.html
-          grep --fixed-strings -- \
-            '<script src="/javascripts/guided-copy.js" defer></script>' \
-            build/site/ja/guided/index.html
-          python - <<'PY'
+          test -f build/site/files/index.html
+          python - <<'PYCODE'
           import json
-          from pathlib import Path, PurePosixPath
-
-          root = Path("build/site")
-          graph = json.loads((root / "guided/graph.json").read_text(encoding="utf-8"))
-          if graph.get("schema_version") != 1:
-            raise SystemExit("guided graph schema version mismatch")
-          if [provider.get("name") for provider in graph.get("providers", [])] != ["composition", "policy"]:
-            raise SystemExit("guided graph provider order mismatch")
-          for provider in graph.get("providers", []):
-              name = provider["name"]
-              for index in provider["indexes"]:
-                  source = index["path"]
-                  if source == "docs/index.md":
-                      page = root / "guided" / name / "index.html"
-                  elif source == "index.md":
-                      page = root / "guided" / "_repository-root" / name / "index.html"
-                  else:
-                      page = root / "guided" / name / Path(PurePosixPath(source).parent.as_posix()) / "index.html"
-                  if not page.is_file():
-                      raise SystemExit(f"missing guided index page: {page}")
-          PY
-          grep --fixed-strings -- \
-            "${{ steps.site_metadata.outputs.notice }}" \
-            build/site/index.html
+          from pathlib import Path
+          lock=json.load(open('site-source/integration-source.json'))
+          provenance=json.load(open('build/site/build-provenance.json'))
+          assert provenance['schema_version']==3
+          assert provenance['integration']['producer']['revision']==lock['revision']
+          assert provenance['integration']['identity']==lock['bundle_identity']
+          assert provenance['integration']['content_digest']==lock['content_digest']
+          PYCODE
       - name: Embed exact build input identity
         if: ${{ steps.artifact.outputs.reused != 'true' }}
         run: cp build-inputs.json build/site/ci-build-inputs.json
@@ -311,3 +158,37 @@ jobs:
           print('artifact_digest=' + artifact['digest'])
           print('build_inputs=' + json.dumps(json.loads(Path('build-inputs.json').read_text())['inputs'], separators=(',', ':')))
           PYCODE
+on:
+  workflow_call:
+    inputs:
+      core_tests_scheduled:
+        description: Caller schedules independent core tests and gates their result
+        type: boolean
+        default: false
+      reuse_pr_build:
+        description: Reuse the canonical exact-input PR artifact when provider/configuration inputs match
+        required: false
+        type: boolean
+        default: false
+      site_ref:
+        description: Exact Site implementation commit
+        required: false
+        type: string
+        default: ''
+      deployment_timestamp:
+        description: JST deployment timestamp rendered in the footer; empty for non-deploying builds
+        required: false
+        type: string
+        default: ''
+      artifact_name:
+        type: string
+        default: github-pages
+    outputs:
+      artifact_id:
+        value: ${{ jobs.build.outputs.artifact_id }}
+      artifact_digest:
+        value: ${{ jobs.build.outputs.artifact_digest }}
+      build_inputs:
+        value: ${{ jobs.build.outputs.build_inputs }}
+      bundle_receipt:
+        value: ${{ jobs.build.outputs.bundle_receipt }}

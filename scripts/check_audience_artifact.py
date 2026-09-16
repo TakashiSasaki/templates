@@ -11,7 +11,7 @@ from urllib.parse import urlsplit
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from scripts.site_website_contract import public_path
+from publication_bundle.paths import public_path
 
 def validate_projection_parity(
     site_root: Path,
@@ -107,26 +107,12 @@ def skipped_optional_destinations(
 
 
 
-def check_artifact(site_root: Path, publication_roots: dict[str, Path],
-                   manifest_path: Path = Path("site-manifest.json")) -> dict:
-    model = json.loads((site_root / "audience-runtime.json").read_text())
-    from scripts.assemble_publications import load_manifest
-    from scripts.audience_context import AudienceContextResolver
-    from scripts.publication_contract import load_publication_catalog
-    manifest = load_manifest(manifest_path)
-    expected = AudienceContextResolver(manifest).export_runtime_map()
-    catalogs = {
-        publication: load_publication_catalog(
-            root,
-            label=f"{publication} publication catalog",
-            validate_sources=False,
-        ).documents_by_id
-        for publication, root in publication_roots.items()
-    }
-    optional_destinations = skipped_optional_destinations(
-        manifest, catalogs, publication_roots
-    )
-    validate_projection_parity(site_root, model, expected, optional_destinations)
+def check_artifact(site_root: Path, bundle: Path) -> dict:
+    from site_renderer.bundle import validate_locked, load_lock
+    validate_locked(bundle,load_lock(Path(__file__).resolve().parents[1]/'integration-source.json'))
+    model=json.loads((site_root/'audience-runtime.json').read_text())
+    expected=json.loads((bundle/'navigation.json').read_text())['audience_runtime']
+    validate_projection_parity(site_root,model,expected,set())
     assert model["overviews"] == expected["overviews"], "assembled audience overview drift"
     assert model["audiences"] == ["use", "maintain"]
     # Every canonical published page must load the single generated controller.
@@ -145,15 +131,9 @@ def check_artifact(site_root: Path, publication_roots: dict[str, Path],
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--site-root', type=Path, required=True)
-    parser.add_argument('--manifest', type=Path, default=Path('site-manifest.json'))
-    parser.add_argument('--site-source', type=Path, default=Path.cwd())
-    parser.add_argument('--composition-root', type=Path, required=True)
-    parser.add_argument('--policy-root', type=Path, required=True)
-    args = parser.parse_args()
-    model = check_artifact(args.site_root, {
-        'site': args.site_source, 'composition': args.composition_root,
-        'policy': args.policy_root,
-    }, args.manifest)
+    parser.add_argument('--bundle',type=Path,required=True)
+    args=parser.parse_args()
+    model=check_artifact(args.site_root,args.bundle)
     print(json.dumps({'stage': 'audience-static', 'documents': len(model['documents'])}))
 
 

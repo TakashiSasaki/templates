@@ -607,7 +607,7 @@ _Source: `TakashiSasaki/templates@733c86941f8154f301a225054d88c6b8a477058a:polic
 
 This repository is not production-critical; backward compatibility is not required. Preserve authority ownership, safe material management, and immutable provenance.
 
-Composition governs the Website product; Policy governs repository maintenance. Their consumer configuration, locks, toolchains, and operations are independent. Site publication revisions in `publication-sources.json` are independent of both consumer relationships. Neither provider may mutate the other consumer state. Site integrates public provider contracts; it must not interpret private management metadata or add a shared management plane.
+Composition governs the installed Website product; Policy governs repository maintenance. Their consumer configuration, locks, toolchains, and operations remain independent of publication selection. Site selects one exact reviewed Integration release in `integration-source.json`. Integration alone selects provider publication revisions and produces the authenticated Publication Bundle. Site renders that Bundle without provider checkouts, catalog parsing, translation-manifest parsing, or provider freshness derivation.
 
 # Site-local procedural routing
 
@@ -617,13 +617,13 @@ When working on the `site` authority, load the smallest matching skill from `.ag
 
 ## Skill routing
 
-- Coordinated cross-authority document-set change that requires a Site staging PR before a provider publication PR: `PUBLICATION_STAGING.md` for the staging protocol, then `.agents/skills/site-publication-cutover/SKILL.md` for the final Site promotion step.
-- Provider publication update after a reviewed `composition` or `policy` merge: `.agents/skills/site-publication-cutover/SKILL.md`
+- Provider publication or cross-authority staging change: work in the independent Integration authority. It does not authorize Site adoption.
+- Explicit adoption of a reviewed Integration release: `.agents/skills/site-publication-cutover/SKILL.md`
 - Site-specific pull-request scope, exact-head CI, browser/publication acceptance, and base-drift preparation: `.agents/skills/site-pr-exact-head-acceptance/SKILL.md`
 - Final merge authorization for every Site pull request: `.agents/skills/pr-merge-gate/SKILL.md`
 - Site browser/PWA/mobile/search regression failure triage: `.agents/skills/site-browser-regression-triage/SKILL.md`
 
-If more than one skill applies, use only the minimal set needed and follow them in dependency order. A normal Site PR completion path is task-specific work -> `site-pr-exact-head-acceptance` -> `pr-merge-gate`. A normal publication cutover uses `site-publication-cutover` first, then Site acceptance, then the merge gate. A coordinated document-set change that cannot merge provider-first uses `PUBLICATION_STAGING.md` first, then the provider candidate compatibility build, then `site-publication-cutover` for promotion after the provider merge. A browser failure encountered during Site acceptance may temporarily use `site-browser-regression-triage`, then return to Site acceptance after the repair creates a new head.
+If more than one skill applies, use only the minimal set needed and follow them in dependency order. A normal Site PR completion path is task-specific work -> `site-pr-exact-head-acceptance` -> `pr-merge-gate`. A normal publication cutover uses `site-publication-cutover` first, then Site acceptance, then the merge gate. Provider candidate compatibility and publication staging terminate in Integration. Site adoption requires a separate explicit instruction. A browser failure encountered during Site acceptance may temporarily use `site-browser-regression-triage`, then return to Site acceptance after the repair creates a new head.
 
 `site-pr-exact-head-acceptance` establishes Site-specific acceptance evidence but never authorizes merge. Before declaring a Site PR merge-ready, merging it, or completing a task whose final action is a merge, load `pr-merge-gate`. Green CI and `reviews = 0` must never be interpreted as a clean review state.
 
@@ -640,9 +640,9 @@ This routing discipline is not an additional acceptance checklist. Optional diag
 
 ## Authority boundary
 
-The active canonical authorities are `site`, `composition`, and `policy`. The external provider set published by Site is exactly `composition` and `policy`. Skill and Webapp remain reader/artifact concepts under Composition; they are not independent provider branches.
+The active canonical authorities are `composition`, `policy`, `integration`, and `site`, with independent histories. Composition and Policy own provider semantics, documentation, translations, and synchronization metadata. Integration owns exact reviewed provider selection, publication staging, IA, read models, translation availability, Bundle production, and qualification. Site owns presentation, browser runtime, accessibility, PWA, Pages artifact packaging, and explicit deployment. Site is not a parent or super-authority.
 
-Site owns integration, reader-facing information architecture, exact provider locks, publication assembly, validation, provenance, PWA integration, and Pages deployment. Repository-local Agent Skills orchestrate maintenance and merge acceptance; they do not become a second semantic authority. Do not move provider-owned Composition or Policy semantics into Site merely to complete an integration task.
+Site consumes only the versioned Integration output contract for provider publication. Site may release a runtime fix against unchanged Integration; Integration may advance without Site adoption or deployment. Site must not recalculate provider translation freshness. Provider-owned synchronization metadata must never be silently updated. Repository-local Agent Skills orchestrate Site maintenance and merge acceptance; they do not create another semantic authority.
 
 _Source: `policy/project.md` in this repository; rule ID: `project.site-maintenance`; severity: `mandatory`._
 

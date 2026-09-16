@@ -60,8 +60,9 @@ def identity(*, repository: str, site: str, composition: str, policy: str,
                 deployment_timestamp=deployment_timestamp, public_url=public_url,
                 runtime=runtime, qualification_suite=qualification_suite)
     if bundle is not None:
-        result['schema_version'] = 2
+        result['schema_version'] = 3
         result['publication_bundle'] = bundle
+        for obsolete in ('composition','policy','staging','staging_ids'):result.pop(obsolete)
     return result
 
 
@@ -82,6 +83,10 @@ def validate_manifest(manifest: dict, expected: dict) -> None:
 def validate_provenance(provenance: dict, expected: dict) -> None:
     if not isinstance(provenance, dict) or type(provenance.get('schema_version')) is not int:
         raise ArtifactError('invalid artifact publication provenance schema')
+    if 'publication_bundle' in expected:
+        if provenance != dict(schema_version=3,repository=expected['repository'],site_commit=expected['site'],integration=expected['publication_bundle']):
+            raise ArtifactError('artifact Integration provenance mismatch')
+        return
     if provenance != dict(schema_version=2, repository=expected['repository'],
                           site_commit=expected['site'], publication_commits={
                               'composition': expected['composition'], 'policy': expected['policy']}):
@@ -213,6 +218,8 @@ def reuse(expected: dict, target: Path, *, pr: int, current_run: int,
 
 
 def reuse_applicable(expected: dict, locked: dict, *, requested: bool, event: str) -> bool:
+    if 'publication_bundle' in expected:
+        return requested and event=='pull_request' and not expected['deployment_timestamp'] and expected['publication_bundle']['producer']['revision']==locked['revision'] and expected['publication_bundle']['identity']==locked['bundle_identity']
     return (requested and event == 'pull_request'
             and expected['composition'] == locked['composition']
             and expected['policy'] == locked['policy']
@@ -228,10 +235,11 @@ def main() -> int:
     parser.add_argument('--identity-file', type=Path, default=Path('build-inputs.json'))
     args = parser.parse_args()
     runtime = '|'.join([platform.python_version(), os.environ.get('RUNNER_OS', ''), os.environ.get('RUNNER_ARCH', ''), os.environ.get('ImageOS', ''), os.environ.get('ImageVersion', '')])
-    from publication_bundle.contract import validate as validate_bundle
-    bundle = validate_bundle(Path(os.environ['PUBLICATION_BUNDLE_ROOT'])) if os.environ.get('PUBLICATION_BUNDLE_ROOT') else None
+    from site_renderer.bundle import validate_locked,load_lock
+    locked=load_lock(args.site_root/'integration-source.json')
+    bundle=validate_locked(Path(os.environ['PUBLICATION_BUNDLE_ROOT']),locked)
     expected = identity(repository=os.environ['GITHUB_REPOSITORY'], site=revision(args.site_root),
-                        composition=bundle['providers']['composition'] if bundle else revision(Path('composition-source')), policy=bundle['providers']['policy'] if bundle else revision(Path('policy-source')),
+                        composition=bundle['producer']['revision'], policy=bundle['producer']['revision'],
                         bundle={k:bundle[k] for k in ('schema_version','producer','providers','identity','content_digest')} if bundle else None,
                         workflow=args.workflow_file.read_bytes(), staging=os.environ.get('STAGING_ID', ''),
                         staging_ids=os.environ.get('STAGING_IDS', ''),
@@ -245,8 +253,6 @@ def main() -> int:
     args.identity_file.write_text(json.dumps({'inputs': expected, 'identity': identity_key(expected)}, sort_keys=True) + '\n')
     # Only ordinary PR builds have a canonical producer. Provider overrides,
     # staged mappings and deployment timestamps must be compared before reuse.
-    from resolve_publication_sources import resolve_sources
-    locked = resolve_sources(args.site_root / 'publication-sources.json', {})
     eligible = reuse_applicable(expected, locked,
                                 requested=os.environ.get('REUSE_PR_BUILD') == 'true',
                                 event=os.environ.get('GITHUB_EVENT_NAME', ''))

@@ -57,7 +57,7 @@ def fill(site_root,docs_root,documents,nav,provider_translations,coverage,output
     # build_runtime_map consumes only identity fields on each record.
     from types import SimpleNamespace
     runtime_records=[SimpleNamespace(**{**r,'canonical_destination':PurePosixPath(r['canonical_destination']),'translation_destination':PurePosixPath(r['translation_destination'])}) for r in combined]
-    # Bundle publication records already certify current derivatives. Combine them
+    # Bundle publication records already certify available current/stale derivatives. Combine them
     # with Site-owned records for cross-authority reader-link projection.
     rewrite_current_localized_links(runtime_records,docs_root)
     write(docs_root/'reader-navigation-runtime.json',build_runtime_map(labels,runtime_records))

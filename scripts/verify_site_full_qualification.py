@@ -56,120 +56,12 @@ class RequiredSuite(NamedTuple):
 
 
 REQUIRED_SUITES: list[RequiredSuite] = [
-    RequiredSuite(
-        key="build",
-        description="Direct Site assembly build",
-        workflow_path=".github/workflows/build-pages.yml",
-        job_name="build / build",
-    ),
-    RequiredSuite(
-        key="check",
-        description="Direct Site browser and PWA check",
-        workflow_path=".github/workflows/build-pages.yml",
-        job_name="check",
-    ),
-    RequiredSuite(
-        key="construction_gate",
-        description="Site Construction CI validate gate",
-        workflow_path=".github/workflows/build-pages.yml",
-        job_name="Site Construction CI / validate",
-    ),
-    RequiredSuite(
-        key="provider_coexistence",
-        description="Validate exact provider coexistence",
-        workflow_path=".github/workflows/build-pages.yml",
-        job_name="coexistence / Validate exact provider coexistence",
-    ),
-    RequiredSuite(
-        key="provider_coexistence_gate",
-        description="Provider coexistence gate",
-        workflow_path=".github/workflows/build-pages.yml",
-        job_name="coexistence / Provider coexistence gate",
-    ),
-    RequiredSuite(
-        key="ref_consumer_composition",
-        description="Reference consumer composition validation",
-        workflow_path=".github/workflows/build-pages.yml",
-        job_name="reference_consumer / composition",
-    ),
-    RequiredSuite(
-        key="ref_consumer_build",
-        description="Reference consumer site build",
-        workflow_path=".github/workflows/build-pages.yml",
-        job_name="build / build",
-    ),
-    RequiredSuite(
-        key="ref_consumer_browser",
-        description="Reference consumer browser & PWA acceptance",
-        workflow_path=".github/workflows/build-pages.yml",
-        job_name="reference_consumer / browser",
-    ),
-    RequiredSuite(
-        key="pub_freshness_resolve",
-        description="Publication freshness resolve",
-        workflow_path=".github/workflows/build-pages.yml",
-        job_name="freshness / resolve",
-    ),
-    RequiredSuite(
-        key="pub_freshness_report",
-        description="Publication freshness report",
-        workflow_path=".github/workflows/build-pages.yml",
-        job_name="freshness / report",
-    ),
-    RequiredSuite(
-        key="pub_materialization",
-        description="Publication materialization regressions",
-        workflow_path=".github/workflows/build-pages.yml",
-        job_name="materialization / materialization",
-    ),
-    RequiredSuite(
-        key="pub_contract",
-        description="Publication contract v4 regressions",
-        workflow_path=".github/workflows/build-pages.yml",
-        job_name="publication_contract / contract",
-    ),
-    RequiredSuite(
-        key="cross_auth_build",
-        description="Cross-authority candidate build",
-        workflow_path=".github/workflows/build-pages.yml",
-        job_name="build / build",
-    ),
-    RequiredSuite(
-        key="cross_auth_consumer",
-        description="Real producer to Chromium consumer",
-        workflow_path=".github/workflows/build-pages.yml",
-        job_name="cross_authority / Real producer to Chromium consumer",
-    ),
-    RequiredSuite(
-        key="playground_consumer",
-        description="Site Composition Playground consumer",
-        workflow_path=".github/workflows/build-pages.yml",
-        job_name="playground / projection consumer",
-    ),
-    RequiredSuite(
-        key="playground_explain",
-        description="Site Composition Playground explainability",
-        workflow_path=".github/workflows/build-pages.yml",
-        job_name="explainability / projection explanations",
-    ),
-    RequiredSuite(
-        key="playground_browser",
-        description="Site Composition Playground browser acceptance",
-        workflow_path=".github/workflows/build-pages.yml",
-        job_name="explainability / Playground browser acceptance",
-    ),
-    RequiredSuite(
-        key="validate_website",
-        description="Validate website contract",
-        workflow_path=".github/workflows/build-pages.yml",
-        job_name="website_contract",
-    ),
-    RequiredSuite(
-        key="policy",
-        description="Check agent policy",
-        workflow_path=".github/workflows/build-pages.yml",
-        job_name="policy / policy",
-    ),
+    RequiredSuite('build','Exact Bundle-only Site build',".github/workflows/build-pages.yml",'build / build'),
+    RequiredSuite('check','Site browser, accessibility and PWA acceptance',".github/workflows/build-pages.yml",'check'),
+    RequiredSuite('core','Site contract and consumer tests',".github/workflows/build-pages.yml",'Core repository unit and contract validation'),
+    RequiredSuite('construction_gate','Site construction aggregate',".github/workflows/build-pages.yml",'Site Construction CI / validate'),
+    RequiredSuite('validate_website','Installed Website contract',".github/workflows/build-pages.yml",'website_contract'),
+    RequiredSuite('policy','Site maintenance Policy consumer',".github/workflows/build-pages.yml",'policy / policy'),
 ]
 
 EXTERNAL_WORKFLOW_PATHS: tuple[str, ...] = tuple(dict.fromkeys(s.workflow_path for s in REQUIRED_SUITES))
