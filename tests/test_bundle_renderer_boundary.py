@@ -37,7 +37,8 @@ import site_renderer.repository_browser
 
     def test_isolation_qualification_removes_integration_and_requires_renderer_success(self):
         source=(ROOT/'scripts/qualify_bundle_renderer.py').read_text()
-        self.assertIn("shutil.rmtree(source/'integration')",source)
+        self.assertIn("'sparse-checkout','set','--no-cone','/*','!/integration/'",source)
+        self.assertIn("assert not (source/'integration').exists()",source)
         self.assertIn("assert not (root/'composition-source').exists()",source)
         self.assertIn("assert not (root/'policy-source').exists()",source)
         self.assertIn("cwd=root,env=env,check=True",source)

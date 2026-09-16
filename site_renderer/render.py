@@ -33,15 +33,74 @@ def run(site_root,script,*args):
     subprocess.run(command,check=True)
 
 
+def checked_output(output, sources):
+    output=Path(output).absolute()
+    if any(path.is_symlink() for path in (output,*output.parents)):
+        raise BundleError('render output traverses a symlink')
+    resolved=output.resolve()
+    for source in sources:
+        source=Path(source).resolve()
+        if resolved==source or source in resolved.parents or resolved in source.parents:
+            raise BundleError('render output overlaps input')
+    if resolved.exists():raise BundleError('refusing to replace existing render output')
+    return resolved
+
+
+def require_clean_site(site_root, revision=None):
+    current=checked_revision(site_root)
+    if revision is not None and current != revision:
+        raise BundleError('Site revision changed during rendering')
+    if subprocess.check_output(['git','-C',str(site_root),'status','--porcelain','--untracked-files=all']):
+        raise BundleError('Site rendering requires clean committed inputs')
+    return current
+
+
+def publish_build(build, output, parent_identity, sources, site_revision):
+    # All expensive work happens outside the destination. Pin the parent for
+    # the final same-filesystem staging/rename so aliases cannot redirect it.
+    require_clean_site(sources[1],site_revision)
+    checked_output(output,sources)
+    fd=os.open(output.parent,os.O_RDONLY|os.O_DIRECTORY|os.O_NOFOLLOW)
+    stage=None
+    try:
+        stat=os.fstat(fd)
+        if (stat.st_dev,stat.st_ino)!=parent_identity:
+            raise BundleError('render output parent changed during rendering')
+        parent=Path('/proc/self/fd')/str(fd)
+        stage=Path(tempfile.mkdtemp(prefix='.site-publish-',dir=parent))
+        shutil.copytree(build,stage,dirs_exist_ok=True)
+        checked_output(output,sources)
+        current=output.parent.stat()
+        if (current.st_dev,current.st_ino)!=parent_identity:
+            raise BundleError('render output parent changed before publication')
+        require_clean_site(sources[1],site_revision)
+        os.rename(stage.name,output.name,src_dir_fd=fd,dst_dir_fd=fd)
+        stage=None
+    finally:
+        if stage is not None:shutil.rmtree(stage)
+        os.close(fd)
+
+
 def render(*,bundle,site_root,output,expected_identity,public_url='https://templates.moukaeritai.work/',deployment_timestamp=''):
-    bundle,site_root,output=Path(bundle).absolute(),Path(site_root).absolute(),Path(output).absolute()
-    identity=validate(bundle,expected_identity=expected_identity)
-    if output.exists() or output.is_symlink():raise BundleError('refusing to replace existing render output')
-    for source in (bundle,site_root):
-        if output==source or source in output.parents or output in source.parents:raise BundleError('render output overlaps input')
-    output.parent.mkdir(parents=True,exist_ok=True)
-    site_revision=checked_revision(site_root)
-    with tempfile.TemporaryDirectory(dir=output.parent,prefix='.site-render-') as temporary:
+    bundle,site_root=Path(bundle).resolve(),Path(site_root).resolve()
+    output=checked_output(output,(bundle,site_root))
+    site_revision=require_clean_site(site_root)
+    with tempfile.TemporaryDirectory(prefix='site-bundle-snapshot-') as temporary:
+        snapshot=Path(temporary)/'bundle'
+        # Preserve links so the contract rejects them; never follow a source
+        # symlink while copying. Validate exactly the private bytes consumed.
+        shutil.copytree(bundle,snapshot,symlinks=True)
+        identity=validate(snapshot,expected_identity=expected_identity)
+        output.parent.mkdir(parents=True,exist_ok=True)
+        checked_output(output,(bundle,site_root))
+        stat=output.parent.stat();parent_identity=(stat.st_dev,stat.st_ino)
+        return render_snapshot(bundle=snapshot,site_root=site_root,output=output,
+            identity=identity,site_revision=site_revision,parent_identity=parent_identity,
+            original_bundle=bundle,public_url=public_url,deployment_timestamp=deployment_timestamp)
+
+
+def render_snapshot(*,bundle,site_root,output,identity,site_revision,parent_identity,original_bundle,public_url,deployment_timestamp):
+    with tempfile.TemporaryDirectory(prefix='site-render-') as temporary:
         build=Path(temporary)/'build';build.mkdir();docs=build/'docs';docs.mkdir()
         for name in identity['files']:
             if name.startswith('publication/'):
@@ -104,7 +163,7 @@ def render(*,bundle,site_root,output,expected_identity,public_url='https://templ
         run(site_root,'write_publication_provenance.py','--output',site/'build-provenance.json','--repository',repository,'--site-commit',site_revision,*provenance_args)
         write(site/'publication-bundle.json',{'schema_version':1,'identity':identity['identity'],'producer':identity['producer'],'providers':identity['providers']})
         run(site_root,'validate_site_links.py','--site-root',site,'--config-file',build/'zensical.toml')
-        build.rename(output)
+        publish_build(build,output,parent_identity,(original_bundle,site_root),site_revision)
     return {'site_revision':site_revision,'bundle_identity':identity['identity'],'output':str(output)}
 
 

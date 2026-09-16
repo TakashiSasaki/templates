@@ -23,7 +23,7 @@ def qualify(site_root,bundle,identity,output):
         root=Path(tmp);source=root/'site-source';material=root/'bundle'
         subprocess.run(['git','-C',str(site_root),'worktree','add','--detach',str(source),head],check=True,capture_output=True)
         try:
-            shutil.rmtree(source/'integration')
+            subprocess.run(['git','-C',str(source),'sparse-checkout','set','--no-cone','/*','!/integration/'],check=True,capture_output=True)
             shutil.copytree(bundle,material)
             assert not (source/'integration').exists()
             assert not (root/'composition-source').exists()
