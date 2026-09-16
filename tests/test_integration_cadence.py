@@ -47,3 +47,12 @@ class IntegrationCadenceTests(unittest.TestCase):
         gate=workflow['jobs']['validate']
         self.assertIn('integration_only',gate['needs'])
         self.assertIn('test "$INTEGRATION_RESULT" = success',str(gate['steps']))
+
+    def test_full_site_qualification_retains_provider_and_node_regressions(self):
+        workflow=yaml.safe_load((ROOT/'.github/workflows/build-pages.yml').read_text())
+        steps=workflow['jobs']['check']['steps']
+        stage=next(s for s in steps if s.get('name')=='Validate full Site and provider integration contracts')
+        self.assertIn("full_required == 'true'",stage['if'])
+        self.assertIn('materialize_publication_assets.py',stage['run'])
+        self.assertIn('--check integration-tests',stage['run'])
+        self.assertNotIn('continue-on-error',stage)

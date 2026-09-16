@@ -200,6 +200,15 @@ jobs:
       - name: Install Playwright controller
         if: ${{ needs.classify_browser.outputs.browser_required == 'true' }}
         run: python -m pip install --disable-pip-version-check -r requirements-visual.txt
+      - name: Validate full Site and provider integration contracts
+        if: ${{ needs.classify_browser.outputs.full_required == 'true' }}
+        env:
+          EXPECTED_SITE_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          python -m pip install --no-deps -r requirements-build.lock
+          python -m pip check
+          python scripts/materialize_publication_assets.py --publication composition=composition-source --publication policy=policy-source
+          python scripts/run_site_preflight.py full --check integration-tests --expected-head "$EXPECTED_SITE_REVISION" --composition-root composition-source --policy-root policy-source
       - name: Cache Playwright binaries
         if: ${{ needs.classify_browser.outputs.browser_required == 'true' && (needs.classify_browser.outputs.pwa_required == 'true' || needs.classify_browser.outputs.full_required == 'true') }}
         uses: actions/cache@v4
