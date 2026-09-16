@@ -205,21 +205,21 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
             workflow,
         )
 
-    def test_site_push_workflow_is_the_only_deployment_authority(self) -> None:
+    def test_site_dispatch_workflow_is_the_only_deployment_authority(self) -> None:
         workflow = DEPLOY_WORKFLOW.read_text(encoding="utf-8")
         trigger_block = workflow.split("\npermissions:\n", maxsplit=1)[0]
 
         self.assertIn(
-            "  push:\n    branches:\n      - site",
+            "  workflow_dispatch:",
             trigger_block,
         )
         self.assertNotIn("pull_request:", trigger_block)
         self.assertNotIn("workflow_call:", trigger_block)
-        self.assertNotIn("workflow_dispatch:", trigger_block)
+        self.assertNotIn("  push:", trigger_block)
         self.assertIn("uses: ./.github/workflows/build-pages.yml", workflow)
         self.assertIn("site_ref: ${{ github.sha }}", workflow)
         self.assertIn("github.repository == 'TakashiSasaki/templates'", workflow)
-        self.assertIn("github.event_name == 'push'", workflow)
+        self.assertIn("github.event_name == 'workflow_dispatch'", workflow)
         self.assertIn("github.ref == 'refs/heads/site'", workflow)
         self.assertNotIn("github.event.repository.default_branch", workflow)
 

@@ -250,7 +250,7 @@ They are independent of provider source paths.
 ## Deployment authority
 
 Only `.github/workflows/deploy-pages.yml` may deploy GitHub Pages, and it runs
-only for a push to `site`. Pull-request builds may construct and upload a Pages
+only for an explicitly authorized `workflow_dispatch` on `site`. Pull-request builds may construct and upload a Pages
 artifact for validation but cannot deploy it.
 
 The GitHub Pages deployment environment is an external release gate. Its custom
@@ -298,3 +298,9 @@ supplied by `.github/workflows/deploy-pages.yml` or treated as a permanent
 publication mode. Staging changes Site-owned integration metadata only; provider
 prose, catalogs, glossary definitions, and provider translations remain owned by
 the provider authority.
+
+## Explicit deployment
+
+Deployment requires a human-authorized dispatch of `deploy-pages.yml` on the `site`
+authority. A push or PR merge does not deploy. Provider and Integration qualification
+never authorize this dispatch.

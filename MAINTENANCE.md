@@ -240,7 +240,7 @@ Generated Markdown, integrated glossary files, browser pages, repository preview
 
 ## Deployment boundary
 
-`.github/workflows/build-pages.yml` is build-only and read-only with respect to repository contents. `.github/workflows/deploy-pages.yml` is the only deployment route and runs only for a push to `site`.
+`.github/workflows/build-pages.yml` is build-only and read-only with respect to repository contents. `.github/workflows/deploy-pages.yml` is the only deployment route and requires explicit `workflow_dispatch` on `site`; pushes and PR merges do not deploy.
 
 The external `github-pages` environment must allow exactly the `site` branch. Pull requests cannot change this repository/environment setting. Do not broaden it to all branches and do not introduce a second deployment authority.
 

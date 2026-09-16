@@ -111,3 +111,13 @@ provider payload equivalence separately and record bootstrap provenance. P6-C/P6
 may run concurrently after prerequisites. P7 explicitly promotes exact merged inputs;
 P8 permits structurally valid stale derivatives. Stop before P9–P11, Site adoption,
 publication cutover or deployment unless separately authorized.
+
+## S1 construction checkpoint
+
+Catalog/materialization, glossary semantics and translation derivation now reside in
+`integration/`. Existing script paths delegate to those implementations. Import
+regressions prohibit Site dependencies in the Integration package and the reverse
+edge in `site_renderer/`. Remaining mixed orchestration is migration compatibility
+until the S2/S3 cutover; it is not an independent authority. The deployment regression
+now enforces dispatch-only Site execution. Core construction validation: 1,368 tests
+passed; focused Integration/translation/catalog/glossary validation: 73 tests passed.

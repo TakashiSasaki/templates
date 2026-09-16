@@ -2,9 +2,7 @@ name: Deploy documentation from site
 
 # Keep this workflow source-controlled so each diagnostic retry uses a new commit SHA.
 on:
-  push:
-    branches:
-      - site
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -21,7 +19,7 @@ jobs:
   deployment_metadata:
     if: >-
       github.repository == 'TakashiSasaki/templates' &&
-      github.event_name == 'push' &&
+      github.event_name == 'workflow_dispatch' &&
       github.ref == 'refs/heads/site'
     runs-on: ubuntu-latest
     outputs:
@@ -37,7 +35,7 @@ jobs:
   build:
     if: >-
       github.repository == 'TakashiSasaki/templates' &&
-      github.event_name == 'push' &&
+      github.event_name == 'workflow_dispatch' &&
       github.ref == 'refs/heads/site'
     needs: deployment_metadata
     uses: ./.github/workflows/build-pages.yml
@@ -51,7 +49,7 @@ jobs:
   deploy:
     if: >-
       github.repository == 'TakashiSasaki/templates' &&
-      github.event_name == 'push' &&
+      github.event_name == 'workflow_dispatch' &&
       github.ref == 'refs/heads/site'
     needs: build
     permissions:
