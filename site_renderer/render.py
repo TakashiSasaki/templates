@@ -101,7 +101,7 @@ def render(*,bundle,site_root,output,expected_identity,public_url='https://templ
         run(site_root,'check_public_url_boundary.py','--site-root',site)
         provenance_args=[]
         for name,revision in identity['providers'].items():provenance_args+=['--publication-commit',name+'='+revision]
-        run(site_root,'write_publication_provenance.py','--site-root',site,'--repository',repository,'--site-commit',site_revision,*provenance_args)
+        run(site_root,'write_publication_provenance.py','--output',site/'build-provenance.json','--repository',repository,'--site-commit',site_revision,*provenance_args)
         write(site/'publication-bundle.json',{'schema_version':1,'identity':identity['identity'],'producer':identity['producer'],'providers':identity['providers']})
         run(site_root,'validate_site_links.py','--site-root',site,'--config-file',build/'zensical.toml')
         build.rename(output)

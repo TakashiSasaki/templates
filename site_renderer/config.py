@@ -15,7 +15,7 @@ def render_nav(nodes: list[dict[str, Any]], indent: int = 0) -> str:
             )
         else:
             destination = json.dumps(
-                node["destination"].as_posix(),
+                str(node["destination"]),
                 ensure_ascii=False,
             )
             values.append(f"{entry}{{{title} = {destination}}}")
