@@ -57,6 +57,33 @@ def require_clean_site(site_root, revision=None):
     return current
 
 
+def prepare_output_parent(output, sources):
+    """Walk/create directory components relative to pinned, no-follow parents."""
+    flags=os.O_RDONLY|os.O_DIRECTORY|os.O_NOFOLLOW
+    protected={(stat.st_dev,stat.st_ino) for stat in (Path(source).stat() for source in sources)}
+    fd=os.open(output.anchor,flags)
+    try:
+        for component in output.parent.parts[1:]:
+            try:child=os.open(component,flags,dir_fd=fd)
+            except FileNotFoundError:
+                try:os.mkdir(component,dir_fd=fd)
+                except FileExistsError:pass
+                child=os.open(component,flags,dir_fd=fd)
+            os.close(fd);fd=child
+            stat=os.fstat(fd)
+            if (stat.st_dev,stat.st_ino) in protected:
+                raise BundleError('render output parent entered an input directory')
+        stat=os.fstat(fd);identity=(stat.st_dev,stat.st_ino)
+        checked_output(output,sources)
+        current=output.parent.stat()
+        if (current.st_dev,current.st_ino)!=identity:
+            raise BundleError('render output parent changed during creation')
+        return identity
+    except OSError as exc:
+        raise BundleError('unsafe render output parent: '+str(exc)) from exc
+    finally:os.close(fd)
+
+
 def rename_noreplace(directory, source, target):
     """Linux atomic directory publication; never replace another actor's path."""
     libc=ctypes.CDLL(None,use_errno=True)
@@ -139,9 +166,7 @@ def render(*,bundle,site_root,output,expected_identity,public_url='https://templ
         subprocess.run(['git','-C',str(source),'sparse-checkout','set','--no-cone','/*','!/integration/'],check=True,capture_output=True)
         subprocess.run(['git','-C',str(source),'checkout','--detach',site_revision],check=True,capture_output=True)
         require_clean_site(source,site_revision)
-        output.parent.mkdir(parents=True,exist_ok=True)
-        checked_output(output,(bundle,site_root))
-        stat=output.parent.stat();parent_identity=(stat.st_dev,stat.st_ino)
+        parent_identity=prepare_output_parent(output,(bundle,site_root))
         return consume_snapshot(bundle=snapshot,site_root=source,output=output,
             identity=identity,site_revision=site_revision,parent_identity=parent_identity,
             original_bundle=bundle,public_url=public_url,deployment_timestamp=deployment_timestamp)
