@@ -17,19 +17,19 @@ CATALOG = ROOT / "docs/publication-catalog.json"
 PUBLICATION_GUIDE = ROOT / "docs/publication-catalog.md"
 BUILD_GUIDE = ROOT / "docs/documentation-publication.md"
 LEGACY_VALIDATOR = ROOT / "scripts/validate_publication_catalog.py"
-SITE_PROTOCOL_REVISION = "3ae5d1e60c65e7a8ebf5f9af0436044484e42983"
-SITE_PROTOCOL_PATH = ".site-publication-protocol/scripts/publication_contract.py"
+INTEGRATION_PROTOCOL_REVISION = "a30699cf7dc56bf3ef7a1b6fd8f6ffd45cdd426d"
+INTEGRATION_PROTOCOL_PATH = ".integration-publication-protocol/integration/publication_contract.py"
 
 
-def test_policy_uses_reviewed_site_publication_protocol() -> None:
+def test_policy_uses_reviewed_integration_publication_protocol() -> None:
     workflow = WORKFLOW.read_text(encoding="utf-8")
 
-    assert f"ref: {SITE_PROTOCOL_REVISION}" in workflow
-    assert "path: .site-publication-protocol" in workflow
-    assert "sparse-checkout: scripts/publication_contract.py" in workflow
+    assert f"ref: {INTEGRATION_PROTOCOL_REVISION}" in workflow
+    assert "path: .integration-publication-protocol" in workflow
+    assert "sparse-checkout: integration/publication_contract.py" in workflow
     assert "sparse-checkout-cone-mode: false" in workflow
     assert "persist-credentials: false" in workflow
-    assert f"SITE_PUBLICATION_PROTOCOL: {SITE_PROTOCOL_PATH}" in workflow
+    assert f"INTEGRATION_PUBLICATION_PROTOCOL: {INTEGRATION_PROTOCOL_PATH}" in workflow
     assert "scripts/run_policy_preflight.py --check docs" in workflow
     runner = (ROOT / "scripts/run_policy_preflight.py").read_text(encoding="utf-8")
     assert '"--catalog",\n        "docs/publication-catalog.json"' in runner
@@ -44,8 +44,8 @@ def test_publication_protocol_ownership_is_documented() -> None:
     build_guide = BUILD_GUIDE.read_text(encoding="utf-8")
 
     for text in (publication_guide, build_guide):
-        assert SITE_PROTOCOL_REVISION in text
-        assert "Site-owned" in text
+        assert INTEGRATION_PROTOCOL_REVISION in text
+        assert "Integration-owned" in text
         assert "full" in text.lower() and "sha" in text.lower()
     assert "scripts/validate_publication_catalog.py" not in publication_guide
     assert "scripts/validate_publication_catalog.py" not in build_guide

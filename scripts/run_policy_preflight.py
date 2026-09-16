@@ -172,14 +172,14 @@ def check_docs() -> None:
         return
     protocol = Path(
         os.environ.get(
-            "SITE_PUBLICATION_PROTOCOL",
-            ".site-publication-protocol/scripts/publication_contract.py",
+            "INTEGRATION_PUBLICATION_PROTOCOL",
+            ".integration-publication-protocol/integration/publication_contract.py",
         )
     )
     if not protocol.is_absolute():
         protocol = ROOT / protocol
     if not protocol.is_file():
-        raise RuntimeError(f"Site publication protocol is unavailable: {protocol}")
+        raise RuntimeError(f"Integration publication protocol is unavailable: {protocol}")
     run(sys.executable, "scripts/verify_docs_environment.py")
     run(sys.executable, "-m", "pip", "check")
     run(

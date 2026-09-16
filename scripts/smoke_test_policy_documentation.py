@@ -8,8 +8,8 @@ import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SITE_PROTOCOL_REVISION = "3ae5d1e60c65e7a8ebf5f9af0436044484e42983"
-SITE_PROTOCOL_SOURCE = "scripts/publication_contract.py"
+INTEGRATION_PROTOCOL_REVISION = "a30699cf7dc56bf3ef7a1b6fd8f6ffd45cdd426d"
+INTEGRATION_PROTOCOL_SOURCE = "integration/publication_contract.py"
 
 
 def clean_environment() -> dict[str, str]:
@@ -35,13 +35,13 @@ def venv_python(venv: Path) -> Path:
     return venv / "bin" / "python"
 
 
-def read_site_protocol() -> bytes:
-    reference = f"{SITE_PROTOCOL_REVISION}:{SITE_PROTOCOL_SOURCE}"
+def read_integration_protocol() -> bytes:
+    reference = f"{INTEGRATION_PROTOCOL_REVISION}:{INTEGRATION_PROTOCOL_SOURCE}"
     try:
         return subprocess.check_output(["git", "show", reference], cwd=ROOT)
     except subprocess.CalledProcessError:
         subprocess.run(
-            ["git", "fetch", "--no-tags", "origin", SITE_PROTOCOL_REVISION],
+            ["git", "fetch", "--no-tags", "origin", INTEGRATION_PROTOCOL_REVISION],
             cwd=ROOT,
             check=True,
         )
@@ -60,8 +60,8 @@ def main() -> int:
                 cwd=ROOT,
                 environment=environment,
             )
-            protocol = temporary_root / "site-publication-protocol.py"
-            protocol.write_bytes(read_site_protocol())
+            protocol = temporary_root / "integration-publication-protocol.py"
+            protocol.write_bytes(read_integration_protocol())
             venv = temporary_root / "venv"
             run(
                 [sys.executable, "-I", "-m", "venv", str(venv)],
@@ -94,7 +94,7 @@ def main() -> int:
                     "BUILD_RUN_ID": "0",
                     "BUILD_RUN_NUMBER": "0",
                     "POLICY_DOCS_ENV_READY": "1",
-                    "SITE_PUBLICATION_PROTOCOL": str(protocol),
+                    "INTEGRATION_PUBLICATION_PROTOCOL": str(protocol),
                 }
             )
             run(
