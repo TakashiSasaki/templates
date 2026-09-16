@@ -216,15 +216,25 @@ jobs:
           cp -a profile/base-site profile/translation-profile-site
           python site-source/scripts/site_build_profile.py write-empty-translation-map \
             --output profile/empty-translation-publication.json
+          python - <<'PYMODEL'
+          import json
+          from pathlib import Path
+          Path('profile/empty-availability.json').write_text(json.dumps({'schema_version':1,'canonical_language':'en','surface':'reader','records':[]}))
+          Path('profile/empty-inventory.json').write_text(json.dumps({'schema_version':1,'coverage':[]}))
+          PYMODEL
           /usr/bin/time --verbose --output profile/results/translation-reader.baseline.time.txt \
             python site-source/scripts/finalize_translation_reader.py \
             --site-root profile/translation-baseline-site \
             --translation-map profile/empty-translation-publication.json \
+            --availability profile/empty-availability.json \
+            --coverage-inventory profile/empty-inventory.json \
             --canonical-url https://templates.moukaeritai.work/
           python -m cProfile -o profile/results/translation-reader.prof \
             site-source/scripts/finalize_translation_reader.py \
             --site-root profile/translation-profile-site \
             --translation-map profile/empty-translation-publication.json \
+            --availability profile/empty-availability.json \
+            --coverage-inventory profile/empty-inventory.json \
             --canonical-url https://templates.moukaeritai.work/
           python site-source/scripts/site_build_profile.py profile-summary \
             --profile profile/results/translation-reader.prof \

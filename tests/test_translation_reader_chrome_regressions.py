@@ -18,6 +18,8 @@ from finalize_translation_reader import (  # noqa: E402
 )
 from site_chrome_locales import SITE_CHROME_LOCALES, load_site_chrome_locales  # noqa: E402
 
+from tests.translation_availability_fixture import finalize
+
 
 HTML = """<!doctype html>
 <html lang="en">

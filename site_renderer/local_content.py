@@ -51,6 +51,13 @@ def fill(site_root,docs_root,documents,nav,provider_translations,coverage,output
     write(output/'translation-publication.json',translations)
     write(output/'translation-coverage.json',coverage)
     write(output/'site-translation-coverage.json',local_coverage)
+    # Independent inventory comes from canonical reader documents and each
+    # authority's language model, never from the availability record subset.
+    write(output/'reader-coverage-inventory.json', {'schema_version': 1, 'coverage': [
+        {'publication': d['publication'], 'canonical_destination': d['destination'], 'language': language}
+        for d in documents
+        for language in (local_coverage if d['slot'] else coverage)['languages']
+    ]})
     # Existing label projection is shared; no provider source or manifest enters this stage.
     label_path=output/'reader-navigation-locales.json';write(label_path,nav['locale_labels'])
     labels=load_overlays(label_path,nav['navigation'])

@@ -244,7 +244,7 @@ def render_snapshot(*,bundle,site_root,output,identity,site_revision,parent_iden
         guided_locales.generate_from_bundle(repository,graph,overlays,reader_translations,published,site,build/'guided-locale-publication.json')
         run(site_root,'finalize_site_metadata.py','--site-root',site/'guided','--canonical-url',public_url)
         run(site_root,'render_website_metadata.py','--repository',site_root,'--site-root',site)
-        run(site_root,'finalize_translation_reader.py','--site-root',site,'--translation-map',build/'translation-publication.json','--canonical-url',public_url)
+        run(site_root,'finalize_translation_reader.py','--site-root',site,'--translation-map',build/'translation-publication.json','--canonical-url',public_url,'--availability',build/'translation-coverage.json','--availability',build/'site-translation-coverage.json','--coverage-inventory',build/'reader-coverage-inventory.json')
         run(site_root,'validate_translation_pairs.py','--site-root',site,'--translation-map',build/'translation-publication.json','--canonical-url',public_url)
         run(site_root,'finalize_guided_locales.py','--site-root',site,'--pair-map',build/'guided-locale-publication.json','--canonical-url',public_url)
         run(site_root,'finalize_glossary_annotations.py','--site-root',site,'--glossary',site/'glossary/index.json')
