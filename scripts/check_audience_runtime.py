@@ -26,6 +26,7 @@ def check(
     channel: str | None = "chrome",
 ) -> dict:
     from playwright.sync_api import sync_playwright
+    from scripts.check_search_history import _open_search
 
     model = check_artifact(site_root, publication_roots)
     documents = model['documents']
@@ -128,6 +129,51 @@ def check(
             context = browser.new_context(service_workers='block'); page=context.new_page()
             page.goto(base+r); state(page, documents[d]['primary']); context.close()
             results.append({'translation_aliases': len(translated), 'maintain_direct': r})
+            # A filtered search owns the mounted result list even after its anchors disappear;
+            # returning to All must release that same empty list back to native semantics.
+            context = browser.new_context(service_workers='block'); page=context.new_page()
+            page.goto(base + '/composition/architecture/composer-mvp/?audience=maintain'); state(page, 'maintain')
+            _open_search(page)
+            search = page.locator('input[role="combobox"]').first
+            select = page.locator('[data-audience-search-filter] select').first
+            select.wait_for()
+            search.fill('policy')
+            page.wait_for_function("""() => {
+                const root=[...document.body.children].map(h=>h.shadowRoot).find(r=>r?.querySelector('input[role=combobox]'));
+                return !!root?.querySelector('ol a[href]:not([data-site-search-history] a)');
+            }""")
+            select.select_option('maintain')
+            page.wait_for_function("""() => {
+                const root=[...document.body.children].map(h=>h.shadowRoot).find(r=>r?.querySelector('input[role=combobox]'));
+                const input=root?.querySelector('input[role=combobox]');
+                const ids=(input?.getAttribute('aria-controls')||'').split(/\s+/).filter(Boolean);
+                return ids.some(id => root.getElementById(id)?.getAttribute('role') === 'listbox');
+            }""")
+            result_list_id = page.evaluate("""() => {
+                const root=[...document.body.children].map(h=>h.shadowRoot).find(r=>r?.querySelector('input[role=combobox]'));
+                const input=root.querySelector('input[role=combobox]');
+                return (input.getAttribute('aria-controls')||'').split(/\s+/).filter(Boolean)
+                    .find(id => root.getElementById(id)?.getAttribute('role') === 'listbox') || null;
+            }""")
+            assert result_list_id, 'filtered search did not expose a controlled result list'
+            search.fill('zzzzs5nomatcheszzzz')
+            page.wait_for_function("""id => {
+                const root=[...document.body.children].map(h=>h.shadowRoot).find(r=>r?.querySelector('input[role=combobox]'));
+                const input=root?.querySelector('input[role=combobox]');
+                const list=root?.getElementById(id);
+                const anchors=list ? [...list.querySelectorAll('a[href]')].filter(a=>!a.closest('[data-site-search-history]')) : [];
+                const controls=(input?.getAttribute('aria-controls')||'').split(/\s+/).filter(Boolean);
+                return !!list && anchors.length === 0 && list.getAttribute('role') === 'listbox' && controls.includes(id);
+            }""", arg=result_list_id)
+            select.select_option('all')
+            page.wait_for_function("""id => {
+                const root=[...document.body.children].map(h=>h.shadowRoot).find(r=>r?.querySelector('input[role=combobox]'));
+                const input=root?.querySelector('input[role=combobox]');
+                const list=root?.getElementById(id);
+                return !!list && !list.hasAttribute('role') && !input.hasAttribute('aria-controls');
+            }""", arg=result_list_id)
+            results.append({'search_empty_result_lifecycle': 'filtered retained listbox -> all native semantics'})
+            context.close()
             # Offline reload uses the actual registered worker and precached projection/controller.
             context = browser.new_context(); page=context.new_page()
             page.goto(base+'/policy/contributing/'); state(page,'maintain')
