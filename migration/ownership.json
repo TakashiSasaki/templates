@@ -1,0 +1,1991 @@
+{
+  "schema_version": 1,
+  "audited_site": "d22657def1e706e07e9da80d3dcb0e91627ec39b",
+  "classification_note": "Mixed responsibilities and unresolved paths are explicitly ambiguous; see MIGRATION.md for required boundary decisions. Provider canonical sources remain in their independent histories.",
+  "paths": [
+    {
+      "path": ".agent-policy.lock",
+      "intended_owner": "Policy-owned semantics / Site consumer projection"
+    },
+    {
+      "path": ".agent-policy.yml",
+      "intended_owner": "Policy-owned semantics / Site consumer projection"
+    },
+    {
+      "path": ".github/workflows/audience-browser-focused.yml",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": ".github/workflows/build-pages.yml",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": ".github/workflows/check-agent-policy.yml",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": ".github/workflows/check-publication-freshness.yml",
+      "intended_owner": "future Integration-owned (split presentation if mixed)"
+    },
+    {
+      "path": ".github/workflows/ci-performance-report.yml",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": ".github/workflows/classify.yml",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": ".github/workflows/composition-real-browser.yml",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": ".github/workflows/composition-unittest-timing-report.yml",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": ".github/workflows/deploy-pages.yml",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": ".github/workflows/mobile-visual-regression.yml",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": ".github/workflows/provider-coexistence.yml",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": ".github/workflows/publication-contract-v4.yml",
+      "intended_owner": "future Integration-owned (split presentation if mixed)"
+    },
+    {
+      "path": ".github/workflows/publication-materialization.yml",
+      "intended_owner": "future Integration-owned (split presentation if mixed)"
+    },
+    {
+      "path": ".github/workflows/reference-consumer.yml",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": ".github/workflows/search-history-regression.yml",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": ".github/workflows/site-build-detailed-profile.yml",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": ".github/workflows/site-composition-playground-cross-authority.yml",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": ".github/workflows/site-composition-playground-explain.yml",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": ".github/workflows/site-composition-playground.yml",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": ".github/workflows/site-full-qualification.yml",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": ".github/workflows/site-producer.yml",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": ".github/workflows/validate-website.yml",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": ".gitignore",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "AGENTS.md",
+      "intended_owner": "Policy-owned semantics / Site consumer projection"
+    },
+    {
+      "path": "FRESHNESS.md",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "GLOSSARY.md",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "GLOSSARY_INVENTORY.md",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "LANGUAGE.md",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "MAINTENANCE.md",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "PUBLICATION_FRESHNESS.md",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "PUBLICATION_STAGING.md",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "PUBLISHING.md",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "PWA.md",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "README.md",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "agent.json",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "assets/agent.json",
+      "intended_owner": "future Site presentation/runtime-owned"
+    },
+    {
+      "path": "assets/app.webmanifest",
+      "intended_owner": "future Site presentation/runtime-owned"
+    },
+    {
+      "path": "assets/audience-runtime.json",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "assets/icon-180.png",
+      "intended_owner": "future Site presentation/runtime-owned"
+    },
+    {
+      "path": "assets/icon-192.png",
+      "intended_owner": "future Site presentation/runtime-owned"
+    },
+    {
+      "path": "assets/icon-512.png",
+      "intended_owner": "future Site presentation/runtime-owned"
+    },
+    {
+      "path": "assets/icon.svg",
+      "intended_owner": "future Site presentation/runtime-owned"
+    },
+    {
+      "path": "assets/images/icon-policy.svg",
+      "intended_owner": "future Site presentation/runtime-owned"
+    },
+    {
+      "path": "assets/images/icon-skill.svg",
+      "intended_owner": "future Site presentation/runtime-owned"
+    },
+    {
+      "path": "assets/images/icon-web.svg",
+      "intended_owner": "future Site presentation/runtime-owned"
+    },
+    {
+      "path": "assets/images/landing-architecture.svg",
+      "intended_owner": "future Site presentation/runtime-owned"
+    },
+    {
+      "path": "assets/javascripts/audience-context.js",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "assets/javascripts/audience-search.js",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "assets/javascripts/audience-shell.js",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "assets/javascripts/composition-playground-explain.js",
+      "intended_owner": "future Site presentation/runtime-owned"
+    },
+    {
+      "path": "assets/javascripts/composition-playground-webmcp.js",
+      "intended_owner": "future Site presentation/runtime-owned"
+    },
+    {
+      "path": "assets/javascripts/composition-playground.js",
+      "intended_owner": "future Site presentation/runtime-owned"
+    },
+    {
+      "path": "assets/javascripts/glossary-inline.js",
+      "intended_owner": "future Site presentation/runtime-owned"
+    },
+    {
+      "path": "assets/javascripts/guided-copy.js",
+      "intended_owner": "future Site presentation/runtime-owned"
+    },
+    {
+      "path": "assets/javascripts/pwa.js",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "assets/javascripts/reader-navigation.js",
+      "intended_owner": "future Site presentation/runtime-owned"
+    },
+    {
+      "path": "assets/javascripts/repository-browser.js",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "assets/javascripts/repository-tree-viewer.js",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "assets/javascripts/search-history.js",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "assets/reference-consumer.json",
+      "intended_owner": "future Site presentation/runtime-owned"
+    },
+    {
+      "path": "assets/schemas/agent-bootstrap.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned"
+    },
+    {
+      "path": "assets/service-worker.js",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "assets/site-chrome-locales.json",
+      "intended_owner": "future Site presentation/runtime-owned"
+    },
+    {
+      "path": "assets/stylesheets/composition-playground.css",
+      "intended_owner": "future Site presentation/runtime-owned"
+    },
+    {
+      "path": "assets/stylesheets/extra.css",
+      "intended_owner": "future Site presentation/runtime-owned"
+    },
+    {
+      "path": "assets/stylesheets/freshness-status.css",
+      "intended_owner": "future Site presentation/runtime-owned"
+    },
+    {
+      "path": "assets/stylesheets/glossary-inline.css",
+      "intended_owner": "future Site presentation/runtime-owned"
+    },
+    {
+      "path": "assets/stylesheets/landing-cover.css",
+      "intended_owner": "future Site presentation/runtime-owned"
+    },
+    {
+      "path": "assets/stylesheets/landing-shell.css",
+      "intended_owner": "future Site presentation/runtime-owned"
+    },
+    {
+      "path": "assets/stylesheets/mobile-density.css",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "assets/stylesheets/translation-reader.css",
+      "intended_owner": "future Site presentation/runtime-owned"
+    },
+    {
+      "path": "composition.json",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "contracts/browser-identity.json",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "contracts/document-metadata.json",
+      "intended_owner": "future Site presentation/runtime-owned"
+    },
+    {
+      "path": "contracts/implementation-evidence.json",
+      "intended_owner": "future Site presentation/runtime-owned"
+    },
+    {
+      "path": "contracts/lifecycle-checkpoints.json",
+      "intended_owner": "future Site presentation/runtime-owned"
+    },
+    {
+      "path": "contracts/manifest.json",
+      "intended_owner": "future Site presentation/runtime-owned"
+    },
+    {
+      "path": "contracts/pwa-manifest.json",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "contracts/pwa-offline.json",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "contracts/pwa-update.json",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "contracts/routes.json",
+      "intended_owner": "future Site presentation/runtime-owned"
+    },
+    {
+      "path": "contracts/site-discovery.json",
+      "intended_owner": "future Site presentation/runtime-owned"
+    },
+    {
+      "path": "contracts/site-structure.json",
+      "intended_owner": "future Site presentation/runtime-owned"
+    },
+    {
+      "path": "contracts/viewports.json",
+      "intended_owner": "future Site presentation/runtime-owned"
+    },
+    {
+      "path": "docs/architecture/audience/README.md",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "docs/architecture/audience/audience-model.md",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "docs/architecture/audience/foundation-contract.md",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "docs/architecture/audience/future-candidates.json",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "docs/architecture/audience/implementation-roadmap.md",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "docs/architecture/audience/migration-matrix.json",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "docs/architecture/audience/migration-matrix.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "docs/architecture/audience/reconciliation.md",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "docs/architecture/audience/target-information-architecture.md",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "docs/architecture/audience/visible-ux-contract.md",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "docs/architecture/composition-state.md",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "docs/architecture/contract-evolution.md",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "docs/architecture/implementation-evidence.md",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "docs/architecture/lifecycle-checkpoints.md",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "docs/architecture/repository-topology.md",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "docs/architecture/workspace-topology.md",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "docs/authority-model.md",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "docs/capabilities.md",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "docs/ci/site-performance.md",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "docs/composition-playground.md",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "docs/glossary.yml",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "docs/index.md",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "docs/landing.md",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "docs/lifecycle.md",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "docs/migrations/implementation-evidence-v1-to-v2.md",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "docs/migrations/implementation-evidence-v2-to-v3.md",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "docs/migrations/implementation-evidence-v3-to-v4.md",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "docs/migrations/implementation-evidence-v4-to-v5.md",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "docs/migrations/implementation-evidence-v5-to-v6.md",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "docs/migrations/pwa-offline-v1-to-v2.md",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "docs/migrations/pwa-update-v1-to-v2.md",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "docs/migrations/routes-v1-to-v2.md",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "docs/migrations/routes-v2-to-v3.md",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "docs/migrations/routes-v3-to-v4.md",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "docs/migrations/routes-v4-to-v5.md",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "docs/policy-composition-coexistence.md",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "docs/publication-catalog.json",
+      "intended_owner": "future Integration-owned (split presentation if mixed)"
+    },
+    {
+      "path": "docs/repository-trees/composition.md",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "docs/repository-trees/index.md",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "docs/repository-trees/overview.md",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "docs/repository-trees/policy.md",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "docs/url-path-design-guidance.md",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "docs/webmcp.md",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "publication-sources.json",
+      "intended_owner": "future Integration-owned (split presentation if mixed)"
+    },
+    {
+      "path": "publication-staging.json",
+      "intended_owner": "future Integration-owned (split presentation if mixed)"
+    },
+    {
+      "path": "reader-navigation-locales.json",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "reference-consumer.json",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "requirements-build.lock",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "requirements-visual.txt",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "requirements.txt",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "schemas/agent-bootstrap.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned"
+    },
+    {
+      "path": "schemas/browser-identity.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "schemas/contract-manifest.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned"
+    },
+    {
+      "path": "schemas/document-metadata.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned"
+    },
+    {
+      "path": "schemas/implementation-evidence.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned"
+    },
+    {
+      "path": "schemas/lifecycle-checkpoints.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned"
+    },
+    {
+      "path": "schemas/pwa-manifest.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "schemas/pwa-offline.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "schemas/pwa-update.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "schemas/routes.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned"
+    },
+    {
+      "path": "schemas/site-discovery.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned"
+    },
+    {
+      "path": "schemas/site-structure.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned"
+    },
+    {
+      "path": "schemas/viewports.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned"
+    },
+    {
+      "path": "scripts/advance_publication_source.py",
+      "intended_owner": "future Integration-owned (split presentation if mixed)"
+    },
+    {
+      "path": "scripts/assemble_publications.py",
+      "intended_owner": "future Integration-owned (split presentation if mixed)"
+    },
+    {
+      "path": "scripts/assemble_publications_v3.py",
+      "intended_owner": "temporary migration compatibility"
+    },
+    {
+      "path": "scripts/audience_context.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "scripts/audience_presentation.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "scripts/check_audience_artifact.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "scripts/check_audience_runtime.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "scripts/check_audience_search_identity.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "scripts/check_composition_playground_browser.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "scripts/check_composition_playground_candidate_projection.mjs",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "scripts/check_composition_playground_cross_authority.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "scripts/check_composition_playground_final_browser.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "scripts/check_composition_playground_final_grid_browser.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "scripts/check_composition_playground_final_three_browser.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "scripts/check_composition_playground_latest_five_browser.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "scripts/check_composition_playground_webmcp_browser.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "scripts/check_glossary_locale_chrome.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "scripts/check_mobile_layout.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "scripts/check_mobile_layout_core.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "scripts/check_public_url_boundary.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "scripts/check_pwa_capabilities.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "scripts/check_pwa_commit_regressions.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "scripts/check_pwa_freshness.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "scripts/check_pwa_locale_chrome.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "scripts/check_pwa_slow_convergence.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "scripts/check_reference_pwa.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "scripts/check_reference_website.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "scripts/check_repository_browser_filter.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "scripts/check_search_history.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "scripts/check_search_history_review_regressions.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "scripts/classify_provider_coexistence.py",
+      "intended_owner": "future Integration-owned (split presentation if mixed)"
+    },
+    {
+      "path": "scripts/classify_publication_freshness.py",
+      "intended_owner": "future Integration-owned (split presentation if mixed)"
+    },
+    {
+      "path": "scripts/classify_site_browser_acceptance.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "scripts/classify_site_ci.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "scripts/consume_site_build_artifact.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "scripts/fetch_base_site_artifact.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "scripts/finalize_glossary_annotations.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "scripts/finalize_guided_locales.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "scripts/finalize_site_metadata.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "scripts/finalize_translation_reader.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "scripts/generate_agent_bootstrap.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "scripts/generate_freshness_metadata.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "scripts/generate_glossary.py",
+      "intended_owner": "future Integration-owned (split presentation if mixed)"
+    },
+    {
+      "path": "scripts/generate_glossary_viewer.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "scripts/generate_index_navigation.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "scripts/generate_index_navigation_base.py",
+      "intended_owner": "future Integration-owned (split presentation if mixed)"
+    },
+    {
+      "path": "scripts/generate_index_navigation_locale_viewer.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "scripts/generate_index_navigation_locales.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "scripts/generate_index_navigation_viewer.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "scripts/generate_repository_browser.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "scripts/generate_repository_browser_composition.py",
+      "intended_owner": "temporary migration compatibility"
+    },
+    {
+      "path": "scripts/generate_repository_file_previews.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "scripts/generate_repository_file_previews_composition.py",
+      "intended_owner": "temporary migration compatibility"
+    },
+    {
+      "path": "scripts/generate_repository_trees.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "scripts/generate_repository_trees_composition.py",
+      "intended_owner": "temporary migration compatibility"
+    },
+    {
+      "path": "scripts/glossary.py",
+      "intended_owner": "future Integration-owned (split presentation if mixed)"
+    },
+    {
+      "path": "scripts/glossary_annotation.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "scripts/local_qualification_capsule.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "scripts/materialize_publication_assets.py",
+      "intended_owner": "future Integration-owned (split presentation if mixed)"
+    },
+    {
+      "path": "scripts/materialize_publication_staging.py",
+      "intended_owner": "future Integration-owned (split presentation if mixed)"
+    },
+    {
+      "path": "scripts/prepare_repository_tree_publication.py",
+      "intended_owner": "future Integration-owned (split presentation if mixed)"
+    },
+    {
+      "path": "scripts/prepare_site_metadata.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "scripts/publication_contract.py",
+      "intended_owner": "future Integration-owned (split presentation if mixed)"
+    },
+    {
+      "path": "scripts/publication_contract_v4.py",
+      "intended_owner": "future Integration-owned (split presentation if mixed)"
+    },
+    {
+      "path": "scripts/publication_link_rewriter.py",
+      "intended_owner": "future Integration-owned (split presentation if mixed)"
+    },
+    {
+      "path": "scripts/publish_provider_translations.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "scripts/publish_translations.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "scripts/pwa_evidence_targets.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "scripts/pwa_failure_evidence.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "scripts/reader_navigation_locales.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "scripts/render_reference_consumer.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "scripts/render_website_metadata.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "scripts/report_composition_unittest_timing.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "scripts/resolve_publication_sources.py",
+      "intended_owner": "future Integration-owned (split presentation if mixed)"
+    },
+    {
+      "path": "scripts/resolve_site_checkout.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "scripts/run_composition_navigation.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "scripts/run_core_tests.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "scripts/run_site_preflight.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "scripts/site_build_artifact.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "scripts/site_build_profile.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "scripts/site_chrome_locales.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "scripts/site_website_contract.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "scripts/translation_coverage.py",
+      "intended_owner": "future Integration-owned (split presentation if mixed)"
+    },
+    {
+      "path": "scripts/translation_fragment_reconciliation.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "scripts/translation_link_identity.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "scripts/translation_link_selection.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "scripts/translation_manifest.py",
+      "intended_owner": "future Integration-owned (split presentation if mixed)"
+    },
+    {
+      "path": "scripts/translation_reader_metadata.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "scripts/validate_audience_inventory.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "scripts/validate_provider_coexistence.py",
+      "intended_owner": "future Integration-owned (split presentation if mixed)"
+    },
+    {
+      "path": "scripts/validate_site_links.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "scripts/validate_translation_pairs.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "scripts/validate_website_contracts.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "scripts/validate_website_evidence.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "scripts/verify_site_full_qualification.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "scripts/website_evidence_targets.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "scripts/write_publication_provenance.py",
+      "intended_owner": "future Integration-owned (split presentation if mixed)"
+    },
+    {
+      "path": "site-manifest.json",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/composition-playground-explain.test.mjs",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/composition-playground-final-remediation.test.mjs",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/composition-playground-final-three-review.test.mjs",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/composition-playground-hash-copy-review.test.mjs",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/composition-playground-latest-five-review.test.mjs",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/composition-playground-latest-review.test.mjs",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/composition-playground-latest-two-review.test.mjs",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/composition-playground-material-path-scope.test.mjs",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/composition-playground-root-reachability.test.mjs",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/composition-playground-topology.test.mjs",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/composition-playground.test.mjs",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/fixtures/composition-playground-v1-explain.json",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/fixtures/composition-playground-v1.json",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/publication_context.py",
+      "intended_owner": "future Integration-owned (split presentation if mixed)"
+    },
+    {
+      "path": "tests/test_advance_publication_source.py",
+      "intended_owner": "future Integration-owned (split presentation if mixed)"
+    },
+    {
+      "path": "tests/test_advance_publication_source_guards.py",
+      "intended_owner": "future Integration-owned (split presentation if mixed)"
+    },
+    {
+      "path": "tests/test_agent_bootstrap_locked_providers.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_agent_bootstrap_manifest.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_agent_bootstrap_policy_migration_routing.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_agent_bootstrap_review_regressions.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_agent_skills.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_anti_stall_reader_projection.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_assembly_materialization_boundary.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_assembly_review_regressions.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_audience_artifact_integration.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "tests/test_audience_context.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "tests/test_audience_inventory.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "tests/test_audience_manifest.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "tests/test_audience_manifest_schema_version_type.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "tests/test_audience_presentation.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "tests/test_audience_runtime_js_fail_neutral.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "tests/test_authority_model.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_browser_priority_evidence.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "tests/test_build_pages_reusable_workflow.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_build_provenance.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_canonical_manifest_consumer_boundaries.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_catalog_architecture_translation_integration.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_catalog_v3_entrypoints.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_check_audience_runtime.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "tests/test_coexistence_validation_checklist.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_composer_architecture_publication_cutover.py",
+      "intended_owner": "future Integration-owned (split presentation if mixed)"
+    },
+    {
+      "path": "tests/test_composer_mvp_translation_integration.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_composition_model_translation_integration.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_composition_navigation_entrypoint.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_composition_playground_cross_authority_workflow.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_composition_playground_document.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_composition_translation_reader_integration.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_composition_unittest_timing_boundaries.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_composition_unittest_timing_nonfinite.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_composition_unittest_timing_report.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_composition_unittest_timing_schema_types.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_composition_unittest_timing_workflow.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_consumer_readme_entrypoint.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_deployment_site_metadata.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_duplicate_json_members.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_fetch_base_site_artifact.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_finalize_glossary_annotations.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "tests/test_finalize_guided_locales.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "tests/test_focused_audience_browser_workflow.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "tests/test_freshness_contract_verifier.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_freshness_metadata.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_freshness_metadata_single_validation.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_freshness_review_regressions.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_generated_contract_manifest_translation_integration.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_glossary.py",
+      "intended_owner": "future Integration-owned (split presentation if mixed)"
+    },
+    {
+      "path": "tests/test_glossary_annotation.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_glossary_catalog_v3_only.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_glossary_cli_contract.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_glossary_codex_regressions.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_glossary_enum_types.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_glossary_external.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_glossary_inline_assets.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_glossary_inline_injection.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_glossary_inline_runtime_contract.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_glossary_inventory.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_glossary_locale_chrome.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_glossary_locked_providers.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_glossary_offline_cache_contract.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_glossary_viewer.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "tests/test_glossary_viewer_boundaries.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "tests/test_glossary_viewer_path_aliasing.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "tests/test_glossary_viewer_review_feedback.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "tests/test_guided_copy_controls.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_guided_copy_review_fixes.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_guided_copy_second_review.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_guided_locale_workflow.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_historical_navigation.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_human_first_onboarding.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_index_navigation.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_index_navigation_commonmark_host_followup.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_index_navigation_followup_review.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_index_navigation_git_replace.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_index_navigation_input_boundaries.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_index_navigation_integration.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_index_navigation_integration_review_20260812.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_index_navigation_integration_review_20260812_b.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_index_navigation_latest_review.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_index_navigation_locale_viewer.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "tests/test_index_navigation_locales.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_index_navigation_locked_providers.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_index_navigation_markdown_url_review.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_index_navigation_review_boundaries.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_index_navigation_review_round_20260811.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_index_navigation_review_round_20260811_b.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_index_navigation_review_round_20260811_c.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_index_navigation_review_round_20260811_d.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_index_navigation_review_round_20260811_e.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_index_navigation_review_round_20260811_f.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_index_navigation_review_round_20260811_g.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_index_navigation_review_round_20260811_h.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_index_navigation_review_round_20260811_i.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_index_navigation_review_round_20260811_j.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_index_navigation_review_round_20260811_k.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_index_navigation_review_round_20260811_l.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_index_navigation_review_round_20260811_m.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_index_navigation_review_round_20260812_n.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_index_navigation_review_round_20260812_o.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_index_navigation_review_round_20260812_p.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_index_navigation_review_round_20260812_q.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_index_navigation_review_round_20260812_r.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_index_navigation_review_round_20260812_s.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_index_navigation_review_round_20260812_t.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_index_navigation_review_round_20260813_a.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_index_navigation_viewer.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "tests/test_index_navigation_viewer_hardening.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "tests/test_index_navigation_viewer_heading_edges.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "tests/test_index_navigation_viewer_latest_review.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "tests/test_index_navigation_viewer_page_paths.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "tests/test_index_navigation_viewer_render_indexing.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "tests/test_index_navigation_viewer_review_round_20260812.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "tests/test_index_navigation_viewer_review_round_20260812_b.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "tests/test_index_navigation_viewer_review_round_20260812_c.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "tests/test_index_navigation_viewer_review_round_20260812_d.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "tests/test_index_navigation_viewer_review_round_20260812_e.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "tests/test_index_navigation_viewer_review_round_20260812_f.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "tests/test_index_navigation_viewer_review_round_20260812_g.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "tests/test_index_navigation_viewer_review_round_20260812_h.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "tests/test_japanese_artifact_entrypoints.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_landing_page.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_ledger_overview.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_legacy_branch_retirement.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_local_qualification_capsule.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_materialize_publication_assets.py",
+      "intended_owner": "future Integration-owned (split presentation if mixed)"
+    },
+    {
+      "path": "tests/test_materialize_publication_assets_review_followup.py",
+      "intended_owner": "future Integration-owned (split presentation if mixed)"
+    },
+    {
+      "path": "tests/test_mobile_layout.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "tests/test_mobile_layout_composition_paths.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "tests/test_optional_document_source_type.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_page_path_breadcrumbs.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_pages_workflow_boundary.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_policy_concepts_promotion.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_policy_maintainer_promotion.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_policy_navigation_publication.py",
+      "intended_owner": "future Integration-owned (split presentation if mixed)"
+    },
+    {
+      "path": "tests/test_policy_navigation_viewer_layers.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "tests/test_portal_publication_policy.py",
+      "intended_owner": "future Integration-owned (split presentation if mixed)"
+    },
+    {
+      "path": "tests/test_provider_coexistence_classifier.py",
+      "intended_owner": "future Integration-owned (split presentation if mixed)"
+    },
+    {
+      "path": "tests/test_provider_coexistence_integration.py",
+      "intended_owner": "future Integration-owned (split presentation if mixed)"
+    },
+    {
+      "path": "tests/test_provider_translation_fragment_safety.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_public_url_boundary.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_publication_assets_explicit.py",
+      "intended_owner": "future Integration-owned (split presentation if mixed)"
+    },
+    {
+      "path": "tests/test_publication_catalog_schema.py",
+      "intended_owner": "future Integration-owned (split presentation if mixed)"
+    },
+    {
+      "path": "tests/test_publication_contract.py",
+      "intended_owner": "future Integration-owned (split presentation if mixed)"
+    },
+    {
+      "path": "tests/test_publication_contract_v4.py",
+      "intended_owner": "future Integration-owned (split presentation if mixed)"
+    },
+    {
+      "path": "tests/test_publication_freshness.py",
+      "intended_owner": "future Integration-owned (split presentation if mixed)"
+    },
+    {
+      "path": "tests/test_publication_freshness_workflow.py",
+      "intended_owner": "future Integration-owned (split presentation if mixed)"
+    },
+    {
+      "path": "tests/test_publication_link_rewriter.py",
+      "intended_owner": "future Integration-owned (split presentation if mixed)"
+    },
+    {
+      "path": "tests/test_publication_link_rewriter_shared_audience.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "tests/test_publication_provenance.py",
+      "intended_owner": "future Integration-owned (split presentation if mixed)"
+    },
+    {
+      "path": "tests/test_publication_revision_authority.py",
+      "intended_owner": "future Integration-owned (split presentation if mixed)"
+    },
+    {
+      "path": "tests/test_publication_sources.py",
+      "intended_owner": "future Integration-owned (split presentation if mixed)"
+    },
+    {
+      "path": "tests/test_publication_staging.py",
+      "intended_owner": "future Integration-owned (split presentation if mixed)"
+    },
+    {
+      "path": "tests/test_publication_staging_commit.py",
+      "intended_owner": "future Integration-owned (split presentation if mixed)"
+    },
+    {
+      "path": "tests/test_publication_staging_qualification.py",
+      "intended_owner": "future Integration-owned (split presentation if mixed)"
+    },
+    {
+      "path": "tests/test_pwa_assets.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "tests/test_pwa_capability_regression.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "tests/test_pwa_commit_regressions.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "tests/test_pwa_document_cache_review_regressions.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "tests/test_pwa_fresh_review_regressions.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "tests/test_pwa_locale_chrome.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "tests/test_pwa_method_boundary.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "tests/test_pwa_reader_projection.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "tests/test_pwa_slow_convergence.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "tests/test_reader_navigation_locale_inventory.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_reader_navigation_locale_rejections.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_reader_navigation_locales.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_reader_navigation_runtime_contract.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_reference_browser_contracts.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "tests/test_reference_consumer.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_reference_evidence_commands.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_repository_browser.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "tests/test_repository_browser_deep_links.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "tests/test_repository_browser_filter.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "tests/test_repository_browser_filter_acceptance.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "tests/test_repository_browser_filter_contract.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "tests/test_repository_browser_mobile.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "tests/test_repository_browser_modern_listener.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "tests/test_repository_browser_post_write_validation.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "tests/test_repository_browser_sharing.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "tests/test_repository_file_previews.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_repository_tree_manifest_schema_version.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_repository_tree_preparation_symlinks.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_repository_trees.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_routes_v5_promotion.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_run_core_tests.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_search_history_observer_regression.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "tests/test_search_history_runtime.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "tests/test_session6_site_maintainer_publication.py",
+      "intended_owner": "future Integration-owned (split presentation if mixed)"
+    },
+    {
+      "path": "tests/test_site_acceptance_routing_evidence_reuse.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_site_assembly.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_site_browser_acceptance_classifier.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "tests/test_site_browser_qualification_workflows.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "tests/test_site_build_artifact.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_site_build_artifact_review_regression.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_site_build_profile.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_site_chrome_locales.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_site_ci_classifier.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_site_ci_classifier_audience.py",
+      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+    },
+    {
+      "path": "tests/test_site_glossary_first_expansion.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_site_glossary_second_expansion.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_site_links.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_site_links_origin_fast_path.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_site_links_review_regressions.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_site_metadata_canonical_fast_path.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_site_metadata_reference_consumer.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_site_owned_translations.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_site_preflight.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_site_qualification_dag.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_site_website_contract_schema_version.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_stacked_site_documentation_workflow.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_system_chrome_workflows.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_topology_publication_routing.py",
+      "intended_owner": "future Integration-owned (split presentation if mixed)"
+    },
+    {
+      "path": "tests/test_translation_availability.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_translation_fragment_reconciliation.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_translation_link_selection.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_translation_manifest.py",
+      "intended_owner": "future Integration-owned (split presentation if mixed)"
+    },
+    {
+      "path": "tests/test_translation_pair_validation.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_translation_publication.py",
+      "intended_owner": "future Integration-owned (split presentation if mixed)"
+    },
+    {
+      "path": "tests/test_translation_reader.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_translation_reader_chrome_regressions.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_translation_reader_metadata.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_verify_site_full_qualification.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "tests/test_webmcp_reader_integration.py",
+      "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": "translations/README.md",
+      "intended_owner": "canonical-owner-owned (Site or future Integration according to canonical document)"
+    },
+    {
+      "path": "translations/ja/docs/capabilities.md",
+      "intended_owner": "canonical-owner-owned (Site or future Integration according to canonical document)"
+    },
+    {
+      "path": "translations/ja/docs/landing.md",
+      "intended_owner": "canonical-owner-owned (Site or future Integration according to canonical document)"
+    },
+    {
+      "path": "translations/ja/docs/lifecycle.md",
+      "intended_owner": "canonical-owner-owned (Site or future Integration according to canonical document)"
+    },
+    {
+      "path": "translations/ja/docs/policy-composition-coexistence.md",
+      "intended_owner": "canonical-owner-owned (Site or future Integration according to canonical document)"
+    },
+    {
+      "path": "translations/ja/docs/webmcp.md",
+      "intended_owner": "canonical-owner-owned (Site or future Integration according to canonical document)"
+    },
+    {
+      "path": "translations/manifest.json",
+      "intended_owner": "canonical-owner-owned (Site or future Integration according to canonical document)"
+    },
+    {
+      "path": "zensical.template.toml",
+      "intended_owner": "ambiguous / requires architectural decision"
+    }
+  ]
+}
