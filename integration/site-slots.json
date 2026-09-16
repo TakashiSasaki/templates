@@ -1,0 +1,131 @@
+{
+  "schema_version": 1,
+  "documents": [
+    {
+      "id": "portal-home",
+      "source": "docs/landing.md",
+      "optional": false,
+      "home": true
+    },
+    {
+      "id": "policy-composition-coexistence",
+      "source": "docs/policy-composition-coexistence.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "composition-playground",
+      "source": "docs/composition-playground.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "capabilities-overview",
+      "source": "docs/capabilities.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "webmcp-guide",
+      "source": "docs/webmcp.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "lifecycle-overview",
+      "source": "docs/lifecycle.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "repository-topology-overview",
+      "source": "docs/architecture/repository-topology.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "workspace-topology-overview",
+      "source": "docs/architecture/workspace-topology.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "site-maintenance",
+      "source": "MAINTENANCE.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "authority-model",
+      "source": "docs/authority-model.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "integrated-publication",
+      "source": "PUBLISHING.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "publication-staging",
+      "source": "PUBLICATION_STAGING.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "publication-freshness",
+      "source": "PUBLICATION_FRESHNESS.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "runtime-freshness",
+      "source": "FRESHNESS.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "glossary-contract",
+      "source": "GLOSSARY.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "language-contract",
+      "source": "LANGUAGE.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "site-pwa-contract",
+      "source": "PWA.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "ci-performance",
+      "source": "docs/ci/site-performance.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "repository-trees",
+      "source": "docs/repository-trees/overview.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "repository-tree-composition",
+      "source": "docs/repository-trees/composition.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "repository-tree-policy",
+      "source": "docs/repository-trees/policy.md",
+      "optional": false,
+      "home": false
+    }
+  ]
+}

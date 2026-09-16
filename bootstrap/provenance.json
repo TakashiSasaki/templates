@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "repository": "TakashiSasaki/templates",
+  "initial_integration_revision": "f77e0e13ec1a316d6de3c38e59ab20f20ef94cb0",
+  "source_site_revision": "5c9bc645fe7f58d4bfed0cf0ae4d1d56ffbaf664",
+  "source_site_tree": "38933695c233ee4f8b3b10e5479edf91b38ecd1d",
+  "reviewed_providers": {
+    "composition": "8c6c1884fa97f3ef1ec6c1aa7deba4ad38c9f4ff",
+    "policy": "6023af1b6aed4a22407d9ca43106cd66cfee9fb6"
+  },
+  "selection": "landed Site reviewed publication lock; not provider branch heads",
+  "history_transfer": "none; independent root with materialized source snapshots",
+  "site_adoption": false,
+  "deployment": false
+}
