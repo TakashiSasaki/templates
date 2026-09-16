@@ -130,6 +130,11 @@ def check(
             primary_nav = page.locator('nav.md-nav--primary').first
             assert primary_nav.get_attribute('aria-label') == 'Use templates'
             navigate('/?audience=maintain', 'neutral')
+            page.wait_for_function("""expected => {
+                const nav = document.querySelector('nav.md-nav--primary');
+                return nav?.innerHTML === expected.html
+                    && nav.getAttribute('aria-label') === expected.aria_label;
+            }""", arg=native_neutral_nav)
             assert primary_nav.evaluate('nav => nav.innerHTML') == native_neutral_nav['html']
             assert primary_nav.get_attribute('aria-label') == native_neutral_nav['aria_label']
             assert page.evaluate("sessionStorage.getItem('templates-audience-context')") == 'use'
