@@ -65,6 +65,9 @@ def check(
             native_page = native_context.new_page()
             assert native_page.goto(base + '/?audience=maintain').status == 200
             state(native_page, 'neutral')
+            native_page.wait_for_function("""() =>
+                document.querySelector('nav.md-nav--primary')?.dataset.readerNavigationReady === '/'
+            """)
             native_primary_nav = native_page.locator('nav.md-nav--primary').first
             native_neutral_nav = {
                 'html': native_primary_nav.evaluate('nav => nav.innerHTML'),
@@ -90,7 +93,6 @@ def check(
             navigate('/web/', 'use')
             navigate('/policy/architecture/', 'use')
             navigate('/composition/architecture/composer-mvp/', 'use')
-            # Switch uses an actual delegated control, preserves fragment and unrelated history state.
             fragment = page.locator('h1').first.get_attribute('id')
             page.evaluate("""fragment => {
                 history.replaceState({...history.state, qualification: 42}, '', '#' + fragment);
@@ -103,7 +105,6 @@ def check(
             assert page.evaluate('history.state.qualification') == 42
             assert page.evaluate('!!window.audienceProbe')
             navigate('/policy/architecture/', 'maintain')
-            # Re-evaluate script + initialization and actual document$ emissions.
             before = page.evaluate('audienceProbe.events.length')
             page.add_script_tag(content=(site_root/'javascripts/audience-context.js').read_text())
             page.evaluate("TemplatesAudienceContext.init(); TemplatesAudienceContext.init(); dispatchEvent(new Event('pageshow'))")
@@ -114,24 +115,24 @@ def check(
             assert len(requests) == 1, f'duplicate runtime fetches: {requests}'
             primary_nav = page.locator('nav.md-nav--primary').first
             assert primary_nav.get_attribute('aria-label') == 'Use templates'
-            # Instant navigation to neutral restores the target page's exact native nav state.
             navigate('/?audience=maintain', 'neutral')
+            page.wait_for_function("""() =>
+                document.querySelector('nav.md-nav--primary')?.dataset.readerNavigationReady === '/'
+            """)
             assert primary_nav.evaluate('nav => nav.innerHTML') == native_neutral_nav['html']
             assert primary_nav.get_attribute('aria-label') == native_neutral_nav['aria_label']
             assert page.evaluate("sessionStorage.getItem('templates-audience-context')") == 'use'
             results.append({'instant_navigation': 'use/maintain/neutral, exact native nav restoration, shared journey, history, switch, fragment, repeated initialization passed'})
             context.close()
 
-            # Localized neutral restoration must wait for reader-navigation async work in the
-            # target runtime frame. Delay only the /ja/ frame's reader map so a premature
-            # snapshot would cache canonical navigation and fail after an explicit re-render.
             native_context = browser.new_context(service_workers='block')
             native_page = native_context.new_page()
             assert native_page.goto(base + '/ja/?audience=maintain').status == 200
             state(native_page, 'neutral')
-            native_page.wait_for_function("""() =>
-                document.querySelector('nav.md-nav--primary')?.dataset.readerNavigationLanguage === 'ja'
-            """)
+            native_page.wait_for_function("""() => {
+                const nav = document.querySelector('nav.md-nav--primary');
+                return nav?.dataset.readerNavigationLanguage === 'ja' && nav?.dataset.readerNavigationReady === '/ja/';
+            }""")
             native_primary_nav = native_page.locator('nav.md-nav--primary').first
             native_ja_nav = {
                 'html': native_primary_nav.evaluate('nav => nav.innerHTML'),
@@ -160,13 +161,15 @@ def check(
             page.wait_for_url(base + '/ja/?audience=maintain')
             state(page, 'neutral')
             primary_nav = page.locator('nav.md-nav--primary').first
-            page.wait_for_function("""() =>
-                document.querySelector('nav.md-nav--primary')?.dataset.readerNavigationLanguage === 'ja'
-            """)
+            page.wait_for_function("""() => {
+                const nav = document.querySelector('nav.md-nav--primary');
+                return nav?.dataset.readerNavigationLanguage === 'ja' && nav?.dataset.readerNavigationReady === '/ja/';
+            }""")
             assert delayed_reader_requests, 'localized native-navigation snapshot did not exercise delayed reader map'
             assert primary_nav.evaluate('nav => nav.innerHTML') == native_ja_nav['html']
             assert primary_nav.get_attribute('aria-label') == native_ja_nav['aria_label']
             page.evaluate('() => TemplatesAudienceShell.render()')
+            page.wait_for_function("""() => document.querySelector('nav.md-nav--primary')?.dataset.readerNavigationReady === '/ja/'""")
             assert primary_nav.evaluate('nav => nav.innerHTML') == native_ja_nav['html']
             assert primary_nav.get_attribute('aria-label') == native_ja_nav['aria_label']
             results.append({'localized_neutral_navigation': 'delayed reader map -> localized native snapshot remains stable across shell re-render'})
@@ -182,11 +185,9 @@ def check(
                 results.append({'switch_from': path, 'target': target, 'overview': overview})
                 context.close()
             context = browser.new_context(service_workers='block')
-            context.route('**/audience-runtime.json', lambda route: route.fulfill(
-                json={'schema_version': 99, 'audiences': ['admin']}))
+            context.route('**/audience-runtime.json', lambda route: route.fulfill(json={'schema_version': 99, 'audiences': ['admin']}))
             page = context.new_page(); page.goto(base + '/policy/contributing/'); state(page, 'neutral')
             context.close(); results.append({'invalid_projection': 'neutral, no fabricated membership'})
-            # Every actual translation alias retains the canonical membership model.
             translated = [(r,d) for r,d in model['routes'].items() if r.startswith('/ja/') and r.endswith('/')]
             assert translated, 'assembled audience map omitted published translation aliases'
             for r,d in translated:
@@ -195,8 +196,6 @@ def check(
             context = browser.new_context(service_workers='block'); page=context.new_page()
             page.goto(base+r); state(page, documents[d]['primary']); context.close()
             results.append({'translation_aliases': len(translated), 'maintain_direct': r})
-            # A filtered search owns keyboard/ARIA selection and the mounted result list;
-            # returning to All must clear selection and release that same list to native semantics.
             context = browser.new_context(service_workers='block'); page=context.new_page()
             page.goto(base + '/composition/architecture/composer-mvp/?audience=maintain'); state(page, 'maintain')
             _open_search(page)
@@ -254,9 +253,6 @@ def check(
             assert_filtered_search(require_active=True)
             search.press('ArrowUp')
             assert_filtered_search(require_active=True)
-            # The audience adapter must not own composing keys. Other native search listeners may
-            # prevent their default action, so assert propagation and adapter-state/navigation
-            # neutrality rather than a global defaultPrevented value.
             for key in ('ArrowDown', 'ArrowUp', 'Enter'):
                 before = filtered_search_state(); url = page.url
                 outcome = search.evaluate("""(input,key) => {
@@ -306,7 +302,6 @@ def check(
             }""", arg=result_list_id)
             results.append({'search_empty_result_lifecycle': 'filtered keyboard/IME/selection + stable IDs + retained listbox -> all native semantics'})
             context.close()
-            # Offline reload uses the actual registered worker and precached projection/controller.
             context = browser.new_context(); page=context.new_page()
             page.goto(base+'/policy/contributing/'); state(page,'maintain')
             page.evaluate('navigator.serviceWorker.ready')
