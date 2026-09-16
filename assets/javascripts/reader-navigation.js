@@ -13,35 +13,20 @@
   }
 
   function validStringMap(value) {
-    if (!value || typeof value !== "object" || Array.isArray(value)) {
-      return false;
-    }
+    if (!value || typeof value !== "object" || Array.isArray(value)) return false;
     return Object.entries(value).every(
       ([key, item]) => typeof key === "string" && key && typeof item === "string" && item,
     );
   }
 
   function validateRuntimeMap(model) {
-    if (
-      !model ||
-      model.schema_version !== 1 ||
-      model.canonical_language !== "en" ||
-      !Array.isArray(model.locales)
-    ) {
+    if (!model || model.schema_version !== 1 || model.canonical_language !== "en" || !Array.isArray(model.locales))
       throw new Error("Reader navigation runtime map is invalid");
-    }
     const seen = new Set();
     for (const locale of model.locales) {
-      if (
-        !locale ||
-        typeof locale.language !== "string" ||
-        locale.language === "en" ||
-        seen.has(locale.language) ||
-        !validStringMap(locale.labels) ||
-        !validStringMap(locale.routes)
-      ) {
+      if (!locale || typeof locale.language !== "string" || locale.language === "en" || seen.has(locale.language) ||
+          !validStringMap(locale.labels) || !validStringMap(locale.routes))
         throw new Error("Reader navigation locale record is invalid");
-      }
       seen.add(locale.language);
     }
     return model;
@@ -49,34 +34,24 @@
 
   function loadRuntimeMap() {
     if (!runtimePromise) {
-      runtimePromise = fetch(RUNTIME_MAP_URL, {
-        credentials: "same-origin",
-        cache: "no-cache",
-      })
-        .then((response) => {
-          if (!response.ok) {
-            throw new Error(`Reader navigation map request failed: ${response.status}`);
-          }
+      runtimePromise = fetch(RUNTIME_MAP_URL, {credentials: "same-origin", cache: "no-cache"})
+        .then(response => {
+          if (!response.ok) throw new Error(`Reader navigation map request failed: ${response.status}`);
           return response.json();
         })
         .then(validateRuntimeMap)
-        .catch((error) => {
-          runtimePromise = undefined;
-          throw error;
-        });
+        .catch(error => { runtimePromise = undefined; throw error; });
     }
     return runtimePromise;
   }
 
   function localeFor(model, language) {
-    return model.locales.find((locale) => locale.language === language);
+    return model.locales.find(locale => locale.language === language);
   }
 
   function replaceDirectText(element, replacement) {
     for (const node of element.childNodes) {
-      if (node.nodeType !== Node.TEXT_NODE || !node.nodeValue.trim()) {
-        continue;
-      }
+      if (node.nodeType !== Node.TEXT_NODE || !node.nodeValue.trim()) continue;
       const leading = node.nodeValue.match(/^\s*/)?.[0] || "";
       const trailing = node.nodeValue.match(/\s*$/)?.[0] || "";
       node.nodeValue = `${leading}${replacement}${trailing}`;
@@ -88,21 +63,14 @@
   function restoreNavigation(nav) {
     for (const element of nav.querySelectorAll("[data-reader-nav-canonical-label]")) {
       const canonical = element.dataset.readerNavCanonicalLabel;
-      if (!canonical) {
-        continue;
-      }
-      if (element.matches("label.md-nav__title")) {
-        replaceDirectText(element, canonical);
-      } else if (element.classList.contains("md-ellipsis")) {
-        element.textContent = canonical;
-      }
+      if (!canonical) continue;
+      if (element.matches("label.md-nav__title")) replaceDirectText(element, canonical);
+      else if (element.classList.contains("md-ellipsis")) element.textContent = canonical;
       delete element.dataset.readerNavCanonicalLabel;
     }
     for (const link of nav.querySelectorAll("a[data-reader-nav-canonical-href]")) {
       const canonicalHref = link.dataset.readerNavCanonicalHref;
-      if (canonicalHref) {
-        link.setAttribute("href", canonicalHref);
-      }
+      if (canonicalHref) link.setAttribute("href", canonicalHref);
       delete link.dataset.readerNavCanonicalHref;
     }
     delete nav.dataset.readerNavigationLanguage;
@@ -112,16 +80,30 @@
     nav.dataset.readerNavigationReady = window.location.pathname;
   }
 
+  function isAudienceProjection(nav) {
+    return Boolean(nav.querySelector(":scope > .audience-navigation"));
+  }
+
+  function releaseProjectedNavigation(nav) {
+    delete nav.dataset.readerNavigationLanguage;
+    delete nav.dataset.readerNavigationReady;
+  }
+
+  function restoreOrDefer(nav) {
+    if (isAudienceProjection(nav)) {
+      releaseProjectedNavigation(nav);
+      return;
+    }
+    restoreNavigation(nav);
+    markNavigationReady(nav);
+  }
+
   function localizeEllipsisLabels(nav, labels) {
     for (const element of nav.querySelectorAll(".md-ellipsis")) {
-      if (element.childElementCount !== 0) {
-        continue;
-      }
+      if (element.childElementCount !== 0) continue;
       const canonical = element.textContent.trim();
       const localized = labels[canonical];
-      if (!localized || localized === canonical) {
-        continue;
-      }
+      if (!localized || localized === canonical) continue;
       element.dataset.readerNavCanonicalLabel = canonical;
       element.textContent = localized;
     }
@@ -131,15 +113,10 @@
     for (const label of nav.querySelectorAll("label.md-nav__title")) {
       let canonical;
       for (const node of label.childNodes) {
-        if (node.nodeType === Node.TEXT_NODE && node.nodeValue.trim()) {
-          canonical = node.nodeValue.trim();
-          break;
-        }
+        if (node.nodeType === Node.TEXT_NODE && node.nodeValue.trim()) { canonical = node.nodeValue.trim(); break; }
       }
       const localized = canonical ? labels[canonical] : undefined;
-      if (!localized || localized === canonical) {
-        continue;
-      }
+      if (!localized || localized === canonical) continue;
       label.dataset.readerNavCanonicalLabel = canonical;
       replaceDirectText(label, localized);
     }
@@ -148,28 +125,22 @@
   function localizeLinks(nav, routes) {
     for (const link of nav.querySelectorAll("a.md-nav__link[href]")) {
       const rawHref = link.getAttribute("href");
-      if (!rawHref) {
-        continue;
-      }
+      if (!rawHref) continue;
       let target;
-      try {
-        target = new URL(rawHref, window.location.href);
-      } catch (_error) {
-        continue;
-      }
-      if (target.origin !== window.location.origin) {
-        continue;
-      }
+      try { target = new URL(rawHref, window.location.href); } catch (_error) { continue; }
+      if (target.origin !== window.location.origin) continue;
       const localizedPath = routes[target.pathname];
-      if (!localizedPath || localizedPath === target.pathname) {
-        continue;
-      }
+      if (!localizedPath || localizedPath === target.pathname) continue;
       link.dataset.readerNavCanonicalHref = rawHref;
       link.setAttribute("href", `${localizedPath}${target.search}${target.hash}`);
     }
   }
 
   function localizeNavigation(nav, locale) {
+    if (isAudienceProjection(nav)) {
+      releaseProjectedNavigation(nav);
+      return;
+    }
     restoreNavigation(nav);
     localizeEllipsisLabels(nav, locale.labels);
     localizeNestedTitles(nav, locale.labels);
@@ -181,19 +152,12 @@
   async function applyReaderNavigation() {
     const generation = ++applyGeneration;
     const initialNavigations = document.querySelectorAll(PRIMARY_NAV_SELECTOR);
-    if (!initialNavigations.length) {
-      return;
-    }
-    for (const nav of initialNavigations) {
-      delete nav.dataset.readerNavigationReady;
-    }
+    if (!initialNavigations.length) return;
+    for (const nav of initialNavigations) delete nav.dataset.readerNavigationReady;
 
     const initialLanguage = currentLanguage();
     if (!initialLanguage) {
-      for (const nav of initialNavigations) {
-        restoreNavigation(nav);
-        markNavigationReady(nav);
-      }
+      for (const nav of initialNavigations) restoreOrDefer(nav);
       return;
     }
 
@@ -203,48 +167,29 @@
     } catch (error) {
       if (generation === applyGeneration) {
         console.warn("Reader navigation localization unavailable", error);
-        for (const nav of document.querySelectorAll(PRIMARY_NAV_SELECTOR)) {
-          restoreNavigation(nav);
-          markNavigationReady(nav);
-        }
+        for (const nav of document.querySelectorAll(PRIMARY_NAV_SELECTOR)) restoreOrDefer(nav);
       }
       return;
     }
-
-    if (generation !== applyGeneration) {
-      return;
-    }
+    if (generation !== applyGeneration) return;
 
     const activeLanguage = currentLanguage();
     const currentNavigations = document.querySelectorAll(PRIMARY_NAV_SELECTOR);
     if (!activeLanguage) {
-      for (const nav of currentNavigations) {
-        restoreNavigation(nav);
-        markNavigationReady(nav);
-      }
+      for (const nav of currentNavigations) restoreOrDefer(nav);
       return;
     }
-
     const locale = localeFor(model, activeLanguage);
     if (!locale) {
-      for (const nav of currentNavigations) {
-        restoreNavigation(nav);
-        markNavigationReady(nav);
-      }
+      for (const nav of currentNavigations) restoreOrDefer(nav);
       return;
     }
-    for (const nav of currentNavigations) {
-      localizeNavigation(nav, locale);
-    }
+    for (const nav of currentNavigations) localizeNavigation(nav, locale);
   }
 
   window.TemplatesReaderNavigation = {loadRuntimeMap, currentLanguage, localeFor};
   void applyReaderNavigation();
   window.addEventListener("pageshow", () => void applyReaderNavigation());
   window.addEventListener("popstate", () => void applyReaderNavigation());
-
-  const navigationDocument = window.document$;
-  if (navigationDocument && typeof navigationDocument.subscribe === "function") {
-    navigationDocument.subscribe(() => void applyReaderNavigation());
-  }
+  window.document$?.subscribe(() => void applyReaderNavigation());
 })();
