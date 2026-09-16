@@ -84,7 +84,7 @@ def check(
             state(native_page, 'neutral')
             native_primary_nav = native_page.locator('nav.md-nav--primary').first
             native_neutral_nav = {
-                'html': native_primary_nav.evaluate('nav => nav.innerHTML'),
+                'fingerprint': localized_navigation_fingerprint(native_primary_nav),
                 'aria_label': native_primary_nav.get_attribute('aria-label'),
             }
             native_context.close()
@@ -130,12 +130,9 @@ def check(
             primary_nav = page.locator('nav.md-nav--primary').first
             assert primary_nav.get_attribute('aria-label') == 'Use templates'
             navigate('/?audience=maintain', 'neutral')
-            page.wait_for_function("""expected => {
-                const nav = document.querySelector('nav.md-nav--primary');
-                return nav?.innerHTML === expected.html
-                    && nav.getAttribute('aria-label') === expected.aria_label;
-            }""", arg=native_neutral_nav)
-            assert primary_nav.evaluate('nav => nav.innerHTML') == native_neutral_nav['html']
+            primary_nav.locator(':scope > .audience-navigation').wait_for(state='detached')
+            assert not primary_nav.locator(':scope > .audience-navigation').count()
+            assert localized_navigation_fingerprint(primary_nav) == native_neutral_nav['fingerprint']
             assert primary_nav.get_attribute('aria-label') == native_neutral_nav['aria_label']
             assert page.evaluate("sessionStorage.getItem('templates-audience-context')") == 'use'
             results.append({'instant_navigation': 'use/maintain/neutral, exact native nav restoration, shared journey, history, switch, fragment, repeated initialization passed'})
