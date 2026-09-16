@@ -104,12 +104,18 @@ PWA_PREFIXES = ("tests/test_pwa_",)
 
 # Core-only surfaces that only affect fast L1 unit/contract test execution.
 CORE_ONLY_EXACT_PATHS: frozenset[str] = frozenset()
-CORE_ONLY_PREFIXES: tuple[str, ...] = ()
+CORE_ONLY_PREFIXES = (
+    "tests/test_audience_",
+    "tests/test_check_audience_",
+)
 
 # Browser, visual layout, CSS, JS, and search-sensitive surfaces.
 BROWSER_EXACT_PATHS = frozenset(
     {
+        "assets/audience-runtime.json",
         "docs/composition-playground.md",
+        "scripts/audience_context.py",
+        "scripts/audience_presentation.py",
         "scripts/check_reference_website.py",
         "zensical.template.toml",
         "requirements-build.lock",
@@ -135,6 +141,7 @@ BROWSER_PREFIXES = (
     "assets/images/",
     "stylesheets/",
     "javascripts/",
+    "scripts/check_audience_",
     "scripts/check_composition_playground_",
     "tests/test_mobile_",
     "tests/test_search_",
