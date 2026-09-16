@@ -4,6 +4,7 @@ import html
 import idna
 import ipaddress
 import re
+import string
 import unicodedata
 from urllib.parse import SplitResult, quote, unquote_to_bytes, urlsplit, urlunsplit
 from publication_bundle.repository import BIDIRECTIONAL_CONTROLS

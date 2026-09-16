@@ -5,7 +5,7 @@ import subprocess
 from pathlib import Path
 from typing import Iterable
 from publication_bundle.repository import *
-from integration.publication_model import load_manifest
+from integration.publication_model import AssemblyError, load_manifest
 
 def git(root: Path, *args: str) -> bytes:
     try:

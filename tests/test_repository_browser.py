@@ -164,7 +164,7 @@ class RepositoryBrowserSafetyTests(unittest.TestCase):
             output.mkdir()
             self.make_repository(repository)
             branches = {branch: repository for branch in BASE_BRANCH_ORDER}
-            with mock.patch.object(repository_browser, "MAX_TOTAL_TEXT_BYTES", 1):
+            with mock.patch("integration.repository.MAX_TOTAL_TEXT_BYTES", 1):
                 with self.assertRaisesRegex(
                     RepositoryBrowserError,
                     "text candidates exceed",

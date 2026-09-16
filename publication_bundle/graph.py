@@ -18,7 +18,7 @@ def contains_non_scalar(value: str) -> bool:
     return any(0xD800 <= ord(character) <= 0xDFFF for character in value)
 
 
-def load_graph(path: Path) -> dict[str, Any]:
+def load_graph(path: Path, *, provider_order=PROVIDER_ORDER) -> dict[str, Any]:
     if path.is_symlink() or not path.is_file():
         raise IndexNavigationViewerError(f"graph must be a regular file: {path}")
     try:
@@ -42,7 +42,7 @@ def load_graph(path: Path) -> dict[str, Any]:
         provider.get("name") if isinstance(provider, dict) else None
         for provider in providers
     ]
-    if names != list(PROVIDER_ORDER):
+    if names != list(provider_order):
         raise IndexNavigationViewerError(
             "index graph providers must be ordered exactly as: " + ", ".join(PROVIDER_ORDER)
         )
@@ -106,14 +106,14 @@ def _section_level(section: Any) -> int:
     return level
 
 
-def validate_provider_graph(provider: dict[str, Any]) -> None:
+def validate_provider_graph(provider: dict[str, Any], *, provider_order=PROVIDER_ORDER) -> None:
     name = provider.get("name")
     revision = provider.get("revision")
     root_index = provider.get("root_index")
     indexes = provider.get("indexes")
     edges = provider.get("edges")
     diagnostics = provider.get("diagnostics")
-    if not isinstance(name, str) or name not in PROVIDER_ORDER:
+    if not isinstance(name, str) or name not in provider_order:
         raise IndexNavigationViewerError("provider name is invalid")
     if not isinstance(revision, str) or not FULL_SHA.fullmatch(revision):
         raise IndexNavigationViewerError(f"{name} revision is invalid")

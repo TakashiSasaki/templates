@@ -169,6 +169,8 @@ def entry_label(entry: TreeEntry) -> str:
         return "gitlink"
     return "file"
 
+PREVIEW_ROOT = Path("repository-trees/previews")
+
 MAX_PREVIEW_BYTES = 256 * 1024
 
 

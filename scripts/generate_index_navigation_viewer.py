@@ -93,6 +93,17 @@ from publication_bundle.graph import (
 
 
 
+from publication_bundle import graph as _graph_contract
+
+
+def validate_provider_graph(provider):
+    return _graph_contract.validate_provider_graph(provider, provider_order=PROVIDER_ORDER)
+
+
+def load_graph(path):
+    return _graph_contract.load_graph(path, provider_order=PROVIDER_ORDER)
+
+
 def prepare_guided_root(output_root: Path) -> Path:
     if output_root.is_symlink() or not output_root.is_dir():
         raise IndexNavigationViewerError("output root must be an existing directory")
