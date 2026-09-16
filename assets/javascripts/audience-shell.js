@@ -23,29 +23,17 @@
     return {
       html: nav.innerHTML,
       label: nav.getAttribute("aria-label"),
-      readerLanguage: nav.dataset.readerNavigationLanguage ?? null,
-      readerReady: nav.dataset.readerNavigationReady ?? null,
     };
   }
   function rememberNavigation(nav, snapshot = snapshotNavigation(nav)) {
     nav.dataset.audienceOriginal = snapshot.html;
     nav.dataset.audienceOriginalLabel = snapshot.label ?? "";
     nav.dataset.audienceOriginalLabelPresent = String(snapshot.label !== null);
-    nav.dataset.audienceOriginalReaderLanguage = snapshot.readerLanguage ?? "";
-    nav.dataset.audienceOriginalReaderLanguagePresent = String(snapshot.readerLanguage !== null);
-    nav.dataset.audienceOriginalReaderReady = snapshot.readerReady ?? "";
-    nav.dataset.audienceOriginalReaderReadyPresent = String(snapshot.readerReady !== null);
   }
   function restoreNavigation(nav) {
     nav.innerHTML = nav.dataset.audienceOriginal || "";
     if (nav.dataset.audienceOriginalLabelPresent === "true") nav.setAttribute("aria-label", nav.dataset.audienceOriginalLabel);
     else nav.removeAttribute("aria-label");
-    if (nav.dataset.audienceOriginalReaderLanguagePresent === "true")
-      nav.dataset.readerNavigationLanguage = nav.dataset.audienceOriginalReaderLanguage;
-    else delete nav.dataset.readerNavigationLanguage;
-    if (nav.dataset.audienceOriginalReaderReadyPresent === "true")
-      nav.dataset.readerNavigationReady = nav.dataset.audienceOriginalReaderReady;
-    else delete nav.dataset.readerNavigationReady;
   }
   async function loadNativeNavigation(target) {
     const url = new URL(target, location.href);
@@ -68,34 +56,51 @@
         };
         timer = setTimeout(() => fail(new Error("Native navigation runtime snapshot timed out")), 5000);
         frame.addEventListener("error", () => fail(new Error("Native navigation target failed to load")), {once:true});
-        frame.addEventListener("load", () => {
+        frame.addEventListener("load", async () => {
           const win = frame.contentWindow;
           const doc = frame.contentDocument;
           if (!win || !doc) {
             fail(new Error("Native navigation target is not same-origin"));
             return;
           }
-          const capture = () => {
-            const navs = [...doc.querySelectorAll("nav.md-nav--primary")];
+          try {
             const reader = win.TemplatesReaderNavigation;
-            const readerPending = Boolean(reader) && navs.some(
-              nav => nav.dataset.readerNavigationReady !== url.pathname,
-            );
-            if (!doc.documentElement.dataset.audience || !navs.length || readerPending) {
-              win.requestAnimationFrame(capture);
-              return;
-            }
-            win.requestAnimationFrame(() => win.requestAnimationFrame(() => {
-              try {
-                const snapshots = navs.map(snapshotNavigation);
-                cleanup();
-                resolve(snapshots);
-              } catch (error) {
-                fail(error);
+            const language = reader?.currentLanguage?.();
+            const locale = reader && language
+              ? reader.localeFor(await reader.loadRuntimeMap(), language)
+              : null;
+            const localizedReady = () => {
+              if (!locale) return true;
+              const navs = [...doc.querySelectorAll("nav.md-nav--primary")];
+              return navs.length > 0 && navs.every(
+                nav => nav.dataset.readerNavigationLanguage === locale.language,
+              );
+            };
+            const capture = () => {
+              if (!doc.documentElement.dataset.audience || !localizedReady()) {
+                win.requestAnimationFrame(capture);
+                return;
               }
-            }));
-          };
-          capture();
+              win.requestAnimationFrame(() => win.requestAnimationFrame(() => {
+                try {
+                  const navs = [...doc.querySelectorAll("nav.md-nav--primary")];
+                  if (!navs.length) throw new Error("Native navigation target has no primary navigation");
+                  if (locale && navs.some(nav => nav.dataset.readerNavigationLanguage !== locale.language)) {
+                    win.requestAnimationFrame(capture);
+                    return;
+                  }
+                  const snapshots = navs.map(snapshotNavigation);
+                  cleanup();
+                  resolve(snapshots);
+                } catch (error) {
+                  fail(error);
+                }
+              }));
+            };
+            capture();
+          } catch (error) {
+            fail(error);
+          }
         }, {once:true});
         frame.src = key;
         (document.body || document.documentElement).append(frame);
@@ -193,6 +198,10 @@
       if (turn !== generation) return;
     }
     for (const [index, nav] of primaryNavigation.entries()) {
+      // Replace only the Site navigation projection; provider index content stays intact.
+      // Zensical instant navigation keeps this nav node mounted. When a neutral target
+      // arrives while our projection is present, snapshot that target in a same-origin
+      // runtime frame so restoration matches the target page's initialized native nav.
       if (!nav.querySelector(":scope > .audience-navigation")) rememberNavigation(nav);
       if (!tree) {
         if (neutralNavigation?.[index]) rememberNavigation(nav, neutralNavigation[index]);
@@ -204,10 +213,6 @@
       const content = document.createElement("div"); content.className = "audience-navigation";
       content.append(title, list(tree)); nav.replaceChildren(content);
       nav.setAttribute("aria-label", text[audience]);
-      // The projection is owned by the audience shell, not the native reader-navigation
-      // adapter. Clear reader readiness until a native target is restored.
-      delete nav.dataset.readerNavigationLanguage;
-      delete nav.dataset.readerNavigationReady;
     }
     const article = document.querySelector(".md-content__inner, main");
     let crumbs = article?.querySelector("[data-audience-breadcrumb]");
@@ -226,6 +231,7 @@
         crumbs.lastElementChild?.setAttribute("aria-current", "page");
       }
     }
+    // Explicitly announce cross-audience document destinations before activation.
     for (const link of document.querySelectorAll('main a[href], [data-md-component="toc"] a[href], .translation-switcher a[href]')) {
       if (link.getAttribute("href")?.startsWith("#")) continue;
       const url = new URL(link.href, location.href);
@@ -245,6 +251,7 @@
         url.searchParams.set("audience", audience); link.href = url.pathname + url.search + url.hash;
       }
     }
+
   }
   window.TemplatesAudienceShell = {render, strings, navigationTrail};
   window.addEventListener("templates:audience-changed", render);
