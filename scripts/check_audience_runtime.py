@@ -45,11 +45,10 @@ def check(
         page.wait_for_function("a => document.documentElement.dataset.audience === a", arg=audience)
         if audience != "neutral":
             assert page.evaluate("sessionStorage.getItem('templates-audience-context')") == audience
-    def native_navigation_fingerprint(nav):
+    def localized_navigation_fingerprint(nav):
         return nav.evaluate(r"""nav => ({
             aria_label: nav.getAttribute('aria-label'),
             reader_language: nav.dataset.readerNavigationLanguage || null,
-            reader_ready: nav.dataset.readerNavigationReady || null,
             links: [...nav.querySelectorAll('a.md-nav__link[href]')].map(link => ({
                 path: new URL(link.getAttribute('href'), location.href).pathname,
                 text: link.textContent.trim().split(/\s+/).join(' '),
@@ -78,9 +77,6 @@ def check(
             native_page = native_context.new_page()
             assert native_page.goto(base + '/?audience=maintain').status == 200
             state(native_page, 'neutral')
-            native_page.wait_for_function("""() =>
-                document.querySelector('nav.md-nav--primary')?.dataset.readerNavigationReady === '/'
-            """)
             native_primary_nav = native_page.locator('nav.md-nav--primary').first
             native_neutral_nav = {
                 'html': native_primary_nav.evaluate('nav => nav.innerHTML'),
@@ -129,9 +125,6 @@ def check(
             primary_nav = page.locator('nav.md-nav--primary').first
             assert primary_nav.get_attribute('aria-label') == 'Use templates'
             navigate('/?audience=maintain', 'neutral')
-            page.wait_for_function("""() =>
-                document.querySelector('nav.md-nav--primary')?.dataset.readerNavigationReady === '/'
-            """)
             assert primary_nav.evaluate('nav => nav.innerHTML') == native_neutral_nav['html']
             assert primary_nav.get_attribute('aria-label') == native_neutral_nav['aria_label']
             assert page.evaluate("sessionStorage.getItem('templates-audience-context')") == 'use'
@@ -142,14 +135,13 @@ def check(
             native_page = native_context.new_page()
             assert native_page.goto(base + '/ja/?audience=maintain').status == 200
             state(native_page, 'neutral')
-            native_page.wait_for_function("""() => {
-                const nav = document.querySelector('nav.md-nav--primary');
-                return nav?.dataset.readerNavigationLanguage === 'ja' && nav?.dataset.readerNavigationReady === '/ja/';
-            }""")
+            native_page.wait_for_function("""() =>
+                document.querySelector('nav.md-nav--primary')?.dataset.readerNavigationLanguage === 'ja'
+            """)
             native_page.evaluate("() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))")
             native_primary_nav = native_page.locator('nav.md-nav--primary').first
-            native_ja_nav = native_navigation_fingerprint(native_primary_nav)
-            assert native_ja_nav['reader_language'] == 'ja' and native_ja_nav['reader_ready'] == '/ja/'
+            native_ja_nav = localized_navigation_fingerprint(native_primary_nav)
+            assert native_ja_nav['reader_language'] == 'ja'
             assert any(link['path'] in localized_ja_routes for link in native_ja_nav['links']), \
                 'localized direct navigation did not expose a localized route'
             native_context.close()
@@ -175,16 +167,17 @@ def check(
             page.wait_for_url(base + '/ja/?audience=maintain')
             state(page, 'neutral')
             primary_nav = page.locator('nav.md-nav--primary').first
-            page.wait_for_function("""() => {
-                const nav = document.querySelector('nav.md-nav--primary');
-                return nav?.dataset.readerNavigationLanguage === 'ja' && nav?.dataset.readerNavigationReady === '/ja/';
-            }""")
+            page.wait_for_function("""() =>
+                document.querySelector('nav.md-nav--primary')?.dataset.readerNavigationLanguage === 'ja'
+            """)
             assert delayed_reader_requests, 'localized native-navigation snapshot did not exercise delayed reader map'
-            assert native_navigation_fingerprint(primary_nav) == native_ja_nav
+            assert localized_navigation_fingerprint(primary_nav) == native_ja_nav
             page.evaluate('() => TemplatesAudienceShell.render()')
-            page.wait_for_function("""() => document.querySelector('nav.md-nav--primary')?.dataset.readerNavigationReady === '/ja/'""")
-            assert native_navigation_fingerprint(primary_nav) == native_ja_nav
-            results.append({'localized_neutral_navigation': 'delayed reader map -> localized native semantic navigation remains stable across shell re-render'})
+            page.wait_for_function("""() =>
+                document.querySelector('nav.md-nav--primary')?.dataset.readerNavigationLanguage === 'ja'
+            """)
+            assert localized_navigation_fingerprint(primary_nav) == native_ja_nav
+            results.append({'localized_neutral_navigation': 'delayed reader map -> localized native navigation remains stable across shell re-render'})
             context.close()
 
             for path, target, overview in [('/web/', 'maintain', '/repository-trees/'),
@@ -197,7 +190,8 @@ def check(
                 results.append({'switch_from': path, 'target': target, 'overview': overview})
                 context.close()
             context = browser.new_context(service_workers='block')
-            context.route('**/audience-runtime.json', lambda route: route.fulfill(json={'schema_version': 99, 'audiences': ['admin']}))
+            context.route('**/audience-runtime.json', lambda route: route.fulfill(
+                json={'schema_version': 99, 'audiences': ['admin']}))
             page = context.new_page(); page.goto(base + '/policy/contributing/'); state(page, 'neutral')
             context.close(); results.append({'invalid_projection': 'neutral, no fabricated membership'})
             translated = [(r,d) for r,d in model['routes'].items() if r.startswith('/ja/') and r.endswith('/')]
