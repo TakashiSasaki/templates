@@ -6,6 +6,7 @@ import re
 import functools
 import json
 import threading
+import time
 import sys
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -26,10 +27,14 @@ def check(
     channel: str | None = "chrome",
 ) -> dict:
     from playwright.sync_api import sync_playwright
+    from scripts.check_search_history import _open_search
 
     model = check_artifact(site_root, publication_roots)
     documents = model['documents']
     provenance = json.loads((site_root / 'build-provenance.json').read_text())
+    reader_model = json.loads((site_root / 'reader-navigation-runtime.json').read_text())
+    ja_locale = next(locale for locale in reader_model['locales'] if locale['language'] == 'ja')
+    localized_ja_routes = set(ja_locale['routes'].values())
     class Handler(SimpleHTTPRequestHandler):
         def log_message(self, *_): pass
     server = ThreadingHTTPServer(("127.0.0.1", 0), functools.partial(Handler, directory=str(site_root)))
@@ -40,6 +45,15 @@ def check(
         page.wait_for_function("a => document.documentElement.dataset.audience === a", arg=audience)
         if audience != "neutral":
             assert page.evaluate("sessionStorage.getItem('templates-audience-context')") == audience
+    def localized_navigation_fingerprint(nav):
+        return nav.evaluate(r"""nav => ({
+            aria_label: nav.getAttribute('aria-label'),
+            reader_language: nav.dataset.readerNavigationLanguage || null,
+            links: [...nav.querySelectorAll('a.md-nav__link[href]')].map(link => ({
+                path: new URL(link.getAttribute('href'), location.href).pathname,
+                text: link.textContent.trim().split(/\s+/).join(' '),
+            })),
+        })""")
     try:
         with sync_playwright() as p:
             browser = p.chromium.launch(**({"channel": channel} if channel else {}))
@@ -59,6 +73,16 @@ def check(
             page = context.new_page()
             requests = []
             page.on('request', lambda r: requests.append(r.url) if urlsplit(r.url).path == '/audience-runtime.json' else None)
+            native_context = browser.new_context(service_workers="block")
+            native_page = native_context.new_page()
+            assert native_page.goto(base + '/?audience=maintain').status == 200
+            state(native_page, 'neutral')
+            native_primary_nav = native_page.locator('nav.md-nav--primary').first
+            native_neutral_nav = {
+                'html': native_primary_nav.evaluate('nav => nav.innerHTML'),
+                'aria_label': native_primary_nav.get_attribute('aria-label'),
+            }
+            native_context.close()
             page.goto(base + '/composition/architecture/composer-mvp/')
             state(page, 'use')
             page.wait_for_function('!!window.document$')
@@ -78,7 +102,6 @@ def check(
             navigate('/web/', 'use')
             navigate('/policy/architecture/', 'use')
             navigate('/composition/architecture/composer-mvp/', 'use')
-            # Switch uses an actual delegated control, preserves fragment and unrelated history state.
             fragment = page.locator('h1').first.get_attribute('id')
             page.evaluate("""fragment => {
                 history.replaceState({...history.state, qualification: 42}, '', '#' + fragment);
@@ -91,7 +114,6 @@ def check(
             assert page.evaluate('history.state.qualification') == 42
             assert page.evaluate('!!window.audienceProbe')
             navigate('/policy/architecture/', 'maintain')
-            # Re-evaluate script + initialization and actual document$ emissions.
             before = page.evaluate('audienceProbe.events.length')
             page.add_script_tag(content=(site_root/'javascripts/audience-context.js').read_text())
             page.evaluate("TemplatesAudienceContext.init(); TemplatesAudienceContext.init(); dispatchEvent(new Event('pageshow'))")
@@ -100,11 +122,106 @@ def check(
             navigate('/web/', 'use')
             assert page.evaluate('audienceProbe.events.length') == before + 1, 'duplicate navigation listeners/events'
             assert len(requests) == 1, f'duplicate runtime fetches: {requests}'
-            # Shared services/root do not erase the stored reading journey.
-            page.goto(base + '/?audience=maintain'); state(page, 'neutral')
+            primary_nav = page.locator('nav.md-nav--primary').first
+            assert primary_nav.get_attribute('aria-label') == 'Use templates'
+            navigate('/?audience=maintain', 'neutral')
+            assert primary_nav.evaluate('nav => nav.innerHTML') == native_neutral_nav['html']
+            assert primary_nav.get_attribute('aria-label') == native_neutral_nav['aria_label']
             assert page.evaluate("sessionStorage.getItem('templates-audience-context')") == 'use'
-            results.append({'instant_navigation': 'use/maintain, shared journey, history, switch, fragment, repeated initialization passed'})
+            results.append({'instant_navigation': 'use/maintain/neutral, exact native nav restoration, shared journey, history, switch, fragment, repeated initialization passed'})
             context.close()
+
+            native_context = browser.new_context(service_workers='block')
+            native_page = native_context.new_page()
+            assert native_page.goto(base + '/ja/?audience=maintain').status == 200
+            state(native_page, 'neutral')
+            native_page.wait_for_function("""() =>
+                document.querySelector('nav.md-nav--primary')?.dataset.readerNavigationLanguage === 'ja'
+            """)
+            native_page.evaluate("() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))")
+            native_primary_nav = native_page.locator('nav.md-nav--primary').first
+            native_ja_nav = localized_navigation_fingerprint(native_primary_nav)
+            assert native_ja_nav['reader_language'] == 'ja'
+            assert any(link['path'] in localized_ja_routes for link in native_ja_nav['links']), \
+                'localized direct navigation did not expose a localized route'
+            native_context.close()
+
+            context = browser.new_context(service_workers='block')
+            delayed_reader_requests = []
+            def delay_reader_navigation(route):
+                if urlsplit(route.request.frame.url).path == '/ja/':
+                    delayed_reader_requests.append(route.request.frame.url)
+                    time.sleep(0.4)
+                route.continue_()
+            context.route('**/reader-navigation-runtime.json', delay_reader_navigation)
+            def delay_hidden_reader_ready(route):
+                if urlsplit(route.request.frame.url).path != '/ja/':
+                    route.continue_()
+                    return
+                response = route.fetch()
+                route.fulfill(response=response, body=response.text() + r'''
+                    (() => {
+                      const nativeFrame = requestAnimationFrame.bind(window);
+                      let readyFrame = false;
+                      let delayed = false;
+                      window.requestAnimationFrame = callback => nativeFrame(timestamp => {
+                        const navs = [...document.querySelectorAll("nav.md-nav--primary")];
+                        if (!readyFrame && navs.length && navs.every(
+                            nav => nav.dataset.readerNavigationLanguage === "ja")) {
+                          readyFrame = true;
+                        } else if (readyFrame && !delayed) {
+                          delayed = true;
+                          for (const nav of navs) {
+                            for (const link of nav.querySelectorAll("a[data-reader-nav-canonical-href]")) {
+                              link.href = link.dataset.readerNavCanonicalHref;
+                            }
+                            for (const label of nav.querySelectorAll(".md-ellipsis[data-reader-nav-canonical-label]")) {
+                              label.textContent = label.dataset.readerNavCanonicalLabel;
+                            }
+                            delete nav.dataset.readerNavigationLanguage;
+                          }
+                          nativeFrame(() => {
+                            dispatchEvent(new Event("pageshow"));
+                          });
+                        }
+                        callback(timestamp);
+                      });
+                    })();
+                ''')
+            context.route('**/javascripts/reader-navigation.js', delay_hidden_reader_ready)
+            page = context.new_page()
+            assert page.goto(base + '/ja/web/').status == 200
+            state(page, 'use')
+            page.wait_for_function('!!window.document$')
+            page.wait_for_function("!!document.querySelector('nav.md-nav--primary > .audience-navigation')")
+            page.evaluate("""path => {
+                const link = document.createElement('a'); link.href = path;
+                link.textContent = 'Localized neutral qualification destination';
+                document.querySelector('main').append(link); link.click();
+            }""", '/ja/?audience=maintain')
+            page.wait_for_url(base + '/ja/?audience=maintain')
+            state(page, 'neutral')
+            primary_nav = page.locator('nav.md-nav--primary').first
+            page.wait_for_function("""() =>
+                document.querySelector('nav.md-nav--primary')?.dataset.readerNavigationLanguage === 'ja'
+            """)
+            assert delayed_reader_requests, 'localized native-navigation snapshot did not exercise delayed reader map'
+            assert localized_navigation_fingerprint(primary_nav) == native_ja_nav
+            # Reintroduce the projected nav before re-rendering the neutral target. This reaches
+            # the actual audience-projection restoration branch, which must consume the already
+            # cached hidden-frame snapshot instead of remembering the independently localized
+            # live DOM.
+            page.evaluate("""() => {
+                const nav = document.querySelector('nav.md-nav--primary');
+                const projection = document.createElement('div');
+                projection.className = 'audience-navigation';
+                nav.replaceChildren(projection);
+                return TemplatesAudienceShell.render();
+            }""")
+            assert localized_navigation_fingerprint(primary_nav) == native_ja_nav
+            results.append({'localized_neutral_navigation': 'delayed reader map -> cached native snapshot restores localized navigation on a second audience-to-neutral transition'})
+            context.close()
+
             for path, target, overview in [('/web/', 'maintain', '/repository-trees/'),
                     ('/policy/contributing/', 'use', '/web/'), ('/', 'maintain', '/repository-trees/')]:
                 context = browser.new_context(service_workers='block'); page = context.new_page()
@@ -119,7 +236,6 @@ def check(
                 json={'schema_version': 99, 'audiences': ['admin']}))
             page = context.new_page(); page.goto(base + '/policy/contributing/'); state(page, 'neutral')
             context.close(); results.append({'invalid_projection': 'neutral, no fabricated membership'})
-            # Every actual translation alias retains the canonical membership model.
             translated = [(r,d) for r,d in model['routes'].items() if r.startswith('/ja/') and r.endswith('/')]
             assert translated, 'assembled audience map omitted published translation aliases'
             for r,d in translated:
@@ -128,7 +244,112 @@ def check(
             context = browser.new_context(service_workers='block'); page=context.new_page()
             page.goto(base+r); state(page, documents[d]['primary']); context.close()
             results.append({'translation_aliases': len(translated), 'maintain_direct': r})
-            # Offline reload uses the actual registered worker and precached projection/controller.
+            context = browser.new_context(service_workers='block'); page=context.new_page()
+            page.goto(base + '/composition/architecture/composer-mvp/?audience=maintain'); state(page, 'maintain')
+            _open_search(page)
+            search = page.locator('input[role="combobox"]').first
+            select = page.locator('[data-audience-search-filter] select').first
+            select.wait_for()
+            search.fill('policy')
+            page.wait_for_function("""() => {
+                const root=[...document.body.children].map(h=>h.shadowRoot).find(r=>r?.querySelector('input[role=combobox]'));
+                return !!root?.querySelector('ol a[href]:not([data-site-search-history] a)');
+            }""")
+            select.select_option('maintain')
+            page.wait_for_function("""() => {
+                const root=[...document.body.children].map(h=>h.shadowRoot).find(r=>r?.querySelector('input[role=combobox]'));
+                const input=root?.querySelector('input[role=combobox]');
+                const ids=(input?.getAttribute('aria-controls')||'').split(/\s+/).filter(Boolean);
+                return ids.some(id => root.getElementById(id)?.getAttribute('role') === 'listbox');
+            }""")
+            result_list_id = page.evaluate("""() => {
+                const root=[...document.body.children].map(h=>h.shadowRoot).find(r=>r?.querySelector('input[role=combobox]'));
+                const input=root.querySelector('input[role=combobox]');
+                return (input.getAttribute('aria-controls')||'').split(/\s+/).filter(Boolean)
+                    .find(id => root.getElementById(id)?.getAttribute('role') === 'listbox') || null;
+            }""")
+            assert result_list_id, 'filtered search did not expose a controlled result list'
+            def filtered_search_state():
+                return page.evaluate("""() => {
+                    const root=[...document.body.children].map(h=>h.shadowRoot).find(r=>r?.querySelector('input[role=combobox]'));
+                    const input=root.querySelector('input[role=combobox]');
+                    const anchors=[...root.querySelectorAll('ol a[href]')].filter(a=>!a.closest('[data-site-search-history]'));
+                    const visible=anchors.filter(a=>!a.closest('[hidden], [data-audience-filtered]') && a.getClientRects().length);
+                    return {
+                        ids:[...root.querySelectorAll('[id]')].map(e=>e.id).filter(Boolean),
+                        active:input.getAttribute('aria-activedescendant'),
+                        all:anchors.map(a=>({id:a.id,href:a.href,role:a.getAttribute('role'),selected:a.getAttribute('aria-selected')})),
+                        visible:visible.map(a=>({id:a.id,href:a.href,role:a.getAttribute('role'),selected:a.getAttribute('aria-selected')})),
+                        styled:[...root.querySelectorAll('[data-audience-search-current]')].map(a=>a.id),
+                    };
+                }""")
+            def assert_filtered_search(require_active=False):
+                data = filtered_search_state()
+                assert len(data['ids']) == len(set(data['ids'])), ('duplicate search DOM IDs', data)
+                assert all(hit['id'] and hit['role'] == 'option' for hit in data['all']), ('filtered hit lost option semantics', data)
+                if require_active:
+                    assert data['active'] and data['active'] in [hit['id'] for hit in data['visible']], ('invalid active descendant', data)
+                    assert sum(hit['selected'] == 'true' for hit in data['all']) == 1, ('active option selection is not unique', data)
+                    assert next(hit for hit in data['visible'] if hit['id'] == data['active'])['selected'] == 'true', ('active option is not selected', data)
+                    assert data['styled'] == [data['active']], ('active styling does not match active descendant', data)
+                else:
+                    assert not data['active'] and not data['styled'], ('stale filtered selection', data)
+                return data
+            cleared = assert_filtered_search()
+            stable_ids = [hit['id'] for hit in cleared['all']]
+            search.focus(); search.press('ArrowDown')
+            assert_filtered_search(require_active=True)
+            search.press('ArrowUp')
+            assert_filtered_search(require_active=True)
+            for key in ('ArrowDown', 'ArrowUp', 'Enter'):
+                before = filtered_search_state(); url = page.url
+                outcome = search.evaluate("""(input,key) => {
+                    let bubbled=false;
+                    const observe=()=>{bubbled=true;};
+                    document.addEventListener('keydown',observe,{once:true});
+                    const event=new KeyboardEvent('keydown',{key,bubbles:true,cancelable:true,composed:true,isComposing:true});
+                    input.dispatchEvent(event);
+                    document.removeEventListener('keydown',observe);
+                    return {isComposing:event.isComposing,bubbled};
+                }""", key)
+                assert outcome == {'isComposing': True, 'bubbled': True}, (key, outcome)
+                assert page.url == url
+                after = filtered_search_state()
+                assert after['active'] == before['active'] and after['styled'] == before['styled'], (key, before, after)
+            active = filtered_search_state()['active']
+            clicked = search.evaluate("""input => {
+                const root=input.getRootNode();
+                const hit=root.getElementById(input.getAttribute('aria-activedescendant'));
+                let clicked=null;
+                hit.addEventListener('click',event=>{event.preventDefault();clicked=hit.id;},{once:true});
+                input.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true,cancelable:true,composed:true}));
+                return clicked;
+            }""")
+            assert clicked == active, ('Enter did not activate active descendant', active, clicked)
+            select.select_option('use')
+            use_state = assert_filtered_search()
+            assert [hit['id'] for hit in use_state['all']] == stable_ids, ('result IDs changed across filter transition', stable_ids, use_state)
+            select.select_option('maintain')
+            maintain_state = assert_filtered_search()
+            assert [hit['id'] for hit in maintain_state['all']] == stable_ids, ('result IDs changed after returning to filter', stable_ids, maintain_state)
+            search.fill('zzzzs5nomatcheszzzz')
+            page.wait_for_function("""id => {
+                const root=[...document.body.children].map(h=>h.shadowRoot).find(r=>r?.querySelector('input[role=combobox]'));
+                const input=root?.querySelector('input[role=combobox]');
+                const list=root?.getElementById(id);
+                const anchors=list ? [...list.querySelectorAll('a[href]')].filter(a=>!a.closest('[data-site-search-history]')) : [];
+                const controls=(input?.getAttribute('aria-controls')||'').split(/\s+/).filter(Boolean);
+                return !!list && anchors.length === 0 && list.getAttribute('role') === 'listbox' && controls.includes(id);
+            }""", arg=result_list_id)
+            select.select_option('all')
+            page.wait_for_function("""id => {
+                const root=[...document.body.children].map(h=>h.shadowRoot).find(r=>r?.querySelector('input[role=combobox]'));
+                const input=root?.querySelector('input[role=combobox]');
+                const list=root?.getElementById(id);
+                return !!list && !list.hasAttribute('role') && !input.hasAttribute('aria-controls');
+            }""", arg=result_list_id)
+            results.append({'search_empty_result_lifecycle': 'filtered keyboard/IME/selection + stable IDs + retained listbox -> all native semantics'})
+            context.close()
             context = browser.new_context(); page=context.new_page()
             page.goto(base+'/policy/contributing/'); state(page,'maintain')
             page.evaluate('navigator.serviceWorker.ready')

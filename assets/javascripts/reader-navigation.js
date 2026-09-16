@@ -223,6 +223,7 @@
     }
   }
 
+  window.TemplatesReaderNavigation = {loadRuntimeMap, currentLanguage, localeFor};
   void applyReaderNavigation();
   window.addEventListener("pageshow", () => void applyReaderNavigation());
   window.addEventListener("popstate", () => void applyReaderNavigation());

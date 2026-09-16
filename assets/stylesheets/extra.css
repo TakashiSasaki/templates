@@ -176,3 +176,17 @@ html[data-audience] .md-typeset .tabbed-labels > label:hover { color: var(--audi
   .audience-switcher button[aria-pressed="true"] { color: HighlightText; background: Highlight; forced-color-adjust: none; }
   .audience-shell :focus-visible, .audience-journey:focus-visible, .audience-navigation :focus-visible { outline-color: Highlight; }
 }
+.audience-navigation ul { list-style: none; padding-inline-start: .7rem; margin: 0; }
+.audience-navigation > ul { padding-inline-start: 0; }
+.audience-navigation a { display: block; padding: .3rem; line-height: 1.5; }
+.audience-navigation summary { cursor: pointer; padding: .4rem 0; font-weight: 600; }
+.audience-navigation__title { color: var(--audience-accent-strong); font-weight: 800; }
+.audience-breadcrumb { display: flex; flex-wrap: wrap; gap: .3rem; margin: .5rem 0 1rem; font: .75rem/1.6 system-ui, sans-serif; }
+.audience-breadcrumb[hidden], html[data-audience="use"] .md-path, html[data-audience="maintain"] .md-path { display: none; }
+[data-audience-destination] { font-weight: 600; white-space: normal; }
+@media (max-width: 76.234375em) { .audience-navigation a, .audience-navigation summary { min-height: 44px; display: block; padding: .6rem; } }
+
+html[data-audience="neutral"] .md-path { display: none; }
+.md-typeset .audience-journey small { color: inherit; opacity: 1; }
+.audience-utilities { display: flex; gap: .8rem; flex-wrap: wrap; flex-basis: 100%; font-weight: 400; }
+.audience-utilities a { color: inherit; text-decoration: underline; text-underline-offset: .2em; padding: .3rem 0; }

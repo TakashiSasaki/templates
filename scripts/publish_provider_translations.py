@@ -76,6 +76,9 @@ def extend_audience_routes(docs_root: Path, records: list) -> None:
             if canonical in audience_map["documents"]:
                 audience_map["routes"][route] = canonical
                 audience_map["routes"][route + "index.html"] = canonical
+                for audience, overview in audience_map["overviews"].items():
+                    if audience_map["routes"].get(overview) == canonical:
+                        audience_map.setdefault("localized_overviews", {}).setdefault(record.language, {})[audience] = route
         audience_path.write_text(
             json.dumps(audience_map, ensure_ascii=False, indent=2) + "\n",
             encoding="utf-8",

@@ -493,6 +493,8 @@ def finalize(
             )
             updates[translation_path] = translation_source
 
+    from audience_presentation import finalize_presentation
+    finalize_presentation(site_root, updates)
     for path, source in updates.items():
         path.write_text(source, encoding="utf-8")
     return len(html_files), len(pairs)

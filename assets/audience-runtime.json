@@ -1,5 +1,1116 @@
 {
   "schema_version": 1,
+  "navigation": {
+    "use": [
+      {
+        "title": "Start here",
+        "children": [
+          {
+            "title": "Documentation portal",
+            "destination": "index.md",
+            "href": "/"
+          },
+          {
+            "title": "Choose Website or Web application",
+            "destination": "web/index.md",
+            "href": "/web/"
+          }
+        ]
+      },
+      {
+        "title": "Composition",
+        "children": [
+          {
+            "title": "Overview",
+            "destination": "composition/index.md",
+            "href": "/composition/"
+          },
+          {
+            "title": "Concepts and terminology",
+            "destination": "composition/concepts/index.md",
+            "href": "/composition/concepts/"
+          },
+          {
+            "title": "Use Composition",
+            "destination": "composition/use/index.md",
+            "href": "/composition/use/"
+          },
+          {
+            "title": "Composition Playground",
+            "destination": "playground/index.md",
+            "href": "/playground/"
+          },
+          {
+            "title": "Documentation index",
+            "destination": "composition/docs/index.md",
+            "href": "/composition/docs/"
+          }
+        ]
+      },
+      {
+        "title": "Website",
+        "children": [
+          {
+            "title": "Product walkthrough",
+            "destination": "website/index.md",
+            "href": "/website/"
+          }
+        ]
+      },
+      {
+        "title": "Web application",
+        "children": [
+          {
+            "title": "Product walkthrough",
+            "destination": "webapp/product-walkthrough.md",
+            "href": "/webapp/product-walkthrough/"
+          },
+          {
+            "title": "Reference",
+            "children": [
+              {
+                "title": "Overview",
+                "destination": "webapp/index.md",
+                "href": "/webapp/"
+              },
+              {
+                "title": "Template contract",
+                "destination": "webapp/TEMPLATE.md",
+                "href": "/webapp/TEMPLATE/"
+              },
+              {
+                "title": "Documentation index",
+                "destination": "webapp/docs/index.md",
+                "href": "/webapp/docs/"
+              },
+              {
+                "title": "Webapp contracts",
+                "destination": "webapp/docs/architecture/contracts.md",
+                "href": "/webapp/docs/architecture/contracts/"
+              },
+              {
+                "title": "Responsibility boundaries",
+                "destination": "webapp/docs/architecture/responsibility-boundaries.md",
+                "href": "/webapp/docs/architecture/responsibility-boundaries/"
+              },
+              {
+                "title": "Validation toolchain",
+                "destination": "webapp/docs/architecture/validation-toolchain.md",
+                "href": "/webapp/docs/architecture/validation-toolchain/"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "title": "Agent Skill",
+        "children": [
+          {
+            "title": "First-use walkthrough",
+            "destination": "composition/use/skill-first-use-walkthrough.md",
+            "href": "/composition/use/skill-first-use-walkthrough/"
+          },
+          {
+            "title": "Reference",
+            "children": [
+              {
+                "title": "Overview",
+                "destination": "skill/index.md",
+                "href": "/skill/"
+              },
+              {
+                "title": "Skill contract",
+                "destination": "skill/SKILL.md",
+                "href": "/skill/SKILL/"
+              },
+              {
+                "title": "Documentation index",
+                "destination": "skill/docs/index.md",
+                "href": "/skill/docs/"
+              },
+              {
+                "title": "Skill profiles",
+                "destination": "skill/docs/skill-profiles.md",
+                "href": "/skill/docs/skill-profiles/"
+              },
+              {
+                "title": "Skill/capability map",
+                "destination": "skill/docs/skill-capability-map.md",
+                "href": "/skill/docs/skill-capability-map/"
+              },
+              {
+                "title": "Architecture",
+                "destination": "skill/docs/architecture.md",
+                "href": "/skill/docs/architecture/"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "title": "Policy",
+        "children": [
+          {
+            "title": "Overview",
+            "destination": "policy/index.md",
+            "href": "/policy/"
+          },
+          {
+            "title": "Shared policy corpus",
+            "destination": "policy/shared-policy/index.md",
+            "href": "/policy/shared-policy/"
+          },
+          {
+            "title": "Consumer effective policy",
+            "destination": "policy/consumer/index.md",
+            "href": "/policy/consumer/"
+          },
+          {
+            "title": "Getting started",
+            "destination": "policy/getting-started.md",
+            "href": "/policy/getting-started/"
+          },
+          {
+            "title": "Policy concepts for first-time readers",
+            "destination": "policy/policy-concepts.md",
+            "href": "/policy/policy-concepts/"
+          },
+          {
+            "title": "Managed repository operation",
+            "destination": "policy/managed-operation.md",
+            "href": "/policy/managed-operation/"
+          },
+          {
+            "title": "Bootstrap skill",
+            "destination": "policy/bootstrap.md",
+            "href": "/policy/bootstrap/"
+          },
+          {
+            "title": "Repository adoption",
+            "destination": "policy/adoption.md",
+            "href": "/policy/adoption/"
+          },
+          {
+            "title": "Policy profiles",
+            "destination": "policy/shared-policy/profiles.md",
+            "href": "/policy/shared-policy/profiles/"
+          },
+          {
+            "title": "Repository operation",
+            "children": [
+              {
+                "title": "Google AI Studio Build mode",
+                "destination": "policy/agent-environments/google-ai-studio.md",
+                "href": "/policy/agent-environments/google-ai-studio/"
+              },
+              {
+                "title": "Shared review policy",
+                "destination": "policy/review-policy.md",
+                "href": "/policy/review-policy/"
+              },
+              {
+                "title": "External artifact intake",
+                "destination": "policy/external-artifact-intake.md",
+                "href": "/policy/external-artifact-intake/"
+              },
+              {
+                "title": "Regression prevention",
+                "destination": "policy/regression-prevention.md",
+                "href": "/policy/regression-prevention/"
+              }
+            ]
+          },
+          {
+            "title": "Local policy",
+            "children": [
+              {
+                "title": "Policy authoring",
+                "destination": "policy/policy-authoring.md",
+                "href": "/policy/policy-authoring/"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "title": "Reusable capabilities",
+        "children": [
+          {
+            "title": "Overview",
+            "destination": "capabilities/index.md",
+            "href": "/capabilities/"
+          },
+          {
+            "title": "Runtime decision record",
+            "destination": "capabilities/runtime/index.md",
+            "href": "/capabilities/runtime/"
+          },
+          {
+            "title": "Runtime selection",
+            "destination": "capabilities/runtime/selection.md",
+            "href": "/capabilities/runtime/selection/"
+          },
+          {
+            "title": "Packaged CLI interface",
+            "destination": "capabilities/cli/index.md",
+            "href": "/capabilities/cli/"
+          },
+          {
+            "title": "MCP interface",
+            "destination": "capabilities/mcp/index.md",
+            "href": "/capabilities/mcp/"
+          },
+          {
+            "title": "MCP transports",
+            "destination": "capabilities/mcp/transports.md",
+            "href": "/capabilities/mcp/transports/"
+          },
+          {
+            "title": "MCP Apps interface",
+            "destination": "capabilities/mcp-apps/index.md",
+            "href": "/capabilities/mcp-apps/"
+          },
+          {
+            "title": "MCP Apps guidance",
+            "destination": "capabilities/mcp-apps/guidance.md",
+            "href": "/capabilities/mcp-apps/guidance/"
+          },
+          {
+            "title": "WebMCP provider contract",
+            "destination": "capabilities/webmcp/provider.md",
+            "href": "/capabilities/webmcp/provider/"
+          },
+          {
+            "title": "WebMCP tool design",
+            "destination": "capabilities/webmcp/tool-design.md",
+            "href": "/capabilities/webmcp/tool-design/"
+          },
+          {
+            "title": "WebMCP security",
+            "destination": "capabilities/webmcp/security.md",
+            "href": "/capabilities/webmcp/security/"
+          },
+          {
+            "title": "WebMCP testing",
+            "destination": "capabilities/webmcp/testing.md",
+            "href": "/capabilities/webmcp/testing/"
+          },
+          {
+            "title": "Standalone browser interface",
+            "destination": "capabilities/browser/index.md",
+            "href": "/capabilities/browser/"
+          },
+          {
+            "title": "Progressive Web App",
+            "destination": "capabilities/pwa/index.md",
+            "href": "/capabilities/pwa/"
+          },
+          {
+            "title": "Headless service interface",
+            "destination": "capabilities/service/index.md",
+            "href": "/capabilities/service/"
+          },
+          {
+            "title": "WebMCP",
+            "children": [
+              {
+                "title": "WebMCP overview",
+                "destination": "capabilities/webmcp/index.md",
+                "href": "/capabilities/webmcp/"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "title": "Product lifecycle",
+        "children": [
+          {
+            "title": "Produce a product release",
+            "destination": "composition/release/index.md",
+            "href": "/composition/release/"
+          },
+          {
+            "title": "Overview",
+            "destination": "lifecycle/index.md",
+            "href": "/lifecycle/"
+          },
+          {
+            "title": "Composition state",
+            "destination": "lifecycle/composition-state/index.md",
+            "href": "/lifecycle/composition-state/"
+          },
+          {
+            "title": "Contract evolution",
+            "destination": "lifecycle/contract-evolution/index.md",
+            "href": "/lifecycle/contract-evolution/"
+          },
+          {
+            "title": "Implementation evidence",
+            "destination": "lifecycle/implementation-evidence/index.md",
+            "href": "/lifecycle/implementation-evidence/"
+          },
+          {
+            "title": "Lifecycle checkpoints",
+            "destination": "lifecycle/checkpoints/index.md",
+            "href": "/lifecycle/checkpoints/"
+          },
+          {
+            "title": "Release execution",
+            "destination": "lifecycle/release-execution/index.md",
+            "href": "/lifecycle/release-execution/"
+          },
+          {
+            "title": "Release evidence",
+            "destination": "lifecycle/release-evidence/index.md",
+            "href": "/lifecycle/release-evidence/"
+          },
+          {
+            "title": "Release bundle",
+            "destination": "lifecycle/release-bundle/index.md",
+            "href": "/lifecycle/release-bundle/"
+          }
+        ]
+      },
+      {
+        "title": "Repository topology",
+        "children": [
+          {
+            "title": "Overview",
+            "destination": "topology/index.md",
+            "href": "/topology/"
+          },
+          {
+            "title": "Topology contract",
+            "destination": "topology/contract/index.md",
+            "href": "/topology/contract/"
+          },
+          {
+            "title": "Topology architecture",
+            "destination": "topology/architecture/index.md",
+            "href": "/topology/architecture/"
+          },
+          {
+            "title": "Workspace topology overview",
+            "destination": "workspace/index.md",
+            "href": "/workspace/"
+          },
+          {
+            "title": "Bare Worktree",
+            "destination": "workspace/bare-worktree/index.md",
+            "href": "/workspace/bare-worktree/"
+          },
+          {
+            "title": "Local-checkout architecture",
+            "destination": "workspace/architecture/index.md",
+            "href": "/workspace/architecture/"
+          }
+        ]
+      },
+      {
+        "title": "Migrations",
+        "children": [
+          {
+            "title": "Web routes",
+            "children": [
+              {
+                "title": "Routes v1 to v2",
+                "destination": "web/migrations/routes-v1-to-v2.md",
+                "href": "/web/migrations/routes-v1-to-v2/"
+              },
+              {
+                "title": "Routes v2 to v3",
+                "destination": "web/migrations/routes-v2-to-v3.md",
+                "href": "/web/migrations/routes-v2-to-v3/"
+              },
+              {
+                "title": "Routes v3 to v4",
+                "destination": "web/migrations/routes-v3-to-v4.md",
+                "href": "/web/migrations/routes-v3-to-v4/"
+              },
+              {
+                "title": "Routes v4 to v5",
+                "destination": "web/migrations/routes-v4-to-v5.md",
+                "href": "/web/migrations/routes-v4-to-v5/"
+              }
+            ]
+          },
+          {
+            "title": "Web application",
+            "children": [
+              {
+                "title": "Surfaces v1 to v2",
+                "destination": "webapp/docs/migrations/surfaces-v1-to-v2.md",
+                "href": "/webapp/docs/migrations/surfaces-v1-to-v2/"
+              },
+              {
+                "title": "UI states v1 to v2",
+                "destination": "webapp/docs/migrations/ui-states-v1-to-v2.md",
+                "href": "/webapp/docs/migrations/ui-states-v1-to-v2/"
+              }
+            ]
+          },
+          {
+            "title": "Capabilities and lifecycle",
+            "children": [
+              {
+                "title": "CLI interface v1 to v2",
+                "destination": "capabilities/cli/migrations/v1-to-v2.md",
+                "href": "/capabilities/cli/migrations/v1-to-v2/"
+              },
+              {
+                "title": "MCP interface v1 to v2",
+                "destination": "capabilities/mcp/migrations/v1-to-v2.md",
+                "href": "/capabilities/mcp/migrations/v1-to-v2/"
+              },
+              {
+                "title": "MCP Apps v1 to v2",
+                "destination": "capabilities/mcp-apps/migrations/v1-to-v2.md",
+                "href": "/capabilities/mcp-apps/migrations/v1-to-v2/"
+              },
+              {
+                "title": "PWA offline v1 to v2",
+                "destination": "capabilities/pwa/migrations/offline-v1-to-v2.md",
+                "href": "/capabilities/pwa/migrations/offline-v1-to-v2/"
+              },
+              {
+                "title": "PWA update v1 to v2",
+                "destination": "capabilities/pwa/migrations/update-v1-to-v2.md",
+                "href": "/capabilities/pwa/migrations/update-v1-to-v2/"
+              },
+              {
+                "title": "Web interface v1 to v2",
+                "destination": "capabilities/browser/migrations/v1-to-v2.md",
+                "href": "/capabilities/browser/migrations/v1-to-v2/"
+              },
+              {
+                "title": "Service interface v1 to v2",
+                "destination": "capabilities/service/migrations/v1-to-v2.md",
+                "href": "/capabilities/service/migrations/v1-to-v2/"
+              },
+              {
+                "title": "Release execution v1 to v2",
+                "destination": "lifecycle/release-execution/migrations/v1-to-v2.md",
+                "href": "/lifecycle/release-execution/migrations/v1-to-v2/"
+              }
+            ]
+          },
+          {
+            "title": "Implementation evidence",
+            "children": [
+              {
+                "title": "Implementation evidence v1 to v2",
+                "destination": "lifecycle/implementation-evidence/migrations/v1-to-v2.md",
+                "href": "/lifecycle/implementation-evidence/migrations/v1-to-v2/"
+              },
+              {
+                "title": "Implementation evidence v2 to v3",
+                "destination": "lifecycle/implementation-evidence/migrations/v2-to-v3.md",
+                "href": "/lifecycle/implementation-evidence/migrations/v2-to-v3/"
+              },
+              {
+                "title": "Implementation evidence v3 to v4",
+                "destination": "lifecycle/implementation-evidence/migrations/v3-to-v4.md",
+                "href": "/lifecycle/implementation-evidence/migrations/v3-to-v4/"
+              },
+              {
+                "title": "Implementation evidence v4 to v5",
+                "destination": "lifecycle/implementation-evidence/migrations/v4-to-v5.md",
+                "href": "/lifecycle/implementation-evidence/migrations/v4-to-v5/"
+              },
+              {
+                "title": "Implementation evidence v5 to v6",
+                "destination": "lifecycle/implementation-evidence/migrations/v5-to-v6.md",
+                "href": "/lifecycle/implementation-evidence/migrations/v5-to-v6/"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "title": "Reference",
+        "children": [
+          {
+            "title": "Composition",
+            "children": [
+              {
+                "title": "Composer reference",
+                "destination": "composition/reference/composer.md",
+                "href": "/composition/reference/composer/"
+              },
+              {
+                "title": "Composition model",
+                "destination": "composition/architecture/composition-model.md",
+                "href": "/composition/architecture/composition-model/"
+              },
+              {
+                "title": "Production catalog",
+                "destination": "composition/architecture/catalog.md",
+                "href": "/composition/architecture/catalog/"
+              },
+              {
+                "title": "Generated contract manifest",
+                "destination": "composition/architecture/generated-contract-manifest.md",
+                "href": "/composition/architecture/generated-contract-manifest/"
+              },
+              {
+                "title": "Composer architecture",
+                "destination": "composition/architecture/composer-mvp.md",
+                "href": "/composition/architecture/composer-mvp/"
+              },
+              {
+                "title": "Catalog guide",
+                "destination": "composition/catalog/index.md",
+                "href": "/composition/catalog/"
+              },
+              {
+                "title": "Schema guide",
+                "destination": "composition/schemas/index.md",
+                "href": "/composition/schemas/"
+              },
+              {
+                "title": "Installer release",
+                "destination": "composition/authorities/installer-release.md",
+                "href": "/composition/authorities/installer-release/"
+              }
+            ]
+          },
+          {
+            "title": "Policy",
+            "children": [
+              {
+                "title": "CLI",
+                "destination": "policy/cli.md",
+                "href": "/policy/cli/"
+              },
+              {
+                "title": "Architecture",
+                "destination": "policy/architecture.md",
+                "href": "/policy/architecture/"
+              },
+              {
+                "title": "Configuration",
+                "destination": "policy/configuration.md",
+                "href": "/policy/configuration/"
+              },
+              {
+                "title": "Bootstrap model",
+                "destination": "policy/bootstrap-model.md",
+                "href": "/policy/bootstrap-model/"
+              },
+              {
+                "title": "Threat model",
+                "destination": "policy/threat-model.md",
+                "href": "/policy/threat-model/"
+              }
+            ]
+          },
+          {
+            "title": "Web",
+            "children": [
+              {
+                "title": "URL and path design guidance",
+                "destination": "web/url-path-design-guidance.md",
+                "href": "/web/url-path-design-guidance/"
+              }
+            ]
+          },
+          {
+            "title": "Integration",
+            "children": [
+              {
+                "title": "Policy–Composition coexistence",
+                "destination": "coexistence/index.md",
+                "href": "/coexistence/"
+              }
+            ]
+          },
+          {
+            "title": "Repository trees",
+            "children": [
+              {
+                "title": "Overview",
+                "destination": "repository-trees/index.md",
+                "href": "/repository-trees/"
+              },
+              {
+                "title": "Composition tree",
+                "destination": "repository-trees/composition.md",
+                "href": "/repository-trees/composition/"
+              },
+              {
+                "title": "Policy tree",
+                "destination": "repository-trees/policy.md",
+                "href": "/repository-trees/policy/"
+              }
+            ]
+          },
+          {
+            "title": "Reader help",
+            "children": [
+              {
+                "title": "PWA usage",
+                "destination": "policy/pwa.md",
+                "href": "/policy/pwa/"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "maintain": [
+      {
+        "title": "Maintainer overview",
+        "children": [
+          {
+            "title": "Documentation portal",
+            "destination": "index.md",
+            "href": "/"
+          }
+        ]
+      },
+      {
+        "title": "Authorities",
+        "children": [
+          {
+            "title": "Site",
+            "children": [
+              {
+                "title": "Overview",
+                "destination": "topology/index.md",
+                "href": "/topology/"
+              },
+              {
+                "title": "Workspace topology overview",
+                "destination": "workspace/index.md",
+                "href": "/workspace/"
+              }
+            ]
+          },
+          {
+            "title": "Composition",
+            "children": [
+              {
+                "title": "Overview",
+                "destination": "composition/index.md",
+                "href": "/composition/"
+              },
+              {
+                "title": "Composer reference",
+                "destination": "composition/reference/composer.md",
+                "href": "/composition/reference/composer/"
+              },
+              {
+                "title": "Documentation index",
+                "destination": "composition/docs/index.md",
+                "href": "/composition/docs/"
+              },
+              {
+                "title": "Composition model",
+                "destination": "composition/architecture/composition-model.md",
+                "href": "/composition/architecture/composition-model/"
+              },
+              {
+                "title": "Production catalog",
+                "destination": "composition/architecture/catalog.md",
+                "href": "/composition/architecture/catalog/"
+              },
+              {
+                "title": "Generated contract manifest",
+                "destination": "composition/architecture/generated-contract-manifest.md",
+                "href": "/composition/architecture/generated-contract-manifest/"
+              },
+              {
+                "title": "Composer architecture",
+                "destination": "composition/architecture/composer-mvp.md",
+                "href": "/composition/architecture/composer-mvp/"
+              },
+              {
+                "title": "Catalog guide",
+                "destination": "composition/catalog/index.md",
+                "href": "/composition/catalog/"
+              },
+              {
+                "title": "Schema guide",
+                "destination": "composition/schemas/index.md",
+                "href": "/composition/schemas/"
+              },
+              {
+                "title": "Composition maintainer overview",
+                "destination": "composition/authorities/provider-maintenance.md",
+                "href": "/composition/authorities/provider-maintenance/"
+              },
+              {
+                "title": "Installer release",
+                "destination": "composition/authorities/installer-release.md",
+                "href": "/composition/authorities/installer-release/"
+              },
+              {
+                "title": "Topology contract",
+                "destination": "topology/contract/index.md",
+                "href": "/topology/contract/"
+              },
+              {
+                "title": "Topology architecture",
+                "destination": "topology/architecture/index.md",
+                "href": "/topology/architecture/"
+              },
+              {
+                "title": "Bare Worktree",
+                "destination": "workspace/bare-worktree/index.md",
+                "href": "/workspace/bare-worktree/"
+              },
+              {
+                "title": "Local-checkout architecture",
+                "destination": "workspace/architecture/index.md",
+                "href": "/workspace/architecture/"
+              }
+            ]
+          },
+          {
+            "title": "Policy",
+            "children": [
+              {
+                "title": "Overview",
+                "destination": "policy/index.md",
+                "href": "/policy/"
+              },
+              {
+                "title": "Provider and toolchain",
+                "destination": "policy/provider/index.md",
+                "href": "/policy/provider/"
+              },
+              {
+                "title": "Shared policy corpus",
+                "destination": "policy/shared-policy/index.md",
+                "href": "/policy/shared-policy/"
+              },
+              {
+                "title": "CLI",
+                "destination": "policy/cli.md",
+                "href": "/policy/cli/"
+              },
+              {
+                "title": "Toolchain release lifecycle",
+                "destination": "policy/release-lifecycle.md",
+                "href": "/policy/release-lifecycle/"
+              },
+              {
+                "title": "Repository structure",
+                "destination": "policy/repository-structure.md",
+                "href": "/policy/repository-structure/"
+              },
+              {
+                "title": "Architecture",
+                "destination": "policy/architecture.md",
+                "href": "/policy/architecture/"
+              },
+              {
+                "title": "Configuration",
+                "destination": "policy/configuration.md",
+                "href": "/policy/configuration/"
+              },
+              {
+                "title": "Policy profiles",
+                "destination": "policy/shared-policy/profiles.md",
+                "href": "/policy/shared-policy/profiles/"
+              },
+              {
+                "title": "Policy authoring",
+                "destination": "policy/policy-authoring.md",
+                "href": "/policy/policy-authoring/"
+              },
+              {
+                "title": "Bootstrap model",
+                "destination": "policy/bootstrap-model.md",
+                "href": "/policy/bootstrap-model/"
+              },
+              {
+                "title": "Threat model",
+                "destination": "policy/threat-model.md",
+                "href": "/policy/threat-model/"
+              },
+              {
+                "title": "Policy maintainer workflow",
+                "destination": "policy/policy-maintainer-workflow.md",
+                "href": "/policy/policy-maintainer-workflow/"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "title": "Authority coexistence",
+        "children": [
+          {
+            "title": "Policy–Composition coexistence",
+            "destination": "coexistence/index.md",
+            "href": "/coexistence/"
+          }
+        ]
+      },
+      {
+        "title": "Self-hosting",
+        "children": [
+          {
+            "title": "Reference consumer",
+            "destination": "coexistence/index.md",
+            "href": "/coexistence/"
+          },
+          {
+            "title": "Overview",
+            "destination": "lifecycle/index.md",
+            "href": "/lifecycle/"
+          },
+          {
+            "title": "Product lifecycle",
+            "children": [
+              {
+                "title": "Composition state",
+                "destination": "lifecycle/composition-state/index.md",
+                "href": "/lifecycle/composition-state/"
+              },
+              {
+                "title": "Contract evolution",
+                "destination": "lifecycle/contract-evolution/index.md",
+                "href": "/lifecycle/contract-evolution/"
+              },
+              {
+                "title": "Implementation evidence",
+                "destination": "lifecycle/implementation-evidence/index.md",
+                "href": "/lifecycle/implementation-evidence/"
+              },
+              {
+                "title": "Lifecycle checkpoints",
+                "destination": "lifecycle/checkpoints/index.md",
+                "href": "/lifecycle/checkpoints/"
+              },
+              {
+                "title": "Release execution",
+                "destination": "lifecycle/release-execution/index.md",
+                "href": "/lifecycle/release-execution/"
+              },
+              {
+                "title": "Release evidence",
+                "destination": "lifecycle/release-evidence/index.md",
+                "href": "/lifecycle/release-evidence/"
+              },
+              {
+                "title": "Release bundle",
+                "destination": "lifecycle/release-bundle/index.md",
+                "href": "/lifecycle/release-bundle/"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "title": "Publication",
+        "children": [
+          {
+            "title": "Composition",
+            "children": [
+              {
+                "title": "Publication boundary",
+                "destination": "composition/docs/publication-catalog.md",
+                "href": "/composition/docs/publication-catalog/"
+              }
+            ]
+          },
+          {
+            "title": "Policy",
+            "children": [
+              {
+                "title": "Documentation publication",
+                "destination": "policy/documentation-publication.md",
+                "href": "/policy/documentation-publication/"
+              },
+              {
+                "title": "Publication catalog",
+                "destination": "policy/publication-catalog.md",
+                "href": "/policy/publication-catalog/"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "title": "Site operation",
+        "children": [
+          {
+            "title": "Reader help",
+            "children": [
+              {
+                "title": "PWA usage",
+                "destination": "policy/pwa.md",
+                "href": "/policy/pwa/"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "title": "Validation and qualification",
+        "children": [
+          {
+            "title": "Composition",
+            "children": [
+              {
+                "title": "Evaluate Composition",
+                "destination": "composition/evaluate/index.md",
+                "href": "/composition/evaluate/"
+              }
+            ]
+          },
+          {
+            "title": "Policy",
+            "children": [
+              {
+                "title": "Policy completion roadmap",
+                "destination": "policy/policy-readiness.md",
+                "href": "/policy/policy-readiness/"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "title": "Development workflow",
+        "children": [
+          {
+            "title": "Policy",
+            "children": [
+              {
+                "title": "Google AI Studio Build mode",
+                "destination": "policy/agent-environments/google-ai-studio.md",
+                "href": "/policy/agent-environments/google-ai-studio/"
+              },
+              {
+                "title": "Shared review policy",
+                "destination": "policy/review-policy.md",
+                "href": "/policy/review-policy/"
+              },
+              {
+                "title": "External artifact intake",
+                "destination": "policy/external-artifact-intake.md",
+                "href": "/policy/external-artifact-intake/"
+              },
+              {
+                "title": "Regression prevention",
+                "destination": "policy/regression-prevention.md",
+                "href": "/policy/regression-prevention/"
+              },
+              {
+                "title": "Contributing",
+                "destination": "policy/contributing.md",
+                "href": "/policy/contributing/"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "title": "Architecture decisions",
+        "children": [
+          {
+            "title": "Policy",
+            "children": [
+              {
+                "title": "Overview",
+                "destination": "policy/adr/index.md",
+                "href": "/policy/adr/"
+              },
+              {
+                "title": "ADR-0002 Repository adoption",
+                "destination": "policy/adr/0002-repository-adoption.md",
+                "href": "/policy/adr/0002-repository-adoption/"
+              },
+              {
+                "title": "ADR-0003 Application-neutral scope",
+                "destination": "policy/adr/0003-application-neutral-policy-scope.md",
+                "href": "/policy/adr/0003-application-neutral-policy-scope/"
+              },
+              {
+                "title": "ADR-0005 Single policy authority",
+                "destination": "policy/adr/0005-single-policy-authority.md",
+                "href": "/policy/adr/0005-single-policy-authority/"
+              },
+              {
+                "title": "ADR-0006 Copyable artifact policy adoption",
+                "destination": "policy/adr/0006-copyable-artifact-policy-adoption.md",
+                "href": "/policy/adr/0006-copyable-artifact-policy-adoption/"
+              },
+              {
+                "title": "ADR-0007 Single agent-policy skill runtime cache",
+                "destination": "policy/adr/0007-single-agent-policy-skill-runtime-cache.md",
+                "href": "/policy/adr/0007-single-agent-policy-skill-runtime-cache/"
+              },
+              {
+                "title": "ADR-0008 Review authority and GitHub runtime boundary",
+                "destination": "policy/adr/0008-review-authority-and-github-runtime-boundary.md",
+                "href": "/policy/adr/0008-review-authority-and-github-runtime-boundary/"
+              },
+              {
+                "title": "ADR-0009 Review result representation boundary",
+                "destination": "policy/adr/0009-review-result-representation-boundary.md",
+                "href": "/policy/adr/0009-review-result-representation-boundary/"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "title": "Repository history",
+        "children": [
+          {
+            "title": "Composition",
+            "children": [
+              {
+                "title": "Authority migration history",
+                "destination": "composition/migrations/authority-migration.md",
+                "href": "/composition/migrations/authority-migration/"
+              }
+            ]
+          },
+          {
+            "title": "Policy",
+            "children": [
+              {
+                "title": "Policy authority inventory",
+                "destination": "policy/policy-authority-inventory.md",
+                "href": "/policy/policy-authority-inventory/"
+              },
+              {
+                "title": "ADR-0004 Integrated bootstrap skill (superseded)",
+                "destination": "policy/adr/0004-integrated-bootstrap-skill.md",
+                "href": "/policy/adr/0004-integrated-bootstrap-skill/"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "title": "Repository trees",
+        "children": [
+          {
+            "title": "Overview",
+            "destination": "repository-trees/index.md",
+            "href": "/repository-trees/"
+          },
+          {
+            "title": "Composition tree",
+            "destination": "repository-trees/composition.md",
+            "href": "/repository-trees/composition/"
+          },
+          {
+            "title": "Policy tree",
+            "destination": "repository-trees/policy.md",
+            "href": "/repository-trees/policy/"
+          }
+        ]
+      }
+    ]
+  },
   "audiences": [
     "use",
     "maintain"

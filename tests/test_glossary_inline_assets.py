@@ -232,6 +232,7 @@ class GlossaryInlineAssetTests(unittest.TestCase):
                 "javascripts/audience-context.js",
                 "javascripts/audience-shell.js",
                 "javascripts/search-history.js",
+                "javascripts/audience-search.js",
                 "javascripts/glossary-inline.js",
                 "javascripts/composition-playground.js",
                 "javascripts/composition-playground-explain.js",
