@@ -12,10 +12,12 @@ provider pair; bootstrap did not adopt newer provider heads. Subsequent explicit
 promotions select exact inputs in `publication-sources.json` without changing that proof. `bootstrap/materialization.json`
 records source blobs copied without transferring foreign Git history.
 
-The transition is deliberately incomplete: Site still runs its historical local
-Integration implementation and has not adopted this independent authority. Existing Site
-machine discovery continues to describe that runtime state. This repository's authority
-histories do not imply adoption of Composition's reusable hub-and-orphan topology.
+Site adopted an exact reviewed Integration release in #901 and added stale-translation
+warnings in #902. It consumes the immutable Bundle without provider checkouts or
+Integration implementation internals. Its explicit `integration-source.json` may
+remain pinned while Integration advances; this authority never updates that selection.
+This repository's independent histories do not imply adoption of Composition's reusable
+hub-and-orphan topology.
 
 The landed I1–I3 stack established contracts, mappings, locks, provenance, the independent
 producer, public read-model contract, deterministic qualification and immutable transport. Promotion requires explicit review and qualification; an Integration release
