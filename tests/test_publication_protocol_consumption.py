@@ -164,7 +164,9 @@ def _markdown_link_destinations(text: str) -> list[str]:
 
 
 def _relative_markdown_target(source: str, href: str) -> str | None:
-    url = urlsplit(href)
+    # Browser URL parsing removes boundary ASCII C0 controls and spaces.
+    # Strip before percent decoding: an encoded space belongs to the path.
+    url = urlsplit(href.strip("".join(chr(code) for code in range(0x21))))
     path = unquote(url.path)
     if url.scheme or url.netloc or path.startswith("/") or not path.endswith(".md"):
         return None
@@ -225,3 +227,18 @@ def test_catalog_guard_ignores_non_links(text: str) -> None:
 ])
 def test_catalog_guard_classifies_url_paths(href: str, expected: str | None) -> None:
     assert _relative_markdown_target("docs/guide.md", href) == expected
+
+
+@pytest.mark.parametrize("boundary", [chr(code) for code in range(0x21)])
+def test_catalog_guard_normalizes_url_boundary_controls(boundary: str) -> None:
+    assert _relative_markdown_target(
+        "docs/guide.md", boundary + "unpublished.md" + boundary
+    ) == "docs/unpublished.md"
+
+
+def test_catalog_guard_classifies_entity_space_but_preserves_encoded_path_space() -> None:
+    href, = _markdown_link_destinations("[guide](unpublished.md&#32;)")
+    assert href == "unpublished.md "
+    assert _relative_markdown_target("docs/guide.md", href) == "docs/unpublished.md"
+    assert _relative_markdown_target("docs/guide.md", "unpublished.md%20") is None
+    assert _relative_markdown_target("docs/guide.md", "unpublished.md\u00a0") is None
