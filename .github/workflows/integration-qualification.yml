@@ -1,0 +1,159 @@
+name: Qualify Integration candidate
+on:
+  workflow_dispatch:
+    inputs:
+      producer_ref:
+        description: Exact Integration producer commit (empty selects this dispatch revision)
+        type: string
+        default: ''
+      composition_ref:
+        description: Exact Composition candidate SHA (empty uses reviewed lock)
+        type: string
+        default: ''
+      policy_ref:
+        description: Exact Policy candidate SHA (empty uses reviewed lock)
+        type: string
+        default: ''
+      bootstrap_equivalence:
+        description: Verify the historical P5 Site snapshot (not a steady-state release baseline)
+        type: boolean
+        default: false
+      publication_staging_ids:
+        description: Ordered candidate mapping IDs, without changing reviewed locks
+        type: string
+        default: ''
+  workflow_call:
+    inputs:
+      bootstrap_equivalence:
+        type: boolean
+        default: false
+      producer_ref:
+        type: string
+        required: true
+      composition_ref:
+        type: string
+        default: ''
+      policy_ref:
+        type: string
+        default: ''
+      publication_staging_ids:
+        type: string
+        default: ''
+      publication_staging_id:
+        type: string
+        default: ''
+      artifact_namespace:
+        type: string
+        default: candidate
+    outputs:
+      producer_revision:
+        value: ${{ jobs.qualify.outputs.producer_revision }}
+      composition_revision:
+        value: ${{ jobs.qualify.outputs.composition_revision }}
+      policy_revision:
+        value: ${{ jobs.qualify.outputs.policy_revision }}
+      bundle_identity:
+        value: ${{ jobs.qualify.outputs.bundle_identity }}
+      bundle_content_digest:
+        value: ${{ jobs.qualify.outputs.bundle_content_digest }}
+      artifact_id:
+        value: ${{ jobs.qualify.outputs.artifact_id }}
+      artifact_digest:
+        value: ${{ jobs.qualify.outputs.artifact_digest }}
+      artifact_name:
+        value: ${{ jobs.qualify.outputs.artifact_name }}
+permissions:
+  contents: read
+  actions: read
+jobs:
+  qualify:
+    name: Qualify Integration candidate (${{ inputs.artifact_namespace || 'candidate' }})
+    runs-on: ubuntu-24.04
+    outputs:
+      producer_revision: ${{ steps.producer.outputs.sha }}
+      composition_revision: ${{ steps.refs.outputs.composition }}
+      policy_revision: ${{ steps.refs.outputs.policy }}
+      bundle_identity: ${{ steps.bundle.outputs.bundle_identity }}
+      bundle_content_digest: ${{ steps.bundle.outputs.bundle_content_digest }}
+      artifact_id: ${{ steps.upload.outputs.artifact-id }}
+      artifact_digest: sha256:${{ steps.upload.outputs.artifact-digest }}
+      artifact_name: publication-bundle-${{ steps.bundle.outputs.bundle_identity }}-${{ github.run_attempt }}-${{ inputs.artifact_namespace || 'candidate' }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.producer_ref || github.sha }}
+          path: integration-source
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: integration-source/requirements-build.lock
+      - name: Resolve exact producer and reviewed companion inputs
+        id: refs
+        env:
+          COMPOSITION: ${{ inputs.composition_ref }}
+          POLICY: ${{ inputs.policy_ref }}
+        run: |
+          overrides=()
+          if [ -n "$COMPOSITION" ]; then overrides+=(--override "composition=$COMPOSITION"); fi
+          if [ -n "$POLICY" ]; then overrides+=(--override "policy=$POLICY"); fi
+          python integration-source/scripts/resolve_publication_sources.py --lock integration-source/publication-sources.json --output "$GITHUB_OUTPUT" "${overrides[@]}"
+      - name: Bind producer revision
+        id: producer
+        env:
+          EXPECTED_PRODUCER: ${{ inputs.producer_ref || github.sha }}
+        run: python integration-source/scripts/resolve_producer_checkout.py --root integration-source --expected "$EXPECTED_PRODUCER" --output "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ steps.refs.outputs.composition }}
+          path: composition-source
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ steps.refs.outputs.policy }}
+          path: policy-source
+          persist-credentials: false
+      - name: Install locked producer dependencies
+        run: |
+          python -m pip install --no-deps -r integration-source/requirements-build.lock
+          python -m pip check
+      - name: Validate Integration contract regression cases
+        working-directory: integration-source
+        run: python -m unittest tests.test_publication_bundle tests.test_bundle_review_invariants tests.test_translation_manifest_closure tests.test_integration_qualification tests.test_bundle_artifact -v
+      - name: Materialize provider-owned catalog outputs
+        run: |
+          python integration-source/scripts/materialize_publication_assets.py --publication composition=composition-source --publication policy=policy-source
+      - name: Qualify exact inputs and deterministic regeneration
+        id: bundle
+        env:
+          STAGING_IDS: ${{ inputs.publication_staging_ids }}
+          STAGING_ID: ${{ inputs.publication_staging_id }}
+        run: |
+          if [ -n "$STAGING_IDS" ] && [ -n "$STAGING_ID" ]; then
+            echo 'Select one staging argument' >&2
+            exit 1
+          fi
+          python integration-source/scripts/qualify_integration.py \
+            --integration-root integration-source \
+            --producer-revision "${{ steps.producer.outputs.sha }}" \
+            --composition-root composition-source --composition-revision "${{ steps.refs.outputs.composition }}" \
+            --policy-root policy-source --policy-revision "${{ steps.refs.outputs.policy }}" \
+            --staging-ids "${STAGING_IDS:-$STAGING_ID}" \
+            --output publication-bundle --github-output "$GITHUB_OUTPUT"
+      - name: Verify requested bootstrap equivalence
+        if: ${{ inputs.bootstrap_equivalence }}
+        run: python integration-source/scripts/verify_bootstrap_equivalence.py --bundle publication-bundle
+      - name: Package qualified Bundle
+        run: python integration-source/scripts/publication_bundle_artifact.py pack --bundle publication-bundle --output bundle.tar
+      - name: Publish immutable Bundle artifact
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: publication-bundle-${{ steps.bundle.outputs.bundle_identity }}-${{ github.run_attempt }}-${{ inputs.artifact_namespace || 'candidate' }}
+          path: bundle.tar
+          if-no-files-found: error
+          retention-days: 7
+      - name: Record compatibility scope
+        run: |
+          echo 'Exact provider compatibility and deterministic Bundle qualification only. No provider adoption, Integration promotion, Site qualification, or deployment is authorized by this result.' >> "$GITHUB_STEP_SUMMARY"

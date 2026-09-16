@@ -21,5 +21,7 @@ qualification must generate twice from identical exact inputs. Review artifact t
 binding separately from deterministic content identity. Build outputs live outside all
 source checkouts. Caller-owned workspaces must be exclusive during qualification.
 
-The P5 task ends after one cumulative review request on the final draft stack member.
-Do not merge the P5 stack or start P6+, Site adoption/cutover, or deployment in this session.
+Integration release promotion requires explicit task authorization and guarded
+exact-head acceptance. Request one cumulative review per logical stack; after
+remediation, reacquire only targeted evidence whose bindings changed. The historical
+P5 bootstrap handoff does not authorize Site adoption, cutover or deployment.
