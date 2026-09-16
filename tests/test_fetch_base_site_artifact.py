@@ -3,6 +3,8 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+import subprocess
+import sys
 import tarfile
 import tempfile
 import unittest
@@ -18,11 +20,23 @@ from scripts.fetch_base_site_artifact import (
 from scripts.site_build_artifact import identity_key
 
 
+ROOT = Path(__file__).resolve().parents[1]
 REPOSITORY = "TakashiSasaki/templates"
 BASE = "1" * 40
 
 
 class BaseArtifactSelectionTests(unittest.TestCase):
+    def test_direct_script_entrypoint_loads(self) -> None:
+        result = subprocess.run(
+            [sys.executable, "scripts/fetch_base_site_artifact.py", "--help"],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn("PR base revision", result.stdout)
+
     def test_candidate_runs_are_base_bound_and_newest_first(self) -> None:
         def run(run_id: int, number: int, *, head: str = BASE, event: str = "pull_request", repo: str = REPOSITORY):
             return {
