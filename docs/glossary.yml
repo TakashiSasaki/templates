@@ -1,0 +1,108 @@
+schema_version: 1
+terms:
+  - id: templates-publication-catalog
+    term: Publication catalog
+    localized_labels:
+      ja:
+        term: 公開カタログ
+        aliases:
+          - パブリケーションカタログ
+    origin: repository
+    definition: >-
+      A declaration owned by a Provider branch that lists the canonical
+      publication inputs Integration is permitted to integrate.
+    related_terms:
+      - templates-provider-branch
+
+  - id: templates-provider-branch
+    term: Provider branch
+    localized_labels:
+      ja:
+        term: プロバイダーブランチ
+        aliases:
+          - 提供ブランチ
+    origin: repository
+    definition: >-
+      A repository-internal primary Git branch, currently composition or policy,
+      that owns canonical content supplied as an independently versioned input
+      to the Integration publication model.
+    summary: >-
+      One of the repository's composition or policy content-source branches used
+      as an input to Integration publication.
+    repository_usage: >-
+      In Integration publication terminology, Provider branch refers only to these
+      internal Git content-source branches. It does not mean a cloud provider,
+      LLM or API provider, identity provider, or other external service
+      provider. Integration assembles provider sources and Site renders the result; neither is
+      a Provider branch. Policy documentation also uses Provider / toolchain
+      layer in its own Policy-specific architecture, which is a separate use of
+      provider terminology.
+    related_terms:
+      - templates-publication-catalog
+
+  - id: templates-integrated-publication
+    term: Integrated publication
+    localized_labels:
+      ja:
+        term: 統合公開
+    origin: repository
+    definition: >-
+      The Integration-owned publication model assembled from reviewed exact
+      revisions of independently owned Provider branch histories without
+      merging those histories or transferring ownership of their canonical
+      content.
+    related_terms:
+      - templates-provider-branch
+      - templates-publication-catalog
+      - templates-publication-source-lock
+
+  - id: templates-publication-source-lock
+    term: Publication source lock
+    localized_labels:
+      ja:
+        term: 公開ソースロック
+    origin: repository
+    definition: >-
+      An Integration-owned binding in publication-sources.json from a Provider branch
+      publication to a reviewed full 40-character commit SHA used as an
+      immutable build input. Mutable branch names, tags, and abbreviated SHAs
+      are not valid publication source locks.
+    related_terms:
+      - templates-provider-branch
+      - templates-integrated-publication
+
+  - id: templates-index-guided-navigation
+    term: Index-guided navigation
+    localized_labels:
+      ja:
+        term: インデックス誘導ナビゲーション
+    origin: repository
+    definition: >-
+      The bounded Integration-generated guided-navigation graph of Provider-branch-owned
+      index.md navigation metadata from exact reviewed Provider branch
+      revisions. It preserves Provider branch grouping, order, labels, and
+      descriptions without turning provider indexes into a publication catalog
+      or replacing Integration-owned reader navigation. Site may render
+      this schema-versioned machine-readable graph at /guided/.
+    related_terms:
+      - templates-integrated-publication
+      - templates-provider-branch
+      - templates-publication-catalog
+      - templates-publication-source-lock
+
+  - id: external-git-branch
+    term: Branch
+    localized_labels:
+      ja:
+        term: ブランチ
+    origin: external
+    summary: >-
+      A named line of development represented through Git references.
+    authority:
+      kind: upstream
+      sources:
+        - title: Git glossary
+          url: https://git-scm.com/docs/gitglossary
+    repository_usage: >-
+      The repository uses separate primary branches for site, composition, and
+      policy responsibilities.

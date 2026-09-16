@@ -1,0 +1,1017 @@
+{
+  "schema_version": 1,
+  "site_bundle_identity": "c1128cc86b434fa692b2ed8bf3d28eaa647ddfeae9d377c3b17811182643a567",
+  "site_bundle_content_digest": "5d0b4aba03b808217d0fe3da086fcfdba10396880e7dde0badb7a42968ade488",
+  "site_producer": {
+    "authority": "site-internal-integration",
+    "revision": "5c9bc645fe7f58d4bfed0cf0ae4d1d56ffbaf664"
+  },
+  "providers": {
+    "composition": "8c6c1884fa97f3ef1ec6c1aa7deba4ad38c9f4ff",
+    "policy": "6023af1b6aed4a22407d9ca43106cd66cfee9fb6"
+  },
+  "equivalent_files": {
+    "documents.json": {
+      "sha256": "4ea5fd88d0a09250d730766606e19d5dc931c3883dc67ec1c9aab9ee4b203926",
+      "size": 36629
+    },
+    "guided-locales.json": {
+      "sha256": "f0d58e691f493c24b5a82ae753557d507596a68a08728b826f5e8a68500f4de0",
+      "size": 32536
+    },
+    "guided-navigation.json": {
+      "sha256": "abcd1363730ec87a5ed9f0bd3cc1d1cc66951f8a72ac90cb70339f2e2309a307",
+      "size": 43890
+    },
+    "navigation.json": {
+      "sha256": "c3dcb558b1e0ddf9001b093db01d50c6879f5dd2d65036a0babd281a5d386fee",
+      "size": 148945
+    },
+    "provider-repositories.json": {
+      "sha256": "db223770ff9093ad7295e777995390bd5aa6c164445e32a450ea2a860360f9a7",
+      "size": 13825731
+    },
+    "publication/capabilities/browser/index.md": {
+      "sha256": "2505a6cfc578443e1b19954bef464680116113e22b76677c4ab1970bf4ef3aa0",
+      "size": 7455
+    },
+    "publication/capabilities/browser/migrations/v1-to-v2.md": {
+      "sha256": "32547836e126a68b00fee2174a4f740d768ffe0c8dbbb0384b23c26d2debcc4e",
+      "size": 879
+    },
+    "publication/capabilities/cli/index.md": {
+      "sha256": "2ffd7aeb9c778245350b2aeab2141656083a7a9f54dec1d3963f1c4579914c67",
+      "size": 5113
+    },
+    "publication/capabilities/cli/migrations/v1-to-v2.md": {
+      "sha256": "386f0011cda4fe689f8e1755310e7140fc58d2185390b879be8b72b98bc78613",
+      "size": 861
+    },
+    "publication/capabilities/mcp-apps/guidance.md": {
+      "sha256": "2c2925211b65b0455221e711d5f0587a29669e83a4434f59115dee303e03c39c",
+      "size": 4313
+    },
+    "publication/capabilities/mcp-apps/index.md": {
+      "sha256": "d06064e3644bca6984b31571a4dd0c31d8470b0260dcc883b61390ffbba8ee81",
+      "size": 6068
+    },
+    "publication/capabilities/mcp-apps/migrations/v1-to-v2.md": {
+      "sha256": "364d0edc3fa795eea15d766399ba4b89b023ed2b66728183106ccecf5bbf329e",
+      "size": 922
+    },
+    "publication/capabilities/mcp/index.md": {
+      "sha256": "dee4473c9110a3c197ffec53e78b4e6735670eee3643e09babaf29601d7075e7",
+      "size": 9855
+    },
+    "publication/capabilities/mcp/migrations/v1-to-v2.md": {
+      "sha256": "af70309321246bbf112e4a89ab4a34960bcc9af72e816634daa06421556b93bd",
+      "size": 938
+    },
+    "publication/capabilities/mcp/transports.md": {
+      "sha256": "e8fb5554ea740c3988f02d91f553d2b9b204b98858fe15d1c6cea29645bff33f",
+      "size": 4007
+    },
+    "publication/capabilities/pwa/index.md": {
+      "sha256": "e7a5e652f96eadbb85f75a515f237a98e878dc5a1b080b81bbeebd934985d985",
+      "size": 4974
+    },
+    "publication/capabilities/pwa/migrations/offline-v1-to-v2.md": {
+      "sha256": "d14eb5dc6edabc96f1bf82ea66146f1d2f43bbb40bff39b88db6f5afa6a45e62",
+      "size": 4005
+    },
+    "publication/capabilities/pwa/migrations/update-v1-to-v2.md": {
+      "sha256": "d8b3946c89ea0e995f0a3a0235501fc7a7de8107dc0fb1526898b57652b721eb",
+      "size": 892
+    },
+    "publication/capabilities/runtime/index.md": {
+      "sha256": "226882be32390cf2c436122f732cceb66b4a819268a93c58d4c5ba81db800266",
+      "size": 7599
+    },
+    "publication/capabilities/runtime/selection.md": {
+      "sha256": "75ac54f7cab77c6420c55023828798f8f371e4673aff2b8e56a7e3ddad54b891",
+      "size": 2660
+    },
+    "publication/capabilities/service/index.md": {
+      "sha256": "15a5cb4d72c684b2573883c93ec9d241d5bdd6c4b1e78ea6afc0f5418e2a41ab",
+      "size": 5050
+    },
+    "publication/capabilities/service/migrations/v1-to-v2.md": {
+      "sha256": "6016bfb606889823e04d83de94ef379275b5a35add2510dabd9cc293cf6b7bad",
+      "size": 829
+    },
+    "publication/capabilities/webmcp/provider.md": {
+      "sha256": "a75ff5e347ae6ded93afc34d51f516e7acf79c230028a32292e72b80b21da695",
+      "size": 4295
+    },
+    "publication/capabilities/webmcp/security.md": {
+      "sha256": "980cd9589a91c7fa1494b850b9df304a17a7160f39569f47d28b19ec6356bf22",
+      "size": 2384
+    },
+    "publication/capabilities/webmcp/testing.md": {
+      "sha256": "61b2a5578ee2627d090d2d09eb53261e83b12a91d38c33e1ed426f3488f9f92c",
+      "size": 1649
+    },
+    "publication/capabilities/webmcp/tool-design.md": {
+      "sha256": "32749bc88f939bf24682989cfe7adcf2c6187a643e6686241c985bd0d47a8d24",
+      "size": 2094
+    },
+    "publication/composition/architecture/catalog.md": {
+      "sha256": "8cbc06253e5d9abef7ed0cc53c84a66a39d995cc89959fba75ea7ce1b8bc6c6b",
+      "size": 5776
+    },
+    "publication/composition/architecture/composer-mvp.md": {
+      "sha256": "8339d1812bd3851ecdaf4845f702f1993c811f9dccaf459ccea87beecd0e79d6",
+      "size": 20234
+    },
+    "publication/composition/architecture/composition-model.md": {
+      "sha256": "018e20fcdcc5e97964764b8dbb51c34393f19f5f918720f3a79b67b0e660a9c9",
+      "size": 17981
+    },
+    "publication/composition/architecture/generated-contract-manifest.md": {
+      "sha256": "97a54911b65f04d0736e007a17e280ddb35d2f8f10781efe5dc19e70594b0dde",
+      "size": 2373
+    },
+    "publication/composition/authorities/installer-release.md": {
+      "sha256": "476665e01c7e09230d6f4966144d6b53e8cb3fdd5e99609e0eaecdb1b4923802",
+      "size": 5995
+    },
+    "publication/composition/authorities/provider-maintenance.md": {
+      "sha256": "f9d61a1988858daeee7c41fde8c2bf720946bb1ee8632ef23a6f7448b3361276",
+      "size": 3285
+    },
+    "publication/composition/capabilities/webmcp/contracts/webmcp-interface.json": {
+      "sha256": "914b1b8d70cd458bbd4f5f9d02affc525cd6baee87ce625cdef247efcca034cf",
+      "size": 673
+    },
+    "publication/composition/capabilities/webmcp/contracts/webmcp-tools.json": {
+      "sha256": "f6836a64433bb09dac3d34a08fc528a6ef33bfdba145fa87396281b2ecf91c10",
+      "size": 92
+    },
+    "publication/composition/capabilities/webmcp/schemas/webmcp-interface.schema.json": {
+      "sha256": "9f155fc9ff3a4683676877fd0bc78a332f6f970064bbe6781eb0187fb05382c5",
+      "size": 2562
+    },
+    "publication/composition/capabilities/webmcp/schemas/webmcp-tools.schema.json": {
+      "sha256": "cdb42b4742b057bbbf50eb0e2473193f3f2c91a459e8880f062625fb8a98a629",
+      "size": 1832
+    },
+    "publication/composition/catalog/catalog.json": {
+      "sha256": "40d829aaa80bab76894d1c3c0954caca425fe1a8fca635a388a19d668fcec6e2",
+      "size": 731
+    },
+    "publication/composition/catalog/index.md": {
+      "sha256": "784536acf283c0a34e8334fdbd95dba4a210d7ff77485c65c45831464b6b006d",
+      "size": 14381
+    },
+    "publication/composition/components/artifact.skill-core/component.json": {
+      "sha256": "042b0121d9c40655fcd621f467857c13111105b5418df01b0edf444192f00c7c",
+      "size": 1852
+    },
+    "publication/composition/components/artifact.webapp-core/component.json": {
+      "sha256": "e935f61abf651b5075b00ec3d8e0b75dd583655058a1ba04204118b8ca7adb05",
+      "size": 6152
+    },
+    "publication/composition/components/artifact.website-core/component.json": {
+      "sha256": "a053df53314b3e7f58fee7a292a9ffa806648775c36f04641ecad10fd8a56d8a",
+      "size": 3253
+    },
+    "publication/composition/components/capability.cli/component.json": {
+      "sha256": "91675ca93858d9ef8ac253d91a599f1526b3617ab085f4df3216dee56aadbcf0",
+      "size": 1813
+    },
+    "publication/composition/components/capability.mcp-apps/component.json": {
+      "sha256": "beaea35787ecf26c9ea4e774f4a13c365cdeb3cab338be1d7db0b03f820fe937",
+      "size": 1834
+    },
+    "publication/composition/components/capability.mcp/component.json": {
+      "sha256": "b614bdd16a6fdc30d93148abd4e8ee027156b6baf45c01d987cf8385a3374f31",
+      "size": 1929
+    },
+    "publication/composition/components/capability.pwa/component.json": {
+      "sha256": "6b653bb134e633e51d9fda455de82e6e2d26db0079c49b791f4e65935ce479e2",
+      "size": 4287
+    },
+    "publication/composition/components/capability.runtime/component.json": {
+      "sha256": "50ad637d9ea1be9419566828f219aa21a69dd70f2e867023fe75534dea0c3004",
+      "size": 545
+    },
+    "publication/composition/components/capability.service/component.json": {
+      "sha256": "4edd6cd063d89f42781689520b53237c2f78f4c9ab9571a7dab241287e5f562b",
+      "size": 1880
+    },
+    "publication/composition/components/capability.web-interface/component.json": {
+      "sha256": "4fd00ea364c72e455b473a6ca8e6ab3874650e927e44a92ceee61a5a5a976664",
+      "size": 1842
+    },
+    "publication/composition/components/capability.webmcp/component.json": {
+      "sha256": "5d529f9af5f04b237370f639d650c9d8701014540cb2f6565cd18958c03bbfa9",
+      "size": 2758
+    },
+    "publication/composition/components/foundation.web/component.json": {
+      "sha256": "468dcb4d5a98b4717bfdefa7bbc88649fe8490568d56d935f32d8d1f154a066f",
+      "size": 4020
+    },
+    "publication/composition/components/lifecycle.composition-state/component.json": {
+      "sha256": "7c60385ad8924f4abd7bda5ff2fb9b5d9317b3507f593f092ce1baed2afec5cb",
+      "size": 1642
+    },
+    "publication/composition/components/lifecycle.contract-evolution/component.json": {
+      "sha256": "16f8e0f91b321e1002108a253f96c18c47db2927c946458496fb270ca8580b0f",
+      "size": 1362
+    },
+    "publication/composition/components/lifecycle.implementation-evidence/component.json": {
+      "sha256": "a7b12df9e681e3c88d0521fc53191860a3b767fa14569170d7c03b237534c29b",
+      "size": 4362
+    },
+    "publication/composition/components/lifecycle.lifecycle-checkpoints/component.json": {
+      "sha256": "183cc655b7f1ebf26de2dd397900c76392bdce6c3f2116aa0b01619f5f9be3ca",
+      "size": 2533
+    },
+    "publication/composition/components/lifecycle.release-bundle/component.json": {
+      "sha256": "f14e2be5150431d43f86d19d82f4e9e0575ab04e7a7799c8169f9fb5a6b57c47",
+      "size": 1909
+    },
+    "publication/composition/components/lifecycle.release-evidence/component.json": {
+      "sha256": "51f97fef8fb9782394ad3f876752ebeff19e21be394278b0d5ae101ebc706021",
+      "size": 1775
+    },
+    "publication/composition/components/lifecycle.release-execution/component.json": {
+      "sha256": "e743d2721bd7e3e5b8073e06a9f3bdae569d733bac7a5e9858d50c9340a8aad0",
+      "size": 3201
+    },
+    "publication/composition/components/topology.hub-and-orphan/component.json": {
+      "sha256": "a5051511de9e2af17c526a011e29bab054ebbf65ce72ec6c37d6cc1d8d3470f7",
+      "size": 1801
+    },
+    "publication/composition/components/workspace.bare-worktree/component.json": {
+      "sha256": "660848473a52365f28d1354227d94edd573807a3052fc52cdc9126d57efbc5dd",
+      "size": 1622
+    },
+    "publication/composition/concepts/index.md": {
+      "sha256": "25e45530d2d283457bb4842a71aefd0425ec30dbc833c19608591e9be634f859",
+      "size": 11666
+    },
+    "publication/composition/docs/index.md": {
+      "sha256": "1b45a8ba9910bef170c9ce4c3292403e2a0798aacc6ca36f7d53a399fc6f496a",
+      "size": 9490
+    },
+    "publication/composition/docs/publication-catalog.md": {
+      "sha256": "7a795dfb0ec4bfc31d7e79113394f9e8fa0318a59d84ae4be7cae4a59e973a66",
+      "size": 12904
+    },
+    "publication/composition/evaluate/index.md": {
+      "sha256": "6f343118e07f18de6eeb598cb126636d13285ea56bd049a58a86711c13d3b820",
+      "size": 2057
+    },
+    "publication/composition/evaluation/evaluation-scorecard.schema.json": {
+      "sha256": "9abc85ddc779de059243ad2b4f369468e395632a4f49d3ef34f52c4fef288950",
+      "size": 15599
+    },
+    "publication/composition/evaluation/evaluation-scorecard.txt": {
+      "sha256": "5fe72c65f4f84d9cb029b3c71f141b3a319596f30d2b707c2fca96ffa34fcc87",
+      "size": 9756
+    },
+    "publication/composition/evaluation/small-model-clean-room-protocol.txt": {
+      "sha256": "86033f929f9ebf0167ada0f99d16f0021fa50178cb1476563ba58ec23e4628bc",
+      "size": 12598
+    },
+    "publication/composition/index.md": {
+      "sha256": "375e87813580829c7b36c69274c23bcf38cae0e9ebba87c89f0f9aa0c45abf82",
+      "size": 11006
+    },
+    "publication/composition/lifecycle/composition-state/composition-lock.schema.json": {
+      "sha256": "6f82f81c4587a6e54c7e2f8df69d2684498c90e7e42d95ec0d8820286a1f59df",
+      "size": 5318
+    },
+    "publication/composition/lifecycle/contract-evolution/schemas/contract-manifest.schema.json": {
+      "sha256": "143d1d93195e5d5304b15bfcff83231ca2759568679034d7cdb053463666245d",
+      "size": 2112
+    },
+    "publication/composition/lifecycle/implementation-evidence/contracts/implementation-evidence.json": {
+      "sha256": "b7bbdf550e97ca33261bf5f3c54bd67eec67c598417bb09d0f4ef76e0c6e2f7b",
+      "size": 189
+    },
+    "publication/composition/lifecycle/implementation-evidence/project-docs/implementation-evidence.product.json": {
+      "sha256": "3bc6c3b132de0ff17791ff603164da8cdb96b94c4fb362c2ae69f2b5163c9e63",
+      "size": 19712
+    },
+    "publication/composition/lifecycle/implementation-evidence/schemas/implementation-evidence.schema.json": {
+      "sha256": "7fe338a70e95a54897a3d11723465ce396e8117a20984000449b93242cd7c409",
+      "size": 7863
+    },
+    "publication/composition/lifecycle/lifecycle-checkpoints/contracts/lifecycle-checkpoints.json": {
+      "sha256": "0242cd734b8f0c14e381f5e850dc4ac80e1dd611f9892c912fc0d25a0f39d0a1",
+      "size": 107
+    },
+    "publication/composition/lifecycle/lifecycle-checkpoints/schemas/lifecycle-checkpoints.schema.json": {
+      "sha256": "dd5ca4bcc3b1ac71e41f141ed4639cc605be513e11622173c58329ebf91ba6fc",
+      "size": 1832
+    },
+    "publication/composition/lifecycle/release-bundle/contracts/release-bundle.json": {
+      "sha256": "905dab77047948ecc60208eb66ecc47931f1eaca9d6c910bcc9a9135df292f57",
+      "size": 120
+    },
+    "publication/composition/lifecycle/release-bundle/schemas/release-bundle.schema.json": {
+      "sha256": "5c33d3ba132f2eb42dc372f3fe440f976b7a1aeaa0ba2ad792c08fb25db82b41",
+      "size": 3986
+    },
+    "publication/composition/lifecycle/release-evidence/contracts/release-evidence.json": {
+      "sha256": "961b7338ae66d99edf1a6438781bac6b1a7657ed5f760572b16f95d906731c74",
+      "size": 148
+    },
+    "publication/composition/lifecycle/release-evidence/schemas/release-evidence.schema.json": {
+      "sha256": "27d3552b62b7d626ec83284a673debbb5c45a0159676bb8bd35976335978155b",
+      "size": 2897
+    },
+    "publication/composition/lifecycle/release-execution/contracts/release-execution.json": {
+      "sha256": "07c07ae690cb380bdd3e5a528403fd90875d72923cd0742356c0f7350264e547",
+      "size": 122
+    },
+    "publication/composition/lifecycle/release-execution/schemas/release-execution.schema.json": {
+      "sha256": "610080a5aaa7ae0140fef4c368924062ab727300e5d707fe5d4d90cbe26a1fae",
+      "size": 2133
+    },
+    "publication/composition/migrations/authority-migration.md": {
+      "sha256": "feb845df147b61f7874884420371ade5ce41e295fde4976d5267366e73e1c4c5",
+      "size": 4770
+    },
+    "publication/composition/playground/composition-playground-intent-v1.json.gz": {
+      "sha256": "8bd6d64eaff99a0e60e4a9060c73f96dda603452cba0e94998bad092130a83eb",
+      "size": 58202
+    },
+    "publication/composition/playground/composition-playground-v1.json.gz": {
+      "sha256": "cf512927f5cbf41cae065f5767b60fcfc01cde030a3ca284cd3523eecd45b457",
+      "size": 158487
+    },
+    "publication/composition/recipes/skill.json": {
+      "sha256": "f83f7613f1ed4f986a6b5ab841c97d1b8e079e0eaf471f0812efd8c7872cef34",
+      "size": 726
+    },
+    "publication/composition/recipes/webapp.json": {
+      "sha256": "18c24f260b2e1449d3617e4603557b62dc8b34a467d7ceb5fe643af1427a7233",
+      "size": 691
+    },
+    "publication/composition/recipes/website.json": {
+      "sha256": "b4081e5a09ddafc7ecc31af50eb406067ec151ab15f9aa05a3bf3bb9a71856f4",
+      "size": 645
+    },
+    "publication/composition/reference/composer.md": {
+      "sha256": "6d2bd74b8af53b3b0f277cd01a4905abb02c142298f35f4efb0d6cca2abca4ee",
+      "size": 24050
+    },
+    "publication/composition/release/composition-installer.json": {
+      "sha256": "bb99f74db8caebb64b370252b6aade024277923ac20d77b01033a929b2621fc0",
+      "size": 598
+    },
+    "publication/composition/release/index.md": {
+      "sha256": "dba19907ec38244d7498dd62cb2e96fdfc0f59693c4833b6f7f67cc88a002136",
+      "size": 11402
+    },
+    "publication/composition/schemas/catalog.schema.json": {
+      "sha256": "53b10318d779fc72a917f816947e9a8a762554efc72533640ec2fb9932cb69e2",
+      "size": 783
+    },
+    "publication/composition/schemas/component.schema.json": {
+      "sha256": "5560556d3f34928371e12c507f21eec87aab19718d320f2d9c3838cd5982cbc6",
+      "size": 9605
+    },
+    "publication/composition/schemas/composition-config.schema.json": {
+      "sha256": "a7fc473c2d2c39e4732eb446399a397ab3c1f6eea9e8eb3dbbd7320d31b2618f",
+      "size": 1464
+    },
+    "publication/composition/schemas/composition-lock.schema.json": {
+      "sha256": "6f82f81c4587a6e54c7e2f8df69d2684498c90e7e42d95ec0d8820286a1f59df",
+      "size": 5318
+    },
+    "publication/composition/schemas/composition-playground-intent.schema.json": {
+      "sha256": "9b8a9d1641e4769bf372f92eaa67f537dec81b56eaf64a8e62f2fe45c5a434db",
+      "size": 2447
+    },
+    "publication/composition/schemas/composition-playground-projection.schema.json": {
+      "sha256": "2749ba7806697b3cdf4cad474a3c9fbcda39b3a127cf87b887e4b8ea7e44c88b",
+      "size": 8500
+    },
+    "publication/composition/schemas/composition-skill-installer-release.schema.json": {
+      "sha256": "e4aefa99c5a4e6364cb03a1370fd0ab2ec5e044b81f020d2f79828eaac3e155d",
+      "size": 1548
+    },
+    "publication/composition/schemas/composition-transaction.schema.json": {
+      "sha256": "689e6a0f43ae83b708b22183c953bfeb32010b93c1f5fbfbfed9db07cf5a546b",
+      "size": 4159
+    },
+    "publication/composition/schemas/index.md": {
+      "sha256": "882898842751e2f13e43bebf5b72f00a1655bae9ab23ec74c2b380445a623eaa",
+      "size": 5920
+    },
+    "publication/composition/schemas/recipe.schema.json": {
+      "sha256": "48d6ab07c68e30bfc2ae7c31ef53550b22815a90cafa105996de1bfb59948c8f",
+      "size": 1444
+    },
+    "publication/composition/topology/contracts/repository-topology.json": {
+      "sha256": "774d860446f539ece7c1b512ce836392ed223171523803aca6f458e83446ead5",
+      "size": 474
+    },
+    "publication/composition/topology/schemas/repository-topology.schema.json": {
+      "sha256": "29a2d42929fa984031b7909fc8fb7cd40e706fd787fce1aa55dbc413f3105d97",
+      "size": 2684
+    },
+    "publication/composition/use/index.md": {
+      "sha256": "3ff25300c1984f430638d96617101e16dd43117d190e72b073222f9a0bc97e0c",
+      "size": 31151
+    },
+    "publication/composition/use/skill-first-use-walkthrough.md": {
+      "sha256": "a07f385cf25f13f2d03723f0bb2dda86c5bcbe5a4eed73009b80f6bda76dea73",
+      "size": 20713
+    },
+    "publication/composition/web/contracts/browser-identity.json": {
+      "sha256": "c56eff611c0736c724f951261f2d9ffdc96527d0e5c97b6ef81a1a4609a44c01",
+      "size": 240
+    },
+    "publication/composition/web/contracts/routes.json": {
+      "sha256": "89d101a2105e0f1e48e0c4b87fa0941b1ea32803cd8062b1bef1ba49bad5fe78",
+      "size": 321
+    },
+    "publication/composition/web/contracts/viewports.json": {
+      "sha256": "5687efe84244b9ebc6a2384507d157543b84641f4b3c4ddc0f4d5d2de28d6dd3",
+      "size": 419
+    },
+    "publication/composition/web/schemas/browser-identity.schema.json": {
+      "sha256": "8651720b577bd57f28f557e3e7f61af66dae0ce1c7b0b4b123673f895a6af597",
+      "size": 1418
+    },
+    "publication/composition/web/schemas/routes.schema.json": {
+      "sha256": "7118d344a4d58bb7ae3b9e1e9d8260dc46105980c5d3c0d4aea2836d40587d42",
+      "size": 2204
+    },
+    "publication/composition/web/schemas/viewports.schema.json": {
+      "sha256": "f0468b0e831e5cf4bf156d49999a591f0169e9eb00c61c729d54ea785e41a872",
+      "size": 1440
+    },
+    "publication/composition/webapp/contracts/application-routes.json": {
+      "sha256": "0ed4418f2d10448aa6f5e46076f6640f7c73f9902b46889fd3fb3b8cb6306abc",
+      "size": 511
+    },
+    "publication/composition/webapp/contracts/surfaces.json": {
+      "sha256": "c02d906670d57b6a66526374d4b36384c90115e6b96c308dfd9d91d489e269b3",
+      "size": 605
+    },
+    "publication/composition/webapp/contracts/ui-states.json": {
+      "sha256": "7552d385cbb14ad9d679e4c5a28a6b44a60341e6a395a40ededa0617c196dc96",
+      "size": 349
+    },
+    "publication/composition/webapp/schemas/application-routes.schema.json": {
+      "sha256": "17fb6369d74d0b006a3ceeb825da0c0dfb7e059cb6f2ef35e30765e0f1dc0ce2",
+      "size": 6084
+    },
+    "publication/composition/webapp/schemas/surfaces.schema.json": {
+      "sha256": "69435c98866510684f1a4d842c29944475f580803bb694dea164cb1a872be8d6",
+      "size": 1869
+    },
+    "publication/composition/webapp/schemas/ui-states.schema.json": {
+      "sha256": "d5e4fb908d5d56edb119b91b1c2758a9b5e589d74106920629b658bba9e4785f",
+      "size": 1237
+    },
+    "publication/composition/website/contracts/document-metadata.json": {
+      "sha256": "db0e9183b7fd7d9049d0622ec01bc82283af8287f154632c15c484c99fb2504d",
+      "size": 397
+    },
+    "publication/composition/website/contracts/site-discovery.json": {
+      "sha256": "42a5cece60772dc6d790a591b12c7245be89c8f79661f2320270792812857b3f",
+      "size": 283
+    },
+    "publication/composition/website/contracts/site-structure.json": {
+      "sha256": "203fd5b73526a9b84d6aa06f935e7e9b71d0c3893036b49010f8cffd1246be12",
+      "size": 290
+    },
+    "publication/composition/website/schemas/document-metadata.schema.json": {
+      "sha256": "d242d2fbfc811c5e6315364f0bf2a0726880d9179a8ca11ac72b93807cd43930",
+      "size": 1486
+    },
+    "publication/composition/website/schemas/site-discovery.schema.json": {
+      "sha256": "70112d88b75c9b246fe148c9a2570d53408bcef4696e915c59f7598d20f96d82",
+      "size": 1743
+    },
+    "publication/composition/website/schemas/site-structure.schema.json": {
+      "sha256": "b96e5cfbf7b57a972e9b6d77616c88a2151e33475c85df87aa7796cfb8b368d6",
+      "size": 1233
+    },
+    "publication/composition/workspace/contracts/local-checkout-topology.json": {
+      "sha256": "225bf215415e2a46d6106f8605cf222bcb76129d3ef5ca7d497c16a269d92ef2",
+      "size": 385
+    },
+    "publication/composition/workspace/schemas/local-checkout-topology.schema.json": {
+      "sha256": "7dd7b8e3cba896d236654ed5e2d4cad51ad99c5ace5424ee88dc6ebc51d8c922",
+      "size": 1234
+    },
+    "publication/ja/composition/architecture/catalog.md": {
+      "sha256": "52bb1f125c5054335f01525cd2d92f6741a9a0df6ea152481cd09d3a2fe3124b",
+      "size": 7313
+    },
+    "publication/ja/composition/architecture/composer-mvp.md": {
+      "sha256": "9056df1c829088a84c8ea83c9539a13f9df58b9ec2c9d8536f6a119c7f3c0d68",
+      "size": 23818
+    },
+    "publication/ja/composition/architecture/composition-model.md": {
+      "sha256": "3e8e7994b60a15433d60a68890771787e4197a564c51cec9e3da72f1c162daa2",
+      "size": 21767
+    },
+    "publication/ja/composition/architecture/generated-contract-manifest.md": {
+      "sha256": "0c202244ffaa574386e85e03a690bdba74c9e5e3765f653d7176a191e726b4a9",
+      "size": 3078
+    },
+    "publication/ja/composition/catalog/index.md": {
+      "sha256": "c8dbbfdbe4d951886f05b6877cb7e61e36e5bb88e9043051c9295bdba83f8182",
+      "size": 15356
+    },
+    "publication/ja/composition/concepts/index.md": {
+      "sha256": "85943f9318cb1d98a2ecf558ac5e91de4ecf6b33ff352aae9bfcbe0288e586b9",
+      "size": 13099
+    },
+    "publication/ja/composition/docs/index.md": {
+      "sha256": "c31171f5e27e24fbf8c0c276c5226d94a282a299e550f9deb765b4e1a3b2a965",
+      "size": 10505
+    },
+    "publication/ja/composition/docs/publication-catalog.md": {
+      "sha256": "4d62dbcaf9f2c17a7b60d9bd16dcc3a76ed3242defd1cfb001d537f565c47e00",
+      "size": 15050
+    },
+    "publication/ja/composition/evaluate/index.md": {
+      "sha256": "a1ab74f01dd1e732c5a1cadcc8c519e43d6ed5d13e4ba4c6ef65a3199b1d8d4e",
+      "size": 2556
+    },
+    "publication/ja/composition/index.md": {
+      "sha256": "22fcf6c44cc0d115fd3b63068c9f07c758962db228e016e72afc93c555d8e96f",
+      "size": 13204
+    },
+    "publication/ja/composition/reference/composer.md": {
+      "sha256": "a3cbed88d89b829509f63871f765c39442ad7a1aa1f4608976ae73249bbc104e",
+      "size": 21676
+    },
+    "publication/ja/composition/release/index.md": {
+      "sha256": "53d15861d62583ad7b9ec6949f272d6d9e13e6a08e7ac22151687e8401a11edb",
+      "size": 13590
+    },
+    "publication/ja/composition/schemas/index.md": {
+      "sha256": "acc4e7214af0e32267424bd74643f555e16f50ac5d7e6b8f30460e342cee8fd5",
+      "size": 6381
+    },
+    "publication/ja/composition/use/index.md": {
+      "sha256": "ce07191e54dfd245efaa9b047df7014fcb6cb33a076e8d6a92caf648a36464e6",
+      "size": 27460
+    },
+    "publication/ja/composition/use/skill-first-use-walkthrough.md": {
+      "sha256": "ad86c7cfc4b4867491424ae54422329cdb382ffca152f86bcebc5114ee099624",
+      "size": 16186
+    },
+    "publication/ja/policy/adr/index.md": {
+      "sha256": "fd373a166232aa05f51f10d32166269f422633a49ffcf0797b62260f1307a96d",
+      "size": 2961
+    },
+    "publication/ja/policy/agent-environments/google-ai-studio.md": {
+      "sha256": "385529e1984a47447ee8692fd78e3270535cd3e1b585a76f2c4ebadf7eaeee2f",
+      "size": 8998
+    },
+    "publication/ja/policy/bootstrap.md": {
+      "sha256": "bd3c0ea6053db3b2aea801cba147ac4cc818dc4a612a4e9d0d887f5161cd244d",
+      "size": 7403
+    },
+    "publication/ja/policy/cli.md": {
+      "sha256": "17cc81cf9faf5cef0ee42c69724d614e84f2a4d75fb6ba75c39bc8dfc1570669",
+      "size": 11981
+    },
+    "publication/ja/policy/consumer/index.md": {
+      "sha256": "358e8dd5c41860c16da9a01701918e1fb21e7ad01db4a9e52984d16cc3232fad",
+      "size": 2355
+    },
+    "publication/ja/policy/external-artifact-intake.md": {
+      "sha256": "4805ad81ed3c84b982cb764b278aa68c9d167fc43e9326bb6764577343e9af48",
+      "size": 5575
+    },
+    "publication/ja/policy/getting-started.md": {
+      "sha256": "ad9947b676dc684fb3341cb8410e6247bda018b10a179e5c969c6eedc8a333da",
+      "size": 14422
+    },
+    "publication/ja/policy/index.md": {
+      "sha256": "7945aa5eb67bcc0e719e1ee882ad258be4478dc190a17dc2f588c3ff0bfa8891",
+      "size": 8244
+    },
+    "publication/ja/policy/managed-operation.md": {
+      "sha256": "05314903ffb20901b0aefa54a8b7e92960d741e1be70cf11562b577817ab5cab",
+      "size": 4551
+    },
+    "publication/ja/policy/provider/index.md": {
+      "sha256": "e03baaa207ff44cc1ef124f8bce2774aea8ed8fcf96c43eeea6d708077ce1b1d",
+      "size": 2676
+    },
+    "publication/ja/policy/pwa.md": {
+      "sha256": "348b42f2993b00f8df348651687432f1e32148b7743d48ddff5b6896b4f90993",
+      "size": 4579
+    },
+    "publication/ja/policy/regression-prevention.md": {
+      "sha256": "14b1f6766c5cf027bbee7469e577d9508083505ec1593312f7401f7e6909e931",
+      "size": 10504
+    },
+    "publication/ja/policy/repository-structure.md": {
+      "sha256": "4461e33924b406ff0d26baca02490281eabe129c6b548fdc1fbd02f2b0699772",
+      "size": 6225
+    },
+    "publication/ja/policy/shared-policy/index.md": {
+      "sha256": "15922da1ec1e2116f06c8c94ab4dcddbbac40be916ef2b041a68045620a85a3f",
+      "size": 2467
+    },
+    "publication/ja/skill/index.md": {
+      "sha256": "90e712c578223e8676fce7697fb03e312c978e1b71a5b2d4e1a0d059228d9557",
+      "size": 3566
+    },
+    "publication/ja/web/index.md": {
+      "sha256": "6f242527cb068a4a59fae7fa01d3bfb4778ab726db02c7ff9a649940ec576932",
+      "size": 7252
+    },
+    "publication/ja/webapp/index.md": {
+      "sha256": "250481f4634f8647c24971c5c3f73d601e0524853f4b3274e687dd32452293b2",
+      "size": 5389
+    },
+    "publication/ja/webapp/product-walkthrough.md": {
+      "sha256": "d6ca988a757fc94fdb1556ebad8c8d5610ec56ce3ad228b6ecbf7916a29a5151",
+      "size": 52970
+    },
+    "publication/ja/website/index.md": {
+      "sha256": "dfea47f3d9071aaa708165bd4c0062e9718495f520dce3312b278c613b6f212c",
+      "size": 27592
+    },
+    "publication/lifecycle/checkpoints/index.md": {
+      "sha256": "bb5defd002799c91e125f60bec8e322646325d4173f750b5b2297ca8e1b7ca43",
+      "size": 9639
+    },
+    "publication/lifecycle/composition-state/index.md": {
+      "sha256": "ec45180bba8c31fb9e1549884d99be17a7c5aa49528c705fdd4ed20efcf0a63b",
+      "size": 12924
+    },
+    "publication/lifecycle/contract-evolution/index.md": {
+      "sha256": "7dc1b4510d1c154de51b8ed8a664e1ce0b40452f6ec57e9e6b65b795a85923a3",
+      "size": 1585
+    },
+    "publication/lifecycle/implementation-evidence/index.md": {
+      "sha256": "1665a29cd99d2fc4164f5d5673d5094e2715b1e61ad4550bbfec5ff7ea944658",
+      "size": 10281
+    },
+    "publication/lifecycle/implementation-evidence/migrations/v1-to-v2.md": {
+      "sha256": "1f86d41f0ad6cc49d14f92accdb77d84fc588ac3c7480c49ed5f12e7bdad53b4",
+      "size": 1472
+    },
+    "publication/lifecycle/implementation-evidence/migrations/v2-to-v3.md": {
+      "sha256": "212e2c5560ec83c79f9025f12c2bd5e74bd42064080c253ec9b75fa5409f5ac6",
+      "size": 1959
+    },
+    "publication/lifecycle/implementation-evidence/migrations/v3-to-v4.md": {
+      "sha256": "f4f544fbdf33f26b4ede5bf3fc76055a88e000fd51f9bb847fe752d77723ec5e",
+      "size": 987
+    },
+    "publication/lifecycle/implementation-evidence/migrations/v4-to-v5.md": {
+      "sha256": "7ced84bd35d57dd73013920375c411fd8b15067a40fca95dd54b5ca580e48ebd",
+      "size": 2379
+    },
+    "publication/lifecycle/implementation-evidence/migrations/v5-to-v6.md": {
+      "sha256": "55c9e36eff083b4e6bd55bbfceb65d0ca4c0a508f0de6e39a2d695909a248ab6",
+      "size": 5017
+    },
+    "publication/lifecycle/release-bundle/index.md": {
+      "sha256": "eda9b5a16a8bdff3d6b64a7f4720b8e1637b7f7a0a0b2eb0ac2ea48170c9b4da",
+      "size": 5674
+    },
+    "publication/lifecycle/release-evidence/index.md": {
+      "sha256": "b491e7693360c693b6639a645630196d7200566ecf9fd4cf68f2ab835f8a9384",
+      "size": 5642
+    },
+    "publication/lifecycle/release-execution/index.md": {
+      "sha256": "ce5180b719691396a07887799394764ad56f60c4be14573a7ea5c9ee3da5f4b1",
+      "size": 10447
+    },
+    "publication/lifecycle/release-execution/migrations/v1-to-v2.md": {
+      "sha256": "0c1e12f1377465a062829fe7643574d5d969e0f76ecd31b3c7e9f3b4c8dc3638",
+      "size": 4495
+    },
+    "publication/policy/adoption.md": {
+      "sha256": "0c0b444d18223e3300bdf03a3171d568c5d56b365c15c8f31bf38963b477f789",
+      "size": 10128
+    },
+    "publication/policy/adr/0002-repository-adoption.md": {
+      "sha256": "772014adcdb97b92afc959aa550f0ac51e9248a16bc90d635b74f6daf9214108",
+      "size": 7255
+    },
+    "publication/policy/adr/0003-application-neutral-policy-scope.md": {
+      "sha256": "b5ba346205dff91977af68b2379c7b6698be2f4343d111d14f2d7f58310b12c6",
+      "size": 4110
+    },
+    "publication/policy/adr/0004-integrated-bootstrap-skill.md": {
+      "sha256": "f6ccbd9d22dd1c7edb79f121724d52fbc3f4e4f14b53db263f2c847e5f5566dc",
+      "size": 1953
+    },
+    "publication/policy/adr/0005-single-policy-authority.md": {
+      "sha256": "8060e74c1d14518cce3649976eb6e388320c29fe2a26683eb2666773aeeddd9c",
+      "size": 8724
+    },
+    "publication/policy/adr/0006-copyable-artifact-policy-adoption.md": {
+      "sha256": "c4ddfa2e8cbbdf38e4e6e70c140dafa2db68f4366c7fbd7e3b390876fb3c2209",
+      "size": 5293
+    },
+    "publication/policy/adr/0007-single-agent-policy-skill-runtime-cache.md": {
+      "sha256": "db16b9b867e9583ef50aab43dbeeb2f546795d696d61e7e3eb890c7b39933af4",
+      "size": 5498
+    },
+    "publication/policy/adr/0008-review-authority-and-github-runtime-boundary.md": {
+      "sha256": "c388720c7a44678481b6e181c4f8afb2c70729fe69481d83667bfc326ede7f29",
+      "size": 26667
+    },
+    "publication/policy/adr/0009-review-result-representation-boundary.md": {
+      "sha256": "24f11a4c9ea4c346fa1c813b404cf051b6565eda81023be38a1f4d13a44996a1",
+      "size": 10718
+    },
+    "publication/policy/adr/index.md": {
+      "sha256": "f441304d64cf6022ce0676936bc6f078259abbcd5012a1fd6ff92fb52a0935a4",
+      "size": 2135
+    },
+    "publication/policy/agent-environments/google-ai-studio.md": {
+      "sha256": "fc63adfd45e1d81e5d1dadba2fd72fe5685b24b394994771b26e5c4c3046dfb8",
+      "size": 8477
+    },
+    "publication/policy/architecture.md": {
+      "sha256": "265f7d8983f5d1d5c92e9408f362d9b6172d92c1f38200c5b59b26dd37521b7b",
+      "size": 9860
+    },
+    "publication/policy/assets/icons/apple-touch-icon.png": {
+      "sha256": "b929ad9de65a86836d2796c838e5780a53cdb25b1de37ec2ceb0ee32838b8148",
+      "size": 678
+    },
+    "publication/policy/assets/icons/favicon-16.png": {
+      "sha256": "520f8990aedefa2049ed769f8e0a015fb21918f52ee4c403bf0bbd630f5ded99",
+      "size": 140
+    },
+    "publication/policy/assets/icons/favicon-32.png": {
+      "sha256": "dc9adfbc3927ab01e5f682f43ecdd2791b914029c8590ad90204e250bde05ac5",
+      "size": 198
+    },
+    "publication/policy/assets/icons/icon-192.png": {
+      "sha256": "0cf094c8d4c3bf7012e3ddc1923edf5d1c0e0ea32111a693911cb3ea8117babb",
+      "size": 855
+    },
+    "publication/policy/assets/icons/icon-512.png": {
+      "sha256": "46f1d897dc2292d360195cdb1b59d0baeb4f1b43b0cb51e5e4485c406501002b",
+      "size": 2230
+    },
+    "publication/policy/assets/icons/icon-maskable-512.png": {
+      "sha256": "264a1ef8c22b54e0031b59c642921f0f77b3bd6b84238471ed302e03032825f5",
+      "size": 2089
+    },
+    "publication/policy/assets/javascripts/file-preview.js": {
+      "sha256": "ebf3bca6541fe2bdf77373f9e51c623c4143cf71077f719fb189e0907d4ac8ed",
+      "size": 14986
+    },
+    "publication/policy/assets/javascripts/pwa.js": {
+      "sha256": "ac22bd235defa91967a7af6cc65dc5cc274dbd0c784a35d3d71c5064ea5a1a81",
+      "size": 2763
+    },
+    "publication/policy/assets/stylesheets/file-preview.css": {
+      "sha256": "c966a3469198b50c75752a2555bb49d399eebcd4e1d9b01b21b2454cb4b633f1",
+      "size": 9467
+    },
+    "publication/policy/bootstrap-model.md": {
+      "sha256": "bedd6e2d65f8e9f9fc9df6576310c4f2c1431214a881999ccd21c987f1c90d9c",
+      "size": 4764
+    },
+    "publication/policy/bootstrap.md": {
+      "sha256": "967333032faa84abc172c2948cf9febd56d16ca078e460abd25d01ce433f2f78",
+      "size": 7259
+    },
+    "publication/policy/cli.md": {
+      "sha256": "11f0baa09508e560e5d8122ecb93ba65b8217fce1f97fe0e0dddd1527797ee59",
+      "size": 11389
+    },
+    "publication/policy/configuration.md": {
+      "sha256": "dc14d77ccb34cb0caf1a9b0c8ab1d51fbaccbfcd964e442835cbeeffb7d682b4",
+      "size": 9094
+    },
+    "publication/policy/consumer/index.md": {
+      "sha256": "599c73e1779a028ba306fa37e2cdb0bc4d090a5e134190d585d07abf2fde6ad6",
+      "size": 1711
+    },
+    "publication/policy/contributing.md": {
+      "sha256": "80ae98f97b5ee45bdd05358228948713aad4fdb0bd27192f0a21e2df141539a2",
+      "size": 1893
+    },
+    "publication/policy/documentation-publication.md": {
+      "sha256": "ef9d1941b82e7961f57457b33b6cdc9845005d2d1abdef4e004c94c6037d980e",
+      "size": 8386
+    },
+    "publication/policy/external-artifact-intake.md": {
+      "sha256": "ba5cdc26aa30a5d1a104fd700724efc6c043c5fe099052ae86f8561b2edad8a5",
+      "size": 5231
+    },
+    "publication/policy/getting-started.md": {
+      "sha256": "29e127e2528b9b117b46453ace1e0fd3514a00e671474cb9d61ad72426c95d90",
+      "size": 13542
+    },
+    "publication/policy/index.md": {
+      "sha256": "c9bbbd3598d65ea5e6d59b210621e0fd1221657340b29df1f84d55d0f7e193bb",
+      "size": 7578
+    },
+    "publication/policy/managed-operation.md": {
+      "sha256": "c1f5ac7a8b06f751d3015795d87dab6694acaace11bf93bfaea8780ec820e6ab",
+      "size": 4049
+    },
+    "publication/policy/manifest.webmanifest": {
+      "sha256": "d9cee1b047811889420d4106af40d6f86f8a02143cac31ed097f6eeef3d67e64",
+      "size": 1712
+    },
+    "publication/policy/policy-authoring.md": {
+      "sha256": "a6d04c34b221719c1bd9fa8b544c80e2f3da994051eb5978669ce0bbd1cec322",
+      "size": 4696
+    },
+    "publication/policy/policy-authority-inventory.md": {
+      "sha256": "bda1e5db15d2c4b1295f434633e210bafff18c7a829526f41c3da0831ade5f63",
+      "size": 12914
+    },
+    "publication/policy/policy-concepts.md": {
+      "sha256": "1c6ee5c5be7ff75a6026a693aec58973afcd541ecc6aff72a6a398eeb46fdc77",
+      "size": 6619
+    },
+    "publication/policy/policy-maintainer-workflow.md": {
+      "sha256": "f1e956ae2efe829decbf9a5c0b20f1824489ce5705db08d5df3b6b1a8aa55773",
+      "size": 10428
+    },
+    "publication/policy/policy-readiness.md": {
+      "sha256": "bd1c3869f83ac646575159f0d42fbc91fba7d0a4ed4b61b302faacc3083cbb02",
+      "size": 11236
+    },
+    "publication/policy/provider/index.md": {
+      "sha256": "0b69c3c662b108276969b0f71abdead8229e17490956af427d6d574e963ba138",
+      "size": 1914
+    },
+    "publication/policy/publication-catalog.md": {
+      "sha256": "b4c8e1b03078fb00061d2826a5ed0a50c6d5456d43ad1e31159ef151550afaac",
+      "size": 11812
+    },
+    "publication/policy/pwa.md": {
+      "sha256": "f9ddc9b2fb63eae87e499b99aed841d83511bb519fcf284c3a786b0f2adae5da",
+      "size": 3647
+    },
+    "publication/policy/regression-prevention.md": {
+      "sha256": "7e2ac614f3de973274846c42e012570067687b463cf1a32c654180d4b999560c",
+      "size": 9844
+    },
+    "publication/policy/release-lifecycle.md": {
+      "sha256": "76a592f4111d3ba95589173fd6ab584428c9a09f4b09816d92fa14d98fc49de7",
+      "size": 11790
+    },
+    "publication/policy/repository-structure.md": {
+      "sha256": "3c189421937a043b8e1747803e823b85055c9344da713f476a92897cf2449da6",
+      "size": 5770
+    },
+    "publication/policy/review-policy.md": {
+      "sha256": "d7f9b840f9bdbcd99bf24cfe9426e386997d5329677afa8e5c40f75d51ebc20e",
+      "size": 12791
+    },
+    "publication/policy/shared-policy/index.md": {
+      "sha256": "d883455aa88df235115858fb7008fa90fe7581e7079558db5fbacc6a9c9e7fbe",
+      "size": 1663
+    },
+    "publication/policy/shared-policy/profiles.md": {
+      "sha256": "25ca100e8972122197ac694b8fa10f753b2e8aad2fcec7a154932c168180e777",
+      "size": 11194
+    },
+    "publication/policy/threat-model.md": {
+      "sha256": "26feb06528d150be6cbd26d154691fd26fbfb72c8fe9bb333471dd0244dc5f2a",
+      "size": 3740
+    },
+    "publication/skill/SKILL.md": {
+      "sha256": "09d98826e4c09ecff2304a9ecfc5f68c0994c70a86be17516e50b0f692759da0",
+      "size": 5362
+    },
+    "publication/skill/docs/architecture.md": {
+      "sha256": "c80e18d5a7643c0cf69f51cb857ac9c451356fc5cae2da71e951dfa4cf7bde60",
+      "size": 1848
+    },
+    "publication/skill/docs/index.md": {
+      "sha256": "7c35ad6b645032ea624f2a433391990d5a3da32557389dd7b3df99e86b2a0ad7",
+      "size": 452
+    },
+    "publication/skill/docs/skill-capability-map.md": {
+      "sha256": "37430035d74e58153e75b77aa9f39f7bc476aeb63c3d8483fe3351c1e9257a13",
+      "size": 1440
+    },
+    "publication/skill/docs/skill-profiles.md": {
+      "sha256": "cf5fc67ff7143e44fe2ed7010ce54780f19ebbbf28142ede155aba8cf37c39d9",
+      "size": 3653
+    },
+    "publication/skill/index.md": {
+      "sha256": "b33e4c8e295893692c21b1129a156bd5d9f163e1b8747e77761076c5f75c11da",
+      "size": 2726
+    },
+    "publication/topology/architecture/index.md": {
+      "sha256": "94a523c699463996d99f01a06afee91b8c8724cf3484cf0aae572f6a5f75849d",
+      "size": 2964
+    },
+    "publication/topology/contract/index.md": {
+      "sha256": "6144228fa6ec68d3f131a235415e792d0bcc01be386fae8d11d5e58b759a4378",
+      "size": 2874
+    },
+    "publication/web/index.md": {
+      "sha256": "8e1c8b4b1ef4cb8d1bd8b10f3e962d9185ccd6380715c6227996f2418270b767",
+      "size": 7797
+    },
+    "publication/web/migrations/routes-v1-to-v2.md": {
+      "sha256": "22d0d2bf0295cf9f68fdf42fcef196b0698af9c84fa916e5717fab3706ab5121",
+      "size": 6929
+    },
+    "publication/web/migrations/routes-v2-to-v3.md": {
+      "sha256": "ddfe91f67d29dbcd2695cf85e74daaf662097d73c36ac7a8e4c8595956a6977d",
+      "size": 2616
+    },
+    "publication/web/migrations/routes-v3-to-v4.md": {
+      "sha256": "5134c3430dfdcae9dbcf7d98042405e8c46bb1a7cc457ecec497b96973107da3",
+      "size": 623
+    },
+    "publication/web/migrations/routes-v4-to-v5.md": {
+      "sha256": "edb83f6f63afef0e1ea1c3eb9e36be4d80182311d0efcab3d8bb558eb1422bcf",
+      "size": 1012
+    },
+    "publication/web/url-path-design-guidance.md": {
+      "sha256": "1fbd73229be79114098212527601639a574c2a957c59d80b52e633ca1be23ca8",
+      "size": 9709
+    },
+    "publication/webapp/TEMPLATE.md": {
+      "sha256": "ede054a5dd9510083a9200ca6f20175d71fc1a2438a79be42b4702cf00d59965",
+      "size": 7777
+    },
+    "publication/webapp/docs/architecture/contracts.md": {
+      "sha256": "0db856cf4e123712a2bb52ffab964636b0bbc7b2ca2366d968f5c530aa4dfa47",
+      "size": 1650
+    },
+    "publication/webapp/docs/architecture/responsibility-boundaries.md": {
+      "sha256": "48f9a864bb0725d6c0dffa6b555da147d9fa9fd83a1fe88eec61d1fe0ce0c004",
+      "size": 985
+    },
+    "publication/webapp/docs/architecture/validation-toolchain.md": {
+      "sha256": "63a35d25d8fee0f6130a857e80448c25457c02480b571bf84881a3509c241024",
+      "size": 6230
+    },
+    "publication/webapp/docs/index.md": {
+      "sha256": "325dd084166ad42173e4642bd1f141b96f0e251c1e78a463ed68915410d585fd",
+      "size": 743
+    },
+    "publication/webapp/docs/migrations/surfaces-v1-to-v2.md": {
+      "sha256": "1ff7d74606e6ebb70b739932905a2e7d4f4640324fd6fc5a6fbe63729b65d719",
+      "size": 1429
+    },
+    "publication/webapp/docs/migrations/ui-states-v1-to-v2.md": {
+      "sha256": "e03d40807bce0b252c3749aaa58a61f3e2acc9cc66f42483f6207c7063d4333f",
+      "size": 6042
+    },
+    "publication/webapp/index.md": {
+      "sha256": "b6f622061f5962b137e24aa3fa7cebf90402e9231200b25f89960b159bc6bff4",
+      "size": 4358
+    },
+    "publication/webapp/product-walkthrough.md": {
+      "sha256": "8a6d72e18762bb08f6c86db0e8486c131f2936cb6f0c768fb1eca1db230b914e",
+      "size": 62278
+    },
+    "publication/website/index.md": {
+      "sha256": "d9dd924d446b24dbabb58df4a69d708fa826581558f309ecd15e2a7b09f1c785",
+      "size": 27004
+    },
+    "publication/workspace/architecture/index.md": {
+      "sha256": "83dc9569476be87f3893154213342681779f582feb0362bba4b9752474515b81",
+      "size": 1005
+    },
+    "publication/workspace/bare-worktree/index.md": {
+      "sha256": "be6e7ed91f8b7252924ea06674baffd024bd4668ba95ad387f2e16a01f5ad3d4",
+      "size": 3164
+    },
+    "reader-navigation-runtime.json": {
+      "sha256": "811523f4876d3b8dc968e5e67c4aaa75da2f8ad9b8ef23dc184b37b932e7fd09",
+      "size": 11257
+    },
+    "translation-availability.json": {
+      "sha256": "860743d169d85b3e52bc979d93591af0d5d6fe089199269b7358ebe9c35be75f",
+      "size": 33316
+    },
+    "translation-publication.json": {
+      "sha256": "d19d478da1575cb587469090648d76f4f6f6db5d6543e61dd4d09941e1f1fa78",
+      "size": 5440
+    }
+  },
+  "provider_glossary_sha256": "31f7ba22fced3d29a5459b8d0dbb0c7ef425c698e696c48639b2e4c8630d1bc8",
+  "integration_glossary_ids": [
+    "external-git-branch",
+    "templates-index-guided-navigation",
+    "templates-integrated-publication",
+    "templates-provider-branch",
+    "templates-publication-catalog",
+    "templates-publication-source-lock"
+  ],
+  "permitted_differences": [
+    "producer authority/revision and dependent identity/provenance",
+    "Integration-owned glossary attribution and explicit responsibility wording",
+    "configuration digest: root glossary catalog and canonical glossary wording"
+  ]
+}
