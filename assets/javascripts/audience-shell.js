@@ -56,40 +56,34 @@
         };
         timer = setTimeout(() => fail(new Error("Native navigation runtime snapshot timed out")), 5000);
         frame.addEventListener("error", () => fail(new Error("Native navigation target failed to load")), {once:true});
-        frame.addEventListener("load", async () => {
+        frame.addEventListener("load", () => {
           const win = frame.contentWindow;
           const doc = frame.contentDocument;
           if (!win || !doc) {
             fail(new Error("Native navigation target is not same-origin"));
             return;
           }
-          try {
+          const capture = () => {
+            const navs = [...doc.querySelectorAll("nav.md-nav--primary")];
             const reader = win.TemplatesReaderNavigation;
-            const language = reader?.currentLanguage?.();
-            const locale = reader && language
-              ? reader.localeFor(await reader.loadRuntimeMap(), language)
-              : null;
-            const capture = () => {
-              const navs = [...doc.querySelectorAll("nav.md-nav--primary")];
-              if (!doc.documentElement.dataset.audience || !navs.length ||
-                  (locale && navs.some(nav => nav.dataset.readerNavigationLanguage !== locale.language))) {
-                win.requestAnimationFrame(capture);
-                return;
+            const readerPending = Boolean(reader) && navs.some(
+              nav => nav.dataset.readerNavigationReady !== url.pathname,
+            );
+            if (!doc.documentElement.dataset.audience || !navs.length || readerPending) {
+              win.requestAnimationFrame(capture);
+              return;
+            }
+            win.requestAnimationFrame(() => win.requestAnimationFrame(() => {
+              try {
+                const snapshots = navs.map(snapshotNavigation);
+                cleanup();
+                resolve(snapshots);
+              } catch (error) {
+                fail(error);
               }
-              win.requestAnimationFrame(() => win.requestAnimationFrame(() => {
-                try {
-                  const snapshots = navs.map(snapshotNavigation);
-                  cleanup();
-                  resolve(snapshots);
-                } catch (error) {
-                  fail(error);
-                }
-              }));
-            };
-            capture();
-          } catch (error) {
-            fail(error);
-          }
+            }));
+          };
+          capture();
         }, {once:true});
         frame.src = key;
         (document.body || document.documentElement).append(frame);
@@ -190,7 +184,7 @@
       // Replace only the Site navigation projection; provider index content stays intact.
       // Zensical instant navigation keeps this nav node mounted. When a neutral target
       // arrives while our projection is present, snapshot that target in a same-origin
-      // runtime frame so restoration matches the target page's initialized native nav.
+      // runtime frame after reader-navigation has completed for that exact route.
       if (!nav.querySelector(":scope > .audience-navigation")) rememberNavigation(nav);
       if (!tree) {
         if (neutralNavigation?.[index]) rememberNavigation(nav, neutralNavigation[index]);

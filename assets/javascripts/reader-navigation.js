@@ -108,6 +108,10 @@
     delete nav.dataset.readerNavigationLanguage;
   }
 
+  function markNavigationReady(nav) {
+    nav.dataset.readerNavigationReady = window.location.pathname;
+  }
+
   function localizeEllipsisLabels(nav, labels) {
     for (const element of nav.querySelectorAll(".md-ellipsis")) {
       if (element.childElementCount !== 0) {
@@ -171,6 +175,7 @@
     localizeNestedTitles(nav, locale.labels);
     localizeLinks(nav, locale.routes);
     nav.dataset.readerNavigationLanguage = locale.language;
+    markNavigationReady(nav);
   }
 
   async function applyReaderNavigation() {
@@ -179,11 +184,15 @@
     if (!initialNavigations.length) {
       return;
     }
+    for (const nav of initialNavigations) {
+      delete nav.dataset.readerNavigationReady;
+    }
 
     const initialLanguage = currentLanguage();
     if (!initialLanguage) {
       for (const nav of initialNavigations) {
         restoreNavigation(nav);
+        markNavigationReady(nav);
       }
       return;
     }
@@ -194,6 +203,10 @@
     } catch (error) {
       if (generation === applyGeneration) {
         console.warn("Reader navigation localization unavailable", error);
+        for (const nav of document.querySelectorAll(PRIMARY_NAV_SELECTOR)) {
+          restoreNavigation(nav);
+          markNavigationReady(nav);
+        }
       }
       return;
     }
@@ -207,6 +220,7 @@
     if (!activeLanguage) {
       for (const nav of currentNavigations) {
         restoreNavigation(nav);
+        markNavigationReady(nav);
       }
       return;
     }
@@ -215,6 +229,7 @@
     if (!locale) {
       for (const nav of currentNavigations) {
         restoreNavigation(nav);
+        markNavigationReady(nav);
       }
       return;
     }
