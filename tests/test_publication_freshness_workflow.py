@@ -140,10 +140,10 @@ class PublicationFreshnessWorkflowTests(unittest.TestCase):
             condition,
         )
         self.assertEqual(["resolve"], [candidate["needs"]])
-        self.assertEqual("./.github/workflows/site-producer.yml", candidate["uses"])
+        self.assertEqual("./.github/workflows/integration-qualification.yml", candidate["uses"])
         self.assertEqual(
             "${{ needs.resolve.outputs.site_revision }}",
-            candidate["with"]["site_ref"],
+            candidate["with"]["producer_ref"],
         )
         self.assertEqual(
             "${{ needs.resolve.outputs.composition_head }}",
@@ -182,9 +182,9 @@ class PublicationFreshnessWorkflowTests(unittest.TestCase):
         self.assertIn("exact-candidate integration remains decisive", run)
         self.assertIn("Unexpected merged-base compatibility lane", run)
         self.assertIn("unexpectedly executed", run)
-        self.assertIn("does not pass the required normal full Site publication build", run)
+        self.assertIn("does not pass the required Integration Bundle qualification", run)
         self.assertIn('case "$RELATION" in', run)
-        self.assertIn("advancing the reviewed lock remains an explicit Site review decision", run)
+        self.assertIn("advancing the reviewed lock remains an explicit integration promotion decision", run)
         self.assertIn(
             "compatibility is intentionally not re-evaluated for this CI-observability-only pull request",
             run,

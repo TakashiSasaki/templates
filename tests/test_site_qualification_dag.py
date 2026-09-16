@@ -49,9 +49,10 @@ class QualificationDagTests(unittest.TestCase):
     def test_standalone_producer_keeps_full_suite_without_serializing_pr_core(self):
         producer = workflow('site-producer.yml')
         self.assertFalse(producer[True]['workflow_call']['inputs']['core_tests_scheduled']['default'])
-        step = next(s for s in producer['jobs']['build']['steps'] if s['name'] == 'Run site assembly tests')
-        self.assertIn('--check integration-tests', step['run'])
-        self.assertIn('--check unit-tests', step['run'])
+        step = next(s for s in producer['jobs']['build']['steps'] if s['name'] == 'Run Site contract regression tests')
+        self.assertIn('!inputs.core_tests_scheduled',step['if'])
+        self.assertIn('--suite core',step['run'])
+        self.assertEqual(producer['jobs']['build']['needs'],'integration')
         artifact = next(s for s in producer['jobs']['build']['steps'] if s.get('id') == 'artifact')
         self.assertEqual('${{ inputs.core_tests_scheduled }}', artifact['env']['CORE_TESTS_SCHEDULED'])
         jobs = workflow('build-pages.yml')['jobs']

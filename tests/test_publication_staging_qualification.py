@@ -125,7 +125,7 @@ class PublicationStagingQualificationTests(unittest.TestCase):
                 publication_root(ROOT)
 
     def test_reusable_build_consumes_materializer_snapshot_before_tests(self) -> None:
-        workflow = (ROOT / '.github/workflows/site-producer.yml').read_text()
+        workflow = (ROOT / '.github/workflows/integration-qualification.yml').read_text()
         producer = (Path(__file__).resolve().parents[1] / 'integration/producer.py').read_text()
         self.assertIn('stage_models(',producer)
         self.assertLess(producer.index('stage_models('),producer.index('build_bundle(') if 'build_bundle(' in producer else producer.index("with tempfile.TemporaryDirectory"))

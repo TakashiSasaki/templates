@@ -61,15 +61,25 @@ permissions:
 env:
   PUBLIC_SITE_URL: https://templates.moukaeritai.work/
 jobs:
+  integration:
+    uses: ./.github/workflows/integration-qualification.yml
+    with:
+      producer_ref: ${{ inputs.site_ref || github.event.pull_request.head.sha || github.sha }}
+      composition_ref: ${{ inputs.composition_ref }}
+      policy_ref: ${{ inputs.policy_ref }}
+      publication_staging_id: ${{ inputs.publication_staging_id }}
+      publication_staging_ids: ${{ inputs.publication_staging_ids }}
+      artifact_namespace: site
   build:
+    needs: integration
     if: github.repository == 'TakashiSasaki/templates'
     runs-on: ubuntu-24.04
     permissions:
       contents: read
       actions: read
     outputs:
-      composition_revision: ${{ steps.publication_refs.outputs.composition }}
-      policy_revision: ${{ steps.publication_refs.outputs.policy }}
+      composition_revision: ${{ needs.integration.outputs.composition_revision }}
+      policy_revision: ${{ needs.integration.outputs.policy_revision }}
       artifact_id: ${{ steps.published.outputs.artifact_id }}
       artifact_digest: ${{ steps.published.outputs.artifact_digest }}
       build_inputs: ${{ steps.published.outputs.build_inputs }}
@@ -77,7 +87,7 @@ jobs:
       - name: Check out site implementation
         uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.site_ref || github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ needs.integration.outputs.producer_revision }}
           path: site-source
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -88,33 +98,22 @@ jobs:
       - name: Resolve checked-out Site revision
         id: site_revision
         run: python site-source/scripts/resolve_site_checkout.py --root site-source --output "$GITHUB_OUTPUT"
-      - name: Resolve publication source revisions
-        id: publication_refs
+      - name: Consume exact qualified Publication Bundle
         env:
-          COMPOSITION_REF_OVERRIDE: ${{ inputs.composition_ref }}
-          POLICY_REF_OVERRIDE: ${{ inputs.policy_ref }}
+          GH_TOKEN: ${{ github.token }}
+          BUNDLE_ARTIFACT_NAME: ${{ needs.integration.outputs.artifact_name }}
         run: |
-          overrides=()
-          if [ -n "$COMPOSITION_REF_OVERRIDE" ]; then
-            overrides+=(--override "composition=$COMPOSITION_REF_OVERRIDE")
-          fi
-          if [ -n "$POLICY_REF_OVERRIDE" ]; then
-            overrides+=(--override "policy=$POLICY_REF_OVERRIDE")
-          fi
-          python site-source/scripts/resolve_publication_sources.py \
-            --lock site-source/publication-sources.json \
-            --output "$GITHUB_OUTPUT" \
-            "${overrides[@]}"
-      - name: Check out composition publication
-        uses: actions/checkout@v7
-        with:
-          ref: ${{ steps.publication_refs.outputs.composition }}
-          path: composition-source
-      - name: Check out policy publication
-        uses: actions/checkout@v7
-        with:
-          ref: ${{ steps.publication_refs.outputs.policy }}
-          path: policy-source
+          python site-source/scripts/publication_bundle_artifact.py consume \
+            --repository "$GITHUB_REPOSITORY" --run-id "$GITHUB_RUN_ID" --attempt "$GITHUB_RUN_ATTEMPT" \
+            --workflow-head "${{ github.event.pull_request.head.sha || github.sha }}" \
+            --artifact-id "${{ needs.integration.outputs.artifact_id }}" \
+            --archive-digest "${{ needs.integration.outputs.artifact_digest }}" \
+            --artifact-name "$BUNDLE_ARTIFACT_NAME" \
+            --bundle-identity "${{ needs.integration.outputs.bundle_identity }}" \
+            --producer "${{ needs.integration.outputs.producer_revision }}" \
+            --composition "${{ needs.integration.outputs.composition_revision }}" \
+            --policy "${{ needs.integration.outputs.policy_revision }}" \
+            --output publication-bundle
       - name: Check out executed build workflow definition
         uses: actions/checkout@v7
         with:
@@ -127,6 +126,7 @@ jobs:
         id: artifact
         env:
           GH_TOKEN: ${{ github.token }}
+          PUBLICATION_BUNDLE_ROOT: publication-bundle
           IS_CANONICAL_BUILD: ${{ inputs.artifact_name == 'github-pages' }}
           REUSE_PR_BUILD: ${{ inputs.reuse_pr_build && github.event.pull_request.head.repo.full_name == github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -140,44 +140,9 @@ jobs:
         run: |
           python -m pip install --no-deps --requirement site-source/requirements-build.lock
           python -m pip check
-      - name: Materialize provider publications
-        if: ${{ steps.artifact.outputs.reused != 'true' }}
-        run: |
-          python site-source/scripts/materialize_publication_assets.py \
-            --publication composition=composition-source \
-            --publication policy=policy-source
-      - name: Run site assembly tests
-        if: ${{ steps.artifact.outputs.reused != 'true' }}
-        env:
-          EXPECTED_SITE_REVISION: ${{ steps.site_revision.outputs.sha }}
-          CORE_TESTS_SCHEDULED: ${{ inputs.core_tests_scheduled }}
-        run: |
-          if [ "$CORE_TESTS_SCHEDULED" = true ]; then
-            python site-source/scripts/run_site_preflight.py full --check integration-tests --expected-head "$EXPECTED_SITE_REVISION" --composition-root composition-source --policy-root policy-source
-          else
-            python site-source/scripts/run_site_preflight.py full --check unit-tests --expected-head "$EXPECTED_SITE_REVISION" --composition-root composition-source --policy-root policy-source
-          fi
-      - name: Generate Integrated Publication Bundle
-        if: ${{ steps.artifact.outputs.reused != 'true' }}
-        id: bundle
-        env:
-          STAGING_IDS: ${{ inputs.publication_staging_ids }}
-          STAGING_ID: ${{ inputs.publication_staging_id }}
-        run: |
-          if [ -n "$STAGING_IDS" ] && [ -n "$STAGING_ID" ]; then
-            echo "Select publication_staging_id or publication_staging_ids, not both" >&2
-            exit 1
-          fi
-          python site-source/scripts/produce_publication_bundle.py \
-            --integration-root site-source \
-            --producer-revision "${{ steps.site_revision.outputs.sha }}" \
-            --composition-root composition-source \
-            --composition-revision "${{ steps.publication_refs.outputs.composition }}" \
-            --policy-root policy-source \
-            --policy-revision "${{ steps.publication_refs.outputs.policy }}" \
-            --staging-ids "${STAGING_IDS:-$STAGING_ID}" \
-            --output publication-bundle \
-            --github-output "$GITHUB_OUTPUT"
+      - name: Run Site contract regression tests
+        if: ${{ steps.artifact.outputs.reused != 'true' && !inputs.core_tests_scheduled }}
+        run: python site-source/scripts/run_core_tests.py --suite core
       - name: Render Site from validated Publication Bundle
         if: ${{ steps.artifact.outputs.reused != 'true' }}
         id: site_metadata
@@ -186,7 +151,7 @@ jobs:
         run: |
           python site-source/scripts/render_publication_bundle.py \
             --bundle publication-bundle \
-            --bundle-identity "${{ steps.bundle.outputs.bundle_identity }}" \
+            --bundle-identity "${{ needs.integration.outputs.bundle_identity }}" \
             --site-root site-source \
             --output build \
             --public-url "$PUBLIC_SITE_URL" \
@@ -210,7 +175,7 @@ jobs:
             '"id": "templates-composition-component"' \
             build/site/glossary/index.json
           site_revision="$(git -C site-source rev-parse HEAD)"
-          composition_revision="${{ steps.publication_refs.outputs.composition }}"
+          composition_revision="${{ needs.integration.outputs.composition_revision }}"
           grep --fixed-strings -- \
             "\"source_revision\": \"${site_revision}\"" \
             build/site/glossary/index.json

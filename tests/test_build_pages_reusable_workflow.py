@@ -19,7 +19,7 @@ class BuildPagesReusableWorkflowTests(unittest.TestCase):
             "- name: Check out site implementation\n"
             "        uses: actions/checkout@v7\n"
             "        with:\n"
-            "          ref: ${{ inputs.site_ref || github.event.pull_request.head.sha || github.sha }}"
+            "          ref: ${{ needs.integration.outputs.producer_revision }}"
         )
         workflow_checkout = (
             "- name: Check out executed build workflow definition\n"
@@ -41,15 +41,11 @@ class BuildPagesReusableWorkflowTests(unittest.TestCase):
         self.assertIn("persist-credentials: false", text)
 
     def test_reusable_build_passes_resolved_checkout_sha_to_preflight(self) -> None:
-        text = WORKFLOW.read_text(encoding="utf-8")
-
-        self.assertIn("python site-source/scripts/resolve_site_checkout.py", text)
-        self.assertIn("EXPECTED_SITE_REVISION: ${{ steps.site_revision.outputs.sha }}", text)
-        assembly = text[text.index("- name: Run site assembly tests") :]
-        self.assertNotIn(
-            "inputs.site_ref || github.event.pull_request.head.sha || github.sha",
-            assembly,
-        )
+        text = WORKFLOW.read_text()
+        self.assertIn('python site-source/scripts/resolve_site_checkout.py',text)
+        self.assertIn('ref: ${{ needs.integration.outputs.producer_revision }}',text)
+        self.assertIn('--producer "${{ needs.integration.outputs.producer_revision }}"',text)
+        self.assertIn('--bundle-identity "${{ needs.integration.outputs.bundle_identity }}"',text)
 
     def test_commit_branch_tag_and_default_refs_bind_to_checked_out_head(self) -> None:
         for site_ref in ("full-sha", "branch", "tag", "default"):

@@ -167,15 +167,14 @@ jobs:
               ;;
           esac
   candidate_build:
-    name: Build with current Composition HEAD
+    name: Qualify current Composition candidate
     if: github.repository == 'TakashiSasaki/templates' && needs.resolve.outputs.candidate_required == 'true' && needs.resolve.outputs.merged_lane != 'blocked-by-declared-unmerged-provider'
     needs: resolve
-    uses: ./.github/workflows/site-producer.yml
+    uses: ./.github/workflows/integration-qualification.yml
     with:
-      reuse_pr_build: true
-      site_ref: ${{ needs.resolve.outputs.site_revision }}
+      producer_ref: ${{ needs.resolve.outputs.site_revision }}
       composition_ref: ${{ needs.resolve.outputs.composition_head }}
-      artifact_name: freshness-pages
+      artifact_namespace: freshness
     permissions:
       contents: read
       actions: read
@@ -207,7 +206,7 @@ jobs:
             echo "- merged-base compatibility lane: \`$MERGED_LANE\`"
             echo "- candidate build required: \`$CANDIDATE_REQUIRED\`"
             echo "- candidate selection reason: \`$CANDIDATE_REASON\`"
-            echo "- candidate Site build: \`$CANDIDATE_RESULT\`"
+            echo "- candidate Integration qualification: \`$CANDIDATE_RESULT\`"
             echo '- Policy source: reviewed Site lock (no current-Policy override)'
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -230,7 +229,7 @@ jobs:
               exit 1
               ;;
             *)
-              echo "::error::Current Composition HEAD does not pass the required normal full Site publication build."
+              echo "::error::Current Composition HEAD does not pass the required Integration Bundle qualification."
               exit 1
               ;;
           esac
@@ -251,7 +250,7 @@ jobs:
               if [ "$MERGED_LANE" = blocked-by-declared-unmerged-provider ]; then
                 echo "::notice::Composition publication lock declares an unmerged provider candidate; merged-base compatibility is blocked and exact-candidate integration is authoritative for this stack."
               elif [ "$CANDIDATE_REQUIRED" = true ]; then
-                echo "::warning::Composition publication lock differs from current Composition HEAD; the candidate build is compatible, but advancing the reviewed lock remains an explicit Site review decision."
+                echo "::warning::Composition publication lock differs from current Composition HEAD; the candidate build is compatible, but advancing the reviewed lock remains an explicit integration promotion decision."
               else
                 echo "::notice::Composition publication lock differs from current Composition HEAD; compatibility is intentionally not re-evaluated for this CI-observability-only pull request."
               fi

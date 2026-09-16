@@ -419,85 +419,21 @@ def check_cross_assembly(args: argparse.Namespace) -> None:
     context = nullcontext(str(retained.workspace)) if retained else tempfile.TemporaryDirectory(prefix="site-preflight-")
     with context as directory:
         temporary = Path(directory)
-        site_publication = temporary / "site-publication"
+        bundle = temporary / "publication-bundle"
         build = temporary / "build"
         if retained:
-            for path in (site_publication, build):
+            for path in (bundle, build):
                 if path.exists():
                     shutil.rmtree(path)
-        run(
-            PYTHON,
-            "scripts/prepare_repository_tree_publication.py",
-            "--site-root",
-            ROOT,
-            "--output-root",
-            site_publication,
-            args=args,
-        )
-        run(
-            PYTHON,
-            "scripts/assemble_publications_v3.py",
-            "--publication",
-            f"site={site_publication}",
-            "--publication",
-            f"composition={composition}",
-            "--publication",
-            f"policy={policy}",
-            "--site-root",
-            site_publication,
-            "--site-source-root",
-            ROOT,
-            "--output-root",
-            build,
-            args=args,
-        )
-        run(
-            PYTHON,
-            "scripts/publish_provider_translations.py",
-            "--reader-navigation-locales",
-            ROOT / "reader-navigation-locales.json",
-            "--publication",
-            f"site={site_publication}",
-            "--publication",
-            f"composition={composition}",
-            "--publication",
-            f"policy={policy}",
-            "--site-root",
-            site_publication,
-            "--output-root",
-            build,
-            args=args,
-        )
-        run(
-            PYTHON,
-            "scripts/prepare_site_metadata.py",
-            "--config-file",
-            build / "zensical.toml",
-            "--deployment-timestamp",
-            "",
-            "--canonical-url",
-            "https://templates.moukaeritai.work/",
-            args=args,
-        )
-        run(
-            ZENSICAL,
-            "build",
-            "--config-file",
-            build / "zensical.toml",
-            "--clean",
-            "--strict",
-            args=args,
-        )
-        run(PYTHON, "scripts/finalize_site_metadata.py", "--site-root", build / "site",
-            "--canonical-url", "https://templates.moukaeritai.work/", args=args)
-        run(PYTHON, "scripts/render_website_metadata.py", "--repository", ROOT, "--site-root", build / "site", args=args)
-        run(PYTHON, "scripts/finalize_translation_reader.py", "--site-root", build / "site",
-            "--translation-map", build / "translation-publication.json",
-            "--canonical-url", "https://templates.moukaeritai.work/", args=args)
-        run(PYTHON, "scripts/write_publication_provenance.py", "--output", build / "site/build-provenance.json",
-            "--repository", "TakashiSasaki/templates", "--site-commit", git_head(ROOT),
-            "--publication-commit", f"composition={git_head(composition)}",
-            "--publication-commit", f"policy={git_head(policy)}", args=args)
+        run(PYTHON, "scripts/qualify_integration.py", "--integration-root", ROOT,
+            "--producer-revision", git_head(ROOT),
+            "--composition-root", composition, "--composition-revision", git_head(composition),
+            "--policy-root", policy, "--policy-revision", git_head(policy),
+            "--output", bundle, args=args)
+        from publication_bundle.contract import validate
+        identity = validate(bundle)['identity']
+        run(PYTHON, "scripts/render_publication_bundle.py", "--bundle", bundle,
+            "--bundle-identity", identity, "--site-root", ROOT, "--output", build, args=args)
         for relative in (
             "site/index.html",
             "site/workspace/index.html",

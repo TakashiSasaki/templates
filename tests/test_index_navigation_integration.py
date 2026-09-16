@@ -17,7 +17,7 @@ SOURCE_LOCK = ROOT / "publication-sources.json"
 class IndexNavigationIntegrationTests(unittest.TestCase):
     def test_pages_build_orders_browser_graph_viewer_metadata_and_link_validation(self) -> None:
         workflow = WORKFLOW.read_text()
-        self.assertLess(workflow.index('- name: Generate Integrated Publication Bundle'),workflow.index('- name: Render Site from validated Publication Bundle'))
+        self.assertLess(workflow.index('- name: Consume exact qualified Publication Bundle'),workflow.index('- name: Render Site from validated Publication Bundle'))
         text = (Path(__file__).resolve().parents[1] / 'site_renderer/render.py').read_text()
         ordered = ["'zensical'))", 'browser.prepare_browser_root(', 'guided.generate_from_bundle(', 'guided_locales.generate_from_bundle(', "'finalize_translation_reader.py'", "'finalize_guided_locales.py'", "'validate_site_links.py'"]
         self.assertEqual([text.index(token) for token in ordered], sorted(text.index(token) for token in ordered))

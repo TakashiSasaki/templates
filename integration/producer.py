@@ -170,7 +170,7 @@ def produce(*, root, provider_roots, provider_revisions, producer_revision, outp
     return result
 
 
-def main():
+def main(producer=produce):
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--integration-root',type=Path,required=True)
     p.add_argument('--producer-revision',required=True)
@@ -183,7 +183,7 @@ def main():
     p.add_argument('--github-output',type=Path)
     args=p.parse_args()
     try:
-        result=produce(root=args.integration_root,producer_revision=args.producer_revision,provider_roots={'composition':args.composition_root,'policy':args.policy_root},provider_revisions={'composition':args.composition_revision,'policy':args.policy_revision},staging_ids=args.staging_ids.split(',') if args.staging_ids else [],output=args.output)
+        result=producer(root=args.integration_root,producer_revision=args.producer_revision,provider_roots={'composition':args.composition_root,'policy':args.policy_root},provider_revisions={'composition':args.composition_revision,'policy':args.policy_revision},staging_ids=args.staging_ids.split(',') if args.staging_ids else [],output=args.output)
     except (ValueError,RuntimeError,OSError) as exc:p.error(str(exc))
     if args.github_output:
         with args.github_output.open('a') as stream:

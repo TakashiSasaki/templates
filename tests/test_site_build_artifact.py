@@ -171,7 +171,8 @@ class ReuseWorkflowTests(unittest.TestCase):
         self.assertNotIn('if', steps[end])
         for name in ['check-publication-freshness.yml']:
             text=(root/'.github/workflows'/name).read_text()
-            self.assertIn('reuse_pr_build: true', text)
+            self.assertIn('./.github/workflows/integration-qualification.yml',text)
+            self.assertNotIn('site-producer.yml',text)
         for name in ['reference-consumer.yml', 'site-composition-playground-cross-authority.yml']:
             self.assertIn('consume_site_build_artifact.py', (root/'.github/workflows'/name).read_text())
         self.assertNotIn('reuse_pr_build: true', (root/'.github/workflows/deploy-pages.yml').read_text())

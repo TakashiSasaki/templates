@@ -24,3 +24,15 @@ and shared decoder results before deriving the complete preview set. The complet
 regular-file byte corpus is bounded to 64 MiB per provider before Git blob reads;
 existing browser candidate, preview candidate and preview text limits still apply.
 Non-viewable evidence is contract data and is never published as an inline preview.
+Qualification uses `scripts/qualify_integration.py` and produces the same contract
+as `scripts/produce_publication_bundle.py`, with a mandatory second generation and
+content identity comparison. `scripts/render_publication_bundle.py` accepts only a
+Bundle identity, Bundle directory, Site-owned source, and output/rendering options.
+`qualify_bundle_renderer.py` exercises a real disposable checkout after physically
+removing Integration implementation and omitting both provider checkouts.
+
+Transport evidence is deliberately outside `bundle.json`: artifact ID/digest,
+workflow head and run, attempt, successful uploading job and its creation window.
+`ci_artifacts` validates this evidence before shared contract validation and atomic
+extraction. The Site Pages identity records the adopted Bundle identity separately
+from Site revision, preserving the contract for future Site-only fixes.
