@@ -1,4 +1,4 @@
-"""Publication Bundle v1 integrity contract; independent of either implementation."""
+"""Publication Bundle v2 integrity contract; independent of either implementation."""
 from __future__ import annotations
 import hashlib
 import json

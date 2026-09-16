@@ -71,7 +71,7 @@ def produce(*, root, provider_roots, provider_revisions, producer_revision, outp
         overlay_data = read_json(root/'reader-navigation-locales.json','navigation locales')
     manifest = parse_manifest(manifest_data)
     if manifest.schema_version != 3:
-        raise BundleError('Bundle v1 requires the active audience manifest schema 3')
+        raise BundleError('Bundle v2 requires the active audience manifest schema 3')
     slots = read_json(root/'integration/site-slots.json','Site content slots')
     slot_documents = {d['id']:d for d in slots['documents']}
     publications = {}
