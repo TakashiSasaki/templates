@@ -122,7 +122,7 @@
       return ul;
     }
     function contains(nodes, destination) {
-      return nodes.some(n => n.children ? contains(node.children, destination) : n.destination === destination);
+      return nodes.some(n => n.children ? contains(n.children, destination) : n.destination === destination);
     }
     const primaryNavigation = [...document.querySelectorAll("nav.md-nav--primary")];
     let neutralNavigation = null;
