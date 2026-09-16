@@ -6,6 +6,7 @@ import re
 import functools
 import json
 import threading
+import time
 import sys
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -120,6 +121,57 @@ def check(
             assert page.evaluate("sessionStorage.getItem('templates-audience-context')") == 'use'
             results.append({'instant_navigation': 'use/maintain/neutral, exact native nav restoration, shared journey, history, switch, fragment, repeated initialization passed'})
             context.close()
+
+            # Localized neutral restoration must wait for reader-navigation async work in the
+            # target runtime frame. Delay only the /ja/ frame's reader map so a premature
+            # snapshot would cache canonical navigation and fail after an explicit re-render.
+            native_context = browser.new_context(service_workers='block')
+            native_page = native_context.new_page()
+            assert native_page.goto(base + '/ja/?audience=maintain').status == 200
+            state(native_page, 'neutral')
+            native_page.wait_for_function("""() =>
+                document.querySelector('nav.md-nav--primary')?.dataset.readerNavigationLanguage === 'ja'
+            """)
+            native_primary_nav = native_page.locator('nav.md-nav--primary').first
+            native_ja_nav = {
+                'html': native_primary_nav.evaluate('nav => nav.innerHTML'),
+                'aria_label': native_primary_nav.get_attribute('aria-label'),
+            }
+            native_context.close()
+
+            context = browser.new_context(service_workers='block')
+            delayed_reader_requests = []
+            def delay_reader_navigation(route):
+                if urlsplit(route.request.frame.url).path == '/ja/':
+                    delayed_reader_requests.append(route.request.frame.url)
+                    time.sleep(0.4)
+                route.continue_()
+            context.route('**/reader-navigation-runtime.json', delay_reader_navigation)
+            page = context.new_page()
+            assert page.goto(base + '/web/').status == 200
+            state(page, 'use')
+            page.wait_for_function('!!window.document$')
+            page.wait_for_function("!!document.querySelector('nav.md-nav--primary > .audience-navigation')")
+            page.evaluate("""path => {
+                const link = document.createElement('a'); link.href = path;
+                link.textContent = 'Localized neutral qualification destination';
+                document.querySelector('main').append(link); link.click();
+            }""", '/ja/?audience=maintain')
+            page.wait_for_url(base + '/ja/?audience=maintain')
+            state(page, 'neutral')
+            primary_nav = page.locator('nav.md-nav--primary').first
+            page.wait_for_function("""() =>
+                document.querySelector('nav.md-nav--primary')?.dataset.readerNavigationLanguage === 'ja'
+            """)
+            assert delayed_reader_requests, 'localized native-navigation snapshot did not exercise delayed reader map'
+            assert primary_nav.evaluate('nav => nav.innerHTML') == native_ja_nav['html']
+            assert primary_nav.get_attribute('aria-label') == native_ja_nav['aria_label']
+            page.evaluate('() => TemplatesAudienceShell.render()')
+            assert primary_nav.evaluate('nav => nav.innerHTML') == native_ja_nav['html']
+            assert primary_nav.get_attribute('aria-label') == native_ja_nav['aria_label']
+            results.append({'localized_neutral_navigation': 'delayed reader map -> localized native snapshot remains stable across shell re-render'})
+            context.close()
+
             for path, target, overview in [('/web/', 'maintain', '/repository-trees/'),
                     ('/policy/contributing/', 'use', '/web/'), ('/', 'maintain', '/repository-trees/')]:
                 context = browser.new_context(service_workers='block'); page = context.new_page()
