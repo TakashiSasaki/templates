@@ -77,7 +77,7 @@ def validate_manifest(manifest: dict, expected: dict) -> None:
 
 
 def validate_provenance(provenance: dict, expected: dict) -> None:
-    if provenance != dict(schema_version=3,repository=expected['repository'],site_commit=expected['site'],integration=expected['publication_bundle']):
+    if not isinstance(provenance,dict) or type(provenance.get('schema_version')) is not int or provenance != dict(schema_version=3,repository=expected['repository'],site_commit=expected['site'],integration=expected['publication_bundle']):
         raise ArtifactError('artifact Integration provenance mismatch')
 
 
