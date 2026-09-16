@@ -85,7 +85,7 @@ def prepare_single_translation(root: Path) -> bytes:
 
 class TranslationContractTests(unittest.TestCase):
     def test_repository_translation_manifest_is_valid(self) -> None:
-        result = validate(ROOT)
+        result = validate(ROOT, allow_stale=True)
         self.assertIn("canonical language: en", result)
         self.assertIn("translations validated: 15", result)
         self.assertIn("reader translations: 14", result)
@@ -326,6 +326,22 @@ class TranslationContractTests(unittest.TestCase):
                 "duplicate canonical/language translation pair",
             ):
                 validate(root)
+
+
+    def test_allow_stale_retains_evidence_and_rejects_missing_source(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            canonical = prepare_single_translation(root)
+            write_catalog(root)
+            write_manifest(root, [translation_entry(canonical_blob_sha=blob_sha(canonical))])
+            (root / "docs/overview.md").write_text("# Changed canonical\n")
+            result = validate(root, allow_stale=True)
+            self.assertTrue(any(
+                "stale translation" in row and blob_sha(canonical) in row for row in result
+            ))
+            (root / "translations/ja/docs/overview.md").unlink()
+            with self.assertRaises(TranslationError):
+                validate(root, allow_stale=True)
 
 
 if __name__ == "__main__":

@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import re
@@ -149,8 +150,9 @@ def validate_surfaces(value: Any, field: str) -> tuple[str, ...]:
     return tuple(surfaces)
 
 
-def validate(root: Path) -> list[str]:
+def validate(root: Path, *, allow_stale: bool = False) -> list[str]:
     root = root.resolve(strict=True)
+    stale: list[str] = []
     manifest = read_json(
         root / "translations" / "manifest.json",
         "translation manifest",
@@ -248,10 +250,13 @@ def validate(root: Path) -> list[str]:
         translation_file = regular_file(root, translation, f"{field}.translation")
         actual_blob_sha = git_blob_sha(canonical_file)
         if actual_blob_sha != blob_sha:
-            raise TranslationError(
-                f"stale translation for {canonical}: expected canonical blob "
+            evidence = (
+                f"stale translation for {canonical}: reviewed canonical blob "
                 f"{blob_sha}, current blob {actual_blob_sha}"
             )
+            if not allow_stale:
+                raise TranslationError(evidence)
+            stale.append(evidence)
 
         if language == "ja":
             validate_japanese_notice(translation_file, translation)
@@ -278,13 +283,21 @@ def validate(root: Path) -> list[str]:
         f"translations validated: {len(entries)}",
         f"reader translations: {surface_counts['reader']}",
         f"guided translations: {surface_counts['guided']}",
+        *stale,
     ]
 
 
 def main() -> int:
-    root = Path(sys.argv[1]) if len(sys.argv) > 1 else Path.cwd()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("root", nargs="?", type=Path, default=Path.cwd())
+    parser.add_argument(
+        "--allow-stale", action="store_true",
+        help="report exact stale evidence while enforcing all structural checks",
+    )
+    args = parser.parse_args()
+    root = args.root
     try:
-        print("\n".join(validate(root)))
+        print("\n".join(validate(root, allow_stale=args.allow_stale)))
     except (TranslationError, OSError) as exc:
         print(f"validate_translations.py: {exc}", file=sys.stderr)
         return 1

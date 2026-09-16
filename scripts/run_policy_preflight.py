@@ -120,7 +120,7 @@ def check_installer() -> None:
 
 
 def check_translations() -> None:
-    run(sys.executable, "scripts/validate_translations.py")
+    run(sys.executable, "scripts/validate_translations.py", "--allow-stale")
 
 
 def check_lint() -> None:

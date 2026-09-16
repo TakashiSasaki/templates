@@ -106,7 +106,7 @@ def test_contribution_guide_describes_active_policy_publication() -> None:
     contributing = (ROOT / "CONTRIBUTING.md").read_text(encoding="utf-8")
 
     assert "active Policy publication entries" in contributing
-    assert "Site owns their staged-to-active reader promotion" in contributing
+    assert "Integration owns their staged-to-active reader promotion" in contributing
     assert "prepared for later publication" not in contributing
 
 
