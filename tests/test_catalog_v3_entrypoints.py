@@ -74,6 +74,34 @@ class CatalogV3EntrypointTests(unittest.TestCase):
 
         self.assertIsNone(rebase.call_args.kwargs["site_source_root"])
 
+    def test_site_assembly_requires_source_root_before_mutation(self) -> None:
+        argv = [
+            "assemble_publications_v3.py",
+            "--publication",
+            "site=/tmp/site-publication",
+            "--site-root",
+            "/tmp/site",
+            "--output-root",
+            "/tmp/output",
+        ]
+        with (
+            patch("sys.argv", argv),
+            patch.object(
+                assemble_publications_v3,
+                "parse_publications",
+                return_value={"site": Path("/tmp/site-publication")},
+            ),
+            patch.object(assemble_publications_v3, "assemble") as assemble,
+            patch.object(
+                assemble_publications_v3,
+                "rebase_publication_links",
+            ) as rebase,
+        ):
+            self.assertEqual(assemble_publications_v3.main(), 1)
+
+        assemble.assert_not_called()
+        rebase.assert_not_called()
+
     def test_translation_publisher_uses_stable_v3_alias(self) -> None:
         source = TRANSLATION_PUBLISHER.read_text(encoding="utf-8")
 

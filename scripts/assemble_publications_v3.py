@@ -31,6 +31,10 @@ def main() -> int:
 
     try:
         publication_roots = parse_publications(args.publication)
+        if "site" in publication_roots and args.site_source_root is None:
+            raise AssemblyError(
+                "original Site source root is required for Source-browser link identity"
+            )
         summary = assemble(publication_roots, args.site_root, args.output_root)
         rebased = rebase_publication_links(
             publication_roots,
