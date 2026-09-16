@@ -189,5 +189,37 @@
         "If the proposed head changes after that review, treat the review as stale"
       ]
     }
+  },
+  {
+    "name": "H-unreachable-helper-does-not-support-coverage",
+    "required": {
+      "policy/core/testing.md": [
+        "A helper or test file existing beside a green workflow is not evidence that its assertions ran",
+        "outside test discovery",
+        "uncalled wrapper",
+        "unused generated validation projection",
+        "optional/non-required lane",
+        "report that coverage as unverified"
+      ],
+      "skills/orchestrate-repository-change/references/staged-ci-execution.md": [
+        "trace the authoritative required workflow/entrypoint",
+        "relevant skip conditions",
+        "report the coverage gap without claiming qualification"
+      ]
+    }
+  },
+  {
+    "name": "I-reachable-helper-requires-execution-and-result",
+    "required": {
+      "policy/core/testing.md": [
+        "reachable from and actually executed",
+        "Reachability alone is not a passing result",
+        "applicable revision, configuration, and evidence layer"
+      ],
+      "skills/orchestrate-repository-change/references/staged-ci-execution.md": [
+        "Establish both the effective execution path and the result",
+        "not independent acceptance review"
+      ]
+    }
   }
 ]
