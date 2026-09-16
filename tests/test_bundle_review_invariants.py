@@ -1,4 +1,5 @@
 """Regressions for the three cumulative review findings at Bundle acceptance."""
+from contextlib import contextmanager
 import base64
 import copy
 import json
@@ -36,6 +37,14 @@ class BundleReviewInvariants(unittest.TestCase):
     def read(self,name):return json.loads((self.root/name).read_text())
     def write(self,name,data):(self.root/name).write_bytes(canonical(data))
 
+    @contextmanager
+    def fresh_bundle(self):
+        saved=self.root
+        with tempfile.TemporaryDirectory() as tmp:
+            self.root=fixture(Path(tmp)/'bundle')
+            try:yield
+            finally:self.root=saved
+
     def translations(self,status='current'):
         models=self.read('provider-repositories.json')
         sha=add_source(models['composition'],'docs/index.md',b'# Intro\n')
@@ -66,15 +75,15 @@ class BundleReviewInvariants(unittest.TestCase):
                 self.translations(status);finish(self.root);self.root=saved
 
     def test_all_nested_provider_graphs_are_validated(self):
-        original=self.read('guided-navigation.json')
         for provider in range(2):
-            for mutation in ('empty','edge','diagnostics'):
-                graph=copy.deepcopy(original);p=graph['providers'][provider]
-                if mutation=='empty':p['indexes']=[]
-                elif mutation=='edge':p['edges']=[{'source':'docs/unknown/index.md'}]
-                else:p['diagnostics']['index_count']=99
-                self.write('guided-navigation.json',graph)
-                with self.subTest(provider=provider,mutation=mutation),self.assertRaises(BundleError):finish(self.root)
+            for mutation in ('empty','edge','index_count','edge_count','max_index_depth'):
+                with self.subTest(provider=provider,mutation=mutation),self.fresh_bundle():
+                    graph=self.read('guided-navigation.json');p=graph['providers'][provider]
+                    if mutation=='empty':p['indexes']=[];expected='indexes must be a non-empty array'
+                    elif mutation=='edge':p['edges']=[{'source':'docs/unknown/index.md'}];expected='edge source'
+                    else:p['diagnostics'][mutation]=99;expected='diagnostics.*'+mutation
+                    self.write('guided-navigation.json',graph)
+                    with self.assertRaisesRegex(BundleError,expected):finish(self.root)
 
     def test_arbitrary_equal_sha_cannot_manufacture_current(self):
         coverage=self.translations();coverage['records'][0].update(canonical_blob_sha='f'*40,current_blob_sha='f'*40)
@@ -82,16 +91,17 @@ class BundleReviewInvariants(unittest.TestCase):
         with self.assertRaisesRegex(BundleError,'canonical.*identity'):finish(self.root)
 
     def test_paths_must_exist_as_regular_sources_in_owning_provider(self):
-        self.translations();original=self.read('provider-repositories.json')
         for source in ('docs/index.md','translations/ja/index.md'):
             for mutation in ('missing','other-provider','symlink'):
-                models=copy.deepcopy(original);model=models['composition'];p=encoded(source.encode())
-                entries=[e for e in model['entries'] if e['path']==p]
-                for field in ('entries','browser','previews'):model[field]=[r for r in model[field] if r['path']!=p]
-                if mutation=='symlink':model['entries'] += [{**entries[0],'mode':'120000'}]
-                elif mutation=='other-provider':add_source(models['policy'],source,b'other owner','policy')
-                self.write('provider-repositories.json',models)
-                with self.subTest(source=source,mutation=mutation),self.assertRaises(BundleError):finish(self.root)
+                with self.subTest(source=source,mutation=mutation),self.fresh_bundle():
+                    self.translations();models=self.read('provider-repositories.json')
+                    model=models['composition'];p=encoded(source.encode())
+                    entries=[e for e in model['entries'] if e['path']==p]
+                    for field in ('entries','browser','previews'):model[field]=[r for r in model[field] if r['path']!=p]
+                    if mutation=='symlink':model['entries'] += [{**entries[0],'mode':'120000'}]
+                    elif mutation=='other-provider':add_source(models['policy'],source,b'other owner','policy')
+                    self.write('provider-repositories.json',models)
+                    with self.assertRaisesRegex(BundleError,'source.*owning provider'):finish(self.root)
 
     def test_stale_cannot_be_published_or_relabelled_current(self):
         coverage=self.translations('stale');coverage['records'][0]['status']='current'

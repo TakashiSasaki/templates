@@ -240,3 +240,13 @@ def validate_provider_graph(provider: dict[str, Any], *, provider_order=PROVIDER
                 f"{name} index edge targets a non-rendered index: {target}"
             )
 
+    expected_diagnostics = {
+        "index_count": len(indexes),
+        "edge_count": len(edges),
+        "max_index_depth": max(index["depth"] for index in indexes),
+    }
+    for field, expected in expected_diagnostics.items():
+        if diagnostics[field] != expected:
+            raise IndexNavigationViewerError(
+                f"{name} diagnostics {field} does not match graph contents"
+            )

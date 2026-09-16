@@ -199,6 +199,11 @@ class LatestIndexNavigationViewerReviewTests(unittest.TestCase):
                     },
                 ]
             )
+            # Keep the graph valid so this reaches the output collision check.
+            skill["diagnostics"]["index_count"] = len(skill["indexes"])
+            skill["diagnostics"]["max_index_depth"] = max(
+                index["depth"] for index in skill["indexes"]
+            )
             with mock.patch.object(viewer, "verify_index_objects", create=True):
                 with self.assertRaisesRegex(
                     viewer.IndexNavigationViewerError,
