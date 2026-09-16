@@ -32,6 +32,9 @@ def check(
     model = check_artifact(site_root, publication_roots)
     documents = model['documents']
     provenance = json.loads((site_root / 'build-provenance.json').read_text())
+    reader_model = json.loads((site_root / 'reader-navigation-runtime.json').read_text())
+    ja_locale = next(locale for locale in reader_model['locales'] if locale['language'] == 'ja')
+    localized_ja_routes = set(ja_locale['routes'].values())
     class Handler(SimpleHTTPRequestHandler):
         def log_message(self, *_): pass
     server = ThreadingHTTPServer(("127.0.0.1", 0), functools.partial(Handler, directory=str(site_root)))
@@ -42,6 +45,16 @@ def check(
         page.wait_for_function("a => document.documentElement.dataset.audience === a", arg=audience)
         if audience != "neutral":
             assert page.evaluate("sessionStorage.getItem('templates-audience-context')") == audience
+    def native_navigation_fingerprint(nav):
+        return nav.evaluate(r"""nav => ({
+            aria_label: nav.getAttribute('aria-label'),
+            reader_language: nav.dataset.readerNavigationLanguage || null,
+            reader_ready: nav.dataset.readerNavigationReady || null,
+            links: [...nav.querySelectorAll('a.md-nav__link[href]')].map(link => ({
+                path: new URL(link.getAttribute('href'), location.href).pathname,
+                text: link.textContent.trim().split(/\s+/).join(' '),
+            })),
+        })""")
     try:
         with sync_playwright() as p:
             browser = p.chromium.launch(**({"channel": channel} if channel else {}))
@@ -135,10 +148,10 @@ def check(
             }""")
             native_page.evaluate("() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))")
             native_primary_nav = native_page.locator('nav.md-nav--primary').first
-            native_ja_nav = {
-                'html': native_primary_nav.evaluate('nav => nav.innerHTML'),
-                'aria_label': native_primary_nav.get_attribute('aria-label'),
-            }
+            native_ja_nav = native_navigation_fingerprint(native_primary_nav)
+            assert native_ja_nav['reader_language'] == 'ja' and native_ja_nav['reader_ready'] == '/ja/'
+            assert any(link['path'] in localized_ja_routes for link in native_ja_nav['links']), \
+                'localized direct navigation did not expose a localized route'
             native_context.close()
 
             context = browser.new_context(service_workers='block')
@@ -167,13 +180,11 @@ def check(
                 return nav?.dataset.readerNavigationLanguage === 'ja' && nav?.dataset.readerNavigationReady === '/ja/';
             }""")
             assert delayed_reader_requests, 'localized native-navigation snapshot did not exercise delayed reader map'
-            assert primary_nav.evaluate('nav => nav.innerHTML') == native_ja_nav['html']
-            assert primary_nav.get_attribute('aria-label') == native_ja_nav['aria_label']
+            assert native_navigation_fingerprint(primary_nav) == native_ja_nav
             page.evaluate('() => TemplatesAudienceShell.render()')
             page.wait_for_function("""() => document.querySelector('nav.md-nav--primary')?.dataset.readerNavigationReady === '/ja/'""")
-            assert primary_nav.evaluate('nav => nav.innerHTML') == native_ja_nav['html']
-            assert primary_nav.get_attribute('aria-label') == native_ja_nav['aria_label']
-            results.append({'localized_neutral_navigation': 'delayed reader map -> localized native snapshot remains stable across shell re-render'})
+            assert native_navigation_fingerprint(primary_nav) == native_ja_nav
+            results.append({'localized_neutral_navigation': 'delayed reader map -> localized native semantic navigation remains stable across shell re-render'})
             context.close()
 
             for path, target, overview in [('/web/', 'maintain', '/repository-trees/'),
