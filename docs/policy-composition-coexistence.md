@@ -93,7 +93,7 @@ Cross-authority collision handling follows these rules:
 2. An ordinary repository path already controlled by another authority must not be overwritten merely because the second authority is being adopted or upgraded.
 3. Ownership transfer is valid only where the current owning contract explicitly releases ownership and the receiving operation explicitly accepts/migrates the existing state.
 4. Absence of a known collision is not permission to introduce a hidden dependency on the other provider's internal schema.
-5. Conflict resolution belongs to the authority that is attempting the new claim; Site integration validation may detect the conflict but does not mutate the consumer to resolve it.
+5. Conflict resolution belongs to the authority that is attempting the new claim; Integration validation may detect the conflict but does not mutate the consumer to resolve it.
 
 ## Cross-authority invariants
 
@@ -107,7 +107,7 @@ For a repository using both authorities:
 - Each provider must remain independently valid when the other provider is absent.
 - A failure in one provider's managed state must not authorize the other provider to repair, rewrite, or discard that state.
 
-These invariants are candidates for exact-revision integration tests in Site. Provider-local tests remain responsible for each provider's own semantics.
+These invariants are candidates for exact-revision qualification tests in Integration. Provider-local tests remain responsible for each provider's own semantics.
 
 ## Consumer coexistence validation checklist
 
