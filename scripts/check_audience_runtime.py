@@ -60,6 +60,16 @@ def check(
             page = context.new_page()
             requests = []
             page.on('request', lambda r: requests.append(r.url) if urlsplit(r.url).path == '/audience-runtime.json' else None)
+            native_context = browser.new_context(service_workers="block")
+            native_page = native_context.new_page()
+            assert native_page.goto(base + '/?audience=maintain').status == 200
+            state(native_page, 'neutral')
+            native_primary_nav = native_page.locator('nav.md-nav--primary').first
+            native_neutral_nav = {
+                'html': native_primary_nav.evaluate('nav => nav.innerHTML'),
+                'aria_label': native_primary_nav.get_attribute('aria-label'),
+            }
+            native_context.close()
             page.goto(base + '/composition/architecture/composer-mvp/')
             state(page, 'use')
             page.wait_for_function('!!window.document$')
@@ -103,11 +113,12 @@ def check(
             assert len(requests) == 1, f'duplicate runtime fetches: {requests}'
             primary_nav = page.locator('nav.md-nav--primary').first
             assert primary_nav.get_attribute('aria-label') == 'Use templates'
-            # Instant navigation to neutral restores the native nav, including its accessible label.
+            # Instant navigation to neutral restores the target page's exact native nav state.
             navigate('/?audience=maintain', 'neutral')
-            assert primary_nav.get_attribute('aria-label') not in ('Use templates', 'Maintain templates')
+            assert primary_nav.evaluate('nav => nav.innerHTML') == native_neutral_nav['html']
+            assert primary_nav.get_attribute('aria-label') == native_neutral_nav['aria_label']
             assert page.evaluate("sessionStorage.getItem('templates-audience-context')") == 'use'
-            results.append({'instant_navigation': 'use/maintain/neutral, native nav label, shared journey, history, switch, fragment, repeated initialization passed'})
+            results.append({'instant_navigation': 'use/maintain/neutral, exact native nav restoration, shared journey, history, switch, fragment, repeated initialization passed'})
             context.close()
             for path, target, overview in [('/web/', 'maintain', '/repository-trees/'),
                     ('/policy/contributing/', 'use', '/web/'), ('/', 'maintain', '/repository-trees/')]:
@@ -132,8 +143,8 @@ def check(
             context = browser.new_context(service_workers='block'); page=context.new_page()
             page.goto(base+r); state(page, documents[d]['primary']); context.close()
             results.append({'translation_aliases': len(translated), 'maintain_direct': r})
-            # A filtered search owns the mounted result list even after its anchors disappear;
-            # returning to All must release that same empty list back to native semantics.
+            # A filtered search owns keyboard/ARIA selection and the mounted result list;
+            # returning to All must clear selection and release that same list to native semantics.
             context = browser.new_context(service_workers='block'); page=context.new_page()
             page.goto(base + '/composition/architecture/composer-mvp/?audience=maintain'); state(page, 'maintain')
             _open_search(page)
@@ -159,6 +170,69 @@ def check(
                     .find(id => root.getElementById(id)?.getAttribute('role') === 'listbox') || null;
             }""")
             assert result_list_id, 'filtered search did not expose a controlled result list'
+            def filtered_search_state():
+                return page.evaluate("""() => {
+                    const root=[...document.body.children].map(h=>h.shadowRoot).find(r=>r?.querySelector('input[role=combobox]'));
+                    const input=root.querySelector('input[role=combobox]');
+                    const anchors=[...root.querySelectorAll('ol a[href]')].filter(a=>!a.closest('[data-site-search-history]'));
+                    const visible=anchors.filter(a=>!a.closest('[hidden], [data-audience-filtered]') && a.getClientRects().length);
+                    return {
+                        ids:[...root.querySelectorAll('[id]')].map(e=>e.id).filter(Boolean),
+                        active:input.getAttribute('aria-activedescendant'),
+                        all:anchors.map(a=>({id:a.id,href:a.href,role:a.getAttribute('role'),selected:a.getAttribute('aria-selected')})),
+                        visible:visible.map(a=>({id:a.id,href:a.href,role:a.getAttribute('role'),selected:a.getAttribute('aria-selected')})),
+                        styled:[...root.querySelectorAll('[data-audience-search-current]')].map(a=>a.id),
+                    };
+                }""")
+            def assert_filtered_search(require_active=False):
+                data = filtered_search_state()
+                assert len(data['ids']) == len(set(data['ids'])), ('duplicate search DOM IDs', data)
+                assert all(hit['id'] and hit['role'] == 'option' for hit in data['all']), ('filtered hit lost option semantics', data)
+                if require_active:
+                    assert data['active'] and data['active'] in [hit['id'] for hit in data['visible']], ('invalid active descendant', data)
+                    assert sum(hit['selected'] == 'true' for hit in data['all']) == 1, ('active option selection is not unique', data)
+                    assert next(hit for hit in data['visible'] if hit['id'] == data['active'])['selected'] == 'true', ('active option is not selected', data)
+                    assert data['styled'] == [data['active']], ('active styling does not match active descendant', data)
+                else:
+                    assert not data['active'] and not data['styled'], ('stale filtered selection', data)
+                return data
+            cleared = assert_filtered_search()
+            stable_ids = {hit['href']: hit['id'] for hit in cleared['all']}
+            search.focus(); search.press('ArrowDown')
+            down = assert_filtered_search(require_active=True)
+            search.press('ArrowUp')
+            assert_filtered_search(require_active=True)
+            for key in ('ArrowDown', 'ArrowUp', 'Enter'):
+                before = filtered_search_state(); url = page.url
+                outcome = search.evaluate("""(input,key) => {
+                    let bubbled=false;
+                    const observe=()=>{bubbled=true;};
+                    document.addEventListener('keydown',observe,{once:true});
+                    const event=new KeyboardEvent('keydown',{key,bubbles:true,cancelable:true,composed:true,isComposing:true});
+                    const dispatched=input.dispatchEvent(event);
+                    document.removeEventListener('keydown',observe);
+                    return {isComposing:event.isComposing,defaultPrevented:event.defaultPrevented,dispatched,bubbled};
+                }""", key)
+                assert outcome == {'isComposing': True, 'defaultPrevented': False, 'dispatched': True, 'bubbled': True}, (key, outcome)
+                assert page.url == url
+                after = filtered_search_state()
+                assert after['active'] == before['active'] and after['styled'] == before['styled'], (key, before, after)
+            active = filtered_search_state()['active']
+            clicked = search.evaluate("""input => {
+                const root=input.getRootNode();
+                const hit=root.getElementById(input.getAttribute('aria-activedescendant'));
+                let clicked=null;
+                hit.addEventListener('click',event=>{event.preventDefault();clicked=hit.id;},{once:true});
+                input.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true,cancelable:true,composed:true}));
+                return clicked;
+            }""")
+            assert clicked == active, ('Enter did not activate active descendant', active, clicked)
+            select.select_option('use')
+            use_state = assert_filtered_search()
+            assert {hit['href']: hit['id'] for hit in use_state['all']} == stable_ids, ('result IDs changed across filter transition', stable_ids, use_state)
+            select.select_option('maintain')
+            maintain_state = assert_filtered_search()
+            assert {hit['href']: hit['id'] for hit in maintain_state['all']} == stable_ids, ('result IDs changed after returning to filter', stable_ids, maintain_state)
             search.fill('zzzzs5nomatcheszzzz')
             page.wait_for_function("""id => {
                 const root=[...document.body.children].map(h=>h.shadowRoot).find(r=>r?.querySelector('input[role=combobox]'));
@@ -175,7 +249,7 @@ def check(
                 const list=root?.getElementById(id);
                 return !!list && !list.hasAttribute('role') && !input.hasAttribute('aria-controls');
             }""", arg=result_list_id)
-            results.append({'search_empty_result_lifecycle': 'filtered retained listbox -> all native semantics'})
+            results.append({'search_empty_result_lifecycle': 'filtered keyboard/IME/selection + stable IDs + retained listbox -> all native semantics'})
             context.close()
             # Offline reload uses the actual registered worker and precached projection/controller.
             context = browser.new_context(); page=context.new_page()
