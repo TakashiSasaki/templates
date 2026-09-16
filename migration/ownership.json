@@ -1986,6 +1986,2215 @@
     {
       "path": "zensical.template.toml",
       "intended_owner": "ambiguous / requires architectural decision"
+    },
+    {
+      "path": ".agent-policy/adoption.json",
+      "intended_owner": "Policy-owned semantics / Site consumer adoption state and projection validation"
+    },
+    {
+      "path": ".agent-policy/adoption/original/AGENTS.md",
+      "intended_owner": "Policy-owned semantics / Site consumer adoption state and projection validation"
+    },
+    {
+      "path": ".agents/skills/pr-merge-gate/SKILL.md",
+      "intended_owner": "Policy-owned review semantics / Site consumer procedural adapter and immutable source pin"
+    },
+    {
+      "path": ".agents/skills/pr-merge-gate/source.json",
+      "intended_owner": "Policy-owned review semantics / Site consumer procedural adapter and immutable source pin"
+    },
+    {
+      "path": ".agents/skills/site-browser-regression-triage/SKILL.md",
+      "intended_owner": "future Site presentation/runtime-owned: Site maintenance procedure; publication-cutover routing is temporary migration compatibility"
+    },
+    {
+      "path": ".agents/skills/site-pr-exact-head-acceptance/SKILL.md",
+      "intended_owner": "future Site presentation/runtime-owned: Site maintenance procedure; publication-cutover routing is temporary migration compatibility"
+    },
+    {
+      "path": ".agents/skills/site-publication-cutover/SKILL.md",
+      "intended_owner": "future Site presentation/runtime-owned: Site maintenance procedure; publication-cutover routing is temporary migration compatibility"
+    },
+    {
+      "path": ".github/tests/test_policy_outputs.py",
+      "intended_owner": "Policy-owned semantics / Site consumer adoption state and projection validation"
+    },
+    {
+      "path": ".review-authority/review-policy.md",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local operating and review instructions; shared Policy semantics remain provider-owned"
+    },
+    {
+      "path": ".template-composition/checkpoint.py",
+      "intended_owner": "Composition-owned semantics / Site consumer toolchain, configuration and projection"
+    },
+    {
+      "path": ".template-composition/composition-lock.schema.json",
+      "intended_owner": "Composition-owned semantics / Site consumer toolchain, configuration and projection"
+    },
+    {
+      "path": ".template-composition/implementation-evidence-actions.json",
+      "intended_owner": "Composition-owned semantics / Site consumer toolchain, configuration and projection"
+    },
+    {
+      "path": ".template-composition/implementation-evidence-actions.schema.json",
+      "intended_owner": "Composition-owned semantics / Site consumer toolchain, configuration and projection"
+    },
+    {
+      "path": ".template-composition/implementation-evidence-release-readiness.schema.json",
+      "intended_owner": "Composition-owned semantics / Site consumer toolchain, configuration and projection"
+    },
+    {
+      "path": ".template-composition/lifecycle-checkpoint-action-result.schema.json",
+      "intended_owner": "Composition-owned semantics / Site consumer toolchain, configuration and projection"
+    },
+    {
+      "path": ".template-composition/lifecycle-checkpoint-actions.json",
+      "intended_owner": "Composition-owned semantics / Site consumer toolchain, configuration and projection"
+    },
+    {
+      "path": ".template-composition/lifecycle-checkpoint-actions.schema.json",
+      "intended_owner": "Composition-owned semantics / Site consumer toolchain, configuration and projection"
+    },
+    {
+      "path": ".template-composition/lifecycle-next-actions.schema.json",
+      "intended_owner": "Composition-owned semantics / Site consumer toolchain, configuration and projection"
+    },
+    {
+      "path": ".template-composition/lock.json",
+      "intended_owner": "Composition-owned semantics / Site consumer toolchain, configuration and projection"
+    },
+    {
+      "path": ".template-composition/requirements-validation.lock",
+      "intended_owner": "Composition-owned semantics / Site consumer toolchain, configuration and projection"
+    },
+    {
+      "path": ".template-composition/run_action.py",
+      "intended_owner": "Composition-owned semantics / Site consumer toolchain, configuration and projection"
+    },
+    {
+      "path": ".template-composition/validate.py",
+      "intended_owner": "Composition-owned semantics / Site consumer toolchain, configuration and projection"
+    },
+    {
+      "path": ".template-composition/validate_composition.py",
+      "intended_owner": "Composition-owned semantics / Site consumer toolchain, configuration and projection"
+    },
+    {
+      "path": ".template-composition/validate_impl.py",
+      "intended_owner": "Composition-owned semantics / Site consumer toolchain, configuration and projection"
+    },
+    {
+      "path": ".template-composition/validation-registry.json",
+      "intended_owner": "Composition-owned semantics / Site consumer toolchain, configuration and projection"
+    },
+    {
+      "path": ".template-composition/validators/contract_common.py",
+      "intended_owner": "Composition-owned semantics / Site consumer toolchain, configuration and projection"
+    },
+    {
+      "path": ".template-composition/validators/validate_contract_evolution.py",
+      "intended_owner": "Composition-owned semantics / Site consumer toolchain, configuration and projection"
+    },
+    {
+      "path": ".template-composition/validators/validate_implementation_evidence.py",
+      "intended_owner": "Composition-owned semantics / Site consumer toolchain, configuration and projection"
+    },
+    {
+      "path": ".template-composition/validators/validate_lifecycle_checkpoints.py",
+      "intended_owner": "Composition-owned semantics / Site consumer toolchain, configuration and projection"
+    },
+    {
+      "path": ".template-composition/validators/validate_pwa.py",
+      "intended_owner": "Composition-owned semantics / Site consumer toolchain, configuration and projection"
+    },
+    {
+      "path": ".template-composition/validators/validate_pwa_evidence.py",
+      "intended_owner": "Composition-owned semantics / Site consumer toolchain, configuration and projection"
+    },
+    {
+      "path": "artifacts/lifecycle/001-site-reference-adoption/.template-composition/lock.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/001-site-reference-adoption/.template-composition/validation-registry.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/001-site-reference-adoption/contracts/browser-identity.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/001-site-reference-adoption/contracts/document-metadata.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/001-site-reference-adoption/contracts/implementation-evidence.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/001-site-reference-adoption/contracts/manifest.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/001-site-reference-adoption/contracts/pwa-manifest.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/001-site-reference-adoption/contracts/pwa-offline.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/001-site-reference-adoption/contracts/pwa-update.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/001-site-reference-adoption/contracts/routes.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/001-site-reference-adoption/contracts/site-discovery.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/001-site-reference-adoption/contracts/site-structure.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/001-site-reference-adoption/contracts/viewports.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/001-site-reference-adoption/manifest.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/001-site-reference-adoption/schemas/browser-identity.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/001-site-reference-adoption/schemas/document-metadata.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/001-site-reference-adoption/schemas/implementation-evidence.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/001-site-reference-adoption/schemas/lifecycle-checkpoints.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/001-site-reference-adoption/schemas/pwa-manifest.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/001-site-reference-adoption/schemas/pwa-offline.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/001-site-reference-adoption/schemas/pwa-update.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/001-site-reference-adoption/schemas/routes.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/001-site-reference-adoption/schemas/site-discovery.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/001-site-reference-adoption/schemas/site-structure.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/001-site-reference-adoption/schemas/viewports.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/001-site-reference-adoption/validation.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/002-site-reference-adoption-product/.template-composition/lock.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/002-site-reference-adoption-product/.template-composition/validation-registry.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/002-site-reference-adoption-product/contracts/browser-identity.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/002-site-reference-adoption-product/contracts/document-metadata.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/002-site-reference-adoption-product/contracts/implementation-evidence.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/002-site-reference-adoption-product/contracts/manifest.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/002-site-reference-adoption-product/contracts/pwa-manifest.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/002-site-reference-adoption-product/contracts/pwa-offline.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/002-site-reference-adoption-product/contracts/pwa-update.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/002-site-reference-adoption-product/contracts/routes.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/002-site-reference-adoption-product/contracts/site-discovery.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/002-site-reference-adoption-product/contracts/site-structure.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/002-site-reference-adoption-product/contracts/viewports.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/002-site-reference-adoption-product/manifest.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/002-site-reference-adoption-product/schemas/browser-identity.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/002-site-reference-adoption-product/schemas/document-metadata.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/002-site-reference-adoption-product/schemas/implementation-evidence.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/002-site-reference-adoption-product/schemas/lifecycle-checkpoints.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/002-site-reference-adoption-product/schemas/pwa-manifest.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/002-site-reference-adoption-product/schemas/pwa-offline.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/002-site-reference-adoption-product/schemas/pwa-update.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/002-site-reference-adoption-product/schemas/routes.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/002-site-reference-adoption-product/schemas/site-discovery.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/002-site-reference-adoption-product/schemas/site-structure.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/002-site-reference-adoption-product/schemas/viewports.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/002-site-reference-adoption-product/validation.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/003-routes-v5-publication/.template-composition/lock.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/003-routes-v5-publication/.template-composition/validation-registry.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/003-routes-v5-publication/contracts/browser-identity.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/003-routes-v5-publication/contracts/document-metadata.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/003-routes-v5-publication/contracts/implementation-evidence.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/003-routes-v5-publication/contracts/manifest.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/003-routes-v5-publication/contracts/pwa-manifest.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/003-routes-v5-publication/contracts/pwa-offline.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/003-routes-v5-publication/contracts/pwa-update.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/003-routes-v5-publication/contracts/routes.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/003-routes-v5-publication/contracts/site-discovery.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/003-routes-v5-publication/contracts/site-structure.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/003-routes-v5-publication/contracts/viewports.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/003-routes-v5-publication/manifest.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/003-routes-v5-publication/schemas/browser-identity.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/003-routes-v5-publication/schemas/document-metadata.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/003-routes-v5-publication/schemas/implementation-evidence.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/003-routes-v5-publication/schemas/lifecycle-checkpoints.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/003-routes-v5-publication/schemas/pwa-manifest.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/003-routes-v5-publication/schemas/pwa-offline.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/003-routes-v5-publication/schemas/pwa-update.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/003-routes-v5-publication/schemas/routes.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/003-routes-v5-publication/schemas/site-discovery.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/003-routes-v5-publication/schemas/site-structure.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/003-routes-v5-publication/schemas/viewports.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/003-routes-v5-publication/validation.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/004-routes-v5-publication-product/.template-composition/lock.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/004-routes-v5-publication-product/.template-composition/validation-registry.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/004-routes-v5-publication-product/contracts/browser-identity.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/004-routes-v5-publication-product/contracts/document-metadata.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/004-routes-v5-publication-product/contracts/implementation-evidence.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/004-routes-v5-publication-product/contracts/manifest.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/004-routes-v5-publication-product/contracts/pwa-manifest.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/004-routes-v5-publication-product/contracts/pwa-offline.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/004-routes-v5-publication-product/contracts/pwa-update.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/004-routes-v5-publication-product/contracts/routes.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/004-routes-v5-publication-product/contracts/site-discovery.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/004-routes-v5-publication-product/contracts/site-structure.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/004-routes-v5-publication-product/contracts/viewports.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/004-routes-v5-publication-product/manifest.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/004-routes-v5-publication-product/schemas/browser-identity.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/004-routes-v5-publication-product/schemas/document-metadata.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/004-routes-v5-publication-product/schemas/implementation-evidence.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/004-routes-v5-publication-product/schemas/lifecycle-checkpoints.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/004-routes-v5-publication-product/schemas/pwa-manifest.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/004-routes-v5-publication-product/schemas/pwa-offline.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/004-routes-v5-publication-product/schemas/pwa-update.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/004-routes-v5-publication-product/schemas/routes.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/004-routes-v5-publication-product/schemas/site-discovery.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/004-routes-v5-publication-product/schemas/site-structure.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/004-routes-v5-publication-product/schemas/viewports.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/004-routes-v5-publication-product/validation.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/005-webmcp-reader-publication/.template-composition/lock.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/005-webmcp-reader-publication/.template-composition/validation-registry.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/005-webmcp-reader-publication/contracts/browser-identity.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/005-webmcp-reader-publication/contracts/document-metadata.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/005-webmcp-reader-publication/contracts/implementation-evidence.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/005-webmcp-reader-publication/contracts/manifest.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/005-webmcp-reader-publication/contracts/pwa-manifest.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/005-webmcp-reader-publication/contracts/pwa-offline.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/005-webmcp-reader-publication/contracts/pwa-update.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/005-webmcp-reader-publication/contracts/routes.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/005-webmcp-reader-publication/contracts/site-discovery.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/005-webmcp-reader-publication/contracts/site-structure.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/005-webmcp-reader-publication/contracts/viewports.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/005-webmcp-reader-publication/manifest.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/005-webmcp-reader-publication/schemas/browser-identity.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/005-webmcp-reader-publication/schemas/document-metadata.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/005-webmcp-reader-publication/schemas/implementation-evidence.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/005-webmcp-reader-publication/schemas/lifecycle-checkpoints.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/005-webmcp-reader-publication/schemas/pwa-manifest.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/005-webmcp-reader-publication/schemas/pwa-offline.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/005-webmcp-reader-publication/schemas/pwa-update.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/005-webmcp-reader-publication/schemas/routes.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/005-webmcp-reader-publication/schemas/site-discovery.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/005-webmcp-reader-publication/schemas/site-structure.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/005-webmcp-reader-publication/schemas/viewports.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/005-webmcp-reader-publication/validation.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/006-webmcp-reader-publication-product/.template-composition/lock.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/006-webmcp-reader-publication-product/.template-composition/validation-registry.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/006-webmcp-reader-publication-product/contracts/browser-identity.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/006-webmcp-reader-publication-product/contracts/document-metadata.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/006-webmcp-reader-publication-product/contracts/implementation-evidence.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/006-webmcp-reader-publication-product/contracts/manifest.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/006-webmcp-reader-publication-product/contracts/pwa-manifest.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/006-webmcp-reader-publication-product/contracts/pwa-offline.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/006-webmcp-reader-publication-product/contracts/pwa-update.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/006-webmcp-reader-publication-product/contracts/routes.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/006-webmcp-reader-publication-product/contracts/site-discovery.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/006-webmcp-reader-publication-product/contracts/site-structure.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/006-webmcp-reader-publication-product/contracts/viewports.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/006-webmcp-reader-publication-product/manifest.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/006-webmcp-reader-publication-product/schemas/browser-identity.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/006-webmcp-reader-publication-product/schemas/document-metadata.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/006-webmcp-reader-publication-product/schemas/implementation-evidence.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/006-webmcp-reader-publication-product/schemas/lifecycle-checkpoints.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/006-webmcp-reader-publication-product/schemas/pwa-manifest.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/006-webmcp-reader-publication-product/schemas/pwa-offline.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/006-webmcp-reader-publication-product/schemas/pwa-update.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/006-webmcp-reader-publication-product/schemas/routes.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/006-webmcp-reader-publication-product/schemas/site-discovery.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/006-webmcp-reader-publication-product/schemas/site-structure.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/006-webmcp-reader-publication-product/schemas/viewports.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/006-webmcp-reader-publication-product/validation.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/007-topology-publication-remediation/.template-composition/lock.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/007-topology-publication-remediation/.template-composition/validation-registry.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/007-topology-publication-remediation/contracts/browser-identity.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/007-topology-publication-remediation/contracts/document-metadata.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/007-topology-publication-remediation/contracts/implementation-evidence.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/007-topology-publication-remediation/contracts/manifest.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/007-topology-publication-remediation/contracts/pwa-manifest.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/007-topology-publication-remediation/contracts/pwa-offline.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/007-topology-publication-remediation/contracts/pwa-update.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/007-topology-publication-remediation/contracts/routes.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/007-topology-publication-remediation/contracts/site-discovery.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/007-topology-publication-remediation/contracts/site-structure.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/007-topology-publication-remediation/contracts/viewports.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/007-topology-publication-remediation/manifest.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/007-topology-publication-remediation/schemas/browser-identity.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/007-topology-publication-remediation/schemas/document-metadata.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/007-topology-publication-remediation/schemas/implementation-evidence.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/007-topology-publication-remediation/schemas/lifecycle-checkpoints.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/007-topology-publication-remediation/schemas/pwa-manifest.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/007-topology-publication-remediation/schemas/pwa-offline.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/007-topology-publication-remediation/schemas/pwa-update.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/007-topology-publication-remediation/schemas/routes.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/007-topology-publication-remediation/schemas/site-discovery.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/007-topology-publication-remediation/schemas/site-structure.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/007-topology-publication-remediation/schemas/viewports.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/007-topology-publication-remediation/validation.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/008-topology-publication-remediation-product/.template-composition/lock.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/008-topology-publication-remediation-product/.template-composition/validation-registry.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/008-topology-publication-remediation-product/contracts/browser-identity.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/008-topology-publication-remediation-product/contracts/document-metadata.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/008-topology-publication-remediation-product/contracts/implementation-evidence.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/008-topology-publication-remediation-product/contracts/manifest.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/008-topology-publication-remediation-product/contracts/pwa-manifest.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/008-topology-publication-remediation-product/contracts/pwa-offline.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/008-topology-publication-remediation-product/contracts/pwa-update.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/008-topology-publication-remediation-product/contracts/routes.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/008-topology-publication-remediation-product/contracts/site-discovery.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/008-topology-publication-remediation-product/contracts/site-structure.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/008-topology-publication-remediation-product/contracts/viewports.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/008-topology-publication-remediation-product/manifest.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/008-topology-publication-remediation-product/schemas/browser-identity.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/008-topology-publication-remediation-product/schemas/document-metadata.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/008-topology-publication-remediation-product/schemas/implementation-evidence.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/008-topology-publication-remediation-product/schemas/lifecycle-checkpoints.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/008-topology-publication-remediation-product/schemas/pwa-manifest.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/008-topology-publication-remediation-product/schemas/pwa-offline.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/008-topology-publication-remediation-product/schemas/pwa-update.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/008-topology-publication-remediation-product/schemas/routes.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/008-topology-publication-remediation-product/schemas/site-discovery.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/008-topology-publication-remediation-product/schemas/site-structure.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/008-topology-publication-remediation-product/schemas/viewports.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/008-topology-publication-remediation-product/validation.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/009-topology-consumer-overview-remediation/.template-composition/lock.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/009-topology-consumer-overview-remediation/.template-composition/validation-registry.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/009-topology-consumer-overview-remediation/contracts/browser-identity.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/009-topology-consumer-overview-remediation/contracts/document-metadata.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/009-topology-consumer-overview-remediation/contracts/implementation-evidence.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/009-topology-consumer-overview-remediation/contracts/manifest.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/009-topology-consumer-overview-remediation/contracts/pwa-manifest.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/009-topology-consumer-overview-remediation/contracts/pwa-offline.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/009-topology-consumer-overview-remediation/contracts/pwa-update.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/009-topology-consumer-overview-remediation/contracts/routes.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/009-topology-consumer-overview-remediation/contracts/site-discovery.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/009-topology-consumer-overview-remediation/contracts/site-structure.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/009-topology-consumer-overview-remediation/contracts/viewports.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/009-topology-consumer-overview-remediation/manifest.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/009-topology-consumer-overview-remediation/schemas/browser-identity.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/009-topology-consumer-overview-remediation/schemas/document-metadata.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/009-topology-consumer-overview-remediation/schemas/implementation-evidence.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/009-topology-consumer-overview-remediation/schemas/lifecycle-checkpoints.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/009-topology-consumer-overview-remediation/schemas/pwa-manifest.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/009-topology-consumer-overview-remediation/schemas/pwa-offline.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/009-topology-consumer-overview-remediation/schemas/pwa-update.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/009-topology-consumer-overview-remediation/schemas/routes.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/009-topology-consumer-overview-remediation/schemas/site-discovery.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/009-topology-consumer-overview-remediation/schemas/site-structure.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/009-topology-consumer-overview-remediation/schemas/viewports.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/009-topology-consumer-overview-remediation/validation.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/010-topology-consumer-overview-remediation-product/.template-composition/lock.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/010-topology-consumer-overview-remediation-product/.template-composition/validation-registry.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/010-topology-consumer-overview-remediation-product/contracts/browser-identity.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/010-topology-consumer-overview-remediation-product/contracts/document-metadata.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/010-topology-consumer-overview-remediation-product/contracts/implementation-evidence.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/010-topology-consumer-overview-remediation-product/contracts/manifest.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/010-topology-consumer-overview-remediation-product/contracts/pwa-manifest.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/010-topology-consumer-overview-remediation-product/contracts/pwa-offline.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/010-topology-consumer-overview-remediation-product/contracts/pwa-update.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/010-topology-consumer-overview-remediation-product/contracts/routes.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/010-topology-consumer-overview-remediation-product/contracts/site-discovery.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/010-topology-consumer-overview-remediation-product/contracts/site-structure.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/010-topology-consumer-overview-remediation-product/contracts/viewports.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/010-topology-consumer-overview-remediation-product/manifest.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/010-topology-consumer-overview-remediation-product/schemas/browser-identity.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/010-topology-consumer-overview-remediation-product/schemas/document-metadata.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/010-topology-consumer-overview-remediation-product/schemas/implementation-evidence.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/010-topology-consumer-overview-remediation-product/schemas/lifecycle-checkpoints.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/010-topology-consumer-overview-remediation-product/schemas/pwa-manifest.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/010-topology-consumer-overview-remediation-product/schemas/pwa-offline.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/010-topology-consumer-overview-remediation-product/schemas/pwa-update.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/010-topology-consumer-overview-remediation-product/schemas/routes.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/010-topology-consumer-overview-remediation-product/schemas/site-discovery.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/010-topology-consumer-overview-remediation-product/schemas/site-structure.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/010-topology-consumer-overview-remediation-product/schemas/viewports.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/010-topology-consumer-overview-remediation-product/validation.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/011-composition-audience-publication-promotion/.template-composition/lock.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/011-composition-audience-publication-promotion/.template-composition/validation-registry.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/011-composition-audience-publication-promotion/contracts/browser-identity.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/011-composition-audience-publication-promotion/contracts/document-metadata.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/011-composition-audience-publication-promotion/contracts/implementation-evidence.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/011-composition-audience-publication-promotion/contracts/manifest.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/011-composition-audience-publication-promotion/contracts/pwa-manifest.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/011-composition-audience-publication-promotion/contracts/pwa-offline.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/011-composition-audience-publication-promotion/contracts/pwa-update.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/011-composition-audience-publication-promotion/contracts/routes.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/011-composition-audience-publication-promotion/contracts/site-discovery.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/011-composition-audience-publication-promotion/contracts/site-structure.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/011-composition-audience-publication-promotion/contracts/viewports.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/011-composition-audience-publication-promotion/manifest.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/011-composition-audience-publication-promotion/schemas/browser-identity.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/011-composition-audience-publication-promotion/schemas/document-metadata.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/011-composition-audience-publication-promotion/schemas/implementation-evidence.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/011-composition-audience-publication-promotion/schemas/lifecycle-checkpoints.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/011-composition-audience-publication-promotion/schemas/pwa-manifest.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/011-composition-audience-publication-promotion/schemas/pwa-offline.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/011-composition-audience-publication-promotion/schemas/pwa-update.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/011-composition-audience-publication-promotion/schemas/routes.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/011-composition-audience-publication-promotion/schemas/site-discovery.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/011-composition-audience-publication-promotion/schemas/site-structure.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/011-composition-audience-publication-promotion/schemas/viewports.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/011-composition-audience-publication-promotion/validation.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/012-composition-audience-publication-promotion-product/.template-composition/lock.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/012-composition-audience-publication-promotion-product/.template-composition/validation-registry.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/012-composition-audience-publication-promotion-product/contracts/browser-identity.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/012-composition-audience-publication-promotion-product/contracts/document-metadata.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/012-composition-audience-publication-promotion-product/contracts/implementation-evidence.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/012-composition-audience-publication-promotion-product/contracts/manifest.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/012-composition-audience-publication-promotion-product/contracts/pwa-manifest.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/012-composition-audience-publication-promotion-product/contracts/pwa-offline.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/012-composition-audience-publication-promotion-product/contracts/pwa-update.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/012-composition-audience-publication-promotion-product/contracts/routes.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/012-composition-audience-publication-promotion-product/contracts/site-discovery.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/012-composition-audience-publication-promotion-product/contracts/site-structure.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/012-composition-audience-publication-promotion-product/contracts/viewports.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/012-composition-audience-publication-promotion-product/manifest.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/012-composition-audience-publication-promotion-product/schemas/browser-identity.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/012-composition-audience-publication-promotion-product/schemas/document-metadata.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/012-composition-audience-publication-promotion-product/schemas/implementation-evidence.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/012-composition-audience-publication-promotion-product/schemas/lifecycle-checkpoints.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/012-composition-audience-publication-promotion-product/schemas/pwa-manifest.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/012-composition-audience-publication-promotion-product/schemas/pwa-offline.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/012-composition-audience-publication-promotion-product/schemas/pwa-update.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/012-composition-audience-publication-promotion-product/schemas/routes.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/012-composition-audience-publication-promotion-product/schemas/site-discovery.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/012-composition-audience-publication-promotion-product/schemas/site-structure.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/012-composition-audience-publication-promotion-product/schemas/viewports.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/012-composition-audience-publication-promotion-product/validation.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/013-bare-worktree-publication/.template-composition/lock.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/013-bare-worktree-publication/.template-composition/validation-registry.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/013-bare-worktree-publication/contracts/browser-identity.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/013-bare-worktree-publication/contracts/document-metadata.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/013-bare-worktree-publication/contracts/implementation-evidence.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/013-bare-worktree-publication/contracts/manifest.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/013-bare-worktree-publication/contracts/pwa-manifest.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/013-bare-worktree-publication/contracts/pwa-offline.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/013-bare-worktree-publication/contracts/pwa-update.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/013-bare-worktree-publication/contracts/routes.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/013-bare-worktree-publication/contracts/site-discovery.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/013-bare-worktree-publication/contracts/site-structure.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/013-bare-worktree-publication/contracts/viewports.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/013-bare-worktree-publication/manifest.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/013-bare-worktree-publication/schemas/browser-identity.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/013-bare-worktree-publication/schemas/document-metadata.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/013-bare-worktree-publication/schemas/implementation-evidence.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/013-bare-worktree-publication/schemas/lifecycle-checkpoints.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/013-bare-worktree-publication/schemas/pwa-manifest.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/013-bare-worktree-publication/schemas/pwa-offline.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/013-bare-worktree-publication/schemas/pwa-update.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/013-bare-worktree-publication/schemas/routes.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/013-bare-worktree-publication/schemas/site-discovery.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/013-bare-worktree-publication/schemas/site-structure.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/013-bare-worktree-publication/schemas/viewports.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/013-bare-worktree-publication/validation.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/014-bare-worktree-publication-product/.template-composition/lock.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/014-bare-worktree-publication-product/.template-composition/validation-registry.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/014-bare-worktree-publication-product/contracts/browser-identity.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/014-bare-worktree-publication-product/contracts/document-metadata.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/014-bare-worktree-publication-product/contracts/implementation-evidence.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/014-bare-worktree-publication-product/contracts/manifest.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/014-bare-worktree-publication-product/contracts/pwa-manifest.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/014-bare-worktree-publication-product/contracts/pwa-offline.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/014-bare-worktree-publication-product/contracts/pwa-update.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/014-bare-worktree-publication-product/contracts/routes.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/014-bare-worktree-publication-product/contracts/site-discovery.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/014-bare-worktree-publication-product/contracts/site-structure.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/014-bare-worktree-publication-product/contracts/viewports.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/014-bare-worktree-publication-product/manifest.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/014-bare-worktree-publication-product/schemas/browser-identity.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/014-bare-worktree-publication-product/schemas/document-metadata.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/014-bare-worktree-publication-product/schemas/implementation-evidence.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/014-bare-worktree-publication-product/schemas/lifecycle-checkpoints.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/014-bare-worktree-publication-product/schemas/pwa-manifest.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/014-bare-worktree-publication-product/schemas/pwa-offline.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/014-bare-worktree-publication-product/schemas/pwa-update.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/014-bare-worktree-publication-product/schemas/routes.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/014-bare-worktree-publication-product/schemas/site-discovery.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/014-bare-worktree-publication-product/schemas/site-structure.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/014-bare-worktree-publication-product/schemas/viewports.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/014-bare-worktree-publication-product/validation.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/015-policy-maintainer-promotion/.template-composition/lock.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/015-policy-maintainer-promotion/.template-composition/validation-registry.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/015-policy-maintainer-promotion/contracts/browser-identity.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/015-policy-maintainer-promotion/contracts/document-metadata.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/015-policy-maintainer-promotion/contracts/implementation-evidence.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/015-policy-maintainer-promotion/contracts/manifest.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/015-policy-maintainer-promotion/contracts/pwa-manifest.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/015-policy-maintainer-promotion/contracts/pwa-offline.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/015-policy-maintainer-promotion/contracts/pwa-update.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/015-policy-maintainer-promotion/contracts/routes.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/015-policy-maintainer-promotion/contracts/site-discovery.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/015-policy-maintainer-promotion/contracts/site-structure.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/015-policy-maintainer-promotion/contracts/viewports.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/015-policy-maintainer-promotion/manifest.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/015-policy-maintainer-promotion/schemas/browser-identity.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/015-policy-maintainer-promotion/schemas/document-metadata.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/015-policy-maintainer-promotion/schemas/implementation-evidence.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/015-policy-maintainer-promotion/schemas/lifecycle-checkpoints.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/015-policy-maintainer-promotion/schemas/pwa-manifest.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/015-policy-maintainer-promotion/schemas/pwa-offline.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/015-policy-maintainer-promotion/schemas/pwa-update.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/015-policy-maintainer-promotion/schemas/routes.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/015-policy-maintainer-promotion/schemas/site-discovery.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/015-policy-maintainer-promotion/schemas/site-structure.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/015-policy-maintainer-promotion/schemas/viewports.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/015-policy-maintainer-promotion/validation.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/016-policy-maintainer-promotion-product/.template-composition/lock.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/016-policy-maintainer-promotion-product/.template-composition/validation-registry.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/016-policy-maintainer-promotion-product/contracts/browser-identity.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/016-policy-maintainer-promotion-product/contracts/document-metadata.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/016-policy-maintainer-promotion-product/contracts/implementation-evidence.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/016-policy-maintainer-promotion-product/contracts/manifest.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/016-policy-maintainer-promotion-product/contracts/pwa-manifest.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/016-policy-maintainer-promotion-product/contracts/pwa-offline.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/016-policy-maintainer-promotion-product/contracts/pwa-update.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/016-policy-maintainer-promotion-product/contracts/routes.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/016-policy-maintainer-promotion-product/contracts/site-discovery.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/016-policy-maintainer-promotion-product/contracts/site-structure.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/016-policy-maintainer-promotion-product/contracts/viewports.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/016-policy-maintainer-promotion-product/manifest.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/016-policy-maintainer-promotion-product/schemas/browser-identity.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/016-policy-maintainer-promotion-product/schemas/document-metadata.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/016-policy-maintainer-promotion-product/schemas/implementation-evidence.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/016-policy-maintainer-promotion-product/schemas/lifecycle-checkpoints.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/016-policy-maintainer-promotion-product/schemas/pwa-manifest.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/016-policy-maintainer-promotion-product/schemas/pwa-offline.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/016-policy-maintainer-promotion-product/schemas/pwa-update.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/016-policy-maintainer-promotion-product/schemas/routes.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/016-policy-maintainer-promotion-product/schemas/site-discovery.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/016-policy-maintainer-promotion-product/schemas/site-structure.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/016-policy-maintainer-promotion-product/schemas/viewports.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/016-policy-maintainer-promotion-product/validation.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/017-audience-manifest-foundation/.template-composition/lock.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/017-audience-manifest-foundation/.template-composition/validation-registry.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/017-audience-manifest-foundation/contracts/browser-identity.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/017-audience-manifest-foundation/contracts/document-metadata.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/017-audience-manifest-foundation/contracts/implementation-evidence.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/017-audience-manifest-foundation/contracts/manifest.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/017-audience-manifest-foundation/contracts/pwa-manifest.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/017-audience-manifest-foundation/contracts/pwa-offline.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/017-audience-manifest-foundation/contracts/pwa-update.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/017-audience-manifest-foundation/contracts/routes.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/017-audience-manifest-foundation/contracts/site-discovery.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/017-audience-manifest-foundation/contracts/site-structure.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/017-audience-manifest-foundation/contracts/viewports.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/017-audience-manifest-foundation/manifest.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/017-audience-manifest-foundation/schemas/browser-identity.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/017-audience-manifest-foundation/schemas/document-metadata.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/017-audience-manifest-foundation/schemas/implementation-evidence.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/017-audience-manifest-foundation/schemas/lifecycle-checkpoints.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/017-audience-manifest-foundation/schemas/pwa-manifest.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/017-audience-manifest-foundation/schemas/pwa-offline.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/017-audience-manifest-foundation/schemas/pwa-update.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/017-audience-manifest-foundation/schemas/routes.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/017-audience-manifest-foundation/schemas/site-discovery.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/017-audience-manifest-foundation/schemas/site-structure.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/017-audience-manifest-foundation/schemas/viewports.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/017-audience-manifest-foundation/validation.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/018-audience-manifest-foundation-product/.template-composition/lock.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/018-audience-manifest-foundation-product/.template-composition/validation-registry.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/018-audience-manifest-foundation-product/contracts/browser-identity.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/018-audience-manifest-foundation-product/contracts/document-metadata.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/018-audience-manifest-foundation-product/contracts/implementation-evidence.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/018-audience-manifest-foundation-product/contracts/manifest.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/018-audience-manifest-foundation-product/contracts/pwa-manifest.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/018-audience-manifest-foundation-product/contracts/pwa-offline.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/018-audience-manifest-foundation-product/contracts/pwa-update.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/018-audience-manifest-foundation-product/contracts/routes.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/018-audience-manifest-foundation-product/contracts/site-discovery.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/018-audience-manifest-foundation-product/contracts/site-structure.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/018-audience-manifest-foundation-product/contracts/viewports.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/018-audience-manifest-foundation-product/manifest.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/018-audience-manifest-foundation-product/schemas/browser-identity.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/018-audience-manifest-foundation-product/schemas/document-metadata.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/018-audience-manifest-foundation-product/schemas/implementation-evidence.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/018-audience-manifest-foundation-product/schemas/lifecycle-checkpoints.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/018-audience-manifest-foundation-product/schemas/pwa-manifest.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/018-audience-manifest-foundation-product/schemas/pwa-offline.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/018-audience-manifest-foundation-product/schemas/pwa-update.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/018-audience-manifest-foundation-product/schemas/routes.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/018-audience-manifest-foundation-product/schemas/site-discovery.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/018-audience-manifest-foundation-product/schemas/site-structure.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/018-audience-manifest-foundation-product/schemas/viewports.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/018-audience-manifest-foundation-product/validation.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/019-audience-maintainer-publication/.template-composition/lock.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/019-audience-maintainer-publication/.template-composition/validation-registry.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/019-audience-maintainer-publication/contracts/browser-identity.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/019-audience-maintainer-publication/contracts/document-metadata.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/019-audience-maintainer-publication/contracts/implementation-evidence.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/019-audience-maintainer-publication/contracts/manifest.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/019-audience-maintainer-publication/contracts/pwa-manifest.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/019-audience-maintainer-publication/contracts/pwa-offline.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/019-audience-maintainer-publication/contracts/pwa-update.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/019-audience-maintainer-publication/contracts/routes.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/019-audience-maintainer-publication/contracts/site-discovery.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/019-audience-maintainer-publication/contracts/site-structure.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/019-audience-maintainer-publication/contracts/viewports.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/019-audience-maintainer-publication/manifest.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/019-audience-maintainer-publication/schemas/browser-identity.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/019-audience-maintainer-publication/schemas/document-metadata.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/019-audience-maintainer-publication/schemas/implementation-evidence.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/019-audience-maintainer-publication/schemas/lifecycle-checkpoints.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/019-audience-maintainer-publication/schemas/pwa-manifest.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/019-audience-maintainer-publication/schemas/pwa-offline.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/019-audience-maintainer-publication/schemas/pwa-update.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/019-audience-maintainer-publication/schemas/routes.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/019-audience-maintainer-publication/schemas/site-discovery.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/019-audience-maintainer-publication/schemas/site-structure.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/019-audience-maintainer-publication/schemas/viewports.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/019-audience-maintainer-publication/validation.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/020-audience-maintainer-publication-product/.template-composition/lock.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/020-audience-maintainer-publication-product/.template-composition/validation-registry.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/020-audience-maintainer-publication-product/contracts/browser-identity.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/020-audience-maintainer-publication-product/contracts/document-metadata.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/020-audience-maintainer-publication-product/contracts/implementation-evidence.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/020-audience-maintainer-publication-product/contracts/manifest.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/020-audience-maintainer-publication-product/contracts/pwa-manifest.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/020-audience-maintainer-publication-product/contracts/pwa-offline.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/020-audience-maintainer-publication-product/contracts/pwa-update.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/020-audience-maintainer-publication-product/contracts/routes.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/020-audience-maintainer-publication-product/contracts/site-discovery.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/020-audience-maintainer-publication-product/contracts/site-structure.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/020-audience-maintainer-publication-product/contracts/viewports.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/020-audience-maintainer-publication-product/manifest.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/020-audience-maintainer-publication-product/schemas/browser-identity.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/020-audience-maintainer-publication-product/schemas/document-metadata.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/020-audience-maintainer-publication-product/schemas/implementation-evidence.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/020-audience-maintainer-publication-product/schemas/lifecycle-checkpoints.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/020-audience-maintainer-publication-product/schemas/pwa-manifest.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/020-audience-maintainer-publication-product/schemas/pwa-offline.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/020-audience-maintainer-publication-product/schemas/pwa-update.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/020-audience-maintainer-publication-product/schemas/routes.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/020-audience-maintainer-publication-product/schemas/site-discovery.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/020-audience-maintainer-publication-product/schemas/site-structure.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/020-audience-maintainer-publication-product/schemas/viewports.schema.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "artifacts/lifecycle/020-audience-maintainer-publication-product/validation.json",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local lifecycle and implementation evidence; Composition owns evidence schema semantics"
+    },
+    {
+      "path": "policy/project.md",
+      "intended_owner": "future Site presentation/runtime-owned: authority-local operating and review instructions; shared Policy semantics remain provider-owned"
     }
-  ]
+  ],
+  "inventory_scope": "Every tracked path at audited_site, including hidden consumer/toolchain paths and authority-local lifecycle evidence; later migration additions are outside this historical snapshot."
 }
