@@ -16,3 +16,11 @@ is SHA-256 of the canonical exact payload inventory. JSON canonicalization sorts
 uses ASCII escapes and compact separators, prohibits nonfinite numbers, and ends in LF.
 Execution metadata and archive transport digests are external evidence, not payload.
 Producer provenance changes alter identity even when provider payloads remain equivalent.
+
+Source eligibility is authenticated, including non-viewable files. The repository
+model carries exact base64 blob bytes for non-viewable regular files; viewable
+files retain their UTF-8 text. Consumers verify Git blob identities, exact sizes,
+and shared decoder results before deriving the complete preview set. The complete
+regular-file byte corpus is bounded to 64 MiB per provider before Git blob reads;
+existing browser candidate, preview candidate and preview text limits still apply.
+Non-viewable evidence is contract data and is never published as an inline preview.
