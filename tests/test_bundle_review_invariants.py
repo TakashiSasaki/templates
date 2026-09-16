@@ -143,3 +143,16 @@ class BundleReviewInvariants(unittest.TestCase):
                 if mutation=='valid':finish(self.root)
                 else:
                     with self.assertRaisesRegex(BundleError,'diagnostics'):finish(self.root)
+
+    def test_unreachable_cycles_and_incorrect_depths_are_rejected(self):
+        for mutation in ('orphan-cycle','root-depth','child-depth'):
+            with self.subTest(mutation=mutation),self.fresh_bundle():
+                graph=self.read('guided-navigation.json');p=graph['providers'][0]
+                if mutation=='root-depth':p['indexes'][0]['depth']=1
+                else:
+                    p['indexes'] += [{**p['indexes'][0],'path':path,'depth':1} for path in ('docs/a/index.md','docs/b/index.md')]
+                    def edge(source,target):return dict(source=source,target=target,kind='index',section=None,fragment=None,label='Link',description='',line=1,raw_target=target)
+                    p['edges']=[edge('docs/a/index.md','docs/b/index.md'),edge('docs/b/index.md','docs/a/index.md')]
+                    if mutation=='child-depth':p['edges'].insert(0,edge('docs/index.md','docs/a/index.md'))
+                self.write('guided-navigation.json',graph)
+                with self.assertRaisesRegex(BundleError,'unreachable|depth'):finish(self.root)

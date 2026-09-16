@@ -199,6 +199,9 @@ class LatestIndexNavigationViewerReviewTests(unittest.TestCase):
                     },
                 ]
             )
+            for source,target in (("docs/index.md","docs/a/index.md"),("docs/a/index.md","docs/a/index.html/index.md")):
+                skill["edges"].append(dict(source=source,target=target,kind="index",section=None,fragment=None,label="Nested",description="",line=1,raw_target=target))
+            skill["diagnostics"]["edge_count"] = len(skill["edges"])
             # Keep the graph valid so this reaches the output collision check.
             skill["diagnostics"]["index_count"] = len(skill["indexes"])
             skill["diagnostics"]["max_index_depth"] = max(

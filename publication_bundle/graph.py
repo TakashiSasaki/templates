@@ -292,6 +292,19 @@ def graph_diagnostics(indexes, edges):
         if edge["kind"] == "index":
             adjacency.setdefault(edge["source"], []).append(edge["target"])
             incoming_sources.setdefault(edge["target"], set()).add(edge["source"])
+    depths = {ROOT_INDEX: 0}
+    queue = [ROOT_INDEX]
+    cursor = 0
+    while cursor < len(queue):
+        source = queue[cursor];cursor += 1
+        for target in adjacency.get(source, []):
+            if target not in depths:
+                depths[target] = depths[source] + 1
+                queue.append(target)
+    if {index["path"] for index in indexes} != set(depths):
+        raise IndexNavigationViewerError("graph contains indexes unreachable from its root")
+    if any(index["depth"] != depths[index["path"]] for index in indexes):
+        raise IndexNavigationViewerError("graph index depth does not match root reachability")
     return {
         "index_count": len(indexes),
         "edge_count": len(edges),
