@@ -233,7 +233,7 @@ class MobileLayoutRegressionTests(unittest.TestCase):
     def test_visual_dependency_is_pinned(self) -> None:
         self.assertEqual(
             VISUAL_REQUIREMENTS.read_text(encoding="utf-8"),
-            "playwright==1.61.0\n",
+            "playwright==1.61.0\nPygments==2.20.0\n",
         )
 
     def test_pr_build_runs_browser_regression_after_its_own_artifact(self) -> None:
