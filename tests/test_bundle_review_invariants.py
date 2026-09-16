@@ -59,14 +59,14 @@ class BundleReviewInvariants(unittest.TestCase):
         coverage={'schema_version':1,'canonical_language':'en','surface':'reader','languages':['ja'],'records':[r],'summary':counts,'by_language':{'ja':counts}}
         self.write('translation-availability.json',coverage)
         publication={'schema_version':1,'canonical_language':'en','translations':[]}
-        if status=='current':
+        if status in {'current','stale'}:
             publication['translations']=[{'publication':'composition','language':'ja','canonical_destination':'intro.md','translation_destination':'ja/intro.md'}]
             (self.root/'publication/ja').mkdir();(self.root/'publication/ja/intro.md').write_text('日本語')
         self.write('translation-publication.json',publication)
         # S4 additionally validates the runtime projection, absent in S2 fixtures.
         runtime=self.read('reader-navigation-runtime.json')
         for locale in runtime.get('locales',[]):
-            if locale['language']=='ja':locale['routes']={'/intro/':'/ja/intro/'} if status=='current' else {}
+            if locale['language']=='ja':locale['routes']={'/intro/':'/ja/intro/'} if status in {'current','stale'} else {}
         self.write('reader-navigation-runtime.json',runtime)
         return coverage
 
@@ -106,7 +106,7 @@ class BundleReviewInvariants(unittest.TestCase):
                     self.write('provider-repositories.json',models)
                     with self.assertRaisesRegex(BundleError,'source.*owning provider'):finish(self.root)
 
-    def test_stale_cannot_be_published_or_relabelled_current(self):
+    def test_stale_cannot_be_relabelled_current(self):
         coverage=self.translations('stale');coverage['records'][0]['status']='current'
         coverage['summary']={'current':1,'stale':0,'missing':0};coverage['by_language']['ja']=coverage['summary']
         self.write('translation-availability.json',coverage)

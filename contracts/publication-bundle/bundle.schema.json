@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:templates:publication-bundle:1",
-  "title": "Integrated Publication Bundle v1 identity manifest",
+  "$id": "urn:templates:publication-bundle:2",
+  "title": "Integrated Publication Bundle v2 identity manifest",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -15,7 +15,7 @@
   ],
   "properties": {
     "schema_version": {
-      "const": 1
+      "const": 2
     },
     "producer": {
       "type": "object",

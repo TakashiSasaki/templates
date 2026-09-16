@@ -29,3 +29,10 @@ class IntegrationQualificationTests(unittest.TestCase):
         result=subprocess.run([sys.executable,'scripts/qualify_integration.py','--help'],cwd=ROOT,capture_output=True,text=True)
         self.assertEqual(result.returncode,0,result.stderr)
         self.assertNotIn('site-root',result.stdout)
+
+    def test_reusable_candidate_qualification_reaches_stale_contract_regressions(self):
+        workflow=yaml.safe_load((ROOT/'.github/workflows/integration-qualification.yml').read_text())
+        commands='\n'.join(step.get('run','') for step in workflow['jobs']['qualify']['steps'])
+        self.assertIn('tests.test_stale_translation_publication',commands)
+        self.assertIn('tests.test_translation_manifest_closure',commands)
+        self.assertIn('scripts/qualify_integration.py',commands)

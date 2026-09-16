@@ -66,3 +66,9 @@ successful uploading job and creation time inside that attempt's producing-job w
 Corrupt or misbound evidence fails closed; absent evidence can require regeneration.
 No workflow timestamps, run IDs or attempt counters contaminate deterministic identity.
 The artifact is a candidate artifact, not an automatically promoted release.
+
+The current output contract is Bundle v2: structurally valid stale reader derivatives
+remain available with exact provider-owned reviewed/current canonical evidence. The
+P5/P7 releases used v1 current-only publication. This version change does not update
+Site, provider translation prose, or synchronization hashes. Site adoption and warning
+presentation remain a separate human decision.

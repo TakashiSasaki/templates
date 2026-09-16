@@ -6,7 +6,7 @@
     "composition",
     "policy"
   ],
-  "output_contract": "Integrated Publication Bundle v1",
+  "output_contract": "Integrated Publication Bundle v2",
   "site_upstream": "historical Site-local integration path; no adoption of this authority",
   "promotion": "explicit reviewed Integration PR and exact-input qualification",
   "site_adoption": "separate explicit human instruction",

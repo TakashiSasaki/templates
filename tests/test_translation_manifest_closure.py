@@ -80,13 +80,13 @@ class ManifestClosureTests(unittest.TestCase):
                 self.write('provider-repositories.json',models)
                 with self.assertRaises(BundleError):finish(self.root)
 
-    def test_current_derivative_required_and_stale_derivative_forbidden(self):
+    def test_current_and_stale_derivatives_are_required(self):
         for status in ('current','stale'):
             with self.subTest(status=status),self.fresh_bundle():
                 self.translations(status);publication=self.read('translation-publication.json')
-                publication['translations']=[] if status=='current' else [{'publication':'composition','language':'ja','canonical_destination':'intro.md','translation_destination':'ja/intro.md'}]
+                publication['translations']=[]
                 self.write('translation-publication.json',publication)
-                runtime=self.read('reader-navigation-runtime.json');runtime['locales'][0]['routes']={} if status=='current' else {'/intro/':'/ja/intro/'};self.write('reader-navigation-runtime.json',runtime)
+                runtime=self.read('reader-navigation-runtime.json');runtime['locales'][0]['routes']={};self.write('reader-navigation-runtime.json',runtime)
                 with self.assertRaisesRegex(BundleError,'derivative'):finish(self.root)
 
     def test_missing_coverage_is_derived_for_undeclared_canonical_page(self):
@@ -118,7 +118,7 @@ class ManifestClosureTests(unittest.TestCase):
         for status in ('current','stale'):
             with self.subTest(status=status),self.fresh_bundle():
                 self.translations(status)
-                target=self.root/('publication/ja/extra.md' if status=='current' else 'publication/ja/intro.md')
+                target=self.root/'publication/ja/extra.md'
                 target.parent.mkdir(exist_ok=True);target.write_text('orphan derivative')
                 with self.assertRaisesRegex(BundleError,'derivative publication files'):finish(self.root)
 

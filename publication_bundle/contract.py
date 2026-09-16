@@ -1,11 +1,11 @@
-"""Publication Bundle v1 integrity contract; independent of either implementation."""
+"""Publication Bundle v2 integrity contract; independent of either implementation."""
 from __future__ import annotations
 import hashlib
 import json
 import re
 from pathlib import Path, PurePosixPath
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 SHA = re.compile(r'^[0-9a-f]{40}$')
 DIGEST = re.compile(r'^[0-9a-f]{64}$')
 MAX_FILES = 50000
