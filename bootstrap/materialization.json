@@ -186,7 +186,7 @@
       "source_path": "publication_bundle/authority_content/translation_coverage.py",
       "source_blob": "a3f130e765c8aea42d1130b25fe1b5a20d247596",
       "source_sha256": "61a6aacaa07e7dcd4ab5c180adda962626a1cc943b7073d4aa28ee067e2db402",
-      "adaptation": "none"
+      "adaptation": "none; P5 review remediation: share provider manifest parsing/coverage derivation with authenticated Bundle source-model validation"
     },
     "publication_bundle/authority_content/translation_fragment_reconciliation.py": {
       "source_path": "publication_bundle/authority_content/translation_fragment_reconciliation.py",
@@ -210,7 +210,7 @@
       "source_path": "publication_bundle/authority_content/translation_manifest.py",
       "source_blob": "66c6af8d55cdd0770fa4475fb0fca39b5ffaa4dd",
       "source_sha256": "895d7ad1617e04b55ac43958f0b2f8eab43f7ee3d449c95c198996158846d3e0",
-      "adaptation": "none"
+      "adaptation": "none; P5 review remediation: share provider manifest parsing/coverage derivation with authenticated Bundle source-model validation"
     },
     "publication_bundle/contract.py": {
       "source_path": "publication_bundle/contract.py",
@@ -276,7 +276,7 @@
       "source_path": "publication_bundle/translations.py",
       "source_blob": "d92f09b7888f41b7bfe36291b851f6919687ec2a",
       "source_sha256": "5fd98f9eaa83f91bd8a635b1917f067ff193dfba44139fac98b1e78b5bdc3e10",
-      "adaptation": "none"
+      "adaptation": "none; P5 review remediation: share provider manifest parsing/coverage derivation with authenticated Bundle source-model validation"
     },
     "publication_bundle/url_contract.py": {
       "source_path": "publication_bundle/url_contract.py",

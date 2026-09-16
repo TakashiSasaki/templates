@@ -21,6 +21,13 @@ decoders as the producer. The complete regular corpus is limited to 64 MiB per p
 with existing browser/preview candidate and aggregate bounds also retained. Missing or
 extra eligible previews fail. Paths remain encoded model data, never extraction paths.
 
+The validator parses each authenticated provider `translations/manifest.json` with the
+same authority-content parser used by the producer. Reader languages, declaration
+closure, reviewed canonical identities and missing coverage are derived from those
+manifests and compared to the Bundle; self-declared coverage cannot hide or invent
+translations. The provider contract permits an absent manifest, but existing manifests
+and all declared paths must be regular sources without symlink traversal.
+
 Only current translations are published. Stale and missing availability remain distinct;
 P5 does not implement P8. Provider translation content and synchronization metadata are
 read directly from their owning exact authority checkouts and are not Integration sources.

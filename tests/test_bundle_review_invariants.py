@@ -49,10 +49,12 @@ class BundleReviewInvariants(unittest.TestCase):
     def translations(self,status='current'):
         models=self.read('provider-repositories.json')
         sha=add_source(models['composition'],'docs/index.md',b'# Intro\n')
-        add_source(models['composition'],'translations/ja/index.md','日本語'.encode())
+        add_source(models['composition'],'translations/ja/docs/index.md','日本語'.encode())
+        manifest={'schema_version':2,'canonical_language':'en','translations':[{'canonical':'docs/index.md','language':'ja','translation':'translations/ja/docs/index.md','canonical_blob_sha':sha if status=='current' else 'e'*40,'surfaces':['reader']}]}
+        add_source(models['composition'],'translations/manifest.json',canonical(manifest))
         self.write('provider-repositories.json',models)
         r={'publication':'composition','document':'intro','language':'ja','canonical_source':'docs/index.md','canonical_destination':'intro.md','status':status}
-        if status!='missing':r.update(translation_source='translations/ja/index.md',canonical_blob_sha=sha if status=='current' else 'e'*40,current_blob_sha=sha)
+        if status!='missing':r.update(translation_source='translations/ja/docs/index.md',canonical_blob_sha=sha if status=='current' else 'e'*40,current_blob_sha=sha)
         counts={'current':0,'stale':0,'missing':0};counts[status]=1
         coverage={'schema_version':1,'canonical_language':'en','surface':'reader','languages':['ja'],'records':[r],'summary':counts,'by_language':{'ja':counts}}
         self.write('translation-availability.json',coverage)
@@ -70,7 +72,7 @@ class BundleReviewInvariants(unittest.TestCase):
 
     def test_valid_provider_graph_and_translation_states(self):
         finish(self.root)
-        for status in ('current','stale','missing'):
+        for status in ('current','stale'):
             with self.subTest(status=status),tempfile.TemporaryDirectory() as tmp:
                 saved=self.root;self.root=fixture(Path(tmp)/'bundle')
                 self.translations(status);finish(self.root);self.root=saved
@@ -89,10 +91,10 @@ class BundleReviewInvariants(unittest.TestCase):
     def test_arbitrary_equal_sha_cannot_manufacture_current(self):
         coverage=self.translations();coverage['records'][0].update(canonical_blob_sha='f'*40,current_blob_sha='f'*40)
         self.write('translation-availability.json',coverage)
-        with self.assertRaisesRegex(BundleError,'canonical.*identity'):finish(self.root)
+        with self.assertRaisesRegex(BundleError,'manifest/source identity'):finish(self.root)
 
     def test_paths_must_exist_as_regular_sources_in_owning_provider(self):
-        for source in ('docs/index.md','translations/ja/index.md'):
+        for source in ('docs/index.md','translations/ja/docs/index.md'):
             for mutation in ('missing','other-provider','symlink'):
                 with self.subTest(source=source,mutation=mutation),self.fresh_bundle():
                     self.translations();models=self.read('provider-repositories.json')

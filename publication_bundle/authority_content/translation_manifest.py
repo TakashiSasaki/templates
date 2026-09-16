@@ -8,7 +8,7 @@ import json
 import re
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
-from typing import Any
+from typing import Any, Callable
 
 LANGUAGE = re.compile(r"\A[a-z]{2,3}(?:-[a-z0-9]{2,8})*\Z")
 BLOB_SHA = re.compile(r"\A[0-9a-f]{40}\Z")
@@ -66,6 +66,10 @@ def _read_json(path: Path, label: str) -> dict[str, Any]:
     except (OSError, UnicodeError) as exc:
         raise TranslationManifestError(f"unable to read {label} {path}: {exc}") from exc
 
+    return _parse_json(text, label)
+
+
+def _parse_json(text: str, label: str) -> dict[str, Any]:
     def unique(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
         result: dict[str, Any] = {}
         for key, value in pairs:
@@ -77,7 +81,7 @@ def _read_json(path: Path, label: str) -> dict[str, Any]:
     try:
         value = json.loads(text, object_pairs_hook=unique)
     except json.JSONDecodeError as exc:
-        raise TranslationManifestError(f"unable to parse {label} {path}: {exc}") from exc
+        raise TranslationManifestError(f"unable to parse {label}: {exc}") from exc
     if not isinstance(value, dict):
         raise TranslationManifestError(f"{label} must be an object")
     return value
@@ -155,6 +159,29 @@ def load_translation_manifest(
     stale derivative as unavailable without weakening structural validation.
     """
     data = _read_json(path, label)
+
+    def source_blob(relative: PurePosixPath) -> str:
+        source = _regular_file(publication_root, relative, label)
+        try:
+            return git_blob_sha(source)
+        except OSError as exc:
+            raise TranslationManifestError(f"unable to hash {label} {relative}: {exc}") from exc
+
+    return _parse_manifest(data, label, source_blob if publication_root is not None else None)
+
+
+def parse_translation_manifest(
+    text: str, label: str, *, source_blob: Callable[[PurePosixPath], str]
+) -> TranslationManifest:
+    """Use the same provider contract with an immutable source-model resolver.
+
+    The resolver must require a regular source, reject symlink traversal, and
+    return its authenticated Git blob identity for every declared path.
+    """
+    return _parse_manifest(_parse_json(text, label), label, source_blob)
+
+
+def _parse_manifest(data, label, source_blob) -> TranslationManifest:
     if set(data) != TOP_LEVEL_KEYS:
         raise TranslationManifestError(f"{label} has unsupported fields")
     version = data.get("schema_version")
@@ -211,23 +238,9 @@ def load_translation_manifest(
         seen_paths.add(translation)
 
         current_blob_sha: str | None = None
-        if publication_root is not None:
-            canonical_file = _regular_file(
-                publication_root,
-                canonical,
-                f"{field}.canonical",
-            )
-            _regular_file(
-                publication_root,
-                translation,
-                f"{field}.translation",
-            )
-            try:
-                current_blob_sha = git_blob_sha(canonical_file)
-            except OSError as exc:
-                raise TranslationManifestError(
-                    f"unable to hash {field}.canonical {canonical}: {exc}"
-                ) from exc
+        if source_blob is not None:
+            current_blob_sha = source_blob(canonical)
+            source_blob(translation)
 
         entries.append(
             TranslationEntry(

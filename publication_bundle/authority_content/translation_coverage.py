@@ -81,6 +81,11 @@ def build_reader_coverage(
     separately maintained translation target list.
     """
     manifests = _load_manifests(publications)
+    return derive_reader_coverage(manifests, publications, included_pages)
+
+
+def derive_reader_coverage(manifests, publications, included_pages) -> dict[str, Any]:
+    """Project validated, source-bound provider declarations into reader coverage."""
     languages = sorted(
         {
             entry.language
