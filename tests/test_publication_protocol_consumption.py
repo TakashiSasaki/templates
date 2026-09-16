@@ -3,7 +3,11 @@ from __future__ import annotations
 import json
 import posixpath
 import re
+from html.parser import HTMLParser
 from pathlib import Path
+
+import pytest
+from markdown import markdown
 
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github/workflows/pages.yml"
@@ -129,13 +133,32 @@ def test_published_maintainer_sources_have_post_cutover_discovery_links() -> Non
     assert "reader publication is deferred" not in adr_index
 
 
+class _RenderedLinks(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.destinations: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag == "a":
+            self.destinations.extend(value for name, value in attrs if name == "href" and value)
+
+
+def _markdown_link_destinations(text: str) -> list[str]:
+    # Use the already-reviewed documentation renderer, including code fences,
+    # rather than maintaining a second partial Markdown grammar in a regex.
+    links = _RenderedLinks()
+    links.feed(markdown(text, extensions=["fenced_code"]))
+    links.close()
+    return links.destinations
+
+
 def test_published_maintainer_relative_links_stay_inside_publication_catalog() -> None:
     published = {
         item["source"] for item in json.loads(CATALOG.read_text(encoding="utf-8"))["documents"]
     }
     for source in MAINTAINER_SOURCES.values():
         text = (ROOT / source).read_text(encoding="utf-8")
-        for href in re.findall(r"\]\(([^\s)]+)\)", text):
+        for href in _markdown_link_destinations(text):
             path = href.split("#", 1)[0]
             if not path.endswith(".md") or "://" in path:
                 continue
@@ -144,3 +167,27 @@ def test_published_maintainer_relative_links_stay_inside_publication_catalog() -
                 f"{source}: relative reader link {href!r} targets unpublished {target}; "
                 "use an explicit repository-source link instead"
             )
+
+
+@pytest.mark.parametrize("text", [
+    '[guide](staged-ci.md)',
+    '[guide](staged-ci.md "title")',
+    "[guide](staged-ci.md 'title')",
+    '[guide](<staged-ci.md> "title")',
+    '[guide][g]\n\n[g]: staged-ci.md',
+    '[guide][g]\n\n[g]: staged-ci.md "title"',
+    '[guide][]\n\n[guide]: staged-ci.md',
+    '[guide]\n\n[guide]: <staged-ci.md>',
+    '[guide][g]\n\n[g]:\n    staged-ci.md',
+])
+def test_catalog_guard_extracts_rendered_markdown_link_forms(text: str) -> None:
+    assert _markdown_link_destinations(text) == ["staged-ci.md"]
+
+
+@pytest.mark.parametrize("text", [
+    '`[example](staged-ci.md)`',
+    '```markdown\n[example](staged-ci.md)\n```',
+    '[unused]: staged-ci.md',
+])
+def test_catalog_guard_ignores_non_links(text: str) -> None:
+    assert _markdown_link_destinations(text) == []
