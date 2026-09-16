@@ -375,17 +375,17 @@ jobs:
   policy:
     needs:
       - classify_browser
-    if: ${{ inputs.site_ref == '' && github.event_name == 'pull_request' && needs.classify_browser.result == 'success' }}
+    if: ${{ inputs.site_ref == '' && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && needs.classify_browser.result == 'success' }}
     uses: ./.github/workflows/check-agent-policy.yml
   website_contract:
     needs:
       - classify_browser
-    if: ${{ inputs.site_ref == '' && github.event_name == 'pull_request' && needs.classify_browser.result == 'success' }}
+    if: ${{ inputs.site_ref == '' && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && needs.classify_browser.result == 'success' }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - uses: actions/setup-python@v6
         with:
@@ -405,7 +405,7 @@ jobs:
       - cross_authority
       - explainability
       - playground
-    if: ${{ always() && inputs.site_ref == '' && github.event_name == 'pull_request' && needs.classify_browser.result == 'success' && needs.classify_browser.outputs.full_required == 'true' }}
+    if: ${{ always() && inputs.site_ref == '' && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && needs.classify_browser.result == 'success' && needs.classify_browser.outputs.full_required == 'true' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 2
     steps:
@@ -428,7 +428,7 @@ jobs:
     needs:
       - classify_browser
       - build
-    if: ${{ inputs.site_ref == '' && github.event_name == 'pull_request' && needs.classify_browser.result == 'success' && needs.classify_browser.outputs.reference_consumer_required == 'true' }}
+    if: ${{ inputs.site_ref == '' && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && needs.classify_browser.result == 'success' && needs.classify_browser.outputs.reference_consumer_required == 'true' }}
     uses: ./.github/workflows/reference-consumer.yml
     with:
       artifact_id: ${{ needs.build.outputs.artifact_id }}
@@ -442,7 +442,7 @@ jobs:
     needs:
       - classify_browser
       - build
-    if: ${{ inputs.site_ref == '' && github.event_name == 'pull_request' && needs.classify_browser.result == 'success' && (needs.classify_browser.outputs.browser_required == 'true' || needs.classify_browser.outputs.cross_authority_required == 'true') }}
+    if: ${{ inputs.site_ref == '' && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && needs.classify_browser.result == 'success' && (needs.classify_browser.outputs.browser_required == 'true' || needs.classify_browser.outputs.cross_authority_required == 'true') }}
     uses: ./.github/workflows/site-composition-playground-cross-authority.yml
     with:
       artifact_id: ${{ needs.build.outputs.artifact_id }}
@@ -455,10 +455,10 @@ jobs:
   explainability:
     needs:
       - classify_browser
-    if: ${{ inputs.site_ref == '' && github.event_name == 'pull_request' && needs.classify_browser.result == 'success' && needs.classify_browser.outputs.playground_required == 'true' }}
+    if: ${{ inputs.site_ref == '' && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && needs.classify_browser.result == 'success' && needs.classify_browser.outputs.playground_required == 'true' }}
     uses: ./.github/workflows/site-composition-playground-explain.yml
   playground:
     needs:
       - classify_browser
-    if: ${{ inputs.site_ref == '' && github.event_name == 'pull_request' && needs.classify_browser.result == 'success' && needs.classify_browser.outputs.playground_required == 'true' }}
+    if: ${{ inputs.site_ref == '' && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && needs.classify_browser.result == 'success' && needs.classify_browser.outputs.playground_required == 'true' }}
     uses: ./.github/workflows/site-composition-playground.yml

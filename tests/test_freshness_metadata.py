@@ -12,13 +12,12 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 import generate_freshness_metadata  # noqa: E402
-import write_publication_provenance  # noqa: E402
+from site_renderer import freshness as write_publication_provenance  # noqa: E402
 
 
 SITE_REVISION = "a" * 40
 PUBLICATIONS = {
-    "composition": "b" * 40,
-    "policy": "c" * 40,
+    "integration": "b" * 40,
 }
 DEPLOYMENT_TIMESTAMP = "2026-08-15 22:07:00 JST"
 
@@ -171,7 +170,7 @@ class FreshnessMetadataTests(unittest.TestCase):
             generate_freshness_metadata.build_payload(
                 SITE_REVISION,
                 DEPLOYMENT_TIMESTAMP,
-                {"composition": PUBLICATIONS["composition"]},
+                {},
             )
 
         with self.assertRaisesRegex(
@@ -185,7 +184,7 @@ class FreshnessMetadataTests(unittest.TestCase):
             )
 
         duplicate = [f"{name}={revision}" for name, revision in PUBLICATIONS.items()]
-        duplicate.append(f"composition={PUBLICATIONS['composition']}")
+        duplicate.append(f"integration={PUBLICATIONS['integration']}")
         with self.assertRaisesRegex(
             generate_freshness_metadata.FreshnessMetadataError,
             "duplicate publication",
@@ -213,8 +212,7 @@ class FreshnessMetadataTests(unittest.TestCase):
         ):
             generate_freshness_metadata.parse_publications(
                 [
-                    f"composition={PUBLICATIONS['composition']}",
-                    f"policy={PUBLICATIONS['policy']}",
+                    f"integration={PUBLICATIONS['integration']}",
                     f"unknown={'e' * 40}",
                 ]
             )
@@ -371,12 +369,6 @@ class FreshnessMetadataTests(unittest.TestCase):
             (site_root / "index.html").write_text(
                 page(f"Deployment time: {DEPLOYMENT_TIMESTAMP}"),
                 encoding="utf-8",
-            )
-            write_publication_provenance.write_provenance(
-                output,
-                "TakashiSasaki/templates",
-                SITE_REVISION,
-                PUBLICATIONS,
             )
             result = write_publication_provenance.project_freshness_metadata(
                 output,

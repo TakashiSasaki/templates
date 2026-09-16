@@ -97,7 +97,7 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           FORCE_BROWSER_REQUESTED: ${{ inputs.force_browser || contains(github.event.pull_request.labels.*.name, 'ci/browser') }}
-          FORCE_FULL_REQUESTED: ${{ inputs.force_full || github.event_name == 'push' || ((github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && (contains(github.event.pull_request.labels.*.name, 'ci/full-qualification') || contains(github.event.pull_request.labels.*.name, 'ci/full-site-verification'))) }}
+          FORCE_FULL_REQUESTED: ${{ inputs.force_full || github.event_name == 'workflow_dispatch' || github.event_name == 'push' || ((github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && (contains(github.event.pull_request.labels.*.name, 'ci/full-qualification') || contains(github.event.pull_request.labels.*.name, 'ci/full-site-verification'))) }}
         run: |
           set -euo pipefail
           if [ "$EVENT_NAME" != pull_request ]; then

@@ -1,21 +1,11 @@
 # TakashiSasaki/templates
 
-Site is the presentation, runtime, and deployment authority.
+Four independent authorities provide reusable Composition and Policy systems and publish them through Integration and Site.
 
-> **Integration-only publication input:** `integration-source.json` selects an exact
-> reviewed Integration release and Bundle identity. Composition/Policy publication
-> selection, staging, translation availability and read models belong to Integration.
-> Site consumes the Bundle; it never advances provider publication locks. Historical
-> direct-provider procedures below are migration evidence pending P11 cleanup, and
-> are not the canonical Site build path. Site-only fixes retain the same Integration
-> selection. Adoption and deployment each require explicit authorization.
-
-
-This repository provides two reusable provider authorities for building and maintaining software repositories, plus one Site authority for repository integration and publication:
-
-- **Composition** helps you choose and materialize Agent Skill, Website, or Web application structure, capabilities, lifecycle contracts, and validation.
-- **Policy** helps you adopt reproducible coding-agent operating rules in a product repository.
-- **Site** integrates reviewed Composition and Policy revisions and publishes their human- and machine-facing projections at `https://templates.moukaeritai.work/`.
+- **Composition** owns artifact, capability, lifecycle and topology semantics, Composer, schemas, documentation and translations.
+- **Policy** owns coding-agent operating semantics, procedures, profiles, tooling, documentation and translations.
+- **Integration** selects reviewed providers and produces a deterministic Integrated Publication Bundle, including reader IA, translation availability, glossary, guided navigation and immutable source models.
+- **Site** renders the selected Bundle and owns presentation, browser runtime, PWA, accessibility and explicit GitHub Pages deployment.
 
 ## Start here
 
@@ -40,313 +30,37 @@ The rest of this README documents the repository authority and publication model
 
 ## Repository authority model
 
-The [audience architecture](docs/architecture/audience/README.md) defines the
-future Use templates and Maintain templates reader journeys, the exact-revision
-document inventory, and the cross-authority implementation roadmap.
+`composition + policy → integration → site → GitHub Pages`
 
-This repository is also an executable reference consumer: Composition defines
-its own Website product, and Policy governs Site maintenance. Inspect
-[`reference-consumer.json`](reference-consumer.json) and the
-[generated self-hosting explanation](docs/policy-composition-coexistence.md#self-hosting-reference-consumer).
-These two consumer relationships are independent of the publication revisions
-selected for readers.
-
-This repository separates three authorities by responsibility:
-
-| Branch | Authority | Start here when you need to |
-|---|---|---|
-| `composition` | Agent Skill, Website, and Web application artifact semantics, reusable application capabilities, lifecycle contracts, production recipes/schemas, and the deterministic composer | Define or materialize a Skill/Website/Webapp composition |
-| `policy` | Shared coding-agent operating policy and the `agent-policy` selection, validation, rendering, adoption, and release toolchain | Define or apply verifiable agent operating rules |
-| `site` | Repository integration and publication authority: reviewed provider selection, integrated documentation portal, reader information architecture, cross-authority integration validation, projection parity, PWA behavior, and the sole Pages deployment route | Integrate or publish the reviewed authorities together without redefining provider semantics |
-
-`composition` is an orphan branch with its own history. `policy` and `site` remain
-independent authorities. The Site does not merge provider histories; it selects
-reviewed full-commit revisions and assembles their declared publication
-boundaries. Site is not a parent or super-authority above Composition or Policy,
-and provider-specific semantics remain owned by their provider.
-
-The public portal is `https://templates.moukaeritai.work/`. The custom domain is
-served from the domain root, not from the retired `/templates/` project path.
-
-Repository-wide authority ownership and the distinction between normative
-requirements, guidance, evidence, projections, examples, and explanations are
-defined by [`docs/authority-model.md`](docs/authority-model.md). Normative
-publication rules are in [`PUBLISHING.md`](PUBLISHING.md). Canonical terminology
-integration is defined by [`GLOSSARY.md`](GLOSSARY.md). Runtime freshness and PWA
-cache/fallback invariants are defined by [`FRESHNESS.md`](FRESHNESS.md).
-
-## Authority model
-
-In Site publication terminology, `composition` and `policy` are the two external
-**Provider branches**. The `site` branch is the repository integration and
-publication authority and is not an external Provider branch. Its deployment
-responsibility is part of that publication authority, not a higher-order right to
-change provider semantics.
-
-Agent Skill, Website, and Web application are distinct Composition-owned artifact
-identities. Their detailed contracts and shared Web foundation semantics remain
-canonical on the exact reviewed `composition` revision; Site only maps them into
-reader routes.
-
-The reader paths `/skill/`, `/web/`, `/website/`, and `/webapp/` therefore remain
-useful, but all Composition-owned semantics behind them are sourced from the same
-exact reviewed `composition` revision. Source ownership is not reconstructed from
-reader URL grouping.
+Each authority retains an independent Git history. Site is not a parent authority.
+The [authority model](docs/authority-model.md) and [machine discovery](agent.json)
+describe the same topology. The published discovery document receives exact
+provider provenance from the selected Bundle.
 
 ## Publication model
 
-Each external provider owns `docs/publication-catalog.json`. Catalog schema
-version 3 is an explicit allowlist for reader Markdown, machine-readable assets,
-and the optional canonical provider glossary.
+Site's only provider-publication selection is [integration-source.json](integration-source.json).
+It binds an exact Integration revision, Bundle schema, identity and content digest.
+Integration owns the provider pair; Site has no active provider publication lock.
+New Integration releases do not trigger Site adoption or deployment.
 
-The Site owns:
-
-- global reader navigation and generated destinations in `site-manifest.json`;
-- full-SHA external-provider locks in `publication-sources.json`;
-- assembly of `site`, `composition`, and `policy` publication inputs;
-- cross-authority integration semantics that satisfy the Site ownership test in
-  `docs/authority-model.md`;
-- integrated glossary generation with provider/path/revision provenance;
-- repository-tree views for Composition and Policy;
-- the static source browser for Site, Composition, and Policy;
-- deterministic index-guided navigation for Composition and Policy;
-- strict static-site build, link validation, provenance, freshness metadata, and
-  Pages deployment.
-
-A public document is identified by `publication:document`, for example
-`composition:skill-contract`, `composition:website-webapp-selection`, or
-`policy:overview`.
-
-## Reader-facing entry points
-
-The integrated portal exposes:
-
-- `/agent.json` — the machine-readable coding-agent bootstrap projection;
-- `/schemas/agent-bootstrap.schema.json` — its public JSON Schema;
-- `/composition/` — composition architecture, catalog, and composer;
-- `/skill/` — Agent Skill artifact semantics;
-- `/web/` — the Composition-owned Website/Web application selector;
-- `/website/` — Website product walkthrough;
-- `/capabilities/` — Site routing index for published Composition capability documents;
-- `/webapp/` — Web application artifact semantics;
-- `/lifecycle/` — composition-state and product-lifecycle contracts;
-- `/policy/` — coding-agent policy;
-- `/guided/` — provider-owned progressive disclosure from `index.md`;
-- `/repository-trees/` — exact Composition and Policy tracked-path inventories;
-- `/files/` — bounded Site/Composition/Policy source snapshots; and
-- `/glossary/` — the validated integrated terminology projection.
-
-Machine-readable component descriptors, recipes, schemas, contracts, and other
-assets are supporting material. Primary navigation continues to prioritize
-explanatory Markdown.
-
-## Canonical bootstrap operations
-
-After reading `agent.json`, first use `task_routing` to determine which independent
-authorities the task requires. Provider independence does not make an authority
-optional when the task itself requires that authority.
-
-For Composition, execute the complete
-`composition_bootstrap.verified_installer_argv` array exactly, resolving only its
-documented placeholders and argument bindings. For Policy, execute the complete
-`policy_bootstrap.immutable_installer_argv` array exactly, then use
-`policy_workflow.unmanaged_inspect_argv` before any Policy adoption mutation.
-When both routing conditions apply, follow `task_routing.combined.authority_order`
-and keep the two providers' state and validation independent.
-
-Do not reconstruct either bootstrap operation from installer or Skill metadata,
-and do not independently reimplement the declared download or execute steps. The
-`canonical_operation` and `reimplementation_policy` fields are machine-readable
-reminders of this contract.
-
-
-## Source locking and provenance
-
-`publication-sources.json` contains exactly the reviewed `composition` and
-`policy` full 40-character commit SHAs used by normal builds. Workflow-call
-overrides exist only for deliberate compatibility/review testing.
-
-Every uploaded Pages artifact contains `/build-provenance.json`, which records
-the built `site` commit and exact Composition and Policy commits. It identifies
-publication inputs; it is not a cryptographic attestation.
-
-## Repository and guided views
-
-Repository-tree generation uses the composition-era entrypoint:
-
-```sh
-python site/scripts/generate_repository_trees_composition.py \
-  --repository TakashiSasaki/templates \
-  --site-root site-publication \
-  --output-root build \
-  --publication composition=sources/composition \
-  --publication policy=sources/policy
-```
-
-The standalone source browser uses the canonical Site-owned entrypoint and the
-three active authorities directly:
-
-```sh
-python site/scripts/generate_repository_browser.py \
-  --repository TakashiSasaki/templates \
-  --output-root build/site \
-  --branch site=site \
-  --branch composition=sources/composition \
-  --branch policy=sources/policy
-```
-
-Index-guided navigation uses one composition-era wrapper for graph, locale,
-viewer, and localized-viewer generation:
-
-```sh
-python site/scripts/run_composition_navigation.py graph \
-  --repository TakashiSasaki/templates \
-  --output build/index-navigation.json \
-  --provider composition=sources/composition \
-  --provider policy=sources/policy
-
-python site/scripts/run_composition_navigation.py viewer \
-  --repository TakashiSasaki/templates \
-  --graph build/index-navigation.json \
-  --site-root site-publication \
-  --output-root build/site \
-  --provider composition=sources/composition \
-  --provider policy=sources/policy
-
-python site/scripts/finalize_site_metadata.py \
-  --site-root build/site/guided \
-  --canonical-url https://templates.moukaeritai.work/
-```
-
-Fragment-free uncataloged regular-file targets resolve to the same immutable
-`/files/` snapshot. Uncataloged regular-file targets with any fragment use the
-exact full-SHA immutable GitHub source because the Site cannot safely claim a
-fragment mapping for an unrendered source file.
+An explicit Integration adoption changes this lock. A Site-only UI, PWA or security
+fix retains it. Both use the same [Site qualification and deployment process](PUBLISHING.md).
+The renderer runs with only Site and the immutable Bundle; provider checkouts and
+Integration implementation source are absent.
 
 ## Local publication validation
 
-Check out the independent authorities into separate directories, using the
-provider revisions locked by `publication-sources.json`:
+Read [MAINTENANCE.md](MAINTENANCE.md), [PUBLISHING.md](PUBLISHING.md) and
+[LANGUAGE.md](LANGUAGE.md). English is authoritative. Available stale translations
+carry a visible non-authoritative warning and a link to current English.
 
-```text
-site/
-sources/composition/
-sources/policy/
-```
+The Site also independently consumes Composition's public Website contract and
+Policy's maintenance rules. [reference-consumer.json](reference-consumer.json)
+records these product/toolchain relationships separately from publication input.
+They do not select provider publication revisions.
 
-Then run the material stages used by Pages:
+The [migration audit](migration/final-architecture-audit.md) records retirement of
+the transitional local Integration producer and historical audit dispositions.
 
-```sh
-python -m unittest discover --start-directory site/tests --verbose
-
-python site/scripts/prepare_repository_tree_publication.py \
-  --site-root site \
-  --output-root site-publication
-
-python site/scripts/assemble_publications_v3.py \
-  --publication site=site-publication \
-  --publication composition=sources/composition \
-  --publication policy=sources/policy \
-  --site-root site-publication \
-  --site-source-root site \
-  --output-root build
-
-python site/scripts/publish_provider_translations.py \
-  --publication site=site-publication \
-  --publication composition=sources/composition \
-  --publication policy=sources/policy \
-  --site-root site-publication \
-  --output-root build
-
-python site/scripts/generate_repository_trees_composition.py \
-  --repository TakashiSasaki/templates \
-  --site-root site-publication \
-  --output-root build \
-  --publication composition=sources/composition \
-  --publication policy=sources/policy
-
-python site/scripts/generate_repository_file_previews_composition.py \
-  --repository TakashiSasaki/templates \
-  --site-root site-publication \
-  --output-root build \
-  --publication composition=sources/composition \
-  --publication policy=sources/policy
-
-zensical build --config-file build/zensical.toml --clean --strict
-
-python site/scripts/generate_glossary.py \
-  --repository TakashiSasaki/templates \
-  --output build/site/glossary/index.json \
-  --publication site=site-publication \
-  --revision "site=$(git -C site rev-parse HEAD)" \
-  --publication composition=sources/composition \
-  --revision "composition=$(git -C sources/composition rev-parse HEAD)" \
-  --publication policy=sources/policy \
-  --revision "policy=$(git -C sources/policy rev-parse HEAD)"
-
-python site/scripts/generate_repository_browser.py \
-  --repository TakashiSasaki/templates \
-  --output-root build/site \
-  --branch site=site \
-  --branch composition=sources/composition \
-  --branch policy=sources/policy
-
-python site/scripts/run_composition_navigation.py graph \
-  --repository TakashiSasaki/templates \
-  --output build/index-navigation.json \
-  --provider composition=sources/composition \
-  --provider policy=sources/policy
-
-python site/scripts/run_composition_navigation.py locales \
-  --graph build/index-navigation.json \
-  --output build/index-navigation-locales.json \
-  --provider composition=sources/composition \
-  --provider policy=sources/policy
-
-python site/scripts/run_composition_navigation.py viewer \
-  --repository TakashiSasaki/templates \
-  --graph build/index-navigation.json \
-  --site-root site-publication \
-  --output-root build/site \
-  --provider composition=sources/composition \
-  --provider policy=sources/policy
-
-python site/scripts/finalize_site_metadata.py \
-  --site-root build/site/guided \
-  --canonical-url https://templates.moukaeritai.work/
-
-python site/scripts/write_publication_provenance.py \
-  --output build/site/build-provenance.json \
-  --repository TakashiSasaki/templates \
-  --site-commit "$(git -C site rev-parse HEAD)" \
-  --publication-commit "composition=$(git -C sources/composition rev-parse HEAD)" \
-  --publication-commit "policy=$(git -C sources/policy rev-parse HEAD)"
-
-python site/scripts/validate_site_links.py \
-  --site-root build/site \
-  --config-file build/zensical.toml
-```
-
-Browser-level mobile/PWA checks remain governed by `FRESHNESS.md` and the
-existing visual-regression workflows; the provider cutover does not weaken those
-contracts.
-
-## Deployment boundary
-
-`.github/workflows/build-pages.yml` is build-only. It may run for pull requests
-or through `workflow_call`, but it has read-only repository permission and no
-Pages deployment authority.
-
-`.github/workflows/deploy-pages.yml` is the only Pages deployment route and runs
-only by explicit `workflow_dispatch` on `site`. The external `github-pages` environment is configured
-to allow exactly the `site` branch. Pull requests cannot change this setting;
-changing it requires repository/environment administration. Do not broaden the
-environment to all branches or introduce a second deployment workflow.
-
-## Retired direct-copy publication path
-
-The Site no longer generates dedicated Skill, Website, or Webapp copyable-template
-trees. Those workflows, scripts, and integration tests were tied to the retired
-monolithic `template/` source model. Source inspection now presents the exact
-Composition tree, while consumer repositories are produced by the composition
-composer.
+GitHub Pages environment restrictions are configured outside source control. Pull requests cannot change this setting; verify the environment allows only `site` before deployment.

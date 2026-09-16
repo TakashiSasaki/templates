@@ -82,7 +82,7 @@ class RepositoryBrowserSafetyTests(unittest.TestCase):
             self.assertFalse((output / "files/skill").exists())
             self.assertFalse((output / "files/webapp").exists())
             root_index = (output / "files/index.html").read_text(encoding="utf-8")
-            self.assertIn("Site, Composition, and Policy authorities", root_index)
+            self.assertIn("Site and the selected Integration provider models", root_index)
             page = (output / "files/site/index.html").read_text(encoding="utf-8")
             self.assertIn('name="repository-file-viewer"', page)
             self.assertIn('sandbox=""', page)

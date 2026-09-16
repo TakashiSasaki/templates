@@ -16,14 +16,13 @@ from site_renderer.bundle import load_lock
 
 
 def selected_input_matches(expected, locked):
-    if 'revision' in locked:
-        bundle=expected.get('publication_bundle',{})
-        return (bundle.get('producer')=={'authority':'integration','revision':locked['revision']}
-            and bundle.get('schema_version')==locked['bundle_schema']
-            and bundle.get('identity')==locked['bundle_identity']
-            and bundle.get('content_digest')==locked['content_digest']
-            and not any(k in expected for k in ('composition','policy','staging','staging_ids')))
-    return all(expected.get(provider)==sha for provider,sha in locked.items())
+    bundle=expected.get('publication_bundle',{})
+    return (expected.get('schema_version')==3
+        and bundle.get('producer')=={'authority':'integration','revision':locked['revision']}
+        and bundle.get('schema_version')==locked['bundle_schema']
+        and bundle.get('identity')==locked['bundle_identity']
+        and bundle.get('content_digest')==locked['content_digest']
+        and not any(k in expected for k in ('composition','policy','staging','staging_ids')))
 
 
 def validate_binding(metadata: dict, expected: dict, *, artifact_id: int, archive_digest: str,
@@ -36,7 +35,7 @@ def validate_binding(metadata: dict, expected: dict, *, artifact_id: int, archiv
     if (expected.get('site') != head or expected.get('repository') != repository
             or not selected_input_matches(expected, locked)
             or expected.get('staging') or expected.get('staging_ids')
-            or expected.get('deployment_timestamp')):
+):
         raise ArtifactError('scheduled artifact input binding mismatch')
     if not re.fullmatch(r'sha256:[0-9a-f]{64}', archive_digest):
         raise ArtifactError('scheduled artifact is missing immutable digest')

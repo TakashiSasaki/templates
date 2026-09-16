@@ -91,10 +91,11 @@ class QualificationDagTests(unittest.TestCase):
 class ScheduledArtifactBindingTests(unittest.TestCase):
     def test_binding_family(self):
         digest = 'sha256:' + 'd' * 64
-        expected = dict(site='a'*40, composition='b'*40, policy='c'*40, repository='owner/repo', staging='', staging_ids='', deployment_timestamp='')
+        from tests.test_site_build_artifact import inputs
+        expected = inputs(repository='owner/repo')
         metadata = dict(id=123, expired=False, digest=digest, workflow_run=dict(id=456, head_sha='a'*40))
         args = dict(artifact_id=123, archive_digest=digest, run_id=456, head='a'*40,
-                    repository='owner/repo', locked={'composition':'b'*40, 'policy':'c'*40})
+                    repository='owner/repo', locked={'revision':'f'*40,'bundle_schema':2,'bundle_identity':'1'*64,'content_digest':'2'*64})
         validate_binding(metadata, expected, **args)
         for field, value in [('site', 'f'*40), ('composition', 'f'*40), ('policy', 'f'*40), ('repository', 'other/repo'), ('staging', 'candidate')]:
             changed = {**expected, field: value}

@@ -8,14 +8,9 @@ from scripts import site_build_artifact as artifact
 
 
 def expected_inputs():
-    return artifact.identity(
-        repository='TakashiSasaki/templates',
-        site='a' * 40,
-        composition='b' * 40,
-        policy='c' * 40,
-        workflow=b'workflow',
-        runtime='python|runner',
-    )
+    from tests.test_site_build_artifact import inputs
+    return inputs()
+
 
 
 def canonical_run(run_id: int, run_number: int, *, status: str = 'completed') -> dict:

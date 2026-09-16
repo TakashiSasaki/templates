@@ -166,7 +166,7 @@ small domain-specific primitives -> local implementation when that preserves ind
 
 ## Site integration responsibility
 
-Site validates coexistence at exact reviewed Policy and Composition revisions recorded in `publication-sources.json`. Integration validation may check reserved-path collisions, known ownership handoffs, stale cross-provider references, and representative repositories using both systems.
+Integration validates coexistence at its selected reviewed provider revisions. Site adopts the resulting immutable Publication Bundle through `integration-source.json`; it does not repeat provider semantic qualification.
 
 Site is the repository integration and publication authority at this boundary and remains an observer/integrator with respect to provider consumer state. It does not become the authority for Policy or Composition semantics, and it does not perform consumer adoption, composition, update, render, recovery, or migration on behalf of either provider outside test fixtures.
 
@@ -222,7 +222,7 @@ There is no combined lock or shared transaction manager.
 
 Composition-managed schemas, validators, and generated registry remain provider
 material. Site owns its implementation and customized seed worksheets. Its
-primary publication entrypoints are projected from `site-manifest.json` into
+primary Site product entrypoints are described by consumer-owned worksheets in
 Website contracts. Generated source viewers, guided views, translations, and
 other secondary surfaces continue to use their existing Site acceptance tests;
 the primary Website inventory does not claim to enumerate those derived pages.

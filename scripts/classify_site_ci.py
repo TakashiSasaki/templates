@@ -434,7 +434,7 @@ def classify_paths(paths: Iterable[str], *, force_full: bool = False,
             priority = capability
             break
     decision = replace(decision, playground_required=playground, browser_priority=priority,
-                       integration_required=decision.build_required or any(normalize_path(p).startswith("integration/") for p in paths))
+                       integration_required=False)  # Site never qualifies providers.
     if force_browser and not decision.full_required:
         decision = replace(
             decision, build_required=True, browser_required=True, pwa_required=True,
@@ -490,18 +490,6 @@ def _classify_paths(
             reason="CI workflow or classification controls changed",
             changed_count=changed_count,
             requiring_paths=control_paths,
-        )
-
-    # Internal Integration construction qualifies a Bundle without adopting it.
-    # Shared wire contracts and CI controls still require cross-boundary evidence.
-    if all(p.startswith('integration/') for p in normalized):
-        return ClassificationDecision(
-            core_required=True, build_required=False, browser_required=False,
-            pwa_required=False, reference_consumer_required=False,
-            cross_authority_required=False, publication_required=True,
-            full_required=False, risk_class='integration-only',
-            reason='Integration construction ends at qualified Publication Bundle',
-            changed_count=changed_count, requiring_paths=normalized,
         )
 
     # 2. Check for unknown paths -> fail closed

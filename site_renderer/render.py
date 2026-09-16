@@ -253,7 +253,7 @@ def render_snapshot(*,bundle,site_root,output,identity,site_revision,parent_iden
         write(site/'build-provenance.json',{'schema_version':3,'repository':repository,'site_commit':site_revision,'integration':selected_bundle})
         write(site/'publication-bundle.json',selected_bundle)
         # Runtime/deployed-document freshness remains separate from translation status.
-        from scripts.write_publication_provenance import project_freshness_metadata
+        from site_renderer.freshness import project_freshness_metadata
         project_freshness_metadata(site/'build-provenance.json',site_revision,{'integration':identity['producer']['revision']})
         run(site_root,'validate_site_links.py','--site-root',site,'--config-file',build/'zensical.toml')
         publish_build(build,output,parent_identity,(original_bundle,site_root,original_site),site_revision,parent_directory)

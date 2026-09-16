@@ -50,8 +50,6 @@ class SystemChromeWorkflowTests(unittest.TestCase):
     def test_browser_workflows_use_system_chrome_except_pwa_lifecycle_jobs(self) -> None:
         workflows = (
             ROOT / ".github/workflows/build-pages.yml",
-            ROOT / ".github/workflows/mobile-visual-regression.yml",
-            ROOT / ".github/workflows/search-history-regression.yml",
             ROOT / ".github/workflows/site-composition-playground-explain.yml",
             ROOT / ".github/workflows/site-composition-playground-cross-authority.yml",
         )

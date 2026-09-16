@@ -276,20 +276,9 @@ class MobileLayoutRegressionTests(unittest.TestCase):
         self.assertNotIn("browser-actions/setup-chrome", workflow)
         self.assertNotIn("--no-sandbox", workflow)
 
-    def test_manual_replay_uses_explicit_build_run_without_polling(self) -> None:
-        workflow = REPLAY_WORKFLOW.read_text(encoding="utf-8")
-        self.assertIn("workflow_dispatch:", workflow)
-        self.assertIn("run-id: ${{ inputs.run_id }}", workflow)
-        self.assertIn("github-token: ${{ github.token }}", workflow)
-        self.assertIn(
-            "python -m playwright install --with-deps --only-shell chromium",
-            workflow,
-        )
-        self.assertNotIn("pull_request:", workflow)
-        self.assertNotIn("actions/github-script@v8", workflow)
-        self.assertNotIn("workflow_id: 'build-pages.yml'", workflow)
-        self.assertNotIn("Wait for documentation artifact build", workflow)
-        self.assertNotIn("actions/upload-pages-artifact", workflow)
+    def test_duplicate_unverified_manual_replay_is_retired(self):
+        self.assertFalse(REPLAY_WORKFLOW.exists())
+        self.assertIn('check_mobile_layout.py',(ROOT/'.github/workflows/build-pages.yml').read_text())
 
 
 if __name__ == "__main__":

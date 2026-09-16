@@ -16,7 +16,7 @@ class PwaLocaleChromeTests(unittest.TestCase):
     def setUp(self) -> None:
         self.worker = (ROOT / "assets/service-worker.js").read_text(encoding="utf-8")
         self.client = (ROOT / "assets/javascripts/pwa.js").read_text(encoding="utf-8")
-        self.workflow = (ROOT / ".github/workflows/mobile-visual-regression.yml").read_text(
+        self.workflow = (ROOT / ".github/workflows/build-pages.yml").read_text(
             encoding="utf-8"
         )
         self.checker = (ROOT / "scripts/check_pwa_locale_chrome.py").read_text(

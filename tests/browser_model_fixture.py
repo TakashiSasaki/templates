@@ -12,6 +12,8 @@ def generate_browser(repository, output, fixtures):
         tree,records=collect_records('site',repository,revision,source)
         target=root/name;target.mkdir()
         (target/'index.html').write_text(browser.render_browser_page(name,revision,tree,records,tuple(fixtures)))
-        for record in records.values():browser.write_verified_file_page(target/record.viewer_url,name,revision,record)
+        for record in records.values():
+            destination=target/record.viewer_url;destination.parent.mkdir(parents=True,exist_ok=True)
+            browser.write_verified_file_page(destination,name,revision,record)
         messages.append(name)
     return messages

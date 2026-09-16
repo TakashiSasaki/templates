@@ -163,22 +163,7 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
                     step_body,
                 )
 
-    def test_reusable_workflow_checks_out_only_locked_external_providers(self) -> None:
-        upstream=(PRODUCER_WORKFLOW.parent/'integration-qualification.yml').read_text()
-        self.assertIn('publication-sources.json',upstream)
-        self.assertIn('path: composition-source',upstream)
-        self.assertIn('path: policy-source',upstream)
-        downstream=PRODUCER_WORKFLOW.read_text().split('  build:')[1]
-        self.assertNotIn('composition-source',downstream)
-        self.assertNotIn('policy-source',downstream)
-        self.assertIn('acquire_integration_bundle.py consume',downstream)
-        self.assertEqual(set(json.loads(SOURCE_LOCK.read_text())['publications']),{'composition','policy'})
 
-    def test_publication_resolver_runs_under_pinned_python(self) -> None:
-        workflow = (PRODUCER_WORKFLOW.parent/'integration-qualification.yml').read_text()
-        self.assertLess(workflow.index('actions/setup-python@'),workflow.index('scripts/resolve_publication_sources.py'))
-        self.assertLess(workflow.index('scripts/resolve_publication_sources.py'),workflow.index('path: composition-source'))
-        self.assertIn("python-version: '3.12'",workflow)
 
     def test_site_dispatch_workflow_is_the_only_deployment_authority(self) -> None:
         workflow = DEPLOY_WORKFLOW.read_text(encoding="utf-8")
@@ -192,7 +177,7 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
         self.assertNotIn("workflow_call:", trigger_block)
         self.assertNotIn("  push:", trigger_block)
         self.assertIn("uses: ./.github/workflows/build-pages.yml", workflow)
-        self.assertIn("site_ref: ${{ github.sha }}", workflow)
+        self.assertNotIn("site_ref:", workflow)  # dispatch qualifies the event SHA through the full DAG
         self.assertIn("github.repository == 'TakashiSasaki/templates'", workflow)
         self.assertIn("github.event_name == 'workflow_dispatch'", workflow)
         self.assertIn("github.ref == 'refs/heads/site'", workflow)

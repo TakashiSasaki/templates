@@ -31,13 +31,15 @@ class AdoptionTests(unittest.TestCase):
   before=copy.deepcopy(self.lock)
   for site_revision in ('e'*40,'f'*40):
    from scripts.site_build_artifact import identity
-   result=identity(repository='TakashiSasaki/templates',site=site_revision,composition='a'*40,policy='a'*40,workflow=b'workflow',bundle={k:self.manifest[k] for k in ('schema_version','producer','providers','identity','content_digest')})
+   result=identity(repository='TakashiSasaki/templates',site=site_revision,workflow=b'workflow',bundle={k:self.manifest[k] for k in ('schema_version','producer','providers','identity','content_digest')})
    self.assertEqual(result['publication_bundle']['producer']['revision'],self.lock['revision'])
    self.assertNotIn('composition',result);self.assertNotIn('policy',result)
   self.assertEqual(self.lock,before)
  def test_consumer_does_not_reopen_provider_semantics(self):
-  with patch('publication_bundle.source_models.validate_sources',side_effect=AssertionError('provider source semantics')),patch('publication_bundle.translations.validate_translations',side_effect=AssertionError('provider translation semantics')):
-   validate_locked(self.root,self.lock)
+  self.assertFalse((ROOT/'integration').exists())
+  self.assertFalse((ROOT/'publication_bundle/translations.py').exists())
+  validate_locked(self.root,self.lock)
+
  def test_payload_mutation_is_not_hidden_by_provider_metadata(self):
   (self.root/'publication/intro.md').write_text('changed')
   with self.assertRaises(BundleError):validate_locked(self.root,self.lock)
@@ -47,7 +49,7 @@ class AdoptionTests(unittest.TestCase):
   from ci_artifacts.transport import ArtifactError
   with patch('site_renderer.acquire.paginated',return_value=[{'id':1,'head_sha':'f'*40,'conclusion':'success'}]),self.assertRaises(ArtifactError):locate(self.lock)
  def test_discovery_is_a_bundle_projection_of_four_authorities(self):
-  template=read_json(ROOT/'agent.json');schema=read_json(ROOT/'assets/schemas/agent-bootstrap.schema.json')
+  template=read_json(ROOT/'agent.json');schema=read_json(ROOT/'schemas/agent-bootstrap.schema.json')
   jsonschema.validate(template,schema);result=project(template,self.manifest);jsonschema.validate(result,schema)
   self.assertEqual(result['integration_source']['identity'],self.manifest['identity'])
   for name,revision in self.manifest['providers'].items():self.assertEqual(result['authorities'][name]['publication_revision'],revision)

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate provider translation manifests and publish non-authoritative reader pages."""
+"""Compile Site-owned translations only; provider availability comes from the Bundle."""
 
 from __future__ import annotations
 

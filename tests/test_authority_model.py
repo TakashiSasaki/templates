@@ -17,14 +17,13 @@ class AuthorityModelTests(unittest.TestCase):
     def test_site_role_and_provider_independence_are_consistent(self):
         model=normalized_prose(AUTHORITY_MODEL.read_text())
         for authority in ('Composition','Policy','Integration','Site'):
-            self.assertIn('### '+authority,AUTHORITY_MODEL.read_text())
-        self.assertIn('Integration owns exact reviewed provider selection',model)
-        self.assertIn('Site owns HTML/static rendering',model)
-        self.assertIn('Site does not select provider revisions or derive provider freshness',model)
+            self.assertIn('| '+authority+' |',AUTHORITY_MODEL.read_text())
+        self.assertIn('Reviewed provider selection',model)
+        self.assertIn('Presentation, browser runtime',model)
+        self.assertIn('It has no independent provider publication lock',model)
         for file in ('README.md','PUBLISHING.md'):
             self.assertIn('integration-source.json',(ROOT/file).read_text())
-            self.assertIn('presentation, runtime, and deployment authority',(ROOT/file).read_text())
-        self.assertIn('Independent Git histories remain independent',model)
+        self.assertIn('independent authorities and Git histories',model)
 
     def test_semantic_roles_do_not_infer_normativity_from_format(self) -> None:
         model = AUTHORITY_MODEL.read_text(encoding="utf-8")

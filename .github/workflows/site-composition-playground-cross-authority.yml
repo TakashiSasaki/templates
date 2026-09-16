@@ -36,7 +36,7 @@ jobs:
       - name: Check out exact Site candidate
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 1
           persist-credentials: false
       - name: Verify and consume scheduled Pages artifact
@@ -60,7 +60,7 @@ jobs:
           echo "Playwright launch mode: channel=chrome" >> "$GITHUB_STEP_SUMMARY"
       - name: Exercise integrated projection through exact Site UI
         env:
-          EXPECTED_SITE_REVISION: ${{ github.event.pull_request.head.sha }}
+          EXPECTED_SITE_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           test "$(git rev-parse HEAD)" = "$EXPECTED_SITE_REVISION"
           python scripts/check_composition_playground_cross_authority.py --site-root build/site --expected-site-revision "$EXPECTED_SITE_REVISION" --from-bundle

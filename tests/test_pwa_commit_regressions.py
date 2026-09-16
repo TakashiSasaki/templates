@@ -6,7 +6,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CHECKER = ROOT / "scripts/check_pwa_commit_regressions.py"
-WORKFLOW = ROOT / ".github/workflows/mobile-visual-regression.yml"
+WORKFLOW = ROOT / ".github/workflows/build-pages.yml"
 
 
 class PwaCommitRegressionTests(unittest.TestCase):

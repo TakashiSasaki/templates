@@ -19,7 +19,7 @@ class PwaSlowConvergenceTests(unittest.TestCase):
         self.checker = (ROOT / "scripts/check_pwa_slow_convergence.py").read_text(
             encoding="utf-8"
         )
-        self.workflow = (ROOT / ".github/workflows/mobile-visual-regression.yml").read_text(
+        self.workflow = (ROOT / ".github/workflows/build-pages.yml").read_text(
             encoding="utf-8"
         )
 

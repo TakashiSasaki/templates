@@ -53,8 +53,8 @@ class BrowserWorkflowTests(unittest.TestCase):
         events = workflow('build-pages.yml')[True]
         self.assertIn('schedule', events)
         self.assertIn('workflow_dispatch', events)
-        self.assertIn('schedule', workflow('composition-real-browser.yml')[True])
-        self.assertEqual(set(workflow('mobile-visual-regression.yml')[True]), {'workflow_dispatch'})
+        self.assertFalse((ROOT/'.github/workflows/composition-real-browser.yml').exists())
+        self.assertFalse((ROOT/'.github/workflows/mobile-visual-regression.yml').exists())
 
 class FullStackTriggerTests(unittest.TestCase):
     def test_all_filtered_qualification_workflows_cover_canonical_bases(self):

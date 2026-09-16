@@ -18,18 +18,7 @@ import unittest
 from pathlib import Path
 
 # Tests that strictly require checked-out and materialized external provider checkouts.
-PROVIDER_INTEGRATION_MODULES = frozenset(
-    {
-        "test_catalog_architecture_translation_integration",
-        "test_composer_mvp_translation_integration",
-        "test_composition_model_translation_integration",
-        "test_composition_translation_reader_integration",
-        "test_generated_contract_manifest_translation_integration",
-        "test_glossary_locked_providers",
-        "test_agent_bootstrap_locked_providers",
-        "test_index_navigation_locked_providers",
-    }
-)
+PROVIDER_INTEGRATION_MODULES = frozenset()  # Provider qualification belongs to Integration.
 
 # Tests that strictly require Node.js or browser execution engines.
 BROWSER_INTEGRATION_MODULES = frozenset(
