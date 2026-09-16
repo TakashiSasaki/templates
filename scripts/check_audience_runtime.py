@@ -101,10 +101,13 @@ def check(
             navigate('/web/', 'use')
             assert page.evaluate('audienceProbe.events.length') == before + 1, 'duplicate navigation listeners/events'
             assert len(requests) == 1, f'duplicate runtime fetches: {requests}'
-            # Shared services/root do not erase the stored reading journey.
-            page.goto(base + '/?audience=maintain'); state(page, 'neutral')
+            primary_nav = page.locator('nav.md-nav--primary').first
+            assert primary_nav.get_attribute('aria-label') == 'Use templates'
+            # Instant navigation to neutral restores the native nav, including its accessible label.
+            navigate('/?audience=maintain', 'neutral')
+            assert primary_nav.get_attribute('aria-label') not in ('Use templates', 'Maintain templates')
             assert page.evaluate("sessionStorage.getItem('templates-audience-context')") == 'use'
-            results.append({'instant_navigation': 'use/maintain, shared journey, history, switch, fragment, repeated initialization passed'})
+            results.append({'instant_navigation': 'use/maintain/neutral, native nav label, shared journey, history, switch, fragment, repeated initialization passed'})
             context.close()
             for path, target, overview in [('/web/', 'maintain', '/repository-trees/'),
                     ('/policy/contributing/', 'use', '/web/'), ('/', 'maintain', '/repository-trees/')]:

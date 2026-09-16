@@ -99,8 +99,18 @@
     }
     for (const nav of document.querySelectorAll("nav.md-nav--primary")) {
       // Replace only the Site navigation projection; provider index content stays intact.
-      if (!nav.dataset.audienceOriginal) nav.dataset.audienceOriginal = nav.innerHTML;
-      if (!tree) { nav.innerHTML = nav.dataset.audienceOriginal; continue; }
+      if (!nav.hasAttribute("data-audience-original")) {
+        nav.dataset.audienceOriginal = nav.innerHTML;
+        const originalLabel = nav.getAttribute("aria-label");
+        nav.dataset.audienceOriginalLabel = originalLabel ?? "";
+        nav.dataset.audienceOriginalLabelPresent = String(originalLabel !== null);
+      }
+      if (!tree) {
+        nav.innerHTML = nav.dataset.audienceOriginal;
+        if (nav.dataset.audienceOriginalLabelPresent === "true") nav.setAttribute("aria-label", nav.dataset.audienceOriginalLabel);
+        else nav.removeAttribute("aria-label");
+        continue;
+      }
       const title = document.createElement("p"); title.className = "audience-navigation__title";
       title.textContent = text[audience];
       const content = document.createElement("div"); content.className = "audience-navigation";
