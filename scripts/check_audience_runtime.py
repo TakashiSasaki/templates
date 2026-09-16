@@ -154,8 +154,43 @@ def check(
                     time.sleep(0.4)
                 route.continue_()
             context.route('**/reader-navigation-runtime.json', delay_reader_navigation)
+            def delay_hidden_reader_ready(route):
+                if urlsplit(route.request.frame.url).path != '/ja/':
+                    route.continue_()
+                    return
+                response = route.fetch()
+                route.fulfill(response=response, body=response.text() + r'''
+                    (() => {
+                      const nativeFrame = requestAnimationFrame.bind(window);
+                      let readyFrame = false;
+                      let delayed = false;
+                      window.requestAnimationFrame = callback => nativeFrame(timestamp => {
+                        const navs = [...document.querySelectorAll("nav.md-nav--primary")];
+                        if (!readyFrame && navs.length && navs.every(
+                            nav => nav.dataset.readerNavigationLanguage === "ja")) {
+                          readyFrame = true;
+                        } else if (readyFrame && !delayed) {
+                          delayed = true;
+                          for (const nav of navs) {
+                            for (const link of nav.querySelectorAll("a[data-reader-nav-canonical-href]")) {
+                              link.href = link.dataset.readerNavCanonicalHref;
+                            }
+                            for (const label of nav.querySelectorAll(".md-ellipsis[data-reader-nav-canonical-label]")) {
+                              label.textContent = label.dataset.readerNavCanonicalLabel;
+                            }
+                            delete nav.dataset.readerNavigationLanguage;
+                          }
+                          nativeFrame(() => {
+                            dispatchEvent(new Event("pageshow"));
+                          });
+                        }
+                        callback(timestamp);
+                      });
+                    })();
+                ''')
+            context.route('**/javascripts/reader-navigation.js', delay_hidden_reader_ready)
             page = context.new_page()
-            assert page.goto(base + '/web/').status == 200
+            assert page.goto(base + '/ja/web/').status == 200
             state(page, 'use')
             page.wait_for_function('!!window.document$')
             page.wait_for_function("!!document.querySelector('nav.md-nav--primary > .audience-navigation')")
@@ -172,12 +207,19 @@ def check(
             """)
             assert delayed_reader_requests, 'localized native-navigation snapshot did not exercise delayed reader map'
             assert localized_navigation_fingerprint(primary_nav) == native_ja_nav
-            page.evaluate('() => TemplatesAudienceShell.render()')
-            page.wait_for_function("""() =>
-                document.querySelector('nav.md-nav--primary')?.dataset.readerNavigationLanguage === 'ja'
-            """)
+            # Reintroduce the projected nav before re-rendering the neutral target. This reaches
+            # the actual audience-projection restoration branch, which must consume the already
+            # cached hidden-frame snapshot instead of remembering the independently localized
+            # live DOM.
+            page.evaluate("""() => {
+                const nav = document.querySelector('nav.md-nav--primary');
+                const projection = document.createElement('div');
+                projection.className = 'audience-navigation';
+                nav.replaceChildren(projection);
+                return TemplatesAudienceShell.render();
+            }""")
             assert localized_navigation_fingerprint(primary_nav) == native_ja_nav
-            results.append({'localized_neutral_navigation': 'delayed reader map -> localized native navigation remains stable across shell re-render'})
+            results.append({'localized_neutral_navigation': 'delayed reader map -> cached native snapshot restores localized navigation on a second audience-to-neutral transition'})
             context.close()
 
             for path, target, overview in [('/web/', 'maintain', '/repository-trees/'),
