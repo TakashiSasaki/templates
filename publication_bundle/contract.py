@@ -181,7 +181,7 @@ def validate(root, *, expected_identity=None, expected_producer=None, expected_p
     if not isinstance(graph, dict) or {p.get('name'):p.get('revision') for p in graph.get('providers', [])} != providers:
         raise BundleError('guided graph provenance mismatch')
     from publication_bundle.source_models import validate_sources
-    from publication_bundle.graph import load_graph, IndexNavigationViewerError
+    from publication_bundle.graph import load_graph, validate_provider_graph, IndexNavigationViewerError
     from publication_bundle.glossary import load_model, GlossaryViewerError
     try:
         glossary = load_model(root / 'glossary.json')
@@ -193,7 +193,9 @@ def validate(root, *, expected_identity=None, expected_producer=None, expected_p
         load_overlays(root / 'guided-locales.json', graph)
         from publication_bundle.navigation import validate_navigation
         validate_navigation(root, navigation, documents)
-        load_graph(root / 'guided-navigation.json')
+        accepted_graph = load_graph(root / 'guided-navigation.json')
+        for provider in accepted_graph['providers']:
+            validate_provider_graph(provider)
         repository = graph.get('repository')
         for name, model in repos.items():
             validate_sources(name, model, repository)
