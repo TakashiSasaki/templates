@@ -1,6 +1,6 @@
 """Exact candidate compatibility must stop at the reviewed Integration Bundle."""
-from pathlib import Path
 import unittest
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PIN = "a30699cf7dc56bf3ef7a1b6fd8f6ffd45cdd426d"
