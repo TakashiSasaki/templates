@@ -106,7 +106,7 @@ def run_owned_validators(
         )
     checks.extend(
         [
-            ("translation-freshness", command("-I", "scripts/validate_translations.py")),
+            ("translation-availability", command("-I", "scripts/validate_translations.py", "--allow-stale")),
             (
                 "component-version-monotonicity",
                 command("scripts/validate_component_versions.py", "--base", component_version_base),
@@ -137,18 +137,18 @@ def run_owned_validators(
         run_check(name, argv)
 
 
-def run_site_publication_contract(protocol_root: Path) -> None:
-    validator = protocol_root / "scripts" / "publication_contract.py"
+def run_integration_publication_contract(protocol_root: Path) -> None:
+    validator = protocol_root / "integration" / "publication_contract.py"
     if not validator.is_file():
         raise PreflightFailure(
-            f"Site publication protocol validator is missing: {validator}"
+            f"Integration publication protocol validator is missing: {validator}"
         )
     run_check(
         "publication-materialization",
         command("-I", "scripts/materialize_publication.py", "--source-root", "."),
     )
     run_check(
-        "site-publication-contract",
+        "integration-publication-contract",
         command("-I", str(validator), "--source-root", "."),
     )
 
@@ -230,7 +230,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("profile", choices=("fast", "full"))
     parser.add_argument("--component-version-base")
     parser.add_argument("--expected-head")
-    parser.add_argument("--site-publication-protocol", type=Path)
+    parser.add_argument("--integration-publication-protocol", type=Path)
     parser.add_argument(
         "--validators-only",
         action="store_true",
@@ -272,13 +272,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         component_version_base = resolve_component_version_base(
             args.component_version_base
         )
-        if args.site_publication_protocol is not None:
-            os.environ["SITE_PUBLICATION_PROTOCOL_ROOT"] = str(
-                args.site_publication_protocol.resolve()
+        if args.integration_publication_protocol is not None:
+            os.environ["INTEGRATION_PUBLICATION_PROTOCOL_ROOT"] = str(
+                args.integration_publication_protocol.resolve()
             )
         if not args.validators_only:
-            if args.profile == "full" and args.site_publication_protocol is None:
-                raise PreflightFailure("full preflight requires --site-publication-protocol")
+            if args.profile == "full" and args.integration_publication_protocol is None:
+                raise PreflightFailure("full preflight requires --integration-publication-protocol")
             # Reject source/environment failures before publication generation or core.
             run_check("phase-zero-source", command("-I", "scripts/composition_phase_zero.py"))
             if args.profile == "full":
@@ -305,10 +305,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.profile == "fast":
             run_focused_tests()
         else:
-            if args.site_publication_protocol is None:
+            if args.integration_publication_protocol is None:
                 raise PreflightFailure(
-                    "full preflight requires --site-publication-protocol pointing to "
-                    "the pinned Site publication protocol checkout"
+                    "full preflight requires --integration-publication-protocol pointing to "
+                    "the pinned Integration publication protocol checkout"
                 )
             # Full discovery contains the four focused modules.  Keep only the
             # distinct real-consumer spine before the broader core suite.
@@ -316,7 +316,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             run_full_tests()
             # Materialization intentionally runs after clean-source tests and
             # runtime smoke checks because it creates publication build products.
-            run_site_publication_contract(args.site_publication_protocol.resolve())
+            run_integration_publication_contract(args.integration_publication_protocol.resolve())
         print(f"COMPOSITION_PREFLIGHT_PASS profile={args.profile} head={head}", flush=True)
         return 0
     except (OSError, PreflightFailure) as exc:

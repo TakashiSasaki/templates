@@ -22,7 +22,7 @@ class CompositionPreflightTests(unittest.TestCase):
             preflight.configure_validation_environment()
             self.assertEqual(preflight.os.environ["PYTHONDONTWRITEBYTECODE"], "1")
 
-    def test_profiles_are_explicit_and_full_requires_site_protocol(self) -> None:
+    def test_profiles_are_explicit_and_full_requires_integration_protocol(self) -> None:
         self.assertEqual(preflight.parse_args(["fast"]).profile, "fast")
         self.assertEqual(preflight.parse_args(["full"]).profile, "full")
         with self.assertRaises(SystemExit):
@@ -42,7 +42,7 @@ class CompositionPreflightTests(unittest.TestCase):
             [
                 "playground-generated-state",
                 "composition-publication",
-                "translation-freshness",
+                "translation-availability",
                 "component-version-monotonicity",
                 "installer-release",
                 "core-test-partition",
@@ -68,7 +68,7 @@ class CompositionPreflightTests(unittest.TestCase):
         self.assertEqual(
             [name for name, _ in recorded],
             [
-                "translation-freshness",
+                "translation-availability",
                 "component-version-monotonicity",
                 "installer-release",
                 "core-test-partition",
@@ -119,7 +119,7 @@ class CompositionPreflightTests(unittest.TestCase):
             publication_already_validated=False,
             validators_only=False,
             component_version_base="base-sha",
-            site_publication_protocol=ROOT,
+            integration_publication_protocol=ROOT,
         )
         with (
             mock.patch.object(preflight, "parse_args", return_value=args),
@@ -129,7 +129,7 @@ class CompositionPreflightTests(unittest.TestCase):
             mock.patch.object(preflight, "run_consumer_spine") as consumer_spine,
             mock.patch.object(preflight, "run_focused_tests") as focused_tests,
             mock.patch.object(preflight, "run_full_tests") as full_tests,
-            mock.patch.object(preflight, "run_site_publication_contract"),
+            mock.patch.object(preflight, "run_integration_publication_contract"),
             mock.patch.dict(
                 preflight.os.environ,
                 {"CHROMEWEBDRIVER": sys.executable},

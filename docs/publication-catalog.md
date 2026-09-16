@@ -2,13 +2,13 @@
 
 The `composition` branch owns one provider publication boundary for the reusable composition system. It replaces the former assumption that Skill and Webapp documentation must be published from independent template authorities. Agent Skill, Website, and Web application semantics now live as distinct artifact responsibilities inside one Composition provider, with shared Web semantics owned once by `foundation.web`.
 
-The generic schema-v3 publication protocol is Site-owned. Composition owns the declarations in its catalog and the provider-specific semantics layered on top of that shared protocol. Composition CI consumes the Site implementation from reviewed full commit SHA `3ae5d1e60c65e7a8ebf5f9af0436044484e42983`; it does not maintain a second generic parser or follow the mutable `site` branch.
+The generic schema-v3 publication protocol is Integration-owned. Composition owns the declarations in its catalog and the provider-specific semantics layered on top of that shared protocol. Composition CI consumes the Integration protocol from reviewed full commit SHA `a30699cf7dc56bf3ef7a1b6fd8f6ffd45cdd426d`; it does not maintain a second generic parser or follow the mutable `integration` branch.
 
-This is a development/publication dependency only. The Composer runtime, managed-repository lifecycle, lock/transaction machinery, recipes, and consumer validators do not import or invoke the Site publication protocol.
+This is a development/publication dependency only. The Composer runtime, managed-repository lifecycle, lock/transaction machinery, recipes, and consumer validators do not import or invoke the Integration publication protocol.
 
 ## Reader-facing boundary
 
-`docs/publication-catalog.json` is a schema-version-3 allowlist. Its generic field/path/source contract is validated by the Site-owned protocol. Composition-specific validation additionally requires `README.md` to remain the provider home and `docs/glossary.yml` to remain the Composition terminology declaration.
+`docs/publication-catalog.json` is a schema-version-3 allowlist. Its generic field/path/source contract is validated by the Integration-owned protocol. Composition-specific validation additionally requires `README.md` to remain the provider home and `docs/glossary.yml` to remain the Composition terminology declaration.
 
 The catalog publishes explanatory Markdown for:
 
@@ -29,7 +29,7 @@ The publication home is the branch `README.md`. `docs/index.md` is the provider-
 
 ## Markdown classification boundary
 
-The catalog is an allowlist, but absence from the allowlist must also be intentional. Composition therefore closes the repository-source Markdown maintenance boundary with two additional Composition-owned declarations: `translations/manifest.json` for non-authoritative derivatives and `docs/publication-classification.json` for explicit non-publication exclusions. Neither declaration is part of the generic Site publication protocol.
+The catalog is an allowlist, but absence from the allowlist must also be intentional. Composition therefore closes the repository-source Markdown maintenance boundary with two additional Composition-owned declarations: `translations/manifest.json` for non-authoritative derivatives and `docs/publication-classification.json` for explicit non-publication exclusions. Neither declaration is part of the generic Integration publication protocol.
 
 Every Markdown file in the Composition source tree must be exactly one of:
 
@@ -37,7 +37,7 @@ Every Markdown file in the Composition source tree must be exactly one of:
 2. **translation-declared** — its path appears as a `translation` in `translations/manifest.json`, making it a non-authoritative derivative of a canonical document; or
 3. **explicitly excluded** — its source path appears in `docs/publication-classification.json` with a non-empty maintenance reason.
 
-Local execution-state directories such as Git metadata, virtual environments, tool caches, and the temporary `.site-publication-protocol` checkout are not repository source and are excluded from discovery. A newly introduced Markdown class such as `docs/guides/*.md`, a new component-local documentation subtree, a new top-level Markdown file, or an undeclared translation therefore fails validation until its publication intent is classified explicitly.
+Local execution-state directories such as Git metadata, virtual environments, tool caches, and the temporary `.integration-publication-protocol` checkout are not repository source and are excluded from discovery. A newly introduced Markdown class such as `docs/guides/*.md`, a new component-local documentation subtree, a new top-level Markdown file, or an undeclared translation therefore fails validation until its publication intent is classified explicitly.
 
 An exclusion does not suppress a known reader-facing requirement: the existing Composition-owned reader-coverage rules still require provider roots, current architecture, the consolidated authority-migration history, schema/catalog guides, and reader material declared by production components to be published. Published, translation-declared, and explicitly excluded Markdown classes are pairwise disjoint.
 
@@ -74,7 +74,7 @@ Evaluation materials are maintainer/evaluator authorities rather than ordinary m
 
 The stable installer descriptor separates three full-SHA roles: the remote installer script revision, the installed skill-source revision, and the Composition toolchain revision selected by that skill. Repository CI verifies those identities against Git history, the pinned installer source, the skill runtime manifest, the runtime-lock digest, and strict `toolchain -> skill source -> installer -> publication` ancestry. `release/composition-installer.json` is the machine-readable authority for those identities. The separately published `installer-release` record at `release/README.md` explains that provider/maintainer release boundary and links to canonical consumer operation; it does not replace consumer bootstrap, installation, replacement, update, or product-release guidance.
 
-The Site-owned protocol validates the generic asset declarations, source existence, path safety, symlink boundary, overlap rules, and the prohibition on undeclared Markdown inside asset trees. Composition then validates that those generic assets cover the machine-readable authorities required by its own production catalog.
+The Integration-owned protocol validates the generic asset declarations, source existence, path safety, symlink boundary, overlap rules, and the prohibition on undeclared Markdown inside asset trees. Composition then validates that those generic assets cover the machine-readable authorities required by its own production catalog.
 
 A machine-readable file is not public merely because it exists in the branch. It must be covered by an explicit asset entry.
 
@@ -82,35 +82,53 @@ A machine-readable file is not public merely because it exists in the branch. It
 
 ## Authority and URL model
 
-The provider identity is `composition`. Agent Skill, Website, and Web application remain distinct artifact semantics inside that provider, not independent source authorities. Website and Webapp share `foundation.web` rather than reconstructing duplicate browser identity, route, or viewport authorities. Site integration may group the three artifact families separately for readers, but it must not reconstruct separate canonical source ownership for them.
+The provider identity is `composition`. Agent Skill, Website, and Web application remain distinct artifact semantics inside that provider, not independent source authorities. Website and Webapp share `foundation.web` rather than reconstructing duplicate browser identity, route, or viewport authorities. Integration may group the three artifact families separately for readers, but it must not reconstruct separate canonical source ownership for them.
 
-This repository is not yet production-facing, so the composition migration does not preserve the former provider URL namespace merely for backward compatibility. Site information architecture is a Site-owned concern and is handled separately from this provider allowlist.
+This repository is not yet production-facing, so the composition migration does not preserve the former provider URL namespace merely for backward compatibility. Reader information architecture is an Integration-owned concern and is handled separately from this provider allowlist.
 
 ## Glossary ownership
 
-`docs/glossary.yml` is the Composition-owned terminology source. Its record semantics remain validated by Composition after the generic Site protocol confirms that the catalog declares an existing safe `.yml` glossary source.
+`docs/glossary.yml` is the Composition-owned terminology source. Its record semantics remain validated by Composition after the generic Integration protocol confirms that the catalog declares an existing safe `.yml` glossary source.
 
 It retains `templates-skill-profile` because Policy legitimately relates Policy profiles to Skill profiles, but definitions that depended on the retired copyable-template architecture are not preserved. Generic composition/lifecycle concepts use composition-owned IDs rather than being mislabeled as Webapp-only, Website-only, or Skill-only concepts.
 
-The glossary file is encoded as strict JSON, which is a valid YAML 1.2 subset. This lets Composition validate its provider-specific terminology semantics with the Python standard library while remaining compatible with the Site glossary reader.
+The glossary file is encoded as strict JSON, which is a valid YAML 1.2 subset. This lets Composition validate its provider-specific terminology semantics with the Python standard library while remaining compatible with the Integration glossary model.
 
 ## Local validation
 
-The reviewed shared protocol is not copied into Composition. To reproduce CI, obtain `scripts/publication_contract.py` from Site commit `3ae5d1e60c65e7a8ebf5f9af0436044484e42983` in a separate checkout and point Composition at that checkout. On a fresh Composition checkout, materialize the provider-owned generated publication assets before running either publication validator:
+The reviewed shared protocol is not copied into Composition. To reproduce CI, obtain `integration/publication_contract.py` from Integration commit `a30699cf7dc56bf3ef7a1b6fd8f6ffd45cdd426d` in a separate checkout and point Composition at that checkout. On a fresh Composition checkout, materialize the provider-owned generated publication assets before running either publication validator:
 
 ```sh
-export SITE_PUBLICATION_PROTOCOL_ROOT=/path/to/reviewed-site-protocol-checkout
+export INTEGRATION_PUBLICATION_PROTOCOL_ROOT=/path/to/reviewed-integration-protocol-checkout
 python -I scripts/materialize_publication.py --source-root .
-python -I "$SITE_PUBLICATION_PROTOCOL_ROOT/scripts/publication_contract.py" --source-root .
+python -I "$INTEGRATION_PUBLICATION_PROTOCOL_ROOT/integration/publication_contract.py" --source-root .
 python -I scripts/validate_publication.py
 python -I scripts/verify_composition_skill_installer_release.py --git-ref HEAD
 python -m unittest discover -s tests -v
 ```
 
-The Composition-owned materialization step creates the declared generated publication assets from canonical provider state. The Site-owned step then validates the generic schema-v3 publication protocol. `scripts/validate_publication.py` dynamically loads that same reviewed module to consume its validated `PublicationCatalog` object and applies only Composition-owned declarations, Markdown classification, reader/machine authority coverage, and glossary semantics. The installer-release verifier independently binds publication metadata back to immutable Git history.
+The Composition-owned materialization step creates the declared generated publication assets from canonical provider state. The Integration-owned step then validates the generic schema-v3 publication protocol. `scripts/validate_publication.py` dynamically loads that same reviewed module to consume its validated `PublicationCatalog` object and applies only Composition-owned declarations, Markdown classification, reader/machine authority coverage, and glossary semantics. The installer-release verifier independently binds publication metadata back to immutable Git history.
 
-A pin update must be deliberate and reviewed. Composition CI must continue to use a 40-character full commit SHA and must not silently follow `site`, a tag, or a pull-request merge ref.
+A pin update must be deliberate and reviewed. Composition CI must continue to use a 40-character full commit SHA and must not silently follow `integration`, a tag, or a pull-request merge ref.
 
-Composition-specific validation remains fail-closed for undeclared reader documentation, unclassified repository Markdown, overlap among published/translation-declared/explicitly-excluded Markdown classes, stale Markdown exclusions, missing or unsafe translation declarations, missing production descriptors/schemas/recipes, malformed Composition glossary records, obsolete glossary IDs that would reintroduce the retired copyable-template model, and inconsistent immutable installer release identities. Generic catalog failures such as unsafe paths, symbolic-link traversal, duplicate IDs/sources/destinations, invalid home declarations, or Markdown hidden inside asset trees are rejected by the Site-owned protocol before the Composition layer runs.
+Composition-specific validation remains fail-closed for undeclared reader documentation, unclassified repository Markdown, overlap among published/translation-declared/explicitly-excluded Markdown classes, stale Markdown exclusions, missing or unsafe translation declarations, missing production descriptors/schemas/recipes, malformed Composition glossary records, obsolete glossary IDs that would reintroduce the retired copyable-template model, and inconsistent immutable installer release identities. Generic catalog failures such as unsafe paths, symbolic-link traversal, duplicate IDs/sources/destinations, invalid home declarations, or Markdown hidden inside asset trees are rejected by the Integration-owned protocol before the Composition layer runs.
 
-Site PR #270 completed the publication cutover by locking and consuming an exact reviewed Composition revision. Subsequent Composition publication changes require an explicit reviewed Site pin-forward rather than any mutable branch reference.
+Site PR #270 completed the publication cutover by locking and consuming an exact reviewed Composition revision. After Integration bootstrap, subsequent Composition publication changes require explicit Integration promotion. Site remains on its historical publication inputs until separately authorized adoption.
+
+
+Provider candidate compatibility uses reviewed Integration `a30699cf7dc56bf3ef7a1b6fd8f6ffd45cdd426d`. The reusable
+Integration qualification workflow selects its reviewed companion provider and
+qualifies the exact candidate through deterministic Publication Bundle generation.
+A successful candidate is compatibility evidence only; Integration promotion is an
+explicit later change. Site adoption and deployment remain separate human decisions.
+Draft construction does not acquire this release-bound compatibility evidence;
+ready candidates and exact merged provider commits do. Integration owns any new
+reader destination or staging mapping required by a provider catalog change.
+
+Canonical English maintenance does not require synchronized Japanese prose.
+Normal preflight passes `--allow-stale` to the provider validator: stale entries
+report both reviewed and current blob identities, while malformed declarations,
+missing files and unsafe paths still fail. Strict freshness checks remain available
+by invoking the validator without that option. Translation prose and synchronization
+hashes change only through an actual translation review. P6 Integration qualification
+records stale availability and excludes those derivatives until P8 is adopted.

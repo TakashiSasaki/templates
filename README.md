@@ -75,7 +75,7 @@ Coding-agent operating policy is a separate `policy` authority. Composition does
 
 The Skill artifact materializes `AGENTS.md` as `seed`; after initial composition it is consumer-owned and can later be adopted or rewritten by Policy without giving Composition ownership of Policy state. The canonical cross-authority rules are maintained by Site in the [Policy–Composition coexistence contract](https://templates.moukaeritai.work/coexistence/).
 
-Site is separately responsible for reader-facing information architecture, publication mapping, and the generic schema-v3 publication protocol. Composition owns its provider declarations and provider-specific validation, while Site locks and publishes an exact reviewed Composition revision. See the [publication boundary](docs/publication-catalog.md) for the provider contract.
+Integration owns reader information architecture, publication mapping, and the generic schema-v3 publication protocol. Composition owns its provider declarations and provider-specific validation. Integration explicitly selects reviewed provider revisions and qualifies a Publication Bundle; Site owns presentation, browser runtime and deployment, and adopts Integration only under a separate human instruction. See the [publication boundary](docs/publication-catalog.md) for the provider contract.
 
 ## Composition authority maintainer references
 
@@ -96,7 +96,7 @@ Historical migration provenance is intentionally separated from the current oper
 ### Local qualification order
 
 Use `scripts/run_composition_preflight.py full --component-version-base <SHA>
---site-publication-protocol <pinned Site checkout>` from a committed source tree.
+--integration-publication-protocol <pinned Integration checkout>` from a committed source tree.
 Before expensive validation, phase zero checks the Python dependency graph,
 existing bytecode and undeclared component material, canonical source closure,
 and one minimal Chrome/compatible ChromeDriver session. Browser preparation fails

@@ -1,12 +1,26 @@
-name: Reference consumer publication compatibility
+name: Composition Integration compatibility
 on:
+  # This workflow belongs to the provider base history, including arbitrarily
+  # named authority-local stacked bases. Branch spelling is not authority.
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [composition]
+  workflow_dispatch:
 permissions:
   contents: read
   actions: read
+concurrency:
+  group: composition-integration-compatibility-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 jobs:
   compatibility:
-    uses: TakashiSasaki/templates/.github/workflows/build-pages.yml@0004413894a421bee4114eacd5a6885314b1d8bc
+    if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
+    uses: TakashiSasaki/templates/.github/workflows/integration-qualification.yml@a30699cf7dc56bf3ef7a1b6fd8f6ffd45cdd426d
     with:
-      site_ref: 0004413894a421bee4114eacd5a6885314b1d8bc
-      composition_ref: ${{ github.event.pull_request.head.sha }}
+      producer_ref: a30699cf7dc56bf3ef7a1b6fd8f6ffd45cdd426d
+      composition_ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      artifact_namespace: composition-compatibility
+    # The companion provider comes only from this reviewed Integration lock.
+    # Evidence binds this exact candidate and Integration contract; it does not
+    # promote provider locks, adopt Site input, render Site, or authorize deployment.

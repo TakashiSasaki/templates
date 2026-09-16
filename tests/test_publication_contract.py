@@ -210,7 +210,7 @@ class CompositionPublicationContractTests(unittest.TestCase):
         )
         self.assertTrue(
             validator.is_ignored_root_execution_path(
-                PurePosixPath(".site-publication-protocol/scripts/README.md")
+                PurePosixPath(".integration-publication-protocol/scripts/README.md")
             )
         )
         self.assertFalse(
@@ -306,7 +306,7 @@ class CompositionPublicationContractTests(unittest.TestCase):
         index_paths = [
             path
             for path in index_paths
-            if ".site-publication-protocol" not in path.relative_to(ROOT).parts
+            if ".integration-publication-protocol" not in path.relative_to(ROOT).parts
             and path.relative_to(ROOT).parts[0] != "translations"
         ]
         self.assertEqual(

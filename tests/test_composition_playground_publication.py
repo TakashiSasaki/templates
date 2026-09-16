@@ -26,7 +26,7 @@ CLASSIFICATION = ROOT / "docs" / "publication-classification.json"
 DOCS_INDEX = ROOT / "docs" / "index.md"
 SCHEMA_VALIDATION = ROOT / ".github" / "workflows" / "schema-validation.yml"
 REFERENCE_CONSUMER_PUBLICATION = ROOT / ".github" / "workflows" / "reference-consumer-publication.yml"
-EXPECTED_SITE_COMPATIBILITY_REVISION = "0004413894a421bee4114eacd5a6885314b1d8bc"
+EXPECTED_INTEGRATION_COMPATIBILITY_REVISION = "a30699cf7dc56bf3ef7a1b6fd8f6ffd45cdd426d"
 
 
 class CompositionPlaygroundPublicationTests(unittest.TestCase):
@@ -255,7 +255,7 @@ class PublicationLifecycleRegressionTests(unittest.TestCase):
         primary = workflow.split("\n  primary:\n", 1)[1].split("\n  parallel:\n", 1)[0]
         materialize = "scripts/materialize_publication.py --source-root ."
         site_contract = (
-            '"$SITE_PUBLICATION_PROTOCOL_ROOT/scripts/publication_contract.py" --source-root .'
+            '"$INTEGRATION_PUBLICATION_PROTOCOL_ROOT/integration/publication_contract.py" --source-root .'
         )
         composition_preflight = "scripts/run_composition_preflight.py fast"
 
@@ -287,18 +287,18 @@ class PublicationLifecycleRegressionTests(unittest.TestCase):
     def test_reference_consumer_compatibility_pin_is_immutable_and_intentional(self) -> None:
         workflow = REFERENCE_CONSUMER_PUBLICATION.read_text(encoding="utf-8")
         uses_match = re.search(
-            r"uses: TakashiSasaki/templates/\.github/workflows/build-pages\.yml@([0-9a-f]{40})",
+            r"uses: TakashiSasaki/templates/\.github/workflows/integration-qualification\.yml@([0-9a-f]{40})",
             workflow,
         )
-        site_ref_match = re.search(r"^\s+site_ref: ([0-9a-f]{40})$", workflow, re.MULTILINE)
+        producer_ref_match = re.search(r"^\s+producer_ref: ([0-9a-f]{40})$", workflow, re.MULTILINE)
         self.assertIsNotNone(uses_match)
-        self.assertIsNotNone(site_ref_match)
+        self.assertIsNotNone(producer_ref_match)
         assert uses_match is not None
-        assert site_ref_match is not None
-        self.assertEqual(EXPECTED_SITE_COMPATIBILITY_REVISION, uses_match.group(1))
-        self.assertEqual(uses_match.group(1), site_ref_match.group(1))
+        assert producer_ref_match is not None
+        self.assertEqual(EXPECTED_INTEGRATION_COMPATIBILITY_REVISION, uses_match.group(1))
+        self.assertEqual(uses_match.group(1), producer_ref_match.group(1))
         self.assertIn(
-            "composition_ref: ${{ github.event.pull_request.head.sha }}",
+            "composition_ref: ${{ github.event.pull_request.head.sha || github.sha }}",
             workflow,
         )
         self.assertNotIn("publication_staging_ids:", workflow)
