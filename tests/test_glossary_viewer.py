@@ -85,8 +85,9 @@ class GlossaryViewerTests(unittest.TestCase):
         landing=(Path(__file__).resolve().parents[1]/"docs/landing.md").read_text(encoding="utf-8")
         self.assertIn('href="/glossary/"',landing)
     def test_pages_workflow_still_calls_integrated_glossary_cli(self) -> None:
-        workflow=(Path(__file__).resolve().parents[1]/".github/workflows/site-producer.yml").read_text(encoding="utf-8")
-        self.assertIn("scripts/generate_glossary.py",workflow)
-        self.assertIn("--output build/site/glossary/index.json",workflow)
+        text = (Path(__file__).resolve().parents[1] / 'site_renderer/render.py').read_text()
+        self.assertIn("read_json(bundle/'glossary.json')",text)
+        self.assertIn("'generate_glossary_viewer.py'",text)
+        self.assertNotIn("'generate_glossary.py'",text)
 
 if __name__ == "__main__": unittest.main()

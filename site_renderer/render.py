@@ -116,7 +116,12 @@ def main():
     parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('--public-url',default='https://templates.moukaeritai.work/')
     parser.add_argument('--deployment-timestamp',default='')
+    parser.add_argument('--github-output',type=Path)
     args=parser.parse_args()
-    print(json.dumps(render(bundle=args.bundle,site_root=args.site_root,output=args.output,expected_identity=args.bundle_identity,public_url=args.public_url,deployment_timestamp=args.deployment_timestamp)))
+    result=render(bundle=args.bundle,site_root=args.site_root,output=args.output,expected_identity=args.bundle_identity,public_url=args.public_url,deployment_timestamp=args.deployment_timestamp)
+    if args.github_output:
+        notice=('Deployment time: '+args.deployment_timestamp) if args.deployment_timestamp else 'Preview build (not deployed)'
+        with args.github_output.open('a') as stream:stream.write('notice='+notice+'\n')
+    print(json.dumps(result))
 
 if __name__=='__main__':main()

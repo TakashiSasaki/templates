@@ -140,8 +140,8 @@ class GlossaryViewerBoundaryTests(unittest.TestCase):
         )
         landing = (root / "docs/landing.md").read_text(encoding="utf-8")
         self.assertIn('href="/glossary/"', landing)
-        self.assertIn("scripts/validate_site_links.py", workflow)
-        self.assertIn("scripts/generate_glossary.py", workflow)
+        self.assertIn("validate_site_links.py", (Path(__file__).resolve().parents[1] / 'site_renderer/render.py').read_text())
+        self.assertIn("generate_glossary_viewer.py", (Path(__file__).resolve().parents[1] / 'site_renderer/render.py').read_text())
 
 
 if __name__ == "__main__":

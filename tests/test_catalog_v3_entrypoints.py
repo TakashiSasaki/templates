@@ -14,12 +14,10 @@ TRANSLATION_PUBLISHER = ROOT / "scripts/publish_provider_translations.py"
 
 class CatalogV3EntrypointTests(unittest.TestCase):
     def test_pages_build_uses_stable_v3_alias(self) -> None:
-        workflow = WORKFLOW.read_text(encoding="utf-8")
-
-        self.assertIn(
-            "python site-source/scripts/assemble_publications_v3.py",
-            workflow,
-        )
+        workflow = WORKFLOW.read_text()
+        self.assertIn('scripts/produce_publication_bundle.py',workflow)
+        self.assertIn('scripts/render_publication_bundle.py',workflow)
+        self.assertNotIn('scripts/assemble_publications_v3.py',workflow)
 
     def test_stable_v3_entrypoint_reexports_canonical_contract_symbols(self) -> None:
         self.assertIs(

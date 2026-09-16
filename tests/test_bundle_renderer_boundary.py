@@ -42,3 +42,24 @@ import site_renderer.repository_browser
         self.assertIn("assert not (root/'policy-source').exists()",source)
         self.assertIn("cwd=root,env=env,check=True",source)
         self.assertIn("output/'site/index.html'",source)
+
+    def test_site_translation_links_use_bundle_provider_availability(self):
+        from unittest.mock import patch
+        from types import SimpleNamespace
+        from pathlib import PurePosixPath
+        from site_renderer.local_content import fill
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary); source=root/'site'; source.mkdir()
+            (source/'assets').mkdir(); (source/'index.md').write_text('English')
+            docs=root/'docs'; docs.mkdir(); (docs/'ja').mkdir()
+            (docs/'ja/provider.md').write_text('Provider translation')
+            output=root/'output'; output.mkdir()
+            local=SimpleNamespace(language='ja',canonical_destination=PurePosixPath('index.md'),translation_destination=PurePosixPath('ja/index.md'))
+            def publish(*args,**kwargs):
+                (docs/'ja/index.md').write_text('[Provider](/provider/)')
+                return [local]
+            providers={'translations':[{'publication':'composition','language':'ja','canonical_destination':'provider.md','translation_destination':'ja/provider.md'}]}
+            nav={'locale_labels':{},'navigation':{},'audience_runtime':{'documents':{},'routes':{},'overviews':{}}}
+            with patch('site_renderer.local_content.read_entries',return_value=[]), patch('site_renderer.local_content.publish_translations',side_effect=publish), patch('site_renderer.local_content.reconcile_translation_fragments'), patch('site_renderer.local_content.build_reader_coverage',return_value={}), patch('site_renderer.local_content.load_overlays',return_value={}), patch('site_renderer.local_content.build_runtime_map',return_value={}):
+                fill(source,docs,[{'slot':True,'document':'home','source':'index.md','destination':'index.md'}],nav,providers,{},output)
+            self.assertEqual((docs/'ja/index.md').read_text(),'[Provider](/ja/provider/)')

@@ -125,23 +125,13 @@ class PublicationStagingQualificationTests(unittest.TestCase):
                 publication_root(ROOT)
 
     def test_reusable_build_consumes_materializer_snapshot_before_tests(self) -> None:
-        workflow = (ROOT / ".github/workflows/site-producer.yml").read_text(encoding="utf-8")
-        deploy = (ROOT / ".github/workflows/deploy-pages.yml").read_text(encoding="utf-8")
-
-        materialize_step = workflow.index("- name: Materialize staged publication mapping")
-        tests = workflow.index("- name: Run site assembly tests")
-        prepare = workflow.index("- name: Prepare repository-tree publication")
-        self.assertLess(materialize_step, tests)
-        self.assertLess(tests, prepare)
-        self.assertIn('staged_root="$(python site-source/scripts/materialize_publication_staging.py', workflow)
-        self.assertIn('SITE_PUBLICATION_ROOT=$staged_root', workflow)
-        self.assertIn('--site-root "${SITE_PUBLICATION_ROOT:-site-source}"', workflow)
-        self.assertIn(
-            '--reader-navigation-locales "${SITE_PUBLICATION_ROOT:-site-source}/reader-navigation-locales.json"',
-            workflow,
-        )
-        self.assertNotIn("publication_staging_id", deploy)
-        self.assertNotIn("publication_staging_ids", deploy)
+        workflow = (ROOT / '.github/workflows/site-producer.yml').read_text()
+        producer = (Path(__file__).resolve().parents[1] / 'integration/producer.py').read_text()
+        self.assertIn('stage_models(',producer)
+        self.assertLess(producer.index('stage_models('),producer.index('build_bundle(') if 'build_bundle(' in producer else producer.index("with tempfile.TemporaryDirectory"))
+        self.assertIn('--staging-ids "${STAGING_IDS:-$STAGING_ID}"',workflow)
+        self.assertNotIn('SITE_PUBLICATION_ROOT=',workflow)
+        self.assertNotIn('publication_staging_id', (ROOT / '.github/workflows/deploy-pages.yml').read_text())
 
 
 if __name__ == "__main__":

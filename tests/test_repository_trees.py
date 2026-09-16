@@ -389,30 +389,13 @@ class RepositoryTreeConfigurationTests(unittest.TestCase):
         self.assertFalse((TREE_TEMPLATES / "webapp.md").exists())
 
     def test_workflow_prepares_and_generates_trees_before_static_build(self) -> None:
-        workflow = WORKFLOW.read_text(encoding="utf-8")
-        preparation = workflow.index("- name: Prepare repository-tree publication")
-        assembly = workflow.index("- name: Assemble the documentation project")
-        generation = workflow.index("- name: Generate repository trees")
-        static_build = workflow.index("- name: Build the static site")
-        self.assertLess(preparation, assembly)
-        self.assertLess(assembly, generation)
-        self.assertLess(generation, static_build)
-        self.assertIn(
-            "python site-source/scripts/prepare_repository_tree_publication.py",
-            workflow,
-        )
-        self.assertIn(
-            "python site-source/scripts/generate_repository_trees_composition.py",
-            workflow,
-        )
-        self.assertIn("--publication composition=composition-source", workflow)
-        self.assertIn("--publication policy=policy-source", workflow)
-        self.assertNotIn("--publication skill=", workflow)
-        self.assertNotIn("--publication webapp=", workflow)
-        self.assertNotIn("generate_skill_template_tree.py", workflow)
-        self.assertNotIn("generate_webapp_template_tree.py", workflow)
-        self.assertIn("build/site/repository-trees/composition/index.html", workflow)
-        self.assertIn("build/site/repository-trees/policy/index.html", workflow)
+        workflow = WORKFLOW.read_text()
+        text = (Path(__file__).resolve().parents[1] / 'site_renderer/render.py').read_text()
+        self.assertLess(text.index('fill(site_root'),text.index('trees.render_tree('))
+        self.assertLess(text.index('trees.render_tree('),text.index("'zensical'))"))
+        self.assertIn("read_json(bundle/'provider-repositories.json')",text)
+        for name in ('composition','policy'):
+            self.assertIn('build/site/repository-trees/'+name+'/index.html',workflow)
 
     def test_policy_keeps_inventory_separate_from_publication_boundary(self) -> None:
         raw_policy = POLICY.read_text(encoding="utf-8")

@@ -43,7 +43,6 @@ def fill(site_root,docs_root,documents,nav,provider_translations,coverage,output
     local={'site':(site_root,local_docs,[])}
     records=publish_translations(local,pages,docs_root,skip_stale=True)
     reconcile_translation_fragments(local,pages,records,docs_root)
-    rewrite_current_localized_links(records,docs_root)
     # Provider statuses are carried through unchanged; only Site-owned source is compiled here.
     local_coverage=build_reader_coverage(local,pages)
     combined=provider_translations['translations']+[{'publication':'site','language':r.language,'canonical_destination':str(r.canonical_destination),'translation_destination':str(r.translation_destination)} for r in records]
@@ -58,6 +57,9 @@ def fill(site_root,docs_root,documents,nav,provider_translations,coverage,output
     # build_runtime_map consumes only identity fields on each record.
     from types import SimpleNamespace
     runtime_records=[SimpleNamespace(**{**r,'canonical_destination':PurePosixPath(r['canonical_destination']),'translation_destination':PurePosixPath(r['translation_destination'])}) for r in combined]
+    # Bundle publication records already certify current derivatives. Combine them
+    # with Site-owned records for cross-authority reader-link projection.
+    rewrite_current_localized_links(runtime_records,docs_root)
     write(docs_root/'reader-navigation-runtime.json',build_runtime_map(labels,runtime_records))
     audience=nav['audience_runtime']
     for r in combined:
