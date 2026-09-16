@@ -91,6 +91,116 @@
       }
     },
     {
+      "id": "site-site-maintenance",
+      "path": "/maintain/site/maintenance/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "site-authority-model",
+      "path": "/maintain/site/authority-model/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "site-integrated-publication",
+      "path": "/maintain/publication/integrated-publication/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "site-publication-staging",
+      "path": "/maintain/publication/staging/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "site-publication-freshness",
+      "path": "/maintain/publication/provider-freshness/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "site-runtime-freshness",
+      "path": "/maintain/site/runtime-freshness/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "site-glossary-contract",
+      "path": "/maintain/publication/glossary/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "site-language-contract",
+      "path": "/maintain/publication/language/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "site-site-pwa-contract",
+      "path": "/maintain/site/pwa/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
+      "id": "site-ci-performance",
+      "path": "/maintain/qualification/ci-performance/",
+      "canonical": true,
+      "aliases": [],
+      "deepLink": true,
+      "accessibility": {
+        "documentTitleRequired": true,
+        "focusTarget": "main-heading"
+      }
+    },
+    {
       "id": "site-repository-trees",
       "path": "/repository-trees/",
       "canonical": true,

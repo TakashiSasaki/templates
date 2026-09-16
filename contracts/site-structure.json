@@ -60,6 +60,76 @@
       "parentPageId": "site-portal-home"
     },
     {
+      "id": "site-site-maintenance",
+      "routeId": "site-site-maintenance",
+      "role": "content",
+      "title": "Site maintenance",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "site-authority-model",
+      "routeId": "site-authority-model",
+      "role": "content",
+      "title": "Authority model",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "site-integrated-publication",
+      "routeId": "site-integrated-publication",
+      "role": "content",
+      "title": "Integrated publication",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "site-publication-staging",
+      "routeId": "site-publication-staging",
+      "role": "content",
+      "title": "Staging and cutover",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "site-publication-freshness",
+      "routeId": "site-publication-freshness",
+      "role": "content",
+      "title": "Provider source freshness",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "site-runtime-freshness",
+      "routeId": "site-runtime-freshness",
+      "role": "content",
+      "title": "Runtime freshness",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "site-glossary-contract",
+      "routeId": "site-glossary-contract",
+      "role": "content",
+      "title": "Glossary integration",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "site-language-contract",
+      "routeId": "site-language-contract",
+      "role": "content",
+      "title": "Language and translation",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "site-site-pwa-contract",
+      "routeId": "site-site-pwa-contract",
+      "role": "content",
+      "title": "Site PWA contract",
+      "parentPageId": "site-portal-home"
+    },
+    {
+      "id": "site-ci-performance",
+      "routeId": "site-ci-performance",
+      "role": "content",
+      "title": "Site CI performance",
+      "parentPageId": "site-portal-home"
+    },
+    {
       "id": "site-repository-trees",
       "routeId": "site-repository-trees",
       "role": "content",
@@ -902,6 +972,16 @@
     "site-repository-topology-overview",
     "site-workspace-topology-overview",
     "site-lifecycle-overview",
+    "site-site-maintenance",
+    "site-authority-model",
+    "site-integrated-publication",
+    "site-publication-staging",
+    "site-publication-freshness",
+    "site-runtime-freshness",
+    "site-glossary-contract",
+    "site-language-contract",
+    "site-site-pwa-contract",
+    "site-ci-performance",
     "site-repository-trees",
     "site-repository-tree-composition",
     "site-repository-tree-policy",

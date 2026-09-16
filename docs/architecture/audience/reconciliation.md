@@ -39,15 +39,20 @@ This document reconciles the audited candidate statuses from Sessions 1–3 with
 
 ### 2.3 Site candidate disposition
 
-The ten Site-owned candidates in `future-candidates.json` remain repository
-maintainer sources: `MAINTENANCE.md`, `docs/authority-model.md`, `PUBLISHING.md`,
-`PUBLICATION_STAGING.md`, `PUBLICATION_FRESHNESS.md`, `FRESHNESS.md`, `GLOSSARY.md`,
-`LANGUAGE.md`, `PWA.md`, and `docs/ci/site-performance.md`. Their reader publication
-is deferred to a dedicated Site maintainer publication change, which must supply
-catalog mappings, source-link handling, translations and qualification. They are
-not needed to repair the audience runtime or promote the four Policy documents.
-This is an owning-Site scope disposition, not a claim that the complete Maintain
-portal has shipped. The historical matrix remains intact as audit evidence.
+The ten Site-owned candidates in `future-candidates.json` are published as
+canonical, Maintain-only Site documents: `MAINTENANCE.md`,
+`docs/authority-model.md`, `PUBLISHING.md`, `PUBLICATION_STAGING.md`,
+`PUBLICATION_FRESHNESS.md`, `FRESHNESS.md`, `GLOSSARY.md`, `LANGUAGE.md`, `PWA.md`,
+and `docs/ci/site-performance.md`. Their stable identities, destinations, and
+Maintain navigation are declared in the active Site catalog and manifest; the
+source files retain Site semantic ownership and the publication rewriter preserves
+their source-relative links. Japanese navigation is localized while untranslated
+reader documents correctly fall back to their canonical English routes.
+
+This completes the Site-owned candidate publication scope defined by architecture
+S. It does not promote uncataloged provider material, duplicate provider semantics,
+or turn Source views into reader publications. The historical matrix remains intact
+as audit evidence and its candidate inventory remains a closed architectural scope.
 
 ---
 
