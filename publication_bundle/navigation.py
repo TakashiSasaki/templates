@@ -3,7 +3,7 @@ from pathlib import PurePosixPath
 from types import SimpleNamespace
 from publication_bundle.contract import BundleError, read_json
 from publication_bundle.paths import public_path, audience_routes
-from publication_bundle.authority_content.reader_navigation_locales import load_overlays, build_runtime_map
+from site_renderer.owned_content.reader_navigation_locales import load_overlays, build_runtime_map
 
 
 def validate_navigation(root, model, documents):

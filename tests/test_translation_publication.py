@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path, PurePosixPath
 from typing import Any
 
-from scripts.publish_translations import (
+from site_renderer.owned_content.publish_translations import (
     TranslationPublicationError,
     publish_translations,
 )

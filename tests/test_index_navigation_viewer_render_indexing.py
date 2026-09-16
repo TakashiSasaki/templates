@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from scripts.generate_index_navigation_viewer import provider_render_indexes
+from site_renderer.guided import provider_render_indexes
 
 
 class CountingEdges(list[dict[str, object]]):

@@ -13,7 +13,7 @@ PUBLIC_URL_BOUNDARY_CHECKER = ROOT / "scripts/check_public_url_boundary.py"
 sys.path.insert(0, str(ROOT / "scripts"))
 
 import finalize_site_metadata  # noqa: E402
-import generate_repository_trees  # noqa: E402
+from site_renderer import repository_trees as generate_repository_trees  # noqa: E402
 import prepare_site_metadata  # noqa: E402
 
 

@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from pathlib import Path, PurePosixPath
 
-from scripts.translation_manifest import (
+from site_renderer.owned_content.translation_manifest import (
     TranslationManifestError,
     load_translation_manifest,
 )

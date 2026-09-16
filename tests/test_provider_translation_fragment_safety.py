@@ -3,7 +3,7 @@ from __future__ import annotations
 import unittest
 from pathlib import Path, PurePosixPath
 
-from scripts.publish_translations import TranslationRecord, _rewrite_markdown
+from site_renderer.owned_content.publish_translations import TranslationRecord, _rewrite_markdown
 
 
 class ProviderTranslationFragmentSafetyTests(unittest.TestCase):

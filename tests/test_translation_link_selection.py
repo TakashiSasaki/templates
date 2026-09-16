@@ -5,7 +5,7 @@ import unittest
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
-from scripts.translation_link_selection import (
+from site_renderer.owned_content.translation_link_selection import (
     TranslationLinkSelectionError,
     reader_route,
     rewrite_current_localized_links,

@@ -104,6 +104,11 @@ def validate(root, *, expected_identity=None, expected_producer=None, expected_p
     if not isinstance(graph, dict) or {p.get('name'):p.get('revision') for p in graph.get('providers', [])} != providers:
         raise BundleError('guided graph provenance mismatch')
     validate_translation_state(root, documents, providers)
+    from publication_bundle.navigation import validate_navigation
+    from publication_bundle.locales import load_overlays,LocaleViewerError
+    validate_navigation(root,navigation,documents)
+    try:load_overlays(root/'guided-locales.json',graph)
+    except LocaleViewerError as exc:raise BundleError(str(exc)) from exc
     return data
 
 

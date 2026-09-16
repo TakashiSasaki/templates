@@ -13,3 +13,29 @@ def finalize(site, mapping, canonical, *args):
         p=Path(tmp)/'availability.json';p.write_text(json.dumps({'schema_version':1,'canonical_language':'en','surface':'reader','records':records}))
         inventory=Path(tmp)/'inventory.json';inventory.write_text(json.dumps({'schema_version':1,'coverage':[{k:r[k] for k in ('publication','language','canonical_destination')} for r in records]}))
         return finalize_reader(site,mapping,canonical,*args,availability_paths=(p,),coverage_inventory=inventory)
+
+def write_publication_map(
+    path: Path,
+    records: list[object],
+) -> None:
+    translations = []
+    for record in records:
+        translations.append(
+            {
+                "publication": record.publication,
+                "language": record.language,
+                "canonical_destination": record.canonical_destination.as_posix(),
+                "translation_destination": record.translation_destination.as_posix(),
+            }
+        )
+    payload = {
+        "schema_version": 1,
+        "canonical_language": "en",
+        "translations": translations,
+    }
+    path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+

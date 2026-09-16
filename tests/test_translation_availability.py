@@ -7,11 +7,11 @@ import unittest
 from pathlib import Path, PurePosixPath
 from typing import Any
 
-from scripts.publish_translations import (
+from site_renderer.owned_content.publish_translations import (
     TranslationPublicationError,
     publish_translations,
 )
-from scripts.translation_coverage import (
+from site_renderer.owned_content.translation_coverage import (
     TranslationCoverageError,
     build_reader_coverage,
 )

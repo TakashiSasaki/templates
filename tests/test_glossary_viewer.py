@@ -5,7 +5,6 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.generate_glossary import generate_publication
 from scripts.generate_glossary_viewer import GlossaryViewerError, generate, load_model, render
 
 REV_SITE = "1" * 40
@@ -73,14 +72,6 @@ class GlossaryViewerTests(unittest.TestCase):
             root=Path(directory); input_path=self.write_model(root); output_path=root/"index.html"; generate(input_path,output_path); page=output_path.read_text(encoding="utf-8")
         self.assertIn("<h1>Glossary</h1>", page)
         self.assertIn('href="/glossary/index.json"', page)
-    def test_publication_cli_layer_writes_sibling_html(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            root=Path(directory); publication=root/"site"; (publication/"docs").mkdir(parents=True)
-            (publication/"docs/publication-catalog.json").write_text(json.dumps({"schema_version":3,"documents":[{"id":"home","source":"docs/home.md","optional":False,"home":True}],"glossary":{"source":"docs/glossary.yml"}}),encoding="utf-8")
-            (publication/"docs/home.md").write_text("# Home\n",encoding="utf-8")
-            (publication/"docs/glossary.yml").write_text("schema_version: 1\nterms:\n  - id: templates-example\n    term: Example\n    origin: repository\n    definition: Example definition.\n",encoding="utf-8")
-            output=root/"glossary/index.json"; viewer=generate_publication([f"site={publication}"],["site="+"a"*40],"TakashiSasaki/templates",output)
-            self.assertTrue(output.is_file()); self.assertTrue(viewer.is_file())
     def test_landing_page_links_to_generated_glossary(self) -> None:
         landing=(Path(__file__).resolve().parents[1]/"docs/landing.md").read_text(encoding="utf-8")
         self.assertIn('href="/glossary/"',landing)

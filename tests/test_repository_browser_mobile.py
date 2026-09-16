@@ -1,4 +1,8 @@
 from __future__ import annotations
+BRANCH_ORDER = ("site", "composition", "policy")
+BASE_BRANCH_ORDER = BRANCH_ORDER
+from tests.browser_model_fixture import generate_browser
+from publication_bundle.source_reader import decode_browser_text
 
 import json
 import shutil
@@ -9,10 +13,8 @@ from pathlib import Path
 from unittest import mock
 
 from site_renderer import repository_browser
-from scripts.generate_repository_browser import (
-    BRANCH_ORDER,
+from site_renderer.repository_browser import (
     RepositoryBrowserError,
-    generate_browser,
     write_browser_controller,
 )
 

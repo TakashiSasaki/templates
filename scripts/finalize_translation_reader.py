@@ -413,10 +413,10 @@ def reader_statuses(paths, pairs, inventory_path):
         expected.add(key)
     if set(statuses) != expected:
         raise TranslationReaderError('availability differs from complete reader coverage inventory')
-    # Site-owned untranslated/stale slots retain their existing publication policy.
+    # Site and provider availability are separately derived by their owners.
     # Every available provider derivative, including stale, must be present.
     available={(p['publication'],p['canonical'],p['language']) for p in pairs}
-    if available != {key for key,status in statuses.items() if status=='current' or (status=='stale' and key[0]!='site')}:
+    if available != {key for key,status in statuses.items() if status in ('current','stale')}:
         raise TranslationReaderError('translation publication differs from supplied availability')
     return statuses
 

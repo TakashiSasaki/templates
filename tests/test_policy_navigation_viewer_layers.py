@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from scripts.generate_index_navigation_viewer import render_index_page
+from site_renderer.guided import render_index_page
 
 
 REPOSITORY = "TakashiSasaki/templates"

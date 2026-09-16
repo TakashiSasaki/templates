@@ -20,3 +20,7 @@ def project(template,bundle):
 def write(site_root,docs_root,bundle):
     output=project(read_json(site_root/'agent.json'),bundle)
     (docs_root/'agent.json').write_bytes(canonical(output))
+    (docs_root/'schemas').mkdir(exist_ok=True)
+    (docs_root/'schemas/agent-bootstrap.schema.json').write_bytes((site_root/'schemas/agent-bootstrap.schema.json').read_bytes())
+    from scripts.render_reference_consumer import project as reference
+    (docs_root/'reference-consumer.json').write_bytes(canonical(reference(site_root)))

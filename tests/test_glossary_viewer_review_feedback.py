@@ -6,7 +6,6 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from scripts.generate_glossary import generate_publication
 from scripts.generate_glossary_viewer import (
     GlossaryViewerError,
     generate,
@@ -14,7 +13,7 @@ from scripts.generate_glossary_viewer import (
     render,
     source_url,
 )
-from scripts.glossary import GlossaryError
+
 
 REV = "a" * 40
 
@@ -126,12 +125,6 @@ class GlossaryViewerReviewFeedbackTests(unittest.TestCase):
         self.assertIn("Short &lt;summary&gt;.", page)
         self.assertIn("Used by &lt;site&gt;.", page)
 
-    def test_non_json_publication_output_is_rejected_before_writing(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            output = Path(directory) / "glossary.html"
-            with self.assertRaisesRegex(GlossaryError, "must use a .json suffix"):
-                generate_publication([], [], "TakashiSasaki/templates", output)
-            self.assertFalse(output.exists())
 
     def test_invalid_authority_hostname_is_rejected(self) -> None:
         for hostname in ("bad_host.example", "example..com"):

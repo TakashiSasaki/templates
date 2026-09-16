@@ -228,14 +228,14 @@ def render_snapshot(*,bundle,site_root,output,identity,site_revision,parent_iden
         site=build/'site';write(site/'glossary/index.json',read_json(bundle/'glossary.json'))
         run(site_root,'generate_glossary_viewer.py','--input',site/'glossary/index.json','--output',site/'glossary/index.html')
         run(site_root,'finalize_site_metadata.py','--site-root',site,'--canonical-url',public_url)
-        browser_root=browser.prepare_browser_root(site);browser.write_root_index(browser_root);browser.write_browser_controller(browser_root)
+        browser_root=browser.prepare_browser_root(site);browser.write_root_index(browser_root,('site',*models));browser.write_browser_controller(browser_root)
         site_tree,site_records=collect_records('site',repository,site_revision,site_root)
         sources={'site':(site_revision,site_tree,site_records)}
         for name,model in models.items():
             sources[name]=(model['revision'],build_tree([record(TreeEntry,e) for e in model['entries']]),{raw_path(r['path']):record(FileRecord,r) for r in model['browser']})
         for name,(revision,tree,records) in sources.items():
             branch_root=browser_root/name;(branch_root/'content').mkdir(parents=True)
-            (branch_root/'index.html').write_text(browser.render_browser_page(name,revision,tree,records),encoding='utf-8')
+            (branch_root/'index.html').write_text(browser.render_browser_page(name,revision,tree,records,('site',*models)),encoding='utf-8')
             for r in records.values():browser.write_verified_file_page(branch_root/r.viewer_url,name,revision,r)
         graph=read_json(bundle/'guided-navigation.json');published={name:model['published'] for name,model in models.items()}
         guided.generate_from_bundle(repository,graph,published,site)

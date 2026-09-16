@@ -1,4 +1,8 @@
 from __future__ import annotations
+BRANCH_ORDER = ("site", "composition", "policy")
+BASE_BRANCH_ORDER = BRANCH_ORDER
+from tests.browser_model_fixture import generate_browser
+from publication_bundle.source_reader import decode_browser_text
 
 import argparse
 import os
@@ -9,13 +13,10 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-import scripts.generate_repository_browser as repository_browser
-from scripts.generate_repository_browser import (
-    BRANCH_ORDER as BASE_BRANCH_ORDER,
+import site_renderer.repository_browser as repository_browser
+from site_renderer.repository_browser import (
     MAX_TEXT_BYTES,
     RepositoryBrowserError,
-    decode_browser_text,
-    generate_browser,
     prepare_browser_root,
 )
 
@@ -182,64 +183,7 @@ class CurrentAuthorityRepositoryBrowserTests(unittest.TestCase):
         run_git(root, "add", ".")
         run_git(root, "commit", "--quiet", "--message", "fixture")
 
-    def test_canonical_generator_rejects_retired_or_misordered_branches(self) -> None:
-        for retired in ("skill", "webapp"):
-            with self.subTest(retired=retired):
-                with self.assertRaises(argparse.ArgumentTypeError):
-                    repository_browser.parse_branch(f"{retired}=sources/{retired}")
 
-        with tempfile.TemporaryDirectory() as temporary:
-            output = Path(temporary)
-            invalid_branches = {
-                "site": output,
-                "policy": output,
-                "composition": output,
-            }
-            with self.assertRaisesRegex(
-                RepositoryBrowserError,
-                "branches must be supplied exactly in site, composition, policy order",
-            ):
-                generate_browser(
-                    "TakashiSasaki/templates",
-                    output,
-                    invalid_branches,
-                )
-
-    def test_compat_entrypoint_delegates_to_canonical_authorities(self) -> None:
-        wrapper = COMPOSITION_BROWSER_SCRIPT.read_text(encoding="utf-8")
-        self.assertNotIn("BRANCH_ORDER =", wrapper)
-        self.assertNotIn("def write_root_index", wrapper)
-        self.assertIn("return base.main()", wrapper)
-
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            repository = root / "repository"
-            output = root / "site"
-            output.mkdir()
-            self.make_repository(repository)
-            command = [
-                sys.executable,
-                str(COMPOSITION_BROWSER_SCRIPT),
-                "--repository",
-                "TakashiSasaki/templates",
-                "--output-root",
-                str(output),
-            ]
-            for branch in ("site", "composition", "policy"):
-                command.extend(("--branch", f"{branch}={repository}"))
-            result = subprocess.run(
-                command,
-                check=False,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-            )
-            self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertTrue((output / "files/site/index.html").is_file())
-            self.assertTrue((output / "files/composition/index.html").is_file())
-            self.assertTrue((output / "files/policy/index.html").is_file())
-            self.assertFalse((output / "files/skill").exists())
-            self.assertFalse((output / "files/webapp").exists())
 
     def test_workflow_uses_composition_browser_after_static_build(self) -> None:
         workflow = WORKFLOW.read_text()

@@ -7,7 +7,6 @@ import unittest
 from types import SimpleNamespace
 
 from scripts.check_audience_runtime import (
-    skipped_optional_destinations,
     validate_projection_parity,
 )
 

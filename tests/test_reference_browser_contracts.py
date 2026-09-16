@@ -198,7 +198,7 @@ class ReferenceBrowserContractTests(unittest.TestCase):
         self.assertEqual(generated, checked_in)
 
     def test_coexistence_translation_manifest_is_fresh(self):
-        from scripts.translation_manifest import load_translation_manifest
+        from site_renderer.owned_content.translation_manifest import load_translation_manifest
         manifest = load_translation_manifest(
             ROOT / "translations" / "manifest.json",
             "site translation manifest",
