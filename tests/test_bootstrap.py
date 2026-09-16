@@ -23,10 +23,12 @@ class BootstrapTests(unittest.TestCase):
         self.assertEqual(set(proof['reviewed_providers']),{'composition','policy'})
         self.assertFalse(proof['site_adoption']);self.assertFalse(proof['deployment'])
 
-    def test_transition_does_not_claim_site_adoption(self):
+    def test_current_topology_preserves_explicit_downstream_adoption(self):
         authority=json.loads((ROOT/'authority.json').read_text())
         self.assertEqual(authority['authority'],'integration')
         self.assertFalse(authority['automatic_provider_following'])
         self.assertFalse(authority['automatic_site_adoption'])
         self.assertEqual(authority['deployment_authority'],'site')
-        self.assertIn('no adoption',authority['site_upstream'])
+        self.assertIn('exact reviewed Integration release',authority['site_upstream'])
+        self.assertIn('Site no longer selects provider publication revisions',authority['site_upstream'])
+        self.assertNotIn('has not adopted',(ROOT/'README.md').read_text())

@@ -7,7 +7,7 @@
     "policy"
   ],
   "output_contract": "Integrated Publication Bundle v2",
-  "site_upstream": "historical Site-local integration path; no adoption of this authority",
+  "site_upstream": "explicitly selected exact reviewed Integration release and Integrated Publication Bundle; Site no longer selects provider publication revisions",
   "promotion": "explicit reviewed Integration PR and exact-input qualification",
   "site_adoption": "separate explicit human instruction",
   "deployment_authority": "site",
