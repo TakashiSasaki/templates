@@ -117,3 +117,62 @@
   .audience-journey strong { font-size: 1.05rem; }
   .audience-shell { padding: .5rem .7rem; }
 }
+
+/* Semantic audience tokens: the resolver is the only source of active identity. */
+:root, html[data-audience="neutral"] {
+  --audience-accent: #475569;
+  --audience-accent-soft: #f1f5f9;
+  --audience-accent-strong: #334155;
+  --audience-on-accent: #ffffff;
+  --audience-use: #075985;
+  --audience-use-soft: #e0f2fe;
+  --audience-maintain: #9a3412;
+  --audience-maintain-soft: #fff7ed;
+}
+html[data-audience="use"] {
+  --audience-accent: var(--audience-use);
+  --audience-accent-soft: var(--audience-use-soft);
+  --audience-accent-strong: #0c4a6e;
+}
+html[data-audience="maintain"] {
+  --audience-accent: var(--audience-maintain);
+  --audience-accent-soft: var(--audience-maintain-soft);
+  --audience-accent-strong: #7c2d12;
+}
+html:has([data-md-color-scheme="slate"]) {
+  --audience-use: #7dd3fc;
+  --audience-use-soft: #0c2638;
+  --audience-maintain: #fdba74;
+  --audience-maintain-soft: #382315;
+  --audience-on-accent: #0f172a;
+}
+html[data-audience="neutral"]:has([data-md-color-scheme="slate"]) {
+  --audience-accent: #cbd5e1;
+  --audience-accent-soft: #1e293b;
+  --audience-accent-strong: #e2e8f0;
+}
+html[data-audience="use"]:has([data-md-color-scheme="slate"]) { --audience-accent-strong: #bae6fd; }
+html[data-audience="maintain"]:has([data-md-color-scheme="slate"]) { --audience-accent-strong: #fed7aa; }
+html[data-audience] .md-header { background: var(--md-default-bg-color, Canvas); color: var(--md-default-fg-color, CanvasText); border-bottom: 3px solid var(--audience-accent); }
+.audience-shell { color: var(--audience-accent-strong); background: var(--audience-accent-soft); border-bottom: 1px solid var(--audience-accent); }
+.audience-switcher button { color: var(--audience-accent-strong); background: var(--audience-accent-soft); }
+.audience-switcher button[aria-pressed="true"] { color: var(--audience-on-accent); background: var(--audience-accent); }
+.audience-switcher button:hover { box-shadow: inset 0 0 0 1px currentColor; }
+.audience-shell :focus-visible, .audience-journey:focus-visible, .audience-navigation :focus-visible { outline: 3px solid var(--audience-accent); outline-offset: 3px; }
+html[data-audience] .md-nav__link--active, .audience-navigation [aria-current="page"] { color: var(--audience-accent-strong); border-inline-start: 3px solid var(--audience-accent); padding-inline-start: .4rem; font-weight: 700; }
+.audience-breadcrumb { color: var(--audience-accent-strong); border-inline-start: 3px solid var(--audience-accent); padding-inline-start: .7rem; }
+html[data-audience] .md-typeset .md-button { color: var(--audience-accent-strong); border-color: var(--audience-accent); }
+html[data-audience] .md-typeset .md-button--primary { color: var(--audience-on-accent); background: var(--audience-accent); }
+html[data-audience] .md-typeset .tabbed-labels > label:hover { color: var(--audience-accent-strong); }
+.portal-cover.audience-landing { color-scheme: normal; color: var(--md-default-fg-color, CanvasText); background: var(--md-default-bg-color, Canvas); border-color: var(--audience-accent); box-shadow: none; }
+.portal-cover.audience-landing::before, .portal-cover.audience-landing::after { display: none; }
+.portal-cover.audience-landing h1, .audience-landing .portal-cover__lead, .audience-landing .portal-cover__kicker { color: inherit; }
+.audience-landing .portal-cover__kicker::before { background: var(--audience-accent); }
+.md-typeset .audience-journey[data-audience-entry="use"] { color: var(--audience-use); background: var(--audience-use-soft); }
+.md-typeset .audience-journey[data-audience-entry="maintain"] { color: var(--audience-maintain); background: var(--audience-maintain-soft); }
+.md-typeset .audience-journey:hover { box-shadow: inset 0 0 0 1px currentColor; }
+@media (forced-colors: active) {
+  .audience-shell, .md-typeset .audience-journey, .audience-switcher button { color: CanvasText; background: Canvas; border-color: CanvasText; }
+  .audience-switcher button[aria-pressed="true"] { color: HighlightText; background: Highlight; forced-color-adjust: none; }
+  .audience-shell :focus-visible, .audience-journey:focus-visible, .audience-navigation :focus-visible { outline-color: Highlight; }
+}
