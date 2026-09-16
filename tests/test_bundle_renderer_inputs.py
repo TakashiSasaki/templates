@@ -40,17 +40,37 @@ class RendererInputTests(unittest.TestCase):
             self.assertEqual(validate(args['bundle'])['identity'],self.identity)
             self.assertEqual((args['bundle']/'publication/intro.md').read_text(),'# Intro\n')
             return 'snapshot used'
-        with patch('site_renderer.render.render_snapshot',side_effect=consume):self.assertEqual(self.render(),'snapshot used')
+        with patch('site_renderer.render.consume_snapshot',side_effect=consume):self.assertEqual(self.render(),'snapshot used')
 
     def test_copy_time_mutation_is_rejected_by_snapshot_validation(self):
-        copy=shutil.copytree
-        def corrupt(source,target,*args,**kwargs):
-            result=copy(source,target,*args,**kwargs)
-            content=Path(target)/'publication/intro.md'
-            if content.exists():content.write_text('changed while copying')
+        def tamper(root,**kwargs):
+            result=validate(root,**kwargs)
+            (self.bundle/'publication/intro.md').write_text('changed after validation')
             return result
-        with patch('site_renderer.render.shutil.copytree',side_effect=corrupt),self.assertRaisesRegex(BundleError,'digest|inventory'):self.render()
+        with patch('site_renderer.render.validate',side_effect=tamper),self.assertRaisesRegex(BundleError,'changed during snapshot'):self.render()
         self.assertFalse(self.output.exists())
+
+    def test_site_transient_edits_cannot_change_private_source_bytes(self):
+        def consume(**args):
+            (self.site/'input').write_text('transient uncommitted bytes')
+            self.assertNotEqual(args['site_root'],self.site)
+            self.assertEqual((args['site_root']/'input').read_text(),'committed')
+            self.assertEqual(require_clean_site(args['site_root']),self.revision)
+            (self.site/'input').write_text('committed')
+            self.assertEqual((args['site_root']/'input').read_text(),'committed')
+            return 'immutable source used'
+        with patch('site_renderer.render.consume_snapshot',side_effect=consume):self.assertEqual(self.render(),'immutable source used')
+
+    def test_atomic_publish_preserves_concurrent_empty_directory(self):
+        from site_renderer.render import rename_noreplace
+        build=self.root/'build';build.mkdir();(build/'result').write_text('artifact')
+        def competing(directory,source,target):
+            self.output.mkdir()
+            return rename_noreplace(directory,source,target)
+        with patch('site_renderer.render.rename_noreplace',side_effect=competing),self.assertRaisesRegex(BundleError,'concurrently created'):
+            publish_build(build,self.output,self.stamp(),(self.bundle,self.site),self.revision)
+        self.assertTrue(self.output.is_dir());self.assertEqual(list(self.output.iterdir()),[])
+        self.assertEqual(list(self.output.parent.iterdir()),[self.output])
 
     def test_dirty_and_untracked_inputs_are_rejected_before_rendering(self):
         for path in ('input','untracked'):

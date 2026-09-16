@@ -1,6 +1,8 @@
 """Build the complete Site artifact from Publication Bundle v1 and Site-owned source."""
 from __future__ import annotations
 import argparse
+import ctypes
+import errno
 import base64
 import json
 import os
@@ -10,7 +12,7 @@ import subprocess
 import sys
 import tempfile
 
-from publication_bundle.contract import BundleError, validate, read_json, regular
+from publication_bundle.contract import BundleError, validate, read_json, regular, canonical, digest
 from publication_bundle.repository import TreeEntry, FileRecord, PreviewRecord, build_tree, configured_base_path
 from publication_bundle.source_models import raw_path
 from publication_bundle.source_reader import checked_revision, collect_records
@@ -55,6 +57,19 @@ def require_clean_site(site_root, revision=None):
     return current
 
 
+def rename_noreplace(directory, source, target):
+    """Linux atomic directory publication; never replace another actor's path."""
+    libc=ctypes.CDLL(None,use_errno=True)
+    rename=getattr(libc,'renameat2',None)
+    if rename is None:raise BundleError('atomic no-replace publication requires renameat2')
+    rename.argtypes=(ctypes.c_int,ctypes.c_char_p,ctypes.c_int,ctypes.c_char_p,ctypes.c_uint)
+    rename.restype=ctypes.c_int
+    if rename(directory,os.fsencode(source),directory,os.fsencode(target),1):
+        error=ctypes.get_errno()
+        if error==errno.EEXIST:raise BundleError('refusing to replace concurrently created render output')
+        raise OSError(error,os.strerror(error),target)
+
+
 def publish_build(build, output, parent_identity, sources, site_revision):
     # All expensive work happens outside the destination. Pin the parent for
     # the final same-filesystem staging/rename so aliases cannot redirect it.
@@ -74,27 +89,60 @@ def publish_build(build, output, parent_identity, sources, site_revision):
         if (current.st_dev,current.st_ino)!=parent_identity:
             raise BundleError('render output parent changed before publication')
         require_clean_site(sources[1],site_revision)
-        os.rename(stage.name,output.name,src_dir_fd=fd,dst_dir_fd=fd)
+        rename_noreplace(fd,stage.name,output.name)
         stage=None
     finally:
         if stage is not None:shutil.rmtree(stage)
         os.close(fd)
 
 
+def snapshot_bundle(source, target, expected_identity):
+    manifest=validate(source,expected_identity=expected_identity)
+    target.mkdir()
+    # Copy only bounded declared files, verify each read against the accepted
+    # inventory, then validate the resulting private snapshot as a whole.
+    for name,record in manifest['files'].items():
+        with regular(source,name).open('rb') as stream:data=stream.read(record['size']+1)
+        if len(data)!=record['size'] or digest(data)!=record['sha256']:
+            raise BundleError('Bundle changed during snapshot copy')
+        path=target/name;path.parent.mkdir(parents=True,exist_ok=True);path.write_bytes(data)
+    (target/'bundle.json').write_bytes(canonical(manifest))
+    return validate(target,expected_identity=expected_identity)
+
+
+def consume_snapshot(**inputs):
+    # Execute renderer code as well as source reads from the exact private Git
+    # checkout. The caller's mutable checkout is no longer a runtime input.
+    payload={key:str(value) if isinstance(value,Path) else value for key,value in inputs.items()}
+    code="""import json,sys
+from pathlib import Path
+from site_renderer.render import render_snapshot
+args=json.load(sys.stdin)
+for key in ('bundle','site_root','output','original_bundle'):args[key]=Path(args[key])
+args['parent_identity']=tuple(args['parent_identity'])
+render_snapshot(**args)
+"""
+    env=dict(os.environ);env.pop('PYTHONPATH',None)
+    subprocess.run([sys.executable,'-c',code],cwd=inputs['site_root'],env=env,input=json.dumps(payload),text=True,check=True)
+    return {'site_revision':inputs['site_revision'],'bundle_identity':inputs['identity']['identity'],'output':str(inputs['output'])}
+
+
 def render(*,bundle,site_root,output,expected_identity,public_url='https://templates.moukaeritai.work/',deployment_timestamp=''):
     bundle,site_root=Path(bundle).resolve(),Path(site_root).resolve()
     output=checked_output(output,(bundle,site_root))
     site_revision=require_clean_site(site_root)
-    with tempfile.TemporaryDirectory(prefix='site-bundle-snapshot-') as temporary:
+    with tempfile.TemporaryDirectory(prefix='site-input-snapshot-') as temporary:
         snapshot=Path(temporary)/'bundle'
-        # Preserve links so the contract rejects them; never follow a source
-        # symlink while copying. Validate exactly the private bytes consumed.
-        shutil.copytree(bundle,snapshot,symlinks=True)
-        identity=validate(snapshot,expected_identity=expected_identity)
+        identity=snapshot_bundle(bundle,snapshot,expected_identity)
+        source=Path(temporary)/'source'
+        subprocess.run(['git','clone','--shared','--no-checkout',str(site_root),str(source)],check=True,capture_output=True)
+        subprocess.run(['git','-C',str(source),'sparse-checkout','set','--no-cone','/*','!/integration/'],check=True,capture_output=True)
+        subprocess.run(['git','-C',str(source),'checkout','--detach',site_revision],check=True,capture_output=True)
+        require_clean_site(source,site_revision)
         output.parent.mkdir(parents=True,exist_ok=True)
         checked_output(output,(bundle,site_root))
         stat=output.parent.stat();parent_identity=(stat.st_dev,stat.st_ino)
-        return render_snapshot(bundle=snapshot,site_root=site_root,output=output,
+        return consume_snapshot(bundle=snapshot,site_root=source,output=output,
             identity=identity,site_revision=site_revision,parent_identity=parent_identity,
             original_bundle=bundle,public_url=public_url,deployment_timestamp=deployment_timestamp)
 
