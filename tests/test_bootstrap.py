@@ -14,7 +14,12 @@ class BootstrapTests(unittest.TestCase):
         self.assertEqual(roots,[proof['initial_integration_revision']])
         self.assertNotEqual(roots[0],proof['source_site_revision'])
         for revision in (proof['source_site_revision'],*proof['reviewed_providers'].values()):self.assertRegex(revision,r'\A[0-9a-f]{40}\Z')
-        self.assertEqual(proof['reviewed_providers'],{k:v['revision'] for k,v in lock['publications'].items()})
+        reference=json.loads((ROOT/'bootstrap/site-bundle-reference.json').read_text())
+        self.assertEqual(proof['reviewed_providers'],reference['providers'])
+        self.assertEqual(set(lock['publications']),{'composition','policy'})
+        for provider in lock['publications'].values():
+            self.assertEqual(set(provider),{'revision'})
+            self.assertRegex(provider['revision'],r'\A[0-9a-f]{40}\Z')
         self.assertEqual(set(proof['reviewed_providers']),{'composition','policy'})
         self.assertFalse(proof['site_adoption']);self.assertFalse(proof['deployment'])
 

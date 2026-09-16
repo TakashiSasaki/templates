@@ -22,7 +22,11 @@ reviewed Integration promotion → STOP. To promote later, refresh exact merged 
 SHAs, deliberately change only intended locks, qualify a stable exact candidate, obtain
 applicable review, and guard the Integration merge by its accepted head. Record the exact
 released producer/provider identities and Bundle identity/digests. Requalify changed
-inputs; do not reuse stale evidence. No release is completed by this P5 draft stack.
+inputs; do not reuse stale evidence. The first reviewed bootstrap release is
+`a30699cf7dc56bf3ef7a1b6fd8f6ffd45cdd426d` (#894–#896). Its provider pair and
+payload reference remain historical bootstrap evidence, separate from the current
+reviewed provider selection. Release acceptance is established by exact-head review,
+qualification and guarded landing; an authority status string is not acceptance.
 
 Site adoption requires a separate explicit human instruction selecting an exact reviewed
 Integration release and Bundle identity. Site qualification/release and explicit deployment
