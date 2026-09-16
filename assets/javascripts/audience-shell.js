@@ -78,8 +78,7 @@
           const capture = () => {
             const navs = [...doc.querySelectorAll("nav.md-nav--primary")];
             const reader = win.TemplatesReaderNavigation;
-            const readerLanguage = reader?.currentLanguage?.();
-            const readerPending = Boolean(readerLanguage) && navs.some(
+            const readerPending = Boolean(reader) && navs.some(
               nav => nav.dataset.readerNavigationReady !== url.pathname,
             );
             if (!doc.documentElement.dataset.audience || !navs.length || readerPending) {
