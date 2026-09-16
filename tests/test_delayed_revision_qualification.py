@@ -68,3 +68,16 @@ def test_provisional_state_does_not_weaken_required_qualification() -> None:
         "publication",
     ):
         assert requirement in canonical
+
+
+def test_frontier_scenarios_cover_sequencing_and_preserved_exceptions() -> None:
+    cases = json.loads(CASES.read_text(encoding="utf-8"))
+    assert {
+        "A-construction-ahead-of-pending-review",
+        "B-expected-prerequisite-mutation",
+        "C-stable-prerequisite-qualification",
+        "D-supersede-only-obsolete-work",
+        "E-automatic-ci-remains-provisional",
+        "F-immediate-boundary-and-useful-parallelism",
+        "G-reuse-tree-context-evidence-not-exact-head-review",
+    } <= {case["name"] for case in cases}

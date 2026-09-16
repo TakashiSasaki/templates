@@ -104,5 +104,90 @@
         "bind the operation to the exact proposed head commit"
       ]
     }
+  },
+  {
+    "name": "A-construction-ahead-of-pending-review",
+    "required": {
+      "policy/pull-request/defer-revision-bound-qualification.md": [
+        "construction frontier",
+        "qualification frontier",
+        "Review latency alone must not block safe descendant construction",
+        "Descendants may be implemented, focused-validated, and represented by pull requests"
+      ]
+    }
+  },
+  {
+    "name": "B-expected-prerequisite-mutation",
+    "required": {
+      "policy/pull-request/defer-revision-bound-qualification.md": [
+        "expected prerequisite invalidators",
+        "defer that intentional final evidence cycle while the invalidator remains",
+        "do not embed known-invalid behavior",
+        "A prerequisite review merely being pending does not establish expected invalidation"
+      ],
+      "policy/pull-request/review-acquisition-preflight.md": [
+        "first apply the expected-invalidation gate"
+      ]
+    }
+  },
+  {
+    "name": "C-stable-prerequisite-qualification",
+    "required": {
+      "policy/pull-request/defer-revision-bound-qualification.md": [
+        "When a revision-bound boundary is reached, stabilize the actual prerequisite identities",
+        "freeze the intended candidate revision or ordered candidate revisions"
+      ],
+      "policy/pull-request/reuse-valid-evidence.md": [
+        "Reacquire only the evidence affected by a concrete invalidation signal"
+      ]
+    }
+  },
+  {
+    "name": "D-supersede-only-obsolete-work",
+    "required": {
+      "policy/pull-request/staged-ci-and-preflight.md": [
+        "can no longer satisfy any current evidence requirement",
+        "platform safely permits",
+        "Preserve still-applicable evidence",
+        "head movement alone is not a cancellation reason",
+        "Supersession is not by itself a product defect"
+      ]
+    }
+  },
+  {
+    "name": "E-automatic-ci-remains-provisional",
+    "required": {
+      "policy/pull-request/defer-revision-bound-qualification.md": [
+        "Do not use this rule to suppress repository-required automatic checks"
+      ],
+      "policy/pull-request/staged-ci-and-preflight.md": [
+        "automatic execution neither freezes a provisional descendant nor proves final qualification"
+      ]
+    }
+  },
+  {
+    "name": "F-immediate-boundary-and-useful-parallelism",
+    "required": {
+      "policy/pull-request/defer-revision-bound-qualification.md": [
+        "An immediate authority boundary requires its evidence now",
+        "does not bind to the moving prerequisite identity",
+        "inexpensive or independently useful",
+        "larger critical-path or safety cost",
+        "record the affected bindings",
+        "no numeric cost model"
+      ]
+    }
+  },
+  {
+    "name": "G-reuse-tree-context-evidence-not-exact-head-review",
+    "required": {
+      "policy/pull-request/reuse-valid-evidence.md": [
+        "Tree-and-context-bound evidence may survive a history-only head change only after all declared bindings are positively re-established",
+        "An ordinary successful CI result is never inferred to be tree-and-context-bound"
+      ],
+      "policy/pull-request/independent-exact-head-review.md": [
+        "If the proposed head changes after that review, treat the review as stale"
+      ]
+    }
   }
 ]
