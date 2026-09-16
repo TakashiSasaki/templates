@@ -199,9 +199,12 @@ def check(
             cleared = assert_filtered_search()
             stable_ids = {hit['href']: hit['id'] for hit in cleared['all']}
             search.focus(); search.press('ArrowDown')
-            down = assert_filtered_search(require_active=True)
+            assert_filtered_search(require_active=True)
             search.press('ArrowUp')
             assert_filtered_search(require_active=True)
+            # The audience adapter must not own composing keys. Other native search listeners may
+            # prevent their default action, so assert propagation and adapter-state/navigation
+            # neutrality rather than a global defaultPrevented value.
             for key in ('ArrowDown', 'ArrowUp', 'Enter'):
                 before = filtered_search_state(); url = page.url
                 outcome = search.evaluate("""(input,key) => {
@@ -209,11 +212,11 @@ def check(
                     const observe=()=>{bubbled=true;};
                     document.addEventListener('keydown',observe,{once:true});
                     const event=new KeyboardEvent('keydown',{key,bubbles:true,cancelable:true,composed:true,isComposing:true});
-                    const dispatched=input.dispatchEvent(event);
+                    input.dispatchEvent(event);
                     document.removeEventListener('keydown',observe);
-                    return {isComposing:event.isComposing,defaultPrevented:event.defaultPrevented,dispatched,bubbled};
+                    return {isComposing:event.isComposing,bubbled};
                 }""", key)
-                assert outcome == {'isComposing': True, 'defaultPrevented': False, 'dispatched': True, 'bubbled': True}, (key, outcome)
+                assert outcome == {'isComposing': True, 'bubbled': True}, (key, outcome)
                 assert page.url == url
                 after = filtered_search_state()
                 assert after['active'] == before['active'] and after['styled'] == before['styled'], (key, before, after)
