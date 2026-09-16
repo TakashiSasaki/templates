@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from scripts import assemble_publications, assemble_publications_v3
 
@@ -44,6 +45,34 @@ class CatalogV3EntrypointTests(unittest.TestCase):
             source,
         )
         self.assertIn("publication links rebased", source)
+
+    def test_non_site_assembly_does_not_require_site_source_root(self) -> None:
+        argv = [
+            "assemble_publications_v3.py",
+            "--publication",
+            "composition=/tmp/composition",
+            "--site-root",
+            "/tmp/site",
+            "--output-root",
+            "/tmp/output",
+        ]
+        with (
+            patch("sys.argv", argv),
+            patch.object(
+                assemble_publications_v3,
+                "parse_publications",
+                return_value={"composition": Path("/tmp/composition")},
+            ),
+            patch.object(assemble_publications_v3, "assemble", return_value=[]),
+            patch.object(
+                assemble_publications_v3,
+                "rebase_publication_links",
+                return_value=0,
+            ) as rebase,
+        ):
+            self.assertEqual(assemble_publications_v3.main(), 0)
+
+        self.assertIsNone(rebase.call_args.kwargs["site_source_root"])
 
     def test_translation_publisher_uses_stable_v3_alias(self) -> None:
         source = TRANSLATION_PUBLISHER.read_text(encoding="utf-8")
