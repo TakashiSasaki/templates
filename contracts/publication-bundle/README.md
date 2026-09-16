@@ -28,6 +28,10 @@ manifests and compared to the Bundle; self-declared coverage cannot hide or inve
 translations. The provider contract permits an absent manifest, but existing manifests
 and all declared paths must be regular sources without symlink traversal.
 
+Derivative destinations use the same deterministic language namespace function as
+the producer. The complete files in each declared language namespace must equal
+the qualified derivative set; undeclared/orphan stale files fail acceptance.
+
 Only current translations are published. Stale and missing availability remain distinct;
 P5 does not implement P8. Provider translation content and synchronization metadata are
 read directly from their owning exact authority checkouts and are not Integration sources.

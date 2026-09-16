@@ -104,3 +104,20 @@ class ManifestClosureTests(unittest.TestCase):
             models['composition'][field]=[r for r in models['composition'][field] if raw_path(r['path'])!=b'docs/second.md']
         self.write('provider-repositories.json',models)
         with self.assertRaisesRegex(BundleError,'source missing'):finish(self.root)
+
+    def test_derivative_destination_cannot_replace_canonical_page(self):
+        self.translations()
+        publication=self.read('translation-publication.json')
+        publication['translations'][0]['translation_destination']='intro.md'
+        self.write('translation-publication.json',publication)
+        runtime=self.read('reader-navigation-runtime.json');runtime['locales'][0]['routes']={'/intro/':'/intro/'};self.write('reader-navigation-runtime.json',runtime)
+        (self.root/'publication/ja/intro.md').unlink()
+        with self.assertRaisesRegex(BundleError,'derivative destination'):finish(self.root)
+
+    def test_unmapped_derivative_files_are_rejected(self):
+        for status in ('current','stale'):
+            with self.subTest(status=status),self.fresh_bundle():
+                self.translations(status)
+                target=self.root/('publication/ja/extra.md' if status=='current' else 'publication/ja/intro.md')
+                target.parent.mkdir(exist_ok=True);target.write_text('orphan derivative')
+                with self.assertRaisesRegex(BundleError,'derivative publication files'):finish(self.root)

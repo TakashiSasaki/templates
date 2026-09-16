@@ -3,6 +3,7 @@ import base64
 from pathlib import PurePosixPath
 from publication_bundle.authority_content.translation_manifest import parse_translation_manifest, TranslationManifestError
 from publication_bundle.authority_content.translation_coverage import derive_reader_coverage, TranslationCoverageError
+from publication_bundle.authority_content.publish_translations import derivative_destination
 from publication_bundle.contract import BundleError, SHA, safe_path, regular
 
 
@@ -68,5 +69,15 @@ def validate_translations(root, coverage, publication, providers, documents, rep
         if not isinstance(r,dict) or set(r)!={'publication','language','canonical_destination','translation_destination'}:raise BundleError('invalid derivative record')
         key=(r['publication'],r['language'],r['canonical_destination'])
         if key in actual or key not in expected or r['translation_destination'] in destinations:raise BundleError('duplicate/unqualified derivative')
-        actual.add(key);destinations.add(r['translation_destination']);regular(root,'publication/'+safe_path(r['translation_destination']).as_posix())
+        destination = derivative_destination(r['language'], PurePosixPath(r['canonical_destination'])).as_posix()
+        if r['translation_destination'] != destination:
+            raise BundleError('derivative destination differs from manifest-derived publication path')
+        actual.add(key);destinations.add(destination);regular(root,'publication/'+safe_path(destination).as_posix())
     if expected!=actual:raise BundleError('missing current derivative')
+    # A map alone cannot prove publication exclusion: account for every file
+    # under each manifest-derived language namespace, including orphan derivatives.
+    actual_files = {p.relative_to(root/'publication').as_posix()
+                    for language in expected_coverage['languages']
+                    for p in (root/'publication'/language).rglob('*') if p.is_file()}
+    if actual_files != destinations:
+        raise BundleError('unexpected/missing derivative publication files')

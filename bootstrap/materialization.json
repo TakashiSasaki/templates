@@ -174,7 +174,7 @@
       "source_path": "publication_bundle/authority_content/publish_translations.py",
       "source_blob": "93afcc877d4a3a7aaf7e06109d19041ece9f6bab",
       "source_sha256": "399362204a9770ab3a5d9ebd01a676f02882fb0b273ab67af98a0a3f0b1f75ac",
-      "adaptation": "none"
+      "adaptation": "none; share deterministic derivative destination with Bundle acceptance"
     },
     "publication_bundle/authority_content/reader_navigation_locales.py": {
       "source_path": "publication_bundle/authority_content/reader_navigation_locales.py",

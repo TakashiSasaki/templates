@@ -54,6 +54,11 @@ class AssetRoute:
     directory: bool
 
 
+def derivative_destination(language: str, canonical: PurePosixPath) -> PurePosixPath:
+    """The deterministic reader-translation namespace shared with Bundle acceptance."""
+    return PurePosixPath(language) / canonical
+
+
 def _walk_path(root: Path, relative: PurePosixPath, field: str) -> Path:
     root = root.resolve(strict=True)
     current = root
@@ -494,8 +499,7 @@ def _load_records(
                     canonical_source=canonical,
                     translation_source=translation,
                     canonical_destination=canonical_destination,
-                    translation_destination=PurePosixPath(language)
-                    / canonical_destination,
+                    translation_destination=derivative_destination(language, canonical_destination),
                     source_file=source_file,
                 )
             )
