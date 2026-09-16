@@ -86,7 +86,7 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           git diff --name-only --no-renames "$BASE_SHA" "$HEAD_SHA" > "$RUNNER_TEMP/site-browser-paths.txt"
-
+          test -s "$RUNNER_TEMP/site-browser-paths.txt" || true
       - name: Classify acceptance scope
         id: classify
         env:
