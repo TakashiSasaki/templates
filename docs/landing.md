@@ -1,39 +1,27 @@
 # Templates documentation portal
 
 <div class="portal-landing portal-landing--cover">
-
-<section class="portal-cover" aria-labelledby="portal-cover-title">
-  <div class="portal-cover__copy">
-    <p class="portal-cover__kicker">Start from the task you want to complete</p>
-    <h1 id="portal-cover-title">
-      Build a <span class="portal-accent portal-accent--webapp">Website or Web application</span>,
-      create an <span class="portal-accent portal-accent--skill">Agent Skill</span>,
-      or add coding-agent rules
-    </h1>
-    <p class="portal-cover__lead">
-      You normally do <strong>not</strong> turn this <code>templates</code> repository into your product repository.
-      Keep your product in a separate repository, then use the appropriate templates tooling and contracts there.
-    </p>
-    <div class="portal-cover__actions">
-      <a class="portal-cover__button portal-cover__button--primary" href="web/">
-        Website or Web application <span aria-hidden="true">→</span>
-      </a>
-      <a class="portal-cover__button portal-cover__button--secondary" href="composition/use/skill-first-use-walkthrough/">
-        Create an Agent Skill <span aria-hidden="true">→</span>
-      </a>
-    </div>
-    <ul class="portal-cover__signals" role="list">
-      <li>Start with a concrete task; learn the architecture later.</li>
-      <li>Composition owns browser-product selection and shared Web semantics.</li>
-      <li>Policy is optional and independent from Composition.</li>
-    </ul>
-  </div>
-
-  <div class="portal-cover__visual">
-    <img src="images/landing-architecture.svg" alt="Composition defines Agent Skill, Website, and Web application artifacts while Policy independently defines coding-agent operation; the Site publishes both authorities through one validated portal">
-  </div>
+<section class="portal-cover audience-landing" aria-labelledby="portal-cover-title">
+<p class="portal-cover__kicker">Templates</p>
+<h1 id="portal-cover-title">What are you here to do?</h1>
+<p class="portal-cover__lead">Choose a journey for the repository you are working on.</p>
+<div class="audience-journeys">
+<a class="audience-journey" data-audience-entry="use" href="/web/?audience=use">
+<strong>Use templates</strong>
+<span>Use the systems supplied by this repository in another repository.</span>
+<small>Website · Web application · Agent Skill · Policy · Composition</small>
+<span class="audience-journey__action">Start using templates <span aria-hidden="true">→</span></span>
+</a>
+<a class="audience-journey" data-audience-entry="maintain" href="/repository-trees/?audience=maintain">
+<strong>Maintain templates</strong>
+<span>Maintain and evolve TakashiSasaki/templates itself and its authorities and providers.</span>
+<small>Site · Composition provider · Policy provider · Publication · CI · Source</small>
+<span class="audience-journey__action">Explore maintenance <span aria-hidden="true">→</span></span>
+</a>
+</div>
 </section>
-
+<details class="audience-discovery">
+<summary>Know your destination? Documents and shared tools</summary>
 <section class="portal-authority" aria-labelledby="portal-build-title">
   <div class="portal-section-heading">
     <p class="portal-section-heading__kicker">What do you want to do?</p>
@@ -145,4 +133,6 @@ your separate product repository
   </div>
 </section>
 
+
+</details>
 </div>

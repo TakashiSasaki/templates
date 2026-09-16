@@ -91,3 +91,29 @@
     min-height: 18rem;
   }
 }
+
+/* Audience shell layout. Membership and active state belong to the controller. */
+.md-content__inner:has(.audience-landing) > h1 { display: none; }
+.audience-shell { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .6rem; padding: .6rem 1rem; font: 600 .75rem/1.5 system-ui, sans-serif; }
+.audience-shell[hidden] { display: none; }
+.audience-switcher { display: flex; flex-wrap: wrap; gap: .4rem; }
+.audience-switcher button { font: inherit; cursor: pointer; min-height: 44px; padding: .4rem .8rem; border: 1px solid currentColor; border-radius: .3rem; }
+.audience-switcher [aria-pressed="true"] { text-decoration: underline; text-underline-offset: .25em; font-weight: 800; }
+.audience-badge { border: 1px solid currentColor; border-radius: .3rem; padding: .3rem .7rem; }
+.portal-cover.audience-landing { display: block; min-height: 0; }
+.audience-landing h1 { max-width: 24ch; }
+.audience-journeys { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin-top: 1.5rem; }
+.md-typeset .audience-journey { display: flex; flex-direction: column; gap: .8rem; padding: 1.3rem; border: 2px solid currentColor; border-radius: .6rem; color: var(--portal-cover-text); text-decoration: none; }
+.md-typeset .audience-journey:hover,
+.md-typeset .audience-journey:active { color: var(--portal-cover-cyan); }
+.audience-journey strong { font-size: 1.3rem; }
+.audience-journey__action { margin-top: auto; font-weight: 700; text-decoration: underline; text-underline-offset: .25em; }
+.audience-discovery { margin-top: 1.5rem; }
+.audience-discovery > summary { cursor: pointer; min-height: 44px; padding: .6rem; }
+.audience-shell :focus-visible, .audience-journey:focus-visible, .audience-discovery > summary:focus-visible { outline: 3px solid currentColor; outline-offset: 3px; }
+@media (max-width: 44.984375em) {
+  .audience-journeys { grid-template-columns: 1fr; gap: .6rem; margin-top: .7rem; }
+  .md-typeset .audience-journey { padding: .8rem; gap: .4rem; }
+  .audience-journey strong { font-size: 1.05rem; }
+  .audience-shell { padding: .5rem .7rem; }
+}

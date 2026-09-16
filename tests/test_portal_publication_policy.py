@@ -61,7 +61,7 @@ class PortalPublicationPolicyTests(unittest.TestCase):
         self.assertIn("Independent task · Policy", portal)
 
         self.assertIn(
-            "You normally do <strong>not</strong> turn this <code>templates</code> repository into your product repository.",
+            "Use the systems supplied by this repository in another repository.",
             portal,
         )
         self.assertIn(
