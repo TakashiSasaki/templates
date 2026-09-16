@@ -206,7 +206,7 @@ def test_installer_only_change_requires_verified_binding_to_current_skill() -> N
     )
     assert plan["fresh_materialized"]["I"] is True
     assert plan["awaiting_immutable_identity_materialization"] == []
-    assert plan["stale_stages"] == ["I-policy-publication", "policy-to-site-projection"]
+    assert plan["stale_stages"] == ["I-policy-publication", "policy-to-integration-promotion"]
 
 
 def test_unverified_or_wrongly_bound_downstream_shas_remain_awaiting() -> None:
@@ -366,14 +366,16 @@ def test_direct_surface_inventory_rejects_symlink_escape(tmp_path: Path) -> None
         )
 
 
-def test_site_projection_preserves_authority_boundary() -> None:
+def test_integration_promotion_stops_before_site_adoption() -> None:
     installer = "d" * 40
     plan = planner.build_plan(
         ROOT,
         installer_revision=installer,
         revision_reader=_verified_reader(installer=installer),
     )
-    site = _stage(plan, "policy-to-site-projection")
-    assert site["external_authority"] == "site"
+    site = _stage(plan, "policy-to-integration-promotion")
+    assert site["external_authority"] == "integration"
+    assert "STOP" in site["action"]
+    assert "separate human instruction" in site["action"]
     assert "publication-sources.json" in site["generated_surfaces"]
     assert plan["invariants"]["site_is_policy_super_authority"] is False
