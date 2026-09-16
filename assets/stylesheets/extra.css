@@ -103,7 +103,9 @@
 .portal-cover.audience-landing { display: block; min-height: 0; }
 .audience-landing h1 { max-width: 24ch; }
 .audience-journeys { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin-top: 1.5rem; }
-.md-typeset .audience-journey { display: flex; flex-direction: column; gap: .8rem; padding: 1.3rem; border: 2px solid currentColor; border-radius: .6rem; text-decoration: none; }
+.md-typeset .audience-journey { display: flex; flex-direction: column; gap: .8rem; padding: 1.3rem; border: 2px solid currentColor; border-radius: .6rem; color: var(--portal-cover-text); text-decoration: none; }
+.md-typeset .audience-journey:hover,
+.md-typeset .audience-journey:active { color: var(--portal-cover-cyan); }
 .audience-journey strong { font-size: 1.3rem; }
 .audience-journey__action { margin-top: auto; font-weight: 700; text-decoration: underline; text-underline-offset: .25em; }
 .audience-discovery { margin-top: 1.5rem; }

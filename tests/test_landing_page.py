@@ -132,6 +132,10 @@ class LandingPageTests(unittest.TestCase):
         mobile_css = MOBILE_STYLESHEET.read_text(encoding="utf-8")
         translation_css = TRANSLATION_STYLESHEET.read_text(encoding="utf-8")
         self.assertIn(".portal-landing", css)
+        self.assertIn(".md-typeset .audience-journey", css)
+        self.assertIn("color: var(--portal-cover-text)", css)
+        self.assertIn(".md-typeset .audience-journey:hover", css)
+        self.assertIn("color: var(--portal-cover-cyan)", css)
         for selector in (
             ".portal-landing--cover",
             ".portal-cover",
