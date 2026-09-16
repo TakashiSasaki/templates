@@ -46,9 +46,10 @@ def validate_inventory(inventory,proof):
     entry=next(e for e in proof['entries'] if e['path']=='.template-composition/lock.json')
     if git_hash('blob',lock)!=entry['object']:raise ValueError('audited Composition lock mismatch')
     owners={r['path']:r['intended_owner'] for r in records}
-    for managed in json.loads(lock)['files']:
-        if managed['ownership']=='managed' and owners.get(managed['destination'])!='Composition-owned managed semantics / Site consumer projection':
-            raise ValueError('managed destination lost Composition ownership')
+    expected_managed={f['destination'] for f in json.loads(lock)['files'] if f['ownership']=='managed'}
+    actual_managed={p for p,owner in owners.items() if owner=='Composition-owned managed semantics / Site consumer projection'}
+    if actual_managed!=expected_managed:raise ValueError('managed Composition ownership set mismatch')
+
 
 
 class OwnershipInventoryTests(unittest.TestCase):
@@ -60,7 +61,7 @@ class OwnershipInventoryTests(unittest.TestCase):
         validate_inventory(self.inventory,self.proof)
 
     def test_missing_extra_duplicate_and_changed_revision_fail(self):
-        for mutation in ('missing','extra','duplicate','revision','owner','managed-owner'):
+        for mutation in ('missing','extra','duplicate','revision','owner','managed-owner','false-managed-owner'):
             with self.subTest(mutation=mutation):
                 data=copy.deepcopy(self.inventory)
                 if mutation=='missing':data['paths'].pop()
@@ -68,6 +69,7 @@ class OwnershipInventoryTests(unittest.TestCase):
                 elif mutation=='duplicate':data['paths'].append(data['paths'][0])
                 elif mutation=='owner':data['paths'][0]['intended_owner']=''
                 elif mutation=='managed-owner':next(r for r in data['paths'] if r['path']=='schemas/routes.schema.json')['intended_owner']='future Site presentation/runtime-owned'
+                elif mutation=='false-managed-owner':next(r for r in data['paths'] if r['path']=='contracts/routes.json')['intended_owner']='Composition-owned managed semantics / Site consumer projection'
                 else:data['audited_site']='0'*40
                 with self.assertRaises(ValueError):validate_inventory(data,self.proof)
 
