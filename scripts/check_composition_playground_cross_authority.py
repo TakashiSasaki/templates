@@ -8,9 +8,12 @@ import gzip
 import json
 import re
 import threading
+import sys
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
+
+if __package__ in (None, ''):sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 
 FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
 
@@ -37,13 +40,13 @@ def validate_built_inputs(
     expected_semantic_revision: str,
 ) -> None:
     provenance = read_json(site_root / "build-provenance.json")
-    if provenance.get("schema_version") != 2 or provenance.get("repository") != "TakashiSasaki/templates":
+    if provenance.get("schema_version") != 3 or provenance.get("repository") != "TakashiSasaki/templates":
         raise CrossAuthorityError("built Site provenance contract is invalid")
     if provenance.get("site_commit") != expected_site_revision:
         raise CrossAuthorityError(
             f"built Site revision mismatch: {provenance.get('site_commit')} != {expected_site_revision}"
         )
-    publications = provenance.get("publication_commits")
+    publications = provenance.get("integration", {}).get("providers")
     if not isinstance(publications, dict):
         raise CrossAuthorityError("built Site provenance has no publication commits")
     if publications.get("composition") != expected_provider_revision:
@@ -383,13 +386,25 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--site-root", type=Path, required=True)
     parser.add_argument("--expected-site-revision", required=True)
-    parser.add_argument("--expected-provider-revision", required=True)
-    parser.add_argument("--expected-semantic-revision", required=True)
+    parser.add_argument("--expected-provider-revision")
+    parser.add_argument("--expected-semantic-revision")
+    parser.add_argument("--from-bundle", action="store_true")
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
+    if args.from_bundle:
+        from site_renderer.bundle import load_lock
+        lock=load_lock(Path(__file__).resolve().parents[1]/'integration-source.json')
+        provenance=read_json(args.site_root/'build-provenance.json')['integration']
+        if provenance['identity']!=lock['bundle_identity'] or provenance['producer']['revision']!=lock['revision']:
+            raise CrossAuthorityError('Site artifact differs from selected Integration release')
+        args.expected_provider_revision=provenance['providers']['composition']
+        projection=json.loads(gzip.decompress((args.site_root/'composition/playground/composition-playground-v1.json.gz').read_bytes()))
+        args.expected_semantic_revision=projection['source']['revision']
+    if not args.expected_provider_revision or not args.expected_semantic_revision:
+        raise CrossAuthorityError('expected immutable projection identities required')
     for label, revision in (
         ("site", args.expected_site_revision),
         ("provider", args.expected_provider_revision),

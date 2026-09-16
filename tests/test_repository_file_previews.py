@@ -189,13 +189,12 @@ class RepositoryFilePreviewTests(unittest.TestCase):
 
 
 class RepositoryFilePreviewConfigurationTests(unittest.TestCase):
-    def test_workflow_generates_previews_between_trees_and_static_build(self) -> None:
-        workflow = WORKFLOW.read_text()
-        text = (Path(__file__).resolve().parents[1] / 'site_renderer/render.py').read_text()
+    def test_workflow_generates_previews_between_trees_and_static_build(self):
+        text=(Path(__file__).resolve().parents[1]/'site_renderer/render.py').read_text()
         self.assertLess(text.index('trees.render_tree('),text.index('previews.write_preview_pages('))
         self.assertLess(text.index('previews.write_preview_pages('),text.index("'zensical'))"))
-        self.assertIn('"build/site/repository-trees/previews/${publication}"',workflow)
-        self.assertIn("'repository-file-preview-link'",workflow)
+        self.assertIn("source_previews=[record(PreviewRecord,r) for r in model['previews']]",text)
+        self.assertNotIn('collect_previews(',text)
 
     def test_viewer_assets_and_policy_define_the_security_boundary(self) -> None:
         config = CONFIG_TEMPLATE.read_text(encoding="utf-8")

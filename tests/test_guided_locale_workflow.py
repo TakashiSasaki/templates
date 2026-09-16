@@ -13,11 +13,12 @@ class GuidedLocaleWorkflowTests(unittest.TestCase):
         ordered = ['guided.generate_from_bundle(', 'guided_locales.generate_from_bundle(', "site/'guided','--canonical-url'", "'finalize_translation_reader.py'", "'finalize_guided_locales.py'", "'check_public_url_boundary.py'"]
         self.assertEqual([text.index(token) for token in ordered], sorted(text.index(token) for token in ordered))
 
-    def test_japanese_guided_routes_are_verified_without_localized_graph(self) -> None:
-        text = WORKFLOW.read_text()
-        self.assertIn('test -f build/site/ja/guided/index.html',text)
-        self.assertIn('test ! -e build/site/ja/guided/graph.json',text)
-        renderer = (Path(__file__).resolve().parents[1] / 'site_renderer/render.py').read_text()
+    def test_japanese_guided_routes_are_verified_without_localized_graph(self):
+        text=WORKFLOW.read_text()
+        self.assertIn('scripts/check_bundle_reader.py',text)
+        reader=(ROOT/'scripts/check_bundle_reader.py').read_text()
+        self.assertIn('ja/guided/graph.json',reader)
+        renderer=(ROOT/'site_renderer/render.py').read_text()
         self.assertIn("bundle/'guided-locales.json'",renderer)
         self.assertIn("build/'guided-locale-publication.json'",renderer)
 

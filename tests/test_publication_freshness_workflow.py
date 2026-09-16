@@ -29,7 +29,7 @@ class PublicationFreshnessWorkflowTests(unittest.TestCase):
             pull_request["branches"],
         )
         self.assertEqual(
-            ["opened", "synchronize", "reopened", "labeled"],
+            ["opened", "synchronize", "reopened", "labeled", "ready_for_review"],
             pull_request["types"],
         )
         self.assertNotIn("paths", pull_request)

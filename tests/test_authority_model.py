@@ -14,36 +14,17 @@ def normalized_prose(text: str) -> str:
 
 
 class AuthorityModelTests(unittest.TestCase):
-    def test_site_role_and_provider_independence_are_consistent(self) -> None:
-        model = AUTHORITY_MODEL.read_text(encoding="utf-8")
-        readme = (ROOT / "README.md").read_text(encoding="utf-8")
-        publishing = (ROOT / "PUBLISHING.md").read_text(encoding="utf-8")
-
-        normalized_model = normalized_prose(model)
-        normalized_readme = normalized_prose(readme)
-        normalized_publishing = normalized_prose(publishing)
-
-        required = "Site is the repository integration and publication authority"
-        self.assertIn(required, normalized_model)
-        self.assertIn(
-            "repository integration and publication authority",
-            normalized_readme.lower(),
-        )
-        self.assertIn(
-            "repository integration and publication authority",
-            normalized_publishing.lower(),
-        )
-
-        self.assertIn("not a parent, override, or super-authority", normalized_model)
-        self.assertIn(
-            "provider-specific semantics remain owned by their provider",
-            normalized_model.lower(),
-        )
-        self.assertIn(
-            "must not become a third umbrella management plane",
-            normalized_model,
-        )
-        self.assertIn("site is not a parent or super-authority", normalized_readme.lower())
+    def test_site_role_and_provider_independence_are_consistent(self):
+        model=normalized_prose(AUTHORITY_MODEL.read_text())
+        for authority in ('Composition','Policy','Integration','Site'):
+            self.assertIn('### '+authority,AUTHORITY_MODEL.read_text())
+        self.assertIn('Integration owns exact reviewed provider selection',model)
+        self.assertIn('Site owns HTML/static rendering',model)
+        self.assertIn('Site does not select provider revisions or derive provider freshness',model)
+        for file in ('README.md','PUBLISHING.md'):
+            self.assertIn('integration-source.json',(ROOT/file).read_text())
+            self.assertIn('presentation, runtime, and deployment authority',(ROOT/file).read_text())
+        self.assertIn('Independent Git histories remain independent',model)
 
     def test_semantic_roles_do_not_infer_normativity_from_format(self) -> None:
         model = AUTHORITY_MODEL.read_text(encoding="utf-8")
@@ -71,43 +52,14 @@ class AuthorityModelTests(unittest.TestCase):
         self.assertIn("`SHOULD` must not be reduced to a casual recommendation", model)
         self.assertIn("Advisory material should avoid capitalized RFC keywords", model)
 
-    def test_machine_discovery_reaches_authority_model_directly(self) -> None:
-        agent = json.loads((ROOT / "agent.json").read_text(encoding="utf-8"))
-        catalog = json.loads(
-            (ROOT / "docs" / "publication-catalog.json").read_text(encoding="utf-8")
-        )
-        coexistence = COEXISTENCE.read_text(encoding="utf-8")
-        model = AUTHORITY_MODEL.read_text(encoding="utf-8")
-
-        site = agent["authorities"]["site"]
-        self.assertEqual(site["role"], "publication-integration")
-        self.assertIs(site["consumer_repository_mutation"], False)
-
-        authority_model = agent["integration_contracts"]["authority_model"]
-        self.assertEqual(authority_model["owner"], "site")
-        self.assertEqual(authority_model["repository_path"], "docs/authority-model.md")
-        self.assertTrue((ROOT / authority_model["repository_path"]).is_file())
-
-        coexistence_contract = agent["integration_contracts"][
-            "policy_composition_coexistence"
-        ]
-        self.assertEqual(coexistence_contract["owner"], "site")
-        self.assertEqual(
-            coexistence_contract["document_id"],
-            "site:policy-composition-coexistence",
-        )
-
-        document_id = coexistence_contract["document_id"].split(":", 1)[1]
-        catalog_by_id = {entry["id"]: entry for entry in catalog["documents"]}
-        self.assertEqual(
-            catalog_by_id[document_id]["source"],
-            "docs/policy-composition-coexistence.md",
-        )
-        self.assertIn("docs/authority-model.md", coexistence)
-        self.assertIn(
-            "agent.json\n  -> integration_contracts.authority_model",
-            model,
-        )
+    def test_machine_discovery_reaches_authority_model_directly(self):
+        agent=json.loads((ROOT/'agent.json').read_text())
+        self.assertEqual(set(agent['authorities']),{'composition','policy','integration','site'})
+        self.assertEqual(agent['authorities']['site']['role'],'presentation-runtime-deployment')
+        self.assertEqual(agent['integration_contracts']['authority_model']['owner'],'integration')
+        self.assertEqual(agent['integration_contracts']['authority_model']['canonical_repository_path'],'authority.json')
+        self.assertTrue(agent['integration_contracts']['authority_model']['human_projection'].endswith('/maintain/site/authority-model/'))
+        self.assertEqual(agent['integration_source'],{'lock':'integration-source.json'})
 
     def test_coexistence_contract_remains_provider_specific(self) -> None:
         coexistence = COEXISTENCE.read_text(encoding="utf-8")

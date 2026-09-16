@@ -27,58 +27,9 @@ permissions:
   contents: read
   actions: read
 jobs:
-  resolve_candidate:
-    name: Resolve declared candidate
-    if: github.repository == 'TakashiSasaki/templates' && (inputs.cross_authority_required == 'true' || inputs.browser_required == 'true')
-    runs-on: ubuntu-24.04
-    outputs:
-      composition_revision: ${{ steps.publication_refs.outputs.composition }}
-      policy_revision: ${{ steps.publication_refs.outputs.policy }}
-      semantic_revision: ${{ steps.provider_identity.outputs.semantic_revision }}
-    steps:
-      - name: Check out Site candidate
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          fetch-depth: 1
-          persist-credentials: false
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: 3.12.13
-      - name: Resolve exact declared provider candidates
-        id: publication_refs
-        run: python scripts/resolve_publication_sources.py --output "$GITHUB_OUTPUT"
-      - name: Check out exact declared Composition candidate
-        uses: actions/checkout@v7
-        with:
-          ref: ${{ steps.publication_refs.outputs.composition }}
-          path: composition-source
-          persist-credentials: false
-      - name: Verify exact candidate identity
-        id: provider_identity
-        env:
-          EXPECTED_COMPOSITION: ${{ steps.publication_refs.outputs.composition }}
-        run: |
-          test "$(git -C composition-source rev-parse HEAD)" = "$EXPECTED_COMPOSITION"
-          python - <<'PY' >> "$GITHUB_OUTPUT"
-          import json
-          from pathlib import Path
-          descriptor = json.loads(
-              Path("composition-source/generated/composition-playground-publication.json").read_text()
-          )
-          semantic = descriptor.get("semantic_revision")
-          if not isinstance(semantic, str) or len(semantic) != 40:
-              raise SystemExit("invalid Composition publication semantic revision")
-          print(f"semantic_revision={semantic}")
-          PY
-      - name: Validate candidate projection with canonical Site preflight
-        run: python scripts/run_site_preflight.py cross --check candidate-projection --expected-head ${{ github.event.pull_request.head.sha }} --composition-root composition-source
   producer_consumer:
     name: Real producer to Chromium consumer
     if: github.repository == 'TakashiSasaki/templates' && github.event.pull_request.head.repo.full_name == github.repository && inputs.browser_required == 'true'
-    needs:
-      - resolve_candidate
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -107,18 +58,12 @@ jobs:
         run: |
           google-chrome --version | tee "$RUNNER_TEMP/system-chrome-version.txt"
           echo "Playwright launch mode: channel=chrome" >> "$GITHUB_STEP_SUMMARY"
-      - name: Exercise actual Composition candidate through actual Site candidate
+      - name: Exercise integrated projection through exact Site UI
         env:
           EXPECTED_SITE_REVISION: ${{ github.event.pull_request.head.sha }}
-          EXPECTED_PROVIDER_REVISION: ${{ needs.resolve_candidate.outputs.composition_revision }}
-          EXPECTED_SEMANTIC_REVISION: ${{ needs.resolve_candidate.outputs.semantic_revision }}
         run: |
           test "$(git rev-parse HEAD)" = "$EXPECTED_SITE_REVISION"
-          python scripts/check_composition_playground_cross_authority.py \
-            --site-root build/site \
-            --expected-site-revision "$EXPECTED_SITE_REVISION" \
-            --expected-provider-revision "$EXPECTED_PROVIDER_REVISION" \
-            --expected-semantic-revision "$EXPECTED_SEMANTIC_REVISION"
+          python scripts/check_composition_playground_cross_authority.py --site-root build/site --expected-site-revision "$EXPECTED_SITE_REVISION" --from-bundle
           python scripts/check_composition_playground_final_browser.py --site-root build/site
           python scripts/check_composition_playground_final_grid_browser.py --site-root build/site
           python scripts/check_composition_playground_latest_five_browser.py --site-root build/site

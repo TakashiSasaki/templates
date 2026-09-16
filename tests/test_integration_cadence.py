@@ -18,10 +18,10 @@ class IntegrationCadenceTests(unittest.TestCase):
     def test_canonical_renderer_job_has_no_provider_checkouts(self):
         workflow=yaml.safe_load((ROOT/'.github/workflows/site-producer.yml').read_text())
         build=workflow['jobs']['build']
-        self.assertEqual(build['needs'],'integration')
+        self.assertEqual(build['needs'],['selection','regenerate'])
         self.assertNotIn('composition-source',str(build))
         self.assertNotIn('policy-source',str(build))
-        self.assertIn('publication_bundle_artifact.py consume',str(build))
+        self.assertIn('acquire_integration_bundle.py consume',str(build))
         self.assertIn('render_publication_bundle.py',str(build))
 
     def test_freshness_does_not_qualify_site(self):
@@ -41,18 +41,18 @@ class IntegrationCadenceTests(unittest.TestCase):
         self.assertTrue(classify_paths(['integration/producer.py'],force_full=True).browser_required)
 
     def test_integration_result_is_required_by_construction_gate(self):
-        workflow=yaml.safe_load((ROOT/'.github/workflows/build-pages.yml').read_text())
-        job=workflow['jobs']['integration_only']
-        self.assertIn("outputs.build_required == 'false'",job['if'])
-        gate=workflow['jobs']['validate']
-        self.assertIn('integration_only',gate['needs'])
-        self.assertIn('test "$INTEGRATION_RESULT" = success',str(gate['steps']))
+        workflow=yaml.safe_load((ROOT/'.github/workflows/site-producer.yml').read_text())
+        self.assertIn('@d2316a54db4011ba2936355065a86c80c2942c74',workflow['jobs']['regenerate']['uses'])
+        self.assertIn("outputs.available == 'false'",workflow['jobs']['regenerate']['if'])
+        self.assertIn("needs.selection.result == 'success'",workflow['jobs']['build']['if'])
+        self.assertIn("needs.regenerate.result == 'success'",workflow['jobs']['build']['if'])
+        self.assertNotIn('integration_only',yaml.safe_load((ROOT/'.github/workflows/build-pages.yml').read_text())['jobs'])
 
     def test_full_site_qualification_retains_provider_and_node_regressions(self):
         workflow=yaml.safe_load((ROOT/'.github/workflows/build-pages.yml').read_text())
         steps=workflow['jobs']['check']['steps']
-        stage=next(s for s in steps if s.get('name')=='Validate full Site and provider integration contracts')
-        self.assertIn("full_required == 'true'",stage['if'])
-        self.assertIn('materialize_publication_assets.py',stage['run'])
-        self.assertIn('--check integration-tests',stage['run'])
+        stage=next(s for s in steps if s.get('name')=='Run Site browser controller regressions')
+        self.assertIn('--suite browser',stage['run'])
         self.assertNotIn('continue-on-error',stage)
+        self.assertNotIn('composition-source',str(steps))
+        self.assertNotIn('policy-source',str(steps))

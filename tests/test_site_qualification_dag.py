@@ -52,7 +52,7 @@ class QualificationDagTests(unittest.TestCase):
         step = next(s for s in producer['jobs']['build']['steps'] if s['name'] == 'Run Site contract regression tests')
         self.assertIn('!inputs.core_tests_scheduled',step['if'])
         self.assertIn('--suite core',step['run'])
-        self.assertEqual(producer['jobs']['build']['needs'],'integration')
+        self.assertEqual(producer['jobs']['build']['needs'],['selection','regenerate'])
         artifact = next(s for s in producer['jobs']['build']['steps'] if s.get('id') == 'artifact')
         self.assertEqual('${{ inputs.core_tests_scheduled }}', artifact['env']['CORE_TESTS_SCHEDULED'])
         jobs = workflow('build-pages.yml')['jobs']

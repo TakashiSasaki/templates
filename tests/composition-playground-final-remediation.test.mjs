@@ -90,13 +90,13 @@ function clone(value) {
 
 function buildProvenance() {
   return {
-    schema_version: 2,
+    schema_version: 3,
     repository: "TakashiSasaki/templates",
     site_commit: "c".repeat(40),
-    publication_commits: {
+    integration: { schema_version: 2, producer: {authority: "integration", revision: "e".repeat(40)}, identity: "f".repeat(64), content_digest: "a".repeat(64), providers: {
       composition: "b".repeat(40),
       policy: "d".repeat(40),
-    },
+    }},
   };
 }
 
@@ -285,11 +285,11 @@ test("build provenance requires the exact Site v2 record and provider set", () =
   const invalids = [
     ["missing site_commit", (value) => { delete value.site_commit; }],
     ["malformed site_commit", (value) => { value.site_commit = "C".repeat(40); }],
-    ["missing composition", (value) => { delete value.publication_commits.composition; }],
-    ["malformed composition", (value) => { value.publication_commits.composition = "short"; }],
-    ["missing policy", (value) => { delete value.publication_commits.policy; }],
-    ["malformed policy", (value) => { value.publication_commits.policy = "D".repeat(40); }],
-    ["extra provider", (value) => { value.publication_commits.other = "e".repeat(40); }],
+    ["missing composition", (value) => { delete value.integration.providers.composition; }],
+    ["malformed composition", (value) => { value.integration.providers.composition = "short"; }],
+    ["missing policy", (value) => { delete value.integration.providers.policy; }],
+    ["malformed policy", (value) => { value.integration.providers.policy = "D".repeat(40); }],
+    ["extra provider", (value) => { value.integration.providers.other = "e".repeat(40); }],
     ["unexpected top-level field", (value) => { value.extra = true; }],
   ];
   for (const [label, mutate] of invalids) {

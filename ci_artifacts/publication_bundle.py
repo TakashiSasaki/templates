@@ -52,14 +52,14 @@ def pack(bundle, target):
             archive.addfile(entry,io.BytesIO(data))
 
 
-def extract(archive,target,*,archive_digest,identity,producer,providers):
+def extract(archive,target,*,archive_digest,identity,producer,providers,validator=validate,producer_authority="site-internal-integration"):
     if target.exists() or target.is_symlink():raise ArtifactError('Bundle destination already exists')
     target.parent.mkdir(parents=True,exist_ok=True)
     with tempfile.TemporaryDirectory(dir=target.parent) as tmp:
         root=Path(tmp)/'bundle'
         with verified_tar(archive,archive_digest,member_name='bundle.tar',parent=Path(tmp)) as material:
             material.extractall(root,filter='data')
-        manifest=validate(root,expected_identity=identity,expected_producer={'authority':'site-internal-integration','revision':producer},expected_providers=providers)
+        manifest=validator(root,expected_identity=identity,expected_producer={'authority':producer_authority,'revision':producer},expected_providers=providers)
         root.rename(target)
     return manifest
 

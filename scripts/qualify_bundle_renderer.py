@@ -10,7 +10,7 @@ import sys
 import tempfile
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
-from publication_bundle.contract import validate
+from site_renderer.bundle import validate
 
 
 def qualify(site_root,bundle,identity,output):

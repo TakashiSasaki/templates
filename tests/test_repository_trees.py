@@ -394,8 +394,7 @@ class RepositoryTreeConfigurationTests(unittest.TestCase):
         self.assertLess(text.index('fill(site_root'),text.index('trees.render_tree('))
         self.assertLess(text.index('trees.render_tree('),text.index("'zensical'))"))
         self.assertIn("read_json(bundle/'provider-repositories.json')",text)
-        for name in ('composition','policy'):
-            self.assertIn('build/site/repository-trees/'+name+'/index.html',workflow)
+        self.assertIn('scripts/check_bundle_reader.py',workflow)
 
     def test_policy_keeps_inventory_separate_from_publication_boundary(self) -> None:
         raw_policy = POLICY.read_text(encoding="utf-8")

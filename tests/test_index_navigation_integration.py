@@ -21,7 +21,7 @@ class IndexNavigationIntegrationTests(unittest.TestCase):
         text = (Path(__file__).resolve().parents[1] / 'site_renderer/render.py').read_text()
         ordered = ["'zensical'))", 'browser.prepare_browser_root(', 'guided.generate_from_bundle(', 'guided_locales.generate_from_bundle(', "'finalize_translation_reader.py'", "'finalize_guided_locales.py'", "'validate_site_links.py'"]
         self.assertEqual([text.index(token) for token in ordered], sorted(text.index(token) for token in ordered))
-        for assertion in ('guided graph provider order mismatch', 'test ! -e build/site/ja/guided/graph.json', 'missing guided index page'):
+        for assertion in ('scripts/check_bundle_reader.py', 'test -f build/site/guided/graph.json'):
             self.assertIn(assertion,workflow)
         self.assertNotIn('--provider composition=',text)
         self.assertNotIn('--provider policy=',text)

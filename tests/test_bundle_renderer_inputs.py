@@ -6,9 +6,10 @@ import subprocess
 import tempfile
 import unittest
 from unittest.mock import patch
-from publication_bundle.contract import BundleError, validate
+from publication_bundle.contract import BundleError, canonical
+from site_renderer.bundle import validate
 from site_renderer.render import render, require_clean_site, publish_build
-from tests.test_publication_bundle import fixture, finish
+from tests.bundle_consumer_fixture import fixture, finish, lock
 
 
 class RendererInputTests(unittest.TestCase):
@@ -18,7 +19,10 @@ class RendererInputTests(unittest.TestCase):
         self.git('init','-q');self.git('config','user.name','Fixture');self.git('config','user.email','fixture@example.invalid')
         (self.site/'input').write_text('committed');self.git('add','input');self.git('commit','-qm','fixture')
         self.revision=self.git('rev-parse','HEAD').strip()
-        self.bundle=fixture(self.root/'bundle');self.identity=finish(self.bundle)['identity']
+        self.bundle=fixture(self.root/'bundle');manifest=finish(self.bundle);self.identity=manifest['identity']
+        (self.site/'integration-source.json').write_bytes(canonical(lock(manifest)))
+        self.git('add','integration-source.json');self.git('commit','-qm','select Integration')
+        self.revision=self.git('rev-parse','HEAD').strip()
         self.output=self.root/'parent'/'output';self.output.parent.mkdir()
 
     def git(self,*args):return subprocess.check_output(['git','-C',str(self.site),*args],text=True)

@@ -29,7 +29,7 @@
 
   const SUPPORTED_SCHEMA_VERSION = 1;
   const PROJECTION_ID = "composition-playground-v1";
-  const BUILD_PROVENANCE_SCHEMA_VERSION = 2;
+  const BUILD_PROVENANCE_SCHEMA_VERSION = 3;
   const FULL_SHA = /^[0-9a-f]{40}$/;
   const COMPONENT_ROLES = Object.freeze(["foundation", "artifact", "capability", "lifecycle", "topology", "workspace"]);
   const EXPECTED_REASON_BITS = Object.freeze({
@@ -521,22 +521,23 @@
   }
 
   function validateBuildProvenance(raw) {
-    const topKeys = ["schema_version", "repository", "site_commit", "publication_commits"];
+    const topKeys = ["schema_version", "repository", "site_commit", "integration"];
     if (!isObject(raw) || Object.keys(raw).length !== topKeys.length || topKeys.some((key) => !Object.prototype.hasOwnProperty.call(raw, key))) {
       throw new ProjectionError("MALFORMED_PROVENANCE", "Site build provenance has an unsupported top-level shape");
     }
     if (raw.schema_version !== BUILD_PROVENANCE_SCHEMA_VERSION || raw.repository !== "TakashiSasaki/templates" || !FULL_SHA.test(raw.site_commit || "")) {
       throw new ProjectionError("MALFORMED_PROVENANCE", "Site build provenance identity is invalid");
     }
-    if (!isObject(raw.publication_commits)) {
-      throw new ProjectionError("MALFORMED_PROVENANCE", "Site build provenance publication_commits is invalid");
+    const bundle = raw.integration;
+    if (!isObject(bundle) || bundle.schema_version !== 2 || !isObject(bundle.producer) || bundle.producer.authority !== "integration" || !FULL_SHA.test(bundle.producer.revision || "") || !/^[0-9a-f]{64}$/.test(bundle.identity || "") || !/^[0-9a-f]{64}$/.test(bundle.content_digest || "") || !isObject(bundle.providers)) {
+      throw new ProjectionError("MALFORMED_PROVENANCE", "Site Integration Bundle provenance is invalid");
     }
-    const providerKeys = Object.keys(raw.publication_commits);
+    const providerKeys = Object.keys(raw.integration.providers);
     if (providerKeys.length !== 2 || !providerKeys.includes("composition") || !providerKeys.includes("policy")) {
       throw new ProjectionError("MALFORMED_PROVENANCE", "Site build provenance provider set must be exactly composition and policy");
     }
-    const providerRevision = raw.publication_commits.composition;
-    const policyRevision = raw.publication_commits.policy;
+    const providerRevision = raw.integration.providers.composition;
+    const policyRevision = raw.integration.providers.policy;
     if (!FULL_SHA.test(providerRevision || "") || !FULL_SHA.test(policyRevision || "")) {
       throw new ProjectionError("MALFORMED_PROVENANCE", "Site build provenance provider revisions must be exact lowercase SHAs");
     }
