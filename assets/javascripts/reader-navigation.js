@@ -191,5 +191,8 @@
   void applyReaderNavigation();
   window.addEventListener("pageshow", () => void applyReaderNavigation());
   window.addEventListener("popstate", () => void applyReaderNavigation());
-  window.document$?.subscribe(() => void applyReaderNavigation());
+  const navigationDocument = window.document$;
+  if (navigationDocument && typeof navigationDocument.subscribe === "function") {
+    navigationDocument.subscribe(() => void applyReaderNavigation());
+  }
 })();
