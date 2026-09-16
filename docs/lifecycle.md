@@ -339,3 +339,13 @@ They do not retrospectively establish planning before the original implementatio
 | --- | --- | --- | --- | --- |
 | 17 | planning | audience-manifest-foundation | artifacts/lifecycle/017-audience-manifest-foundation | 9b9a2ba7bb728bba7da97b7db125ec2171872ada15b322933d58d60b1429daef |
 | 18 | product | audience-manifest-foundation-product | artifacts/lifecycle/018-audience-manifest-foundation-product | 6dfcc3b1ce589f53627a600a2eeb503feb246dfeb744a6a3277e36f3b3b2669e |
+
+### Site maintainer audience publication
+
+These checkpoints bind the ten Site-owned maintainer sources to their canonical
+Maintain reader pages and the Website evidence that qualifies those pages.
+
+| Sequence | Phase | ID | Snapshot | Manifest SHA-256 |
+| --- | --- | --- | --- | --- |
+| 19 | planning | audience-maintainer-publication | artifacts/lifecycle/019-audience-maintainer-publication | e2a873147f4aea4e0296fe8dee34a76d4b73cf2c70eb90de274b3aee8179fcca |
+| 20 | product | audience-maintainer-publication-product | artifacts/lifecycle/020-audience-maintainer-publication-product | c6ec49c904a83229b8e5827988f6c803693493eadf5f398b25ddaaeae37ab1b3 |

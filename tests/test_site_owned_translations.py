@@ -25,6 +25,14 @@ EXPECTED_CANONICALS = {
 
 def copy_site_fixture(root: Path, *, translations: bool) -> None:
     shutil.copytree(ROOT / "docs", root / "docs")
+    documents, _ = load_catalog("site", ROOT)
+    for document in documents.values():
+        source = PurePosixPath(document["source"])
+        destination = root.joinpath(*source.parts)
+        if destination.exists():
+            continue
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(ROOT.joinpath(*source.parts), destination)
     shutil.copy2(ROOT / "site-manifest.json", root / "site-manifest.json")
     shutil.copy2(ROOT / "zensical.template.toml", root / "zensical.template.toml")
     if translations:
