@@ -6,6 +6,7 @@
     en: {use: "Use templates", maintain: "Maintain templates", neutral: "Choose your journey", switch: "Reader journey", current: "Current journey"},
     ja: {use: "Use templates · 使う", maintain: "Maintain templates · 保守する", neutral: "目的を選ぶ", switch: "読者の目的", current: "現在の目的"},
   };
+  const nativeNavigation = new Map();
   function strings() {
     return labels[document.documentElement.lang?.split("-")[0]] || labels.en;
   }
@@ -18,6 +19,32 @@
       }
       return null;
     }
+  function snapshotNavigation(nav) {
+    return {
+      html: nav.innerHTML,
+      label: nav.getAttribute("aria-label"),
+    };
+  }
+  function rememberNavigation(nav, snapshot = snapshotNavigation(nav)) {
+    nav.dataset.audienceOriginal = snapshot.html;
+    nav.dataset.audienceOriginalLabel = snapshot.label ?? "";
+    nav.dataset.audienceOriginalLabelPresent = String(snapshot.label !== null);
+  }
+  function restoreNavigation(nav) {
+    nav.innerHTML = nav.dataset.audienceOriginal || "";
+    if (nav.dataset.audienceOriginalLabelPresent === "true") nav.setAttribute("aria-label", nav.dataset.audienceOriginalLabel);
+    else nav.removeAttribute("aria-label");
+  }
+  async function loadNativeNavigation(pathname) {
+    if (!nativeNavigation.has(pathname)) {
+      nativeNavigation.set(pathname, fetch(pathname, { credentials: "same-origin" }).then(async response => {
+        if (!response.ok) throw new Error(`Native navigation unavailable: ${response.status}`);
+        const parsed = new DOMParser().parseFromString(await response.text(), "text/html");
+        return [...parsed.querySelectorAll("nav.md-nav--primary")].map(snapshotNavigation);
+      }));
+    }
+    return nativeNavigation.get(pathname);
+  }
   let generation = 0;
   async function render() {
     const turn = ++generation;
@@ -95,23 +122,23 @@
       return ul;
     }
     function contains(nodes, destination) {
-      return nodes.some(n => n.children ? contains(n.children, destination) : n.destination === destination);
+      return nodes.some(n => n.children ? contains(node.children, destination) : n.destination === destination);
     }
-    for (const nav of document.querySelectorAll("nav.md-nav--primary")) {
+    const primaryNavigation = [...document.querySelectorAll("nav.md-nav--primary")];
+    let neutralNavigation = null;
+    if (!tree && primaryNavigation.some(nav => nav.querySelector(":scope > .audience-navigation"))) {
+      try { neutralNavigation = await loadNativeNavigation(location.pathname); } catch { /* Fall back to the last known native snapshot. */ }
+      if (turn !== generation) return;
+    }
+    for (const [index, nav] of primaryNavigation.entries()) {
       // Replace only the Site navigation projection; provider index content stays intact.
-      // Zensical reuses this nav element during instant navigation but replaces its
-      // native children. Whenever our projection is absent, refresh the snapshot so
-      // neutral restoration uses the target page's native state, not the source page's.
-      if (!nav.querySelector(":scope > .audience-navigation")) {
-        nav.dataset.audienceOriginal = nav.innerHTML;
-        const originalLabel = nav.getAttribute("aria-label");
-        nav.dataset.audienceOriginalLabel = originalLabel ?? "";
-        nav.dataset.audienceOriginalLabelPresent = String(originalLabel !== null);
-      }
+      // Zensical instant navigation doesn't replace the primary navigation node. When
+      // arriving at a neutral target while an audience projection is mounted, restore
+      // the target document's native navigation fetched from that same-origin route.
+      if (!nav.querySelector(":scope > .audience-navigation")) rememberNavigation(nav);
       if (!tree) {
-        nav.innerHTML = nav.dataset.audienceOriginal;
-        if (nav.dataset.audienceOriginalLabelPresent === "true") nav.setAttribute("aria-label", nav.dataset.audienceOriginalLabel);
-        else nav.removeAttribute("aria-label");
+        if (neutralNavigation?.[index]) rememberNavigation(nav, neutralNavigation[index]);
+        restoreNavigation(nav);
         continue;
       }
       const title = document.createElement("p"); title.className = "audience-navigation__title";
