@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import posixpath
 import re
 from pathlib import Path
 
@@ -126,3 +127,20 @@ def test_published_maintainer_sources_have_post_cutover_discovery_links() -> Non
             )
 
     assert "reader publication is deferred" not in adr_index
+
+
+def test_published_maintainer_relative_links_stay_inside_publication_catalog() -> None:
+    published = {
+        item["source"] for item in json.loads(CATALOG.read_text(encoding="utf-8"))["documents"]
+    }
+    for source in MAINTAINER_SOURCES.values():
+        text = (ROOT / source).read_text(encoding="utf-8")
+        for href in re.findall(r"\]\(([^\s)]+)\)", text):
+            path = href.split("#", 1)[0]
+            if not path.endswith(".md") or "://" in path:
+                continue
+            target = posixpath.normpath(posixpath.join(posixpath.dirname(source), path))
+            assert target in published, (
+                f"{source}: relative reader link {href!r} targets unpublished {target}; "
+                "use an explicit repository-source link instead"
+            )
