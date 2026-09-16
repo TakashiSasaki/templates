@@ -18,6 +18,8 @@ from finalize_translation_reader import (  # noqa: E402
 from publish_provider_translations import write_publication_map  # noqa: E402
 from publish_translations import TranslationRecord  # noqa: E402
 
+from tests.translation_availability_fixture import finalize
+
 
 HTML = """<!doctype html>
 <html lang="en" class="no-js">

@@ -246,6 +246,9 @@ jobs:
           python scripts/check_search_history_review_regressions.py \
             --site-root build/site \
             --output build/search-history/review-regressions.json
+      - name: Check translation warnings online and offline
+        if: ${{ needs.classify_browser.outputs.browser_required == 'true' && (needs.classify_browser.outputs.pwa_required == 'true' || needs.classify_browser.outputs.full_required == 'true') }}
+        run: python scripts/check_stale_translation_runtime.py --site-root build/site --bundle publication-bundle --output build/mobile-visual/translation-status.json
       - name: Check PWA freshness lifecycle
         if: ${{ needs.classify_browser.outputs.browser_required == 'true' && (needs.classify_browser.outputs.pwa_required == 'true' || needs.classify_browser.outputs.full_required == 'true') && steps.priority_pwa.outcome != 'success' }}
         run: |

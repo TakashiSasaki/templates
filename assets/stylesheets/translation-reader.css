@@ -70,3 +70,22 @@ html:not([lang="en"]) .translation-switcher + blockquote p {
     padding-inline: 0.52rem;
   }
 }
+
+/* Translation status is semantic document content, independent of cache freshness. */
+.translation-stale-warning {
+  margin: 0 0 1rem;
+  padding: .75rem 1rem;
+  border: .1rem solid #9b6300;
+  border-inline-start-width: .3rem;
+  border-radius: .2rem;
+  background: var(--md-default-bg-color);
+  color: var(--md-default-fg-color);
+  font-size: .8rem;
+  line-height: 1.6;
+}
+.translation-stale-warning p { margin: .3rem 0; }
+.translation-stale-warning a { text-decoration: underline; }
+.translation-stale-warning a:focus-visible {
+  outline: .15rem solid var(--md-accent-fg-color);
+  outline-offset: .15rem;
+}

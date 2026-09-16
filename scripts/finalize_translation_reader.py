@@ -369,15 +369,71 @@ def load_pairs(path: Path) -> list[dict[str, Any]]:
     return result
 
 
+# Presentation strings belong to Site. Provider translation prose and reviewed
+# source identities are never modified or inspected here.
+STALE_TEXT = {
+    'en': ('Reference translation may be outdated',
+           'This is a non-authoritative reference translation. The English canonical source has changed since this translation was last reviewed, so this translation may be outdated.',
+           'Read the current authoritative English page'),
+    'ja': ('参考訳が古くなっている可能性があります',
+           'このページは非正本の参考訳です。この翻訳が最後に確認された後に英語正本が変更されたため、内容が古くなっている可能性があります。',
+           '現在の正本である英語ページを読む'),
+}
+
+
+def reader_statuses(paths, pairs):
+    """Project supplied availability, without calculating provider freshness."""
+    statuses = {}
+    for path in paths:
+        data = read_json(path)
+        if data.get('schema_version') != 1 or data.get('canonical_language') != 'en' or data.get('surface') != 'reader' or not isinstance(data.get('records'), list):
+            raise TranslationReaderError('invalid Integration translation availability')
+        for record in data['records']:
+            if not isinstance(record, dict):raise TranslationReaderError('invalid availability record')
+            publication, language = record.get('publication'), record.get('language')
+            if not isinstance(publication,str) or not PUBLICATION_NAME.fullmatch(publication) or not isinstance(language,str) or not LANGUAGE_TAG.fullmatch(language) or language.split('-')[0]=='en':
+                raise TranslationReaderError('invalid availability authority/language')
+            canonical = safe_markdown_destination(record.get('canonical_destination'),'availability destination')
+            key=(publication,canonical,language)
+            if key in statuses:raise TranslationReaderError('duplicate availability record')
+            if record.get('status') not in ('current','stale','missing'):raise TranslationReaderError('invalid translation availability status')
+            statuses[key]=record['status']
+    # Site-owned untranslated/stale slots retain their existing publication policy.
+    # Every available provider derivative, including stale, must be present.
+    available={(p['publication'],p['canonical'],p['language']) for p in pairs}
+    if available != {key for key,status in statuses.items() if status=='current' or (status=='stale' and key[0]!='site')}:
+        raise TranslationReaderError('translation publication differs from supplied availability')
+    return statuses
+
+
+def inject_stale_warning(source, markup, path):
+    marker='class="translation-stale-warning"'
+    if marker in source:raise TranslationReaderError(f'{path}: stale warning already exists')
+    heading=H1_CLOSE_PATTERN.search(source)
+    if heading is None:raise TranslationReaderError(f'{path}: missing reader heading')
+    return source[:heading.end()]+markup+source[heading.end():]
+
+
+def stale_warning(language, canonical_url):
+    message_language = 'ja' if language.split('-')[0]=='ja' else 'en'
+    title, message, link = STALE_TEXT[message_language]
+    return ('<aside class="translation-stale-warning" role="note" '
+            'aria-labelledby="translation-stale-title" data-translation-status="stale" '
+            f'lang="{message_language}"><p id="translation-stale-title"><strong>{html.escape(title)}</strong></p>'
+            f'<p>{html.escape(message)}</p><p><a href="{html.escape(canonical_url,quote=True)}" hreflang="en">{html.escape(link)}</a></p></aside>')
+
+
 def finalize(
     site_root: Path,
     map_path: Path,
     canonical_base: str,
     chrome_path: Path = SITE_CHROME_LOCALES,
+    availability_paths: tuple[Path, ...] = (),
 ) -> tuple[int, int]:
     canonical_base = validate_canonical_url(canonical_base)
     site_root = site_root.resolve(strict=True)
     pairs = load_pairs(map_path)
+    statuses = reader_statuses(availability_paths, pairs)
     chrome = load_site_chrome_locales(chrome_path)
     canonical_language = chrome["canonical_language"]
 
@@ -491,6 +547,9 @@ def finalize(
                 ),
                 translation_path,
             )
+            state=statuses[(publication,pair['canonical'],pair['language'])]
+            if state=='stale':
+                translation_source=inject_stale_warning(translation_source,stale_warning(pair['language'],canonical_url),translation_path)
             updates[translation_path] = translation_source
 
     from audience_presentation import finalize_presentation
@@ -505,6 +564,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--site-root", required=True, type=Path)
     parser.add_argument("--translation-map", required=True, type=Path)
     parser.add_argument("--canonical-url", required=True)
+    parser.add_argument("--availability", action="append", type=Path, required=True)
     parser.add_argument(
         "--site-chrome-locales",
         type=Path,
@@ -521,6 +581,7 @@ def main() -> int:
             args.translation_map,
             args.canonical_url,
             args.site_chrome_locales,
+            tuple(args.availability),
         )
     except (
         OSError,
