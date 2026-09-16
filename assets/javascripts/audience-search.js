@@ -165,6 +165,17 @@
   }
   window.TemplatesAudienceSearch = {discover};
   function start() {
+    // Zensical's native Enter handler is registered on window. In filtered mode,
+    // let composing keys reach document (and keep their browser/IME default), then
+    // stop propagation before the native window handler can treat Enter as navigation.
+    document.addEventListener("keydown", event => {
+      if (!event.isComposing || !["ArrowDown","ArrowUp","Enter"].includes(event.key)) return;
+      const path = event.composedPath();
+      const root = path.find(node => node instanceof ShadowRoot);
+      const state = root && states.get(root);
+      if (!state || state.select.value === "all" || !path.includes(state.input)) return;
+      event.stopPropagation();
+    });
     window.TemplatesAudienceContext.loadRuntimeMap().then(value => {model=value;discover();}).catch(() => {});
     new MutationObserver(discover).observe(document.body, {childList:true});
     window.addEventListener("templates:audience-changed", () => {
