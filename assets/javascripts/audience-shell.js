@@ -35,15 +35,62 @@
     if (nav.dataset.audienceOriginalLabelPresent === "true") nav.setAttribute("aria-label", nav.dataset.audienceOriginalLabel);
     else nav.removeAttribute("aria-label");
   }
-  async function loadNativeNavigation(pathname) {
-    if (!nativeNavigation.has(pathname)) {
-      nativeNavigation.set(pathname, fetch(pathname, { credentials: "same-origin" }).then(async response => {
-        if (!response.ok) throw new Error(`Native navigation unavailable: ${response.status}`);
-        const parsed = new DOMParser().parseFromString(await response.text(), "text/html");
-        return [...parsed.querySelectorAll("nav.md-nav--primary")].map(snapshotNavigation);
-      }));
+  async function loadNativeNavigation(target) {
+    const url = new URL(target, location.href);
+    url.hash = "";
+    const key = url.pathname + url.search;
+    if (!nativeNavigation.has(key)) {
+      const pending = new Promise((resolve, reject) => {
+        const frame = document.createElement("iframe");
+        frame.setAttribute("aria-hidden", "true");
+        frame.tabIndex = -1;
+        frame.style.cssText = "position:fixed;width:1px;height:1px;border:0;opacity:0;pointer-events:none;";
+        let timer;
+        const cleanup = () => {
+          clearTimeout(timer);
+          frame.remove();
+        };
+        const fail = error => {
+          cleanup();
+          reject(error instanceof Error ? error : new Error(String(error)));
+        };
+        timer = setTimeout(() => fail(new Error("Native navigation runtime snapshot timed out")), 5000);
+        frame.addEventListener("error", () => fail(new Error("Native navigation target failed to load")), {once:true});
+        frame.addEventListener("load", () => {
+          const win = frame.contentWindow;
+          const doc = frame.contentDocument;
+          if (!win || !doc) {
+            fail(new Error("Native navigation target is not same-origin"));
+            return;
+          }
+          const capture = () => {
+            if (!doc.documentElement.dataset.audience) {
+              win.requestAnimationFrame(capture);
+              return;
+            }
+            win.requestAnimationFrame(() => win.requestAnimationFrame(() => {
+              try {
+                const navs = [...doc.querySelectorAll("nav.md-nav--primary")];
+                if (!navs.length) throw new Error("Native navigation target has no primary navigation");
+                const snapshots = navs.map(snapshotNavigation);
+                cleanup();
+                resolve(snapshots);
+              } catch (error) {
+                fail(error);
+              }
+            }));
+          };
+          capture();
+        }, {once:true});
+        frame.src = key;
+        (document.body || document.documentElement).append(frame);
+      }).catch(error => {
+        nativeNavigation.delete(key);
+        throw error;
+      });
+      nativeNavigation.set(key, pending);
     }
-    return nativeNavigation.get(pathname);
+    return nativeNavigation.get(key);
   }
   let generation = 0;
   async function render() {
@@ -127,14 +174,14 @@
     const primaryNavigation = [...document.querySelectorAll("nav.md-nav--primary")];
     let neutralNavigation = null;
     if (!tree && primaryNavigation.some(nav => nav.querySelector(":scope > .audience-navigation"))) {
-      try { neutralNavigation = await loadNativeNavigation(location.pathname); } catch { /* Fall back to the last known native snapshot. */ }
+      try { neutralNavigation = await loadNativeNavigation(location.href); } catch { /* Fall back to the last known native snapshot. */ }
       if (turn !== generation) return;
     }
     for (const [index, nav] of primaryNavigation.entries()) {
       // Replace only the Site navigation projection; provider index content stays intact.
-      // Zensical instant navigation doesn't replace the primary navigation node. When
-      // arriving at a neutral target while an audience projection is mounted, restore
-      // the target document's native navigation fetched from that same-origin route.
+      // Zensical instant navigation keeps this nav node mounted. When a neutral target
+      // arrives while our projection is present, snapshot that target in a same-origin
+      // runtime frame so restoration matches the target page's initialized native nav.
       if (!nav.querySelector(":scope > .audience-navigation")) rememberNavigation(nav);
       if (!tree) {
         if (neutralNavigation?.[index]) rememberNavigation(nav, neutralNavigation[index]);
