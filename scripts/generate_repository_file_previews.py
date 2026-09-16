@@ -41,160 +41,38 @@ except ModuleNotFoundError:
     )
 
 
-MAX_PREVIEW_BYTES = 256 * 1024
-MAX_CANDIDATE_BYTES = 32 * 1024 * 1024
-MAX_TOTAL_PREVIEW_BYTES = 16 * 1024 * 1024
+from publication_bundle.repository import (
+    MAX_PREVIEW_BYTES,
+    MAX_CANDIDATE_BYTES,
+    MAX_TOTAL_PREVIEW_BYTES,
+    BIDIRECTIONAL_CONTROLS,
+    RepositoryFilePreviewError,
+    PreviewRecord,
+    decode_preview_text,
+    preview_relative_url,
+)
 TREE_CONTAINER = '<div class="repository-tree">'
 PREVIEW_ROOT = Path("repository-trees/previews")
-BIDIRECTIONAL_CONTROLS = frozenset(
-    {
-        "\u061c",
-        "\u200e",
-        "\u200f",
-        "\u202a",
-        "\u202b",
-        "\u202c",
-        "\u202d",
-        "\u202e",
-        "\u2066",
-        "\u2067",
-        "\u2068",
-        "\u2069",
-    }
+
+
+
+
+
+
+from integration.repository import (
+    run_git_batch,
+    object_sizes,
+    object_contents,
+    build_preview_records,
 )
 
 
-class RepositoryFilePreviewError(RuntimeError):
-    """Raised when immutable inline previews cannot be generated safely."""
 
 
-@dataclass(frozen=True)
-class PreviewRecord:
-    path: bytes
-    object_id: str
-    text: str
-    relative_url: str
-    source_url: str
 
 
-def run_git_batch(root: Path, mode: str, object_ids: Iterable[str]) -> bytes:
-    identifiers = tuple(dict.fromkeys(object_ids))
-    if not identifiers:
-        return b""
-    payload = b"".join(
-        identifier.encode("ascii") + b"\n" for identifier in identifiers
-    )
-    try:
-        process = subprocess.run(
-            ["git", "-C", str(root), "cat-file", mode],
-            input=payload,
-            check=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
-    except (OSError, subprocess.CalledProcessError) as exc:
-        detail = ""
-        if isinstance(exc, subprocess.CalledProcessError):
-            detail = exc.stderr.decode("utf-8", errors="replace").strip()
-        suffix = f": {detail}" if detail else ""
-        raise RepositoryFilePreviewError(
-            f"unable to inspect Git objects in {root}{suffix}"
-        ) from exc
-    return process.stdout
 
 
-def object_sizes(root: Path, object_ids: Iterable[str]) -> dict[str, int]:
-    identifiers = tuple(dict.fromkeys(object_ids))
-    raw = run_git_batch(root, "--batch-check", identifiers)
-    lines = raw.splitlines()
-    if len(lines) != len(identifiers):
-        raise RepositoryFilePreviewError(
-            "git cat-file --batch-check returned an unexpected record count"
-        )
-    result: dict[str, int] = {}
-    for expected, line in zip(identifiers, lines, strict=True):
-        try:
-            object_id, kind, raw_size = line.decode("ascii").split(" ")
-            size = int(raw_size)
-        except (UnicodeDecodeError, ValueError) as exc:
-            raise RepositoryFilePreviewError(
-                "git cat-file --batch-check returned malformed output"
-            ) from exc
-        if object_id != expected or kind != "blob" or size < 0:
-            raise RepositoryFilePreviewError(
-                f"expected immutable blob {expected}, received {line!r}"
-            )
-        result[object_id] = size
-    return result
-
-
-def object_contents(root: Path, object_ids: Iterable[str]) -> dict[str, bytes]:
-    identifiers = tuple(dict.fromkeys(object_ids))
-    raw = run_git_batch(root, "--batch", identifiers)
-    result: dict[str, bytes] = {}
-    offset = 0
-    for expected in identifiers:
-        line_end = raw.find(b"\n", offset)
-        if line_end < 0:
-            raise RepositoryFilePreviewError(
-                "git cat-file --batch omitted an object header"
-            )
-        header = raw[offset:line_end]
-        offset = line_end + 1
-        try:
-            object_id, kind, raw_size = header.decode("ascii").split(" ")
-            size = int(raw_size)
-        except (UnicodeDecodeError, ValueError) as exc:
-            raise RepositoryFilePreviewError(
-                "git cat-file --batch returned malformed output"
-            ) from exc
-        if object_id != expected or kind != "blob" or size < 0:
-            raise RepositoryFilePreviewError(
-                f"expected immutable blob {expected}, received {header!r}"
-            )
-        end = offset + size
-        if end >= len(raw) or raw[end : end + 1] != b"\n":
-            raise RepositoryFilePreviewError(
-                "git cat-file --batch returned truncated blob data"
-            )
-        result[object_id] = raw[offset:end]
-        offset = end + 1
-    if offset != len(raw):
-        raise RepositoryFilePreviewError(
-            "git cat-file --batch returned trailing data"
-        )
-    return result
-
-
-def decode_preview_text(content: bytes) -> str | None:
-    if len(content) > MAX_PREVIEW_BYTES or b"\0" in content:
-        return None
-    try:
-        text = content.decode("utf-8")
-    except UnicodeDecodeError:
-        return None
-    for character in text:
-        value = ord(character)
-        if (
-            (value < 32 and character not in "\t\n\f\r")
-            or value == 127
-            or character in BIDIRECTIONAL_CONTROLS
-        ):
-            return None
-    return text
-
-
-def preview_relative_url(publication: str, revision: str, path: bytes) -> str:
-    digest = hashlib.sha256(
-        publication.encode("ascii")
-        + b"\0"
-        + revision.encode("ascii")
-        + b"\0"
-        + path
-    ).hexdigest()
-    return (
-        f"{PREVIEW_ROOT.as_posix()}/{publication}/{revision}/{digest}.html"
-    )
 
 
 def render_preview_page(
@@ -241,61 +119,6 @@ code {{ font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", 
 """
 
 
-def build_preview_records(
-    publication: str,
-    repository: str,
-    revision: str,
-    root: Path,
-) -> list[PreviewRecord]:
-    entries = [
-        entry
-        for entry in read_entries(root)
-        if entry_label(entry) == "file" and FULL_SHA.fullmatch(entry.object_id)
-    ]
-    sizes = object_sizes(root, (entry.object_id for entry in entries))
-    candidates = [
-        entry
-        for entry in entries
-        if sizes[entry.object_id] <= MAX_PREVIEW_BYTES
-    ]
-    candidate_bytes = sum(sizes[entry.object_id] for entry in candidates)
-    if candidate_bytes > MAX_CANDIDATE_BYTES:
-        raise RepositoryFilePreviewError(
-            f"{publication} inline-preview candidates exceed "
-            f"{MAX_CANDIDATE_BYTES} bytes"
-        )
-    contents = object_contents(root, (entry.object_id for entry in candidates))
-    records: list[PreviewRecord] = []
-    total = 0
-    for entry in sorted(candidates, key=lambda value: value.path):
-        text = decode_preview_text(contents[entry.object_id])
-        if text is None:
-            continue
-        total += len(contents[entry.object_id])
-        if total > MAX_TOTAL_PREVIEW_BYTES:
-            raise RepositoryFilePreviewError(
-                f"{publication} inline-preview text exceeds "
-                f"{MAX_TOTAL_PREVIEW_BYTES} bytes"
-            )
-        records.append(
-            PreviewRecord(
-                path=entry.path,
-                object_id=entry.object_id,
-                text=text,
-                relative_url=preview_relative_url(
-                    publication,
-                    revision,
-                    entry.path,
-                ),
-                source_url=github_url(
-                    repository,
-                    revision,
-                    "blob",
-                    entry.path,
-                ),
-            )
-        )
-    return records
 
 
 def viewer_panel(publication: str, repository: str, revision: str) -> str:

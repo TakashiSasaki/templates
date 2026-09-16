@@ -21,53 +21,14 @@ from scripts.assemble_publications import (
 
 OUTPUT_MARKER = ".repository-tree-publication-root"
 OUTPUT_MARKER_CONTENT = "managed by scripts/prepare_repository_tree_publication.py\n"
-TREE_DOCUMENTS = (
-    {
-        "id": "repository-trees",
-        "source": "docs/repository-trees/overview.md",
-        "optional": False,
-        "home": False,
-    },
-    {
-        "id": "repository-tree-composition",
-        "source": "docs/repository-trees/composition.md",
-        "optional": False,
-        "home": False,
-    },
-    {
-        "id": "repository-tree-policy",
-        "source": "docs/repository-trees/policy.md",
-        "optional": False,
-        "home": False,
-    },
+from integration.publication_model import (
+    TREE_DOCUMENTS,
+    TREE_NAVIGATION,
+    PreparationError,
+    augment_manifest,
 )
-TREE_NAVIGATION = {
-    "title": "Repository trees",
-    "children": [
-        {
-            "title": "Overview",
-            "publication": "site",
-            "document": "repository-trees",
-            "destination": "repository-trees/index.md",
-        },
-        {
-            "title": "Composition tree",
-            "publication": "site",
-            "document": "repository-tree-composition",
-            "destination": "repository-trees/composition.md",
-        },
-        {
-            "title": "Policy tree",
-            "publication": "site",
-            "document": "repository-tree-policy",
-            "destination": "repository-trees/policy.md",
-        },
-    ],
-}
 
 
-class PreparationError(RuntimeError):
-    """Raised when generated Site publication cannot be prepared safely."""
 
 
 def read_json(path: Path, label: str) -> dict[str, Any]:
@@ -240,30 +201,6 @@ def augment_catalog(
     return result
 
 
-def augment_manifest(manifest: dict[str, Any]) -> dict[str, Any]:
-    try:
-        validated = parse_manifest(manifest)
-    except AssemblyError as exc:
-        raise PreparationError(str(exc)) from exc
-    if validated.schema_version == 3:
-        return dict(manifest)
-
-    navigation = manifest["navigation"]
-    if any(
-        isinstance(node, dict) and node.get("title") == TREE_NAVIGATION["title"]
-        for node in navigation
-    ):
-        raise PreparationError(
-            "base site manifest must not predeclare generated repository trees"
-        )
-
-    result = dict(manifest)
-    result["navigation"] = [
-        navigation[0],
-        json.loads(json.dumps(TREE_NAVIGATION)),
-        *navigation[1:],
-    ]
-    return result
 
 
 def prepare(site_root: Path, output_root: Path) -> list[str]:
