@@ -122,3 +122,24 @@ class BundleReviewInvariants(unittest.TestCase):
         model=self.read('provider-repositories.json')['composition'];add_source(model,'file',b'abc')
         with patch('publication_bundle.source_models.MAX_TOTAL_PREVIEW_BYTES',2),self.assertRaises(BundleError):validate_sources('composition',model,REPOSITORY)
         with patch('publication_bundle.source_models.MAX_CANDIDATE_BYTES',2,create=True),self.assertRaises(BundleError):validate_sources('composition',model,REPOSITORY)
+
+    def test_all_graph_diagnostic_collections_match_shared_derivation(self):
+        from publication_bundle.graph import graph_diagnostics
+        for mutation in ('valid','cycle_edges','multiple_parent_indexes','missing','extra'):
+            with self.subTest(mutation=mutation),self.fresh_bundle():
+                graph=self.read('guided-navigation.json');provider=graph['providers'][0]
+                provider['indexes'].append({**provider['indexes'][0],'path':'docs/child/index.md','depth':1})
+                def edge(source,target):
+                    return dict(source=source,target=target,kind='index',section=None,fragment=None,label='Link',description='',line=1,raw_target=target)
+                provider['edges']=[edge('docs/index.md','docs/child/index.md'),edge('docs/child/index.md','docs/index.md'),edge('docs/child/index.md','docs/child/index.md')]
+                expected=graph_diagnostics(provider['indexes'],provider['edges'])
+                self.assertEqual(expected['multiple_parent_indexes'],['docs/child/index.md'])
+                self.assertEqual(expected['cycle_edges'],[{'source':'docs/child/index.md','target':'docs/index.md'},{'source':'docs/child/index.md','target':'docs/child/index.md'}])
+                provider['diagnostics']=expected
+                if mutation in ('cycle_edges','multiple_parent_indexes'):provider['diagnostics'][mutation]=[]
+                elif mutation=='missing':del provider['diagnostics']['cycle_edges']
+                elif mutation=='extra':provider['diagnostics']['invented']=[]
+                self.write('guided-navigation.json',graph)
+                if mutation=='valid':finish(self.root)
+                else:
+                    with self.assertRaisesRegex(BundleError,'diagnostics'):finish(self.root)

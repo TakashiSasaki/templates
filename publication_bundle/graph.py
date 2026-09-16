@@ -240,13 +240,62 @@ def validate_provider_graph(provider: dict[str, Any], *, provider_order=PROVIDER
                 f"{name} index edge targets a non-rendered index: {target}"
             )
 
-    expected_diagnostics = {
-        "index_count": len(indexes),
-        "edge_count": len(edges),
-        "max_index_depth": max(index["depth"] for index in indexes),
-    }
+    expected_diagnostics = graph_diagnostics(indexes, edges)
+    if set(diagnostics) != set(expected_diagnostics):
+        raise IndexNavigationViewerError(f"{name} diagnostics fields do not match producer contract")
     for field, expected in expected_diagnostics.items():
         if diagnostics[field] != expected:
             raise IndexNavigationViewerError(
                 f"{name} diagnostics {field} does not match graph contents"
             )
+
+
+def find_cycle_edges(
+    adjacency: dict[str, list[str]],
+    root: str,
+) -> list[dict[str, str]]:
+    cycle_edges: list[dict[str, str]] = []
+    cycle_pairs: set[tuple[str, str]] = set()
+    visiting: set[str] = {root}
+    visited: set[str] = set()
+    stack: list[tuple[str, int]] = [(root, 0)]
+
+    while stack:
+        node, next_index = stack[-1]
+        targets = adjacency.get(node, [])
+        if next_index >= len(targets):
+            stack.pop()
+            visiting.discard(node)
+            visited.add(node)
+            continue
+        target = targets[next_index]
+        stack[-1] = (node, next_index + 1)
+        if target in visiting:
+            pair = (node, target)
+            if pair not in cycle_pairs:
+                cycle_pairs.add(pair)
+                cycle_edges.append({"source": node, "target": target})
+            continue
+        if target in visited:
+            continue
+        visiting.add(target)
+        stack.append((target, 0))
+
+    return cycle_edges
+
+
+def graph_diagnostics(indexes, edges):
+    """One deterministic diagnostic derivation for producers and consumers."""
+    adjacency = {}
+    incoming_sources = {}
+    for edge in edges:
+        if edge["kind"] == "index":
+            adjacency.setdefault(edge["source"], []).append(edge["target"])
+            incoming_sources.setdefault(edge["target"], set()).add(edge["source"])
+    return {
+        "index_count": len(indexes),
+        "edge_count": len(edges),
+        "max_index_depth": max((index["depth"] for index in indexes), default=0),
+        "cycle_edges": find_cycle_edges(adjacency, ROOT_INDEX),
+        "multiple_parent_indexes": sorted(path for path, sources in incoming_sources.items() if len(sources) > 1),
+    }

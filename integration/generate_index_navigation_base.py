@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from publication_bundle.graph import find_cycle_edges, graph_diagnostics
+
 import argparse
 import html
 import html.entities
@@ -1326,40 +1328,6 @@ def load_reachable_index(
     return object_id, parse_index(decode_index_text(content, path), path)
 
 
-def find_cycle_edges(
-    adjacency: dict[str, list[str]],
-    root: str,
-) -> list[dict[str, str]]:
-    cycle_edges: list[dict[str, str]] = []
-    cycle_pairs: set[tuple[str, str]] = set()
-    visiting: set[str] = {root}
-    visited: set[str] = set()
-    stack: list[tuple[str, int]] = [(root, 0)]
-
-    while stack:
-        node, next_index = stack[-1]
-        targets = adjacency.get(node, [])
-        if next_index >= len(targets):
-            stack.pop()
-            visiting.discard(node)
-            visited.add(node)
-            continue
-        target = targets[next_index]
-        stack[-1] = (node, next_index + 1)
-        if target in visiting:
-            pair = (node, target)
-            if pair not in cycle_pairs:
-                cycle_pairs.add(pair)
-                cycle_edges.append({"source": node, "target": target})
-            continue
-        if target in visited:
-            continue
-        visiting.add(target)
-        stack.append((target, 0))
-
-    return cycle_edges
-
-
 def read_entries_at_revision(root: Path, revision: str):
     """Read the provider tree at the exact SHA already recorded for provenance."""
     return parse_ls_tree(
@@ -1401,7 +1369,6 @@ def collect_provider_graph(provider: str, root: Path) -> dict[str, object]:
     indexes: list[dict[str, object]] = []
     edges: list[dict[str, object]] = []
     depths: dict[str, int] = {ROOT_INDEX: 0}
-    incoming_sources: dict[str, set[str]] = {}
 
     while queue:
         path, depth = queue.popleft()
@@ -1436,7 +1403,6 @@ def collect_provider_graph(provider: str, root: Path) -> dict[str, object]:
             edges.append(edge)
             if resolved["kind"] == "index":
                 target_path = str(resolved["target"])
-                incoming_sources.setdefault(target_path, set()).add(path)
                 candidate_depth = depth + 1
                 previous = depths.get(target_path)
                 if previous is None or candidate_depth < previous:
@@ -1445,13 +1411,6 @@ def collect_provider_graph(provider: str, root: Path) -> dict[str, object]:
                     queue.append((target_path, depths[target_path]))
                     queued.add(target_path)
 
-    adjacency: dict[str, list[str]] = {}
-    for edge in edges:
-        if edge["kind"] == "index":
-            adjacency.setdefault(str(edge["source"]), []).append(str(edge["target"]))
-
-    cycle_edges = find_cycle_edges(adjacency, ROOT_INDEX)
-    max_depth = max((int(index["depth"]) for index in indexes), default=0)
     return {
         "name": provider,
         "revision": revision,
@@ -1461,15 +1420,7 @@ def collect_provider_graph(provider: str, root: Path) -> dict[str, object]:
             key=lambda value: (int(value["depth"]), str(value["path"])),
         ),
         "edges": edges,
-        "diagnostics": {
-            "index_count": len(indexes),
-            "edge_count": len(edges),
-            "max_index_depth": max_depth,
-            "cycle_edges": cycle_edges,
-            "multiple_parent_indexes": sorted(
-                path for path, sources in incoming_sources.items() if len(sources) > 1
-            ),
-        },
+        "diagnostics": graph_diagnostics(indexes, edges),
     }
 
 
