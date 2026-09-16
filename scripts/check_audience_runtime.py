@@ -133,6 +133,7 @@ def check(
                 const nav = document.querySelector('nav.md-nav--primary');
                 return nav?.dataset.readerNavigationLanguage === 'ja' && nav?.dataset.readerNavigationReady === '/ja/';
             }""")
+            native_page.evaluate("() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))")
             native_primary_nav = native_page.locator('nav.md-nav--primary').first
             native_ja_nav = {
                 'html': native_primary_nav.evaluate('nav => nav.innerHTML'),
