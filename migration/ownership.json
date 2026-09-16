@@ -97,7 +97,7 @@
     },
     {
       "path": ".github/workflows/validate-website.yml",
-      "intended_owner": "ambiguous / requires architectural decision"
+      "intended_owner": "Composition-owned managed semantics / Site consumer projection"
     },
     {
       "path": ".gitignore",
@@ -389,19 +389,19 @@
     },
     {
       "path": "docs/architecture/composition-state.md",
-      "intended_owner": "ambiguous / requires architectural decision"
+      "intended_owner": "Composition-owned managed semantics / Site consumer projection"
     },
     {
       "path": "docs/architecture/contract-evolution.md",
-      "intended_owner": "ambiguous / requires architectural decision"
+      "intended_owner": "Composition-owned managed semantics / Site consumer projection"
     },
     {
       "path": "docs/architecture/implementation-evidence.md",
-      "intended_owner": "ambiguous / requires architectural decision"
+      "intended_owner": "Composition-owned managed semantics / Site consumer projection"
     },
     {
       "path": "docs/architecture/lifecycle-checkpoints.md",
-      "intended_owner": "ambiguous / requires architectural decision"
+      "intended_owner": "Composition-owned managed semantics / Site consumer projection"
     },
     {
       "path": "docs/architecture/repository-topology.md",
@@ -445,47 +445,47 @@
     },
     {
       "path": "docs/migrations/implementation-evidence-v1-to-v2.md",
-      "intended_owner": "ambiguous / requires architectural decision"
+      "intended_owner": "Composition-owned managed semantics / Site consumer projection"
     },
     {
       "path": "docs/migrations/implementation-evidence-v2-to-v3.md",
-      "intended_owner": "ambiguous / requires architectural decision"
+      "intended_owner": "Composition-owned managed semantics / Site consumer projection"
     },
     {
       "path": "docs/migrations/implementation-evidence-v3-to-v4.md",
-      "intended_owner": "ambiguous / requires architectural decision"
+      "intended_owner": "Composition-owned managed semantics / Site consumer projection"
     },
     {
       "path": "docs/migrations/implementation-evidence-v4-to-v5.md",
-      "intended_owner": "ambiguous / requires architectural decision"
+      "intended_owner": "Composition-owned managed semantics / Site consumer projection"
     },
     {
       "path": "docs/migrations/implementation-evidence-v5-to-v6.md",
-      "intended_owner": "ambiguous / requires architectural decision"
+      "intended_owner": "Composition-owned managed semantics / Site consumer projection"
     },
     {
       "path": "docs/migrations/pwa-offline-v1-to-v2.md",
-      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+      "intended_owner": "Composition-owned managed semantics / Site consumer projection"
     },
     {
       "path": "docs/migrations/pwa-update-v1-to-v2.md",
-      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+      "intended_owner": "Composition-owned managed semantics / Site consumer projection"
     },
     {
       "path": "docs/migrations/routes-v1-to-v2.md",
-      "intended_owner": "ambiguous / requires architectural decision"
+      "intended_owner": "Composition-owned managed semantics / Site consumer projection"
     },
     {
       "path": "docs/migrations/routes-v2-to-v3.md",
-      "intended_owner": "ambiguous / requires architectural decision"
+      "intended_owner": "Composition-owned managed semantics / Site consumer projection"
     },
     {
       "path": "docs/migrations/routes-v3-to-v4.md",
-      "intended_owner": "ambiguous / requires architectural decision"
+      "intended_owner": "Composition-owned managed semantics / Site consumer projection"
     },
     {
       "path": "docs/migrations/routes-v4-to-v5.md",
-      "intended_owner": "ambiguous / requires architectural decision"
+      "intended_owner": "Composition-owned managed semantics / Site consumer projection"
     },
     {
       "path": "docs/policy-composition-coexistence.md",
@@ -513,7 +513,7 @@
     },
     {
       "path": "docs/url-path-design-guidance.md",
-      "intended_owner": "ambiguous / requires architectural decision"
+      "intended_owner": "Composition-owned managed semantics / Site consumer projection"
     },
     {
       "path": "docs/webmcp.md",
@@ -553,51 +553,51 @@
     },
     {
       "path": "schemas/browser-identity.schema.json",
-      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+      "intended_owner": "Composition-owned managed semantics / Site consumer projection"
     },
     {
       "path": "schemas/contract-manifest.schema.json",
-      "intended_owner": "future Site presentation/runtime-owned"
+      "intended_owner": "Composition-owned managed semantics / Site consumer projection"
     },
     {
       "path": "schemas/document-metadata.schema.json",
-      "intended_owner": "future Site presentation/runtime-owned"
+      "intended_owner": "Composition-owned managed semantics / Site consumer projection"
     },
     {
       "path": "schemas/implementation-evidence.schema.json",
-      "intended_owner": "future Site presentation/runtime-owned"
+      "intended_owner": "Composition-owned managed semantics / Site consumer projection"
     },
     {
       "path": "schemas/lifecycle-checkpoints.schema.json",
-      "intended_owner": "future Site presentation/runtime-owned"
+      "intended_owner": "Composition-owned managed semantics / Site consumer projection"
     },
     {
       "path": "schemas/pwa-manifest.schema.json",
-      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+      "intended_owner": "Composition-owned managed semantics / Site consumer projection"
     },
     {
       "path": "schemas/pwa-offline.schema.json",
-      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+      "intended_owner": "Composition-owned managed semantics / Site consumer projection"
     },
     {
       "path": "schemas/pwa-update.schema.json",
-      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+      "intended_owner": "Composition-owned managed semantics / Site consumer projection"
     },
     {
       "path": "schemas/routes.schema.json",
-      "intended_owner": "future Site presentation/runtime-owned"
+      "intended_owner": "Composition-owned managed semantics / Site consumer projection"
     },
     {
       "path": "schemas/site-discovery.schema.json",
-      "intended_owner": "future Site presentation/runtime-owned"
+      "intended_owner": "Composition-owned managed semantics / Site consumer projection"
     },
     {
       "path": "schemas/site-structure.schema.json",
-      "intended_owner": "future Site presentation/runtime-owned"
+      "intended_owner": "Composition-owned managed semantics / Site consumer projection"
     },
     {
       "path": "schemas/viewports.schema.json",
-      "intended_owner": "future Site presentation/runtime-owned"
+      "intended_owner": "Composition-owned managed semantics / Site consumer projection"
     },
     {
       "path": "scripts/advance_publication_source.py",
@@ -869,7 +869,7 @@
     },
     {
       "path": "scripts/pwa_evidence_targets.py",
-      "intended_owner": "future Site presentation/runtime-owned (split provider reads if mixed)"
+      "intended_owner": "Composition-owned managed semantics / Site consumer projection"
     },
     {
       "path": "scripts/pwa_failure_evidence.py",
@@ -969,11 +969,11 @@
     },
     {
       "path": "scripts/validate_website_contracts.py",
-      "intended_owner": "ambiguous / requires architectural decision"
+      "intended_owner": "Composition-owned managed semantics / Site consumer projection"
     },
     {
       "path": "scripts/validate_website_evidence.py",
-      "intended_owner": "ambiguous / requires architectural decision"
+      "intended_owner": "Composition-owned managed semantics / Site consumer projection"
     },
     {
       "path": "scripts/verify_site_full_qualification.py",
@@ -981,7 +981,7 @@
     },
     {
       "path": "scripts/website_evidence_targets.py",
-      "intended_owner": "ambiguous / requires architectural decision"
+      "intended_owner": "Composition-owned managed semantics / Site consumer projection"
     },
     {
       "path": "scripts/write_publication_provenance.py",
@@ -2025,39 +2025,39 @@
     },
     {
       "path": ".template-composition/checkpoint.py",
-      "intended_owner": "Composition-owned semantics / Site consumer toolchain, configuration and projection"
+      "intended_owner": "Composition-owned managed semantics / Site consumer projection"
     },
     {
       "path": ".template-composition/composition-lock.schema.json",
-      "intended_owner": "Composition-owned semantics / Site consumer toolchain, configuration and projection"
+      "intended_owner": "Composition-owned managed semantics / Site consumer projection"
     },
     {
       "path": ".template-composition/implementation-evidence-actions.json",
-      "intended_owner": "Composition-owned semantics / Site consumer toolchain, configuration and projection"
+      "intended_owner": "Composition-owned managed semantics / Site consumer projection"
     },
     {
       "path": ".template-composition/implementation-evidence-actions.schema.json",
-      "intended_owner": "Composition-owned semantics / Site consumer toolchain, configuration and projection"
+      "intended_owner": "Composition-owned managed semantics / Site consumer projection"
     },
     {
       "path": ".template-composition/implementation-evidence-release-readiness.schema.json",
-      "intended_owner": "Composition-owned semantics / Site consumer toolchain, configuration and projection"
+      "intended_owner": "Composition-owned managed semantics / Site consumer projection"
     },
     {
       "path": ".template-composition/lifecycle-checkpoint-action-result.schema.json",
-      "intended_owner": "Composition-owned semantics / Site consumer toolchain, configuration and projection"
+      "intended_owner": "Composition-owned managed semantics / Site consumer projection"
     },
     {
       "path": ".template-composition/lifecycle-checkpoint-actions.json",
-      "intended_owner": "Composition-owned semantics / Site consumer toolchain, configuration and projection"
+      "intended_owner": "Composition-owned managed semantics / Site consumer projection"
     },
     {
       "path": ".template-composition/lifecycle-checkpoint-actions.schema.json",
-      "intended_owner": "Composition-owned semantics / Site consumer toolchain, configuration and projection"
+      "intended_owner": "Composition-owned managed semantics / Site consumer projection"
     },
     {
       "path": ".template-composition/lifecycle-next-actions.schema.json",
-      "intended_owner": "Composition-owned semantics / Site consumer toolchain, configuration and projection"
+      "intended_owner": "Composition-owned managed semantics / Site consumer projection"
     },
     {
       "path": ".template-composition/lock.json",
@@ -2065,51 +2065,51 @@
     },
     {
       "path": ".template-composition/requirements-validation.lock",
-      "intended_owner": "Composition-owned semantics / Site consumer toolchain, configuration and projection"
+      "intended_owner": "Composition-owned managed semantics / Site consumer projection"
     },
     {
       "path": ".template-composition/run_action.py",
-      "intended_owner": "Composition-owned semantics / Site consumer toolchain, configuration and projection"
+      "intended_owner": "Composition-owned managed semantics / Site consumer projection"
     },
     {
       "path": ".template-composition/validate.py",
-      "intended_owner": "Composition-owned semantics / Site consumer toolchain, configuration and projection"
+      "intended_owner": "Composition-owned managed semantics / Site consumer projection"
     },
     {
       "path": ".template-composition/validate_composition.py",
-      "intended_owner": "Composition-owned semantics / Site consumer toolchain, configuration and projection"
+      "intended_owner": "Composition-owned managed semantics / Site consumer projection"
     },
     {
       "path": ".template-composition/validate_impl.py",
-      "intended_owner": "Composition-owned semantics / Site consumer toolchain, configuration and projection"
+      "intended_owner": "Composition-owned managed semantics / Site consumer projection"
     },
     {
       "path": ".template-composition/validation-registry.json",
-      "intended_owner": "Composition-owned semantics / Site consumer toolchain, configuration and projection"
+      "intended_owner": "Composition-owned managed semantics / Site consumer projection"
     },
     {
       "path": ".template-composition/validators/contract_common.py",
-      "intended_owner": "Composition-owned semantics / Site consumer toolchain, configuration and projection"
+      "intended_owner": "Composition-owned managed semantics / Site consumer projection"
     },
     {
       "path": ".template-composition/validators/validate_contract_evolution.py",
-      "intended_owner": "Composition-owned semantics / Site consumer toolchain, configuration and projection"
+      "intended_owner": "Composition-owned managed semantics / Site consumer projection"
     },
     {
       "path": ".template-composition/validators/validate_implementation_evidence.py",
-      "intended_owner": "Composition-owned semantics / Site consumer toolchain, configuration and projection"
+      "intended_owner": "Composition-owned managed semantics / Site consumer projection"
     },
     {
       "path": ".template-composition/validators/validate_lifecycle_checkpoints.py",
-      "intended_owner": "Composition-owned semantics / Site consumer toolchain, configuration and projection"
+      "intended_owner": "Composition-owned managed semantics / Site consumer projection"
     },
     {
       "path": ".template-composition/validators/validate_pwa.py",
-      "intended_owner": "Composition-owned semantics / Site consumer toolchain, configuration and projection"
+      "intended_owner": "Composition-owned managed semantics / Site consumer projection"
     },
     {
       "path": ".template-composition/validators/validate_pwa_evidence.py",
-      "intended_owner": "Composition-owned semantics / Site consumer toolchain, configuration and projection"
+      "intended_owner": "Composition-owned managed semantics / Site consumer projection"
     },
     {
       "path": "artifacts/lifecycle/001-site-reference-adoption/.template-composition/lock.json",
