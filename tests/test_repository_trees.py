@@ -210,11 +210,20 @@ class RepositoryTreePreparationTests(unittest.TestCase):
                             "source": "docs/landing.md",
                             "optional": False,
                             "home": True,
+                        },
+                        {
+                            "id": "maintenance",
+                            "source": "MAINTENANCE.md",
+                            "optional": False,
+                            "home": False,
                         }
                     ],
                 }
             ),
             encoding="utf-8",
+        )
+        (root / "MAINTENANCE.md").write_text(
+            "# Site maintenance\n", encoding="utf-8"
         )
         (root / "site-manifest.json").write_text(
             json.dumps(
@@ -312,6 +321,10 @@ class RepositoryTreePreparationTests(unittest.TestCase):
             )
             prepare(site_root, output_root)
             self.assertTrue((output_root / "docs/repository-trees/composition.md").is_file())
+            self.assertEqual(
+                (output_root / "MAINTENANCE.md").read_text(encoding="utf-8"),
+                "# Site maintenance\n",
+            )
             self.assertFalse((output_root / "docs/repository-trees/skill.md").exists())
             self.assertFalse((output_root / "docs/repository-trees/webapp.md").exists())
 
