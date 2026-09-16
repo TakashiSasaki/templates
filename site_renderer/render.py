@@ -112,6 +112,12 @@ def publish_build(build, output, parent_identity, sources, site_revision, parent
         if (stat.st_dev,stat.st_ino)!=parent_identity:
             raise BundleError('render output parent changed during rendering')
         parent=Path('/proc/self/fd')/str(fd)
+        # A descriptor pins identity, not containment: reject moved parents
+        # before any staging write, including moves beneath protected inputs.
+        effective=parent.resolve(strict=True)
+        checked_output(effective/output.name,sources)
+        if effective!=output.parent or output.parent.stat().st_ino!=stat.st_ino or output.parent.stat().st_dev!=stat.st_dev:
+            raise BundleError('render output parent changed before staging')
         stage=Path(tempfile.mkdtemp(prefix='.site-publish-',dir=parent))
         shutil.copytree(build,stage,dirs_exist_ok=True)
         checked_output(output,sources)
@@ -148,7 +154,7 @@ def consume_snapshot(**inputs):
 from pathlib import Path
 from site_renderer.render import render_snapshot
 args=json.load(sys.stdin)
-for key in ('bundle','site_root','output','original_bundle'):args[key]=Path(args[key])
+for key in ('bundle','site_root','output','original_bundle','original_site'):args[key]=Path(args[key])
 args['parent_identity']=tuple(args['parent_identity'])
 render_snapshot(**args)
 """
@@ -173,12 +179,12 @@ def render(*,bundle,site_root,output,expected_identity,public_url='https://templ
         try:
             return consume_snapshot(bundle=snapshot,site_root=source,output=output,
                 identity=identity,site_revision=site_revision,parent_identity=parent_identity,
-                parent_directory=parent_directory,original_bundle=bundle,
+                parent_directory=parent_directory,original_bundle=bundle,original_site=site_root,
                 public_url=public_url,deployment_timestamp=deployment_timestamp)
         finally:os.close(parent_directory)
 
 
-def render_snapshot(*,bundle,site_root,output,identity,site_revision,parent_identity,parent_directory,original_bundle,public_url,deployment_timestamp):
+def render_snapshot(*,bundle,site_root,output,identity,site_revision,parent_identity,parent_directory,original_bundle,original_site,public_url,deployment_timestamp):
     with tempfile.TemporaryDirectory(prefix='site-render-') as temporary:
         build=Path(temporary)/'build';build.mkdir();docs=build/'docs';docs.mkdir()
         for name in identity['files']:
@@ -242,7 +248,7 @@ def render_snapshot(*,bundle,site_root,output,identity,site_revision,parent_iden
         run(site_root,'write_publication_provenance.py','--output',site/'build-provenance.json','--repository',repository,'--site-commit',site_revision,*provenance_args)
         write(site/'publication-bundle.json',{'schema_version':1,'identity':identity['identity'],'producer':identity['producer'],'providers':identity['providers']})
         run(site_root,'validate_site_links.py','--site-root',site,'--config-file',build/'zensical.toml')
-        publish_build(build,output,parent_identity,(original_bundle,site_root),site_revision,parent_directory)
+        publish_build(build,output,parent_identity,(original_bundle,site_root,original_site),site_revision,parent_directory)
     return {'site_revision':site_revision,'bundle_identity':identity['identity'],'output':str(output)}
 
 

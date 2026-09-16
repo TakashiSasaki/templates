@@ -138,3 +138,58 @@ class RendererInputTests(unittest.TestCase):
             self.assertEqual(list((self.root/'original-parent').iterdir()),[])
             self.assertEqual(list(self.output.parent.iterdir()),[])
         finally:os.close(directory)
+
+    def test_moved_parent_is_rejected_before_any_staging_write(self):
+        from site_renderer.render import prepare_output_parent
+        for source in (self.bundle,self.site):
+            with self.subTest(source=source):
+                directory,identity=prepare_output_parent(self.output,(self.bundle,self.site))
+                captured=source/'captured-parent'
+                try:
+                    self.output.parent.rename(captured)
+                    build=self.root/'build';build.mkdir(exist_ok=True)
+                    with patch('site_renderer.render.tempfile.mkdtemp') as stage, self.assertRaises(BundleError):
+                        publish_build(build,self.output,identity,(self.bundle,self.site),self.revision,directory)
+                    stage.assert_not_called();self.assertEqual(list(captured.iterdir()),[])
+                finally:
+                    captured.rename(self.output.parent);os.close(directory)
+
+    def test_real_private_subprocess_inherits_pinned_parent(self):
+        # Keep render(), consume_snapshot(), Git snapshotting and subprocess
+        # transport real. Only the committed fixture's expensive HTML builder
+        # is replaced with a small artifact publisher.
+        import site_renderer.render as module
+        origin=Path(module.__file__).resolve().parents[1]
+        for package in ('site_renderer','publication_bundle'):
+            shutil.copytree(origin/package,self.site/package,ignore=shutil.ignore_patterns('__pycache__'))
+        (self.site/'.gitignore').write_text('__pycache__/\n')
+        self.git('add','.gitignore')
+        worker=self.site/'site_renderer/render.py'
+        with worker.open('a') as stream:stream.write("""
+
+def render_snapshot(**args):
+    descriptor=args['parent_directory']
+    status=os.fstat(descriptor)
+    assert (status.st_dev,status.st_ino)==args['parent_identity']
+    with tempfile.TemporaryDirectory() as temporary:
+        build=Path(temporary);(build/'result').write_text('inherited descriptor usable')
+        try:
+            publish_build(build,args['output'],args['parent_identity'],
+                (args['original_bundle'],args['site_root'],args['original_site']),
+                args['site_revision'],descriptor)
+        except BundleError as exc:
+            assert 'parent changed' in str(exc), str(exc)
+            print('INHERITED_DESCRIPTOR_REBOUND_PARENT_REJECTED',flush=True)
+            raise
+""")
+        self.git('add','site_renderer','publication_bundle');self.git('commit','-qm','private worker fixture')
+        self.render()
+        self.assertEqual((self.output/'result').read_text(),'inherited descriptor usable')
+        shutil.rmtree(self.output)
+        consume=module.consume_snapshot
+        def replace(**args):
+            self.output.parent.rename(self.root/'original-parent');self.output.parent.mkdir()
+            return consume(**args)
+        with patch('site_renderer.render.consume_snapshot',side_effect=replace),self.assertRaises(subprocess.CalledProcessError):self.render()
+        self.assertEqual(list((self.root/'original-parent').iterdir()),[])
+        self.assertEqual(list(self.output.parent.iterdir()),[])
