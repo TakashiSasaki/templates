@@ -197,5 +197,5 @@ def validate(root, *, expected_identity=None, expected_producer=None, expected_p
         raise BundleError('invalid Bundle read model: ' + str(exc)) from exc
     from publication_bundle.translations import validate_translations
     validate_translations(root, read_json(root / 'translation-availability.json'),
-                          read_json(root / 'translation-publication.json'), providers, documents)
+                          read_json(root / 'translation-publication.json'), providers, documents, repos)
     return data

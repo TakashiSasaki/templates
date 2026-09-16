@@ -2,10 +2,17 @@
 from publication_bundle.contract import BundleError, SHA, safe_path, regular
 
 
-def validate_translations(root, coverage, publication, providers, documents):
+def validate_translations(root, coverage, publication, providers, documents, repositories):
     keys={(d['publication'],d['document']):d for d in documents if not d['slot']}
     if not isinstance(coverage,dict) or set(coverage)!={'schema_version','canonical_language','surface','languages','summary','by_language','records'} or coverage['schema_version']!=1 or coverage['canonical_language']!='en' or coverage['surface']!='reader':raise BundleError('invalid translation availability model')
     if not isinstance(coverage['languages'],list) or len(set(coverage['languages']))!=len(coverage['languages']) or not all(isinstance(x,str) and x for x in coverage['languages']) or not isinstance(coverage['records'],list):raise BundleError('invalid translation languages/records')
+    from publication_bundle.source_models import raw_path
+    sources={name:{raw_path(e['path']):e for e in model['entries'] if e['mode'] in {'100644','100755'}} for name,model in repositories.items()}
+    def source(provider,path):
+        path=safe_path(path).as_posix().encode('utf-8')
+        entry=sources.get(provider,{}).get(path)
+        if entry is None:raise BundleError('translation source missing from owning provider: '+provider+':'+path.decode())
+        return entry
     summary={'current':0,'stale':0,'missing':0};seen=set();per_language={l:dict(summary) for l in coverage['languages']}
     for r in coverage['records']:
         if not isinstance(r,dict):raise BundleError('invalid translation availability record')
@@ -15,8 +22,10 @@ def validate_translations(root, coverage, publication, providers, documents):
         key=(r['publication'],r['document']);doc=keys.get(key);identity=(*key,r['language'])
         if doc is None or r['language'] not in per_language or identity in seen or r['canonical_source']!=doc['source'] or r['canonical_destination']!=doc['destination']:raise BundleError('translation availability closure mismatch')
         seen.add(identity)
+        canonical=source(r['publication'],r['canonical_source'])
         if r['status']!='missing':
-            safe_path(r['translation_source'])
+            source(r['publication'],r['translation_source'])
+            if r['current_blob_sha']!=canonical['object_id']:raise BundleError('canonical translation identity does not match provider source')
             if any(not isinstance(r[f],str) or not SHA.fullmatch(r[f]) for f in ('canonical_blob_sha','current_blob_sha')):raise BundleError('invalid canonical translation identity')
             if (r['canonical_blob_sha']==r['current_blob_sha']) != (r['status']=='current'):raise BundleError('inconsistent translation freshness evidence')
         summary[r['status']]+=1;per_language[r['language']][r['status']]+=1

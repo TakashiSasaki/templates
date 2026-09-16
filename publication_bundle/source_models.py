@@ -3,7 +3,7 @@ import base64
 import hashlib
 from publication_bundle.contract import BundleError, SHA
 from publication_bundle.repository import (MAX_TEXT_BYTES, MAX_TOTAL_TEXT_BYTES,
-    MAX_PREVIEW_BYTES, MAX_TOTAL_PREVIEW_BYTES, decode_browser_text, decode_preview_text,
+    MAX_PREVIEW_BYTES, MAX_TOTAL_PREVIEW_BYTES, MAX_CANDIDATE_BYTES, decode_browser_text, decode_preview_text,
     preview_relative_url, viewer_relative_url, source_url, github_url)
 
 
@@ -33,6 +33,7 @@ def validate_sources(name,model,repository):
         if e['mode'] not in {'040000','100644','100755','120000','160000'} or e['kind']!={'040000':'tree','160000':'commit'}.get(e['mode'],'blob') or not isinstance(e['object_id'],str) or not SHA.fullmatch(e['object_id']):raise BundleError('invalid tree identity')
         entries[path]=e
     regular={p:e for p,e in entries.items() if e['mode'] in {'100644','100755'}}
+    expected_previews=set();candidate_bytes=0
     seen=set();total=0
     for record in model['browser']:
         if not isinstance(record,dict) or set(record)!={'path','object_id','size','viewer_url','source_url','viewable','reason','text'}:raise BundleError('invalid browser record')
@@ -41,9 +42,12 @@ def validate_sources(name,model,repository):
         seen.add(p)
         if type(record['size']) is not int or record['size']<0 or type(record['viewable']) is not bool:raise BundleError('invalid source size/status')
         if record['viewer_url']!=viewer_relative_url(name,model['revision'],p) or record['source_url']!=source_url(repository,model['revision'],p):raise BundleError('source URL identity mismatch')
+        if record['size']<=MAX_PREVIEW_BYTES:candidate_bytes+=record['size']
         if record['viewable']:
             if not isinstance(record['text'],str) or record['reason'] is not None:raise BundleError('missing viewable source text')
             raw=record['text'].encode('utf-8');total+=len(raw)
+            # Producer uses this same decoder (including the preview byte limit).
+            if decode_preview_text(raw) is not None:expected_previews.add(p)
             if len(raw)!=record['size'] or blob_sha(raw)!=record['object_id'] or decode_browser_text(raw)!=(record['text'],None):raise BundleError('source blob identity mismatch')
         elif record['text'] is not None or not isinstance(record['reason'],str) or not record['reason']:raise BundleError('invalid non-viewable record')
     if seen!=set(regular) or total>MAX_TOTAL_TEXT_BYTES:raise BundleError('incomplete/oversized browser corpus')
@@ -55,4 +59,6 @@ def validate_sources(name,model,repository):
         seen.add(p);raw=r['text'].encode('utf-8');total+=len(raw)
         if len(raw)>MAX_PREVIEW_BYTES or blob_sha(raw)!=r['object_id'] or decode_preview_text(raw)!=r['text']:raise BundleError('preview blob identity mismatch')
         if r['relative_url']!=preview_relative_url(name,model['revision'],p) or r['source_url']!=github_url(repository,model['revision'],'blob',p):raise BundleError('preview URL mismatch')
+    if seen!=expected_previews:raise BundleError('incomplete/unexpected eligible preview set')
+    if candidate_bytes>MAX_CANDIDATE_BYTES:raise BundleError('oversized preview candidates')
     if total>MAX_TOTAL_PREVIEW_BYTES:raise BundleError('oversized preview corpus')
