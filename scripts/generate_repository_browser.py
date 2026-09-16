@@ -56,8 +56,15 @@ except ModuleNotFoundError:
 
 
 BRANCH_ORDER = ("site", "composition", "policy")
-MAX_TEXT_BYTES = 1024 * 1024
-MAX_TOTAL_TEXT_BYTES = 64 * 1024 * 1024
+from publication_bundle.repository import (
+    MAX_TEXT_BYTES,
+    MAX_TOTAL_TEXT_BYTES,
+    RepositoryBrowserError,
+    FileRecord,
+    decode_browser_text,
+    source_url,
+    viewer_relative_url,
+)
 BROWSER_ROOT = Path("files")
 MANAGED_MARKER = ".repository-browser-root"
 MANAGED_MARKER_CONTENT = "managed by scripts/generate_repository_browser.py\n"
@@ -70,95 +77,19 @@ CONTROLLER_SOURCE = (
 )
 
 
-class RepositoryBrowserError(RuntimeError):
-    """Raised when the static repository browser cannot be generated safely."""
 
 
-@dataclass(frozen=True)
-class FileRecord:
-    path: bytes
-    object_id: str
-    size: int
-    viewer_url: str
-    source_url: str
-    viewable: bool
-    reason: str | None
-    text: str | None
 
 
-def decode_browser_text(content: bytes) -> tuple[str | None, str | None]:
-    if len(content) > MAX_TEXT_BYTES:
-        return None, f"larger than {MAX_TEXT_BYTES // 1024} KiB browser limit"
-    if b"\0" in content:
-        return None, "binary content (NUL byte)"
-    try:
-        text = content.decode("utf-8")
-    except UnicodeDecodeError:
-        return None, "not strict UTF-8 text"
-    for character in text:
-        value = ord(character)
-        if (
-            (value < 32 and character not in "\t\n\f\r")
-            or value == 127
-            or character in BIDIRECTIONAL_CONTROLS
-        ):
-            return None, "contains disallowed control characters"
-    return text, None
 
 
-def source_url(repository: str, revision: str, path: bytes) -> str:
-    suffix = quote_from_bytes(path, safe="/")
-    return f"https://github.com/{repository}/blob/{revision}/{suffix}"
 
 
-def viewer_relative_url(branch: str, revision: str, path: bytes) -> str:
-    digest = hashlib.sha256(
-        branch.encode("ascii") + b"\0" + revision.encode("ascii") + b"\0" + path
-    ).hexdigest()
-    return f"content/{digest}.html"
 
 
-def collect_records(
-    branch: str,
-    repository: str,
-    revision: str,
-    root: Path,
-) -> tuple[TreeEntry, dict[bytes, FileRecord]]:
-    entries = read_entries(root)
-    tree = build_tree(entries)
-    regular = [entry for entry in entries if entry_label(entry) == "file"]
-    sizes = object_sizes(root, (entry.object_id for entry in regular))
-    candidates = [
-        entry for entry in regular if sizes[entry.object_id] <= MAX_TEXT_BYTES
-    ]
-    contents = object_contents(root, (entry.object_id for entry in candidates))
-    total = sum(len(contents[entry.object_id]) for entry in candidates)
-    if total > MAX_TOTAL_TEXT_BYTES:
-        raise RepositoryBrowserError(
-            f"{branch} text candidates exceed "
-            f"{MAX_TOTAL_TEXT_BYTES // (1024 * 1024)} MiB"
-        )
-
-    records: dict[bytes, FileRecord] = {}
-    for entry in regular:
-        size = sizes[entry.object_id]
-        text: str | None = None
-        reason: str | None
-        if size > MAX_TEXT_BYTES:
-            reason = f"larger than {MAX_TEXT_BYTES // 1024} KiB browser limit"
-        else:
-            text, reason = decode_browser_text(contents[entry.object_id])
-        records[entry.path] = FileRecord(
-            path=entry.path,
-            object_id=entry.object_id,
-            size=size,
-            viewer_url=viewer_relative_url(branch, revision, entry.path),
-            source_url=source_url(repository, revision, entry.path),
-            viewable=text is not None,
-            reason=reason,
-            text=text,
-        )
-    return tree, records
+from integration.repository import (
+    collect_records,
+)
 
 
 def human_size(size: int) -> str:

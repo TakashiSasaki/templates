@@ -288,9 +288,10 @@ class PublicationContractTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             self.create_valid_root(root)
-            real_loader = assemble_publications.load_materialized_publication_catalog
+            from integration import publication_model
+            real_loader = publication_model.load_materialized_publication_catalog
             with mock.patch.object(
-                assemble_publications,
+                publication_model,
                 "load_materialized_publication_catalog",
                 wraps=real_loader,
             ) as loader:

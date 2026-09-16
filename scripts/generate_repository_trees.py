@@ -21,238 +21,65 @@ if __package__ in (None, ""):
 from scripts.assemble_publications import AssemblyError, load_manifest
 
 
-NAME = re.compile(r"\A[a-z0-9]+(?:-[a-z0-9]+)*\Z")
-FULL_SHA = re.compile(r"\A[0-9a-f]{40}\Z")
-REPOSITORY = re.compile(r"\A[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+\Z")
-INDEX_MARKER = "<!-- GENERATED_REPOSITORY_TREE_INDEX -->"
+from publication_bundle.repository import (
+    NAME,
+    FULL_SHA,
+    REPOSITORY,
+    INDEX_MARKER,
+    RepositoryTreeError,
+    TreeEntry,
+    parse_name,
+    read_json,
+    parse_ls_tree,
+    build_tree,
+    display_bytes,
+    github_url,
+    markdown_destination_url,
+    configured_base_path,
+    published_url,
+    entry_label,
+)
 
 
-class RepositoryTreeError(RuntimeError):
-    """Raised when repository-tree generation inputs are invalid."""
 
 
-@dataclass
-class TreeEntry:
-    name: bytes
-    path: bytes
-    mode: str
-    kind: str
-    object_id: str
-    children: dict[bytes, "TreeEntry"] = field(default_factory=dict)
-
-    @property
-    def is_directory(self) -> bool:
-        return self.kind == "tree"
 
 
-def parse_name(value: str, field_name: str) -> str:
-    if not NAME.fullmatch(value):
-        raise RepositoryTreeError(f"{field_name} must be lowercase kebab-case")
-    return value
 
 
-def read_json(path: Path, label: str) -> dict[str, Any]:
-    try:
-        value = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
-        raise RepositoryTreeError(f"unable to read {label} {path}: {exc}") from exc
-    if not isinstance(value, dict):
-        raise RepositoryTreeError(f"{label} must be an object")
-    return value
 
 
-def git(root: Path, *args: str) -> bytes:
-    try:
-        process = subprocess.run(
-            ["git", "-C", str(root), *args],
-            check=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
-    except (OSError, subprocess.CalledProcessError) as exc:
-        detail = ""
-        if isinstance(exc, subprocess.CalledProcessError):
-            detail = exc.stderr.decode("utf-8", errors="replace").strip()
-        suffix = f": {detail}" if detail else ""
-        raise RepositoryTreeError(
-            f"unable to inspect Git repository {root}{suffix}"
-        ) from exc
-    return process.stdout
+from integration.repository import (
+    git,
+    checked_revision,
+    read_entries,
+    manifest_destinations,
+    published_sources,
+)
 
 
-def checked_revision(root: Path) -> str:
-    revision = git(root, "rev-parse", "HEAD").decode("ascii", errors="strict").strip()
-    if not FULL_SHA.fullmatch(revision):
-        raise RepositoryTreeError(f"Git HEAD must resolve to a full lowercase SHA: {root}")
-    return revision
 
 
-def parse_ls_tree(raw: bytes) -> list[TreeEntry]:
-    result: list[TreeEntry] = []
-    for record in raw.split(b"\0"):
-        if not record:
-            continue
-        try:
-            metadata, path = record.split(b"\t", maxsplit=1)
-            mode, kind, object_id = metadata.decode("ascii").split(" ", maxsplit=2)
-        except (ValueError, UnicodeDecodeError) as exc:
-            raise RepositoryTreeError("git ls-tree returned malformed output") from exc
-        if not path or path.startswith(b"/") or b"\0" in path:
-            raise RepositoryTreeError("git ls-tree returned an unsafe path")
-        result.append(
-            TreeEntry(
-                name=path.rsplit(b"/", maxsplit=1)[-1],
-                path=path,
-                mode=mode,
-                kind=kind,
-                object_id=object_id,
-            )
-        )
-    return result
 
 
-def read_entries(root: Path) -> list[TreeEntry]:
-    return parse_ls_tree(
-        git(root, "ls-tree", "--full-tree", "-r", "-t", "-z", "HEAD")
-    )
 
 
-def build_tree(entries: list[TreeEntry]) -> TreeEntry:
-    root = TreeEntry(name=b"", path=b"", mode="040000", kind="tree", object_id="")
-    indexed: dict[bytes, TreeEntry] = {b"": root}
-
-    for entry in sorted(entries, key=lambda item: (item.path.count(b"/"), item.path)):
-        parent_path = entry.path.rsplit(b"/", maxsplit=1)[0] if b"/" in entry.path else b""
-        parent = indexed.get(parent_path)
-        if parent is None or not parent.is_directory:
-            raise RepositoryTreeError(
-                "git ls-tree did not provide a valid parent directory ordering"
-            )
-        if entry.name in parent.children:
-            raise RepositoryTreeError("git ls-tree returned a duplicate path")
-        parent.children[entry.name] = entry
-        indexed[entry.path] = entry
-    return root
 
 
-def display_bytes(value: bytes) -> str:
-    text = value.decode("utf-8", errors="backslashreplace")
-    replacements = {"\n": r"\n", "\r": r"\r", "\t": r"\t"}
-    return "".join(
-        replacements.get(character, character if ord(character) >= 32 and ord(character) != 127 else f"\\x{ord(character):02x}")
-        for character in text
-    )
 
 
-def github_url(repository: str, revision: str, kind: str, path: bytes = b"") -> str:
-    suffix = quote_from_bytes(path, safe="/")
-    base = f"https://github.com/{repository}/{kind}/{revision}"
-    return f"{base}/{suffix}" if suffix else base
 
 
-def markdown_destination_url(destination: str) -> str:
-    path = PurePosixPath(destination)
-    if path.suffix.lower() != ".md":
-        raise RepositoryTreeError(
-            f"published document destination must be Markdown: {destination}"
-        )
-    without_suffix = path.with_suffix("")
-    if without_suffix.name == "index":
-        output = without_suffix.parent.as_posix()
-    else:
-        output = without_suffix.as_posix()
-    if output in ("", "."):
-        return ""
-    return "/".join(quote(part, safe="") for part in output.split("/")) + "/"
 
 
-def configured_base_path(config_path: Path) -> str:
-    try:
-        config = tomllib.loads(config_path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeError, tomllib.TOMLDecodeError) as exc:
-        raise RepositoryTreeError(
-            f"unable to read site configuration {config_path}: {exc}"
-        ) from exc
-    project = config.get("project")
-    site_url = project.get("site_url") if isinstance(project, dict) else None
-    if not isinstance(site_url, str):
-        raise RepositoryTreeError("project.site_url must be a URL string")
-    parsed = urlsplit(site_url)
-    if (
-        parsed.scheme not in ("http", "https")
-        or not parsed.netloc
-        or parsed.query
-        or parsed.fragment
-    ):
-        raise RepositoryTreeError(
-            "project.site_url must be an absolute HTTP(S) URL without query or fragment"
-        )
-    path = parsed.path or "/"
-    if not path.startswith("/"):
-        raise RepositoryTreeError("project.site_url path must be absolute")
-    return path if path.endswith("/") else path + "/"
 
 
-def published_url(base_path: str, document_destination: str) -> str:
-    document_url = markdown_destination_url(document_destination)
-    return base_path + document_url
 
 
-def manifest_destinations(site_root: Path) -> dict[tuple[str, str], str]:
-    try:
-        manifest = load_manifest(site_root / "site-manifest.json")
-    except AssemblyError as exc:
-        raise RepositoryTreeError(str(exc)) from exc
-    return {
-        (document["publication"], document["document"]): document["destination"].as_posix()
-        for document in manifest.documents
-    }
 
 
-def published_sources(
-    publication: str,
-    publication_root: Path,
-    site_root: Path,
-) -> dict[bytes, str]:
-    catalog = read_json(
-        publication_root / "docs/publication-catalog.json",
-        f"{publication} publication catalog",
-    )
-    documents = catalog.get("documents")
-    if not isinstance(documents, list):
-        raise RepositoryTreeError(
-            f"{publication} publication catalog documents must be an array"
-        )
-    destinations = manifest_destinations(site_root)
-    result: dict[bytes, str] = {}
-    for index, document in enumerate(documents):
-        if not isinstance(document, dict):
-            raise RepositoryTreeError(
-                f"{publication} publication catalog document {index} must be an object"
-            )
-        document_id = document.get("id")
-        source = document.get("source")
-        if not isinstance(document_id, str) or not isinstance(source, str):
-            raise RepositoryTreeError(
-                f"{publication} publication catalog document {index} is invalid"
-            )
-        destination = destinations.get((publication, document_id))
-        if destination is None:
-            raise RepositoryTreeError(
-                f"site manifest does not map {publication}:{document_id}"
-            )
-        result[source.encode("utf-8")] = destination
-    return result
 
 
-def entry_label(entry: TreeEntry) -> str:
-    if entry.is_directory:
-        return "directory"
-    if entry.mode == "120000":
-        return "symlink"
-    if entry.mode == "160000" or entry.kind == "commit":
-        return "gitlink"
-    return "file"
 
 
 def render_entry(

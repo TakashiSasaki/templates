@@ -304,6 +304,8 @@ class IndexNavigationViewerTests(unittest.TestCase):
                 "index_count": child_count + 1,
                 "edge_count": child_count,
                 "max_index_depth": 1,
+                "cycle_edges": [],
+                "multiple_parent_indexes": [],
             }
 
             with mock.patch(

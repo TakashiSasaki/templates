@@ -29,12 +29,9 @@ def leaves(items):
             yield item
 
 
-def public_path(destination: str) -> str:
-    path = Path(destination)
-    if path.name == "index.md":
-        parent = path.parent.as_posix()
-        return "/" if parent == "." else f"/{parent}/"
-    return "/" + path.with_suffix("").as_posix() + "/"
+from publication_bundle.paths import (
+    public_path,
+)
 
 
 def documents(root: Path) -> dict:
