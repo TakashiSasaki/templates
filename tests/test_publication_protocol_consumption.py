@@ -5,8 +5,10 @@ import posixpath
 import re
 from html.parser import HTMLParser
 from pathlib import Path
+from urllib.parse import unquote, urlsplit
 
 import pytest
+import yaml
 from markdown import markdown
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -147,9 +149,26 @@ def _markdown_link_destinations(text: str) -> list[str]:
     # Use the already-reviewed documentation renderer, including code fences,
     # rather than maintaining a second partial Markdown grammar in a regex.
     links = _RenderedLinks()
-    links.feed(markdown(text, extensions=["fenced_code"]))
+    configured = yaml.safe_load((ROOT / "mkdocs.yml").read_text())["markdown_extensions"]
+    extensions = []
+    configs = {}
+    for entry in configured:
+        if isinstance(entry, str):
+            extensions.append(entry)
+        else:
+            extensions.extend(entry)
+            configs.update(entry)
+    links.feed(markdown(text, extensions=extensions, extension_configs=configs))
     links.close()
     return links.destinations
+
+
+def _relative_markdown_target(source: str, href: str) -> str | None:
+    url = urlsplit(href)
+    path = unquote(url.path)
+    if url.scheme or url.netloc or path.startswith("/") or not path.endswith(".md"):
+        return None
+    return posixpath.normpath(posixpath.join(posixpath.dirname(source), path))
 
 
 def test_published_maintainer_relative_links_stay_inside_publication_catalog() -> None:
@@ -159,10 +178,9 @@ def test_published_maintainer_relative_links_stay_inside_publication_catalog() -
     for source in MAINTAINER_SOURCES.values():
         text = (ROOT / source).read_text(encoding="utf-8")
         for href in _markdown_link_destinations(text):
-            path = href.split("#", 1)[0]
-            if not path.endswith(".md") or "://" in path:
+            target = _relative_markdown_target(source, href)
+            if target is None:
                 continue
-            target = posixpath.normpath(posixpath.join(posixpath.dirname(source), path))
             assert target in published, (
                 f"{source}: relative reader link {href!r} targets unpublished {target}; "
                 "use an explicit repository-source link instead"
@@ -179,6 +197,7 @@ def test_published_maintainer_relative_links_stay_inside_publication_catalog() -
     '[guide][]\n\n[guide]: staged-ci.md',
     '[guide]\n\n[guide]: <staged-ci.md>',
     '[guide][g]\n\n[g]:\n    staged-ci.md',
+    '!!! note\n\n    [guide][g]\n\n    [g]: staged-ci.md',
 ])
 def test_catalog_guard_extracts_rendered_markdown_link_forms(text: str) -> None:
     assert _markdown_link_destinations(text) == ["staged-ci.md"]
@@ -191,3 +210,18 @@ def test_catalog_guard_extracts_rendered_markdown_link_forms(text: str) -> None:
 ])
 def test_catalog_guard_ignores_non_links(text: str) -> None:
     assert _markdown_link_destinations(text) == []
+
+
+@pytest.mark.parametrize("href, expected", [
+    ("unpublished.md?view=1", "docs/unpublished.md"),
+    ("unpublished.md?view=1#section", "docs/unpublished.md"),
+    ("../unpublished.md#section", "unpublished.md"),
+    ("unpublished%2Emd", "docs/unpublished.md"),
+    ("https://example.org/unpublished.md?view=1", None),
+    ("//example.org/unpublished.md", None),
+    ("mailto:someone@example.org", None),
+    ("#section", None),
+    ("/unpublished.md", None),
+])
+def test_catalog_guard_classifies_url_paths(href: str, expected: str | None) -> None:
+    assert _relative_markdown_target("docs/guide.md", href) == expected
