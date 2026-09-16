@@ -22,9 +22,11 @@ def blob_sha(raw):
 
 
 def validate_sources(name,model,repository):
-    expected={'revision','entries','browser','previews','published'}
+    expected={'revision','entries','browser','previews','published','nonviewable_blobs'}
     if set(model)!=expected or not all(isinstance(model[k],list) for k in ('entries','browser','previews')) or not isinstance(model['published'],dict):
         raise BundleError('invalid repository source model')
+    if not isinstance(model['nonviewable_blobs'],dict):raise BundleError('invalid non-viewable blob evidence')
+    evidence=model['nonviewable_blobs'];used_evidence=set();source_bytes=0
     entries={}
     for e in model['entries']:
         if not isinstance(e,dict) or set(e)!={'name','path','mode','kind','object_id'}:raise BundleError('invalid tree entry')
@@ -42,14 +44,25 @@ def validate_sources(name,model,repository):
         seen.add(p)
         if type(record['size']) is not int or record['size']<0 or type(record['viewable']) is not bool:raise BundleError('invalid source size/status')
         if record['viewer_url']!=viewer_relative_url(name,model['revision'],p) or record['source_url']!=source_url(repository,model['revision'],p):raise BundleError('source URL identity mismatch')
-        if record['size']<=MAX_PREVIEW_BYTES:candidate_bytes+=record['size']
         if record['viewable']:
-            if not isinstance(record['text'],str) or record['reason'] is not None:raise BundleError('missing viewable source text')
-            raw=record['text'].encode('utf-8');total+=len(raw)
-            # Producer uses this same decoder (including the preview byte limit).
-            if decode_preview_text(raw) is not None:expected_previews.add(p)
-            if len(raw)!=record['size'] or blob_sha(raw)!=record['object_id'] or decode_browser_text(raw)!=(record['text'],None):raise BundleError('source blob identity mismatch')
-        elif record['text'] is not None or not isinstance(record['reason'],str) or not record['reason']:raise BundleError('invalid non-viewable record')
+            if not isinstance(record['text'],str):raise BundleError('missing viewable source text')
+            raw=record['text'].encode('utf-8')
+        else:
+            encoded=evidence.get(record['object_id'])
+            if not isinstance(encoded,str) or len(encoded)>4*((MAX_TOTAL_TEXT_BYTES+2)//3):raise BundleError('missing/oversized non-viewable blob evidence')
+            try:raw=base64.b64decode(encoded,validate=True)
+            except ValueError as exc:raise BundleError('invalid non-viewable blob evidence') from exc
+            if base64.b64encode(raw).decode()!=encoded:raise BundleError('noncanonical blob evidence')
+            used_evidence.add(record['object_id'])
+        source_bytes+=len(raw)
+        if source_bytes>MAX_TOTAL_TEXT_BYTES:raise BundleError('oversized authenticated source corpus')
+        if len(raw)!=record['size'] or blob_sha(raw)!=record['object_id']:raise BundleError('source blob identity mismatch')
+        text,reason=decode_browser_text(raw)
+        if (record['text'],record['reason'],record['viewable'])!=(text,reason,text is not None):raise BundleError('source decoding status mismatch')
+        if len(raw)<=MAX_PREVIEW_BYTES:candidate_bytes+=len(raw)
+        if len(raw)<=MAX_TEXT_BYTES:total+=len(raw)
+        if decode_preview_text(raw) is not None:expected_previews.add(p)
+    if used_evidence!=set(evidence):raise BundleError('unexpected non-viewable blob evidence')
     if seen!=set(regular) or total>MAX_TOTAL_TEXT_BYTES:raise BundleError('incomplete/oversized browser corpus')
     seen=set();total=0
     for r in model['previews']:

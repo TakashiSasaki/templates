@@ -24,6 +24,7 @@ def add_source(model,path,raw,provider='composition'):
     model['entries'].append({'path':encoded(path),'name':encoded(path.rsplit(b'/',1)[-1]),'mode':'100644','kind':'blob','object_id':oid})
     text,reason=decode_browser_text(raw)
     model['browser'].append({'path':encoded(path),'object_id':oid,'size':len(raw),'viewer_url':viewer_relative_url(provider,revision,path),'source_url':source_url(REPOSITORY,revision,path),'viewable':text is not None,'reason':reason,'text':text})
+    if text is None:model['nonviewable_blobs'][oid]=base64.b64encode(raw).decode()
     preview=decode_preview_text(raw)
     if preview is not None:model['previews'].append({'path':encoded(path),'object_id':oid,'text':preview,'relative_url':preview_relative_url(provider,revision,path),'source_url':github_url(REPOSITORY,revision,'blob',path)})
     return oid
@@ -156,3 +157,25 @@ class BundleReviewInvariants(unittest.TestCase):
                     if mutation=='child-depth':p['edges'].insert(0,edge('docs/index.md','docs/a/index.md'))
                 self.write('guided-navigation.json',graph)
                 with self.assertRaisesRegex(BundleError,'unreachable|depth'):finish(self.root)
+
+    def test_nonviewable_status_requires_authenticated_bytes(self):
+        for mutation in ('missing','forged-size','forged-bytes','forged-reason','false-viewable','extra'):
+            with self.subTest(mutation=mutation):
+                model=self.read('provider-repositories.json')['composition']
+                oid=add_source(model,'small.txt',b'hello')
+                record=model['browser'][0]
+                if mutation=='extra':model['nonviewable_blobs'][oid]=base64.b64encode(b'hello').decode()
+                else:
+                    record.update(viewable=False,text=None,reason='binary')
+                    model['previews']=[]
+                    if mutation=='forged-size':record['size']=MAX_PREVIEW_BYTES+1
+                    if mutation!='missing':model['nonviewable_blobs'][oid]=base64.b64encode(b'forged' if mutation=='forged-bytes' else b'hello').decode()
+                    if mutation=='false-viewable':record.update(viewable=True,text='hello')
+                with self.assertRaisesRegex(BundleError,'evidence|identity|decoding'):validate_sources('composition',model,REPOSITORY)
+
+    def test_binary_and_oversized_evidence_preserves_eligibility(self):
+        from publication_bundle.repository import MAX_TEXT_BYTES
+        model=self.read('provider-repositories.json')['composition']
+        for path,raw in [('binary',b'\0'),('invalid',b'\xff'),('oversized',b'x'*(MAX_TEXT_BYTES+1))]:add_source(model,path,raw)
+        validate_sources('composition',model,REPOSITORY)
+        with patch('publication_bundle.source_models.MAX_TOTAL_TEXT_BYTES',1024),self.assertRaisesRegex(BundleError,'oversized'):validate_sources('composition',model,REPOSITORY)

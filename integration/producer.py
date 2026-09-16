@@ -18,7 +18,8 @@ from integration.translation_link_selection import rewrite_current_localized_lin
 from integration.translation_coverage import build_reader_coverage
 from integration.reader_navigation_locales import load_overlays, build_runtime_map
 from integration.glossary import integrate_glossaries
-from integration.repository import checked_revision, read_entries, build_preview_records, collect_records
+from integration.repository import checked_revision, read_entries, build_preview_records, collect_records, object_sizes, object_contents
+from publication_bundle.repository import MAX_TOTAL_TEXT_BYTES
 from integration import generate_index_navigation as navigation
 from integration import generate_index_navigation_base as navigation_base
 from integration import generate_index_navigation_locales as locales
@@ -152,8 +153,11 @@ def produce(*, root, provider_roots, provider_revisions, producer_revision, outp
         for name in PROVIDERS:
             provider_root=provider_roots[name];revision=provider_revisions[name]
             entries=read_entries(provider_root)
+            sizes=object_sizes(provider_root,(e.object_id for e in entries if e.mode in {'100644','100755'}))
+            if sum(sizes[e.object_id] for e in entries if e.mode in {'100644','100755'})>MAX_TOTAL_TEXT_BYTES:
+                raise BundleError('oversized authenticated source corpus')
             _,browser=collect_records(name,repository,revision,provider_root)
-            models[name]={'revision':revision,'entries':[dict(name=e.name,path=e.path,mode=e.mode,kind=e.kind,object_id=e.object_id) for e in entries], 'browser':list(browser.values()),'previews':build_preview_records(name,repository,revision,provider_root),'published':published[name]}
+            models[name]={'revision':revision,'entries':[dict(name=e.name,path=e.path,mode=e.mode,kind=e.kind,object_id=e.object_id) for e in entries], 'browser':list(browser.values()),'nonviewable_blobs':{oid:base64.b64encode(raw).decode('ascii') for oid,raw in object_contents(provider_root,(r.object_id for r in browser.values() if not r.viewable)).items()},'previews':build_preview_records(name,repository,revision,provider_root),'published':published[name]}
         write(bundle/'provider-repositories.json',models)
         producer={'authority':'site-internal-integration','revision':producer_revision}
         write(bundle/'provenance.json',{'schema_version':1,'producer':producer,'providers':provider_revisions})
