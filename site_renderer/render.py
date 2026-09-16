@@ -78,10 +78,13 @@ def prepare_output_parent(output, sources):
         current=output.parent.stat()
         if (current.st_dev,current.st_ino)!=identity:
             raise BundleError('render output parent changed during creation')
-        return identity
+        return fd,identity
     except OSError as exc:
+        os.close(fd)
         raise BundleError('unsafe render output parent: '+str(exc)) from exc
-    finally:os.close(fd)
+    except BaseException:
+        os.close(fd)
+        raise
 
 
 def rename_noreplace(directory, source, target):
@@ -97,12 +100,12 @@ def rename_noreplace(directory, source, target):
         raise OSError(error,os.strerror(error),target)
 
 
-def publish_build(build, output, parent_identity, sources, site_revision):
+def publish_build(build, output, parent_identity, sources, site_revision, parent_directory=None):
     # All expensive work happens outside the destination. Pin the parent for
     # the final same-filesystem staging/rename so aliases cannot redirect it.
     require_clean_site(sources[1],site_revision)
     checked_output(output,sources)
-    fd=os.open(output.parent,os.O_RDONLY|os.O_DIRECTORY|os.O_NOFOLLOW)
+    fd=os.dup(parent_directory) if parent_directory is not None else os.open(output.parent,os.O_RDONLY|os.O_DIRECTORY|os.O_NOFOLLOW)
     stage=None
     try:
         stat=os.fstat(fd)
@@ -150,7 +153,7 @@ args['parent_identity']=tuple(args['parent_identity'])
 render_snapshot(**args)
 """
     env=dict(os.environ);env.pop('PYTHONPATH',None)
-    subprocess.run([sys.executable,'-c',code],cwd=inputs['site_root'],env=env,input=json.dumps(payload),text=True,check=True)
+    subprocess.run([sys.executable,'-c',code],cwd=inputs['site_root'],env=env,input=json.dumps(payload),text=True,check=True,pass_fds=(inputs['parent_directory'],))
     return {'site_revision':inputs['site_revision'],'bundle_identity':inputs['identity']['identity'],'output':str(inputs['output'])}
 
 
@@ -166,13 +169,16 @@ def render(*,bundle,site_root,output,expected_identity,public_url='https://templ
         subprocess.run(['git','-C',str(source),'sparse-checkout','set','--no-cone','/*','!/integration/'],check=True,capture_output=True)
         subprocess.run(['git','-C',str(source),'checkout','--detach',site_revision],check=True,capture_output=True)
         require_clean_site(source,site_revision)
-        parent_identity=prepare_output_parent(output,(bundle,site_root))
-        return consume_snapshot(bundle=snapshot,site_root=source,output=output,
-            identity=identity,site_revision=site_revision,parent_identity=parent_identity,
-            original_bundle=bundle,public_url=public_url,deployment_timestamp=deployment_timestamp)
+        parent_directory,parent_identity=prepare_output_parent(output,(bundle,site_root))
+        try:
+            return consume_snapshot(bundle=snapshot,site_root=source,output=output,
+                identity=identity,site_revision=site_revision,parent_identity=parent_identity,
+                parent_directory=parent_directory,original_bundle=bundle,
+                public_url=public_url,deployment_timestamp=deployment_timestamp)
+        finally:os.close(parent_directory)
 
 
-def render_snapshot(*,bundle,site_root,output,identity,site_revision,parent_identity,original_bundle,public_url,deployment_timestamp):
+def render_snapshot(*,bundle,site_root,output,identity,site_revision,parent_identity,parent_directory,original_bundle,public_url,deployment_timestamp):
     with tempfile.TemporaryDirectory(prefix='site-render-') as temporary:
         build=Path(temporary)/'build';build.mkdir();docs=build/'docs';docs.mkdir()
         for name in identity['files']:
@@ -236,7 +242,7 @@ def render_snapshot(*,bundle,site_root,output,identity,site_revision,parent_iden
         run(site_root,'write_publication_provenance.py','--output',site/'build-provenance.json','--repository',repository,'--site-commit',site_revision,*provenance_args)
         write(site/'publication-bundle.json',{'schema_version':1,'identity':identity['identity'],'producer':identity['producer'],'providers':identity['providers']})
         run(site_root,'validate_site_links.py','--site-root',site,'--config-file',build/'zensical.toml')
-        publish_build(build,output,parent_identity,(original_bundle,site_root),site_revision)
+        publish_build(build,output,parent_identity,(original_bundle,site_root),site_revision,parent_directory)
     return {'site_revision':site_revision,'bundle_identity':identity['identity'],'output':str(output)}
 
 

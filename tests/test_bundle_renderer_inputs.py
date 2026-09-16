@@ -1,6 +1,7 @@
 """Prove rendering binds immutable inputs and a safe publication destination."""
 from pathlib import Path
 import shutil
+import os
 import subprocess
 import tempfile
 import unittest
@@ -117,7 +118,23 @@ class RendererInputTests(unittest.TestCase):
     def test_missing_output_parents_are_created_without_aliases(self):
         from site_renderer.render import prepare_output_parent
         self.output=self.root/'missing'/'nested'/'output'
-        identity=prepare_output_parent(self.output,(self.bundle,self.site))
-        stat=self.output.parent.stat()
-        self.assertEqual(identity,(stat.st_dev,stat.st_ino))
-        self.assertFalse(self.output.exists())
+        directory,identity=prepare_output_parent(self.output,(self.bundle,self.site))
+        try:
+            stat=self.output.parent.stat()
+            self.assertEqual(identity,(stat.st_dev,stat.st_ino))
+            self.assertEqual(os.fstat(directory).st_ino,stat.st_ino)
+            self.assertFalse(self.output.exists())
+        finally:os.close(directory)
+
+    def test_parent_descriptor_remains_bound_after_path_replacement(self):
+        from site_renderer.render import prepare_output_parent
+        directory,identity=prepare_output_parent(self.output,(self.bundle,self.site))
+        try:
+            self.output.parent.rename(self.root/'original-parent')
+            self.output.parent.mkdir()
+            build=self.root/'build';build.mkdir();(build/'result').write_text('artifact')
+            with self.assertRaisesRegex(BundleError,'parent changed'):
+                publish_build(build,self.output,identity,(self.bundle,self.site),self.revision,directory)
+            self.assertEqual(list((self.root/'original-parent').iterdir()),[])
+            self.assertEqual(list(self.output.parent.iterdir()),[])
+        finally:os.close(directory)
