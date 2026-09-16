@@ -67,6 +67,14 @@ For ordinary policy-provider maintenance:
 
 This sequence lets maintainers benefit from new shared best practices without creating a circular trust chain or repeatedly qualifying revision identities that are still intentionally provisional.
 
+## Dogfood the two frontiers without self-adoption
+
+For a Policy stack `A -> B -> C`, continue safe B/C source changes and focused tests while A's CI or review is pending. Track construction separately from qualification and defer deliberately expensive descendant evidence when a known prerequisite mutation will stale its bindings. Review latency alone is not a gate. Once no current planned prerequisite mutation remains, restack only if actual state or bindings require it and qualify the intended heads at the applicable boundary. Required automatic CI continues throughout.
+
+Before final qualification/review, inspect the changed validation path through the required entrypoint to the actual assertions and establish execution/results. The [staged-CI explanation (repository source)](https://github.com/TakashiSasaki/templates/blob/policy/docs/staged-ci.md#qualification-sequencing-and-effective-coverage) describes why a helper existing beside green CI is insufficient.
+
+Current-head source/projection checks test the proposed provider implementation; their generated outputs are review data and do not make proposed semantics the instructions authorizing the session. Retain trusted starting instructions for execution. A source stack does not advance self-host or consumer pins, promote a stable runtime, or substitute for later independent exact-head acceptance review. Record these distinctions and any intentionally deferred evidence in the operational Work ledger.
+
 ## When not to delay
 
 Delayed qualification is not a reason to leave a harmful or invalid state in place. Apply an urgent security, operational, data-integrity, publication-integrity, or equivalent material repair as soon as its remediation is justified. Likewise, when an authority boundary has already been reached—such as merge authorization, final independent review, stable release promotion, installer publication, or another immutable consumer binding—use the exact identity and full qualification that boundary requires.

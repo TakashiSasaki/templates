@@ -8,6 +8,23 @@ Git creates an immutable commit identity for every construction step, but not ev
 
 The optimization is therefore not to avoid immutable Git objects. It is to delay **authoritative revision-bound binding** until an applicable boundary actually needs it.
 
+## Two frontiers in a stack
+
+**Keep speculative implementation parallel; delay knowingly disposable revision-bound evidence.**
+
+```text
+construction frontier:   A -> B -> C
+                                  ^
+qualification frontier:  A
+                         ^
+```
+
+B and C can be implemented, locally validated and published as provisional PRs while A is under review. The qualification frontier tracks intended candidates entering revision-bound qualification; it does not mean those candidates passed or are approved. A's pending review alone does not forbid downstream qualification. A known repair expected to change B/C's exact base or another evidence binding is the reason to defer their affected final CI/review/provenance cycle.
+
+After compatible A repairs finish and no current planned mutation remains, evaluate whether B/C actually need restacking. At the applicable boundary, update affected descendants coherently, freeze the intended heads and acquire the required evidence. Do not rewrite heads solely because A landed. Existing tree-and-context-bound evidence can survive only when every declared binding holds; exact-head review remains separate.
+
+Required automatic CI still runs and focused diagnostics remain useful. Neither makes a provisional head qualified automatically. Independent, inexpensive or otherwise useful evidence can run in parallel; explain costly speculative acquisition using its bindings and safety/critical-path benefit. An immediate authority boundary still requires its evidence. The [canonical deferred-qualification rule](https://github.com/TakashiSasaki/templates/blob/policy/policy/pull-request/defer-revision-bound-qualification.md) owns these decisions; no numeric cost model or blanket wait-for-review gate is added.
+
 ## Identity lifecycle
 
 Use four concepts when reasoning about a changing candidate:

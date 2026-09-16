@@ -135,3 +135,30 @@ def test_pr_boundary_selection_accounts_for_propagation_and_invalidation_costs()
         "do not optimize for a fixed pr count",
     ):
         assert phrase in text
+
+
+def test_rendered_frontier_procedure_keeps_parallelism_and_bounded_acquisition() -> None:
+    from agent_policy.renderer import render_skill
+
+    rendered = render_skill("orchestrate-repository-change")
+    stack = rendered["references/stacked-pr-workflow.md"]
+    for phrase in (
+        "construction frontier",
+        "qualification frontier",
+        "Pending review alone is not expected invalidation",
+        "Map each planned movement to the evidence it would stale",
+        "perform one coherent restack",
+        "not merely because a parent moved or landed",
+        "Do not wait for hypothetical findings",
+        "CI reuse cannot preserve stale exact-head review",
+    ):
+        assert phrase in stack
+    ledger = rendered["references/work-ledger.md"]
+    for phrase in (
+        "expected prerequisite invalidators",
+        "deferred qualification reason",
+        "obsolete-run cancellation/supersession status",
+        "no new mandatory serialization schema",
+        "ledger labels cannot freeze a candidate",
+    ):
+        assert phrase in ledger

@@ -45,6 +45,20 @@ When a lower member later merges or its base identity changes, re-evaluate upper
 
 Before intentionally requesting a final revision-bound whole-stack review, move the intended stack to a final stability frontier: freeze the exact candidate heads that are intended to be reviewed as the stack's qualification heads and avoid further planned head mutation. A subsequent justified repair may move the frontier again, but the old review candidate then becomes stale according to its actual bindings.
 
+## Advance construction and qualification independently
+
+Use the canonical deferred-qualification rule's **construction frontier** and **qualification frontier** alongside the practical stability frontier above. They describe progress, not approval. For `A -> B -> C`, B/C may have construction heads, focused diagnostics and PRs while A is under review. Pending review alone is not expected invalidation. If a known A repair will change a descendant evidence binding, keep that descendant provisional and continue only work that does not embed the defective assumption.
+
+Before deliberately launching final descendant CI, review, provenance or artifact qualification:
+
+1. Identify the next authority boundary and expected prerequisite invalidators. Map each planned movement to the evidence it would stale; do not infer a binding from ancestry alone.
+2. Separate required automatic CI, useful focused diagnostics and intentional final qualification. Preserve required automatic execution; neither its presence nor a green provisional run advances qualification by itself.
+3. Defer knowingly disposable final evidence while the invalidator remains. If costly speculative acquisition is useful despite that risk, record the affected bindings and the canonical independence, usefulness, safety or critical-path reason. Do not wait for hypothetical findings or waive an immediate boundary's required evidence.
+4. When compatible prerequisite repairs are complete and no current planned mutation remains, reassess the actual base, effective state and evidence bindings. Advance the qualification frontier at the applicable boundary; perform one coherent restack of affected members only when those bindings or effective state require it, not merely because a parent moved or landed.
+5. Complete the bounded validation-reachability self-audit in [staged CI execution](staged-ci-execution.md), freeze intended heads and acquire applicable full exact-head qualification before the authorized revision-bound review. Reuse evidence only under the existing applicability rule; CI reuse cannot preserve stale exact-head review.
+
+The normal dependency sequence is construction, focused validation and provisional descendant work; then prerequisite stabilization, qualification-frontier advance, any necessary coherent restack, full qualification and authorized revision-bound review. Do not deliberately repeat restack/full qualification/review while the same known prerequisite invalidator remains. New justified findings can still require another repair; this discipline does not demand predicting them. Supersede obsolete expensive runs using the staged procedure while retaining evidence still serving a current requirement.
+
 ## Candidate stabilization and review sequencing
 
 Before intentionally starting expensive acceptance review for a member, stabilize that candidate as far as reasonably possible: complete the authorized implementation, disposition known self-audit findings, finish focused validation, establish required generated-projection coherence, batch known compatible head-changing repairs, resolve known material defects, and finish any upstream semantic repair or other prerequisite movement known to make downstream immutable materialization stale. This is not a timer, perfection requirement, PR-creation gate, or reason to wait for earlier CI/review. Continue useful dependent implementation while earlier members stabilize when safe, keep provisional descendants explicit, and do not deliberately review a knowingly intermediate downstream head.

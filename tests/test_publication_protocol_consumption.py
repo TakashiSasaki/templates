@@ -1,8 +1,15 @@
 from __future__ import annotations
 
 import json
+import posixpath
 import re
+from html.parser import HTMLParser
 from pathlib import Path
+from urllib.parse import unquote, urlsplit
+
+import pytest
+import yaml
+from markdown import markdown
 
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github/workflows/pages.yml"
@@ -126,3 +133,112 @@ def test_published_maintainer_sources_have_post_cutover_discovery_links() -> Non
             )
 
     assert "reader publication is deferred" not in adr_index
+
+
+class _RenderedLinks(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.destinations: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag == "a":
+            self.destinations.extend(value for name, value in attrs if name == "href" and value)
+
+
+def _markdown_link_destinations(text: str) -> list[str]:
+    # Use the already-reviewed documentation renderer, including code fences,
+    # rather than maintaining a second partial Markdown grammar in a regex.
+    links = _RenderedLinks()
+    configured = yaml.safe_load((ROOT / "mkdocs.yml").read_text())["markdown_extensions"]
+    extensions = []
+    configs = {}
+    for entry in configured:
+        if isinstance(entry, str):
+            extensions.append(entry)
+        else:
+            extensions.extend(entry)
+            configs.update(entry)
+    links.feed(markdown(text, extensions=extensions, extension_configs=configs))
+    links.close()
+    return links.destinations
+
+
+def _relative_markdown_target(source: str, href: str) -> str | None:
+    # Browser URL parsing removes boundary ASCII C0 controls and spaces.
+    # Strip before percent decoding: an encoded space belongs to the path.
+    url = urlsplit(href.strip("".join(chr(code) for code in range(0x21))))
+    path = unquote(url.path)
+    if url.scheme or url.netloc or path.startswith("/") or not path.endswith(".md"):
+        return None
+    return posixpath.normpath(posixpath.join(posixpath.dirname(source), path))
+
+
+def test_published_maintainer_relative_links_stay_inside_publication_catalog() -> None:
+    published = {
+        item["source"] for item in json.loads(CATALOG.read_text(encoding="utf-8"))["documents"]
+    }
+    for source in MAINTAINER_SOURCES.values():
+        text = (ROOT / source).read_text(encoding="utf-8")
+        for href in _markdown_link_destinations(text):
+            target = _relative_markdown_target(source, href)
+            if target is None:
+                continue
+            assert target in published, (
+                f"{source}: relative reader link {href!r} targets unpublished {target}; "
+                "use an explicit repository-source link instead"
+            )
+
+
+@pytest.mark.parametrize("text", [
+    '[guide](staged-ci.md)',
+    '[guide](staged-ci.md "title")',
+    "[guide](staged-ci.md 'title')",
+    '[guide](<staged-ci.md> "title")',
+    '[guide][g]\n\n[g]: staged-ci.md',
+    '[guide][g]\n\n[g]: staged-ci.md "title"',
+    '[guide][]\n\n[guide]: staged-ci.md',
+    '[guide]\n\n[guide]: <staged-ci.md>',
+    '[guide][g]\n\n[g]:\n    staged-ci.md',
+    '!!! note\n\n    [guide][g]\n\n    [g]: staged-ci.md',
+])
+def test_catalog_guard_extracts_rendered_markdown_link_forms(text: str) -> None:
+    assert _markdown_link_destinations(text) == ["staged-ci.md"]
+
+
+@pytest.mark.parametrize("text", [
+    '`[example](staged-ci.md)`',
+    '```markdown\n[example](staged-ci.md)\n```',
+    '[unused]: staged-ci.md',
+])
+def test_catalog_guard_ignores_non_links(text: str) -> None:
+    assert _markdown_link_destinations(text) == []
+
+
+@pytest.mark.parametrize("href, expected", [
+    ("unpublished.md?view=1", "docs/unpublished.md"),
+    ("unpublished.md?view=1#section", "docs/unpublished.md"),
+    ("../unpublished.md#section", "unpublished.md"),
+    ("unpublished%2Emd", "docs/unpublished.md"),
+    ("https://example.org/unpublished.md?view=1", None),
+    ("//example.org/unpublished.md", None),
+    ("mailto:someone@example.org", None),
+    ("#section", None),
+    ("/unpublished.md", None),
+])
+def test_catalog_guard_classifies_url_paths(href: str, expected: str | None) -> None:
+    assert _relative_markdown_target("docs/guide.md", href) == expected
+
+
+@pytest.mark.parametrize("boundary", [chr(code) for code in range(0x21)])
+def test_catalog_guard_normalizes_url_boundary_controls(boundary: str) -> None:
+    assert _relative_markdown_target(
+        "docs/guide.md", boundary + "unpublished.md" + boundary
+    ) == "docs/unpublished.md"
+
+
+def test_catalog_guard_classifies_entity_space_but_preserves_encoded_path_space() -> None:
+    href, = _markdown_link_destinations("[guide](unpublished.md&#32;)")
+    assert href == "unpublished.md "
+    assert _relative_markdown_target("docs/guide.md", href) == "docs/unpublished.md"
+    assert _relative_markdown_target("docs/guide.md", "unpublished.md%20") is None
+    assert _relative_markdown_target("docs/guide.md", "unpublished.md\u00a0") is None

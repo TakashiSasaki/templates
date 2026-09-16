@@ -185,3 +185,15 @@ The Policy authority uses the same model for its own maintenance CI rather than 
 The independent `Policy runtime distribution` workflow retains its own classifier and compatibility matrix. It remains parallel to normal Policy CI rather than being serialized behind it, and `ci/full-compatibility` provides the repository-defined explicit broad compatibility checkpoint. This separation demonstrates that staged CI is a dependency and evidence model, not a requirement to place every repository check in one linear workflow.
 
 Both workflows use provider concurrency cancellation so that a superseded candidate does not continue consuming expensive validation when its result can no longer qualify the current head.
+
+## Qualification sequencing and effective coverage
+
+For `A -> B -> C`, construction can reach C while qualification remains at A. Use the [two-frontier model](revision-bound-qualification.md#two-frontiers-in-a-stack) to defer intentional final evidence that a known prerequisite change would invalidate. Required automatic CI and useful focused diagnostics continue. Cancel or supersede an expensive obsolete run only when it cannot satisfy any current evidence requirement and the provider safely permits it; cancellation alone is neither a product defect nor successor qualification.
+
+Under the existing [required-verification rule](https://github.com/TakashiSasaki/templates/blob/policy/policy/core/testing.md), a claimed check must be reached and executed by the authoritative entrypoint producing that evidence:
+
+```text
+required workflow -> canonical checker / test discovery -> helper -> assertion
+```
+
+A green workflow plus an uncalled helper proves no coverage of that helper. The same applies to a test outside discovery, an uninvoked wrapper, an unused generated projection, or a check exercised only in an optional lane while the claim concerns required qualification. Inspect the changed path and relevant skip conditions, then establish actual execution and results. Source inspection, discovery, wiring tests or runtime markers can help; none is mandated universally, and reachability alone is not success. This bounded self-audit precedes final qualification/review without replacing independent review.

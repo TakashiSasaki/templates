@@ -21,7 +21,7 @@ inputs:
     sha256: eb45d47fafa2e406dabb2536a818e206acede23f229eda19e8fdaa37d8445542
 outputs:
   .agents/skills/orchestrate-repository-change/SKILL.md:
-    sha256: 8b6287dc50c6130dac9bc6c5a9a039f7414d24fd3af8d5c298d6c45eaede193e
+    sha256: f2c67279cfa79b1b8ff6b0e4fe1f8271f2b2b3658009bb61d6386d3d6f3b0c2b
   .agents/skills/orchestrate-repository-change/references/generated-artifact-transport.md:
     sha256: 129a99646b222be5eb51a1ca5f6baba29b937a3630c84b7b03e0f43e576052b2
   .agents/skills/orchestrate-repository-change/references/github-review-finding-representation.md:
@@ -43,11 +43,11 @@ outputs:
   .agents/skills/orchestrate-repository-change/references/serial-pr-workflow.md:
     sha256: da7d9b9d26dbd26060d9bbdec0122b37c9e34e245dd722091e60e0ef58971789
   .agents/skills/orchestrate-repository-change/references/stacked-pr-workflow.md:
-    sha256: ba4c0affd16a74a96dbdc9f5f8f53b1ad1fe278aba6737c733132536f4bcacce
+    sha256: 1c940a42c6268624e4e87a3c815a93fc2ed4c3689768cd177fd8057ae99572c8
   .agents/skills/orchestrate-repository-change/references/staged-ci-execution.md:
-    sha256: 7a43a6d6a3a3cbfb2e6df6f8a5dc350cc485bdb40942893e90024e87fd737ca7
+    sha256: 241654d2c3373cec25b9e04cc579065f37d4306059b7d14614372a4c339218fe
   .agents/skills/orchestrate-repository-change/references/work-ledger.md:
-    sha256: a7eedfc98d8a10b383693dd982568752f32e4e5641edc9298637e74e62c30303
+    sha256: fb998103f2cdd5cd495378de5cafc761d29b693680e5f6657d36cfabc2543b22
   .agents/skills/pr-review/SKILL.md:
     sha256: ed44e1db3549e41342ced28b50fbd37189bef0e43e783c309300432e5df979f1
   .agents/skills/pr-review/references/github-pull-request-review-api.md:
@@ -75,6 +75,6 @@ outputs:
   .agents/skills/pr-review/references/risk-domains/state-mutation-and-recovery.md:
     sha256: 0cd5b71178b43da5128f4d2e1bfab8f3df5d71439531a9010f351c4ed1468f44
   .review-authority/review-policy.md:
-    sha256: 79145660748115a8eaab0888dd25555a80cfd9faf66df6a41ee13bc0cc382c2e
+    sha256: c507fab62f73371bae7552c82fb4c305dc1f888c07adda5f46b4e88a43965658
   AGENTS.md:
-    sha256: fb8287b3f2b82e4f87cd5809d8bbc71a407855a94636c5a45199395ff9d0db76
+    sha256: 8e01f6a85b44a349292cf88406063bb2f5ad5ee0346daa98dabd9237acc1530c

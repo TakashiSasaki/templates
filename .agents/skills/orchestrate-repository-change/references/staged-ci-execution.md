@@ -45,18 +45,27 @@ The stage order expresses dependency and early-failure intent, not a requirement
 
 When the agent controls only observation rather than job scheduling, apply the model to diagnosis and decision order: inspect preflight/core failures first, do not wait on an expensive downstream result to repair a candidate already known invalid, and do not misreport skipped or still-running later stages as successful.
 
+## Bounded validation-reachability self-audit
+
+Before claiming final qualification or requesting the authorized final review, apply `testing.run-required-checks` to the changed coverage: trace the authoritative required workflow/entrypoint through its canonical checker or test-discovery configuration to the helper and assertions being claimed. Check material selectors and relevant skip conditions. A helper file, import-only wrapper, or generated projection does not prove execution; an optional lane cannot substantiate required-lane coverage when the required workflow uses another path.
+
+Use source/wiring inspection, collection output or runtime evidence as appropriate to the repository. Establish both the effective execution path and the result for the qualified candidate; a static path or successful collection alone is not a passing assertion. If reachability is missing, wire the claimed check into its owning required path and run it, or report the coverage gap without claiming qualification. Keep this self-audit bounded to changed claims and affected paths; it is not independent acceptance review or a universal call-graph requirement.
+
+For descendants, use the [stacked frontier procedure](stacked-pr-workflow.md#advance-construction-and-qualification-independently) before intentional full qualification. Expected prerequisite invalidators defer the affected final cycle, not safe construction, focused diagnostics or required automatic CI. Record a justified speculative acquisition under the canonical binding-based exceptions. Advance qualification after actual prerequisite stabilization, not after an arbitrary review wait.
+
 ## Work-ledger projection
 
 For validation evidence that materially affects the next safe action, record enough state to reconstruct:
 
 - the validation role (`ci-preflight`, `core`, `conditional-integration`, or `full-qualification`) when the repository defines one;
-- qualification candidate, qualification head, qualified tree identity, and evidence binding;
+- construction frontier, qualification frontier, provisional candidates and intended qualification heads, qualified tree identity, and evidence binding;
+- expected prerequisite invalidators, evidence at risk, deferred qualification reason and the authority boundary or condition that releases deferral;
 - applicability state (`applicable`, `stale`, or `unknown`), invalidation reason, and reuse decision;
 - validation requiring reacquisition, and next safe landing action;
 - workflow/check identity and run locator;
 - run attempt, job/step identity and direct status/conclusion when needed for diagnosis or retry applicability, preserving any provider-supported retained-job provenance;
 - observed result and whether the evidence is diagnostic or qualification-bound; and
-- any supersession or invalidation condition.
+- any supersession or invalidation condition, obsolete-run cancellation/supersession status and still-applicable evidence retained.
 
 Do not create a second acceptance authority in the Work ledger. The stage label is operational metadata; the workflow, canonical Policy, exact-head review requirements, and exact-head/evidence-binding rules remain authoritative. A ledger-derived next action may invoke the merge gate after qualification evidence is ready, but the ledger itself must never declare a member authorized to land.
 
