@@ -58,6 +58,8 @@ def validate_translations(root, coverage, publication, providers, documents, rep
         expected_coverage = derive_reader_coverage(manifests, publications, pages)
     except TranslationCoverageError as exc:
         raise BundleError(str(exc)) from exc
+    for record in expected_coverage['records']:
+        source(record['publication'], record['canonical_source'])
     if coverage != expected_coverage:
         raise BundleError('translation availability differs from provider manifest/source identity closure')
     if not isinstance(publication,dict) or set(publication)!={'schema_version','canonical_language','translations'} or publication['schema_version']!=1 or publication['canonical_language']!='en' or not isinstance(publication['translations'],list):raise BundleError('invalid translation publication map')

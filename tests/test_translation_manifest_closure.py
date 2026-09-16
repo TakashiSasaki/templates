@@ -99,5 +99,8 @@ class ManifestClosureTests(unittest.TestCase):
         coverage['summary']['missing']=1;coverage['by_language']['ja']['missing']=1;self.write('translation-availability.json',coverage)
         finish(self.root)
         (self.root/'bundle.json').unlink()
-        coverage['records'].pop();self.write('translation-availability.json',coverage)
-        with self.assertRaisesRegex(BundleError,'manifest/source identity'):finish(self.root)
+        models=self.read('provider-repositories.json')
+        for field in ('entries','browser','previews'):
+            models['composition'][field]=[r for r in models['composition'][field] if raw_path(r['path'])!=b'docs/second.md']
+        self.write('provider-repositories.json',models)
+        with self.assertRaisesRegex(BundleError,'source missing'):finish(self.root)
