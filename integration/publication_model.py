@@ -521,7 +521,7 @@ TREE_NAVIGATION = {
 
 
 class PreparationError(RuntimeError):
-    """Raised when generated Site publication cannot be prepared safely."""
+    """Raised when integrated provider publication cannot be prepared safely."""
 
 
 def augment_manifest(manifest: dict[str, Any]) -> dict[str, Any]:

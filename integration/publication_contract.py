@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Site-owned schema-v3 publication protocol parser and validator.
+"""Integration-owned schema-v3 publication protocol parser and validator.
 
-This module is deliberately stdlib-only. Site imports it during assembly, and
-provider CI may execute this exact file from a reviewed full Site revision.
+This module is deliberately stdlib-only. Integration imports it during assembly, and
+provider CI may execute this exact file from a reviewed full Integration revision.
 Provider-specific publication semantics remain outside this module.
 """
 

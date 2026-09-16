@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""CLI adapter for the internal Integration producer."""
+"""CLI adapter for the independent Integration producer."""
 import sys
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))

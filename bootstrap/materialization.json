@@ -90,19 +90,19 @@
       "source_path": "integration/publication_contract.py",
       "source_blob": "902ad97419c5100c87561a501fbf93c268ad189d",
       "source_sha256": "6a2fec8028753d43f7ce2c5e57d857681f1dad17528c8797a4037a9ceb447253",
-      "adaptation": "none"
+      "adaptation": "Integration authority terminology in module documentation; executable semantics unchanged"
     },
     "integration/publication_contract_v4.py": {
       "source_path": "integration/publication_contract_v4.py",
       "source_blob": "585399b66e69a5b5d2979805e44fe008f93e8c60",
       "source_sha256": "1a9bb4e0e242d05bdbfe18189e9fcf11bdff4461bdd26ec0cf1b407ab54dc17f",
-      "adaptation": "none"
+      "adaptation": "Integration authority terminology in module documentation; executable semantics unchanged"
     },
     "integration/publication_model.py": {
       "source_path": "integration/publication_model.py",
       "source_blob": "09f4687063d8ded8a3d1999f0624f9f93e148d10",
       "source_sha256": "c8c520e5cbb74515d478cef1eace2e79625ef65965e3b54418ec3c05ae746f2c",
-      "adaptation": "none"
+      "adaptation": "Integration authority terminology in module documentation; executable semantics unchanged"
     },
     "integration/publish_translations.py": {
       "source_path": "integration/publish_translations.py",
@@ -288,7 +288,7 @@
       "source_path": "scripts/produce_publication_bundle.py",
       "source_blob": "927f81cf186bcafd8e32fec58f264192105438aa",
       "source_sha256": "5c2407f0344f6281918ff13aedf3f89e1680812e2bfff2120aeff52bea96d8bb",
-      "adaptation": "none"
+      "adaptation": "Integration authority terminology in module documentation; executable semantics unchanged"
     },
     "scripts/materialize_publication_assets.py": {
       "source_path": "scripts/materialize_publication_assets.py",

@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Site-owned schema-v4 publication protocol with generated asset lifecycle.
+"""Integration-owned schema-v4 publication protocol with generated asset lifecycle.
 
 Schema v4 keeps the existing document/glossary/path safety model and makes an
 asset's source lifecycle explicit: ``tracked`` sources must exist in the checked
 out tree, while ``generated`` sources may be absent only during the explicit
 pre-materialization validation phase. Provider-specific generation semantics do
-not move into Site.
+not move into Integration.
 """
 
 from __future__ import annotations
