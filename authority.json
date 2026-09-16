@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "authority": "integration",
-  "status": "bootstrap-candidate",
+  "status": "independent-authority",
   "upstream_authorities": [
     "composition",
     "policy"
