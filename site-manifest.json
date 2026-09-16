@@ -85,6 +85,86 @@
     },
     {
       "publication": "site",
+      "document": "site-maintenance",
+      "title": "Site maintenance",
+      "destination": "maintain/site/maintenance.md",
+      "primary_audience": "maintain",
+      "additional_audiences": []
+    },
+    {
+      "publication": "site",
+      "document": "authority-model",
+      "title": "Authority model",
+      "destination": "maintain/site/authority-model.md",
+      "primary_audience": "maintain",
+      "additional_audiences": []
+    },
+    {
+      "publication": "site",
+      "document": "integrated-publication",
+      "title": "Integrated publication",
+      "destination": "maintain/publication/integrated-publication.md",
+      "primary_audience": "maintain",
+      "additional_audiences": []
+    },
+    {
+      "publication": "site",
+      "document": "publication-staging",
+      "title": "Staging and cutover",
+      "destination": "maintain/publication/staging.md",
+      "primary_audience": "maintain",
+      "additional_audiences": []
+    },
+    {
+      "publication": "site",
+      "document": "publication-freshness",
+      "title": "Provider source freshness",
+      "destination": "maintain/publication/provider-freshness.md",
+      "primary_audience": "maintain",
+      "additional_audiences": []
+    },
+    {
+      "publication": "site",
+      "document": "runtime-freshness",
+      "title": "Runtime freshness",
+      "destination": "maintain/site/runtime-freshness.md",
+      "primary_audience": "maintain",
+      "additional_audiences": []
+    },
+    {
+      "publication": "site",
+      "document": "glossary-contract",
+      "title": "Glossary integration",
+      "destination": "maintain/publication/glossary.md",
+      "primary_audience": "maintain",
+      "additional_audiences": []
+    },
+    {
+      "publication": "site",
+      "document": "language-contract",
+      "title": "Language and translation",
+      "destination": "maintain/publication/language.md",
+      "primary_audience": "maintain",
+      "additional_audiences": []
+    },
+    {
+      "publication": "site",
+      "document": "site-pwa-contract",
+      "title": "Site PWA contract",
+      "destination": "maintain/site/pwa.md",
+      "primary_audience": "maintain",
+      "additional_audiences": []
+    },
+    {
+      "publication": "site",
+      "document": "ci-performance",
+      "title": "Site CI performance",
+      "destination": "maintain/qualification/ci-performance.md",
+      "primary_audience": "maintain",
+      "additional_audiences": []
+    },
+    {
+      "publication": "site",
       "document": "repository-trees",
       "title": "Overview",
       "destination": "repository-trees/index.md",
@@ -1884,6 +1964,12 @@
             "publication": "site",
             "document": "portal-home",
             "destination": "index.md"
+          },
+          {
+            "title": "Site maintenance",
+            "publication": "site",
+            "document": "site-maintenance",
+            "destination": "maintain/site/maintenance.md"
           }
         ]
       },
@@ -1904,6 +1990,12 @@
                 "publication": "site",
                 "document": "workspace-topology-overview",
                 "destination": "workspace/index.md"
+              },
+              {
+                "title": "Authority model",
+                "publication": "site",
+                "document": "authority-model",
+                "destination": "maintain/site/authority-model.md"
               }
             ]
           },
@@ -2162,11 +2254,41 @@
           }
         ]
       },
+  {
+    "title": "Publication",
+    "children": [
       {
-        "title": "Publication",
-        "children": [
-          {
-            "title": "Composition",
+        "title": "Integrated publication",
+        "publication": "site",
+        "document": "integrated-publication",
+        "destination": "maintain/publication/integrated-publication.md"
+      },
+      {
+        "title": "Staging and cutover",
+        "publication": "site",
+        "document": "publication-staging",
+        "destination": "maintain/publication/staging.md"
+      },
+      {
+        "title": "Provider source freshness",
+        "publication": "site",
+        "document": "publication-freshness",
+        "destination": "maintain/publication/provider-freshness.md"
+      },
+      {
+        "title": "Glossary integration",
+        "publication": "site",
+        "document": "glossary-contract",
+        "destination": "maintain/publication/glossary.md"
+      },
+      {
+        "title": "Language and translation",
+        "publication": "site",
+        "document": "language-contract",
+        "destination": "maintain/publication/language.md"
+      },
+      {
+        "title": "Composition",
             "children": [
               {
                 "title": "Publication boundary",
@@ -2195,11 +2317,23 @@
           }
         ]
       },
+  {
+    "title": "Site operation",
+    "children": [
       {
-        "title": "Site operation",
-        "children": [
-          {
-            "title": "Reader help",
+        "title": "Runtime freshness",
+        "publication": "site",
+        "document": "runtime-freshness",
+        "destination": "maintain/site/runtime-freshness.md"
+      },
+      {
+        "title": "Site PWA contract",
+        "publication": "site",
+        "document": "site-pwa-contract",
+        "destination": "maintain/site/pwa.md"
+      },
+      {
+        "title": "Reader help",
             "children": [
               {
                 "title": "PWA usage",
@@ -2211,11 +2345,17 @@
           }
         ]
       },
+  {
+    "title": "Validation and qualification",
+    "children": [
       {
-        "title": "Validation and qualification",
-        "children": [
-          {
-            "title": "Composition",
+        "title": "Site CI performance",
+        "publication": "site",
+        "document": "ci-performance",
+        "destination": "maintain/qualification/ci-performance.md"
+      },
+      {
+        "title": "Composition",
             "children": [
               {
                 "title": "Evaluate Composition",

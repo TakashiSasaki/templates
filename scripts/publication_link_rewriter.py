@@ -16,7 +16,17 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 from urllib.parse import quote, unquote
 
-from scripts.assemble_publications import load_catalog, load_manifest, resolve
+from scripts.assemble_publications import (
+    AssemblyError,
+    load_catalog,
+    load_manifest,
+    resolve,
+)
+from scripts.generate_repository_trees import (
+    RepositoryTreeError,
+    entry_label,
+    read_entries,
+)
 
 SCHEME = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*:")
 FENCE = re.compile(r"^[ ]{0,3}(?P<fence>`{3,}|~{3,})(?:[^`~].*)?$")
@@ -108,6 +118,8 @@ def _rewrite_destination(
     document_targets: dict[PurePosixPath, PurePosixPath],
     asset_rules: list[AssetRule],
     docs_root: Path,
+    publication: str,
+    site_source_paths: frozenset[bytes] | None,
 ) -> str:
     parsed = _split_destination(destination)
     if parsed is None:
@@ -124,6 +136,11 @@ def _rewrite_destination(
     if site_target is None:
         site_target = _asset_target(source_target, asset_rules, docs_root)
     if site_target is None:
+        if publication == "site" and not suffix and site_source_paths is not None:
+            encoded_path = source_target.as_posix().encode("utf-8")
+            if encoded_path in site_source_paths:
+                encoded = quote(source_target.as_posix(), safe="/@-._~")
+                return f"/files/site/#file={encoded}"
         return destination
 
     start = site_document.parent.as_posix()
@@ -248,6 +265,8 @@ def _rewrite_markdown(
     document_targets: dict[PurePosixPath, PurePosixPath],
     asset_rules: list[AssetRule],
     docs_root: Path,
+    publication: str,
+    site_source_paths: frozenset[bytes] | None,
 ) -> tuple[str, int]:
     def rewrite(destination: str) -> str:
         return _rewrite_destination(
@@ -257,6 +276,8 @@ def _rewrite_markdown(
             document_targets=document_targets,
             asset_rules=asset_rules,
             docs_root=docs_root,
+            publication=publication,
+            site_source_paths=site_source_paths,
         )
 
     output: list[str] = []
@@ -292,6 +313,8 @@ def rebase_publication_links(
     publication_roots: dict[str, Path],
     site_root: Path,
     output_root: Path,
+    *,
+    site_source_root: Path | None = None,
 ) -> int:
     """Rewrite published relative links that target declared provider outputs."""
     site_root = site_root.resolve(strict=True)
@@ -306,6 +329,20 @@ def rebase_publication_links(
         resolved_root = root.resolve(strict=True)
         documents, assets = load_catalog(name, resolved_root)
         catalogs[name] = (resolved_root, documents, assets)
+
+    site_source_paths: frozenset[bytes] | None = None
+    if "site" in catalogs:
+        if site_source_root is None:
+            raise AssemblyError(
+                "original Site source root is required for Source-browser link identity"
+            )
+        try:
+            site_entries = read_entries(site_source_root.resolve(strict=True))
+        except RepositoryTreeError as exc:
+            raise AssemblyError(str(exc)) from exc
+        site_source_paths = frozenset(
+            entry.path for entry in site_entries if entry_label(entry) == "file"
+        )
 
     manifest = load_manifest(site_root / "site-manifest.json")
     canonical_documents = manifest.documents
@@ -335,7 +372,7 @@ def rebase_publication_links(
     total = 0
     for page in canonical_documents:
         publication = page["publication"]
-        _, documents, _ = catalogs[publication]
+        publication_root, documents, _ = catalogs[publication]
         source_document = documents[page["document"]]["source"]
         site_document = page["destination"]
         target = docs_root.joinpath(*site_document.parts)
@@ -350,6 +387,8 @@ def rebase_publication_links(
             document_targets=document_targets[publication],
             asset_rules=asset_rules[publication],
             docs_root=docs_root,
+            publication=publication,
+            site_source_paths=site_source_paths,
         )
         if count:
             target.write_text(updated, encoding="utf-8")

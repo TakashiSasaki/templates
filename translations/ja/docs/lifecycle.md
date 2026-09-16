@@ -195,3 +195,13 @@ repository 全体の ownership model と Policy / Composition の分離につい
 | --- | --- | --- | --- | --- |
 | 17 | planning | audience-manifest-foundation | artifacts/lifecycle/017-audience-manifest-foundation | 9b9a2ba7bb728bba7da97b7db125ec2171872ada15b322933d58d60b1429daef |
 | 18 | product | audience-manifest-foundation-product | artifacts/lifecycle/018-audience-manifest-foundation-product | 6dfcc3b1ce589f53627a600a2eeb503feb246dfeb744a6a3277e36f3b3b2669e |
+
+### Site メンテナー文書のオーディエンス公開
+
+以下のチェックポイントは、Site が所有する10件のメンテナー向けソースを
+正規の Maintain 読者ページと、それらを検証する Website 証跡に結び付けます。
+
+| 順序 | フェーズ | ID | スナップショット | マニフェスト SHA-256 |
+| --- | --- | --- | --- | --- |
+| 19 | planning | audience-maintainer-publication | artifacts/lifecycle/019-audience-maintainer-publication | e2a873147f4aea4e0296fe8dee34a76d4b73cf2c70eb90de274b3aee8179fcca |
+| 20 | product | audience-maintainer-publication-product | artifacts/lifecycle/020-audience-maintainer-publication-product | c6ec49c904a83229b8e5827988f6c803693493eadf5f398b25ddaaeae37ab1b3 |

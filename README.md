@@ -237,6 +237,7 @@ python site/scripts/assemble_publications_v3.py \
   --publication composition=sources/composition \
   --publication policy=sources/policy \
   --site-root site-publication \
+  --site-source-root site \
   --output-root build
 
 python site/scripts/publish_provider_translations.py \

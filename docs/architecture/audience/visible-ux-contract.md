@@ -67,8 +67,7 @@ services in addition to the foundation's history, instant-navigation and offline
 checks. Existing canonical mobile/search/PWA freshness checks remain required
 where applicable. No additional build or browser workflow is introduced.
 
-The ten Site maintainer publication candidates remain deferred under the owning
-Site rationale in [reconciliation](reconciliation.md). Their source visibility
-is not canonical reader publication. This UX does not close Session 6 or claim
-the entire audience migration complete. Final cross-authority closeout must bind
-the landed UX Site revision and selected provider publications separately.
+The ten Site maintainer publication candidates are projected as canonical
+Maintain documents under the active Site catalog and manifest; Source visibility
+remains distinct from that publication. Final cross-authority closeout still binds
+the landed Site revision and selected provider publications separately.

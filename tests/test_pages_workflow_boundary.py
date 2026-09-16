@@ -178,6 +178,7 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
         self.assertIn("--publication site=site-publication", workflow)
         self.assertIn("--publication composition=composition-source", workflow)
         self.assertIn("--publication policy=policy-source", workflow)
+        self.assertIn("--site-source-root site-source", workflow)
         self.assertNotIn("--publication skill=", workflow)
         self.assertNotIn("--publication webapp=", workflow)
         self.assertNotIn("generate_skill_template_tree.py", workflow)
@@ -290,4 +291,3 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

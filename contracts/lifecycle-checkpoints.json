@@ -181,6 +181,26 @@
       "snapshotPath": "artifacts/lifecycle/018-audience-manifest-foundation-product",
       "manifestSha256": "6dfcc3b1ce589f53627a600a2eeb503feb246dfeb744a6a3277e36f3b3b2669e",
       "recordedAt": "2026-09-15T01:13:12.945669Z"
+    },
+    {
+      "id": "audience-maintainer-publication",
+      "sequence": 19,
+      "phase": "planning",
+      "changeKind": "specification-change",
+      "parentId": "audience-manifest-foundation-product",
+      "snapshotPath": "artifacts/lifecycle/019-audience-maintainer-publication",
+      "manifestSha256": "e2a873147f4aea4e0296fe8dee34a76d4b73cf2c70eb90de274b3aee8179fcca",
+      "recordedAt": "2026-09-16T09:42:01.507643Z"
+    },
+    {
+      "id": "audience-maintainer-publication-product",
+      "sequence": 20,
+      "phase": "product",
+      "changeKind": "specification-change",
+      "parentId": "audience-maintainer-publication",
+      "snapshotPath": "artifacts/lifecycle/020-audience-maintainer-publication-product",
+      "manifestSha256": "c6ec49c904a83229b8e5827988f6c803693493eadf5f398b25ddaaeae37ab1b3",
+      "recordedAt": "2026-09-16T09:42:06.111589Z"
     }
   ]
 }

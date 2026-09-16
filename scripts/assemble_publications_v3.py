@@ -25,16 +25,22 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--publication", action="append", default=[])
     parser.add_argument("--site-root", required=True, type=Path)
+    parser.add_argument("--site-source-root", type=Path)
     parser.add_argument("--output-root", required=True, type=Path)
     args = parser.parse_args()
 
     try:
         publication_roots = parse_publications(args.publication)
+        if "site" in publication_roots and args.site_source_root is None:
+            raise AssemblyError(
+                "original Site source root is required for Source-browser link identity"
+            )
         summary = assemble(publication_roots, args.site_root, args.output_root)
         rebased = rebase_publication_links(
             publication_roots,
             args.site_root,
             args.output_root,
+            site_source_root=args.site_source_root,
         )
         summary.append(f"publication links rebased: {rebased}")
         print("\n".join(summary))

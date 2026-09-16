@@ -7,7 +7,7 @@ import argparse
 import json
 import shutil
 import sys
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, Iterable
 
 if __package__ in (None, ""):
@@ -162,6 +162,52 @@ def copy_tree(source: Path, destination: Path, label: str) -> None:
                 )
 
 
+def copy_declared_document_sources(
+    site_root: Path,
+    output_root: Path,
+    catalog: dict[str, Any],
+) -> None:
+    """Preserve catalog-declared Site sources outside the copied docs tree."""
+    documents = catalog.get("documents")
+    if not isinstance(documents, list):
+        raise PreparationError("site publication catalog documents must be an array")
+
+    for document in documents:
+        if not isinstance(document, dict) or not isinstance(document.get("source"), str):
+            raise PreparationError("site publication catalog document is invalid")
+        relative = PurePosixPath(document["source"])
+        if relative.is_absolute() or not relative.parts or any(
+            part in ("", ".", "..") for part in relative.parts
+        ):
+            raise PreparationError(
+                f"site publication source must be a safe relative path: {relative}"
+            )
+
+        source = site_root
+        for part in relative.parts:
+            source = source / part
+            if source.is_symlink():
+                raise PreparationError(
+                    f"site publication source must not traverse a symlink: {relative}"
+                )
+        if not source.exists() and document.get("optional") is True:
+            continue
+        if not source.is_file():
+            raise PreparationError(
+                f"site publication source must be a regular file: {relative}"
+            )
+
+        destination = output_root.joinpath(*relative.parts)
+        if destination.exists():
+            if not destination.is_file() or destination.is_symlink():
+                raise PreparationError(
+                    f"prepared publication source is not a regular file: {relative}"
+                )
+            continue
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, destination)
+
+
 def augment_catalog(
     catalog: dict[str, Any],
     generated_documents: Iterable[dict[str, Any]] = TREE_DOCUMENTS,
@@ -233,9 +279,14 @@ def prepare(site_root: Path, output_root: Path) -> list[str]:
     except AssemblyError as exc:
         raise PreparationError(str(exc)) from exc
     prepared_manifest = augment_manifest(manifest_data)
+    source_catalog = read_json(
+        site_root / "docs/publication-catalog.json",
+        "site publication catalog",
+    )
 
     output_root = prepare_output_root(output_root, site_root)
     copy_tree(site_root / "docs", output_root / "docs", "site docs")
+    copy_declared_document_sources(site_root, output_root, source_catalog)
 
     assets_source = site_root / "assets"
     if assets_source.exists():
@@ -260,7 +311,7 @@ def prepare(site_root: Path, output_root: Path) -> list[str]:
     prepared_manifest_path = output_root / "site-manifest.json"
     write_json(
         catalog_path,
-        augment_catalog(read_json(catalog_path, "site publication catalog")),
+        augment_catalog(source_catalog),
     )
     write_json(
         prepared_manifest_path,

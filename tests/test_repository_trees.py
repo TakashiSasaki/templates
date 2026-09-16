@@ -210,11 +210,20 @@ class RepositoryTreePreparationTests(unittest.TestCase):
                             "source": "docs/landing.md",
                             "optional": False,
                             "home": True,
+                        },
+                        {
+                            "id": "maintenance",
+                            "source": "MAINTENANCE.md",
+                            "optional": False,
+                            "home": False,
                         }
                     ],
                 }
             ),
             encoding="utf-8",
+        )
+        (root / "MAINTENANCE.md").write_text(
+            "# Site maintenance\n", encoding="utf-8"
         )
         (root / "site-manifest.json").write_text(
             json.dumps(
@@ -312,6 +321,10 @@ class RepositoryTreePreparationTests(unittest.TestCase):
             )
             prepare(site_root, output_root)
             self.assertTrue((output_root / "docs/repository-trees/composition.md").is_file())
+            self.assertEqual(
+                (output_root / "MAINTENANCE.md").read_text(encoding="utf-8"),
+                "# Site maintenance\n",
+            )
             self.assertFalse((output_root / "docs/repository-trees/skill.md").exists())
             self.assertFalse((output_root / "docs/repository-trees/webapp.md").exists())
 
@@ -324,6 +337,36 @@ class RepositoryTreePreparationTests(unittest.TestCase):
             os.symlink(site_root / "docs/index.md", site_root / "docs/linked.md")
             with self.assertRaisesRegex(PreparationError, "contains a symlink"):
                 prepare(site_root, root / "prepared")
+
+    def test_preparation_skips_only_absent_optional_document_sources(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            site_root = root / "site"
+            site_root.mkdir()
+            self.make_site_source(site_root)
+            catalog_path = site_root / "docs/publication-catalog.json"
+            catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
+            catalog["documents"].append(
+                {
+                    "id": "optional-missing",
+                    "source": "OPTIONAL.md",
+                    "optional": True,
+                    "home": False,
+                }
+            )
+            catalog_path.write_text(json.dumps(catalog), encoding="utf-8")
+
+            output_root = root / "prepared"
+            prepare(site_root, output_root)
+            self.assertFalse((output_root / "OPTIONAL.md").exists())
+
+            catalog["documents"][-1]["optional"] = False
+            catalog_path.write_text(json.dumps(catalog), encoding="utf-8")
+            with self.assertRaisesRegex(
+                PreparationError,
+                "site publication source must be a regular file: OPTIONAL.md",
+            ):
+                prepare(site_root, output_root)
 
 
 class RepositoryTreeConfigurationTests(unittest.TestCase):

@@ -749,6 +749,56 @@
           "id": "workspace-topology-overview",
           "canonical": "Workspace topology overview",
           "localized": "ワークスペーストポロジ概要"
+        },
+        {
+          "id": "site-maintenance",
+          "canonical": "Site maintenance",
+          "localized": "Site メンテナンス"
+        },
+        {
+          "id": "authority-model",
+          "canonical": "Authority model",
+          "localized": "Authority モデル"
+        },
+        {
+          "id": "integrated-publication",
+          "canonical": "Integrated publication",
+          "localized": "統合公開"
+        },
+        {
+          "id": "staging-and-cutover",
+          "canonical": "Staging and cutover",
+          "localized": "ステージングと切替"
+        },
+        {
+          "id": "provider-source-freshness",
+          "canonical": "Provider source freshness",
+          "localized": "Provider ソースの鮮度"
+        },
+        {
+          "id": "runtime-freshness",
+          "canonical": "Runtime freshness",
+          "localized": "Runtime の鮮度"
+        },
+        {
+          "id": "glossary-integration",
+          "canonical": "Glossary integration",
+          "localized": "用語集統合"
+        },
+        {
+          "id": "language-and-translation",
+          "canonical": "Language and translation",
+          "localized": "言語と翻訳"
+        },
+        {
+          "id": "site-pwa-contract",
+          "canonical": "Site PWA contract",
+          "localized": "Site PWA 契約"
+        },
+        {
+          "id": "site-ci-performance",
+          "canonical": "Site CI performance",
+          "localized": "Site CI パフォーマンス"
         }
       ]
     }

@@ -666,6 +666,11 @@
             "title": "Documentation portal",
             "destination": "index.md",
             "href": "/"
+          },
+          {
+            "title": "Site maintenance",
+            "destination": "maintain/site/maintenance.md",
+            "href": "/maintain/site/maintenance/"
           }
         ]
       },
@@ -684,6 +689,11 @@
                 "title": "Workspace topology overview",
                 "destination": "workspace/index.md",
                 "href": "/workspace/"
+              },
+              {
+                "title": "Authority model",
+                "destination": "maintain/site/authority-model.md",
+                "href": "/maintain/site/authority-model/"
               }
             ]
           },
@@ -908,6 +918,31 @@
         "title": "Publication",
         "children": [
           {
+            "title": "Integrated publication",
+            "destination": "maintain/publication/integrated-publication.md",
+            "href": "/maintain/publication/integrated-publication/"
+          },
+          {
+            "title": "Staging and cutover",
+            "destination": "maintain/publication/staging.md",
+            "href": "/maintain/publication/staging/"
+          },
+          {
+            "title": "Provider source freshness",
+            "destination": "maintain/publication/provider-freshness.md",
+            "href": "/maintain/publication/provider-freshness/"
+          },
+          {
+            "title": "Glossary integration",
+            "destination": "maintain/publication/glossary.md",
+            "href": "/maintain/publication/glossary/"
+          },
+          {
+            "title": "Language and translation",
+            "destination": "maintain/publication/language.md",
+            "href": "/maintain/publication/language/"
+          },
+          {
             "title": "Composition",
             "children": [
               {
@@ -938,6 +973,16 @@
         "title": "Site operation",
         "children": [
           {
+            "title": "Runtime freshness",
+            "destination": "maintain/site/runtime-freshness.md",
+            "href": "/maintain/site/runtime-freshness/"
+          },
+          {
+            "title": "Site PWA contract",
+            "destination": "maintain/site/pwa.md",
+            "href": "/maintain/site/pwa/"
+          },
+          {
             "title": "Reader help",
             "children": [
               {
@@ -952,6 +997,11 @@
       {
         "title": "Validation and qualification",
         "children": [
+          {
+            "title": "Site CI performance",
+            "destination": "maintain/qualification/ci-performance.md",
+            "href": "/maintain/qualification/ci-performance/"
+          },
           {
             "title": "Composition",
             "children": [
@@ -1202,6 +1252,106 @@
       "primary": "use",
       "audiences": [
         "use",
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "maintain/site/maintenance.md": {
+      "key": "site:site-maintenance",
+      "title": "Site maintenance",
+      "destination": "maintain/site/maintenance.md",
+      "primary": "maintain",
+      "audiences": [
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "maintain/site/authority-model.md": {
+      "key": "site:authority-model",
+      "title": "Authority model",
+      "destination": "maintain/site/authority-model.md",
+      "primary": "maintain",
+      "audiences": [
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "maintain/publication/integrated-publication.md": {
+      "key": "site:integrated-publication",
+      "title": "Integrated publication",
+      "destination": "maintain/publication/integrated-publication.md",
+      "primary": "maintain",
+      "audiences": [
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "maintain/publication/staging.md": {
+      "key": "site:publication-staging",
+      "title": "Staging and cutover",
+      "destination": "maintain/publication/staging.md",
+      "primary": "maintain",
+      "audiences": [
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "maintain/publication/provider-freshness.md": {
+      "key": "site:publication-freshness",
+      "title": "Provider source freshness",
+      "destination": "maintain/publication/provider-freshness.md",
+      "primary": "maintain",
+      "audiences": [
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "maintain/site/runtime-freshness.md": {
+      "key": "site:runtime-freshness",
+      "title": "Runtime freshness",
+      "destination": "maintain/site/runtime-freshness.md",
+      "primary": "maintain",
+      "audiences": [
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "maintain/publication/glossary.md": {
+      "key": "site:glossary-contract",
+      "title": "Glossary integration",
+      "destination": "maintain/publication/glossary.md",
+      "primary": "maintain",
+      "audiences": [
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "maintain/publication/language.md": {
+      "key": "site:language-contract",
+      "title": "Language and translation",
+      "destination": "maintain/publication/language.md",
+      "primary": "maintain",
+      "audiences": [
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "maintain/site/pwa.md": {
+      "key": "site:site-pwa-contract",
+      "title": "Site PWA contract",
+      "destination": "maintain/site/pwa.md",
+      "primary": "maintain",
+      "audiences": [
+        "maintain"
+      ],
+      "is_landing": false
+    },
+    "maintain/qualification/ci-performance.md": {
+      "key": "site:ci-performance",
+      "title": "Site CI performance",
+      "destination": "maintain/qualification/ci-performance.md",
+      "primary": "maintain",
+      "audiences": [
         "maintain"
       ],
       "is_landing": false
@@ -2484,6 +2634,56 @@
     "lifecycle": "lifecycle/index.md",
     "lifecycle/": "lifecycle/index.md",
     "/lifecycle/index.html": "lifecycle/index.md",
+    "maintain/site/maintenance.md": "maintain/site/maintenance.md",
+    "/maintain/site/maintenance.md": "maintain/site/maintenance.md",
+    "/maintain/site/maintenance/": "maintain/site/maintenance.md",
+    "/maintain/site/maintenance": "maintain/site/maintenance.md",
+    "/maintain/site/maintenance.html": "maintain/site/maintenance.md",
+    "maintain/site/authority-model.md": "maintain/site/authority-model.md",
+    "/maintain/site/authority-model.md": "maintain/site/authority-model.md",
+    "/maintain/site/authority-model/": "maintain/site/authority-model.md",
+    "/maintain/site/authority-model": "maintain/site/authority-model.md",
+    "/maintain/site/authority-model.html": "maintain/site/authority-model.md",
+    "maintain/publication/integrated-publication.md": "maintain/publication/integrated-publication.md",
+    "/maintain/publication/integrated-publication.md": "maintain/publication/integrated-publication.md",
+    "/maintain/publication/integrated-publication/": "maintain/publication/integrated-publication.md",
+    "/maintain/publication/integrated-publication": "maintain/publication/integrated-publication.md",
+    "/maintain/publication/integrated-publication.html": "maintain/publication/integrated-publication.md",
+    "maintain/publication/staging.md": "maintain/publication/staging.md",
+    "/maintain/publication/staging.md": "maintain/publication/staging.md",
+    "/maintain/publication/staging/": "maintain/publication/staging.md",
+    "/maintain/publication/staging": "maintain/publication/staging.md",
+    "/maintain/publication/staging.html": "maintain/publication/staging.md",
+    "maintain/publication/provider-freshness.md": "maintain/publication/provider-freshness.md",
+    "/maintain/publication/provider-freshness.md": "maintain/publication/provider-freshness.md",
+    "/maintain/publication/provider-freshness/": "maintain/publication/provider-freshness.md",
+    "/maintain/publication/provider-freshness": "maintain/publication/provider-freshness.md",
+    "/maintain/publication/provider-freshness.html": "maintain/publication/provider-freshness.md",
+    "maintain/site/runtime-freshness.md": "maintain/site/runtime-freshness.md",
+    "/maintain/site/runtime-freshness.md": "maintain/site/runtime-freshness.md",
+    "/maintain/site/runtime-freshness/": "maintain/site/runtime-freshness.md",
+    "/maintain/site/runtime-freshness": "maintain/site/runtime-freshness.md",
+    "/maintain/site/runtime-freshness.html": "maintain/site/runtime-freshness.md",
+    "maintain/publication/glossary.md": "maintain/publication/glossary.md",
+    "/maintain/publication/glossary.md": "maintain/publication/glossary.md",
+    "/maintain/publication/glossary/": "maintain/publication/glossary.md",
+    "/maintain/publication/glossary": "maintain/publication/glossary.md",
+    "/maintain/publication/glossary.html": "maintain/publication/glossary.md",
+    "maintain/publication/language.md": "maintain/publication/language.md",
+    "/maintain/publication/language.md": "maintain/publication/language.md",
+    "/maintain/publication/language/": "maintain/publication/language.md",
+    "/maintain/publication/language": "maintain/publication/language.md",
+    "/maintain/publication/language.html": "maintain/publication/language.md",
+    "maintain/site/pwa.md": "maintain/site/pwa.md",
+    "/maintain/site/pwa.md": "maintain/site/pwa.md",
+    "/maintain/site/pwa/": "maintain/site/pwa.md",
+    "/maintain/site/pwa": "maintain/site/pwa.md",
+    "/maintain/site/pwa.html": "maintain/site/pwa.md",
+    "maintain/qualification/ci-performance.md": "maintain/qualification/ci-performance.md",
+    "/maintain/qualification/ci-performance.md": "maintain/qualification/ci-performance.md",
+    "/maintain/qualification/ci-performance/": "maintain/qualification/ci-performance.md",
+    "/maintain/qualification/ci-performance": "maintain/qualification/ci-performance.md",
+    "/maintain/qualification/ci-performance.html": "maintain/qualification/ci-performance.md",
     "repository-trees/index.md": "repository-trees/index.md",
     "/repository-trees/index.md": "repository-trees/index.md",
     "/repository-trees/": "repository-trees/index.md",
