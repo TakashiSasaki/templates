@@ -99,7 +99,8 @@ is represented as a pass.
 
 ## Session boundary and human handoff
 
-**Session 5 has not started.** The future session may consume the semantic state
+**Historical Session 4 boundary.** The [visible UX contract](visible-ux-contract.md)
+now describes Session 5 presentation. The foundation alone supplies semantic state
 and events, but this stack does not implement blue/cyan or amber/orange themes,
 visual tokens, redesigned neutral landing cards, a final switcher, search audience
 badges/filtering, or presentation-oriented breadcrumbs.
