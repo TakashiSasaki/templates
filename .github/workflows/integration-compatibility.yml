@@ -1,0 +1,26 @@
+name: Policy Integration compatibility
+on:
+  # This workflow belongs to the provider base history, including arbitrarily
+  # named authority-local stacked bases. Branch spelling is not authority.
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [policy]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: policy-integration-compatibility-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  compatibility:
+    if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
+    uses: TakashiSasaki/templates/.github/workflows/integration-qualification.yml@a30699cf7dc56bf3ef7a1b6fd8f6ffd45cdd426d
+    with:
+      producer_ref: a30699cf7dc56bf3ef7a1b6fd8f6ffd45cdd426d
+      policy_ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      artifact_namespace: policy-compatibility
+    # The companion provider comes only from this reviewed Integration lock.
+    # Evidence binds this exact candidate and Integration contract; it does not
+    # promote provider locks, adopt Site input, render Site, or authorize deployment.

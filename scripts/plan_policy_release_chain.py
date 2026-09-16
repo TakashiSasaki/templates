@@ -58,11 +58,10 @@ REGENERATION_SURFACES: dict[str, tuple[str, ...]] = {
         "AGENTS.md",
     ),
     "I-policy-publication": ("translations/manifest.json",),
-    "policy-to-site-projection": (
+    "policy-to-integration-promotion": (
         "publication-sources.json",
-        "agent.json",
-        "assets/agent.json",
-        "tests/test_policy_concepts_promotion.py",
+        "site-manifest.json",
+        "publication-staging.json",
     ),
 }
 
@@ -89,8 +88,9 @@ VALIDATION_BY_STAGE: dict[str, tuple[str, ...]] = {
         "tests/test_skill_installer_publication.py",
         "scripts/verify_skill_installer_release.py",
     ),
-    "policy-to-site-projection": (
-        "Site-owned compatibility/publication validation on the site authority",
+    "policy-to-integration-promotion": (
+        "Exact candidate compatibility and explicit reviewed promotion "
+        "on the integration authority",
     ),
 }
 
@@ -456,7 +456,7 @@ def build_plan(
                 "T-promotion",
                 "S-installer-candidate",
                 "I-policy-publication",
-                "policy-to-site-projection",
+                "policy-to-integration-promotion",
             )
         )
     elif changed["S"]:
@@ -464,11 +464,11 @@ def build_plan(
             (
                 "S-installer-candidate",
                 "I-policy-publication",
-                "policy-to-site-projection",
+                "policy-to-integration-promotion",
             )
         )
     elif changed["I"]:
-        stale.extend(("I-policy-publication", "policy-to-site-projection"))
+        stale.extend(("I-policy-publication", "policy-to-integration-promotion"))
 
     awaiting_evidence: list[str] = []
     if changed["T"] and not runtime_lock.get("verified"):
@@ -565,18 +565,19 @@ def build_plan(
             ),
         },
         {
-            "name": "policy-to-site-projection",
+            "name": "policy-to-integration-promotion",
             "identity": "policy-publication",
             "action": (
-                "after canonical Policy publication changes, refresh Site-owned "
-                "integration without making Site a Policy super-authority"
+                "after exact candidate compatibility and provider merge, explicitly promote "
+                "the reviewed provider SHA into Integration, then STOP; Site adoption "
+                "requires separate human instruction"
             ),
-            "external_authority": "site",
+            "external_authority": "integration",
             "generated_surfaces": list(
-                REGENERATION_SURFACES["policy-to-site-projection"]
+                REGENERATION_SURFACES["policy-to-integration-promotion"]
             ),
             "validation": list(
-                VALIDATION_BY_STAGE["policy-to-site-projection"]
+                VALIDATION_BY_STAGE["policy-to-integration-promotion"]
             ),
         },
     ]

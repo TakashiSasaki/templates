@@ -77,7 +77,7 @@ def test_case_b_lower_semantic_change_stales_downstream_chain_before_review() ->
     assert plan["stale_stages"][-3:] == [
         "S-installer-candidate",
         "I-policy-publication",
-        "policy-to-site-projection",
+        "policy-to-integration-promotion",
     ]
     assert plan["awaiting_immutable_identity_materialization"] == ["S", "I"]
     stacked = _text(

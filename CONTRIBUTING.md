@@ -10,7 +10,7 @@ and [Repository structure](docs/repository-structure.md) to locate the owner.
 operation, self-hosting, and separate promotion. [Documentation publication](docs/documentation-publication.md)
 covers the local build; [Publication catalog](docs/publication-catalog.md#deferred-maintainer-publications)
 records the four canonical maintainer sources as active Policy publication entries,
-while Site owns their staged-to-active reader promotion and integrated exposure.
+while Integration owns their staged-to-active reader promotion and integrated exposure.
 
 Canonical repository-maintainer operating policy is declared by `.agent-policy.yml` and the files under `repository-policy/`; generated `AGENTS.md` and `.review-authority/review-policy.md` are context projections of that authority, and `.agents/skills/pr-review/` is the generated provider-neutral review procedure.
 

@@ -2,11 +2,11 @@
 
 The `policy` branch publishes a branch-owned allowlist of human-readable
 documentation, supporting public assets, and canonical terminology input through
-`docs/publication-catalog.json`. The independent `site` authority consumes this
-catalog together with the `composition` catalog and assembles the only GitHub
-Pages deployment for this repository. Skill and Web application remain reader
-and artifact concepts published from Composition rather than separate provider
-branches.
+`docs/publication-catalog.json`. The independent Integration authority combines this
+catalog with Composition into the versioned Publication Bundle. Site remains on
+its historical reviewed inputs until explicitly adopted; it alone owns Pages
+rendering and deployment. Skill and Web application remain Composition concepts,
+not separate provider branches.
 
 ## Ownership
 
@@ -17,12 +17,11 @@ cross-branch document identity is `policy:<document-id>`. Glossary term identity
 is independent of document identity and follows the repository-wide stable term
 ID contract.
 
-`site` owns the generic schema-v3 publication protocol implementation as well as
-the portal home page, navigation labels and ordering, generated destinations,
-the reviewed source-revision lock, the Zensical build, integrated glossary
-generation, and Pages deployment. Policy consumes the generic protocol from a
-reviewed full Site commit SHA; it does not maintain a second parser, path
-validator, or asset-tree implementation.
+`integration` owns the generic schema-v3 publication protocol, public destinations,
+semantic navigation, reviewed provider locks and integrated glossary model. Site
+owns portal presentation, rendering, browser runtime and Pages deployment. Policy
+consumes the generic protocol from a reviewed full Integration commit SHA; it does
+not maintain a second parser, path validator or asset-tree implementation.
 
 `policy` continues to run only its branch-local documentation build and must not
 gain a Pages deployment route. The catalog field `home: true` identifies the
@@ -49,13 +48,13 @@ Glossary `localized_labels` are not translated definitions. They are lexical
 discovery metadata that resolve to the same stable term ID and canonical
 English meaning.
 
-Translations are not entries in the publication catalog. The Site publication
-layer may expose synchronized derivative routes while preserving the one-way
+Translations are not entries in the publication catalog. Integration derives translation availability from authority-owned manifests and
+may expose qualified derivative routes while preserving the one-way
 authority relationship and keeping the English document canonical.
 
 ## Schema version
 
-The Site-owned generic publication protocol accepts only integer schema version
+The Integration-owned generic publication protocol accepts only integer schema version
 `3`. Legacy publication-catalog schema versions `1` and `2` are retired and fail
 closed. Schema version `3` defines the current Markdown document and explicit
 asset contracts and additionally permits one canonical glossary declaration:
@@ -110,19 +109,19 @@ escape the declared source root.
 
 ## Validation
 
-The canonical generic validator is Site's stdlib-only
-`scripts/publication_contract.py`. Policy documentation CI consumes the exact
-implementation merged by Site PR #313 at full commit SHA
-`3ae5d1e60c65e7a8ebf5f9af0436044484e42983`. The workflow sparse-checks out
+The canonical generic validator is Integration's stdlib-only
+`integration/publication_contract.py`. Policy documentation CI consumes the exact
+implementation accepted by P5 bootstrap #894–#896 at full commit SHA
+`a30699cf7dc56bf3ef7a1b6fd8f6ffd45cdd426d`. The workflow sparse-checks out
 that immutable revision and runs it against the Policy source root; it never
-executes a mutable `site` branch tip.
+executes a mutable `integration` branch tip.
 
-For local reproduction, make a separate checkout of that exact Site revision
+For local reproduction, make a separate checkout of that exact Integration revision
 available at a path of your choice, then run:
 
 ```sh
-SITE_PUBLICATION_PROTOCOL_ROOT=/path/to/site-checkout-at-3ae5d1e60c65e7a8ebf5f9af0436044484e42983
-python -I "$SITE_PUBLICATION_PROTOCOL_ROOT/scripts/publication_contract.py" \
+INTEGRATION_PUBLICATION_PROTOCOL_ROOT=/path/to/integration-checkout-at-a30699cf7dc56bf3ef7a1b6fd8f6ffd45cdd426d
+python -I "$INTEGRATION_PUBLICATION_PROTOCOL_ROOT/integration/publication_contract.py" \
   --source-root . \
   --catalog docs/publication-catalog.json
 python scripts/validate_translations.py
@@ -133,14 +132,14 @@ unsafe or symbolic-link paths, duplicate IDs and destinations, invalid home
 declarations, missing required sources, any catalog schema version other than
 integer `3`, malformed glossary declarations, Markdown smuggling through asset
 trees, and glossary/asset source overlap. Those rules are defined and tested by
-Site rather than copied into Policy.
+Integration rather than copied into Policy.
 
 Policy-owned tests continue to verify Policy-specific declarations and semantics,
 including the expected Policy landing document, glossary declaration,
 translation relationships, reader/navigation structure, and documentation build
 boundary.
 
-The Site build independently parses and validates the glossary content itself,
+The Integration producer independently parses and validates the glossary content itself,
 including its schema, stable term IDs, localized labels, external authority
 metadata, cross-provider term-ID uniqueness, related-term resolution, and exact
 provider revision provenance.
@@ -148,30 +147,29 @@ provider revision provenance.
 The translation validator rejects unsafe or unmirrored translation paths,
 translations of non-published canonical documents, missing non-authoritative
 notices for Japanese translations, duplicate translation declarations, and
-translation records whose recorded canonical Git blob no longer matches the
-current English source.
+structurally inconsistent synchronization metadata. Normal preflight allows stale
+derivatives while reporting reviewed/current canonical blob identities; direct
+validator invocation remains a strict freshness check. Integration determines
+publication availability, and no validation command updates synchronization hashes.
 
-When strict exact catalog coverage prevents the provider catalog and active Site
-mapping from merging independently, Policy may prove its catalog candidate
-against a reviewed full Site commit that contains the corresponding non-active
-Site-owned staging mapping and explicitly select its build-only staging ID. Site
-owns the staging mechanics; Policy only declares its provider catalog entry and
-consumes that immutable compatibility boundary. After the Policy catalog change
-merges, the dependent Site promotion must advance the Policy source lock and
-active mapping so ordinary builds pass without staging.
+When exact catalog closure requires a new reader mapping, qualify the Policy
+candidate against an exact Integration candidate that owns the corresponding
+non-active staging mapping. Policy declares source identities and consumes that
+compatibility boundary; it never owns Integration reader IA. After the Policy
+candidate merges, explicitly promote the exact merged SHA and intended mapping
+into Integration, requalify, obtain review, and STOP at the Integration release.
 
-A publication-set change is complete only after both the `policy` pull request
-and the dependent `site` pull request pass. The site source lock must record the
-reviewed full commit SHA that contains the catalog change.
+Provider merge, candidate compatibility and Integration promotion are distinct.
+Site adoption and deployment require separate human instructions and are not
+completion requirements for upstream Policy/Integration publication work.
 
 <a id="deferred-maintainer-publications"></a>
 
 ## Maintainer publications
 
 The following existing English sources are active Policy publication entries.
-These are stable **Policy-side document IDs and source identities**; Site still
-owns their reader destinations, navigation memberships, and the staged-to-active
-integration cutover. `docs/publication-catalog.json` remains the sole Policy
+These are stable **Policy-side document IDs and source identities**; Integration owns
+their reader destinations, semantic navigation and staging-to-active promotion. `docs/publication-catalog.json` remains the sole Policy
 publication allowlist.
 
 <!-- deferred-maintainer-publications -->
@@ -194,28 +192,26 @@ links the contribution and workflow entry points. The [ADR index](adr/index.md)
 links ADR-0008 and ADR-0009 through their canonical relative document paths. The
 three published layer indexes retain their catalog-only link contract.
 
-The four build-only staging mappings were introduced by Site PR #848 at full
-merge commit `f79eaa9e90197da0bb0c7eefaa039f265ad4b347`. Cross-authority
-qualification uses the subsequent Site PR #850 merge commit
-`7776f174e116d8ade9eb0f481d3f8b9bd743c792`, which retains those mappings and
-ensures the reusable build hashes the workflow definition from the same
-immutable `site_ref`. Policy CI qualifies this exact provider candidate against
-that immutable Site revision by atomically selecting the complete ordered set of
-four staged mappings in one non-deploying build. Partial one-document staging is
-invalid for this catalog cutover because the other newly published Policy
-documents would remain uncovered by the Site manifest. The staging build cannot
-authorize Policy or Site promotion by itself.
+The four mappings are already active in the reviewed Integration bootstrap
+snapshot. Candidate compatibility uses that exact Integration contract without
+staging or Site rendering. Future new reader destinations require Integration-owned
+candidate staging; provider CI must not weaken catalog closure or carry IA mappings.
 
-After this Policy catalog change lands, a dependent Site change must advance the
-Policy source lock and promote these staged mappings to active reader mappings.
-Only that later Site promotion makes ordinary integrated builds consume the new
-Policy publication without staging.
-
-Site chooses destinations, navigation memberships, reader context and
-presentation. Policy owns these sources, identities, semantic roles and
+Integration chooses reader destinations and semantic navigation. Site owns presentation.
+Policy owns these sources, identities, semantic roles and
 publication eligibility. No portal labels, theme metadata, or audience fields
 belong in the Policy catalog. The four canonical sources currently have no
 Japanese reader translations; English remains canonical and available as
 fallback. Updated Japanese index text remains a non-authoritative overlay with
 synchronized canonical blob hashes; future translations follow the existing
 manifest/surface rules when eligible.
+
+
+Provider candidate compatibility uses reviewed Integration `a30699cf7dc56bf3ef7a1b6fd8f6ffd45cdd426d`. The reusable
+Integration qualification workflow selects its reviewed companion provider and
+qualifies the exact candidate through deterministic Publication Bundle generation.
+A successful candidate is compatibility evidence only; Integration promotion is an
+explicit later change. Site adoption and deployment remain separate human decisions.
+Draft construction does not acquire this release-bound compatibility evidence;
+ready candidates and exact merged provider commits do. Integration owns any new
+reader destination or staging mapping required by a provider catalog change.
