@@ -319,6 +319,72 @@
       "source_blob": "8635bce0c45946d2b89a0cc6b5085246c92bab77",
       "source_sha256": "82f10143d1f75e06b762dbd809b4d6207ee6af969dc341ae6a2e633808c73713",
       "adaptation": "independent Integration producer/own-glossary authority attribution; provider semantics unchanged"
+    },
+    "integration/qualification.py": {
+      "source_path": "integration/qualification.py",
+      "source_blob": "d6793693d11dbfbd562c364be549690ed23b1533",
+      "source_sha256": "3a4627dba306b46dbf5bdfdea1ff1e9199c15cfff021a73a13c7caaf5096f409",
+      "adaptation": "independent Integration qualification/transport authority; existing safeguards retained"
+    },
+    "scripts/qualify_integration.py": {
+      "source_path": "scripts/qualify_integration.py",
+      "source_blob": "d241b3849e237520b322c090a6ca12637076c71e",
+      "source_sha256": "4d5027476823349aec94a083497ca3b409abe098738bf1094fd1fea45dad6501",
+      "adaptation": "independent Integration qualification/transport authority; existing safeguards retained"
+    },
+    "scripts/publication_bundle_artifact.py": {
+      "source_path": "scripts/publication_bundle_artifact.py",
+      "source_blob": "16ccd1652c644f1c4b68c0257e204bcd966a4296",
+      "source_sha256": "095cee9c96c0c00d12bbd1c8e599ef4e30775bc27b9909eb7a08a6170a6c89a7",
+      "adaptation": "independent Integration qualification/transport authority; existing safeguards retained"
+    },
+    "ci_artifacts/__init__.py": {
+      "source_path": "ci_artifacts/__init__.py",
+      "source_blob": "6fc6cbddeb79e3bb295553523f87c7df3fc99355",
+      "source_sha256": "49b323886b16700f7d108cb197521cbb503ff136ca0121a9825ceb1b4f7031a4",
+      "adaptation": "independent Integration qualification/transport authority; existing safeguards retained"
+    },
+    "ci_artifacts/transport.py": {
+      "source_path": "ci_artifacts/transport.py",
+      "source_blob": "0b1692a565fcf1c52f24e64a3e18af7ba64738cc",
+      "source_sha256": "617f6f4eb7da01dd459966efe4d91636c17cfd9b00ef3a738560de04ca623509",
+      "adaptation": "independent Integration qualification/transport authority; existing safeguards retained"
+    },
+    "ci_artifacts/publication_bundle.py": {
+      "source_path": "ci_artifacts/publication_bundle.py",
+      "source_blob": "cd7072324f18be77abeecae501b35f417b07ba2f",
+      "source_sha256": "f43e17fe9e7164a728f8a4c4effad5be7c5368936fe9cbe0ddd327f75abc5542",
+      "adaptation": "independent Integration qualification/transport authority; existing safeguards retained"
+    },
+    "tests/test_integration_qualification.py": {
+      "source_path": "tests/test_integration_qualification.py",
+      "source_blob": "043dfd378b7aab9f81f99b771dc84ae22c2682ea",
+      "source_sha256": "f5d319dbc7dd098d5aae9a70d6aca7ac831647d28b992ce5e8bb37d45ad60cb3",
+      "adaptation": "independent Integration qualification/transport authority; existing safeguards retained"
+    },
+    "tests/test_bundle_artifact.py": {
+      "source_path": "tests/test_bundle_artifact.py",
+      "source_blob": "972aee3bf6c2d3ea9f9f952044b1c75157bde0fa",
+      "source_sha256": "8533fbeb99391ef9ade7b2d6892971c0d8f25bd962812eb9f157595d8b269ef7",
+      "adaptation": "independent Integration qualification/transport authority; existing safeguards retained"
+    },
+    ".github/workflows/integration-qualification.yml": {
+      "source_path": ".github/workflows/integration-qualification.yml",
+      "source_blob": "df8a7cd80b9c5ae7ba5b61ede4927f8f93db0f1f",
+      "source_sha256": "06e52fee24f42e90a33dfd87eb3976c5924389e6e9ff30b061b1d48ec9cd58f8",
+      "adaptation": "independent Integration qualification/transport authority; existing safeguards retained"
+    },
+    "scripts/resolve_producer_checkout.py": {
+      "source_path": "scripts/resolve_site_checkout.py",
+      "source_blob": "0e2095b55912cd22d192116a2529bbd7e86de450",
+      "source_sha256": "f5ec24fcc0db91d12298672ae9616cb7979fdd1f16ea597d4d2dd5a5bc6e3e84",
+      "adaptation": "independent Integration qualification/transport authority; existing safeguards retained"
+    },
+    "integration/freshness.py": {
+      "source_path": "scripts/classify_publication_freshness.py",
+      "source_blob": "ca2449d26b16137a9ef4edd469d20a202b9bb5a9",
+      "source_sha256": "6698b594eb6cb58efcb2dcdcebfd67d1d31e3dade414bca0fa334148efe336a1",
+      "adaptation": "independent Integration qualification/transport authority; existing safeguards retained"
     }
   }
 }

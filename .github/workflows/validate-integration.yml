@@ -7,6 +7,7 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  actions: read
 jobs:
   contracts:
     runs-on: ubuntu-24.04
@@ -23,3 +24,10 @@ jobs:
           python -m pip install --no-deps -r requirements-build.lock
           python -m pip check
       - run: python -m unittest discover -s tests -v
+  qualification:
+    needs: contracts
+    uses: ./.github/workflows/integration-qualification.yml
+    with:
+      producer_ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      artifact_namespace: integration
+      bootstrap_equivalence: ${{ startsWith(github.head_ref, 'integration-bootstrap-') }}
