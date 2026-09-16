@@ -62,11 +62,18 @@ class BaseArtifactSelectionTests(unittest.TestCase):
 
     def test_select_artifact_requires_successful_unique_base_binding(self) -> None:
         run = {"id": 7}
-        jobs = [{"name": "build / build", "status": "completed", "conclusion": "success"}]
+        jobs = [{
+            "name": "build / build",
+            "status": "completed",
+            "conclusion": "success",
+            "started_at": "2026-09-16T04:00:00Z",
+            "completed_at": "2026-09-16T04:05:00Z",
+        }]
         artifacts = [{
             "id": 11,
             "name": "github-pages",
             "expired": False,
+            "created_at": "2026-09-16T04:03:00Z",
             "digest": "sha256:" + "a" * 64,
             "workflow_run": {"id": 7, "head_sha": BASE},
         }]
@@ -75,6 +82,55 @@ class BaseArtifactSelectionTests(unittest.TestCase):
         with self.assertRaises(ArtifactError):
             select_artifact(run, jobs, corrupted, base_sha=BASE)
         self.assertIsNone(select_artifact(run, [{**jobs[0], "conclusion": "failure"}], artifacts, base_sha=BASE))
+
+    def test_select_artifact_rejects_artifact_from_an_older_rerun_attempt(self) -> None:
+        run = {"id": 7}
+        jobs = [{
+            "name": "build / build",
+            "status": "completed",
+            "conclusion": "success",
+            "started_at": "2026-09-16T04:10:00Z",
+            "completed_at": "2026-09-16T04:15:00Z",
+        }]
+        artifact = {
+            "id": 11,
+            "name": "github-pages",
+            "expired": False,
+            "created_at": "2026-09-16T04:03:00Z",
+            "digest": "sha256:" + "a" * 64,
+            "workflow_run": {"id": 7, "head_sha": BASE},
+        }
+        with self.assertRaisesRegex(ArtifactError, "successful build attempt"):
+            select_artifact(run, jobs, [artifact], base_sha=BASE)
+
+    def test_select_artifact_rejects_malformed_attempt_timestamps(self) -> None:
+        run = {"id": 7}
+        jobs = [{
+            "name": "build / build",
+            "status": "completed",
+            "conclusion": "success",
+            "started_at": "not-a-timestamp",
+            "completed_at": "2026-09-16T04:05:00Z",
+        }]
+        artifact = {
+            "id": 11,
+            "name": "github-pages",
+            "expired": False,
+            "created_at": "2026-09-16T04:03:00Z",
+            "digest": "sha256:" + "a" * 64,
+            "workflow_run": {"id": 7, "head_sha": BASE},
+        }
+        with self.assertRaisesRegex(ArtifactError, "timestamp"):
+            select_artifact(run, jobs, [artifact], base_sha=BASE)
+
+        missing_created = {key: value for key, value in artifact.items() if key != "created_at"}
+        with self.assertRaisesRegex(ArtifactError, "timestamp"):
+            select_artifact(
+                run,
+                [{**jobs[0], "started_at": "2026-09-16T04:00:00Z"}],
+                [missing_created],
+                base_sha=BASE,
+            )
 
     def test_manifest_reader_binds_repository_and_base_sha(self) -> None:
         inputs = {

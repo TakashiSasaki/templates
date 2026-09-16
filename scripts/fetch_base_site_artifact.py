@@ -9,6 +9,7 @@ evidence fails closed.
 from __future__ import annotations
 
 import argparse
+from datetime import datetime, timezone
 import hashlib
 import json
 import os
@@ -75,6 +76,31 @@ def candidate_runs(runs: list[dict], *, repository: str, base_sha: str,
     )
 
 
+def parse_api_timestamp(value: object, *, field: str) -> datetime:
+    """Parse one required GitHub API timestamp as an aware UTC instant."""
+    if not isinstance(value, str):
+        raise ArtifactError(f"base artifact {field} timestamp is missing or malformed")
+    try:
+        instant = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise ArtifactError(
+            f"base artifact {field} timestamp is missing or malformed"
+        ) from exc
+    if instant.tzinfo is None:
+        raise ArtifactError(f"base artifact {field} timestamp is missing or malformed")
+    return instant.astimezone(timezone.utc)
+
+
+def artifact_matches_successful_build_attempt(artifact: dict, build: dict) -> bool:
+    """Require artifact creation during the selected successful build attempt."""
+    started = parse_api_timestamp(build.get("started_at"), field="build started_at")
+    completed = parse_api_timestamp(build.get("completed_at"), field="build completed_at")
+    created = parse_api_timestamp(artifact.get("created_at"), field="created_at")
+    if completed < started:
+        raise ArtifactError("base artifact build attempt timestamps are out of order")
+    return started <= created <= completed
+
+
 def select_artifact(run: dict, jobs: list[dict], artifacts: list[dict], *, base_sha: str) -> dict | None:
     builds = [job for job in jobs if job.get("name") in {"build", "build / build"}]
     if len(builds) != 1:
@@ -89,6 +115,8 @@ def select_artifact(run: dict, jobs: list[dict], artifacts: list[dict], *, base_
     binding = artifact.get("workflow_run", {})
     if binding.get("id") != run.get("id") or binding.get("head_sha") != base_sha:
         raise ArtifactError("base artifact is bound to a different run or Site revision")
+    if not artifact_matches_successful_build_attempt(artifact, build):
+        raise ArtifactError("base artifact is not from the successful build attempt")
     digest = artifact.get("digest", "")
     if not re.fullmatch(r"sha256:[0-9a-f]{64}", digest):
         raise ArtifactError("base artifact has no immutable digest")
