@@ -178,35 +178,24 @@ def test_candidate_smoke_binds_remote_source_to_stable_runtime(
     assert observed["commands"] == ["render", "check"]
 
 
-def test_runtime_workflow_qualifies_exact_head_skill_source_once_per_os() -> None:
+def test_runtime_workflow_qualifies_exact_head_skill_source_on_runner_python() -> None:
     workflow = WORKFLOW.read_text(encoding="utf-8")
-    baseline = workflow.split("\n  runtime-checks:\n", 1)[1].split(
-        "\n  compatibility-runtime:\n", 1
-    )[0]
-    compatibility = workflow.split("\n  compatibility-runtime:\n", 1)[1].split(
+    runtime = workflow.split("\n  runtime-checks:\n", 1)[1].split(
         "\n  validate:\n", 1
     )[0]
 
     exact_revision = (
         "github.event.pull_request.head.sha || github.sha"
     )
-    assert exact_revision in baseline
-    assert exact_revision in compatibility
-    assert "ref: ${{ env.CANDIDATE_REVISION }}" in baseline
-    assert "ref: ${{ env.CANDIDATE_REVISION }}" in compatibility
+    assert exact_revision in runtime
+    assert "ref: ${{ env.CANDIDATE_REVISION }}" in runtime
 
-    assert "runs-on: ubuntu-24.04" in baseline
-    assert "--check all" in baseline
-    assert (
-        "- os: windows-2022\n"
-        "            pip-config-file: NUL\n"
-        "            python-version: \"3.11\"\n"
-        "            check: all"
-    ) in compatibility
-    assert (
-        "needs.classify_runtime.outputs.compatibility_requested == 'true'"
-        in compatibility
-    )
+    assert "runs-on: ubuntu-24.04" in runtime
+    assert "python3 -I scripts/run_policy_runtime_checks.py" in runtime
+    assert "--check all" in runtime
+    assert "strategy:" not in workflow
+    assert "windows-" not in workflow
+    assert "python-version" not in workflow
 
-    assert workflow.count("python -I scripts/run_policy_runtime_checks.py") == 2
+    assert workflow.count("python3 -I scripts/run_policy_runtime_checks.py") == 1
     assert "smoke_test_agent_policy_skill_source.py" not in workflow

@@ -25,7 +25,7 @@ def test_runtime_pull_request_classifier_authority_comes_from_base_revision() ->
     assert "python3 -I scripts/classify_runtime_distribution_ci.py" not in workflow
 
 
-def test_runtime_missing_base_classifier_authority_forces_full_independently() -> None:
+def test_runtime_missing_base_classifier_authority_fails_closed_independently() -> None:
     workflow = WORKFLOW.read_text(encoding="utf-8")
     fallback = workflow.split('authority_source="base-unavailable-full"', 1)[1].split(
         "exit 0", 1
@@ -34,7 +34,7 @@ def test_runtime_missing_base_classifier_authority_forces_full_independently() -
     assert 'echo "required=true"' in fallback
     assert 'echo "reason=base-classifier-unavailable"' in fallback
     assert 'echo "changed_count=unknown"' in fallback
-    assert 'echo "compatibility_requested=true"' in fallback
+    assert 'echo "compatibility_requested=true"' not in fallback
     assert "cp scripts/classify_runtime_distribution_ci.py" not in fallback
     assert "cp scripts/ci_change_classification.py" not in fallback
     assert "classify_runtime_distribution_ci.py\" \\" not in fallback
@@ -61,38 +61,12 @@ def test_runtime_classifier_distinguishes_ci_authority_from_ordinary_sensitive_c
 
 def test_runtime_only_explicit_fast_path_reasons_skip_full_compatibility() -> None:
     workflow = WORKFLOW.read_text(encoding="utf-8")
-    classification = workflow.split("python3 -I", 1)[1].split(
-        "\n\n      - name: Record runtime CI selection", 1
-    )[0]
-
-    assert 'reason="$(sed -n \'s/^reason=//p\'' in classification
-    assert "compatibility-sensitive-change)" in classification
-    assert "compatibility-insensitive-change)" in classification
-    assert "*)" in classification
-    assert "Only the explicitly ordinary fast-path reasons may omit the" in classification
-    assert "git diff --name-only --no-renames" in classification
-    for authority_path in (
-        ".github/workflows",
-        "scripts/classify_runtime_distribution_ci.py",
-        "scripts/ci_change_classification.py",
-        "scripts/run_policy_runtime_checks.py",
-    ):
-        assert authority_path in classification
-    assert classification.count('echo "compatibility_requested=true"') >= 3
+    assert "runtime distribution selection" in workflow
+    assert "compatibility_requested" not in workflow
+    assert "--force-compatibility" not in workflow
 
 
-def test_runtime_unknown_classifier_reason_forces_full_compatibility() -> None:
-    workflow = WORKFLOW.read_text(encoding="utf-8")
-    classification = workflow.split("python3 -I", 1)[1].split(
-        "\n\n      - name: Record runtime CI selection", 1
-    )[0]
-
-    default = classification.split("            *)\n", 1)[1].split("            ;;", 1)[0]
-    assert 'echo "required=true"' in default
-    assert 'echo "compatibility_requested=true"' in default
-
-
-def test_runtime_classifier_reason_contract_distinguishes_fast_and_full_paths() -> None:
+def test_runtime_classifier_reason_contract_distinguishes_runtime_paths() -> None:
     assert runtime_classifier.classify_paths(["src/agent_policy/cli.py"]) == (
         True,
         "compatibility-sensitive-change",
@@ -115,3 +89,11 @@ def test_runtime_materialized_classifier_keeps_repository_workspace_binding() ->
     classifier = CLASSIFIER.read_text(encoding="utf-8")
     assert 'os.environ.get("GITHUB_WORKSPACE")' in classifier
     assert "Path(_WORKSPACE).resolve()" in classifier
+
+
+def test_runtime_workflow_has_no_environment_compatibility_matrix() -> None:
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    assert "strategy:" not in workflow
+    assert "matrix:" not in workflow
+    assert "windows-" not in workflow
+    assert "python-version" not in workflow

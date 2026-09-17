@@ -5,10 +5,12 @@ import sys
 import tempfile
 from pathlib import Path
 
+import pytest
+
 import scripts.classify_runtime_distribution_ci as runtime_ci
 
 
-def test_compatibility_sensitive_boundary_is_conservative() -> None:
+def test_runtime_sensitive_boundary_is_conservative() -> None:
     for path in (
         "scripts/smoke_test_runtime_distribution.py",
         "scripts/future_helper.py",
@@ -55,7 +57,7 @@ def test_unrecognized_paths_fail_closed() -> None:
         assert reason == "unrecognized-path"
 
 
-def test_non_runtime_policy_changes_skip_full_matrix() -> None:
+def test_non_runtime_policy_changes_skip_runtime_checks() -> None:
     required, reason = runtime_ci.classify_paths(
         [
             "README.md",
@@ -67,7 +69,7 @@ def test_non_runtime_policy_changes_skip_full_matrix() -> None:
     assert reason == "compatibility-insensitive-change"
 
 
-def test_mixed_change_with_python_requires_full_matrix() -> None:
+def test_mixed_change_with_python_requires_runtime_checks() -> None:
     required, reason = runtime_ci.classify_paths(
         ["policy/core/testing.md", "scripts/verify_runtime_environment.py"]
     )
@@ -132,7 +134,7 @@ def test_github_output_contains_only_stable_non_path_values() -> None:
         )
 
 
-def test_explicit_checkpoint_promotes_insensitive_change(monkeypatch) -> None:
+def test_classifier_has_no_compatibility_override() -> None:
     with tempfile.TemporaryDirectory() as temporary:
         output = Path(temporary) / "output"
         argv = [
@@ -146,13 +148,13 @@ def test_explicit_checkpoint_promotes_insensitive_change(monkeypatch) -> None:
             "--github-output",
             str(output),
         ]
-        monkeypatch.setattr(sys, "argv", argv)
-        monkeypatch.setattr(runtime_ci, "changed_paths", lambda base, head: ["README.md"])
-        assert runtime_ci.main() == 0
-
-        text = output.read_text(encoding="utf-8")
-        assert "required=true\n" in text
-        assert "reason=explicit-checkpoint\n" in text
+        monkeypatch = pytest.MonkeyPatch()
+        try:
+            monkeypatch.setattr(sys, "argv", argv)
+            with pytest.raises(SystemExit):
+                runtime_ci.main()
+        finally:
+            monkeypatch.undo()
 
 
 def test_unbounded_push_fails_closed(monkeypatch) -> None:

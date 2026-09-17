@@ -13,7 +13,7 @@ else:
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     import ci_change_classification as common  # noqa: E402
 
-DESCRIPTION = "Classify whether Policy requires the full runtime compatibility matrix."
+DESCRIPTION = "Classify whether Policy requires canonical runtime distribution checks."
 _WORKSPACE = os.environ.get("GITHUB_WORKSPACE")
 REPOSITORY_ROOT = (
     Path(_WORKSPACE).resolve()
@@ -153,19 +153,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--base", required=True)
     parser.add_argument("--head", required=True)
     parser.add_argument("--github-output", type=Path, required=True)
-    parser.add_argument(
-        "--force-compatibility",
-        choices=("true", "false"),
-        default="false",
-        help="Force the full matrix for an explicit compatibility checkpoint.",
-    )
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
-    force_compatibility = args.force_compatibility == "true"
-
     if args.base == ZERO_SHA:
         required, reason, paths = True, "unbounded-push", []
     else:
@@ -178,10 +170,6 @@ def main() -> int:
                 file=sys.stderr,
             )
             required, reason, paths = True, "diff-unavailable", []
-
-    if force_compatibility and not required:
-        required = True
-        reason = "explicit-checkpoint"
 
     print(
         f"policy-runtime-ci required={str(required).lower()} reason={reason} "

@@ -20,16 +20,6 @@ from scripts.verify_runtime_environment import (
 )
 
 ROOT = Path(__file__).resolve().parents[1]
-BASELINE = ("ubuntu-24.04", "3.11")
-SUPPLEMENTAL = {
-    ("ubuntu-24.04", "3.12"),
-    ("ubuntu-24.04", "3.13"),
-    ("ubuntu-24.04", "3.14"),
-    ("windows-2022", "3.11"),
-    ("windows-2022", "3.12"),
-    ("windows-2022", "3.13"),
-    ("windows-2022", "3.14"),
-}
 
 
 def _workflow() -> tuple[str, dict[str, object]]:
@@ -107,12 +97,9 @@ def test_runtime_workflow_trigger_tiers_are_exact() -> None:
 
     triggers = document["on"]
     assert set(triggers) == {"push", "pull_request"}
-    assert triggers["push"] == {
-        "branches": ["policy"],
-        "tags": ["policy-compatibility-*"],
-    }
+    assert triggers["push"] == {"branches": ["policy"]}
     assert triggers["pull_request"] == {
-        "types": ["opened", "synchronize", "reopened", "labeled", "unlabeled"],
+        "types": ["opened", "synchronize", "reopened"],
     }
     assert "schedule" not in triggers
     assert "workflow_dispatch" not in triggers
@@ -125,69 +112,35 @@ def test_runtime_workflow_classifies_before_selecting_tier() -> None:
     classifier = jobs["classify_runtime"]
     assert classifier["runs-on"] == "ubuntu-24.04"
     assert classifier["outputs"]["required"] == "${{ steps.classify.outputs.required }}"
-    assert classifier["outputs"]["compatibility_requested"] == (
-        "${{ steps.classify.outputs.compatibility_requested }}"
-    )
     command = classifier["steps"][1]["run"]
     assert "scripts/classify_runtime_distribution_ci.py" in command
-    assert "--force-compatibility" in command
-    assert 'echo "compatibility_requested=$FORCE_COMPATIBILITY"' in command
+    assert "--force-compatibility" not in command
+    assert "compatibility_requested" not in workflow
     classifier_text = workflow.split("\n  classify_runtime:\n", 1)[1].split(
         "\n  runtime-checks:\n", 1
     )[0]
-    assert "ci/full-compatibility" in classifier_text
-    assert "refs/tags/policy-compatibility-" in classifier_text
+    assert "ci/full-compatibility" not in classifier_text
+    assert "refs/tags/policy-compatibility-" not in classifier_text
     assert "github.event.before" in classifier_text
 
 
-def test_runtime_workflow_default_is_one_ubuntu_python_311_job() -> None:
+def test_runtime_workflow_uses_one_ubuntu_runner_python_job() -> None:
     workflow, document = _workflow()
     jobs = document["jobs"]
     baseline = jobs["runtime-checks"]
 
-    assert baseline["runs-on"] == BASELINE[0]
+    assert baseline["runs-on"] == "ubuntu-24.04"
     assert baseline["needs"] == ["classify_runtime"]
     assert "needs.classify_runtime.outputs.required == 'true'" in baseline["if"]
     assert "strategy" not in baseline
-    setup = next(
-        step for step in baseline["steps"] if step.get("name") == "Set up Python"
-    )
-    assert setup["with"]["python-version"] == BASELINE[1]
     command = baseline["steps"][-1]["run"]
+    assert "python3 -I" in command
     assert "scripts/run_policy_runtime_checks.py" in command
     assert "--check all" in command
     assert "--revision" in command
-
-    baseline_text = workflow.split("\n  runtime-checks:\n", 1)[1].split(
-        "\n  compatibility-runtime:\n", 1
-    )[0]
-    assert "windows-2022" not in baseline_text
-    for version in ("3.12", "3.13", "3.14"):
-        assert f'python-version: "{version}"' not in baseline_text
-
-
-def test_runtime_workflow_explicit_matrix_adds_only_missing_environments() -> None:
-    _workflow_text, document = _workflow()
-    job = document["jobs"]["compatibility-runtime"]
-
-    assert job["strategy"]["fail-fast"] == "false"
-    rows = job["strategy"]["matrix"]["include"]
-    pairs = {(row["os"], row["python-version"]) for row in rows}
-    assert pairs == SUPPLEMENTAL
-    assert BASELINE not in pairs
-    assert "compatibility_requested == 'true'" in job["if"]
-    assert "needs.runtime-checks.result == 'success'" in job["if"]
-
-    checks = {
-        (row["os"], row["python-version"]): row["check"]
-        for row in rows
-    }
-    assert checks[("windows-2022", "3.11")] == "all"
-    assert all(
-        check == "runtime"
-        for pair, check in checks.items()
-        if pair != ("windows-2022", "3.11")
-    )
+    assert "actions/setup-python" not in workflow
+    assert "python-version" not in workflow
+    assert "windows-" not in workflow
 
 
 def test_runtime_workflow_has_no_obsolete_duplicate_jobs() -> None:
@@ -196,12 +149,7 @@ def test_runtime_workflow_has_no_obsolete_duplicate_jobs() -> None:
 
     assert "clean-install" not in jobs
     assert "skill-source-candidate" not in jobs
-    assert set(jobs) == {
-        "classify_runtime",
-        "runtime-checks",
-        "compatibility-runtime",
-        "validate",
-    }
+    assert set(jobs) == {"classify_runtime", "runtime-checks", "validate"}
 
 
 def test_runtime_workflow_final_gate_enforces_skip_and_success_semantics() -> None:
@@ -212,16 +160,13 @@ def test_runtime_workflow_final_gate_enforces_skip_and_success_semantics() -> No
     assert validate["needs"] == [
         "classify_runtime",
         "runtime-checks",
-        "compatibility-runtime",
     ]
     run = validate["steps"][0]["run"]
     assert 'test "$CLASSIFIER_RESULT" = success' in run
     assert 'test "$RUNTIME_CHECKS_RESULT" = success' in run
     assert 'test "$RUNTIME_CHECKS_RESULT" = skipped' in run
-    assert 'test "$COMPATIBILITY_RUNTIME_RESULT" = success' in run
-    assert 'test "$COMPATIBILITY_RUNTIME_RESULT" = skipped' in run
-    assert 'if [ "$COMPATIBILITY_REQUESTED" = true ]' in run
-    assert "invalid runtime compatibility classification" in run
+    assert "COMPATIBILITY_RUNTIME_RESULT" not in run
+    assert "invalid runtime classification" in run
 
 
 def test_canonical_runner_matches_local_and_ci_commands() -> None:
