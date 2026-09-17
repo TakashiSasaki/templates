@@ -5,7 +5,7 @@
   "commands": [
     {
       "id": "website-browser",
-      "command": "python3 scripts/check_reference_website.py",
+      "command": "python scripts/check_reference_website.py",
       "purpose": "Verify primary Website entrypoints, metadata, discovery, identity and responsive browser behavior against the actual Pages artifact. Execution provenance is the successful reference-consumer workflow for the exact candidate head, linked from the PR acceptance record. Historical runs do not qualify changed heads.",
       "execution": {
         "capabilities": [
@@ -21,7 +21,7 @@
     },
     {
       "id": "pwa-browser",
-      "command": "python3 scripts/check_reference_pwa.py",
+      "command": "python scripts/check_reference_pwa.py",
       "purpose": "Exercise real worker updates, online revalidation, network failure and cached-content freshness. Execution provenance is the successful reference-consumer workflow for the exact candidate head, linked from the PR acceptance record. Historical runs do not qualify changed heads.",
       "execution": {
         "capabilities": [

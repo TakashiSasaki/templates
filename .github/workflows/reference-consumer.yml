@@ -51,7 +51,7 @@ jobs:
           BUILD_INPUTS: ${{ inputs.build_inputs }}
         run: python3 scripts/consume_site_build_artifact.py
       - name: Verify Website product contract in Chrome
-        run: python3 scripts/check_reference_website.py
+        run: python scripts/check_reference_website.py
       - name: Verify PWA positive and failure paths
         if: ${{ inputs.pwa_required == 'true' }}
-        run: python3 scripts/check_reference_pwa.py
+        run: python scripts/check_reference_pwa.py

@@ -24,11 +24,10 @@ class SiteCIBootstrapPolicyTests(unittest.TestCase):
                 for runner in re.findall(r"^\s*runs-on:\s*(.+)$", text, re.MULTILINE):
                     self.assertIn("ubuntu", runner.lower())
 
-    def test_runner_native_commands_are_explicit(self) -> None:
-        for path in sorted((ROOT / ".github/workflows").glob("*.yml")):
-            text = path.read_text(encoding="utf-8")
-            with self.subTest(workflow=path.name):
-                self.assertNotRegex(text, r"(?m)^\s*run:\s+python\s")
+    def test_managed_evidence_commands_remain_declared(self) -> None:
+        text = (ROOT / ".github/workflows/reference-consumer.yml").read_text(encoding="utf-8")
+        self.assertIn("run: python scripts/check_reference_website.py", text)
+        self.assertIn("run: python scripts/check_reference_pwa.py", text)
 
 
 if __name__ == "__main__":

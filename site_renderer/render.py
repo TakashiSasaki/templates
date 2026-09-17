@@ -10,6 +10,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
+import sysconfig
 import tempfile
 
 from publication_bundle.contract import BundleError, read_json, regular, canonical, digest
@@ -30,6 +31,19 @@ def write(path,data):
 def run(site_root,script,*args):
     command=[sys.executable,str(regular(site_root,'scripts/'+script)),*map(str,args)]
     subprocess.run(command,check=True)
+
+
+def zensical_executable():
+    candidates = []
+    resolved = shutil.which('zensical')
+    if resolved:
+        candidates.append(Path(resolved))
+    candidates.append(Path(sys.executable).with_name('zensical'))
+    candidates.append(Path(sysconfig.get_path('scripts', scheme='posix_user'))/'zensical')
+    for candidate in candidates:
+        if candidate.is_file() and os.access(candidate, os.X_OK):
+            return str(candidate)
+    raise BundleError('zensical executable is not available to the runner Python')
 
 
 def checked_output(output, sources):
@@ -210,7 +224,7 @@ def render_snapshot(*,bundle,site_root,output,identity,site_revision,parent_iden
         navigation=[{'title':{'use':'Use templates','maintain':'Maintain templates'}.get(aud,aud),'children':nodes} for aud in nav['audience_runtime']['audiences'] for nodes in [nav['navigation'][aud]] if nodes]
         (build/'zensical.toml').write_text(template.replace('__GENERATED_NAV__',render_nav(navigation)),encoding='utf-8')
         run(site_root,'prepare_site_metadata.py','--config-file',build/'zensical.toml','--deployment-timestamp',deployment_timestamp,'--canonical-url',public_url)
-        subprocess.run([str(Path(sys.executable).with_name('zensical')),'build','--config-file',str(build/'zensical.toml'),'--clean','--strict'],check=True)
+        subprocess.run([zensical_executable(),'build','--config-file',str(build/'zensical.toml'),'--clean','--strict'],check=True)
         site=build/'site';write(site/'glossary/index.json',read_json(bundle/'glossary.json'))
         run(site_root,'generate_glossary_viewer.py','--input',site/'glossary/index.json','--output',site/'glossary/index.html')
         run(site_root,'finalize_site_metadata.py','--site-root',site,'--canonical-url',public_url)
