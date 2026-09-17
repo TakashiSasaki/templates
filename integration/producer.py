@@ -115,6 +115,51 @@ def add_generic_modeling_pages(data, modeling_documents):
     return result
 
 
+def add_generic_modeling_locale_labels(data, modeling_documents):
+    """Provide explicit same-language labels for generic Modeling navigation.
+
+    Modeling owns its content, while Integration owns the assembled navigation
+    contract.  These labels are a mechanical projection, not a translation or
+    an adoption of Modeling semantics.
+    """
+    result = copy.deepcopy(data)
+    locales = result.get('locales')
+    if not isinstance(locales, list) or not locales:
+        raise BundleError('reader navigation locales must contain a non-empty locales array')
+    titles = ['Modeling'] + [
+        'Discovery catalog' if document_id == 'catalog' else document_id
+        for document_id in sorted(modeling_documents)
+    ]
+    for locale in locales:
+        if not isinstance(locale, dict) or not isinstance(locale.get('labels'), list):
+            raise BundleError('reader navigation locale labels must be arrays')
+        existing_titles = {
+            label.get('canonical') for label in locale['labels']
+            if isinstance(label, dict)
+        }
+        existing_ids = {
+            label.get('id') for label in locale['labels']
+            if isinstance(label, dict)
+        }
+        for title in titles:
+            if title in existing_titles:
+                continue
+            identifier = 'modeling-' + ''.join(
+                character.lower() if character.isalnum() else '-'
+                for character in title
+            ).strip('-')
+            while identifier in existing_ids:
+                identifier += '-page'
+            locale['labels'].append({
+                'id': identifier,
+                'canonical': title,
+                'localized': title,
+            })
+            existing_titles.add(title)
+            existing_ids.add(identifier)
+    return result
+
+
 def produce(*, root, provider_roots, provider_revisions, producer_revision, output, repository='TakashiSasaki/templates', staging_ids=()):
     root, output = Path(root), Path(output)
     providers = provider_order(provider_roots)
@@ -140,6 +185,7 @@ def produce(*, root, provider_roots, provider_revisions, producer_revision, outp
         publications[name] = (provider_root,docs,assets)
     if 'modeling' in providers:
         manifest_data = add_generic_modeling_pages(manifest_data, publications['modeling'][1])
+        overlay_data = add_generic_modeling_locale_labels(overlay_data, publications['modeling'][1])
     manifest = parse_manifest(manifest_data)
     if manifest.schema_version != 3:
         raise BundleError('Publication Bundle requires the active audience manifest schema 3')
