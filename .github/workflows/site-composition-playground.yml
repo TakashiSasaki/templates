@@ -26,32 +26,7 @@ jobs:
         with:
           node-version: '22'
           cache: ''
-      - name: Run projection consumer regression tests
-        run: |
-          node --test tests/composition-playground.test.mjs
-          node --test tests/composition-playground-final-remediation.test.mjs
-          node --test tests/composition-playground-hash-copy-review.test.mjs
-          node --test tests/composition-playground-final-three-review.test.mjs
-          node --test tests/composition-playground-latest-review.test.mjs
-          node --test tests/composition-playground-root-reachability.test.mjs
-          node --test tests/composition-playground-latest-five-review.test.mjs
-          node --test tests/composition-playground-latest-two-review.test.mjs
-          node --test tests/composition-playground-material-path-scope.test.mjs
-      - name: Validate Site integration declarations
+      - name: Run canonical Playground source validation
         env:
           EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
-        run: |
-          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
-          python -m json.tool docs/publication-catalog.json >/dev/null
-          python -m json.tool integration-source.json >/dev/null
-          python -m json.tool tests/fixtures/composition-playground-v1.json >/dev/null
-          grep --fixed-strings -- '"id": "composition-playground"' docs/publication-catalog.json
-          grep --fixed-strings -- 'stylesheets/composition-playground.css' zensical.template.toml
-          grep --fixed-strings -- 'javascripts/composition-playground.js' zensical.template.toml
-          grep --fixed-strings -- 'data-provenance-url="/build-provenance.json"' docs/composition-playground.md
-          grep --fixed-strings -- 'data-playground-semantic-revision' docs/composition-playground.md
-          grep --fixed-strings -- 'data-playground-provider-revision' docs/composition-playground.md
-          grep --fixed-strings -- 'data-playground-projection-id' docs/composition-playground.md
-          grep --fixed-strings -- 'data-playground-validity role="status" aria-live="polite" aria-atomic="true"' docs/composition-playground.md
-          ! grep --fixed-strings -- 'SOURCE_REVISION_MISMATCH' assets/javascripts/composition-playground.js
-          ! grep --fixed-strings -- 'expectedRevision' assets/javascripts/composition-playground.js
+        run: python scripts/run_site_preflight.py fast --check node --check site-contracts --expected-head "$EXPECTED_HEAD"

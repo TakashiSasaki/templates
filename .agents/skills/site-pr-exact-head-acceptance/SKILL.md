@@ -191,15 +191,16 @@ Report:
 
 ## Qualification-ready invariant closure
 
-Before expensive qualification, run `python scripts/run_site_preflight.py fast
---expected-head <exact Site SHA>`. This reaches all Site core contracts without
-provider checkout roots. CI path classification remains the canonical remote scope
-selector; the local preflight does not introduce a separate mandatory frontier.
+Before expensive qualification, run `python scripts/run_site_preflight.py
+source-ready --expected-head <exact Site SHA>`. This reaches all cheap Site source
+contracts without provider checkout roots. CI path classification remains the
+canonical remote scope selector; the local preflight does not introduce a separate
+mandatory frontier.
 
 For a qualified immutable Bundle and its built Site artifact, run
-`python scripts/run_site_preflight.py ready --expected-head <exact Site SHA>
+`python scripts/run_site_preflight.py artifact-local --expected-head <exact Site SHA>
 --bundle <verified Bundle directory> --site-root <artifact directory>`. This reaches
-core, browser-controller and Bundle reader checks. Full browser/PWA acceptance remains
+Bundle reader and generated-artifact checks. Full browser/PWA acceptance remains
 required at the final stable release frontier. Provider qualification belongs to
 Integration and is not a Site preflight step. Local results do not replace exact-head
 GitHub CI or independent review evidence.

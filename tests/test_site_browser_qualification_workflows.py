@@ -22,10 +22,29 @@ class BrowserWorkflowTests(unittest.TestCase):
         self.assertIn('outputs.playground_required', jobs['explainability']['if'])
         self.assertIn('outputs.browser_required', jobs['browser']['if'])
         cheap = str(jobs['explainability']['steps'])
-        self.assertIn('run_site_preflight.py fast --check node-explainability', cheap)
+        self.assertIn('run_site_preflight.py fast --check node', cheap)
         self.assertNotIn('check_composition_playground_browser.py', cheap)
         for job in ['explainability', 'browser']:
             self.assertTrue(any(s.workflow_path.endswith('build-pages.yml') and s.job_name == 'explainability / ' + jobs[job]['name'] for s in REQUIRED_SUITES))
+
+    def test_playground_workflows_use_the_canonical_node_inventory(self):
+        for filename in ('site-composition-playground.yml', 'site-composition-playground-explain.yml'):
+            with self.subTest(workflow=filename):
+                text = (ROOT / '.github/workflows' / filename).read_text()
+                self.assertIn('run_site_preflight.py fast --check node', text)
+                self.assertNotIn('node --test tests/composition-playground', text)
+                self.assertNotIn('node-explainability', text)
+        playground = (ROOT / '.github/workflows/site-composition-playground.yml').read_text()
+        self.assertNotIn('Validate Site integration declarations', playground)
+        for shell_assertion in ('python -m json.tool', 'grep --fixed-strings', 'data-provenance-url'):
+            self.assertNotIn(shell_assertion, playground)
+
+    def test_website_contract_workflow_runs_the_repository_validator(self):
+        website = str(workflow('validate-website.yml')['jobs']['validate-website']['steps'])
+        self.assertIn('.template-composition/validate.py .', website)
+        build_contract = str(workflow('build-pages.yml')['jobs']['website_contract']['steps'])
+        self.assertIn('scripts/validate_website_contracts.py .', build_contract)
+        self.assertIn('.template-composition/validate.py .', build_contract)
 
     def test_browser_escalation_is_handled_at_every_browser_consumer(self):
         classifier_text = (ROOT / '.github/workflows/classify.yml').read_text()

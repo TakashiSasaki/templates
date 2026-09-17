@@ -238,7 +238,7 @@ Report compactly:
 Read the exact run attempt's job and step conclusions. A skipped checker is not
 success, including when a priority checker failed earlier. Inspect the PWA JSON
 artifact for registration state, worker events, network timeline and fixture hits
-before changing a convergence bound. Use `run_site_preflight.py ready` for the
+before changing a convergence bound. Use `run_site_preflight.py source-ready` for the
 canonical static consumer setup before browser acceptance. A disposable local
 `--capsule-root` can preserve the exact assembled artifact across browser setup
 repairs; source/runtime/artifact identity must still match. Local capsule results

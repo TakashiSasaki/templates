@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
-"""Run staged local Site validation, including an exact Bundle-to-Site build.
+"""Run staged local Site validation.
 
 Profiles:
 
 * ``fast`` is a cheap development preflight and may inspect a dirty tree.
-* ``full`` runs the local core, Node, exact assembly and artifact checks when
-  explicit Bundle/Site inputs are supplied; it does not run browser acceptance.
-* ``ready`` is the clean, exact-commit gate for spending remote CI resources.
-  It requires ``--expected-head`` and runs core, applicable Node, exact Bundle
-  assembly and generated-artifact checks. Browser/PWA acceptance remains a
-  conditional/full CI responsibility.
+* ``source-ready`` is the clean, exact-commit gate for spending remote CI
+  resources. It runs every cheap repository-owned source check.
+* ``artifact-local`` validates an already produced Bundle and rendered Site;
+  both paths are required and no artifact is acquired or rendered.
+
+Real browser/PWA acceptance, cross-authority acceptance, immutable artifact
+qualification and GitHub/API aggregation remain remote acceptance checks.
 """
 from __future__ import annotations
 
@@ -24,18 +25,21 @@ if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from scripts.classify_site_ci import classify_paths
+from scripts.site_check_registry import (
+    ARTIFACT_LOCAL_CHECKS,
+    CHECK_NAMES,
+    SOURCE_READY_CHECKS,
+    playground_node_tests,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
-NODE_TESTS = tuple(
-    str(path.relative_to(ROOT))
-    for path in sorted((ROOT / "tests").glob("composition-playground*.test.mjs"))
-)
-CHECKS = ("l0", "core", "node", "node-explainability", "assembly", "bundle-reader", "site-artifact")
+NODE_TESTS = playground_node_tests(ROOT)
+CHECKS = CHECK_NAMES
 PROFILES = {
     "fast": ("l0",),
-    "full": ("l0", "core", "node", "assembly"),
-    "ready": ("l0", "core", "node", "assembly"),
+    "source-ready": SOURCE_READY_CHECKS,
+    "artifact-local": ARTIFACT_LOCAL_CHECKS,
 }
 
 
@@ -65,15 +69,15 @@ def _changed_paths(base_ref: str, path_file: Path | None) -> tuple[str, ...]:
     return tuple(dict.fromkeys(path for path in candidates if path))
 
 
-def _require_clean_ready_tree(expected_head: str | None, actual_head: str) -> None:
+def _require_clean_source_ready_tree(expected_head: str | None, actual_head: str) -> None:
     if not expected_head:
-        raise RuntimeError("ready requires --expected-head")
+        raise RuntimeError("source-ready requires --expected-head")
     if expected_head != actual_head:
         raise RuntimeError("exact Site head mismatch")
     status = _git_output(["status", "--porcelain=v1", "--untracked-files=all"])
     if status:
         raise RuntimeError(
-            "ready requires a clean index and working tree with no untracked files"
+            "source-ready requires a clean index and working tree with no untracked files"
         )
 
 
@@ -115,6 +119,23 @@ def run_node() -> None:
     _run(["node", "--test", *NODE_TESTS])
 
 
+def run_site_contracts() -> None:
+    _run([sys.executable, "scripts/validate_website_contracts.py", "."])
+    _run([sys.executable, "scripts/validate_site_declarations.py", "."])
+
+
+def run_composition_consumer() -> None:
+    _run([sys.executable, ".template-composition/validate.py", "."])
+
+
+def _require_artifact_inputs(args: argparse.Namespace) -> tuple[Path, Path]:
+    if args.bundle is None or args.site_root is None:
+        raise RuntimeError(
+            "artifact-local validation requires both --bundle and --site-root"
+        )
+    return args.bundle, args.site_root
+
+
 def run_exact_assembly(bundle: Path | None, site_root: Path | None) -> dict[str, str | int]:
     from scripts.check_site_artifact import check as check_site_artifact
     from site_renderer import acquire
@@ -152,8 +173,12 @@ def run_check(check: str, args: argparse.Namespace) -> None:
         run_l0(args.base_ref, args.changed_paths)
     elif check == "core":
         run_core()
-    elif check in {"node", "node-explainability"}:
+    elif check == "node":
         run_node()
+    elif check == "site-contracts":
+        run_site_contracts()
+    elif check == "composition-consumer":
+        run_composition_consumer()
     elif check == "assembly":
         result = run_exact_assembly(args.bundle, args.site_root)
         print(json.dumps({"exact_site_assembly": result}, sort_keys=True))
@@ -161,17 +186,17 @@ def run_check(check: str, args: argparse.Namespace) -> None:
         from scripts.check_bundle_reader import check as check_bundle_reader
         from site_renderer.bundle import load_lock
 
-        if args.bundle is None or args.site_root is None:
-            raise RuntimeError("Bundle reader validation requires --bundle and --site-root")
-        check_bundle_reader(args.site_root, args.bundle, load_lock(ROOT / "integration-source.json"))
+        bundle, site_root = _require_artifact_inputs(args)
+        check_bundle_reader(site_root, bundle, load_lock(ROOT / "integration-source.json"))
     elif check == "site-artifact":
         from scripts.check_site_artifact import check as check_site_artifact
         from site_renderer.bundle import load_lock
 
+        bundle, site_root = _require_artifact_inputs(args)
         result = check_site_artifact(
-            args.site_root,
-            args.bundle,
-            load_lock(ROOT / "integration-source.json") if args.bundle else None,
+            site_root,
+            bundle,
+            load_lock(ROOT / "integration-source.json"),
         )
         print(json.dumps({"site_artifact": result}, sort_keys=True))
     else:  # pragma: no cover - argparse prevents this
@@ -183,7 +208,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "profile",
         choices=PROFILES,
-        help="fast=dirty-tree L0; full=local assembly; ready=clean exact-head gate",
+        help=(
+            "fast=dirty-tree construction loop; source-ready=clean cheap source "
+            "gate; artifact-local=explicit Bundle/Site checks"
+        ),
     )
     parser.add_argument("--check", action="append", choices=CHECKS)
     parser.add_argument("--expected-head")
@@ -194,10 +222,12 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         head = "".join(_git_output(["rev-parse", "HEAD"]))
-        if args.profile == "ready":
-            _require_clean_ready_tree(args.expected_head, head)
+        if args.profile == "source-ready":
+            _require_clean_source_ready_tree(args.expected_head, head)
         elif args.expected_head and args.expected_head != head:
             raise RuntimeError("exact Site head mismatch")
+        if args.profile == "artifact-local":
+            _require_artifact_inputs(args)
         checks = args.check or PROFILES[args.profile]
         for check in checks:
             run_check(check, args)

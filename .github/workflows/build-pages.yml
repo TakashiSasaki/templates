@@ -379,7 +379,10 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: 3.12.13
-      - run: python .template-composition/validate.py .
+      - name: Validate Site-owned Website contracts and declarations
+        run: python scripts/validate_website_contracts.py .
+      - name: Validate selected Composition components
+        run: python .template-composition/validate.py .
   full_qualification:
     name: Site Full Qualification / validate
     needs:
