@@ -105,10 +105,10 @@ def test_readiness_enforces_gate_conditions_and_evaluation_points() -> None:
         "ci": (
             "`candidate commit`",
             (
-                "fixed baseline",
+                "runner Python",
                 "neutralizes external Python and pip inputs",
                 "verifies the installed distribution set",
-                "runtime-distribution matrix",
+                "runtime-distribution checks",
             ),
         ),
         "documentation": (

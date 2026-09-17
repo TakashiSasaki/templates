@@ -188,7 +188,7 @@ def test_installer_candidate_binds_i_s_and_consumer_path(
     assert lock[2] == stable
 
 
-def test_installer_workflow_is_exact_head_path_scoped_and_cross_platform() -> None:
+def test_installer_workflow_is_exact_head_path_scoped_and_runner_native() -> None:
     workflow = WORKFLOW.read_text(encoding="utf-8")
     assert "name: Policy installer candidate" in workflow
     assert "pull_request:" in workflow
@@ -199,4 +199,7 @@ def test_installer_workflow_is_exact_head_path_scoped_and_cross_platform() -> No
     assert "Check out exact installer candidate" in workflow
     assert "smoke_test_agent_policy_installer_candidate.py" in workflow
     assert "ubuntu-24.04" in workflow
-    assert "windows-2022" in workflow
+    assert "windows-" not in workflow
+    assert "actions/setup-python" not in workflow
+    assert "python-version" not in workflow
+    assert "python3 -I scripts/smoke_test_agent_policy_installer_candidate.py" in workflow

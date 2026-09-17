@@ -24,14 +24,8 @@ concurrency:
 
 jobs:
   installer-candidate:
-    name: installer / ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os:
-          - ubuntu-24.04
-          - windows-2022
-    runs-on: ${{ matrix.os }}
+    name: installer / Ubuntu runner Python
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
       CANDIDATE_REVISION: ${{ github.event.pull_request.head.sha }}
@@ -51,12 +45,7 @@ jobs:
           ref: ${{ env.CANDIDATE_REVISION }}
           persist-credentials: false
 
-      - name: Set up Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version: "3.12"
-
       - name: Verify exact remote installer candidate
         run: >-
-          python -I scripts/smoke_test_agent_policy_installer_candidate.py
+          python3 -I scripts/smoke_test_agent_policy_installer_candidate.py
           --installer-revision "${{ env.CANDIDATE_REVISION }}"
