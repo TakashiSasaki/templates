@@ -7,12 +7,24 @@ there is no second active provider build/cache subsystem in Site.
 
 ## Construction and qualification
 
-Run `python scripts/run_site_preflight.py fast --expected-head <exact Site SHA>`
-for the complete local Site core suite. For a verified Bundle and generated Site,
-run `python scripts/run_site_preflight.py ready --expected-head <exact Site SHA>
---bundle <verified Bundle directory> --site-root <artifact directory>`.
-This reaches core, browser-controller and Bundle reader contracts. It accepts no
-provider checkout roots. Integration owns source semantics and provider qualification.
+Run `python scripts/run_site_preflight.py fast` for the L0 checks: diff hygiene on
+committed, staged and unstaged changes, changed-file syntax/tests, JSON syntax and
+classifier validation. `fast` is a cheap development preflight and may run on a dirty
+tree; untracked non-ignored files are included in its changed-path inventory.
+
+Run `python scripts/run_site_preflight.py ready --expected-head <FULL_SITE_SHA>` before
+spending CI resources. `ready` is the clean exact-head local gate: the current
+committed HEAD must match the supplied SHA and the index, working tree and untracked
+file inventory must all be clean. It then runs the complete core suite, all applicable
+pure Node tests, acquires the exact Bundle named by `integration-source.json`, renders
+the real Site renderer, and validates the generated artifact. It accepts no provider
+checkout roots and fails when the exact qualified Bundle is unavailable.
+
+`python scripts/run_site_preflight.py full --bundle <verified Bundle directory>
+--site-root <artifact directory>` remains available for isolated local assembly and
+artifact checks. None of these local profiles runs Playwright/browser/PWA acceptance;
+those remain conditional/full remote CI checks.
+Integration owns source semantics and provider qualification.
 
 Remote construction uses the existing base-authoritative path classifier. Unknown
 or CI-authority changes fail closed to broader checks. `ci/full-qualification`

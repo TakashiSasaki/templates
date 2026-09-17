@@ -7,15 +7,26 @@ Read [PUBLISHING.md](PUBLISHING.md) for exact inputs and acceptance.
 ## Local validation
 
 Install the pinned requirements in `requirements-build.lock` and `requirements-visual.txt`.
-Run `python scripts/run_core_tests.py --suite core` during construction. The browser
-controller suite is `python scripts/run_core_tests.py --suite browser`.
-`run_site_preflight.py full --bundle PATH --site-root GENERATED_SITE` reaches core,
-browser and immutable Bundle reader checks. It accepts no provider checkout roots.
+`python scripts/run_site_preflight.py fast` is the cheap dirty-tree development
+preflight: it checks diff hygiene, changed-file Python/JSON/tests and classifier
+applicability. It does not install browsers or acquire provider checkouts.
+
+Before spending remote CI resources, run
+`python scripts/run_site_preflight.py ready --expected-head FULL_SITE_SHA` from a
+clean checkout. This is the local CI-readiness gate: it requires the committed HEAD
+to match exactly, with no staged, unstaged or untracked files, then runs the complete
+core suite, applicable pure Node tests, exact Bundle acquisition and the real Site
+renderer plus generated-artifact checks. It accepts no provider checkout roots.
+
+`run_site_preflight.py full --bundle PATH --site-root GENERATED_SITE` is the local
+assembly/artifact profile for explicit inputs; it does not run browser acceptance.
+Playwright, browser and PWA acceptance remain conditional/full remote CI checks.
 
 For physical isolation run `qualify_bundle_renderer.py --site-root . --bundle PATH
 --bundle-identity DIGEST --output NEW_PATH` with a clean committed Site candidate.
 The test removes Integration implementation and provider directories before rendering.
-Use full GitHub qualification at a stable frontier, then exact-head review and guarded merge.
+Use the applicable GitHub qualification at a stable frontier, then exact-head review
+and guarded merge.
 
 ## Site-owned product and policy inputs
 

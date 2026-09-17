@@ -1,0 +1,88 @@
+"""Negative generated-artifact checks for the retired Site browser routes."""
+import json
+from pathlib import Path
+import tempfile
+import unittest
+
+from scripts.check_site_artifact import SiteArtifactError, check
+
+
+class SiteArtifactTests(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        self.root = Path(self.temporary.name)
+        self.site = self.root / "site"
+        self.site.mkdir()
+        revisions = {"site": "a" * 40, "integration": "b" * 40, "composition": "c" * 40, "policy": "d" * 40}
+        (self.site / "build-provenance.json").write_text(json.dumps({
+            "schema_version": 3,
+            "repository": "TakashiSasaki/templates",
+            "site_commit": revisions["site"],
+            "integration": {
+                "schema_version": 3,
+                "identity": "e" * 64,
+                "content_digest": "f" * 64,
+                "producer": {"authority": "integration", "revision": revisions["integration"]},
+                "providers": {"composition": revisions["composition"], "policy": revisions["policy"]},
+            },
+        }), encoding="utf-8")
+        (self.site / "index.html").write_text(
+            f'<a href="https://github.com/TakashiSasaki/templates/commit/{revisions["site"]}"><code>{revisions["site"]}</code></a>'
+            '<div data-playground-material-tree></div>',
+            encoding="utf-8",
+        )
+
+    def tearDown(self):
+        self.temporary.cleanup()
+
+    def test_accepts_immutable_provenance_and_playground_material_tree(self):
+        result = check(self.site)
+        self.assertEqual(result["retired_route_links"], 0)
+        self.assertEqual(result["html_pages"], 1)
+
+    def test_rejects_retired_route_directory(self):
+        (self.site / "files").mkdir()
+        with self.assertRaisesRegex(SiteArtifactError, "retired route"):
+            check(self.site)
+
+    def test_rejects_retired_route_link(self):
+        (self.site / "index.html").write_text(
+            '<a href="/repository-trees/">retired</a><div data-playground-material-tree></div>',
+            encoding="utf-8",
+        )
+        with self.assertRaisesRegex(SiteArtifactError, "retired route"):
+            check(self.site)
+
+    def test_rejects_absolute_public_site_retired_route(self):
+        (self.site / "index.html").write_text(
+            '<a href="https://templates.moukaeritai.work/files/source.md">retired</a>'
+            '<div data-playground-material-tree></div>',
+            encoding="utf-8",
+        )
+        with self.assertRaisesRegex(SiteArtifactError, "retired route"):
+            check(self.site)
+
+    def test_ignores_external_site_using_same_path(self):
+        (self.site / "index.html").write_text(
+            '<a href="https://example.com/files/source.md">external</a>'
+            '<div data-playground-material-tree></div>',
+            encoding="utf-8",
+        )
+        self.assertEqual(check(self.site)["retired_route_links"], 0)
+
+    def test_rejects_moving_same_repository_source_reference(self):
+        (self.site / "index.html").write_text(
+            '<a href="https://github.com/TakashiSasaki/templates/blob/site/docs/index.md">source</a>'
+            '<div data-playground-material-tree></div>',
+            encoding="utf-8",
+        )
+        with self.assertRaisesRegex(SiteArtifactError, "full SHA"):
+            check(self.site)
+
+    def test_rejects_unlinked_displayed_provenance_revision(self):
+        (self.site / "index.html").write_text(
+            '<span>' + "a" * 40 + '</span><div data-playground-material-tree></div>',
+            encoding="utf-8",
+        )
+        with self.assertRaisesRegex(SiteArtifactError, "not linked"):
+            check(self.site)
