@@ -17,7 +17,9 @@ source-ready --expected-head "$SITE_HEAD"` before spending CI resources.
 `source-ready` is the clean exact-head local gate: the current committed HEAD must
 match the supplied SHA and the index, working tree and untracked-file inventory must
 all be clean. It then runs the complete core suite, the canonical Playground Node
-inventory, Site-owned source contracts and the managed Composition consumer validator.
+inventory, Site-owned source contracts, static Python dependency-boundary checks for
+the core/build/visual/Composition requirements inputs, and the managed Composition
+consumer validator.
 It does not acquire a Bundle, render a Site, use a provider checkout, or launch a
 browser.
 

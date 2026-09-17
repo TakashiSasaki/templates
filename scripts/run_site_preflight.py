@@ -124,6 +124,10 @@ def run_site_contracts() -> None:
     _run([sys.executable, "scripts/validate_site_declarations.py", "."])
 
 
+def run_dependency_boundary() -> None:
+    _run([sys.executable, "scripts/check_python_dependencies.py"])
+
+
 def run_composition_consumer() -> None:
     _run([sys.executable, ".template-composition/validate.py", "."])
 
@@ -177,6 +181,8 @@ def run_check(check: str, args: argparse.Namespace) -> None:
         run_node()
     elif check == "site-contracts":
         run_site_contracts()
+    elif check == "dependency-boundary":
+        run_dependency_boundary()
     elif check == "composition-consumer":
         run_composition_consumer()
     elif check == "assembly":

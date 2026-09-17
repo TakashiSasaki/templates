@@ -158,6 +158,9 @@ jobs:
       - name: Install Playwright controller
         if: ${{ needs.classify_browser.outputs.browser_required == 'true' }}
         run: python -m pip install --disable-pip-version-check -r requirements-visual.txt
+      - name: Validate visual entrypoint dependency boundary
+        if: ${{ needs.classify_browser.outputs.browser_required == 'true' }}
+        run: python scripts/check_python_dependencies.py . --environment visual
       - name: Cache Playwright binaries
         if: ${{ needs.classify_browser.outputs.browser_required == 'true' && (needs.classify_browser.outputs.pwa_required == 'true' || needs.classify_browser.outputs.full_required == 'true') }}
         uses: actions/cache@v4
@@ -311,6 +314,8 @@ jobs:
           cache-dependency-path: requirements.txt
       - name: Install dependencies
         run: python -m pip install --requirement requirements.txt
+      - name: Validate core entrypoint dependency boundary
+        run: python scripts/check_python_dependencies.py . --environment core
       - name: Run core unit and contract validation
         run: python scripts/run_core_tests.py --verbose
   validate:
@@ -379,8 +384,12 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: 3.12.13
-      - name: Validate Site-owned Website contracts and declarations
+      - name: Validate Site-owned Website contracts
         run: python scripts/validate_website_contracts.py .
+      - name: Validate Site-owned Playground declarations
+        run: python scripts/validate_site_declarations.py .
+      - name: Validate Python entrypoint dependency boundaries
+        run: python scripts/check_python_dependencies.py .
       - name: Validate selected Composition components
         run: python .template-composition/validate.py .
   full_qualification:

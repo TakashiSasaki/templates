@@ -54,6 +54,8 @@ jobs:
           cache-dependency-path: requirements-visual.txt
       - name: Install Playwright controller
         run: python -m pip install --disable-pip-version-check -r requirements-visual.txt
+      - name: Validate visual entrypoint dependency boundary
+        run: python scripts/check_python_dependencies.py . --environment visual
       - name: Verify system Chrome runtime
         run: |
           google-chrome --version | tee "$RUNNER_TEMP/system-chrome-version.txt"

@@ -33,6 +33,11 @@ CHECKS = (
     CheckSpec("node", "node/source", "all Composition Playground Node tests"),
     CheckSpec("site-contracts", "source/core", "Site-owned declaration and contract checks"),
     CheckSpec(
+        "dependency-boundary",
+        "source/core",
+        "Python entrypoint imports versus environment requirements",
+    ),
+    CheckSpec(
         "composition-consumer",
         "source/core",
         "the managed Composition consumer validator",
@@ -68,6 +73,7 @@ SOURCE_READY_CHECKS = (
     "core",
     "node",
     "site-contracts",
+    "dependency-boundary",
     "composition-consumer",
 )
 

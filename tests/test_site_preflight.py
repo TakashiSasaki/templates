@@ -192,3 +192,10 @@ class SitePreflightTests(unittest.TestCase):
                 [sys.executable, "scripts/validate_site_declarations.py", "."],
             ],
         )
+
+    def test_dependency_boundary_uses_static_contract_runner(self):
+        with patch.object(preflight, "_run") as run:
+            preflight.run_dependency_boundary()
+        run.assert_called_once_with(
+            [sys.executable, "scripts/check_python_dependencies.py"]
+        )

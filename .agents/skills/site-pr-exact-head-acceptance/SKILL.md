@@ -193,9 +193,9 @@ Report:
 
 Before expensive qualification, run `python scripts/run_site_preflight.py
 source-ready --expected-head <exact Site SHA>`. This reaches all cheap Site source
-contracts without provider checkout roots. CI path classification remains the
-canonical remote scope selector; the local preflight does not introduce a separate
-mandatory frontier.
+and dependency-boundary contracts without provider checkout roots. CI path
+classification remains the canonical remote scope selector; the local preflight does
+not introduce a separate mandatory frontier.
 
 For a qualified immutable Bundle and its built Site artifact, run
 `python scripts/run_site_preflight.py artifact-local --expected-head <exact Site SHA>

@@ -29,4 +29,4 @@ jobs:
       - name: Run canonical Playground source validation
         env:
           EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
-        run: python scripts/run_site_preflight.py fast --check node --check site-contracts --expected-head "$EXPECTED_HEAD"
+        run: python scripts/run_site_preflight.py fast --check node --check site-contracts --check dependency-boundary --expected-head "$EXPECTED_HEAD"

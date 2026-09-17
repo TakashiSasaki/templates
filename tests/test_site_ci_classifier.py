@@ -209,6 +209,7 @@ class SiteCIClassifierTests(unittest.TestCase):
             "scripts/verify_site_full_qualification.py",
             "scripts/run_core_tests.py",
             "scripts/site_check_registry.py",
+            "scripts/check_python_dependencies.py",
             "scripts/validate_site_declarations.py",
             "scripts/validate_website_contracts.py",
             "tests/test_site_ci_classifier.py",

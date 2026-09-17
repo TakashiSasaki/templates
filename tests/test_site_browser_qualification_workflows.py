@@ -34,6 +34,7 @@ class BrowserWorkflowTests(unittest.TestCase):
                 self.assertIn('run_site_preflight.py fast --check node', text)
                 self.assertNotIn('node --test tests/composition-playground', text)
                 self.assertNotIn('node-explainability', text)
+        self.assertIn('check_python_dependencies.py . --environment visual', (ROOT / '.github/workflows/site-composition-playground-explain.yml').read_text())
         playground = (ROOT / '.github/workflows/site-composition-playground.yml').read_text()
         self.assertNotIn('Validate Site integration declarations', playground)
         for shell_assertion in ('python -m json.tool', 'grep --fixed-strings', 'data-provenance-url'):
@@ -44,6 +45,9 @@ class BrowserWorkflowTests(unittest.TestCase):
         self.assertIn('.template-composition/validate.py .', website)
         build_contract = str(workflow('build-pages.yml')['jobs']['website_contract']['steps'])
         self.assertIn('scripts/validate_website_contracts.py .', build_contract)
+        self.assertIn('scripts/validate_site_declarations.py .', build_contract)
+        self.assertIn('scripts/check_python_dependencies.py .', build_contract)
+        self.assertIn('check_python_dependencies.py . --environment visual', str(workflow('build-pages.yml')['jobs']['check']['steps']))
         self.assertIn('.template-composition/validate.py .', build_contract)
 
     def test_browser_escalation_is_handled_at_every_browser_consumer(self):

@@ -24,7 +24,8 @@ source-ready gate from a clean checkout:
 `SITE_HEAD=$(git rev-parse HEAD) && python scripts/run_site_preflight.py source-ready --expected-head "$SITE_HEAD"`
 
 This runs the complete classified Python core suite, every cheap Playground
-Node test, Site-owned declaration/contract checks and the managed Composition
+Node test, Site-owned declaration/contract checks, static Python dependency
+boundary checks for each CI requirements input, and the managed Composition
 consumer validator. It requires the committed HEAD to match exactly and the
 index, working tree and untracked-file inventory to be clean.
 
