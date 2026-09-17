@@ -103,6 +103,7 @@ const navigatorState = {
 Object.defineProperty(globalThis, "navigator", { configurable: true, writable: true, value: navigatorState });
 
 const require = createRequire(import.meta.url);
+globalThis.TemplatesGithubUrls = require("../assets/javascripts/github-url.js");
 const playground = require("../assets/javascripts/composition-playground.js");
 
 function projection() {
@@ -210,6 +211,8 @@ function makeHarness(name) {
   const validity = new FakeNode("p");
   const semanticRevision = new FakeNode("code");
   const providerRevision = new FakeNode("code");
+  const semanticRevisionLink = new FakeNode("a");
+  const providerRevisionLink = new FakeNode("a");
   const projectionId = new FakeNode("code");
   const resolved = new FakeNode("ul");
   const config = new FakeNode("pre");
@@ -221,6 +224,8 @@ function makeHarness(name) {
   selectors.set("[data-playground-validity]", validity);
   selectors.set("[data-playground-semantic-revision]", semanticRevision);
   selectors.set("[data-playground-provider-revision]", providerRevision);
+  selectors.set("[data-playground-semantic-revision-link]", semanticRevisionLink);
+  selectors.set("[data-playground-provider-revision-link]", providerRevisionLink);
   selectors.set("[data-playground-projection-id]", projectionId);
   selectors.set("[data-playground-resolved]", resolved);
   selectors.set("[data-playground-config]", config);
