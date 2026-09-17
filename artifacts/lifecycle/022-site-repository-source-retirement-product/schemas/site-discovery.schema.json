@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schemaVersion", "canonicalOrigin", "robots", "sitemap", "feeds"],
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[a-z][a-z0-9-]*(?![\\s\\S])"},
+    "webPath": {"type": "string", "pattern": "^/(?!/)(?!.*(?:^|/)\\.\\.?(?:/|$))[A-Za-z0-9._~!$&'()*+,;=:@%/-]*(?![\\s\\S])"},
+    "mediaType": {"type": "string", "pattern": "^[A-Za-z0-9!#$&^_.+-]+/[A-Za-z0-9!#$&^_.+-]+(?:;[^\\r\\n]+)?(?![\\s\\S])"},
+    "feed": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "path", "mediaType"],
+      "properties": {
+        "id": {"$ref": "#/$defs/identifier"},
+        "path": {"$ref": "#/$defs/webPath"},
+        "mediaType": {"$ref": "#/$defs/mediaType"}
+      }
+    }
+  },
+  "properties": {
+    "$schema": {"const": "../schemas/site-discovery.schema.json"},
+    "schemaVersion": {"const": 1},
+    "canonicalOrigin": {"oneOf": [{"type": "null"}, {"type": "string", "pattern": "^https://[A-Za-z0-9.-]+(?::[0-9]+)?/?(?![\\s\\S])"}]},
+    "robots": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "policy"],
+      "properties": {
+        "path": {"$ref": "#/$defs/webPath"},
+        "policy": {"const": "match-document-indexability"}
+      }
+    },
+    "sitemap": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "pageIds"],
+      "properties": {
+        "path": {"$ref": "#/$defs/webPath"},
+        "pageIds": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/identifier"}}
+      }
+    },
+    "feeds": {"type": "array", "items": {"$ref": "#/$defs/feed"}}
+  }
+}
