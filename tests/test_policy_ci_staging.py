@@ -82,7 +82,7 @@ def test_policy_ci_preflight_is_cheap_relative_to_core() -> None:
     assert "scripts/run_policy_preflight.py --check tests" in core
 
 
-def test_repository_preserves_parallel_full_compatibility_surface() -> None:
+def test_repository_uses_runner_native_parallel_runtime_surface() -> None:
     policy = POLICY_CI.read_text(encoding="utf-8")
     runtime = RUNTIME_CI.read_text(encoding="utf-8")
     docs = DOCS.read_text(encoding="utf-8")
@@ -90,4 +90,5 @@ def test_repository_preserves_parallel_full_compatibility_surface() -> None:
     assert "cancel-in-progress: true" in runtime
     assert "ci/full-compatibility" in runtime
     assert "Policy runtime distribution" in docs
-    assert "parallel to normal Policy CI" in docs
+    assert "parallel with normal Policy CI" in docs
+    assert "ci/full-compatibility" not in runtime

@@ -99,7 +99,7 @@ def test_runtime_workflow_trigger_tiers_are_exact() -> None:
     assert set(triggers) == {"push", "pull_request"}
     assert triggers["push"] == {"branches": ["policy"]}
     assert triggers["pull_request"] == {
-        "types": ["opened", "synchronize", "reopened", "labeled", "unlabeled"],
+        "types": ["opened", "synchronize", "reopened"],
     }
     assert "schedule" not in triggers
     assert "workflow_dispatch" not in triggers

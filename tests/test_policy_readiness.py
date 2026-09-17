@@ -105,7 +105,7 @@ def test_readiness_enforces_gate_conditions_and_evaluation_points() -> None:
         "ci": (
             "`candidate commit`",
             (
-                "runner Python",
+                "Ubuntu runner's Python",
                 "neutralizes external Python and pip inputs",
                 "verifies the installed distribution set",
                 "runtime-distribution checks",
