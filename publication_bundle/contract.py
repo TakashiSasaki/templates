@@ -20,6 +20,10 @@ PROVIDER_SETS = {
     3: frozenset({'composition', 'policy'}),
     4: frozenset({'modeling', 'composition', 'policy'}),
 }
+PROVIDER_ORDERS = {
+    3: ('composition', 'policy'),
+    4: ('modeling', 'composition', 'policy'),
+}
 FIELDS = {'schema_version', 'producer', 'providers', 'configuration_digest',
           'files', 'content_digest', 'identity'}
 
@@ -250,9 +254,9 @@ def validate(root, *, expected_identity=None, expected_producer=None,
         load_overlays(root / 'guided-locales.json', graph)
         from publication_bundle.navigation import validate_navigation
         validate_navigation(root, navigation, documents)
-        accepted_graph = load_graph(root / 'guided-navigation.json', provider_order=tuple(providers))
+        accepted_graph = load_graph(root / 'guided-navigation.json', provider_order=PROVIDER_ORDERS[schema_version])
         for provider in accepted_graph['providers']:
-            validate_provider_graph(provider, provider_order=tuple(providers))
+            validate_provider_graph(provider, provider_order=PROVIDER_ORDERS[schema_version])
     except (ValueError, RuntimeError, KeyError, TypeError, UnicodeError) as exc:
         raise BundleError('invalid Bundle read model: ' + str(exc)) from exc
     from publication_bundle.translations import validate_translations
