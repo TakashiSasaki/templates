@@ -13,7 +13,7 @@ from scripts import site_build_artifact as artifact
 
 
 def inputs(**overrides):
-    selection=dict(schema_version=2,producer={'authority':'integration','revision':'f'*40},providers={'composition':'b'*40,'policy':'c'*40},identity='1'*64,content_digest='2'*64)
+    selection=dict(schema_version=3,producer={'authority':'integration','revision':'f'*40},providers={'composition':'b'*40,'policy':'c'*40},identity='1'*64,content_digest='2'*64)
     for name in ('composition','policy'):
         if name in overrides:selection['providers'][name]=overrides.pop(name)
     values=dict(repository='TakashiSasaki/templates',site='a'*40,bundle=selection,workflow=b'workflow',runtime='python|runner')
@@ -69,7 +69,7 @@ class BuildIdentityTests(unittest.TestCase):
 
     def test_reuse_requires_the_exact_selected_bundle_and_non_deploying_input(self):
         expected=inputs()
-        locked=dict(revision='f'*40,bundle_schema=2,bundle_identity='1'*64,content_digest='2'*64)
+        locked=dict(revision='f'*40,bundle_schema=3,bundle_identity='1'*64,content_digest='2'*64)
         self.assertTrue(artifact.reuse_applicable(expected,locked,requested=True,event='pull_request'))
         for key,value in [('revision','d'*40),('bundle_identity','3'*64),('content_digest','4'*64),('bundle_schema',1)]:
             self.assertFalse(artifact.reuse_applicable(expected,{**locked,key:value},requested=True,event='pull_request'))

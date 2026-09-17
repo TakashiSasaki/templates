@@ -15,7 +15,7 @@ function buildProvenance(siteRevision = "c".repeat(40)) {
     schema_version: 3,
     repository: "TakashiSasaki/templates",
     site_commit: siteRevision,
-    integration: { schema_version: 2, producer: {authority: "integration", revision: "e".repeat(40)}, identity: "f".repeat(64), content_digest: "a".repeat(64), providers: {
+    integration: { schema_version: 3, producer: {authority: "integration", revision: "e".repeat(40)}, identity: "f".repeat(64), content_digest: "a".repeat(64), providers: {
       composition: "b".repeat(40),
       policy: "d".repeat(40),
     }},

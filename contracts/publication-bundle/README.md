@@ -1,7 +1,7 @@
-# Site consumer of Integrated Publication Bundle v2
+# Site consumer of Integrated Publication Bundle v3
 
 The independent Integration authority owns the producer, provider semantics
-validation, and canonical [Bundle contract](https://github.com/TakashiSasaki/templates/blob/d2316a54db4011ba2936355065a86c80c2942c74/contracts/publication-bundle/README.md).
+validation, and canonical [Bundle contract](https://github.com/TakashiSasaki/templates/blob/fd978a01fb934187500655481b6f744db7eacbf9/contracts/publication-bundle/README.md).
 Site selects that exact reviewed release in `integration-source.json`. The lock
 binds producer revision, schema, Bundle identity and content digest. It contains
 no independently selected Composition or Policy revision.
@@ -11,11 +11,13 @@ consumer model closure and publication routes before rendering. Integration has
 already authenticated provider source models and translation manifests. Site
 neither reopens those semantics nor derives provider translation freshness.
 Current, stale and missing states are Integration output; current and stale
-reader derivatives are present in v2, while missing routes are absent.
+reader derivatives are present in v3, while missing routes are absent.
 
 The Bundle contains canonical/translated documents and assets, destinations,
-navigation, translation availability, glossary, guided graph/localization,
-provider repository inventories and bounded source views, and provenance.
+navigation, translation availability, glossary, guided graph/localization, and
+provenance. It does not contain provider repository inventories, source blobs,
+or inline preview payloads: repository source browsing belongs to immutable
+GitHub blob/tree URLs.
 Site-owned documents are declared slots filled with Site-owned source.
 `render_publication_bundle.py` accepts only the Bundle, its identity, Site source
 and rendering options. `qualify_bundle_renderer.py` physically excludes provider

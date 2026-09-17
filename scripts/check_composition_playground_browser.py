@@ -142,7 +142,7 @@ def prepare_harness(root: Path) -> None:
                 "schema_version": 3,
                 "repository": "TakashiSasaki/templates",
                 "site_commit": "c" * 40,
-                "integration": {"schema_version": 2, "producer": {"authority": "integration", "revision": "e" * 40}, "identity": "f" * 64, "content_digest": "a" * 64, "providers": {
+                "integration": {"schema_version": 3, "producer": {"authority": "integration", "revision": "e" * 40}, "identity": "f" * 64, "content_digest": "a" * 64, "providers": {
                     "composition": PROVIDER_REVISION,
                     "policy": "d" * 40,
                 }},

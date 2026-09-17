@@ -49,7 +49,7 @@ def identity(*, repository: str, site: str, bundle: dict, workflow: bytes,
     if not re.fullmatch(r'[0-9a-f]{40}', site):
         raise ArtifactError('build revisions must be full immutable SHAs')
     if (not isinstance(bundle,dict) or set(bundle)!={'schema_version','producer','providers','identity','content_digest'}
-            or type(bundle['schema_version']) is not int or bundle['schema_version']!=2
+            or type(bundle['schema_version']) is not int or bundle['schema_version']!=3
             or bundle['producer'].get('authority')!='integration'
             or not re.fullmatch(r'[0-9a-f]{40}',bundle['producer'].get('revision',''))
             or any(not re.fullmatch(r'[0-9a-f]{40}',v) for v in bundle['providers'].values())

@@ -99,7 +99,7 @@
           ],
           "properties": {
             "schema_version": {
-              "const": 2
+              "const": 3
             },
             "identity": {
               "type": "string",

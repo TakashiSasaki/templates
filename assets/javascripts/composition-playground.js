@@ -529,7 +529,7 @@
       throw new ProjectionError("MALFORMED_PROVENANCE", "Site build provenance identity is invalid");
     }
     const bundle = raw.integration;
-    if (!isObject(bundle) || bundle.schema_version !== 2 || !isObject(bundle.producer) || bundle.producer.authority !== "integration" || !FULL_SHA.test(bundle.producer.revision || "") || !/^[0-9a-f]{64}$/.test(bundle.identity || "") || !/^[0-9a-f]{64}$/.test(bundle.content_digest || "") || !isObject(bundle.providers)) {
+    if (!isObject(bundle) || bundle.schema_version !== 3 || !isObject(bundle.producer) || bundle.producer.authority !== "integration" || !FULL_SHA.test(bundle.producer.revision || "") || !/^[0-9a-f]{64}$/.test(bundle.identity || "") || !/^[0-9a-f]{64}$/.test(bundle.content_digest || "") || !isObject(bundle.providers)) {
       throw new ProjectionError("MALFORMED_PROVENANCE", "Site Integration Bundle provenance is invalid");
     }
     const providerKeys = Object.keys(raw.integration.providers);
