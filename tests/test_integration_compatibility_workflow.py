@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-PIN = "a30699cf7dc56bf3ef7a1b6fd8f6ffd45cdd426d"
+PIN = "9430a7dc124bbcfe66847c04e584bd54bed29ad3"
 
 class IntegrationCompatibilityTests(unittest.TestCase):
     def test_reusable_contract_and_producer_are_the_same_immutable_revision(self):
