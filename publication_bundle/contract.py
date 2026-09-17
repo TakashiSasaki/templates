@@ -250,9 +250,9 @@ def validate(root, *, expected_identity=None, expected_producer=None,
         load_overlays(root / 'guided-locales.json', graph)
         from publication_bundle.navigation import validate_navigation
         validate_navigation(root, navigation, documents)
-        accepted_graph = load_graph(root / 'guided-navigation.json')
+        accepted_graph = load_graph(root / 'guided-navigation.json', provider_order=tuple(providers))
         for provider in accepted_graph['providers']:
-            validate_provider_graph(provider)
+            validate_provider_graph(provider, provider_order=tuple(providers))
     except (ValueError, RuntimeError, KeyError, TypeError, UnicodeError) as exc:
         raise BundleError('invalid Bundle read model: ' + str(exc)) from exc
     from publication_bundle.translations import validate_translations
