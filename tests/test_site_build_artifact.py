@@ -230,7 +230,7 @@ class BuildDependencyLockTests(unittest.TestCase):
         workflow = yaml.safe_load((root / ".github/workflows/site-producer.yml").read_text())
         step = next(s for s in workflow['jobs']['build']['steps'] if s.get('name') == 'Install pinned contract and renderer dependencies')
         self.assertIn('--no-deps --requirement site-source/requirements-build.lock', step['run'])
-        self.assertIn('python -m pip check', step['run'])
+        self.assertIn('python3 -m pip check', step['run'])
 
 
 class PartialRetryTests(unittest.TestCase):

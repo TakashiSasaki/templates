@@ -78,11 +78,12 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
         )
         self.assertIn("fetch-depth: 0", classify_workflow)
         self.assertIn("persist-credentials: false", classify_workflow)
-        self.assertIn("python-version: '3.12.13'", classify_workflow)
+        self.assertNotIn("actions/setup-python", classify_workflow)
+        self.assertNotIn("python-version", classify_workflow)
         self.assertNotIn("Collect exact pull-request changed paths", classify_workflow)
         self.assertNotIn("test -s \"$RUNNER_TEMP/site-browser-paths.txt\"", classify_workflow)
         self.assertIn(
-            "python scripts/collect_site_changed_paths.py \\",
+            "python3 scripts/collect_site_changed_paths.py \\",
             classify_workflow,
         )
         self.assertIn("base-diff-unavailable-full", classify_workflow)
@@ -94,9 +95,9 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
         self.assertIn("base-classification-unavailable-full", classify_workflow)
         self.assertIn("--changed-paths \"$changed_paths\"", classify_workflow)
         self.assertIn("git show \"$BASE_SHA:scripts/classify_site_ci.py\"", classify_workflow)
-        self.assertIn("python -I \"$classifier_dir/classify_site_ci.py\"", classify_workflow)
-        self.assertNotIn("python -I scripts/classify_site_browser_acceptance.py", classify_workflow)
-        self.assertNotIn("python -I scripts/classify_site_ci.py", classify_workflow)
+        self.assertIn("python3 -I \"$classifier_dir/classify_site_ci.py\"", classify_workflow)
+        self.assertNotIn("python3 -I scripts/classify_site_browser_acceptance.py", classify_workflow)
+        self.assertNotIn("python3 -I scripts/classify_site_ci.py", classify_workflow)
         self.assertIn("authority_source=\"base-unavailable-full\"", classify_workflow)
         self.assertIn("browser_required: ${{ steps.classify.outputs.browser_required }}", classify_workflow)
         self.assertIn("site_candidate: ${{ steps.classify.outputs.site_candidate }}", classify_workflow)
@@ -121,7 +122,6 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
         heavy_steps = (
             "Check out proposed Site revision",
             "Verify and consume scheduled Pages artifact",
-            "Set up Python",
             "Install Playwright controller",
             "Cache Playwright binaries",
             "Install Playwright Chromium for PWA lifecycle",
@@ -218,7 +218,7 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
         self.assertIn("name: Site Construction CI / validate", workflow)
         self.assertIn("needs:\n      - build\n      - classify_browser\n      - check\n      - core_tests", workflow)
         self.assertIn("test \"$CORE_TESTS_RESULT\" = success", workflow)
-        self.assertIn("python scripts/run_core_tests.py", workflow)
+        self.assertIn("python3 scripts/run_core_tests.py", workflow)
         self.assertTrue(
             "FORCE_FULL_REQUESTED:" in workflow or "FORCE_FULL_REQUESTED:" in classify_workflow
         )

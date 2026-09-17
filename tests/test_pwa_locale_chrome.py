@@ -53,7 +53,7 @@ class PwaLocaleChromeTests(unittest.TestCase):
 
     def test_browser_checker_is_wired_into_mobile_ci(self) -> None:
         self.assertIn("Check localized PWA freshness chrome", self.workflow)
-        self.assertIn("python scripts/check_pwa_locale_chrome.py", self.workflow)
+        self.assertIn("python3 scripts/check_pwa_locale_chrome.py", self.workflow)
         self.assertIn('EXPECTED_JA["update_available"]', self.checker)
         self.assertIn('EXPECTED_JA["unverified"]', self.checker)
         self.assertIn('EXPECTED_JA["offline_unavailable"]', self.checker)

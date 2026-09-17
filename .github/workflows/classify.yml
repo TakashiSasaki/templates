@@ -81,10 +81,6 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
           persist-credentials: false
-      - name: Set up classifier Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.12.13'
       - name: Classify acceptance scope
         id: classify
         env:
@@ -145,7 +141,7 @@ jobs:
           fi
           changed_paths="$RUNNER_TEMP/site-browser-paths.txt"
           boundary_status=0
-          python scripts/collect_site_changed_paths.py \
+          python3 scripts/collect_site_changed_paths.py \
             --base "$BASE_SHA" \
             --head "$HEAD_SHA" \
             --output "$changed_paths" || boundary_status=$?
@@ -199,7 +195,7 @@ jobs:
             elif [ "${FORCE_BROWSER_REQUESTED:-false}" = true ]; then
               force_full=true
             fi
-            python -I "$classifier_dir/classify_site_ci.py" \
+            python3 -I "$classifier_dir/classify_site_ci.py" \
               --changed-paths "$changed_paths" \
               --force-full "$force_full" "${browser_args[@]}" \
               --output "$GITHUB_OUTPUT"

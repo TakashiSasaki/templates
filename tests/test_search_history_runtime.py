@@ -207,16 +207,16 @@ class SearchHistoryRuntimeContractTests(unittest.TestCase):
         self.assertNotIn("Wait for documentation artifact build", search_workflow)
         self.assertNotIn("actions/github-script", search_workflow)
         self.assertIn("pull_request:", search_workflow)
-        self.assertIn("python scripts/check_search_history.py", search_workflow)
-        self.assertIn("python scripts/check_search_history_review_regressions.py", search_workflow)
+        self.assertIn("python3 scripts/check_search_history.py", search_workflow)
+        self.assertIn("python3 scripts/check_search_history_review_regressions.py", search_workflow)
 
         check_block = build_workflow.split("\n  check:\n", 1)[1]
         self.assertIn("needs:\n      - build\n      - classify_browser", check_block)
         self.assertIn("test \"$BUILD_RESULT\" = success", check_block)
         self.assertIn("test \"$CLASSIFIER_RESULT\" = success", check_block)
         self.assertIn("scripts/consume_site_build_artifact.py", check_block)
-        self.assertIn("python scripts/check_search_history.py", check_block)
-        self.assertIn("python scripts/check_search_history_review_regressions.py", check_block)
+        self.assertIn("python3 scripts/check_search_history.py", check_block)
+        self.assertIn("python3 scripts/check_search_history_review_regressions.py", check_block)
         self.assertIn(
             "if: ${{ needs.classify_browser.outputs.browser_required == 'true' }}",
             check_block,

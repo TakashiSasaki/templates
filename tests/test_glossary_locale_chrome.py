@@ -27,7 +27,7 @@ class GlossaryLocaleChromeCheckerTests(unittest.TestCase):
             encoding="utf-8"
         )
         self.assertIn("Check localized inline Glossary chrome", workflow)
-        self.assertIn("python scripts/check_glossary_locale_chrome.py", workflow)
+        self.assertIn("python3 scripts/check_glossary_locale_chrome.py", workflow)
         self.assertIn(
             "--output build/mobile-visual/glossary-locale-chrome.json",
             workflow,
