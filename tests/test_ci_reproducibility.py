@@ -171,7 +171,7 @@ def test_policy_ci_verifies_the_complete_installed_distribution_set() -> None:
 
     assert CI_ENVIRONMENT_VERIFIER.is_file()
     assert "run: .venv/bin/python scripts/run_policy_preflight.py --check environment" in workflow
-    assert "python3 scripts/verify_ci_environment.py" in readme
+    assert "python scripts/verify_ci_environment.py" in readme
     runner = (ROOT / "scripts/run_policy_preflight.py").read_text(encoding="utf-8")
     assert 'run(sys.executable, "scripts/verify_ci_environment.py")' in runner
     assert 'run(sys.executable, "-m", "pip", "check")' in runner

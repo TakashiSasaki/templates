@@ -88,7 +88,6 @@ def test_repository_uses_runner_native_parallel_runtime_surface() -> None:
     docs = DOCS.read_text(encoding="utf-8")
     assert "cancel-in-progress: true" in policy
     assert "cancel-in-progress: true" in runtime
-    assert "ci/full-compatibility" in runtime
     assert "Policy runtime distribution" in docs
     assert "parallel with normal Policy CI" in docs
     assert "ci/full-compatibility" not in runtime
