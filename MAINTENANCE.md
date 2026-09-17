@@ -25,9 +25,21 @@ source-ready gate from a clean checkout:
 
 This runs the complete classified Python core suite, every cheap Playground
 Node test, Site-owned declaration/contract checks, static Python dependency
-boundary checks for each CI requirements input, and the managed Composition
-consumer validator. It requires the committed HEAD to match exactly and the
-index, working tree and untracked-file inventory to be clean.
+boundary checks for each CI requirements input. It deliberately does not run
+the managed Composition validator: that validator is Composition-owned and
+may provision a runtime or install its locked requirements.
+
+When Composition consumer validation is needed, run its explicit managed
+boundary separately (it may require package-index access on an empty cache):
+
+`python scripts/run_site_preflight.py composition-validation --expected-head "$SITE_HEAD"`
+
+The source-ready gate requires the committed HEAD to match exactly and the
+index, working tree and untracked-file inventory to be clean. It assumes the
+documented local Python and Node dependencies are already installed, but it
+does not install packages, access a package index, create a Composition cache,
+acquire provider checkouts, use a GitHub API, consume a Pages artifact, or
+launch a browser.
 
 For an already produced Publication Bundle and rendered Site, run the
 artifact-local profile with both inputs:

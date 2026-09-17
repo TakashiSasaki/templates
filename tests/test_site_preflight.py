@@ -3,6 +3,7 @@ from pathlib import Path
 from unittest.mock import patch
 import builtins
 import importlib
+import os
 import subprocess
 import sys
 from tempfile import TemporaryDirectory
@@ -12,6 +13,7 @@ from scripts import run_site_preflight as preflight
 from scripts.site_check_registry import (
     ARTIFACT_LOCAL_CHECKS,
     CHECK_NAMES,
+    MANAGED_VALIDATION_CHECKS,
     REMOTE_CHECKS,
     REMOTE_ACCEPTANCE_CLASSES,
     SOURCE_READY_CHECKS,
@@ -66,6 +68,43 @@ class SitePreflightTests(unittest.TestCase):
         self.assertEqual(
             [call.args[0] for call in run_check.call_args_list],
             list(SOURCE_READY_CHECKS),
+        )
+
+    def test_source_ready_does_not_start_managed_runtime_from_empty_cache(self):
+        with TemporaryDirectory() as cache:
+            with patch.dict(
+                os.environ,
+                {
+                    "COMPOSITION_VALIDATION_CACHE": cache,
+                    "PIP_INDEX_URL": "http://127.0.0.1:9/simple",
+                    "PIP_NO_INDEX": "1",
+                },
+            ), patch.object(
+                preflight, "_git_output", side_effect=["a" * 40, ""]
+            ), patch.object(preflight, "run_l0"), patch.object(
+                preflight, "run_core"
+            ), patch.object(preflight, "run_node"), patch.object(
+                preflight, "run_site_contracts"
+            ), patch.object(preflight, "run_dependency_boundary"), patch.object(
+                preflight,
+                "run_composition_consumer",
+                side_effect=AssertionError("source-ready attempted managed validation"),
+            ):
+                self.assertEqual(
+                    preflight.main(["source-ready", "--expected-head", "a" * 40]),
+                    0,
+                )
+            self.assertEqual(tuple(Path(cache).iterdir()), ())
+
+    def test_managed_composition_validation_is_explicitly_classified(self):
+        self.assertEqual(
+            preflight.PROFILES["composition-validation"],
+            MANAGED_VALIDATION_CHECKS,
+        )
+        self.assertNotIn("composition-consumer", SOURCE_READY_CHECKS)
+        self.assertEqual(
+            CHECK_SPECS["composition-consumer"].execution_class,
+            "managed-validation",
         )
 
     def test_source_ready_requires_an_explicit_expected_head(self):
@@ -191,7 +230,11 @@ class SitePreflightTests(unittest.TestCase):
         self.assertIn("tests/composition-playground-topology.test.mjs", preflight.NODE_TESTS)
 
     def test_local_profiles_exclude_remote_acceptance_classes(self):
-        local_checks = set(SOURCE_READY_CHECKS) | set(ARTIFACT_LOCAL_CHECKS)
+        local_checks = (
+            set(SOURCE_READY_CHECKS)
+            | set(MANAGED_VALIDATION_CHECKS)
+            | set(ARTIFACT_LOCAL_CHECKS)
+        )
         self.assertEqual(set(preflight.CHECKS), set(CHECK_NAMES))
         self.assertTrue(local_checks)
         self.assertEqual(

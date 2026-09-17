@@ -5,7 +5,11 @@ Profiles:
 
 * ``fast`` is a cheap development preflight and may inspect a dirty tree.
 * ``source-ready`` is the clean, exact-commit gate for spending remote CI
-  resources. It runs every cheap repository-owned source check.
+  resources. It runs every repository-owned source check that needs no
+  managed runtime, package installation, artifact, browser, or network.
+* ``composition-validation`` runs the managed Composition consumer validator;
+  Composition may provision its own validation runtime for this explicit
+  boundary.
 * ``artifact-local`` validates an already produced Bundle and rendered Site;
   both paths are required and no artifact is acquired or rendered.
 
@@ -29,6 +33,7 @@ from scripts.classify_site_ci import classify_paths
 from scripts.site_check_registry import (
     ARTIFACT_LOCAL_CHECKS,
     CHECK_NAMES,
+    MANAGED_VALIDATION_CHECKS,
     SOURCE_READY_CHECKS,
     playground_node_tests,
 )
@@ -40,6 +45,7 @@ CHECKS = CHECK_NAMES
 PROFILES = {
     "fast": ("l0",),
     "source-ready": SOURCE_READY_CHECKS,
+    "composition-validation": MANAGED_VALIDATION_CHECKS,
     "artifact-local": ARTIFACT_LOCAL_CHECKS,
 }
 
@@ -244,7 +250,8 @@ def main(argv: list[str] | None = None) -> int:
         choices=PROFILES,
         help=(
             "fast=dirty-tree construction loop; source-ready=clean cheap source "
-            "gate; artifact-local=explicit Bundle/Site checks"
+            "gate; composition-validation=managed Composition check; "
+            "artifact-local=explicit Bundle/Site checks"
         ),
     )
     parser.add_argument("--check", action="append", choices=CHECKS)

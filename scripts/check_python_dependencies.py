@@ -66,6 +66,7 @@ BUILD_ENTRYPOINTS = (
 )
 
 VISUAL_ENTRYPOINTS = (
+    "scripts/acquire_integration_bundle.py",
     "scripts/consume_site_build_artifact.py",
     "scripts/check_audience_artifact.py",
     "scripts/check_audience_runtime.py",
