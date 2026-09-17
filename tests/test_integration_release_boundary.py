@@ -17,6 +17,14 @@ class ReleaseBoundaryTests(unittest.TestCase):
                 self.assertNotIn("python-version", text)
                 self.assertNotIn("windows-", text.lower())
 
+    def test_stacked_authority_base_is_not_filtered_by_branch_spelling(self):
+        text = (ROOT / ".github/workflows/validate-integration.yml").read_text()
+        pull_request = text.split("  pull_request:\n", 1)[1].split(
+            "  push:\n", 1
+        )[0]
+        self.assertNotIn("branches:", pull_request)
+        self.assertNotIn("integration-feature-with-an-arbitrary-name", pull_request)
+
     def test_workflow_reaches_qualification_without_site_or_write_permissions(self):
         caller=yaml.safe_load((ROOT/'.github/workflows/validate-integration.yml').read_text())
         workflow=yaml.safe_load((ROOT/'.github/workflows/integration-qualification.yml').read_text())

@@ -1,7 +1,6 @@
 name: Validate Integration authority
 on:
   pull_request:
-    branches: [integration, 'integration-*']
   push:
     branches: [integration]
   workflow_dispatch:
