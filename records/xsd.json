@@ -1,0 +1,75 @@
+{
+  "$schema": "https://github.com/TakashiSasaki/templates/raw/refs/heads/models/schemas/resource-record-0.1.schema.json",
+  "id": "xsd",
+  "recordRevision": 1,
+  "recordAuthority": "models",
+  "resourceId": "https://www.w3.org/TR/xmlschema11-1/",
+  "identityBasis": "upstream-entrypoint",
+  "ownership": "external",
+  "normativeAuthority": {
+    "name": "World Wide Web Consortium (W3C)",
+    "id": "https://www.w3.org/"
+  },
+  "canonicalLanguage": "en",
+  "title": "W3C XML Schema Definition Language (XSD)",
+  "description": "Structural and datatype schema language for XML documents.",
+  "kinds": [
+    "schema",
+    "specification"
+  ],
+  "homepage": "https://www.w3.org/TR/xmlschema11-1/",
+  "namespaces": [
+    "http://www.w3.org/2001/XMLSchema"
+  ],
+  "editions": [
+    {
+      "id": "https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/",
+      "label": "1.1",
+      "status": "W3C Recommendation (named 2012 publication)",
+      "source": "https://www.w3.org/TR/xmlschema11-1/",
+      "notes": "Named edition for identification, not a claim that it is the newest edition."
+    }
+  ],
+  "distributions": [
+    {
+      "id": "xsd-documentation",
+      "edition": "https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/",
+      "role": "documentation",
+      "mediaType": "text/html",
+      "language": "en",
+      "access": "public",
+      "rights": {
+        "assessment": "not-assessed",
+        "license": null,
+        "source": "https://www.w3.org/TR/xmlschema11-1/"
+      },
+      "retrieval": {
+        "mode": "reference",
+        "accessUrl": "https://www.w3.org/TR/xmlschema11-1/",
+        "downloadUrl": null,
+        "bytePin": null
+      }
+    }
+  ],
+  "relationships": [],
+  "registration": {
+    "purpose": "discovery",
+    "adoption": "not-adopted",
+    "endorsement": "not-assessed",
+    "externalContent": "reference-only"
+  },
+  "provenance": {
+    "recordedOn": "2026-09-17",
+    "sourceChecks": [
+      {
+        "url": "https://www.w3.org/TR/xmlschema11-1/",
+        "state": "metadata-observed",
+        "observedOn": "2026-09-17",
+        "scope": "Primary-source page metadata observed; no distribution bytes, legal clearance, current-latest guarantee, or implementation conformance was verified."
+      }
+    ]
+  },
+  "notes": [
+    "Record the applicable XSD language version and referenced schema closure. Structural validity is not automatically full application conformance."
+  ]
+}

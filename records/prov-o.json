@@ -1,0 +1,75 @@
+{
+  "$schema": "https://github.com/TakashiSasaki/templates/raw/refs/heads/models/schemas/resource-record-0.1.schema.json",
+  "id": "prov-o",
+  "recordRevision": 1,
+  "recordAuthority": "models",
+  "resourceId": "https://www.w3.org/TR/prov-o/",
+  "identityBasis": "upstream-entrypoint",
+  "ownership": "external",
+  "normativeAuthority": {
+    "name": "World Wide Web Consortium (W3C)",
+    "id": "https://www.w3.org/"
+  },
+  "canonicalLanguage": "en",
+  "title": "PROV-O: The PROV Ontology",
+  "description": "Describes entities, activities, agents, and provenance relationships.",
+  "kinds": [
+    "ontology",
+    "specification"
+  ],
+  "homepage": "https://www.w3.org/TR/prov-o/",
+  "namespaces": [
+    "http://www.w3.org/ns/prov#"
+  ],
+  "editions": [
+    {
+      "id": "https://www.w3.org/TR/2013/REC-prov-o-20130430/",
+      "label": "2013-04-30",
+      "status": "W3C Recommendation",
+      "source": "https://www.w3.org/TR/prov-o/",
+      "notes": "Named edition for identification, not a claim that it is the newest edition."
+    }
+  ],
+  "distributions": [
+    {
+      "id": "prov-o-documentation",
+      "edition": "https://www.w3.org/TR/2013/REC-prov-o-20130430/",
+      "role": "documentation",
+      "mediaType": "text/html",
+      "language": "en",
+      "access": "public",
+      "rights": {
+        "assessment": "not-assessed",
+        "license": null,
+        "source": "https://www.w3.org/TR/prov-o/"
+      },
+      "retrieval": {
+        "mode": "reference",
+        "accessUrl": "https://www.w3.org/TR/prov-o/",
+        "downloadUrl": null,
+        "bytePin": null
+      }
+    }
+  ],
+  "relationships": [],
+  "registration": {
+    "purpose": "discovery",
+    "adoption": "not-adopted",
+    "endorsement": "not-assessed",
+    "externalContent": "reference-only"
+  },
+  "provenance": {
+    "recordedOn": "2026-09-17",
+    "sourceChecks": [
+      {
+        "url": "https://www.w3.org/TR/prov-o/",
+        "state": "metadata-observed",
+        "observedOn": "2026-09-17",
+        "scope": "Landing-page/specification metadata only; no distribution bytes, legal clearance, current-latest guarantee, or implementation conformance was verified."
+      }
+    ]
+  },
+  "notes": [
+    "Provenance records evidence about origin; they do not by themselves authenticate an assertion or grant authority."
+  ]
+}

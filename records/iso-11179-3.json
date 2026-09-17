@@ -1,0 +1,73 @@
+{
+  "$schema": "https://github.com/TakashiSasaki/templates/raw/refs/heads/models/schemas/resource-record-0.1.schema.json",
+  "id": "iso-11179-3",
+  "recordRevision": 1,
+  "recordAuthority": "models",
+  "resourceId": "https://www.iso.org/standard/78915.html",
+  "identityBasis": "upstream-entrypoint",
+  "ownership": "external",
+  "normativeAuthority": {
+    "name": "ISO/IEC JTC 1/SC 32",
+    "id": "https://www.iso.org/committee/45342.html"
+  },
+  "canonicalLanguage": "en",
+  "title": "ISO/IEC 11179-3: Metadata registries — Metamodel for registry common facilities",
+  "description": "Registry metamodel candidate when formal registration, identification, and registration governance are needed.",
+  "kinds": [
+    "specification"
+  ],
+  "homepage": "https://www.iso.org/standard/78915.html",
+  "namespaces": [],
+  "editions": [
+    {
+      "id": "https://www.iso.org/standard/78915.html",
+      "label": "2023",
+      "status": "edition referenced; current status not independently verified",
+      "source": "https://www.iso.org/standard/78915.html",
+      "notes": "Named edition for identification, not a claim that it is the newest edition."
+    }
+  ],
+  "distributions": [
+    {
+      "id": "iso-11179-3-documentation",
+      "edition": "https://www.iso.org/standard/78915.html",
+      "role": "documentation",
+      "mediaType": "text/html",
+      "language": "en",
+      "access": "public",
+      "rights": {
+        "assessment": "not-assessed",
+        "license": null,
+        "source": "https://www.iso.org/standard/78915.html"
+      },
+      "retrieval": {
+        "mode": "reference",
+        "accessUrl": "https://www.iso.org/standard/78915.html",
+        "downloadUrl": null,
+        "bytePin": null
+      }
+    }
+  ],
+  "relationships": [],
+  "registration": {
+    "purpose": "discovery",
+    "adoption": "not-adopted",
+    "endorsement": "not-assessed",
+    "externalContent": "reference-only"
+  },
+  "provenance": {
+    "recordedOn": "2026-09-17",
+    "sourceChecks": [
+      {
+        "url": "https://www.iso.org/standard/78915.html",
+        "state": "metadata-observed",
+        "observedOn": "2026-09-17",
+        "scope": "Primary-source page metadata observed; no distribution bytes, legal clearance, current-latest guarantee, or implementation conformance was verified."
+      }
+    ]
+  },
+  "notes": [
+    "Only a descriptive reference is included. The full standard is not copied.",
+    "Do not infer full standard content or compliance from the public abstract."
+  ]
+}

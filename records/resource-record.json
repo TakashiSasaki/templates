@@ -1,0 +1,73 @@
+{
+  "$schema": "https://github.com/TakashiSasaki/templates/raw/refs/heads/models/schemas/resource-record-0.1.schema.json",
+  "id": "resource-record",
+  "recordRevision": 1,
+  "recordAuthority": "models",
+  "resourceId": "https://github.com/TakashiSasaki/templates/raw/refs/heads/models/schemas/resource-record-0.1.schema.json",
+  "identityBasis": "local-identifier",
+  "ownership": "local",
+  "normativeAuthority": {
+    "name": "Models authority",
+    "id": "https://github.com/TakashiSasaki/templates/tree/models"
+  },
+  "canonicalLanguage": "en",
+  "title": "Models resource description record",
+  "description": "Administrative schema for distinguishing descriptive records from their externally or locally governed subjects.",
+  "kinds": [
+    "schema"
+  ],
+  "homepage": "https://github.com/TakashiSasaki/templates/raw/refs/heads/models/schemas/resource-record-0.1.schema.json",
+  "namespaces": [],
+  "editions": [
+    {
+      "id": "https://github.com/TakashiSasaki/templates/raw/refs/heads/models/schemas/resource-record-0.1.schema.json",
+      "label": "0.1 (draft)",
+      "status": "local draft",
+      "source": "https://github.com/TakashiSasaki/templates/raw/refs/heads/models/schemas/resource-record-0.1.schema.json",
+      "notes": "Named edition for identification, not a claim that it is the newest edition."
+    }
+  ],
+  "distributions": [
+    {
+      "id": "resource-record-local-schema",
+      "edition": "https://github.com/TakashiSasaki/templates/raw/refs/heads/models/schemas/resource-record-0.1.schema.json",
+      "role": "schema",
+      "mediaType": "application/schema+json",
+      "language": "en",
+      "access": "public",
+      "rights": {
+        "assessment": "not-assessed",
+        "license": null,
+        "source": null
+      },
+      "retrieval": {
+        "mode": "local",
+        "path": "schemas/resource-record-0.1.schema.json",
+        "sha256": "86fb71c8b7eb990183589dfa140d18961b682064ceb6acb123c00d2c5bf710b2"
+      }
+    }
+  ],
+  "relationships": [],
+  "registration": {
+    "purpose": "discovery",
+    "adoption": "not-adopted",
+    "endorsement": "not-assessed",
+    "externalContent": "reference-only"
+  },
+  "provenance": {
+    "recordedOn": "2026-09-17",
+    "sourceChecks": [
+      {
+        "url": "https://github.com/TakashiSasaki/templates/raw/refs/heads/models/schemas/resource-record-0.1.schema.json",
+        "state": "reference-not-verified",
+        "observedOn": null,
+        "scope": "Locally authored schema; no public endpoint or upstream release is claimed to have been fetched."
+      }
+    ]
+  },
+  "notes": [
+    "This schema governs Models description records only; it does not claim authority over external definitions.",
+    "The record model is plain JSON with a documented vocabulary crosswalk, not a claimed DCAT/ADMS/PROF application profile.",
+    "Local schema identities use repository URLs pending any separately authorized persistent publication namespace."
+  ]
+}

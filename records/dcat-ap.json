@@ -1,0 +1,72 @@
+{
+  "$schema": "https://github.com/TakashiSasaki/templates/raw/refs/heads/models/schemas/resource-record-0.1.schema.json",
+  "id": "dcat-ap",
+  "recordRevision": 1,
+  "recordAuthority": "models",
+  "resourceId": "https://semiceu.github.io/DCAT-AP/releases/3.0.0/",
+  "identityBasis": "upstream-entrypoint",
+  "ownership": "external",
+  "normativeAuthority": {
+    "name": "European Commission SEMIC",
+    "id": "https://interoperable-europe.ec.europa.eu/"
+  },
+  "canonicalLanguage": "en",
+  "title": "DCAT Application Profile for data portals in Europe (DCAT-AP)",
+  "description": "Application profile for interoperable data catalogs in a European context.",
+  "kinds": [
+    "profile"
+  ],
+  "homepage": "https://semiceu.github.io/DCAT-AP/releases/3.0.0/",
+  "namespaces": [],
+  "editions": [
+    {
+      "id": "https://semiceu.github.io/DCAT-AP/releases/3.0.0/",
+      "label": "3.0.0",
+      "status": "named SEMIC release; status not reverified",
+      "source": "https://semiceu.github.io/DCAT-AP/releases/3.0.0/",
+      "notes": "Named edition for identification, not a claim that it is the newest edition."
+    }
+  ],
+  "distributions": [
+    {
+      "id": "dcat-ap-documentation",
+      "edition": "https://semiceu.github.io/DCAT-AP/releases/3.0.0/",
+      "role": "documentation",
+      "mediaType": "text/html",
+      "language": "en",
+      "access": "public",
+      "rights": {
+        "assessment": "not-assessed",
+        "license": null,
+        "source": "https://semiceu.github.io/DCAT-AP/releases/3.0.0/"
+      },
+      "retrieval": {
+        "mode": "reference",
+        "accessUrl": "https://semiceu.github.io/DCAT-AP/releases/3.0.0/",
+        "downloadUrl": null,
+        "bytePin": null
+      }
+    }
+  ],
+  "relationships": [],
+  "registration": {
+    "purpose": "discovery",
+    "adoption": "not-adopted",
+    "endorsement": "not-assessed",
+    "externalContent": "reference-only"
+  },
+  "provenance": {
+    "recordedOn": "2026-09-17",
+    "sourceChecks": [
+      {
+        "url": "https://semiceu.github.io/DCAT-AP/releases/3.0.0/",
+        "state": "metadata-observed",
+        "observedOn": "2026-09-17",
+        "scope": "Primary-source page metadata observed; no distribution bytes, legal clearance, current-latest guarantee, or implementation conformance was verified."
+      }
+    ]
+  },
+  "notes": [
+    "Do not claim DCAT-AP conformance merely because some DCAT terms are reused."
+  ]
+}

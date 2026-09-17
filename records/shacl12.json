@@ -1,0 +1,73 @@
+{
+  "$schema": "https://github.com/TakashiSasaki/templates/raw/refs/heads/models/schemas/resource-record-0.1.schema.json",
+  "id": "shacl12",
+  "recordRevision": 1,
+  "recordAuthority": "models",
+  "resourceId": "https://www.w3.org/TR/shacl12-core/",
+  "identityBasis": "upstream-entrypoint",
+  "ownership": "external",
+  "normativeAuthority": {
+    "name": "World Wide Web Consortium (W3C)",
+    "id": "https://www.w3.org/"
+  },
+  "canonicalLanguage": "en",
+  "title": "SHACL 1.2 Core",
+  "description": "Reference to the evolving SHACL 1.2 Core specification.",
+  "kinds": [
+    "specification"
+  ],
+  "homepage": "https://www.w3.org/TR/shacl12-core/",
+  "namespaces": [],
+  "editions": [
+    {
+      "id": "https://www.w3.org/TR/2026/WD-shacl12-core-20260803/",
+      "label": "1.2 Core, 2026-08-03 publication",
+      "status": "W3C Working Draft",
+      "source": "https://www.w3.org/TR/shacl12-core/",
+      "notes": "Dated Working Draft observed via the source page, not an immutable byte snapshot or latest-publication guarantee."
+    }
+  ],
+  "distributions": [
+    {
+      "id": "shacl12-documentation",
+      "edition": null,
+      "role": "documentation",
+      "mediaType": "text/html",
+      "language": "en",
+      "access": "public",
+      "rights": {
+        "assessment": "not-assessed",
+        "license": null,
+        "source": "https://www.w3.org/TR/shacl12-core/"
+      },
+      "retrieval": {
+        "mode": "reference",
+        "accessUrl": "https://www.w3.org/TR/shacl12-core/",
+        "downloadUrl": null,
+        "bytePin": null
+      }
+    }
+  ],
+  "relationships": [],
+  "registration": {
+    "purpose": "discovery",
+    "adoption": "not-adopted",
+    "endorsement": "not-assessed",
+    "externalContent": "reference-only"
+  },
+  "provenance": {
+    "recordedOn": "2026-09-17",
+    "sourceChecks": [
+      {
+        "url": "https://www.w3.org/TR/shacl12-core/",
+        "state": "metadata-observed",
+        "observedOn": "2026-09-17",
+        "scope": "Primary-source page metadata observed; no distribution bytes, legal clearance, current-latest guarantee, or implementation conformance was verified."
+      }
+    ]
+  },
+  "notes": [
+    "The observed publication is a Working Draft, not a Recommendation. It must not silently replace an explicitly adopted SHACL 2017 Recommendation.",
+    "The unversioned entrypoint may change; adoption requires an exact release and dependency closure."
+  ]
+}

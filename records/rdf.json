@@ -1,0 +1,74 @@
+{
+  "$schema": "https://github.com/TakashiSasaki/templates/raw/refs/heads/models/schemas/resource-record-0.1.schema.json",
+  "id": "rdf",
+  "recordRevision": 1,
+  "recordAuthority": "models",
+  "resourceId": "https://www.w3.org/TR/rdf11-concepts/",
+  "identityBasis": "upstream-entrypoint",
+  "ownership": "external",
+  "normativeAuthority": {
+    "name": "World Wide Web Consortium (W3C)",
+    "id": "https://www.w3.org/"
+  },
+  "canonicalLanguage": "en",
+  "title": "RDF 1.1 Concepts and Abstract Syntax",
+  "description": "Defines the abstract RDF data model used by many registered vocabularies.",
+  "kinds": [
+    "specification"
+  ],
+  "homepage": "https://www.w3.org/TR/rdf11-concepts/",
+  "namespaces": [
+    "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+  ],
+  "editions": [
+    {
+      "id": "https://www.w3.org/TR/2014/REC-rdf11-concepts-20140225/",
+      "label": "1.1",
+      "status": "W3C Recommendation",
+      "source": "https://www.w3.org/TR/rdf11-concepts/",
+      "notes": "Named edition for identification, not a claim that it is the newest edition."
+    }
+  ],
+  "distributions": [
+    {
+      "id": "rdf-documentation",
+      "edition": "https://www.w3.org/TR/2014/REC-rdf11-concepts-20140225/",
+      "role": "documentation",
+      "mediaType": "text/html",
+      "language": "en",
+      "access": "public",
+      "rights": {
+        "assessment": "not-assessed",
+        "license": null,
+        "source": "https://www.w3.org/TR/rdf11-concepts/"
+      },
+      "retrieval": {
+        "mode": "reference",
+        "accessUrl": "https://www.w3.org/TR/rdf11-concepts/",
+        "downloadUrl": null,
+        "bytePin": null
+      }
+    }
+  ],
+  "relationships": [],
+  "registration": {
+    "purpose": "discovery",
+    "adoption": "not-adopted",
+    "endorsement": "not-assessed",
+    "externalContent": "reference-only"
+  },
+  "provenance": {
+    "recordedOn": "2026-09-17",
+    "sourceChecks": [
+      {
+        "url": "https://www.w3.org/TR/rdf11-concepts/",
+        "state": "metadata-observed",
+        "observedOn": "2026-09-17",
+        "scope": "Landing-page/specification metadata only; no distribution bytes, legal clearance, current-latest guarantee, or implementation conformance was verified."
+      }
+    ]
+  },
+  "notes": [
+    "This entry identifies the selected RDF 1.1 publication and makes no latest-version claim."
+  ]
+}

@@ -1,0 +1,73 @@
+{
+  "$schema": "https://github.com/TakashiSasaki/templates/raw/refs/heads/models/schemas/resource-record-0.1.schema.json",
+  "id": "uri",
+  "recordRevision": 1,
+  "recordAuthority": "models",
+  "resourceId": "https://www.rfc-editor.org/rfc/rfc3986",
+  "identityBasis": "upstream-entrypoint",
+  "ownership": "external",
+  "normativeAuthority": {
+    "name": "IETF",
+    "id": "https://www.ietf.org/"
+  },
+  "canonicalLanguage": "en",
+  "title": "Uniform Resource Identifier (URI): Generic Syntax",
+  "description": "Generic syntax and resolution rules for URI references.",
+  "kinds": [
+    "identifier-scheme",
+    "specification"
+  ],
+  "homepage": "https://www.rfc-editor.org/rfc/rfc3986",
+  "namespaces": [],
+  "editions": [
+    {
+      "id": "https://www.rfc-editor.org/rfc/rfc3986",
+      "label": "RFC 3986",
+      "status": "published RFC; updates/errata not reverified",
+      "source": "https://www.rfc-editor.org/rfc/rfc3986",
+      "notes": "Named edition for identification, not a claim that it is the newest edition."
+    }
+  ],
+  "distributions": [
+    {
+      "id": "uri-documentation",
+      "edition": "https://www.rfc-editor.org/rfc/rfc3986",
+      "role": "documentation",
+      "mediaType": "text/html",
+      "language": "en",
+      "access": "public",
+      "rights": {
+        "assessment": "not-assessed",
+        "license": null,
+        "source": "https://www.rfc-editor.org/rfc/rfc3986"
+      },
+      "retrieval": {
+        "mode": "reference",
+        "accessUrl": "https://www.rfc-editor.org/rfc/rfc3986",
+        "downloadUrl": null,
+        "bytePin": null
+      }
+    }
+  ],
+  "relationships": [],
+  "registration": {
+    "purpose": "discovery",
+    "adoption": "not-adopted",
+    "endorsement": "not-assessed",
+    "externalContent": "reference-only"
+  },
+  "provenance": {
+    "recordedOn": "2026-09-17",
+    "sourceChecks": [
+      {
+        "url": "https://www.rfc-editor.org/rfc/rfc3986",
+        "state": "metadata-observed",
+        "observedOn": "2026-09-17",
+        "scope": "Primary-source page metadata observed; no distribution bytes, legal clearance, current-latest guarantee, or implementation conformance was verified."
+      }
+    ]
+  },
+  "notes": [
+    "Separate identity from a current access location; preserve base URI for relative reference resolution."
+  ]
+}

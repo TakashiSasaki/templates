@@ -1,0 +1,74 @@
+{
+  "$schema": "https://github.com/TakashiSasaki/templates/raw/refs/heads/models/schemas/resource-record-0.1.schema.json",
+  "id": "adms",
+  "recordRevision": 1,
+  "recordAuthority": "models",
+  "resourceId": "https://semiceu.github.io/ADMS/releases/2.00/",
+  "identityBasis": "upstream-entrypoint",
+  "ownership": "external",
+  "normativeAuthority": {
+    "name": "European Commission SEMIC",
+    "id": "https://interoperable-europe.ec.europa.eu/"
+  },
+  "canonicalLanguage": "en",
+  "title": "Asset Description Metadata Schema (ADMS)",
+  "description": "Metadata vocabulary relevant to semantic assets and structured identifiers.",
+  "kinds": [
+    "vocabulary"
+  ],
+  "homepage": "https://semiceu.github.io/ADMS/releases/2.00/",
+  "namespaces": [
+    "http://www.w3.org/ns/adms#"
+  ],
+  "editions": [
+    {
+      "id": "https://semiceu.github.io/ADMS/releases/2.00/",
+      "label": "2.00",
+      "status": "SEMIC Recommendation",
+      "source": "https://semiceu.github.io/ADMS/releases/2.00/",
+      "notes": "Named edition for identification, not a claim that it is the newest edition."
+    }
+  ],
+  "distributions": [
+    {
+      "id": "adms-documentation",
+      "edition": "https://semiceu.github.io/ADMS/releases/2.00/",
+      "role": "documentation",
+      "mediaType": "text/html",
+      "language": "en",
+      "access": "public",
+      "rights": {
+        "assessment": "not-assessed",
+        "license": null,
+        "source": "https://semiceu.github.io/ADMS/releases/2.00/"
+      },
+      "retrieval": {
+        "mode": "reference",
+        "accessUrl": "https://semiceu.github.io/ADMS/releases/2.00/",
+        "downloadUrl": null,
+        "bytePin": null
+      }
+    }
+  ],
+  "relationships": [],
+  "registration": {
+    "purpose": "discovery",
+    "adoption": "not-adopted",
+    "endorsement": "not-assessed",
+    "externalContent": "reference-only"
+  },
+  "provenance": {
+    "recordedOn": "2026-09-17",
+    "sourceChecks": [
+      {
+        "url": "https://semiceu.github.io/ADMS/releases/2.00/",
+        "state": "metadata-observed",
+        "observedOn": "2026-09-17",
+        "scope": "Landing-page/specification metadata only; no distribution bytes, legal clearance, current-latest guarantee, or implementation conformance was verified."
+      }
+    ]
+  },
+  "notes": [
+    "Use the SEMIC-maintained release; do not equate retirement of an older W3C Note with disappearance of the vocabulary."
+  ]
+}

@@ -1,0 +1,73 @@
+{
+  "$schema": "https://github.com/TakashiSasaki/templates/raw/refs/heads/models/schemas/resource-record-0.1.schema.json",
+  "id": "ro-crate",
+  "recordRevision": 1,
+  "recordAuthority": "models",
+  "resourceId": "https://www.researchobject.org/ro-crate/specification/1.2/",
+  "identityBasis": "upstream-entrypoint",
+  "ownership": "external",
+  "normativeAuthority": {
+    "name": "RO-Crate community",
+    "id": "https://www.researchobject.org/ro-crate/"
+  },
+  "canonicalLanguage": "en",
+  "title": "RO-Crate",
+  "description": "Packaging and descriptive metadata for research objects and their associated files.",
+  "kinds": [
+    "package-format",
+    "profile"
+  ],
+  "homepage": "https://www.researchobject.org/ro-crate/specification/1.2/",
+  "namespaces": [],
+  "editions": [
+    {
+      "id": "https://www.researchobject.org/ro-crate/specification/1.2/",
+      "label": "1.2",
+      "status": "community specification; status not reverified",
+      "source": "https://www.researchobject.org/ro-crate/specification/1.2/",
+      "notes": "Named edition for identification, not a claim that it is the newest edition."
+    }
+  ],
+  "distributions": [
+    {
+      "id": "ro-crate-documentation",
+      "edition": "https://www.researchobject.org/ro-crate/specification/1.2/",
+      "role": "documentation",
+      "mediaType": "text/html",
+      "language": "en",
+      "access": "public",
+      "rights": {
+        "assessment": "not-assessed",
+        "license": null,
+        "source": "https://www.researchobject.org/ro-crate/specification/1.2/"
+      },
+      "retrieval": {
+        "mode": "reference",
+        "accessUrl": "https://www.researchobject.org/ro-crate/specification/1.2/",
+        "downloadUrl": null,
+        "bytePin": null
+      }
+    }
+  ],
+  "relationships": [],
+  "registration": {
+    "purpose": "discovery",
+    "adoption": "not-adopted",
+    "endorsement": "not-assessed",
+    "externalContent": "reference-only"
+  },
+  "provenance": {
+    "recordedOn": "2026-09-17",
+    "sourceChecks": [
+      {
+        "url": "https://www.researchobject.org/ro-crate/specification/1.2/",
+        "state": "metadata-observed",
+        "observedOn": "2026-09-17",
+        "scope": "Primary-source page metadata observed; no distribution bytes, legal clearance, current-latest guarantee, or implementation conformance was verified."
+      }
+    ]
+  },
+  "notes": [
+    "A packaging representation is not the normative owner of the packaged models."
+  ]
+}

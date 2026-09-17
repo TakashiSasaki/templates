@@ -1,0 +1,73 @@
+{
+  "$schema": "https://github.com/TakashiSasaki/templates/raw/refs/heads/models/schemas/resource-record-0.1.schema.json",
+  "id": "json-ld",
+  "recordRevision": 1,
+  "recordAuthority": "models",
+  "resourceId": "https://www.w3.org/TR/json-ld11/",
+  "identityBasis": "upstream-entrypoint",
+  "ownership": "external",
+  "normativeAuthority": {
+    "name": "World Wide Web Consortium (W3C)",
+    "id": "https://www.w3.org/"
+  },
+  "canonicalLanguage": "en",
+  "title": "JSON-LD 1.1",
+  "description": "JSON-based serialization for Linked Data.",
+  "kinds": [
+    "specification"
+  ],
+  "homepage": "https://www.w3.org/TR/json-ld11/",
+  "namespaces": [],
+  "editions": [
+    {
+      "id": "https://www.w3.org/TR/2020/REC-json-ld11-20200716/",
+      "label": "1.1",
+      "status": "W3C Recommendation (named 2020 publication)",
+      "source": "https://www.w3.org/TR/json-ld11/",
+      "notes": "Named edition for identification, not a claim that it is the newest edition."
+    }
+  ],
+  "distributions": [
+    {
+      "id": "json-ld-documentation",
+      "edition": "https://www.w3.org/TR/2020/REC-json-ld11-20200716/",
+      "role": "documentation",
+      "mediaType": "text/html",
+      "language": "en",
+      "access": "public",
+      "rights": {
+        "assessment": "not-assessed",
+        "license": null,
+        "source": "https://www.w3.org/TR/json-ld11/"
+      },
+      "retrieval": {
+        "mode": "reference",
+        "accessUrl": "https://www.w3.org/TR/json-ld11/",
+        "downloadUrl": null,
+        "bytePin": null
+      }
+    }
+  ],
+  "relationships": [],
+  "registration": {
+    "purpose": "discovery",
+    "adoption": "not-adopted",
+    "endorsement": "not-assessed",
+    "externalContent": "reference-only"
+  },
+  "provenance": {
+    "recordedOn": "2026-09-17",
+    "sourceChecks": [
+      {
+        "url": "https://www.w3.org/TR/json-ld11/",
+        "state": "metadata-observed",
+        "observedOn": "2026-09-17",
+        "scope": "Primary-source page metadata observed; no distribution bytes, legal clearance, current-latest guarantee, or implementation conformance was verified."
+      }
+    ]
+  },
+  "notes": [
+    "Contexts and remote references must be pinned for reproducible processing.",
+    "The initial registry uses explicitly documented plain JSON; it does not claim JSON-LD or RDF conformance."
+  ]
+}

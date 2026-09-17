@@ -1,0 +1,66 @@
+{
+  "$schema": "https://github.com/TakashiSasaki/templates/raw/refs/heads/models/schemas/resource-record-0.1.schema.json",
+  "id": "sssom",
+  "recordRevision": 1,
+  "recordAuthority": "models",
+  "resourceId": "https://mapping-commons.github.io/sssom/",
+  "identityBasis": "upstream-entrypoint",
+  "ownership": "external",
+  "normativeAuthority": {
+    "name": "Mapping Commons",
+    "id": "https://mapping-commons.github.io/"
+  },
+  "canonicalLanguage": "en",
+  "title": "Simple Standard for Sharing Ontological Mappings (SSSOM)",
+  "description": "Exchange format and metadata for sets of semantic mappings.",
+  "kinds": [
+    "mapping-format",
+    "schema"
+  ],
+  "homepage": "https://mapping-commons.github.io/sssom/",
+  "namespaces": [],
+  "editions": [],
+  "distributions": [
+    {
+      "id": "sssom-documentation",
+      "edition": null,
+      "role": "documentation",
+      "mediaType": "text/html",
+      "language": "en",
+      "access": "public",
+      "rights": {
+        "assessment": "not-assessed",
+        "license": null,
+        "source": "https://mapping-commons.github.io/sssom/"
+      },
+      "retrieval": {
+        "mode": "reference",
+        "accessUrl": "https://mapping-commons.github.io/sssom/",
+        "downloadUrl": null,
+        "bytePin": null
+      }
+    }
+  ],
+  "relationships": [],
+  "registration": {
+    "purpose": "discovery",
+    "adoption": "not-adopted",
+    "endorsement": "not-assessed",
+    "externalContent": "reference-only"
+  },
+  "provenance": {
+    "recordedOn": "2026-09-17",
+    "sourceChecks": [
+      {
+        "url": "https://mapping-commons.github.io/sssom/",
+        "state": "reference-not-verified",
+        "observedOn": null,
+        "scope": "Reference retained from the architecture inventory; this intake has not independently verified its current source content."
+      }
+    ]
+  },
+  "notes": [
+    "The source entrypoint redirected during intake; the target specification content has not been independently verified.",
+    "Use for scoped mapping assertions, not as a universal dependency or publication model."
+  ]
+}

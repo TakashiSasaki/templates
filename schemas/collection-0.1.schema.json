@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/TakashiSasaki/templates/raw/refs/heads/models/schemas/collection-0.1.schema.json",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "const": "https://github.com/TakashiSasaki/templates/raw/refs/heads/models/schemas/collection-0.1.schema.json"
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "kind": {
+      "const": "discovery"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "membershipMeaning": {
+      "const": "discovery-not-dependency-or-adoption"
+    },
+    "members": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    }
+  },
+  "required": [
+    "$schema",
+    "id",
+    "kind",
+    "title",
+    "membershipMeaning",
+    "members"
+  ],
+  "additionalProperties": false
+}

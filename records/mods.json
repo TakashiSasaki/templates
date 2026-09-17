@@ -1,0 +1,93 @@
+{
+  "$schema": "https://github.com/TakashiSasaki/templates/raw/refs/heads/models/schemas/resource-record-0.1.schema.json",
+  "id": "mods",
+  "recordRevision": 1,
+  "recordAuthority": "models",
+  "resourceId": "https://www.loc.gov/standards/mods/mods-schemas.html",
+  "identityBasis": "upstream-entrypoint",
+  "ownership": "external",
+  "normativeAuthority": {
+    "name": "Library of Congress and the standard's maintenance activity",
+    "id": "https://www.loc.gov/standards/"
+  },
+  "canonicalLanguage": "en",
+  "title": "Metadata Object Description Schema (MODS)",
+  "description": "XML metadata standard with release-specific schema documents.",
+  "kinds": [
+    "schema",
+    "specification"
+  ],
+  "homepage": "https://www.loc.gov/standards/mods/mods-schemas.html",
+  "namespaces": [],
+  "editions": [
+    {
+      "id": "https://www.loc.gov/standards/mods/mods-schemas.html",
+      "label": "3.8",
+      "status": "named release; current status not reverified",
+      "source": "https://www.loc.gov/standards/mods/mods-schemas.html",
+      "notes": "Named edition for identification, not a claim that it is the newest edition."
+    }
+  ],
+  "distributions": [
+    {
+      "id": "mods-documentation",
+      "edition": "https://www.loc.gov/standards/mods/mods-schemas.html",
+      "role": "documentation",
+      "mediaType": "text/html",
+      "language": "en",
+      "access": "public",
+      "rights": {
+        "assessment": "not-assessed",
+        "license": null,
+        "source": "https://www.loc.gov/standards/mods/mods-schemas.html"
+      },
+      "retrieval": {
+        "mode": "reference",
+        "accessUrl": "https://www.loc.gov/standards/mods/mods-schemas.html",
+        "downloadUrl": null,
+        "bytePin": null
+      }
+    },
+    {
+      "id": "mods-schema-reference",
+      "edition": "https://www.loc.gov/standards/mods/mods-schemas.html",
+      "role": "schema",
+      "mediaType": "application/xml",
+      "language": "en",
+      "access": "unknown",
+      "rights": {
+        "assessment": "not-assessed",
+        "license": null,
+        "source": "https://www.loc.gov/standards/mods/mods-schemas.html"
+      },
+      "retrieval": {
+        "mode": "reference",
+        "accessUrl": "https://www.loc.gov/standards/mods/mods-schemas.html",
+        "downloadUrl": "https://www.loc.gov/standards/mods/v3/mods-3-8.xsd",
+        "bytePin": null
+      }
+    }
+  ],
+  "relationships": [],
+  "registration": {
+    "purpose": "discovery",
+    "adoption": "not-adopted",
+    "endorsement": "not-assessed",
+    "externalContent": "reference-only"
+  },
+  "provenance": {
+    "recordedOn": "2026-09-17",
+    "sourceChecks": [
+      {
+        "url": "https://www.loc.gov/standards/mods/mods-schemas.html",
+        "state": "metadata-observed",
+        "observedOn": "2026-09-17",
+        "scope": "Primary-source page metadata observed; no distribution bytes, legal clearance, current-latest guarantee, or implementation conformance was verified."
+      }
+    ]
+  },
+  "notes": [
+    "Keep the abstract standard, named release, XSD file, documentation, and retrieved bytes distinct.",
+    "Other releases may be registered without changing the identity of this record."
+  ]
+}

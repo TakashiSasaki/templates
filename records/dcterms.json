@@ -1,0 +1,74 @@
+{
+  "$schema": "https://github.com/TakashiSasaki/templates/raw/refs/heads/models/schemas/resource-record-0.1.schema.json",
+  "id": "dcterms",
+  "recordRevision": 1,
+  "recordAuthority": "models",
+  "resourceId": "https://www.dublincore.org/specifications/dublin-core/dcmi-terms/",
+  "identityBasis": "upstream-entrypoint",
+  "ownership": "external",
+  "normativeAuthority": {
+    "name": "DCMI Usage Board",
+    "id": "https://www.dublincore.org/"
+  },
+  "canonicalLanguage": "en",
+  "title": "DCMI Metadata Terms",
+  "description": "General metadata properties and classes intended for combination with other vocabularies.",
+  "kinds": [
+    "vocabulary"
+  ],
+  "homepage": "https://www.dublincore.org/specifications/dublin-core/dcmi-terms/",
+  "namespaces": [
+    "http://purl.org/dc/terms/"
+  ],
+  "editions": [
+    {
+      "id": "http://dublincore.org/specifications/dublin-core/dcmi-terms/2020-01-20/",
+      "label": "2020-01-20",
+      "status": "DCMI Recommendation",
+      "source": "https://www.dublincore.org/specifications/dublin-core/dcmi-terms/",
+      "notes": "Named edition for identification, not a claim that it is the newest edition."
+    }
+  ],
+  "distributions": [
+    {
+      "id": "dcterms-documentation",
+      "edition": "http://dublincore.org/specifications/dublin-core/dcmi-terms/2020-01-20/",
+      "role": "documentation",
+      "mediaType": "text/html",
+      "language": "en",
+      "access": "public",
+      "rights": {
+        "assessment": "not-assessed",
+        "license": null,
+        "source": "https://www.dublincore.org/specifications/dublin-core/dcmi-terms/"
+      },
+      "retrieval": {
+        "mode": "reference",
+        "accessUrl": "https://www.dublincore.org/specifications/dublin-core/dcmi-terms/",
+        "downloadUrl": null,
+        "bytePin": null
+      }
+    }
+  ],
+  "relationships": [],
+  "registration": {
+    "purpose": "discovery",
+    "adoption": "not-adopted",
+    "endorsement": "not-assessed",
+    "externalContent": "reference-only"
+  },
+  "provenance": {
+    "recordedOn": "2026-09-17",
+    "sourceChecks": [
+      {
+        "url": "https://www.dublincore.org/specifications/dublin-core/dcmi-terms/",
+        "state": "metadata-observed",
+        "observedOn": "2026-09-17",
+        "scope": "Landing-page/specification metadata only; no distribution bytes, legal clearance, current-latest guarantee, or implementation conformance was verified."
+      }
+    ]
+  },
+  "notes": [
+    "Registration does not assert normative adoption, endorsement, or redistribution permission."
+  ]
+}

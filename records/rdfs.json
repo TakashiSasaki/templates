@@ -1,0 +1,75 @@
+{
+  "$schema": "https://github.com/TakashiSasaki/templates/raw/refs/heads/models/schemas/resource-record-0.1.schema.json",
+  "id": "rdfs",
+  "recordRevision": 1,
+  "recordAuthority": "models",
+  "resourceId": "https://www.w3.org/TR/rdf-schema/",
+  "identityBasis": "upstream-entrypoint",
+  "ownership": "external",
+  "normativeAuthority": {
+    "name": "World Wide Web Consortium (W3C)",
+    "id": "https://www.w3.org/"
+  },
+  "canonicalLanguage": "en",
+  "title": "RDF Schema 1.1",
+  "description": "Provides class, property, and schema vocabulary for RDF.",
+  "kinds": [
+    "vocabulary",
+    "specification"
+  ],
+  "homepage": "https://www.w3.org/TR/rdf-schema/",
+  "namespaces": [
+    "http://www.w3.org/2000/01/rdf-schema#"
+  ],
+  "editions": [
+    {
+      "id": "https://www.w3.org/TR/2014/REC-rdf-schema-20140225/",
+      "label": "1.1",
+      "status": "W3C Recommendation",
+      "source": "https://www.w3.org/TR/rdf-schema/",
+      "notes": "Named edition for identification, not a claim that it is the newest edition."
+    }
+  ],
+  "distributions": [
+    {
+      "id": "rdfs-documentation",
+      "edition": "https://www.w3.org/TR/2014/REC-rdf-schema-20140225/",
+      "role": "documentation",
+      "mediaType": "text/html",
+      "language": "en",
+      "access": "public",
+      "rights": {
+        "assessment": "not-assessed",
+        "license": null,
+        "source": "https://www.w3.org/TR/rdf-schema/"
+      },
+      "retrieval": {
+        "mode": "reference",
+        "accessUrl": "https://www.w3.org/TR/rdf-schema/",
+        "downloadUrl": null,
+        "bytePin": null
+      }
+    }
+  ],
+  "relationships": [],
+  "registration": {
+    "purpose": "discovery",
+    "adoption": "not-adopted",
+    "endorsement": "not-assessed",
+    "externalContent": "reference-only"
+  },
+  "provenance": {
+    "recordedOn": "2026-09-17",
+    "sourceChecks": [
+      {
+        "url": "https://www.w3.org/TR/rdf-schema/",
+        "state": "metadata-observed",
+        "observedOn": "2026-09-17",
+        "scope": "Landing-page/specification metadata only; no distribution bytes, legal clearance, current-latest guarantee, or implementation conformance was verified."
+      }
+    ]
+  },
+  "notes": [
+    "Registration does not assert normative adoption, endorsement, or redistribution permission."
+  ]
+}

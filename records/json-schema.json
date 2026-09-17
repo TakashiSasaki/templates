@@ -1,0 +1,93 @@
+{
+  "$schema": "https://github.com/TakashiSasaki/templates/raw/refs/heads/models/schemas/resource-record-0.1.schema.json",
+  "id": "json-schema",
+  "recordRevision": 1,
+  "recordAuthority": "models",
+  "resourceId": "https://json-schema.org/specification",
+  "identityBasis": "upstream-entrypoint",
+  "ownership": "external",
+  "normativeAuthority": {
+    "name": "JSON Schema project",
+    "id": "https://json-schema.org/"
+  },
+  "canonicalLanguage": "en",
+  "title": "JSON Schema",
+  "description": "Schema language for JSON structure and validation, with explicitly selected dialects.",
+  "kinds": [
+    "schema",
+    "specification"
+  ],
+  "homepage": "https://json-schema.org/specification",
+  "namespaces": [],
+  "editions": [
+    {
+      "id": "https://json-schema.org/draft/2020-12/schema",
+      "label": "2020-12",
+      "status": "published draft family",
+      "source": "https://json-schema.org/specification",
+      "notes": "Named edition for identification, not a claim that it is the newest edition."
+    }
+  ],
+  "distributions": [
+    {
+      "id": "json-schema-documentation",
+      "edition": "https://json-schema.org/draft/2020-12/schema",
+      "role": "documentation",
+      "mediaType": "text/html",
+      "language": "en",
+      "access": "public",
+      "rights": {
+        "assessment": "not-assessed",
+        "license": null,
+        "source": "https://json-schema.org/specification"
+      },
+      "retrieval": {
+        "mode": "reference",
+        "accessUrl": "https://json-schema.org/specification",
+        "downloadUrl": null,
+        "bytePin": null
+      }
+    },
+    {
+      "id": "json-schema-schema-reference",
+      "edition": "https://json-schema.org/draft/2020-12/schema",
+      "role": "schema",
+      "mediaType": "application/schema+json",
+      "language": "en",
+      "access": "unknown",
+      "rights": {
+        "assessment": "not-assessed",
+        "license": null,
+        "source": "https://json-schema.org/specification"
+      },
+      "retrieval": {
+        "mode": "reference",
+        "accessUrl": "https://json-schema.org/specification",
+        "downloadUrl": "https://json-schema.org/draft/2020-12/schema",
+        "bytePin": null
+      }
+    }
+  ],
+  "relationships": [],
+  "registration": {
+    "purpose": "discovery",
+    "adoption": "not-adopted",
+    "endorsement": "not-assessed",
+    "externalContent": "reference-only"
+  },
+  "provenance": {
+    "recordedOn": "2026-09-17",
+    "sourceChecks": [
+      {
+        "url": "https://json-schema.org/specification",
+        "state": "metadata-observed",
+        "observedOn": "2026-09-17",
+        "scope": "Primary-source page metadata observed; no distribution bytes, legal clearance, current-latest guarantee, or implementation conformance was verified."
+      }
+    ]
+  },
+  "notes": [
+    "Pin dialect, reference closure, resolver behavior, and format assertion settings for conformance work.",
+    "The registered dialect is not asserted to be the current latest release."
+  ]
+}

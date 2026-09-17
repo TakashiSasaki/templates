@@ -1,0 +1,68 @@
+{
+  "$schema": "https://github.com/TakashiSasaki/templates/raw/refs/heads/models/schemas/resource-record-0.1.schema.json",
+  "id": "mod",
+  "recordRevision": 1,
+  "recordAuthority": "models",
+  "resourceId": "https://fair-impact.github.io/MOD/index-en.html",
+  "identityBasis": "upstream-entrypoint",
+  "ownership": "external",
+  "normativeAuthority": {
+    "name": "FAIR-IMPACT MOD contributors",
+    "id": "https://fair-impact.github.io/MOD/"
+  },
+  "canonicalLanguage": "en",
+  "title": "Metadata for Ontology Description (MOD)",
+  "description": "Metadata vocabulary aimed at describing semantic artefacts.",
+  "kinds": [
+    "vocabulary",
+    "profile"
+  ],
+  "homepage": "https://fair-impact.github.io/MOD/index-en.html",
+  "namespaces": [
+    "https://w3id.org/mod#"
+  ],
+  "editions": [],
+  "distributions": [
+    {
+      "id": "mod-documentation",
+      "edition": null,
+      "role": "documentation",
+      "mediaType": "text/html",
+      "language": "en",
+      "access": "public",
+      "rights": {
+        "assessment": "not-assessed",
+        "license": null,
+        "source": "https://fair-impact.github.io/MOD/index-en.html"
+      },
+      "retrieval": {
+        "mode": "reference",
+        "accessUrl": "https://fair-impact.github.io/MOD/index-en.html",
+        "downloadUrl": null,
+        "bytePin": null
+      }
+    }
+  ],
+  "relationships": [],
+  "registration": {
+    "purpose": "discovery",
+    "adoption": "not-adopted",
+    "endorsement": "not-assessed",
+    "externalContent": "reference-only"
+  },
+  "provenance": {
+    "recordedOn": "2026-09-17",
+    "sourceChecks": [
+      {
+        "url": "https://fair-impact.github.io/MOD/index-en.html",
+        "state": "metadata-observed",
+        "observedOn": "2026-09-17",
+        "scope": "Landing-page/specification metadata only; no distribution bytes, legal clearance, current-latest guarantee, or implementation conformance was verified."
+      }
+    ]
+  },
+  "notes": [
+    "The inspected generated document mixes a MOD 3.0 work-in-progress description with a 3.2.5 version label. No fixed edition is asserted by this record.",
+    "It also contains generated-document placeholders; inspect a versioned primary source before adoption or conformance claims."
+  ]
+}

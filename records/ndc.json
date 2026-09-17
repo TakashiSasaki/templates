@@ -1,0 +1,93 @@
+{
+  "$schema": "https://github.com/TakashiSasaki/templates/raw/refs/heads/models/schemas/resource-record-0.1.schema.json",
+  "id": "ndc",
+  "recordRevision": 1,
+  "recordAuthority": "models",
+  "resourceId": "https://www.jla.or.jp/committees/bunrui/",
+  "identityBasis": "upstream-entrypoint",
+  "ownership": "external",
+  "normativeAuthority": {
+    "name": "日本図書館協会 分類委員会",
+    "id": "https://www.jla.or.jp/committees/bunrui/"
+  },
+  "canonicalLanguage": "ja",
+  "title": "日本十進分類法（NDC）",
+  "description": "日本図書館協会が管理する分類体系。体系の版、冊子・機械可読データ・Linked Data の提供範囲を区別して記録する。",
+  "kinds": [
+    "classification"
+  ],
+  "homepage": "https://www.jla.or.jp/committees/bunrui/",
+  "namespaces": [],
+  "editions": [
+    {
+      "id": "https://www.jla.or.jp/publications/978-4-8204-1413-1/",
+      "label": "新訂10版",
+      "status": "刊行済みの版として記録",
+      "source": "https://www.jla.or.jp/publications/978-4-8204-1413-1/",
+      "notes": "冊子の版を示す。すべての機械可読配布物が同じ版であるとは主張しない。"
+    }
+  ],
+  "distributions": [
+    {
+      "id": "ndc-documentation",
+      "edition": null,
+      "role": "documentation",
+      "mediaType": "text/html",
+      "language": "ja",
+      "access": "public",
+      "rights": {
+        "assessment": "not-assessed",
+        "license": null,
+        "source": "https://www.jla.or.jp/committees/bunrui/"
+      },
+      "retrieval": {
+        "mode": "reference",
+        "accessUrl": "https://www.jla.or.jp/committees/bunrui/",
+        "downloadUrl": null,
+        "bytePin": null
+      }
+    }
+  ],
+  "relationships": [],
+  "registration": {
+    "purpose": "discovery",
+    "adoption": "not-adopted",
+    "endorsement": "not-assessed",
+    "externalContent": "reference-only"
+  },
+  "provenance": {
+    "recordedOn": "2026-09-17",
+    "sourceChecks": [
+      {
+        "url": "https://www.jla.or.jp/committees/bunrui/",
+        "state": "metadata-observed",
+        "observedOn": "2026-09-17",
+        "scope": "公開ページの記述情報のみを確認。配布物のバイト列、再配布許諾、最新版であること、実装の適合性は確認していない。"
+      },
+      {
+        "url": "https://www.jla.or.jp/publications/978-4-8204-1413-1/",
+        "state": "metadata-observed",
+        "observedOn": "2026-09-17",
+        "scope": "新訂10版の書誌と刊行情報を確認。最新版の保証や全文の利用許諾ではない。"
+      },
+      {
+        "url": "https://www.jla.or.jp/publication-information/denshi/",
+        "state": "metadata-observed",
+        "observedOn": "2026-09-17",
+        "scope": "NDC・MRDF10の機械可読ファイルの案内を確認。データ本体は取得していない。"
+      },
+      {
+        "url": "https://www.ndl.go.jp/dlib/standards/lod",
+        "state": "metadata-observed",
+        "observedOn": "2026-09-17",
+        "scope": "NDC新訂8版・9版のLinked Data化共同研究と成果物の提供案内を確認。現在の配布ファイルは未取得。"
+      }
+    ]
+  },
+  "notes": [
+    "新訂10版の冊子と、8版・9版の Linked Data を同一版の別形式とみなさない。",
+    "公開範囲・利用条件・配布版は各提供元で個別に確認する。分類表の全文は複製しない。",
+    "正本が日本語であるため、この記述と対応する解説は日本語を正本とする。",
+    "10版の機械可読ファイル（NDC・MRDF10）も案内されている。機械可読であることとLinked Dataであることを同一視しない。"
+  ]
+}

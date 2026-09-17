@@ -1,0 +1,73 @@
+{
+  "$schema": "https://github.com/TakashiSasaki/templates/raw/refs/heads/models/schemas/resource-record-0.1.schema.json",
+  "id": "semver",
+  "recordRevision": 1,
+  "recordAuthority": "models",
+  "resourceId": "https://semver.org/spec/v2.0.0.html",
+  "identityBasis": "upstream-entrypoint",
+  "ownership": "external",
+  "normativeAuthority": {
+    "name": "Semantic Versioning specification maintainers",
+    "id": "https://semver.org/"
+  },
+  "canonicalLanguage": "en",
+  "title": "Semantic Versioning",
+  "description": "Version-label conventions for a declared public compatibility contract.",
+  "kinds": [
+    "versioning",
+    "specification"
+  ],
+  "homepage": "https://semver.org/spec/v2.0.0.html",
+  "namespaces": [],
+  "editions": [
+    {
+      "id": "https://semver.org/spec/v2.0.0.html",
+      "label": "2.0.0",
+      "status": "published specification",
+      "source": "https://semver.org/spec/v2.0.0.html",
+      "notes": "Named edition for identification, not a claim that it is the newest edition."
+    }
+  ],
+  "distributions": [
+    {
+      "id": "semver-documentation",
+      "edition": "https://semver.org/spec/v2.0.0.html",
+      "role": "documentation",
+      "mediaType": "text/html",
+      "language": "en",
+      "access": "public",
+      "rights": {
+        "assessment": "not-assessed",
+        "license": null,
+        "source": "https://semver.org/spec/v2.0.0.html"
+      },
+      "retrieval": {
+        "mode": "reference",
+        "accessUrl": "https://semver.org/spec/v2.0.0.html",
+        "downloadUrl": null,
+        "bytePin": null
+      }
+    }
+  ],
+  "relationships": [],
+  "registration": {
+    "purpose": "discovery",
+    "adoption": "not-adopted",
+    "endorsement": "not-assessed",
+    "externalContent": "reference-only"
+  },
+  "provenance": {
+    "recordedOn": "2026-09-17",
+    "sourceChecks": [
+      {
+        "url": "https://semver.org/spec/v2.0.0.html",
+        "state": "metadata-observed",
+        "observedOn": "2026-09-17",
+        "scope": "Primary-source page metadata observed; no distribution bytes, legal clearance, current-latest guarantee, or implementation conformance was verified."
+      }
+    ]
+  },
+  "notes": [
+    "Do not coerce an external edition system into SemVer. Define the compatibility contract before assigning local semantic versions."
+  ]
+}

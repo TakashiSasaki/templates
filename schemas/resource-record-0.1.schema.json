@@ -1,0 +1,675 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/TakashiSasaki/templates/raw/refs/heads/models/schemas/resource-record-0.1.schema.json",
+  "title": "Models resource description record 0.1 (draft)",
+  "description": "Administrative description contract, not ownership of the described resource or conformance to DCAT/ADMS. See docs/record-model.md.",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "const": "https://github.com/TakashiSasaki/templates/raw/refs/heads/models/schemas/resource-record-0.1.schema.json"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+    },
+    "recordRevision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "recordAuthority": {
+      "const": "models"
+    },
+    "resourceId": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https?://[^\\s]+$"
+    },
+    "identityBasis": {
+      "enum": [
+        "upstream-identifier",
+        "upstream-entrypoint",
+        "local-identifier"
+      ]
+    },
+    "ownership": {
+      "enum": [
+        "external",
+        "local"
+      ]
+    },
+    "normativeAuthority": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "id": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https?://[^\\s]+$"
+        }
+      },
+      "required": [
+        "name",
+        "id"
+      ],
+      "additionalProperties": false
+    },
+    "canonicalLanguage": {
+      "enum": [
+        "en",
+        "ja"
+      ]
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "specification",
+          "vocabulary",
+          "schema",
+          "ontology",
+          "classification",
+          "profile",
+          "identifier-scheme",
+          "mapping-format",
+          "package-format",
+          "versioning"
+        ]
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "homepage": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https?://[^\\s]+$"
+    },
+    "namespaces": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "format": "uri",
+        "pattern": "^https?://[^\\s]+$"
+      },
+      "minItems": 0,
+      "uniqueItems": true
+    },
+    "editions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uri",
+            "pattern": "^https?://[^\\s]+$"
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "type": "string",
+            "minLength": 1
+          },
+          "source": {
+            "type": "string",
+            "format": "uri",
+            "pattern": "^https?://[^\\s]+$"
+          },
+          "notes": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "status",
+          "source",
+          "notes"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 0,
+      "uniqueItems": true
+    },
+    "distributions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "edition": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uri",
+                "pattern": "^https?://[^\\s]+$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "role": {
+            "enum": [
+              "documentation",
+              "schema",
+              "vocabulary",
+              "ontology",
+              "dataset",
+              "subset",
+              "package",
+              "implementation"
+            ]
+          },
+          "mediaType": {
+            "type": "string",
+            "minLength": 1
+          },
+          "language": {
+            "type": "string",
+            "pattern": "^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$"
+          },
+          "access": {
+            "enum": [
+              "public",
+              "restricted",
+              "mixed",
+              "unknown"
+            ]
+          },
+          "rights": {
+            "type": "object",
+            "properties": {
+              "assessment": {
+                "enum": [
+                  "not-assessed",
+                  "identified",
+                  "restricted"
+                ]
+              },
+              "license": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "uri",
+                    "pattern": "^https?://[^\\s]+$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "source": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "uri",
+                    "pattern": "^https?://[^\\s]+$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "assessment",
+              "license",
+              "source"
+            ],
+            "additionalProperties": false,
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "assessment": {
+                      "const": "identified"
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "license": {
+                      "type": "string",
+                      "format": "uri",
+                      "pattern": "^https?://[^\\s]+$"
+                    },
+                    "source": {
+                      "type": "string",
+                      "format": "uri",
+                      "pattern": "^https?://[^\\s]+$"
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          "retrieval": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "mode": {
+                    "const": "reference"
+                  },
+                  "accessUrl": {
+                    "type": "string",
+                    "format": "uri",
+                    "pattern": "^https?://[^\\s]+$"
+                  },
+                  "downloadUrl": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "uri",
+                        "pattern": "^https?://[^\\s]+$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "bytePin": {
+                    "const": null
+                  }
+                },
+                "required": [
+                  "mode",
+                  "accessUrl",
+                  "downloadUrl",
+                  "bytePin"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "mode": {
+                    "const": "local"
+                  },
+                  "path": {
+                    "type": "string",
+                    "pattern": "^(?:schemas|models)/[A-Za-z0-9_./-]+$"
+                  },
+                  "sha256": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  }
+                },
+                "required": [
+                  "mode",
+                  "path",
+                  "sha256"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "edition",
+          "role",
+          "mediaType",
+          "language",
+          "access",
+          "rights",
+          "retrieval"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "relationships": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "predicate": {
+            "type": "string",
+            "format": "uri",
+            "pattern": "^https?://[^\\s]+$"
+          },
+          "object": {
+            "type": "string",
+            "format": "uri",
+            "pattern": "^https?://[^\\s]+$"
+          },
+          "assertedBy": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "id": {
+                "type": "string",
+                "format": "uri",
+                "pattern": "^https?://[^\\s]+$"
+              }
+            },
+            "required": [
+              "name",
+              "id"
+            ],
+            "additionalProperties": false
+          },
+          "assertionOrigin": {
+            "enum": [
+              "local",
+              "upstream"
+            ]
+          },
+          "normativity": {
+            "enum": [
+              "informative",
+              "normative"
+            ]
+          },
+          "subjectEdition": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uri",
+                "pattern": "^https?://[^\\s]+$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "objectEdition": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uri",
+                "pattern": "^https?://[^\\s]+$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uri",
+              "pattern": "^https?://[^\\s]+$"
+            },
+            "minItems": 1,
+            "uniqueItems": true
+          },
+          "scope": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "predicate",
+          "object",
+          "assertedBy",
+          "assertionOrigin",
+          "normativity",
+          "subjectEdition",
+          "objectEdition",
+          "evidence",
+          "scope"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 0,
+      "uniqueItems": true
+    },
+    "registration": {
+      "type": "object",
+      "properties": {
+        "purpose": {
+          "const": "discovery"
+        },
+        "adoption": {
+          "const": "not-adopted"
+        },
+        "endorsement": {
+          "const": "not-assessed"
+        },
+        "externalContent": {
+          "const": "reference-only"
+        }
+      },
+      "required": [
+        "purpose",
+        "adoption",
+        "endorsement",
+        "externalContent"
+      ],
+      "additionalProperties": false
+    },
+    "provenance": {
+      "type": "object",
+      "properties": {
+        "recordedOn": {
+          "type": "string",
+          "format": "date"
+        },
+        "sourceChecks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string",
+                "format": "uri",
+                "pattern": "^https?://[^\\s]+$"
+              },
+              "state": {
+                "enum": [
+                  "metadata-observed",
+                  "reference-not-verified"
+                ]
+              },
+              "observedOn": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "scope": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "url",
+              "state",
+              "observedOn",
+              "scope"
+            ],
+            "additionalProperties": false,
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "state": {
+                      "const": "metadata-observed"
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "observedOn": {
+                      "type": "string",
+                      "format": "date"
+                    }
+                  }
+                },
+                "else": {
+                  "properties": {
+                    "observedOn": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "recordedOn",
+        "sourceChecks"
+      ],
+      "additionalProperties": false
+    },
+    "notes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    }
+  },
+  "required": [
+    "$schema",
+    "id",
+    "recordRevision",
+    "recordAuthority",
+    "resourceId",
+    "identityBasis",
+    "ownership",
+    "normativeAuthority",
+    "canonicalLanguage",
+    "title",
+    "description",
+    "kinds",
+    "homepage",
+    "namespaces",
+    "editions",
+    "distributions",
+    "relationships",
+    "registration",
+    "provenance",
+    "notes"
+  ],
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "ownership": {
+            "const": "local"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "identityBasis": {
+            "const": "local-identifier"
+          },
+          "normativeAuthority": {
+            "properties": {
+              "id": {
+                "const": "https://github.com/TakashiSasaki/templates/tree/models"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "ownership": {
+            "const": "external"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "identityBasis": {
+            "enum": [
+              "upstream-identifier",
+              "upstream-entrypoint"
+            ]
+          },
+          "normativeAuthority": {
+            "properties": {
+              "id": {
+                "not": {
+                  "const": "https://github.com/TakashiSasaki/templates/tree/models"
+                }
+              }
+            }
+          },
+          "distributions": {
+            "items": {
+              "properties": {
+                "retrieval": {
+                  "type": "object",
+                  "properties": {
+                    "mode": {
+                      "const": "reference"
+                    },
+                    "accessUrl": {
+                      "type": "string",
+                      "format": "uri",
+                      "pattern": "^https?://[^\\s]+$"
+                    },
+                    "downloadUrl": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "uri",
+                          "pattern": "^https?://[^\\s]+$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "bytePin": {
+                      "const": null
+                    }
+                  },
+                  "required": [
+                    "mode",
+                    "accessUrl",
+                    "downloadUrl",
+                    "bytePin"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

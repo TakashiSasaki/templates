@@ -1,0 +1,65 @@
+{
+  "$schema": "https://github.com/TakashiSasaki/templates/raw/refs/heads/models/schemas/resource-record-0.1.schema.json",
+  "id": "datacite",
+  "recordRevision": 1,
+  "recordAuthority": "models",
+  "resourceId": "https://schema.datacite.org/",
+  "identityBasis": "upstream-entrypoint",
+  "ownership": "external",
+  "normativeAuthority": {
+    "name": "DataCite Metadata Working Group",
+    "id": "https://datacite.org/"
+  },
+  "canonicalLanguage": "en",
+  "title": "DataCite Metadata Schema",
+  "description": "Metadata schema for registering and describing research outputs.",
+  "kinds": [
+    "schema",
+    "specification"
+  ],
+  "homepage": "https://schema.datacite.org/",
+  "namespaces": [],
+  "editions": [],
+  "distributions": [
+    {
+      "id": "datacite-documentation",
+      "edition": null,
+      "role": "documentation",
+      "mediaType": "text/html",
+      "language": "en",
+      "access": "public",
+      "rights": {
+        "assessment": "not-assessed",
+        "license": null,
+        "source": "https://schema.datacite.org/"
+      },
+      "retrieval": {
+        "mode": "reference",
+        "accessUrl": "https://schema.datacite.org/",
+        "downloadUrl": null,
+        "bytePin": null
+      }
+    }
+  ],
+  "relationships": [],
+  "registration": {
+    "purpose": "discovery",
+    "adoption": "not-adopted",
+    "endorsement": "not-assessed",
+    "externalContent": "reference-only"
+  },
+  "provenance": {
+    "recordedOn": "2026-09-17",
+    "sourceChecks": [
+      {
+        "url": "https://schema.datacite.org/",
+        "state": "metadata-observed",
+        "observedOn": "2026-09-17",
+        "scope": "Primary-source page metadata observed; no distribution bytes, legal clearance, current-latest guarantee, or implementation conformance was verified."
+      }
+    ]
+  },
+  "notes": [
+    "This source entrypoint is not an immutable version lock. Select a specific schema release for DOI/export integration."
+  ]
+}

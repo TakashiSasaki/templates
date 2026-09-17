@@ -1,0 +1,66 @@
+{
+  "$schema": "https://github.com/TakashiSasaki/templates/raw/refs/heads/models/schemas/resource-record-0.1.schema.json",
+  "id": "foaf",
+  "recordRevision": 1,
+  "recordAuthority": "models",
+  "resourceId": "http://xmlns.com/foaf/spec/",
+  "identityBasis": "upstream-entrypoint",
+  "ownership": "external",
+  "normativeAuthority": {
+    "name": "FOAF vocabulary maintainers",
+    "id": "http://xmlns.com/foaf/spec/"
+  },
+  "canonicalLanguage": "en",
+  "title": "FOAF Vocabulary Specification",
+  "description": "Vocabulary including terms for describing agents and primary topics.",
+  "kinds": [
+    "vocabulary"
+  ],
+  "homepage": "http://xmlns.com/foaf/spec/",
+  "namespaces": [
+    "http://xmlns.com/foaf/0.1/"
+  ],
+  "editions": [],
+  "distributions": [
+    {
+      "id": "foaf-documentation",
+      "edition": null,
+      "role": "documentation",
+      "mediaType": "text/html",
+      "language": "en",
+      "access": "public",
+      "rights": {
+        "assessment": "not-assessed",
+        "license": null,
+        "source": "http://xmlns.com/foaf/spec/"
+      },
+      "retrieval": {
+        "mode": "reference",
+        "accessUrl": "http://xmlns.com/foaf/spec/",
+        "downloadUrl": null,
+        "bytePin": null
+      }
+    }
+  ],
+  "relationships": [],
+  "registration": {
+    "purpose": "discovery",
+    "adoption": "not-adopted",
+    "endorsement": "not-assessed",
+    "externalContent": "reference-only"
+  },
+  "provenance": {
+    "recordedOn": "2026-09-17",
+    "sourceChecks": [
+      {
+        "url": "http://xmlns.com/foaf/spec/",
+        "state": "metadata-observed",
+        "observedOn": "2026-09-17",
+        "scope": "Primary-source page metadata observed; no distribution bytes, legal clearance, current-latest guarantee, or implementation conformance was verified."
+      }
+    ]
+  },
+  "notes": [
+    "Registration does not make this authority the owner of FOAF terms. This entry is reference-only."
+  ]
+}

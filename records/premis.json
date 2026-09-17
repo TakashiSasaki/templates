@@ -1,0 +1,100 @@
+{
+  "$schema": "https://github.com/TakashiSasaki/templates/raw/refs/heads/models/schemas/resource-record-0.1.schema.json",
+  "id": "premis",
+  "recordRevision": 1,
+  "recordAuthority": "models",
+  "resourceId": "https://www.loc.gov/standards/premis/",
+  "identityBasis": "upstream-entrypoint",
+  "ownership": "external",
+  "normativeAuthority": {
+    "name": "Library of Congress and the standard's maintenance activity",
+    "id": "https://www.loc.gov/standards/"
+  },
+  "canonicalLanguage": "en",
+  "title": "PREMIS Data Dictionary for Preservation Metadata",
+  "description": "Preservation metadata standard with documentation and associated machine-readable representations.",
+  "kinds": [
+    "specification",
+    "schema",
+    "ontology"
+  ],
+  "homepage": "https://www.loc.gov/standards/premis/",
+  "namespaces": [],
+  "editions": [
+    {
+      "id": "https://www.loc.gov/standards/premis/v3/",
+      "label": "3.0",
+      "status": "named release; current status not reverified",
+      "source": "https://www.loc.gov/standards/premis/",
+      "notes": "Named edition for identification, not a claim that it is the newest edition."
+    }
+  ],
+  "distributions": [
+    {
+      "id": "premis-documentation",
+      "edition": "https://www.loc.gov/standards/premis/v3/",
+      "role": "documentation",
+      "mediaType": "text/html",
+      "language": "en",
+      "access": "public",
+      "rights": {
+        "assessment": "not-assessed",
+        "license": null,
+        "source": "https://www.loc.gov/standards/premis/"
+      },
+      "retrieval": {
+        "mode": "reference",
+        "accessUrl": "https://www.loc.gov/standards/premis/",
+        "downloadUrl": null,
+        "bytePin": null
+      }
+    },
+    {
+      "id": "premis-schema-reference",
+      "edition": "https://www.loc.gov/standards/premis/v3/",
+      "role": "schema",
+      "mediaType": "application/xml",
+      "language": "en",
+      "access": "unknown",
+      "rights": {
+        "assessment": "not-assessed",
+        "license": null,
+        "source": "https://www.loc.gov/standards/premis/"
+      },
+      "retrieval": {
+        "mode": "reference",
+        "accessUrl": "https://www.loc.gov/standards/premis/",
+        "downloadUrl": "https://www.loc.gov/standards/premis/v3/premis-v3-0.xsd",
+        "bytePin": null
+      }
+    }
+  ],
+  "relationships": [],
+  "registration": {
+    "purpose": "discovery",
+    "adoption": "not-adopted",
+    "endorsement": "not-assessed",
+    "externalContent": "reference-only"
+  },
+  "provenance": {
+    "recordedOn": "2026-09-17",
+    "sourceChecks": [
+      {
+        "url": "https://www.loc.gov/standards/premis/",
+        "state": "reference-not-verified",
+        "observedOn": null,
+        "scope": "Reference retained from the architecture inventory; this intake has not independently verified its current source content."
+      },
+      {
+        "url": "https://www.loc.gov/standards/premis/ontology/owl-version3.html",
+        "state": "metadata-observed",
+        "observedOn": "2026-09-17",
+        "scope": "Official ontology description metadata only. The main landing page and exact XSD bytes were not fetched in this intake."
+      }
+    ]
+  },
+  "notes": [
+    "Documentation, XML Schema, and OWL ontology are not assumed to be lossless interchangeable serializations.",
+    "The version and governing party of a particular representation require their own evidence."
+  ]
+}

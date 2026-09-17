@@ -1,0 +1,65 @@
+{
+  "$schema": "https://github.com/TakashiSasaki/templates/raw/refs/heads/models/schemas/resource-record-0.1.schema.json",
+  "id": "udc",
+  "recordRevision": 1,
+  "recordAuthority": "models",
+  "resourceId": "https://udcc.org/",
+  "identityBasis": "upstream-entrypoint",
+  "ownership": "external",
+  "normativeAuthority": {
+    "name": "UDC Consortium",
+    "id": "https://udcc.org/"
+  },
+  "canonicalLanguage": "en",
+  "title": "Universal Decimal Classification (UDC)",
+  "description": "Classification system whose full database and smaller public subsets require distinct descriptions.",
+  "kinds": [
+    "classification"
+  ],
+  "homepage": "https://udcc.org/",
+  "namespaces": [],
+  "editions": [],
+  "distributions": [
+    {
+      "id": "udc-documentation",
+      "edition": null,
+      "role": "documentation",
+      "mediaType": "text/html",
+      "language": "en",
+      "access": "public",
+      "rights": {
+        "assessment": "not-assessed",
+        "license": null,
+        "source": "https://udcc.org/"
+      },
+      "retrieval": {
+        "mode": "reference",
+        "accessUrl": "https://udcc.org/",
+        "downloadUrl": null,
+        "bytePin": null
+      }
+    }
+  ],
+  "relationships": [],
+  "registration": {
+    "purpose": "discovery",
+    "adoption": "not-adopted",
+    "endorsement": "not-assessed",
+    "externalContent": "reference-only"
+  },
+  "provenance": {
+    "recordedOn": "2026-09-17",
+    "sourceChecks": [
+      {
+        "url": "https://udcc.org/",
+        "state": "metadata-observed",
+        "observedOn": "2026-09-17",
+        "scope": "Primary-source page metadata observed; no distribution bytes, legal clearance, current-latest guarantee, or implementation conformance was verified."
+      }
+    ]
+  },
+  "notes": [
+    "Do not copy a licensed full classification database into this repository.",
+    "A publicly accessible subset does not establish the full system's membership, edition, or licensing."
+  ]
+}

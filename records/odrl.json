@@ -1,0 +1,75 @@
+{
+  "$schema": "https://github.com/TakashiSasaki/templates/raw/refs/heads/models/schemas/resource-record-0.1.schema.json",
+  "id": "odrl",
+  "recordRevision": 1,
+  "recordAuthority": "models",
+  "resourceId": "https://www.w3.org/TR/odrl-model/",
+  "identityBasis": "upstream-entrypoint",
+  "ownership": "external",
+  "normativeAuthority": {
+    "name": "World Wide Web Consortium (W3C)",
+    "id": "https://www.w3.org/"
+  },
+  "canonicalLanguage": "en",
+  "title": "ODRL Information Model 2.2",
+  "description": "Information model for expressing permissions, prohibitions, duties, and related policy assertions.",
+  "kinds": [
+    "specification",
+    "vocabulary"
+  ],
+  "homepage": "https://www.w3.org/TR/odrl-model/",
+  "namespaces": [
+    "http://www.w3.org/ns/odrl/2/"
+  ],
+  "editions": [
+    {
+      "id": "https://www.w3.org/TR/2018/REC-odrl-model-20180215/",
+      "label": "2.2",
+      "status": "W3C Recommendation (named 2018 publication)",
+      "source": "https://www.w3.org/TR/odrl-model/",
+      "notes": "Named edition for identification, not a claim that it is the newest edition."
+    }
+  ],
+  "distributions": [
+    {
+      "id": "odrl-documentation",
+      "edition": "https://www.w3.org/TR/2018/REC-odrl-model-20180215/",
+      "role": "documentation",
+      "mediaType": "text/html",
+      "language": "en",
+      "access": "public",
+      "rights": {
+        "assessment": "not-assessed",
+        "license": null,
+        "source": "https://www.w3.org/TR/odrl-model/"
+      },
+      "retrieval": {
+        "mode": "reference",
+        "accessUrl": "https://www.w3.org/TR/odrl-model/",
+        "downloadUrl": null,
+        "bytePin": null
+      }
+    }
+  ],
+  "relationships": [],
+  "registration": {
+    "purpose": "discovery",
+    "adoption": "not-adopted",
+    "endorsement": "not-assessed",
+    "externalContent": "reference-only"
+  },
+  "provenance": {
+    "recordedOn": "2026-09-17",
+    "sourceChecks": [
+      {
+        "url": "https://www.w3.org/TR/odrl-model/",
+        "state": "metadata-observed",
+        "observedOn": "2026-09-17",
+        "scope": "Primary-source page metadata observed; no distribution bytes, legal clearance, current-latest guarantee, or implementation conformance was verified."
+      }
+    ]
+  },
+  "notes": [
+    "A machine-readable rights expression is not a substitute for establishing which rights actually apply."
+  ]
+}

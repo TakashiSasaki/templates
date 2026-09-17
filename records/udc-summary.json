@@ -1,0 +1,89 @@
+{
+  "$schema": "https://github.com/TakashiSasaki/templates/raw/refs/heads/models/schemas/resource-record-0.1.schema.json",
+  "id": "udc-summary",
+  "recordRevision": 1,
+  "recordAuthority": "models",
+  "resourceId": "https://udcsummary.info/",
+  "identityBasis": "upstream-entrypoint",
+  "ownership": "external",
+  "normativeAuthority": {
+    "name": "UDC Consortium",
+    "id": "https://udcc.org/"
+  },
+  "canonicalLanguage": "en",
+  "title": "UDC Summary",
+  "description": "Selected subset of Universal Decimal Classification, described separately from the full system.",
+  "kinds": [
+    "classification"
+  ],
+  "homepage": "https://udcsummary.info/",
+  "namespaces": [],
+  "editions": [],
+  "distributions": [
+    {
+      "id": "udc-summary-documentation",
+      "edition": null,
+      "role": "documentation",
+      "mediaType": "text/html",
+      "language": "en",
+      "access": "public",
+      "rights": {
+        "assessment": "not-assessed",
+        "license": null,
+        "source": "https://udcsummary.info/"
+      },
+      "retrieval": {
+        "mode": "reference",
+        "accessUrl": "https://udcsummary.info/",
+        "downloadUrl": null,
+        "bytePin": null
+      }
+    }
+  ],
+  "relationships": [
+    {
+      "predicate": "http://purl.org/dc/terms/isPartOf",
+      "object": "https://udcc.org/",
+      "assertedBy": {
+        "name": "Models record editors",
+        "id": "https://github.com/TakashiSasaki/templates/tree/models"
+      },
+      "assertionOrigin": "local",
+      "normativity": "informative",
+      "subjectEdition": null,
+      "objectEdition": null,
+      "evidence": [
+        "https://udcc.org/"
+      ],
+      "scope": "Discovery-level description of the summary as a subset; no edition-specific inclusion, license equivalence, or upstream endorsement is asserted."
+    }
+  ],
+  "registration": {
+    "purpose": "discovery",
+    "adoption": "not-adopted",
+    "endorsement": "not-assessed",
+    "externalContent": "reference-only"
+  },
+  "provenance": {
+    "recordedOn": "2026-09-17",
+    "sourceChecks": [
+      {
+        "url": "https://udcsummary.info/",
+        "state": "reference-not-verified",
+        "observedOn": null,
+        "scope": "Reference retained from the architecture inventory; this intake has not independently verified its current source content."
+      },
+      {
+        "url": "https://udcc.org/",
+        "state": "metadata-observed",
+        "observedOn": "2026-09-17",
+        "scope": "Upstream UDC Consortium page identifies and links the Summary; the Summary contents and current license were not verified."
+      }
+    ]
+  },
+  "notes": [
+    "Keep subset coverage, edition, and applicable license distinct from the full UDC database.",
+    "The license at the current source was not verified during this intake; no open-license identifier is asserted.",
+    "Absence of a class from this subset cannot establish its absence from the complete classification."
+  ]
+}
