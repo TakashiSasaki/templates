@@ -22,8 +22,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import SplitResult, quote, unquote_to_bytes, urlsplit, urlunsplit
 
-from publication_bundle.repository import BIDIRECTIONAL_CONTROLS, FULL_SHA, REPOSITORY, RepositoryTreeError, parse_ls_tree
-from integration.repository import checked_revision
+from publication_bundle.repository import BIDIRECTIONAL_CONTROLS, FULL_SHA, REPOSITORY, RepositoryInputError, parse_ls_tree
+from integration.git import checked_revision
 
 
 PROVIDER_ORDER = ("skill", "policy", "webapp")
@@ -1495,7 +1495,7 @@ def main() -> int:
                 f"{diagnostics['edge_count']} links, "
                 f"depth {diagnostics['max_index_depth']} @ {provider['revision']}"
             )
-    except (IndexNavigationError, RepositoryTreeError) as exc:
+    except (IndexNavigationError, RepositoryInputError) as exc:
         parser.error(str(exc))
     return 0
 

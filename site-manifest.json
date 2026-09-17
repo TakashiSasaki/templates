@@ -164,36 +164,6 @@
       "additional_audiences": []
     },
     {
-      "publication": "site",
-      "document": "repository-trees",
-      "title": "Overview",
-      "destination": "repository-trees/index.md",
-      "primary_audience": "maintain",
-      "additional_audiences": [
-        "use"
-      ]
-    },
-    {
-      "publication": "site",
-      "document": "repository-tree-composition",
-      "title": "Composition tree",
-      "destination": "repository-trees/composition.md",
-      "primary_audience": "maintain",
-      "additional_audiences": [
-        "use"
-      ]
-    },
-    {
-      "publication": "site",
-      "document": "repository-tree-policy",
-      "title": "Policy tree",
-      "destination": "repository-trees/policy.md",
-      "primary_audience": "maintain",
-      "additional_audiences": [
-        "use"
-      ]
-    },
-    {
       "publication": "composition",
       "document": "overview",
       "title": "Overview",
@@ -1919,29 +1889,6 @@
             ]
           },
           {
-            "title": "Repository trees",
-            "children": [
-              {
-                "title": "Overview",
-                "publication": "site",
-                "document": "repository-trees",
-                "destination": "repository-trees/index.md"
-              },
-              {
-                "title": "Composition tree",
-                "publication": "site",
-                "document": "repository-tree-composition",
-                "destination": "repository-trees/composition.md"
-              },
-              {
-                "title": "Policy tree",
-                "publication": "site",
-                "document": "repository-tree-policy",
-                "destination": "repository-trees/policy.md"
-              }
-            ]
-          },
-          {
             "title": "Reader help",
             "children": [
               {
@@ -2506,29 +2453,6 @@
                 "destination": "policy/adr/0004-integrated-bootstrap-skill.md"
               }
             ]
-          }
-        ]
-      },
-      {
-        "title": "Repository trees",
-        "children": [
-          {
-            "title": "Overview",
-            "publication": "site",
-            "document": "repository-trees",
-            "destination": "repository-trees/index.md"
-          },
-          {
-            "title": "Composition tree",
-            "publication": "site",
-            "document": "repository-tree-composition",
-            "destination": "repository-trees/composition.md"
-          },
-          {
-            "title": "Policy tree",
-            "publication": "site",
-            "document": "repository-tree-policy",
-            "destination": "repository-trees/policy.md"
           }
         ]
       }

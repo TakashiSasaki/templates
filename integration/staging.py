@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from typing import Any, Iterator
-from integration.publication_model import AssemblyError, load_manifest, parse_name, safe_path, PreparationError, augment_manifest
+from integration.publication_model import AssemblyError, load_manifest, parse_name, safe_path
 from integration.reader_navigation_locales import LABEL_ID, LANGUAGE_TAG, ReaderNavigationLocaleError, load_overlays, navigation_titles
 
 class PublicationStagingError(RuntimeError):
@@ -233,9 +233,9 @@ def stage_models(site_root: Path, staging_ids: list[str]) -> Path:
 
     try:
         load_manifest(manifest_path)
-        prepared_navigation = augment_manifest(manifest)["navigation"]
+        prepared_navigation = manifest["navigation"]
         load_overlays(locales_path, prepared_navigation)
-    except (AssemblyError, PreparationError, ReaderNavigationLocaleError) as exc:
+    except (AssemblyError, ReaderNavigationLocaleError) as exc:
         raise PublicationStagingError(
             f"active Site mapping must validate before staging: {exc}"
         ) from exc

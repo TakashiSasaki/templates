@@ -34,5 +34,6 @@ class IntegrationQualificationTests(unittest.TestCase):
         workflow=yaml.safe_load((ROOT/'.github/workflows/integration-qualification.yml').read_text())
         commands='\n'.join(step.get('run','') for step in workflow['jobs']['qualify']['steps'])
         self.assertIn('tests.test_stale_translation_publication',commands)
-        self.assertIn('tests.test_translation_manifest_closure',commands)
+        self.assertIn('tests.test_publication_bundle',commands)
+        self.assertNotIn('tests.test_translation_manifest_closure',commands)
         self.assertIn('scripts/qualify_integration.py',commands)

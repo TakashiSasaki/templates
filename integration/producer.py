@@ -18,8 +18,7 @@ from integration.translation_link_selection import rewrite_available_localized_l
 from integration.translation_coverage import build_reader_coverage
 from integration.reader_navigation_locales import load_overlays, build_runtime_map
 from integration.glossary import integrate_glossaries
-from integration.repository import checked_revision, read_entries, build_preview_records, collect_records, object_sizes, object_contents
-from publication_bundle.repository import MAX_TOTAL_TEXT_BYTES
+from integration.git import checked_revision
 from integration import generate_index_navigation as navigation
 from integration import generate_index_navigation_base as navigation_base
 from integration import generate_index_navigation_locales as locales
@@ -71,7 +70,7 @@ def produce(*, root, provider_roots, provider_revisions, producer_revision, outp
         overlay_data = read_json(root/'reader-navigation-locales.json','navigation locales')
     manifest = parse_manifest(manifest_data)
     if manifest.schema_version != 3:
-        raise BundleError('Bundle v2 requires the active audience manifest schema 3')
+        raise BundleError('Bundle v3 requires the active audience manifest schema 3')
     slots = read_json(root/'integration/site-slots.json','Site content slots')
     slot_documents = {d['id']:d for d in slots['documents']}
     publications = {}
@@ -149,16 +148,6 @@ def produce(*, root, provider_roots, provider_revisions, producer_revision, outp
         graph=navigation.generate_graph(repository,{name:provider_roots[name] for name in PROVIDERS})
         write(bundle/'guided-navigation.json',graph)
         write(bundle/'guided-locales.json',locales.generate_locale_overlays(graph,provider_roots))
-        models={}
-        for name in PROVIDERS:
-            provider_root=provider_roots[name];revision=provider_revisions[name]
-            entries=read_entries(provider_root)
-            sizes=object_sizes(provider_root,(e.object_id for e in entries if e.mode in {'100644','100755'}))
-            if sum(sizes[e.object_id] for e in entries if e.mode in {'100644','100755'})>MAX_TOTAL_TEXT_BYTES:
-                raise BundleError('oversized authenticated source corpus')
-            _,browser=collect_records(name,repository,revision,provider_root)
-            models[name]={'revision':revision,'entries':[dict(name=e.name,path=e.path,mode=e.mode,kind=e.kind,object_id=e.object_id) for e in entries], 'browser':list(browser.values()),'nonviewable_blobs':{oid:base64.b64encode(raw).decode('ascii') for oid,raw in object_contents(provider_root,(r.object_id for r in browser.values() if not r.viewable)).items()},'previews':build_preview_records(name,repository,revision,provider_root),'published':published[name]}
-        write(bundle/'provider-repositories.json',models)
         producer={'authority':'integration','revision':producer_revision}
         write(bundle/'provenance.json',{'schema_version':1,'producer':producer,'providers':provider_revisions})
         for name in PROVIDERS:require_revision(provider_roots[name],provider_revisions[name])

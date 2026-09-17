@@ -1,11 +1,11 @@
-"""Publication Bundle v2 integrity contract; independent of either implementation."""
+"""Publication Bundle v3 integrity contract; independent of either implementation."""
 from __future__ import annotations
 import hashlib
 import json
 import re
 from pathlib import Path, PurePosixPath
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 SHA = re.compile(r'^[0-9a-f]{40}$')
 DIGEST = re.compile(r'^[0-9a-f]{64}$')
 MAX_FILES = 50000
@@ -13,7 +13,7 @@ MAX_BYTES = 1024 * 1024 * 1024
 MODELS = ('documents.json', 'navigation.json', 'translation-availability.json',
           'translation-publication.json', 'reader-navigation-runtime.json',
           'glossary.json', 'guided-navigation.json', 'guided-locales.json',
-          'provider-repositories.json', 'provenance.json')
+          'provenance.json')
 FIELDS = {'schema_version', 'producer', 'providers', 'configuration_digest',
           'files', 'content_digest', 'identity'}
 
@@ -171,17 +171,10 @@ def validate(root, *, expected_identity=None, expected_producer=None, expected_p
             elif (node.get('publication'), node.get('document')) not in keys or node.get('destination') not in destinations:
                 raise BundleError('navigation references absent document')
     for nodes in navigation['navigation'].values():walk(nodes)
-    repos = read_json(regular(root, 'provider-repositories.json'))
-    if not isinstance(repos, dict) or set(repos) != set(providers):
-        raise BundleError('incomplete provider source models')
-    for name, model in repos.items():
-        if not isinstance(model, dict) or model.get('revision') != providers[name]:
-            raise BundleError('repository model revision mismatch')
     graph = read_json(regular(root, 'guided-navigation.json'))
     if not isinstance(graph, dict) or {p.get('name'):p.get('revision') for p in graph.get('providers', [])} != providers:
         raise BundleError('guided graph provenance mismatch')
-    from publication_bundle.source_models import validate_sources
-    from publication_bundle.graph import load_graph, validate_provider_graph, IndexNavigationViewerError
+    from publication_bundle.graph import load_graph, validate_provider_graph
     from publication_bundle.glossary import load_model, GlossaryViewerError
     try:
         glossary = load_model(root / 'glossary.json')
@@ -196,15 +189,9 @@ def validate(root, *, expected_identity=None, expected_producer=None, expected_p
         accepted_graph = load_graph(root / 'guided-navigation.json')
         for provider in accepted_graph['providers']:
             validate_provider_graph(provider)
-        repository = graph.get('repository')
-        for name, model in repos.items():
-            validate_sources(name, model, repository)
-            wanted = {d['source']: d['destination'] for d in documents if d['publication'] == name}
-            if model['published'] != wanted:
-                raise BundleError('source/publication destination mismatch')
     except (ValueError, RuntimeError, KeyError, TypeError, UnicodeError) as exc:
         raise BundleError('invalid Bundle read model: ' + str(exc)) from exc
     from publication_bundle.translations import validate_translations
     validate_translations(root, read_json(root / 'translation-availability.json'),
-                          read_json(root / 'translation-publication.json'), providers, documents, repos)
+                          read_json(root / 'translation-publication.json'), providers, documents)
     return data

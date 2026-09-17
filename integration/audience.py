@@ -173,7 +173,7 @@ class AudienceContextResolver:
             return "web/index.md"
         if audience == "maintain":
             # Primary entry for Maintain templates journey
-            return "repository-trees/index.md"
+            return "maintain/site/maintenance.md"
         return "index.md"
 
     def export_runtime_map(self) -> dict[str, Any]:

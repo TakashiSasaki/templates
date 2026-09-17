@@ -108,24 +108,6 @@
       "source": "docs/ci/site-performance.md",
       "optional": false,
       "home": false
-    },
-    {
-      "id": "repository-trees",
-      "source": "docs/repository-trees/overview.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "repository-tree-composition",
-      "source": "docs/repository-trees/composition.md",
-      "optional": false,
-      "home": false
-    },
-    {
-      "id": "repository-tree-policy",
-      "source": "docs/repository-trees/policy.md",
-      "optional": false,
-      "home": false
     }
   ]
 }

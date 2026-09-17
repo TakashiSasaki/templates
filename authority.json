@@ -6,7 +6,7 @@
     "composition",
     "policy"
   ],
-  "output_contract": "Integrated Publication Bundle v2",
+  "output_contract": "Integrated Publication Bundle v3",
   "site_upstream": "explicitly selected exact reviewed Integration release and Integrated Publication Bundle; Site no longer selects provider publication revisions",
   "promotion": "explicit reviewed Integration PR and exact-input qualification",
   "site_adoption": "separate explicit human instruction",

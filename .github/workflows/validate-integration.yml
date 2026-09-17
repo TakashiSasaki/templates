@@ -30,4 +30,3 @@ jobs:
     with:
       producer_ref: ${{ github.event.pull_request.head.sha || github.sha }}
       artifact_namespace: integration
-      bootstrap_equivalence: ${{ startsWith(github.head_ref, 'integration-bootstrap-') }}
