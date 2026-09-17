@@ -12,7 +12,7 @@
 <small>Website · Web application · Agent Skill · Policy · Composition</small>
 <span class="audience-journey__action">Start using templates <span aria-hidden="true">→</span></span>
 </a>
-<a class="audience-journey" data-audience-entry="maintain" href="/repository-trees/?audience=maintain">
+<a class="audience-journey" data-audience-entry="maintain" href="/maintain/site/maintenance/?audience=maintain">
 <strong>Maintain templates</strong>
 <span>Maintain and evolve TakashiSasaki/templates itself and its authorities and providers.</span>
 <small>Site · Composition provider · Policy provider · Publication · CI · Source</small>
@@ -107,7 +107,6 @@ your separate product repository
     <a class="portal-doc-link" href="lifecycle/">Lifecycle</a>
     <a class="portal-doc-link" href="/glossary/">Glossary</a>
     <a class="portal-doc-link" href="/guided/">Browse by index.md</a>
-    <a class="portal-doc-link" href="repository-trees/">Repository trees</a>
   </div>
 </nav>
 
