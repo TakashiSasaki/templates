@@ -6,7 +6,7 @@ Version-label conventions for a declared public compatibility contract.
 
 ## Identity and normative owner
 
-Record: `semver`; record authority: Models.
+Record: `semver`; record authority: Modeling.
 Normative owner of subject: [Semantic Versioning specification maintainers](https://semver.org/).
 Resource reference: https://semver.org/spec/v2.0.0.html
 Registration is for discovery, not adoption, endorsement, or transfer of normative ownership.

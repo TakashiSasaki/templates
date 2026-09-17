@@ -10,7 +10,7 @@ An edition has its own ID and label. Labels preserve the upstream versioning sys
 
 ## Ownership and authority
 
-`recordAuthority` is always `models`; `ownership` and `normativeAuthority` describe the **subject**. An external subject cannot name Models as its normative owner. A local subject must explicitly identify Models. Editorial assertions do not transfer ownership, imply upstream approval, or make the source trustworthy.
+`recordAuthority` is always `modeling`; `ownership` and `normativeAuthority` describe the **subject**. An external subject cannot name Modeling as its normative owner. A local subject must explicitly identify Modeling. Editorial assertions do not transfer ownership, imply upstream approval, or make the source trustworthy.
 
 Resource kind is descriptive; it is not an ownership inference. Existing Composition/Policy/Integration/Site contracts are not migrated just because they use a registered language.
 
@@ -22,7 +22,7 @@ Resource kind is descriptive; it is not an ownership inference. Existing Composi
 
 Every initial registration has `purpose=discovery`, `adoption=not-adopted`, and `endorsement=not-assessed`. Inclusion does not adopt the resource, endorse it, or grant access rights. Collection membership has the same non-normative meaning; normative bundles need a separate explicit contract.
 
-Relationships use absolute predicate IRIs, an object identity, asserting party, origin, normativity, evidence, scope, and optional subject/object editions. Local assertions must identify Models as the asserting party. Upstream assertions must not be attributed to Models. A subject edition must exist in the containing record. If an object is registered and its edition is supplied, that edition must exist in the target record. This is metadata checking, not an entailment engine or proof of equivalence/profile conformance. Source evidence must be inspected before a normative mapping is accepted.
+Relationships use absolute predicate IRIs, an object identity, asserting party, origin, normativity, evidence, scope, and optional subject/object editions. Local assertions must identify Modeling as the asserting party. Upstream assertions must not be attributed to Modeling. A subject edition must exist in the containing record. If an object is registered and its edition is supplied, that edition must exist in the target record. This is metadata checking, not an entailment engine or proof of equivalence/profile conformance. Source evidence must be inspected before a normative mapping is accepted.
 
 Use the actual semantics of established predicates. Do not conflate `skos:exactMatch`, `skos:closeMatch`, `owl:sameAs`, `owl:equivalentClass`, `rdfs:subClassOf`, `prof:isProfileOf`, `dcterms:requires`, `dcterms:references`, `dcterms:isPartOf`, and `prov:wasDerivedFrom`. Import edges must retain the governing language's import semantics. A circular reference graph is not automatically a circular authority decision graph.
 

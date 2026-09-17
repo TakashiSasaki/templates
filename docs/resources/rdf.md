@@ -6,7 +6,7 @@ Defines the abstract RDF data model used by many registered vocabularies.
 
 ## Identity and normative owner
 
-Record: `rdf`; record authority: Models.
+Record: `rdf`; record authority: Modeling.
 Normative owner of subject: [World Wide Web Consortium (W3C)](https://www.w3.org/).
 Resource reference: https://www.w3.org/TR/rdf11-concepts/
 Registration is for discovery, not adoption, endorsement, or transfer of normative ownership.

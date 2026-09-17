@@ -6,7 +6,7 @@ Describes entities, activities, agents, and provenance relationships.
 
 ## Identity and normative owner
 
-Record: `prov-o`; record authority: Models.
+Record: `prov-o`; record authority: Modeling.
 Normative owner of subject: [World Wide Web Consortium (W3C)](https://www.w3.org/).
 Resource reference: https://www.w3.org/TR/prov-o/
 Registration is for discovery, not adoption, endorsement, or transfer of normative ownership.

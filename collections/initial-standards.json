@@ -1,5 +1,5 @@
 {
-  "$schema": "https://github.com/TakashiSasaki/templates/raw/refs/heads/models/schemas/collection-0.1.schema.json",
+  "$schema": "https://github.com/TakashiSasaki/templates/raw/refs/heads/modeling/schemas/collection-0.1.schema.json",
   "id": "initial-standards",
   "kind": "discovery",
   "title": "Initial information-model architecture references",

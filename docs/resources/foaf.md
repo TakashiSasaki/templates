@@ -6,7 +6,7 @@ Vocabulary including terms for describing agents and primary topics.
 
 ## Identity and normative owner
 
-Record: `foaf`; record authority: Models.
+Record: `foaf`; record authority: Modeling.
 Normative owner of subject: [FOAF vocabulary maintainers](http://xmlns.com/foaf/spec/).
 Resource reference: http://xmlns.com/foaf/spec/
 Registration is for discovery, not adoption, endorsement, or transfer of normative ownership.

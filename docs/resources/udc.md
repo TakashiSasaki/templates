@@ -6,7 +6,7 @@ Classification system whose full database and smaller public subsets require dis
 
 ## Identity and normative owner
 
-Record: `udc`; record authority: Models.
+Record: `udc`; record authority: Modeling.
 Normative owner of subject: [UDC Consortium](https://udcc.org/).
 Resource reference: https://udcc.org/
 Registration is for discovery, not adoption, endorsement, or transfer of normative ownership.

@@ -6,7 +6,7 @@ Selected subset of Universal Decimal Classification, described separately from t
 
 ## Identity and normative owner
 
-Record: `udc-summary`; record authority: Models.
+Record: `udc-summary`; record authority: Modeling.
 Normative owner of subject: [UDC Consortium](https://udcc.org/).
 Resource reference: https://udcsummary.info/
 Registration is for discovery, not adoption, endorsement, or transfer of normative ownership.

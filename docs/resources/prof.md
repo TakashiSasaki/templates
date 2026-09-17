@@ -6,7 +6,7 @@ Describes profiles, their bases, and the roles of supporting resources.
 
 ## Identity and normative owner
 
-Record: `prof`; record authority: Models.
+Record: `prof`; record authority: Modeling.
 Normative owner of subject: [World Wide Web Consortium (W3C)](https://www.w3.org/).
 Resource reference: https://www.w3.org/TR/dx-prof/
 Registration is for discovery, not adoption, endorsement, or transfer of normative ownership.

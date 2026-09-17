@@ -1,36 +1,36 @@
 {
-  "$schema": "https://github.com/TakashiSasaki/templates/raw/refs/heads/models/schemas/resource-record-0.1.schema.json",
+  "$schema": "https://github.com/TakashiSasaki/templates/raw/refs/heads/modeling/schemas/resource-record-0.1.schema.json",
   "id": "resource-record",
   "recordRevision": 1,
-  "recordAuthority": "models",
-  "resourceId": "https://github.com/TakashiSasaki/templates/raw/refs/heads/models/schemas/resource-record-0.1.schema.json",
+  "recordAuthority": "modeling",
+  "resourceId": "https://github.com/TakashiSasaki/templates/raw/refs/heads/modeling/schemas/resource-record-0.1.schema.json",
   "identityBasis": "local-identifier",
   "ownership": "local",
   "normativeAuthority": {
-    "name": "Models authority",
-    "id": "https://github.com/TakashiSasaki/templates/tree/models"
+    "name": "Modeling authority",
+    "id": "https://github.com/TakashiSasaki/templates/tree/modeling"
   },
   "canonicalLanguage": "en",
-  "title": "Models resource description record",
+  "title": "Modeling resource description record",
   "description": "Administrative schema for distinguishing descriptive records from their externally or locally governed subjects.",
   "kinds": [
     "schema"
   ],
-  "homepage": "https://github.com/TakashiSasaki/templates/raw/refs/heads/models/schemas/resource-record-0.1.schema.json",
+  "homepage": "https://github.com/TakashiSasaki/templates/raw/refs/heads/modeling/schemas/resource-record-0.1.schema.json",
   "namespaces": [],
   "editions": [
     {
-      "id": "https://github.com/TakashiSasaki/templates/raw/refs/heads/models/schemas/resource-record-0.1.schema.json",
+      "id": "https://github.com/TakashiSasaki/templates/raw/refs/heads/modeling/schemas/resource-record-0.1.schema.json",
       "label": "0.1 (draft)",
       "status": "local draft",
-      "source": "https://github.com/TakashiSasaki/templates/raw/refs/heads/models/schemas/resource-record-0.1.schema.json",
+      "source": "https://github.com/TakashiSasaki/templates/raw/refs/heads/modeling/schemas/resource-record-0.1.schema.json",
       "notes": "Named edition for identification, not a claim that it is the newest edition."
     }
   ],
   "distributions": [
     {
       "id": "resource-record-local-schema",
-      "edition": "https://github.com/TakashiSasaki/templates/raw/refs/heads/models/schemas/resource-record-0.1.schema.json",
+      "edition": "https://github.com/TakashiSasaki/templates/raw/refs/heads/modeling/schemas/resource-record-0.1.schema.json",
       "role": "schema",
       "mediaType": "application/schema+json",
       "language": "en",
@@ -43,7 +43,7 @@
       "retrieval": {
         "mode": "local",
         "path": "schemas/resource-record-0.1.schema.json",
-        "sha256": "86fb71c8b7eb990183589dfa140d18961b682064ceb6acb123c00d2c5bf710b2"
+        "sha256": "a74b8b5033a69543eee0ffa9730baafc3983392c5218e28230721d4cbb2d6f08"
       }
     }
   ],
@@ -58,7 +58,7 @@
     "recordedOn": "2026-09-17",
     "sourceChecks": [
       {
-        "url": "https://github.com/TakashiSasaki/templates/raw/refs/heads/models/schemas/resource-record-0.1.schema.json",
+        "url": "https://github.com/TakashiSasaki/templates/raw/refs/heads/modeling/schemas/resource-record-0.1.schema.json",
         "state": "reference-not-verified",
         "observedOn": null,
         "scope": "Locally authored schema; no public endpoint or upstream release is claimed to have been fetched."
@@ -66,7 +66,7 @@
     ]
   },
   "notes": [
-    "This schema governs Models description records only; it does not claim authority over external definitions.",
+    "This schema governs Modeling description records only; it does not claim authority over external definitions.",
     "The record model is plain JSON with a documented vocabulary crosswalk, not a claimed DCAT/ADMS/PROF application profile.",
     "Local schema identities use repository URLs pending any separately authorized persistent publication namespace."
   ]

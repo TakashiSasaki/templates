@@ -6,7 +6,7 @@ Schema language for JSON structure and validation, with explicitly selected dial
 
 ## Identity and normative owner
 
-Record: `json-schema`; record authority: Models.
+Record: `json-schema`; record authority: Modeling.
 Normative owner of subject: [JSON Schema project](https://json-schema.org/).
 Resource reference: https://json-schema.org/specification
 Registration is for discovery, not adoption, endorsement, or transfer of normative ownership.

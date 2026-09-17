@@ -1,4 +1,4 @@
-# Models authority
+# Modeling authority
 
 This independent-root branch owns reusable information models explicitly accepted into its scope. It is not the repository-wide owner of schemas, vocabularies, or executable code.
 

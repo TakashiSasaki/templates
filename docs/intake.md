@@ -1,6 +1,6 @@
 # Resource intake and maintenance
 
-This English document applies the authority contract to the current record profile. It does not transfer another authority's decisions into Models.
+This English document applies the authority contract to the current record profile. It does not transfer another authority's decisions into Modeling.
 
 ## Choose the right change
 
@@ -11,7 +11,7 @@ This English document applies the authority contract to the current record profi
 | Restriction of an external model | Local profile with scoped constraints and attributed relationships; preserve its bases |
 | Local semantic correspondence | Attributed mapping/assertion with endpoint versions, evidence, and applicability |
 | Composition component contract or Policy operational profile | Change its current authority; optionally expose discovery metadata without transferring ownership |
-| Integration provider selection or publication protocol | Integration change, not a Models metadata edit |
+| Integration provider selection or publication protocol | Integration change, not a Modeling metadata edit |
 | Vocabulary browser or validator demo UI | Site change; consume an explicitly selected model/engine |
 
 The initial records are plain JSON administrative records. Their use of familiar concepts or external predicate URIs is not a claim of DCAT, ADMS, PROF, MOD, or JSON-LD conformance. A standards-based export needs a named, validated profile and an explicit crosswalk. Do not maintain independently editable JSON and RDF copies of the same record.
@@ -54,4 +54,4 @@ The recorded edition label is not a Git commit, and a metadata-only correction i
 
 Before future reproducible model adoption, define the exact release, representations, import/reference closure, base URIs, engine/dialect settings, and rights-compatible retention plan. Refresh checks propose new observations instead of mutating existing release inputs during builds.
 
-The intended provider flow is Models to Integration to Site, with optional explicit Composition/Policy consumption. Discovery references are not normative dependencies. Keep model semantics independent of downstream presentation and qualification. Integration qualification, Site adoption, and deployment each require separate authorization and are not enabled by adding a record here.
+The intended provider flow is Modeling to Integration to Site, with optional explicit Composition/Policy consumption. Discovery references are not normative dependencies. Keep model semantics independent of downstream presentation and qualification. Integration qualification, Site adoption, and deployment each require separate authorization and are not enabled by adding a record here.

@@ -6,7 +6,7 @@ XML metadata standard with release-specific schema documents.
 
 ## Identity and normative owner
 
-Record: `mods`; record authority: Models.
+Record: `mods`; record authority: Modeling.
 Normative owner of subject: [Library of Congress and the standard's maintenance activity](https://www.loc.gov/standards/).
 Resource reference: https://www.loc.gov/standards/mods/mods-schemas.html
 Registration is for discovery, not adoption, endorsement, or transfer of normative ownership.

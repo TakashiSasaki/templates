@@ -62,7 +62,7 @@ class CatalogTests(unittest.TestCase):
         self.mutate("records/dcat.json", lambda r: r.update(inventedOwnership=True))
         self.rejected()
 
-    def test_external_cannot_claim_models_owner(self):
+    def test_external_cannot_claim_modeling_owner(self):
         self.mutate("records/dcat.json", lambda r: r["normativeAuthority"].update(id=catalog.OWNER))
         self.rejected()
 
@@ -189,7 +189,7 @@ class CatalogTests(unittest.TestCase):
 
     def relation(self):
         return {"predicate":"http://www.w3.org/2004/02/skos/core#closeMatch", "object":"https://example.org/model",
-                "assertedBy":{"name":"Models", "id":catalog.OWNER}, "assertionOrigin":"local",
+                "assertedBy":{"name":"Modeling", "id":catalog.OWNER}, "assertionOrigin":"local",
                 "normativity":"informative", "subjectEdition":None, "objectEdition":None,
                 "evidence":["https://example.org/evidence"], "scope":"Illustrative local assertion, not upstream approval."}
 
@@ -285,15 +285,23 @@ class CatalogTests(unittest.TestCase):
         self.mutate("schemas/collection-0.1.schema.json", lambda s: s.update(type="invented-json-type"))
         self.rejected()
 
+    def test_authority_identity_is_modeling(self):
+        self.assertEqual("modeling", self.read("authority.json")["authority"])
+        schema = self.read("schemas/resource-record-0.1.schema.json")
+        self.assertEqual("modeling", schema["properties"]["recordAuthority"]["const"])
+        self.assertEqual("https://github.com/TakashiSasaki/templates/tree/modeling", catalog.OWNER)
+        self.assertTrue(all(r["recordAuthority"] == "modeling" for r in catalog.load(self.root)[0]))
+        self.assertFalse((self.root / ".github/workflows/models-ci.yml").exists())
+
     def test_ci_uses_canonical_entrypoint_and_stack_bases(self):
-        text = (self.root / ".github/workflows/models-ci.yml").read_text()
+        text = (self.root / ".github/workflows/modeling-ci.yml").read_text()
         self.assertIn("python3 tools/qualify.py", text)
         pull_request = text.split("  pull_request:\n", 1)[1].split(
             "  push:\n", 1
         )[0]
         self.assertNotIn("branches:", pull_request)
-        self.assertNotIn("codex/models-arbitrary-stack-base", pull_request)
-        self.assertIn("branches: [models]", text)
+        self.assertNotIn("codex/modeling-arbitrary-stack-base", pull_request)
+        self.assertIn("branches: [modeling]", text)
         self.assertNotIn("actions/setup-python", text)
         self.assertNotIn("python-version", text)
         self.assertNotIn("cache: pip", text)

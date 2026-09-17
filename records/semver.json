@@ -1,8 +1,8 @@
 {
-  "$schema": "https://github.com/TakashiSasaki/templates/raw/refs/heads/models/schemas/resource-record-0.1.schema.json",
+  "$schema": "https://github.com/TakashiSasaki/templates/raw/refs/heads/modeling/schemas/resource-record-0.1.schema.json",
   "id": "semver",
   "recordRevision": 1,
-  "recordAuthority": "models",
+  "recordAuthority": "modeling",
   "resourceId": "https://semver.org/spec/v2.0.0.html",
   "identityBasis": "upstream-entrypoint",
   "ownership": "external",

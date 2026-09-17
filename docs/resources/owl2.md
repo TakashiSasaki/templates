@@ -6,7 +6,7 @@ Ontology language with explicitly defined semantics and profiles.
 
 ## Identity and normative owner
 
-Record: `owl2`; record authority: Models.
+Record: `owl2`; record authority: Modeling.
 Normative owner of subject: [World Wide Web Consortium (W3C)](https://www.w3.org/).
 Resource reference: https://www.w3.org/TR/owl2-overview/
 Registration is for discovery, not adoption, endorsement, or transfer of normative ownership.

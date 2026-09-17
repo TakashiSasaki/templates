@@ -2,7 +2,7 @@
 
 ## Decision rights
 
-`models` owns the meaning, identity, conformance constraints, and lifecycle of reusable information models explicitly authored or accepted here. Examples include information structures, controlled vocabularies, classification models, identifier schemes, local application profiles, and locally asserted semantic mappings.
+`modeling` owns the meaning, identity, conformance constraints, and lifecycle of reusable information models explicitly authored or accepted here. Examples include information structures, controlled vocabularies, classification models, identifier schemes, local application profiles, and locally asserted semantic mappings.
 
 It also owns its descriptive records and administrative record schemas. Ownership of a record does not imply ownership of the resource described. Governance here means normative decision rights, not copyright, hosting, publishing, or endorsement.
 

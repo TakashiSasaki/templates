@@ -6,7 +6,7 @@ Structural and datatype schema language for XML documents.
 
 ## Identity and normative owner
 
-Record: `xsd`; record authority: Models.
+Record: `xsd`; record authority: Modeling.
 Normative owner of subject: [World Wide Web Consortium (W3C)](https://www.w3.org/).
 Resource reference: https://www.w3.org/TR/xmlschema11-1/
 Registration is for discovery, not adoption, endorsement, or transfer of normative ownership.

@@ -7,7 +7,7 @@
       "id": "adms",
       "resourceId": "https://semiceu.github.io/ADMS/releases/2.00/",
       "source": "records/adms.json",
-      "sourceSha256": "b77d4859060163ba79a4d308dbe98335627b77325384e20256f1c32b179fbe1e",
+      "sourceSha256": "ef6b403a47c7393b242ca6a92f009953759f2a0c887cd72a15f6da5ef9313e60",
       "canonicalLanguage": "en",
       "title": "Asset Description Metadata Schema (ADMS)",
       "ownership": "external"
@@ -16,7 +16,7 @@
       "id": "datacite",
       "resourceId": "https://schema.datacite.org/",
       "source": "records/datacite.json",
-      "sourceSha256": "f808eaf60a11ac0a1596e5aaafa5056bac8168f656c9778c4d2b1231957d2bdc",
+      "sourceSha256": "c317015e8b823208311716a12955f2e65c6968335bb54d5ad49dfda78e26a5f9",
       "canonicalLanguage": "en",
       "title": "DataCite Metadata Schema",
       "ownership": "external"
@@ -25,7 +25,7 @@
       "id": "dcat-ap",
       "resourceId": "https://semiceu.github.io/DCAT-AP/releases/3.0.0/",
       "source": "records/dcat-ap.json",
-      "sourceSha256": "20fe3cc97a8e68666385c46162f52e0cd78edd4b9f91b690ae63b100189d0d31",
+      "sourceSha256": "e2dfcdffb7d88c14c631006084aa7c1cf08fe70f39aa73fff0dde4890988c141",
       "canonicalLanguage": "en",
       "title": "DCAT Application Profile for data portals in Europe (DCAT-AP)",
       "ownership": "external"
@@ -34,7 +34,7 @@
       "id": "dcat",
       "resourceId": "https://www.w3.org/TR/vocab-dcat-3/",
       "source": "records/dcat.json",
-      "sourceSha256": "8476369752b9328774d1ce8dd63da7b40347e1378a889933526b64be04e0c85b",
+      "sourceSha256": "c5a75569b4fe6daf7caebdc5889e8ade4873f3cd08bf88e7652bd226b35eec8c",
       "canonicalLanguage": "en",
       "title": "Data Catalog Vocabulary (DCAT)",
       "ownership": "external"
@@ -43,7 +43,7 @@
       "id": "dcterms",
       "resourceId": "https://www.dublincore.org/specifications/dublin-core/dcmi-terms/",
       "source": "records/dcterms.json",
-      "sourceSha256": "e79b33366edf56f4081a755d4bf294bdeb2e16d4af206d86a0183964d47601b0",
+      "sourceSha256": "0659e291b417f11e52f1cbda2dd0592e524fc50a732b8615e137878d13ccbd23",
       "canonicalLanguage": "en",
       "title": "DCMI Metadata Terms",
       "ownership": "external"
@@ -52,7 +52,7 @@
       "id": "foaf",
       "resourceId": "http://xmlns.com/foaf/spec/",
       "source": "records/foaf.json",
-      "sourceSha256": "c29d2a4f90fc5cd9fb400e22e745942dd9322b572847f99c68363595df8af3e1",
+      "sourceSha256": "5fab0652b1af7d795ca134dbee464a2bc604077c6350911e1a0f21b5eea9bdc4",
       "canonicalLanguage": "en",
       "title": "FOAF Vocabulary Specification",
       "ownership": "external"
@@ -61,7 +61,7 @@
       "id": "iso-11179-3",
       "resourceId": "https://www.iso.org/standard/78915.html",
       "source": "records/iso-11179-3.json",
-      "sourceSha256": "d83623c23a9c3a2b50faf7c29583f59a319a62e77dd95e04b30dd5157463c257",
+      "sourceSha256": "56442a985d8d3d4f96b965b17f53c263a75199316a2fdeb525332cd5d7bd0f37",
       "canonicalLanguage": "en",
       "title": "ISO/IEC 11179-3: Metadata registries — Metamodel for registry common facilities",
       "ownership": "external"
@@ -70,7 +70,7 @@
       "id": "json-ld",
       "resourceId": "https://www.w3.org/TR/json-ld11/",
       "source": "records/json-ld.json",
-      "sourceSha256": "bf49a8430c51938496e93bd03b847e4134da8fc9de2bbd157ca34ddb9bb01914",
+      "sourceSha256": "3cc26db9ca3076611ddedf094e2c300077a22a1ea57fe4380a5787e430f431dc",
       "canonicalLanguage": "en",
       "title": "JSON-LD 1.1",
       "ownership": "external"
@@ -79,7 +79,7 @@
       "id": "json-schema",
       "resourceId": "https://json-schema.org/specification",
       "source": "records/json-schema.json",
-      "sourceSha256": "3c19b085111250159966513697c0283f0c9803bb74de6c16ffef7fc6fa357010",
+      "sourceSha256": "23307ee469d669f94e47692d71711d84b875f8ea6597215b8d633d40227c1f47",
       "canonicalLanguage": "en",
       "title": "JSON Schema",
       "ownership": "external"
@@ -88,7 +88,7 @@
       "id": "mod",
       "resourceId": "https://fair-impact.github.io/MOD/index-en.html",
       "source": "records/mod.json",
-      "sourceSha256": "44fe9342aebbfa5ac797cc98a404b499ac5b2af41d1d7dd78312ac7f8bab7a76",
+      "sourceSha256": "0c5561f8488170a841d2a2785befdab97fd36ce1f06a7020d2deb809901e53e1",
       "canonicalLanguage": "en",
       "title": "Metadata for Ontology Description (MOD)",
       "ownership": "external"
@@ -97,7 +97,7 @@
       "id": "mods",
       "resourceId": "https://www.loc.gov/standards/mods/mods-schemas.html",
       "source": "records/mods.json",
-      "sourceSha256": "7946d171cc634a15afeabc093e05bdfeab4bd2fb0da2ccf7834e42e55270d7c8",
+      "sourceSha256": "e5ac2c0735aa44ed8983c0314635541f261013641cb68499bb4234d8dda5a172",
       "canonicalLanguage": "en",
       "title": "Metadata Object Description Schema (MODS)",
       "ownership": "external"
@@ -106,7 +106,7 @@
       "id": "ndc",
       "resourceId": "https://www.jla.or.jp/committees/bunrui/",
       "source": "records/ndc.json",
-      "sourceSha256": "521069c672e62691f7b884a9ef95a9235783c1a993d419c8e06540943da982d2",
+      "sourceSha256": "5efa4eb640fb7faff124d1ff77dca61baa18fd5d9725c611e6ae72756ee11f93",
       "canonicalLanguage": "ja",
       "title": "日本十進分類法（NDC）",
       "ownership": "external"
@@ -115,7 +115,7 @@
       "id": "odrl",
       "resourceId": "https://www.w3.org/TR/odrl-model/",
       "source": "records/odrl.json",
-      "sourceSha256": "233ee434ef279c47c8e077472284cc7090bcf04991825de840eb69576427debb",
+      "sourceSha256": "fa52b9bf5714f01fa677de10e6c39116f63106a316850ed2612518b19e148e2f",
       "canonicalLanguage": "en",
       "title": "ODRL Information Model 2.2",
       "ownership": "external"
@@ -124,7 +124,7 @@
       "id": "owl2",
       "resourceId": "https://www.w3.org/TR/owl2-overview/",
       "source": "records/owl2.json",
-      "sourceSha256": "809a577ecc5eb4d9c3eca8e82fe12defe4b481babc18bcc9583f87dc59539afa",
+      "sourceSha256": "ee388e2e471b36cf2fe9bc85b47e948c8ae2530f00b9da056010ff461ff7756a",
       "canonicalLanguage": "en",
       "title": "OWL 2 Web Ontology Language",
       "ownership": "external"
@@ -133,7 +133,7 @@
       "id": "premis",
       "resourceId": "https://www.loc.gov/standards/premis/",
       "source": "records/premis.json",
-      "sourceSha256": "0394b67d9cffc73477b6c0d0e4af2309966287298d24f94a0987e2b4fefc648e",
+      "sourceSha256": "c8d6ee86cebf766a22d49613727eb89131eda8a936a6f3604b2f7dd78255e68d",
       "canonicalLanguage": "en",
       "title": "PREMIS Data Dictionary for Preservation Metadata",
       "ownership": "external"
@@ -142,7 +142,7 @@
       "id": "prof",
       "resourceId": "https://www.w3.org/TR/dx-prof/",
       "source": "records/prof.json",
-      "sourceSha256": "91be4c2acf40e3a626a6d6fa23eb7dcacc29a7c62944100e57955027934040a0",
+      "sourceSha256": "e059dd5c4a56b034d123bdc9bbecdb3aae32baf4baf682cbc4086140abf51f94",
       "canonicalLanguage": "en",
       "title": "The Profiles Vocabulary (PROF)",
       "ownership": "external"
@@ -151,7 +151,7 @@
       "id": "prov-o",
       "resourceId": "https://www.w3.org/TR/prov-o/",
       "source": "records/prov-o.json",
-      "sourceSha256": "2d987d71a21eac0ec8b89cbf771e441020574c04fd8effaf845fe2fb3c312c44",
+      "sourceSha256": "250d8f164910d5b38bebccfb0841341e09c2029ab3f1284e2039261f6bce696d",
       "canonicalLanguage": "en",
       "title": "PROV-O: The PROV Ontology",
       "ownership": "external"
@@ -160,7 +160,7 @@
       "id": "rdf",
       "resourceId": "https://www.w3.org/TR/rdf11-concepts/",
       "source": "records/rdf.json",
-      "sourceSha256": "ed55bd25605f9d31dcd955709edd5f55c662b6e25fdb2701edd4062390ef0da2",
+      "sourceSha256": "7c5ab582ee38113f56bf5766d0fdf882cfcd50531bb2c2d0eaa4a46b24f4e546",
       "canonicalLanguage": "en",
       "title": "RDF 1.1 Concepts and Abstract Syntax",
       "ownership": "external"
@@ -169,25 +169,25 @@
       "id": "rdfs",
       "resourceId": "https://www.w3.org/TR/rdf-schema/",
       "source": "records/rdfs.json",
-      "sourceSha256": "d2df2fb2f615c7487b85b1b2a60570e34e64865c44bb988db459582d2e988ac1",
+      "sourceSha256": "68fba1bd80b6bc2f2f364ddc2e2cd01c2643953156714b286ac1b9e981b413f0",
       "canonicalLanguage": "en",
       "title": "RDF Schema 1.1",
       "ownership": "external"
     },
     {
       "id": "resource-record",
-      "resourceId": "https://github.com/TakashiSasaki/templates/raw/refs/heads/models/schemas/resource-record-0.1.schema.json",
+      "resourceId": "https://github.com/TakashiSasaki/templates/raw/refs/heads/modeling/schemas/resource-record-0.1.schema.json",
       "source": "records/resource-record.json",
-      "sourceSha256": "39516b7fb2f780d0c709cdfac6b61354636a72d7eccc670de0a979a8cf564aad",
+      "sourceSha256": "b87d5a037750c84624e06786bba5638f7c8baa8a6fe329983f4b51b1a2b5bcfc",
       "canonicalLanguage": "en",
-      "title": "Models resource description record",
+      "title": "Modeling resource description record",
       "ownership": "local"
     },
     {
       "id": "ro-crate",
       "resourceId": "https://www.researchobject.org/ro-crate/specification/1.2/",
       "source": "records/ro-crate.json",
-      "sourceSha256": "b40bfb185d6649f9a24799d8d57ebb966c9442f192616c0895b26e9898d885d3",
+      "sourceSha256": "ba66212d17b7f14111e5e96daaa9087b6f984a102155c2c001808043214152c1",
       "canonicalLanguage": "en",
       "title": "RO-Crate",
       "ownership": "external"
@@ -196,7 +196,7 @@
       "id": "semver",
       "resourceId": "https://semver.org/spec/v2.0.0.html",
       "source": "records/semver.json",
-      "sourceSha256": "7db671c53380af4fede73044fa1c461e46fa1c6c723737d7e716cc6fd6024feb",
+      "sourceSha256": "a1dd9c99a88abebafcaffbb35d2f234c88f565ccda6a9e055e149187a4e09589",
       "canonicalLanguage": "en",
       "title": "Semantic Versioning",
       "ownership": "external"
@@ -205,7 +205,7 @@
       "id": "shacl",
       "resourceId": "https://www.w3.org/TR/shacl/",
       "source": "records/shacl.json",
-      "sourceSha256": "7f0ffaf9fac806c98c408428947a05d59e837edb5a1625e86941b0f5bdc0b65b",
+      "sourceSha256": "cf6cee4475319bf385396b2ba06bcbe2cc6a4abc9a0d1405a041ac8a7e29a05e",
       "canonicalLanguage": "en",
       "title": "Shapes Constraint Language (SHACL)",
       "ownership": "external"
@@ -214,7 +214,7 @@
       "id": "shacl12",
       "resourceId": "https://www.w3.org/TR/shacl12-core/",
       "source": "records/shacl12.json",
-      "sourceSha256": "bce2d76cd3f9379fb6ea01a6457f22c70925e785532fd557d684be3ecaaa102e",
+      "sourceSha256": "e5de57bee690a01046261d9f31c78b60ec1bc00c3c336405ab7945010a3aaaab",
       "canonicalLanguage": "en",
       "title": "SHACL 1.2 Core",
       "ownership": "external"
@@ -223,7 +223,7 @@
       "id": "skos",
       "resourceId": "https://www.w3.org/TR/skos-reference/",
       "source": "records/skos.json",
-      "sourceSha256": "6c0212f10a682318a5ec58e6c2eb4f2b413a184989449b9f0855d73b1176a5ca",
+      "sourceSha256": "2fd731884597c9e60c57b2c0551eadf1d4ef590e22f4cb2ebeb19aa05de0efa2",
       "canonicalLanguage": "en",
       "title": "SKOS Simple Knowledge Organization System",
       "ownership": "external"
@@ -232,7 +232,7 @@
       "id": "spdx",
       "resourceId": "https://spdx.org/licenses/",
       "source": "records/spdx.json",
-      "sourceSha256": "b0d84f2174661fce8d877e0044db13307f5d10941add5b0a6a6b0b2cbccca331",
+      "sourceSha256": "e8868c0f968afbac5c56131cb83cdf112eeecd2f90c353cd97235e23fc195fef",
       "canonicalLanguage": "en",
       "title": "SPDX License List",
       "ownership": "external"
@@ -241,7 +241,7 @@
       "id": "sssom",
       "resourceId": "https://mapping-commons.github.io/sssom/",
       "source": "records/sssom.json",
-      "sourceSha256": "f52f802538ffbc84fc86ab3d6fc62ab6293ac91e7d404620790df27933bab6f3",
+      "sourceSha256": "faf6359131975fe2dcf3567216ec3d24e80d5a308e41728e0b20198fa3fe9a5d",
       "canonicalLanguage": "en",
       "title": "Simple Standard for Sharing Ontological Mappings (SSSOM)",
       "ownership": "external"
@@ -250,7 +250,7 @@
       "id": "udc-summary",
       "resourceId": "https://udcsummary.info/",
       "source": "records/udc-summary.json",
-      "sourceSha256": "6dc8b54e60a83e5249802d4803302fb832b45df43b9b33371aea7daefa903592",
+      "sourceSha256": "524ee9536c9ef9f58f2ab97ad61465afa10a28cab79c797c82b6b00b654648c6",
       "canonicalLanguage": "en",
       "title": "UDC Summary",
       "ownership": "external"
@@ -259,7 +259,7 @@
       "id": "udc",
       "resourceId": "https://udcc.org/",
       "source": "records/udc.json",
-      "sourceSha256": "f8875ee4c0ad9177074626197799438dfaa38e5dd7c2b2c96b1141f68ab9c628",
+      "sourceSha256": "47bca3c117cfd12db509e850563aee6fc632184766f4e968ceb7721b1227240e",
       "canonicalLanguage": "en",
       "title": "Universal Decimal Classification (UDC)",
       "ownership": "external"
@@ -268,7 +268,7 @@
       "id": "uri",
       "resourceId": "https://www.rfc-editor.org/rfc/rfc3986",
       "source": "records/uri.json",
-      "sourceSha256": "383bce5a77efedb3c30b70ac9efdb91f6dc66851be61b0f510e28636e94c17d5",
+      "sourceSha256": "633f4b871f1964890915ba7715737cb2c794d2a8982983efb1fd5c69bbed09d3",
       "canonicalLanguage": "en",
       "title": "Uniform Resource Identifier (URI): Generic Syntax",
       "ownership": "external"
@@ -277,7 +277,7 @@
       "id": "xsd",
       "resourceId": "https://www.w3.org/TR/xmlschema11-1/",
       "source": "records/xsd.json",
-      "sourceSha256": "c7670d83e05b7453dc8d74af39809e9bb83d85adf15f4ca9fdb2f20286141ee7",
+      "sourceSha256": "2bd66530d87a2e6c5d70245c4edf7ac91db202e1ea03596290a42b565f347cd0",
       "canonicalLanguage": "en",
       "title": "W3C XML Schema Definition Language (XSD)",
       "ownership": "external"
@@ -285,7 +285,7 @@
   ],
   "collections": [
     {
-      "$schema": "https://github.com/TakashiSasaki/templates/raw/refs/heads/models/schemas/collection-0.1.schema.json",
+      "$schema": "https://github.com/TakashiSasaki/templates/raw/refs/heads/modeling/schemas/collection-0.1.schema.json",
       "id": "initial-standards",
       "kind": "discovery",
       "title": "Initial information-model architecture references",

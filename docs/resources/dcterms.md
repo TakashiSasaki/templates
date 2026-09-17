@@ -6,7 +6,7 @@ General metadata properties and classes intended for combination with other voca
 
 ## Identity and normative owner
 
-Record: `dcterms`; record authority: Models.
+Record: `dcterms`; record authority: Modeling.
 Normative owner of subject: [DCMI Usage Board](https://www.dublincore.org/).
 Resource reference: https://www.dublincore.org/specifications/dublin-core/dcmi-terms/
 Registration is for discovery, not adoption, endorsement, or transfer of normative ownership.

@@ -1,8 +1,8 @@
 {
-  "$schema": "https://github.com/TakashiSasaki/templates/raw/refs/heads/models/schemas/resource-record-0.1.schema.json",
+  "$schema": "https://github.com/TakashiSasaki/templates/raw/refs/heads/modeling/schemas/resource-record-0.1.schema.json",
   "id": "dcat-ap",
   "recordRevision": 1,
-  "recordAuthority": "models",
+  "recordAuthority": "modeling",
   "resourceId": "https://semiceu.github.io/DCAT-AP/releases/3.0.0/",
   "identityBasis": "upstream-entrypoint",
   "ownership": "external",

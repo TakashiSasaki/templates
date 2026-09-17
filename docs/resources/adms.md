@@ -6,7 +6,7 @@ Metadata vocabulary relevant to semantic assets and structured identifiers.
 
 ## Identity and normative owner
 
-Record: `adms`; record authority: Models.
+Record: `adms`; record authority: Modeling.
 Normative owner of subject: [European Commission SEMIC](https://interoperable-europe.ec.europa.eu/).
 Resource reference: https://semiceu.github.io/ADMS/releases/2.00/
 Registration is for discovery, not adoption, endorsement, or transfer of normative ownership.

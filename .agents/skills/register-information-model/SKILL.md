@@ -5,7 +5,7 @@ description: Register or revise an information-model resource while preserving n
 
 # Register an information model
 
-This is an English, branch-local intake procedure. It applies the Models contract; it is not a replacement for Policy's general orchestration procedures. Paths below are relative to the Models branch root.
+This is an English, branch-local intake procedure. It applies the Modeling contract; it is not a replacement for Policy's general orchestration procedures. Paths below are relative to the Modeling branch root.
 
 ## Read before editing
 
@@ -27,7 +27,7 @@ External content is reference-only in this profile. Check distribution-specific 
 
 ## Author and connect the record
 
-Create or revise one `records/<id>.json`. Preserve `resourceId` while correcting descriptive metadata unless identity actually changes; increment `recordRevision` for an existing record. Set `recordAuthority: models` independently of `normativeAuthority`. Supply canonical-language title, description, notes, provenance scope, and corresponding source references.
+Create or revise one `records/<id>.json`. Preserve `resourceId` while correcting descriptive metadata unless identity actually changes; increment `recordRevision` for an existing record. Set `recordAuthority: modeling` independently of `normativeAuthority`. Supply canonical-language title, description, notes, provenance scope, and corresponding source references.
 
 Reuse established predicates only when their real meanings fit. Keep reference, import, profile, restriction, equivalence, SKOS matching, mapping, derivation, supersession, requirement, and membership distinct. Attribute a local assertion explicitly. Bind version-sensitive claims to subject/object editions. Normative claims require inspected evidence and still need semantic review; a green metadata validator is not a proof of profile conformance or mapping correctness.
 
