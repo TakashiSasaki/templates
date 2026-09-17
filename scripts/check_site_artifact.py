@@ -24,6 +24,8 @@ from site_renderer.guided import (
 
 REPOSITORY = "TakashiSasaki/templates"
 RETIRED_ROUTES = ("/files", "/repository-trees")
+PUBLIC_SITE_ORIGIN = "https://templates.moukaeritai.work"
+PUBLIC_SITE_HOST = urlsplit(PUBLIC_SITE_ORIGIN).netloc
 GITHUB_HOST = "github.com"
 
 
@@ -80,7 +82,9 @@ def _parse_html(path: Path) -> LinkParser:
 
 def _is_retired_route(href: str) -> str | None:
     parsed = urlsplit(href)
-    if parsed.scheme or parsed.netloc:
+    if parsed.netloc and parsed.netloc != PUBLIC_SITE_HOST:
+        return None
+    if parsed.scheme and not parsed.netloc:
         return None
     path = unquote(parsed.path)
     for route in RETIRED_ROUTES:

@@ -53,6 +53,23 @@ class SiteArtifactTests(unittest.TestCase):
         with self.assertRaisesRegex(SiteArtifactError, "retired route"):
             check(self.site)
 
+    def test_rejects_absolute_public_site_retired_route(self):
+        (self.site / "index.html").write_text(
+            '<a href="https://templates.moukaeritai.work/files/source.md">retired</a>'
+            '<div data-playground-material-tree></div>',
+            encoding="utf-8",
+        )
+        with self.assertRaisesRegex(SiteArtifactError, "retired route"):
+            check(self.site)
+
+    def test_ignores_external_site_using_same_path(self):
+        (self.site / "index.html").write_text(
+            '<a href="https://example.com/files/source.md">external</a>'
+            '<div data-playground-material-tree></div>',
+            encoding="utf-8",
+        )
+        self.assertEqual(check(self.site)["retired_route_links"], 0)
+
     def test_rejects_moving_same_repository_source_reference(self):
         (self.site / "index.html").write_text(
             '<a href="https://github.com/TakashiSasaki/templates/blob/site/docs/index.md">source</a>'

@@ -35,12 +35,51 @@ class SitePreflightTests(unittest.TestCase):
 
     def test_ready_profile_runs_l0_core_node_and_exact_assembly(self):
         with patch.object(preflight, "run_check") as run_check, patch.object(
-            preflight.subprocess, "check_output", return_value="a" * 40
+            preflight.subprocess,
+            "check_output",
+            side_effect=["a" * 40, ""],
         ):
             self.assertEqual(preflight.main(["ready", "--expected-head", "a" * 40]), 0)
         self.assertEqual(
             [call.args[0] for call in run_check.call_args_list],
             ["l0", "core", "node", "assembly"],
+        )
+
+    def test_ready_requires_an_explicit_expected_head(self):
+        with patch.object(preflight, "run_check") as run_check, patch.object(
+            preflight.subprocess, "check_output", return_value="a" * 40
+        ):
+            with self.assertRaises(SystemExit):
+                preflight.main(["ready"])
+        run_check.assert_not_called()
+
+    def test_ready_rejects_staged_unstaged_and_untracked_changes(self):
+        for status in ("M  staged.py", " M unstaged.py", "?? untracked.py"):
+            with self.subTest(status=status):
+                with patch.object(
+                    preflight.subprocess,
+                    "check_output",
+                    side_effect=["a" * 40, status],
+                ), patch.object(preflight, "run_check") as run_check:
+                    with self.assertRaises(SystemExit):
+                        preflight.main(["ready", "--expected-head", "a" * 40])
+                run_check.assert_not_called()
+
+    def test_fast_changed_paths_include_committed_staged_unstaged_and_untracked(self):
+        with patch.object(
+            preflight.subprocess,
+            "check_output",
+            side_effect=[
+                "committed.py\nshared.py\n",
+                "staged.py\nshared.py\n",
+                "unstaged.py\nshared.py\n",
+                "untracked.py\nshared.py\n",
+            ],
+        ):
+            paths = preflight._changed_paths("base", None)
+        self.assertEqual(
+            paths,
+            ("committed.py", "shared.py", "staged.py", "unstaged.py", "untracked.py"),
         )
 
     def test_l0_runs_changed_python_test_modules(self):

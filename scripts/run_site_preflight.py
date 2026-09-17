@@ -1,5 +1,16 @@
 #!/usr/bin/env python3
-"""Run staged local Site validation, including an exact Bundle-to-Site build."""
+"""Run staged local Site validation, including an exact Bundle-to-Site build.
+
+Profiles:
+
+* ``fast`` is a cheap development preflight and may inspect a dirty tree.
+* ``full`` runs the local core, Node, exact assembly and artifact checks when
+  explicit Bundle/Site inputs are supplied; it does not run browser acceptance.
+* ``ready`` is the clean, exact-commit gate for spending remote CI resources.
+  It requires ``--expected-head`` and runs core, applicable Node, exact Bundle
+  assembly and generated-artifact checks. Browser/PWA acceptance remains a
+  conditional/full CI responsibility.
+"""
 from __future__ import annotations
 
 import argparse
@@ -37,19 +48,43 @@ def _run(command: list[str]) -> None:
     subprocess.run(command, cwd=ROOT, check=True)
 
 
-def _changed_paths(base_ref: str, path_file: Path | None) -> tuple[str, ...]:
-    if path_file is not None:
-        return tuple(path_file.read_text(encoding="utf-8").splitlines())
-    result = subprocess.check_output(
-        ["git", "diff", "--name-only", "--no-renames", f"{base_ref}...HEAD"],
-        cwd=ROOT,
+def _git_output(arguments: list[str]) -> tuple[str, ...]:
+    output = subprocess.check_output(
+        ["git", "-C", str(ROOT), *arguments],
         text=True,
     )
-    return tuple(line for line in result.splitlines() if line)
+    return tuple(line for line in output.splitlines() if line)
+
+
+def _changed_paths(base_ref: str, path_file: Path | None) -> tuple[str, ...]:
+    candidates: list[str] = []
+    if path_file is not None:
+        candidates.extend(path_file.read_text(encoding="utf-8").splitlines())
+    for arguments in (
+        ["diff", "--name-only", "--no-renames", f"{base_ref}...HEAD"],
+        ["diff", "--name-only", "--no-renames", "--cached"],
+        ["diff", "--name-only", "--no-renames"],
+        ["ls-files", "--others", "--exclude-standard"],
+    ):
+        candidates.extend(_git_output(arguments))
+    return tuple(dict.fromkeys(path for path in candidates if path))
+
+
+def _require_clean_ready_tree(expected_head: str | None, actual_head: str) -> None:
+    if not expected_head:
+        raise RuntimeError("ready requires --expected-head")
+    if expected_head != actual_head:
+        raise RuntimeError("exact Site head mismatch")
+    status = _git_output(["status", "--porcelain=v1", "--untracked-files=all"])
+    if status:
+        raise RuntimeError(
+            "ready requires a clean index and working tree with no untracked files"
+        )
 
 
 def run_l0(base_ref: str, path_file: Path | None) -> None:
     _run(["git", "diff", "--check", f"{base_ref}...HEAD"])
+    _run(["git", "diff", "--cached", "--check"])
     _run(["git", "diff", "--check"])
     paths = _changed_paths(base_ref, path_file)
     if not paths:
@@ -139,7 +174,11 @@ def run_check(check: str, args: argparse.Namespace) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("profile", choices=PROFILES)
+    parser.add_argument(
+        "profile",
+        choices=PROFILES,
+        help="fast=dirty-tree L0; full=local assembly; ready=clean exact-head gate",
+    )
     parser.add_argument("--check", action="append", choices=CHECKS)
     parser.add_argument("--expected-head")
     parser.add_argument("--bundle", type=Path)
@@ -148,11 +187,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--base-ref", default="HEAD^", help="base used for L0 changed-path checks")
     args = parser.parse_args(argv)
     try:
-        head = subprocess.check_output(
-            ["git", "-C", str(ROOT), "rev-parse", "HEAD"], text=True
-        ).strip()
-        if args.expected_head and args.expected_head != head:
-            parser.error("exact Site head mismatch")
+        head = "".join(_git_output(["rev-parse", "HEAD"]))
+        if args.profile == "ready":
+            _require_clean_ready_tree(args.expected_head, head)
+        elif args.expected_head and args.expected_head != head:
+            raise RuntimeError("exact Site head mismatch")
         checks = args.check or PROFILES[args.profile]
         for check in checks:
             run_check(check, args)
