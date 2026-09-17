@@ -71,7 +71,7 @@ jobs:
       composition_ref: ${{ inputs.composition_ref || github.event.client_payload.composition_ref || '' }}
       policy_ref: ${{ inputs.policy_ref || github.event.client_payload.policy_ref || '' }}
       modeling_ref: ${{ inputs.modeling_ref || github.event.client_payload.modeling_ref || '' }}
-      trusted_controller_revision: ${{ inputs.controller_ref || vars.PUBLICATION_CONTROLLER_REVISION || '' }}
+      trusted_controller_revision: ${{ vars.PUBLICATION_CONTROLLER_REVISION || inputs.controller_ref || '' }}
       trusted_rebuild: true
       trusted_policy_revision: ${{ vars.PUBLICATION_POLICY_REVISION || '' }}
       artifact_namespace: reconciliation
@@ -91,9 +91,21 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: ${{ inputs.controller_ref || vars.PUBLICATION_CONTROLLER_REVISION || github.sha }}
+          ref: ${{ vars.PUBLICATION_CONTROLLER_REVISION || inputs.controller_ref || github.sha }}
           fetch-depth: 0
           persist-credentials: false
+      - name: Bind the reconciliation controller to its trusted identity
+        env:
+          EXPECTED_CONTROLLER: ${{ vars.PUBLICATION_CONTROLLER_REVISION || inputs.controller_ref || github.sha }}
+        run: |
+          test -n "$EXPECTED_CONTROLLER"
+          python3 - "$EXPECTED_CONTROLLER" <<'PY'
+          import re
+          import sys
+          if re.fullmatch(r'[0-9a-f]{40}', sys.argv[1]) is None:
+              raise SystemExit('controller revision must be a full lowercase commit SHA')
+          PY
+          test "$(git rev-parse HEAD)" = "$EXPECTED_CONTROLLER"
       - name: Snapshot the current Integration consumer base
         id: base
         run: |
@@ -169,7 +181,7 @@ jobs:
       - name: Verify the report and Bundle with the trusted controller
         env:
           EXPECTED_POLICY: ${{ vars.PUBLICATION_POLICY_REVISION || '' }}
-          EXPECTED_CONTROLLER: ${{ inputs.controller_ref || vars.PUBLICATION_CONTROLLER_REVISION || '' }}
+          EXPECTED_CONTROLLER: ${{ vars.PUBLICATION_CONTROLLER_REVISION || inputs.controller_ref || '' }}
           MODELING: ${{ needs.qualify.outputs.modeling_revision }}
         run: |
           WORKFLOW_PATH="${GITHUB_WORKFLOW_REF#*/.github/workflows/}"
@@ -209,7 +221,7 @@ jobs:
           EXPECTED_INTEGRATION: ${{ needs.qualify.outputs.producer_revision }}
           EXPECTED_CONSUMER_BASE: ${{ steps.base.outputs.revision }}
           EXPECTED_POLICY: ${{ vars.PUBLICATION_POLICY_REVISION || '' }}
-          EXPECTED_CONTROLLER: ${{ inputs.controller_ref || vars.PUBLICATION_CONTROLLER_REVISION || '' }}
+          EXPECTED_CONTROLLER: ${{ vars.PUBLICATION_CONTROLLER_REVISION || inputs.controller_ref || '' }}
         run: |
           auth_args=()
           if [ "$AUTHORIZED" = true ]; then auth_args+=(--authorization); fi
@@ -248,7 +260,7 @@ jobs:
     env:
       GH_TOKEN: ${{ secrets.PUBLICATION_APP_TOKEN }}
       EXPECTED_CONSUMER_BASE: ${{ needs.controller.outputs.consumer_base }}
-      CONTROLLER_REF: ${{ inputs.controller_ref || vars.PUBLICATION_CONTROLLER_REVISION }}
+      CONTROLLER_REF: ${{ vars.PUBLICATION_CONTROLLER_REVISION }}
       COMPOSITION: ${{ inputs.composition_ref || github.event.client_payload.composition_ref || '' }}
       POLICY: ${{ inputs.policy_ref || github.event.client_payload.policy_ref || '' }}
       MODELING: ${{ inputs.modeling_ref || github.event.client_payload.modeling_ref || '' }}
@@ -256,10 +268,20 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: ${{ inputs.controller_ref || vars.PUBLICATION_CONTROLLER_REVISION }}
+          ref: ${{ vars.PUBLICATION_CONTROLLER_REVISION }}
           path: controller-source
           fetch-depth: 0
           persist-credentials: false
+      - name: Bind privileged controller checkout to the active pin
+        run: |
+          test -n "$CONTROLLER_REF"
+          python3 - "$CONTROLLER_REF" <<'PY'
+          import re
+          import sys
+          if re.fullmatch(r'[0-9a-f]{40}', sys.argv[1]) is None:
+              raise SystemExit('active controller revision must be a full lowercase commit SHA')
+          PY
+          test "$(git -C controller-source rev-parse HEAD)" = "$CONTROLLER_REF"
       - name: Require the one-time activated controller credential
         run: test -n "$GH_TOKEN"
       - name: Check out the exact Integration consumer base

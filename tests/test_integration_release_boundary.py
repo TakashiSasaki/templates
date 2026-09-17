@@ -85,6 +85,17 @@ class ReleaseBoundaryTests(unittest.TestCase):
         self.assertIn('EXPECTED_CONSUMER_BASE: ${{ steps.base.outputs.revision }}', reconcile)
         self.assertIn('--workflow-path "$WORKFLOW_PATH"', reconcile)
 
+    def test_privileged_promotion_uses_only_the_active_controller_pin(self):
+        reconcile = (ROOT / '.github/workflows/integration-reconcile.yml').read_text()
+        promotion = reconcile.split('  promote_lock_pr:', 1)[1]
+        self.assertIn('CONTROLLER_REF: ${{ vars.PUBLICATION_CONTROLLER_REVISION }}', promotion)
+        self.assertIn('ref: ${{ vars.PUBLICATION_CONTROLLER_REVISION }}', promotion)
+        self.assertIn('Bind privileged controller checkout to the active pin', promotion)
+        self.assertNotIn('inputs.controller_ref', promotion)
+        controller = reconcile.split('  controller:', 1)[1].split('  promote_lock_pr:', 1)[0]
+        self.assertIn('vars.PUBLICATION_CONTROLLER_REVISION || inputs.controller_ref || github.sha', controller)
+        self.assertIn('Bind the reconciliation controller to its trusted identity', controller)
+
     def test_promotion_receipt_keeps_trusted_activation_gate_at_notify_boundary(self):
         workflow = (ROOT / '.github/workflows/integration-promotion-notify.yml').read_text()
         notify = workflow.split('  notify:', 1)[1]
