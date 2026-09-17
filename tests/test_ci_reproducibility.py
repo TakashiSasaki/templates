@@ -93,13 +93,14 @@ def workflow_text() -> str:
     return WORKFLOW.read_text(encoding="utf-8")
 
 
-def test_policy_ci_uses_the_validated_runner_and_python_release() -> None:
+def test_policy_ci_uses_runner_python_without_runtime_selection() -> None:
     workflow = workflow_text()
 
     assert "runs-on: ubuntu-24.04" in workflow
     assert "runs-on: ubuntu-latest" not in workflow
-    assert 'python-version: "3.12.13"' in workflow
-    assert 'python-version: "3.12"' not in workflow
+    assert "actions/setup-python" not in workflow
+    assert "python-version" not in workflow
+    assert "windows-" not in workflow
 
 
 def test_policy_ci_clears_external_python_and_pip_inputs_before_bootstrap() -> None:
@@ -122,7 +123,7 @@ def test_policy_ci_clears_external_python_and_pip_inputs_before_bootstrap() -> N
     documented_sequence = (
         f"{documented_unset}\n"
         "export PIP_CONFIG_FILE=/dev/null\n"
-        "python -I -m venv --clear .venv\n"
+        "python3 -I -m venv --clear .venv\n"
         ". .venv/bin/activate"
     )
     assert documented_sequence in readme
@@ -133,8 +134,8 @@ def test_policy_ci_clears_external_python_and_pip_inputs_before_bootstrap() -> N
 def test_policy_ci_uses_an_isolated_bootstrap_interpreter_and_cleared_venv() -> None:
     workflow = workflow_text()
 
-    assert "run: python -I -m venv --clear .venv" in workflow
-    assert "run: python -m venv --clear .venv" not in workflow
+    assert "run: python3 -I -m venv --clear .venv" in workflow
+    assert "run: python -I -m venv --clear .venv" not in workflow
     assert "--system-site-packages" not in workflow
 
 
@@ -142,7 +143,7 @@ def test_policy_ci_installs_only_the_locked_dependency_graph() -> None:
     workflow = workflow_text()
     workflow_unsets = " ".join(f"-u {name}" for name in PIP_SANITIZED_INPUTS)
 
-    assert "cache-dependency-path: requirements-ci.lock" in workflow
+    assert "cache-dependency-path:" not in workflow
     assert (
         f"env {workflow_unsets} .venv/bin/python -m pip install "
         "--disable-pip-version-check --no-deps --requirement requirements-ci.lock"
@@ -185,8 +186,8 @@ def test_policy_ci_runs_all_python_tooling_from_the_isolated_environment() -> No
         ".venv/bin/python scripts/run_policy_preflight.py --check release-state",
         ".venv/bin/python scripts/run_policy_preflight.py --check lint",
         ".venv/bin/python scripts/run_policy_preflight.py --check tests",
-        ".venv/bin/python scripts/run_policy_preflight.py --check compile",
         ".venv/bin/python scripts/run_policy_preflight.py --check installed-command",
+        "python3 -I scripts/run_policy_preflight.py --check compile",
     )
     for command in expected_commands:
         assert command in workflow
@@ -233,15 +234,22 @@ def test_arbitrary_exact_pins_reject_matching_and_local_variant_specifiers() -> 
     assert "jsonschema===4.26.0" != "jsonschema===4.26.0+corp"
 
 
-def test_policy_ci_actions_are_immutably_pinned_to_node24_revisions() -> None:
+def test_policy_ci_actions_are_immutably_pinned() -> None:
     workflow = workflow_text()
 
     expected_actions = (
         "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1",
-        "actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0",
     )
     for action in expected_actions:
         assert action in workflow
 
     assert "actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683" not in workflow
-    assert "actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065" not in workflow
+    assert "actions/setup-python" not in workflow
+
+
+def test_all_policy_workflows_use_runner_python_without_version_setup() -> None:
+    for path in sorted((ROOT / ".github/workflows").glob("*.yml")):
+        workflow = path.read_text(encoding="utf-8")
+        assert "actions/setup-python" not in workflow, path.name
+        assert "python-version" not in workflow, path.name
+        assert "windows-" not in workflow.lower(), path.name

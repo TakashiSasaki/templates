@@ -129,13 +129,14 @@ def test_policy_documentation_has_no_pages_deployment_route() -> None:
         assert forbidden not in workflow
 
 
-def test_documentation_build_uses_the_validated_runner_and_python_release() -> None:
+def test_documentation_build_uses_runner_python_without_runtime_selection() -> None:
     workflow = workflow_text()
 
     assert workflow.count("runs-on: ubuntu-24.04") == 1
     assert "runs-on: ubuntu-latest" not in workflow
-    assert 'python-version: "3.12.13"' in workflow
-    assert 'python-version: "3.12"' not in workflow
+    assert "actions/setup-python" not in workflow
+    assert "python-version" not in workflow
+    assert "windows-" not in workflow
 
 
 def test_documentation_build_clears_external_inputs_before_setup() -> None:
@@ -178,8 +179,8 @@ def test_documentation_build_clears_external_inputs_before_setup() -> None:
 def test_documentation_build_uses_a_cleared_isolated_environment() -> None:
     workflow = workflow_text()
 
-    assert "run: python -I -m venv --clear .venv" in workflow
-    assert "run: python -m venv --clear .venv" not in workflow
+    assert "run: python3 -I -m venv --clear .venv" in workflow
+    assert "run: python -I -m venv --clear .venv" not in workflow
     assert "--system-site-packages" not in workflow
 
 
@@ -187,7 +188,7 @@ def test_documentation_build_installs_and_verifies_only_the_lock() -> None:
     workflow = workflow_text()
     workflow_unsets = " ".join(f"-u {name}" for name in PIP_SANITIZED_INPUTS)
 
-    assert "cache-dependency-path: requirements-docs.lock" in workflow
+    assert "cache-dependency-path:" not in workflow
     assert (
         f"run: env {workflow_unsets} .venv/bin/python -m pip install "
         "--isolated --disable-pip-version-check --no-deps "
@@ -234,17 +235,16 @@ def test_documentation_environment_contract_is_documented() -> None:
     documented_sequence = (
         f"{documented_unset}\n"
         "export PIP_CONFIG_FILE=/dev/null\n"
-        "python -I -m venv --clear .venv\n"
+        "python3 -I -m venv --clear .venv\n"
         ". .venv/bin/activate\n"
-        "python -m pip install --isolated --disable-pip-version-check "
+        "python3 -m pip install --isolated --disable-pip-version-check "
         "--no-deps --requirement requirements-docs.lock\n"
-        "python scripts/verify_docs_environment.py\n"
-        "python -m pip check"
+        "python3 scripts/verify_docs_environment.py\n"
+        "python3 -m pip check"
     )
 
     assert documented_sequence in guide
-    assert "CPython 3.12.13" in guide
-    assert "Ubuntu 24.04" in guide
+    assert "Ubuntu runner's Python" in guide
     assert "documentation build uses the same clean-runner boundary" in readme
     assert "contains no GitHub Pages deployment route" in guide
     assert "contains no GitHub Pages deployment route" in readme
@@ -297,12 +297,10 @@ def test_documentation_actions_are_immutably_pinned() -> None:
 
     expected_actions = (
         "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1",
-        "actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0",
     )
     for action in expected_actions:
         assert action in workflow
 
     assert "actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683" not in workflow
-    assert "actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065" not in workflow
+    assert "actions/setup-python" not in workflow
     assert "actions/checkout@v" not in workflow
-    assert "actions/setup-python@v" not in workflow

@@ -77,8 +77,9 @@ def test_policy_ci_preflight_is_cheap_relative_to_core() -> None:
     assert "pip install" not in preflight
     assert "pytest" not in preflight
     assert "Compile Python sources" in preflight
-    assert "setup-python" in core
+    assert "setup-python" not in core
     assert "pip install" in core
+    assert "python3 -I scripts/run_policy_preflight.py --check compile" in preflight
     assert "scripts/run_policy_preflight.py --check tests" in core
 
 
@@ -88,6 +89,9 @@ def test_repository_uses_runner_native_parallel_runtime_surface() -> None:
     docs = DOCS.read_text(encoding="utf-8")
     assert "cancel-in-progress: true" in policy
     assert "cancel-in-progress: true" in runtime
+    assert "strategy:" not in runtime
+    assert "windows-" not in runtime
+    assert "python-version" not in runtime
     assert "Policy runtime distribution" in docs
     assert "parallel with normal Policy CI" in docs
     assert "ci/full-compatibility" not in runtime
