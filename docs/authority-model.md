@@ -20,7 +20,7 @@ Site is distinct from its provider-publication input.
 
 Provider-specific rules belong to their provider. Cross-authority publication rules
 belong to Integration. Site may render those rules and detect projection corruption;
-it cannot redefine them. The Integration [authority contract](https://github.com/TakashiSasaki/templates/blob/integration/AUTHORITY.md)
+it cannot redefine them. The Integration [authority contract](https://github.com/TakashiSasaki/templates/blob/fd978a01fb934187500655481b6f744db7eacbf9/AUTHORITY.md)
 is canonical for cross-authority integration. This page is the Site reader projection.
 
 Translation ownership follows canonical ownership. Integration derives provider
