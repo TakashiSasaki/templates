@@ -69,25 +69,46 @@
     },
     "files": {
       "type": "object",
-    "minProperties": 9,
-      "additionalProperties": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "size",
-          "sha256"
-        ],
-        "properties": {
-          "size": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "sha256": {
-            "type": "string",
-            "pattern": "^[0-9a-f]{64}$"
+      "minProperties": 9,
+      "patternProperties": {
+        "^(documents|navigation|translation-availability|translation-publication|reader-navigation-runtime|glossary|guided-navigation|guided-locales|provenance)\\.json$": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "size",
+            "sha256"
+          ],
+          "properties": {
+            "size": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        },
+        "^publication/.+$": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "size",
+            "sha256"
+          ],
+          "properties": {
+            "size": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
           }
         }
-      }
+      },
+      "additionalProperties": false
     }
   },
   "$comment": "publication_bundle.contract additionally enforces safe physical paths, exact bounded inventory, content and identity hashes, semantic model closure, translations, glossary, graph and provenance."

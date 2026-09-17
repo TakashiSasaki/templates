@@ -10,6 +10,12 @@ and the complete payload inventory/digest. Canonical JSON sorts keys with ASCII 
 compact separators, no nonfinite numbers, and an LF. Execution timestamps and workflow
 run/attempt IDs belong to separate transport evidence, never content identity.
 
+The v3 inventory is closed: it contains the nine named semantic models and qualified
+`publication/` outputs only. Undeclared model files and repository-browser records,
+source previews, raw source payloads, or equivalent renamed provider inventories are
+invalid. Semantic source paths, exact provenance, guided navigation and publication
+content remain valid.
+
 The Bundle includes canonical and structurally valid current/stale translated publication content/assets, public
 destinations, navigation and locale projections, exact translation availability, integrated
 glossary and validated guided graph. Exact provider revisions remain in provenance and
