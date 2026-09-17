@@ -7,6 +7,7 @@ import unittest
 
 from scripts.check_python_dependencies import (
     ENVIRONMENTS,
+    PythonEnvironment,
     environment_by_name,
     validate,
     validate_environment,
@@ -40,6 +41,25 @@ class PythonDependencyContractTests(unittest.TestCase):
             )
         self.assertTrue(any("PyYAML" in error for error in errors), errors)
 
+    def test_nested_production_imports_are_not_skipped(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "requirements.txt").write_text("\n", encoding="utf-8")
+            (root / "entrypoint.py").write_text(
+                "def run():\n    import missing_nested_distribution\n",
+                encoding="utf-8",
+            )
+            environment = PythonEnvironment(
+                name="nested-fixture",
+                requirements="requirements.txt",
+                entrypoints=("entrypoint.py",),
+            )
+            errors = validate_environment(root, environment)
+        self.assertTrue(
+            any("missing_nested_distribution" in error for error in errors),
+            errors,
+        )
+
     def test_environment_inventory_has_distinct_requirements_inputs(self) -> None:
         self.assertEqual(
             {environment.name for environment in ENVIRONMENTS},
@@ -49,3 +69,4 @@ class PythonDependencyContractTests(unittest.TestCase):
             len({environment.requirements for environment in ENVIRONMENTS}),
             len(ENVIRONMENTS),
         )
+        self.assertTrue(environment_by_name("build").include_nested_imports)

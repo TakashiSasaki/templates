@@ -24,15 +24,22 @@ class PythonEnvironment:
     name: str
     requirements: str
     entrypoints: tuple[str, ...]
+    # Some environments execute repository tests in addition to their
+    # production entrypoints. Test modules are inspected at module-import
+    # depth so browser-only lazy imports do not leak into the build contract.
+    shallow_entrypoints: tuple[str, ...] = ()
     include_nested_imports: bool = True
     required_distributions: tuple[str, ...] = ()
 
 
 CORE_ENTRYPOINTS = (
     "scripts/run_core_tests.py",
-    # run_core_tests.py dynamically imports the complete test_*.py inventory.
-    "tests/test_*.py",
 )
+
+# ``run_core_tests.py`` dynamically imports the complete test inventory. The
+# modules themselves are still entrypoints, but their lazy browser imports are
+# owned by the visual environment rather than requirements.txt.
+TEST_ENTRYPOINTS = ("tests/test_*.py",)
 
 BUILD_ENTRYPOINTS = (
     "scripts/acquire_integration_bundle.py",
@@ -56,7 +63,6 @@ BUILD_ENTRYPOINTS = (
     "site_renderer/**/*.py",
     "publication_bundle/**/*.py",
     "ci_artifacts/**/*.py",
-    "tests/test_*.py",
 )
 
 VISUAL_ENTRYPOINTS = (
@@ -96,13 +102,13 @@ ENVIRONMENTS = (
         "core",
         "requirements.txt",
         CORE_ENTRYPOINTS,
-        include_nested_imports=False,
+        shallow_entrypoints=TEST_ENTRYPOINTS,
     ),
     PythonEnvironment(
         "build",
         "requirements-build.lock",
         BUILD_ENTRYPOINTS,
-        include_nested_imports=False,
+        shallow_entrypoints=TEST_ENTRYPOINTS,
         required_distributions=("zensical",),
     ),
     PythonEnvironment(
@@ -228,10 +234,14 @@ def normalize_distribution(name: str) -> str:
     return re.sub(r"[-_.]+", "-", name).casefold()
 
 
-def _entrypoint_paths(root: Path, environment: PythonEnvironment) -> tuple[list[Path], list[str]]:
+def _entrypoint_paths(
+    root: Path,
+    environment: PythonEnvironment,
+    patterns: tuple[str, ...] | None = None,
+) -> tuple[list[Path], list[str]]:
     paths: list[Path] = []
     errors: list[str] = []
-    for pattern in environment.entrypoints:
+    for pattern in patterns if patterns is not None else environment.entrypoints:
         if any(character in pattern for character in "*?["):
             matches = sorted(path for path in root.glob(pattern) if path.is_file())
             if not matches:
@@ -377,10 +387,20 @@ def validate_environment(
     """Return static dependency-contract errors for one CI environment."""
 
     entrypoints, errors = _entrypoint_paths(root, environment)
+    shallow_entrypoints, shallow_errors = _entrypoint_paths(
+        root, environment, environment.shallow_entrypoints
+    )
+    errors.extend(shallow_errors)
     required, import_errors = _external_distributions(
         root, entrypoints, environment.include_nested_imports
     )
     errors.extend(import_errors)
+    if shallow_entrypoints:
+        shallow_required, shallow_import_errors = _external_distributions(
+            root, shallow_entrypoints, include_nested_imports=False
+        )
+        required.update(shallow_required)
+        errors.extend(shallow_import_errors)
     required.update(environment.required_distributions)
     requirement_file = requirements_path or (root / environment.requirements)
     if requirements_path is not None:
