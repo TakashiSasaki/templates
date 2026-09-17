@@ -8,9 +8,9 @@ import unicodedata
 from pathlib import Path, PurePosixPath
 from typing import Any
 from urllib.parse import quote, urlsplit
-from publication_bundle.repository import *
 from publication_bundle.graph import *
 from publication_bundle.graph import _section_title, _section_level
+from publication_bundle.paths import public_path
 from site_renderer.github import github_blob_url, github_commit_url, github_tree_url
 
 GUIDED_ROOT = Path("guided")
@@ -173,7 +173,7 @@ def edge_href(
         destination = published.get(target)
         if destination is not None:
             return (
-                published_url("/", destination) + fragment_suffix(fragment),
+                public_path(destination) + fragment_suffix(fragment),
                 "published document",
                 False,
             )

@@ -30,8 +30,6 @@ const STATIC_ASSETS = [
   "/stylesheets/freshness-status.css",
   "/stylesheets/composition-playground.css",
   "/javascripts/github-url.js",
-  "/javascripts/repository-tree-viewer.js",
-  "/javascripts/repository-browser.js",
   "/javascripts/guided-copy.js",
   "/javascripts/pwa.js",
   "/javascripts/reader-navigation.js",
@@ -244,9 +242,6 @@ async function offlineResponse(request) {
 }
 
 function isDocumentRequest(request, url) {
-  if (url.pathname.startsWith("/repository-trees/previews/")) {
-    return false;
-  }
   if (request.mode === "navigate") {
     return true;
   }

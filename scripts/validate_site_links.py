@@ -11,12 +11,9 @@ import tomllib
 from dataclasses import dataclass
 from html.parser import HTMLParser
 from pathlib import Path, PurePosixPath
-from urllib.parse import SplitResult, parse_qs, unquote, urlsplit, urlunsplit
+from urllib.parse import SplitResult, unquote, urlsplit, urlunsplit
 
 import idna
-
-
-REPOSITORY_LINE_FRAGMENT_RE = re.compile(r"^#L[1-9][0-9]*$")
 
 
 class SiteLinkError(RuntimeError):
@@ -36,7 +33,6 @@ class HtmlPage:
     relative_path: PurePosixPath
     public_url: str
     ids: frozenset[str]
-    repository_files: frozenset[str]
     links: tuple[LinkReference, ...]
 
 
@@ -44,7 +40,6 @@ class PageParser(HTMLParser):
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)
         self.ids: set[str] = set()
-        self.repository_files: set[str] = set()
         self._all_links: list[LinkReference] = []
         self._main_links: list[LinkReference] = []
         self._main_depth = 0
@@ -85,9 +80,6 @@ class PageParser(HTMLParser):
         anchor_name = values.get("name")
         if tag.lower() == "a" and anchor_name:
             self.ids.add(anchor_name)
-        repository_file = values.get("data-file-path")
-        if tag.lower() == "a" and repository_file:
-            self.repository_files.add(repository_file)
         if tag.lower() not in {"a", "area"}:
             return
         href = values.get("href")
@@ -375,15 +367,6 @@ def normalized_public_path(encoded_path: str) -> str:
     return _remove_dot_segments_preserving_empty(decoded_path)
 
 
-SOURCE_HEADER_ID_RE = re.compile(
-    r"<[a-zA-Z][a-zA-Z0-9:-]*\b[^>]*\bid\s*=\s*[\"']([^\"']+)[\"']",
-    re.IGNORECASE,
-)
-SOURCE_LINE_ID_RE = re.compile(
-    r'<div class="source-line" id="(L\d+)">',
-)
-
-
 def parse_page(path: Path, site_root: Path, base_url: str) -> HtmlPage:
     try:
         text = path.read_text(encoding="utf-8")
@@ -398,39 +381,6 @@ def parse_page(path: Path, site_root: Path, base_url: str) -> HtmlPage:
     )
 
     parts = relative_path.parts
-    # Fast path for leaf file preview HTML documents: they contain no outgoing links
-    # and no anchor targets referenced across pages.
-    if len(parts) >= 2 and parts[:2] == ("repository-trees", "previews"):
-        return HtmlPage(
-            path=path,
-            relative_path=relative_path,
-            public_url=public_url,
-            ids=frozenset(),
-            repository_files=frozenset(),
-            links=(),
-        )
-
-    # Fast path for immutable repository source viewers: all links inside <main>
-    # are local line number anchors (#L<num>) which are skipped by link validation.
-    # Extract IDs exclusively from generator-owned element tags (header controls and
-    # line wrappers) rather than unconstrained text nodes within syntax-highlighted code.
-    if len(parts) == 4 and parts[0] == "files" and parts[2] == "content":
-        header_end = text.find("<main>")
-        if header_end != -1:
-            header_ids = frozenset(SOURCE_HEADER_ID_RE.findall(text[:header_end]))
-            line_ids = frozenset(SOURCE_LINE_ID_RE.findall(text[header_end:]))
-            extracted_ids = header_ids | line_ids
-        else:
-            extracted_ids = frozenset(SOURCE_HEADER_ID_RE.findall(text))
-        return HtmlPage(
-            path=path,
-            relative_path=relative_path,
-            public_url=public_url,
-            ids=extracted_ids,
-            repository_files=frozenset(),
-            links=(),
-        )
-
     parser = PageParser()
     parser.feed(text)
     parser.close()
@@ -439,7 +389,6 @@ def parse_page(path: Path, site_root: Path, base_url: str) -> HtmlPage:
         relative_path=relative_path,
         public_url=public_url,
         ids=frozenset(parser.ids),
-        repository_files=frozenset(parser.repository_files),
         links=tuple(parser.links),
     )
 
@@ -506,12 +455,6 @@ def validate_site(site_root: Path, config_file: Path) -> tuple[int, int, list[st
     checked_links = 0
     for source in pages:
         for reference in source.links:
-            if (
-                source.relative_path.parts
-                and source.relative_path.parts[0] == "files"
-                and REPOSITORY_LINE_FRAGMENT_RE.fullmatch(reference.href)
-            ):
-                continue
             raw = preprocess_url_input(reference.href)
             normalized_raw = normalize_special_url_backslashes(raw)
             raw_parts = urlsplit(normalized_raw)
@@ -572,19 +515,6 @@ def validate_site(site_root: Path, config_file: Path) -> tuple[int, int, list[st
                     f"{reference.href!r} uses a fragment on a non-HTML target"
                 )
                 continue
-            if target_page.relative_path.parts[:1] == ("files",):
-                try:
-                    parameters = parse_qs(
-                        resolved.fragment,
-                        keep_blank_values=True,
-                        strict_parsing=True,
-                    )
-                except ValueError:
-                    parameters = {}
-                if set(parameters) == {"file"} and len(parameters["file"]) == 1:
-                    repository_file = parameters["file"][0]
-                    if repository_file in target_page.repository_files:
-                        continue
             if fragment not in target_page.ids:
                 diagnostics.add(
                     f"{source.relative_path}:{reference.line}:{reference.column}: "

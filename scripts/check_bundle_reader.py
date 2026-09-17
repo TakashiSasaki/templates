@@ -11,9 +11,6 @@ from publication_bundle.paths import public_path
 
 def check(site,bundle,lock):
     manifest=validate_locked(bundle,lock)
-    for name in manifest['providers']:
-        for path in (f'files/{name}/index.html',f'repository-trees/{name}/index.html'):
-            if not (site/path).is_file():raise ValueError('missing provider reader surface: '+path)
     graph=json.loads((bundle/'guided-navigation.json').read_text())
     if json.loads((site/'guided/graph.json').read_text())!=graph:raise ValueError('guided graph projection drift')
     if json.loads((site/'glossary/index.json').read_text())!=json.loads((bundle/'glossary.json').read_text()):raise ValueError('glossary projection drift')

@@ -5,8 +5,7 @@ from urllib.parse import unquote
 from publication_bundle.contract import BundleError, regular, safe_path
 from publication_bundle.paths import public_path
 from publication_bundle.markdown import _rewrite_markdown
-from publication_bundle.source_reader import read_entries
-from publication_bundle.repository import entry_label
+from site_renderer.git import tracked_paths
 from site_renderer.owned_content.publish_translations import publish_translations
 from site_renderer.owned_content.translation_fragment_reconciliation import reconcile_translation_fragments
 from site_renderer.owned_content.translation_link_selection import rewrite_current_localized_links
@@ -37,7 +36,7 @@ def fill(site_root,docs_root,documents,nav,provider_translations,coverage,output
     for d in slots:put(regular(site_root,d['source']),docs_root/safe_path(d['destination']))
     copy_assets(site_root/'assets',docs_root)
     published={PurePosixPath(d['source']):PurePosixPath(d['destination']) for d in slots}
-    source_paths=frozenset(e.path for e in read_entries(site_root) if entry_label(e)=='file')
+    source_paths=tracked_paths(site_root)
     def site_source_url(source, suffix):
         query, marker, fragment = suffix.partition("#")
         url = github_blob_url(

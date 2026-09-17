@@ -227,7 +227,6 @@ class GlossaryInlineAssetTests(unittest.TestCase):
             project["extra_javascript"],
             [
                 "javascripts/github-url.js",
-                "javascripts/repository-tree-viewer.js",
                 "javascripts/pwa.js",
                 "javascripts/reader-navigation.js",
                 "javascripts/audience-context.js",

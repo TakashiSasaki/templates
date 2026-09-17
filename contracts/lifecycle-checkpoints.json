@@ -201,6 +201,26 @@
       "snapshotPath": "artifacts/lifecycle/020-audience-maintainer-publication-product",
       "manifestSha256": "c6ec49c904a83229b8e5827988f6c803693493eadf5f398b25ddaaeae37ab1b3",
       "recordedAt": "2026-09-16T09:42:06.111589Z"
+    },
+    {
+      "id": "site-repository-source-retirement",
+      "sequence": 21,
+      "phase": "planning",
+      "changeKind": "specification-change",
+      "parentId": "audience-maintainer-publication-product",
+      "snapshotPath": "artifacts/lifecycle/021-site-repository-source-retirement",
+      "manifestSha256": "b78059d94bbc79ab53056357e40e415486ac4bbb64cd445e60a9aeb91df448ef",
+      "recordedAt": "2026-09-17T01:41:29.596789Z"
+    },
+    {
+      "id": "site-repository-source-retirement-product",
+      "sequence": 22,
+      "phase": "product",
+      "changeKind": "specification-change",
+      "parentId": "site-repository-source-retirement",
+      "snapshotPath": "artifacts/lifecycle/022-site-repository-source-retirement-product",
+      "manifestSha256": "6df58d7b2faf69d328516f7acd43d72d2a0ccc5771d17f2fecacb4a60dec0609",
+      "recordedAt": "2026-09-17T01:41:32.592039Z"
     }
   ]
 }

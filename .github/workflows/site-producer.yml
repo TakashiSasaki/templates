@@ -158,7 +158,6 @@ jobs:
           test -f build/site/service-worker.js
           test -f build/site/glossary/index.json
           test -f build/site/guided/graph.json
-          test -f build/site/files/index.html
           python - <<'PYCODE'
           import json
           from pathlib import Path

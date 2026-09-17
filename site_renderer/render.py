@@ -1,4 +1,4 @@
-"""Build the complete Site artifact from Publication Bundle v2 and Site-owned source."""
+"""Build the complete Site artifact from a Publication Bundle and Site-owned source."""
 from __future__ import annotations
 import argparse
 import ctypes
@@ -14,9 +14,7 @@ import tempfile
 
 from publication_bundle.contract import BundleError, read_json, regular, canonical, digest
 from site_renderer.bundle import validate, validate_locked, load_lock
-from publication_bundle.repository import configured_base_path
-from publication_bundle.source_models import raw_path
-from publication_bundle.source_reader import checked_revision, collect_records
+from site_renderer.git import checked_revision
 from site_renderer import guided, guided_locales
 from site_renderer.config import render_nav
 from site_renderer.local_content import fill, put
@@ -25,10 +23,6 @@ from site_renderer.local_content import fill, put
 def write(path,data):
     path.parent.mkdir(parents=True,exist_ok=True)
     path.write_text(json.dumps(data,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
-
-
-def record(cls,value):
-    return cls(**{k:raw_path(v) if k in {'name','path'} else v for k,v in value.items()})
 
 
 def run(site_root,script,*args):
@@ -190,8 +184,6 @@ def render(*,bundle,site_root,output,expected_identity,public_url='https://templ
 
 def render_snapshot(*,bundle,site_root,output,identity,site_revision,parent_identity,parent_directory,original_bundle,original_site,public_url,deployment_timestamp):
     with tempfile.TemporaryDirectory(prefix='site-render-') as temporary:
-        from publication_bundle.repository import FileRecord, PreviewRecord, TreeEntry, build_tree
-        from site_renderer import previews, repository_browser as browser, repository_trees as trees
         build=Path(temporary)/'build';build.mkdir();docs=build/'docs';docs.mkdir()
         for name in identity['files']:
             if name.startswith('publication/'):
@@ -210,36 +202,16 @@ def render_snapshot(*,bundle,site_root,output,identity,site_revision,parent_iden
         if template.count('__GENERATED_NAV__')!=1:raise BundleError('Site template must have one navigation slot')
         navigation=[{'title':{'use':'Use templates','maintain':'Maintain templates'}.get(aud,aud),'children':nodes} for aud in nav['audience_runtime']['audiences'] for nodes in [nav['navigation'][aud]] if nodes]
         (build/'zensical.toml').write_text(template.replace('__GENERATED_NAV__',render_nav(navigation)),encoding='utf-8')
-        models=read_json(bundle/'provider-repositories.json');repository=read_json(bundle/'guided-navigation.json')['repository']
-        base_path=configured_base_path(build/'zensical.toml');summaries={}
-        for name,model in models.items():
-            entries=[record(TreeEntry,e) for e in model['entries']]
-            tree=build_tree(entries);published={k.encode():v for k,v in model['published'].items()}
-            rendered,counts=trees.render_tree(name,repository,model['revision'],tree,f'repository-trees/{name}.md',base_path,published)
-            trees.replace_marker(docs/f'repository-trees/{name}.md',f'<!-- GENERATED_REPOSITORY_TREE:{name} -->',rendered)
-            summaries[name]=(model['revision'],counts)
-            source_previews=[record(PreviewRecord,r) for r in model['previews']]
-            previews.inject_preview_links(name,repository,model['revision'],base_path,build,published,source_previews)
-            previews.write_preview_pages(build,source_previews,name,model['revision'])
-        table=['| Publication | Rendered revision | Directories | Files | Published documents |','|---|---|---:|---:|---:|']
-        for name,(revision,counts) in summaries.items():
-            table.append(f"| [{name.title()}]({name}.md) | `{revision}` | {counts['directories']} | {counts['files']+counts['symlinks']+counts['gitlinks']} | {counts['published_documents']} |")
-        trees.replace_marker(docs/'repository-trees/index.md','<!-- GENERATED_REPOSITORY_TREE_INDEX -->','\n'.join(table)+'\n')
         run(site_root,'prepare_site_metadata.py','--config-file',build/'zensical.toml','--deployment-timestamp',deployment_timestamp,'--canonical-url',public_url)
         subprocess.run([str(Path(sys.executable).with_name('zensical')),'build','--config-file',str(build/'zensical.toml'),'--clean','--strict'],check=True)
         site=build/'site';write(site/'glossary/index.json',read_json(bundle/'glossary.json'))
         run(site_root,'generate_glossary_viewer.py','--input',site/'glossary/index.json','--output',site/'glossary/index.html')
         run(site_root,'finalize_site_metadata.py','--site-root',site,'--canonical-url',public_url)
-        browser_root=browser.prepare_browser_root(site);browser.write_root_index(browser_root,('site',*models));browser.write_browser_controller(browser_root)
-        site_tree,site_records=collect_records('site',repository,site_revision,site_root)
-        sources={'site':(site_revision,site_tree,site_records)}
-        for name,model in models.items():
-            sources[name]=(model['revision'],build_tree([record(TreeEntry,e) for e in model['entries']]),{raw_path(r['path']):record(FileRecord,r) for r in model['browser']})
-        for name,(revision,tree,records) in sources.items():
-            branch_root=browser_root/name;(branch_root/'content').mkdir(parents=True)
-            (branch_root/'index.html').write_text(browser.render_browser_page(name,revision,tree,records,('site',*models)),encoding='utf-8')
-            for r in records.values():browser.write_verified_file_page(branch_root/r.viewer_url,name,revision,r)
-        graph=read_json(bundle/'guided-navigation.json');published={name:model['published'] for name,model in models.items()}
+        graph=read_json(bundle/'guided-navigation.json');repository=graph['repository']
+        published={provider['name']: {} for provider in graph['providers']}
+        for document in documents:
+            if not document['slot']:
+                published.setdefault(document['publication'], {})[document['source']] = document['destination']
         guided.generate_from_bundle(repository,graph,published,site)
         overlays=guided_locales.load_overlays(bundle/'guided-locales.json',graph)
         reader_translations=guided_locales.load_reader_translations(build/'translation-publication.json')

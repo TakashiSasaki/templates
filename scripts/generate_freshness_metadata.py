@@ -376,11 +376,6 @@ def annotate_site_revision(source: str, revision: str, path: Path) -> str:
     return updated
 
 
-def is_sandbox_preview(path: Path, site_root: Path) -> bool:
-    relative = path.relative_to(site_root)
-    return relative.parts[:2] == ("repository-trees", "previews")
-
-
 def generated_html_files(site_root: Path) -> list[Path]:
     html_files: list[Path] = []
     for path in sorted(site_root.rglob("*.html")):
@@ -399,8 +394,6 @@ def annotate_generated_html(site_root: Path, site_revision: str) -> int:
     resolved_root = site_root.resolve(strict=True)
     updates: dict[Path, str] = {}
     for path in generated_html_files(resolved_root):
-        if is_sandbox_preview(path, resolved_root):
-            continue
         try:
             source = path.read_text(encoding="utf-8")
         except (OSError, UnicodeError) as exc:
@@ -424,8 +417,6 @@ def annotate_and_validate_generated_html(site_root: Path, site_revision: str) ->
     verified = 0
     revision = validate_revision(site_revision, "site")
     for path in generated_html_files(resolved_root):
-        if is_sandbox_preview(path, resolved_root):
-            continue
         try:
             source = path.read_text(encoding="utf-8")
         except (OSError, UnicodeError) as exc:
@@ -525,8 +516,6 @@ def verify_freshness_contract(
 
     verified = 0
     for path in generated_html_files(site_root):
-        if is_sandbox_preview(path, site_root):
-            continue
         try:
             source = path.read_text(encoding="utf-8")
         except (OSError, UnicodeError) as exc:

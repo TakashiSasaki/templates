@@ -4,7 +4,7 @@ import json
 from pathlib import Path, PurePosixPath
 from typing import Any
 from urllib.parse import urlsplit
-from publication_bundle.repository import FULL_SHA, REPOSITORY
+from publication_bundle.identity import FULL_SHA, REPOSITORY
 from publication_bundle.url_contract import IndexNavigationError, contains_disallowed_control, validate_external_location
 ROOT_INDEX = 'docs/index.md' 
 

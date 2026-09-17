@@ -231,40 +231,6 @@ class GeneratedSiteLinkTests(unittest.TestCase):
         self.assertIn("references missing fragment 'missing'", result.stderr)
         self.assertIn("guide/index.html", result.stderr)
 
-    def test_repository_browser_file_fragment_requires_declared_file(self) -> None:
-        self.write(
-            "index.html",
-            '<a href="/docs/files/site/#file=docs/architecture/audience/README.md">Source</a>',
-        )
-        self.write(
-            "files/site/index.html",
-            '<main><a data-file-path="docs/architecture/audience/README.md" '
-            'href="content/source.html">Audience architecture</a></main>',
-        )
-        self.write("files/site/content/source.html", "<main>Source</main>")
-
-        result = self.run_validator()
-
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("Validated 2 local links across 3 generated HTML pages", result.stdout)
-
-    def test_repository_browser_file_fragment_rejects_missing_file(self) -> None:
-        self.write(
-            "index.html",
-            '<a href="/docs/files/site/#file=docs/missing.md">Missing source</a>',
-        )
-        self.write(
-            "files/site/index.html",
-            '<main><a data-file-path="docs/present.md" '
-            'href="content/source.html">Present source</a></main>',
-        )
-        self.write("files/site/content/source.html", "<main>Source</main>")
-
-        result = self.run_validator()
-
-        self.assertEqual(result.returncode, 1)
-        self.assertIn("references missing fragment 'file=docs/missing.md'", result.stderr)
-
     def test_rejects_explicit_default_port_target_when_missing(self) -> None:
         self.write("index.html", '<a href="https://example.test:443/docs/absent/">Absent</a>')
         result = self.run_validator()
@@ -389,19 +355,6 @@ class GeneratedSiteLinkTests(unittest.TestCase):
         result = self.run_validator()
         self.assertEqual(result.returncode, 1)
         self.assertIn("must define a non-empty project.site_url", result.stderr)
-
-
-class RepositoryBrowserLineAnchorBoundaryTests(unittest.TestCase):
-    def test_validator_excludes_only_generator_owned_line_fragments(self) -> None:
-        self.assertTrue(
-            validate_site_links.REPOSITORY_LINE_FRAGMENT_RE.fullmatch("#L12")
-        )
-        self.assertFalse(
-            validate_site_links.REPOSITORY_LINE_FRAGMENT_RE.fullmatch("#L0")
-        )
-        self.assertFalse(
-            validate_site_links.REPOSITORY_LINE_FRAGMENT_RE.fullmatch("#Lx")
-        )
 
 
 if __name__ == "__main__":

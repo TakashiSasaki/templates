@@ -16,7 +16,7 @@ from urllib.parse import urljoin, urlsplit, urlunsplit
 
 LANGUAGE_TAG = re.compile(r"\A[a-z]{2,3}(?:-[a-z0-9]{2,8})*\Z")
 PUBLICATION_NAME = re.compile(r"\A[a-z0-9]+(?:-[a-z0-9]+)*\Z")
-AUXILIARY_ROOTS = frozenset({"files", "guided", "repository-trees"})
+AUXILIARY_ROOTS = frozenset({"guided"})
 VOID_ELEMENTS = frozenset(
     {
         "area",

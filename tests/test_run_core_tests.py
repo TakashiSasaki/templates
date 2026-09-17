@@ -62,7 +62,7 @@ class RunCoreTestsContractTests(unittest.TestCase):
 
     def test_load_core_test_suite_succeeds(self) -> None:
         suite = load_test_suite("core")
-        self.assertGreaterEqual(suite.countTestCases(), 760)  # Post-cutover baseline: 767 retained cases.
+        self.assertGreaterEqual(suite.countTestCases(), 735)
 
     def test_doc_contract_breakage_fails_core_validation(self) -> None:
         """Regression test: broken reader/documentation contract must fail core validation."""

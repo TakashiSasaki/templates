@@ -11,13 +11,9 @@ def prepare_services(site_root: Path, html_files: list[Path]) -> dict[str, objec
     if not path.is_file():
         return None  # Other callers can finalize minimal non-audience fixtures.
     model = json.loads(path.read_text())
-    try:
-        from scripts.finalize_site_metadata import is_inline_preview
-    except ModuleNotFoundError:
-        from finalize_site_metadata import is_inline_preview
     services = []
     for page in html_files:
-        if is_inline_preview(page, site_root) or page.name == '404.html':
+        if page.name == '404.html':
             continue
         relative = page.relative_to(site_root).as_posix()
         route = '/' + relative.removesuffix('index.html') if page.name == 'index.html' else '/' + relative
@@ -60,12 +56,8 @@ def finalize_presentation(site_root: Path, updates: dict[Path, str]) -> None:
     model = prepare_services(site_root, list(updates))
     if model is None:
         return
-    try:
-        from scripts.finalize_site_metadata import is_inline_preview
-    except ModuleNotFoundError:
-        from finalize_site_metadata import is_inline_preview
     for path, source in updates.items():
-        if not is_inline_preview(path, site_root) and path.name != '404.html':
+        if path.name != '404.html':
             updates[path] = attach_shell(source)
     (site_root / 'audience-runtime.json').write_text(
         json.dumps(model, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')

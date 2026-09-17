@@ -220,8 +220,6 @@ class TranslationPairValidationTests(unittest.TestCase):
             root = Path(directory)
             site, mapping = self.prepare_pair(root)
             for relative in (
-                "files/site/content/example/index.html",
-                "repository-trees/previews/site/example/index.html",
                 "guided/policy/index.html",
                 "ja/guided/policy/index.html",
             ):

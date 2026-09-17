@@ -61,7 +61,7 @@ VOID_TAGS = {
     "track",
     "wbr",
 }
-EXCLUDED_ROUTE_COMPONENTS = {"files", "glossary", "repository-trees"}
+EXCLUDED_ROUTE_COMPONENTS = {"glossary"}
 GUIDED_ROUTE_COMPONENT = "guided"
 CONTENT_CLASS = "md-content__inner"
 RUNTIME_STYLE = '<link rel="stylesheet" href="/stylesheets/glossary-inline.css">'

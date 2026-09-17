@@ -14,7 +14,6 @@ BROWSER_SCRIPTS = (
     ROOT / "scripts/check_composition_playground_latest_five_browser.py",
     ROOT / "scripts/check_composition_playground_cross_authority.py",
     ROOT / "scripts/check_mobile_layout_core.py",
-    ROOT / "scripts/check_repository_browser_filter.py",
     ROOT / "scripts/check_glossary_locale_chrome.py",
     ROOT / "scripts/check_pwa_capabilities.py",
     ROOT / "scripts/check_pwa_commit_regressions.py",

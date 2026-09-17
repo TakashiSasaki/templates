@@ -14,7 +14,7 @@
 <small>Website · Web application · Agent Skill · Policy · Composition</small>
 <span class="audience-journey__action">使い始める <span aria-hidden="true">→</span></span>
 </a>
-<a class="audience-journey" data-audience-entry="maintain" href="/repository-trees/?audience=maintain">
+<a class="audience-journey" data-audience-entry="maintain" href="/maintain/site/maintenance/?audience=maintain">
 <strong>Maintain templates · テンプレートを保守する</strong>
 <span>TakashiSasaki/templates 自体と、その authority / provider を保守・発展させる。</span>
 <small>Site · Composition provider · Policy provider · 公開 · CI · ソース</small>
@@ -109,8 +109,6 @@ TakashiSasaki/templates
     <a class="portal-doc-link" href="/lifecycle/">Lifecycle</a>
     <a class="portal-doc-link" href="/glossary/">Glossary</a>
     <a class="portal-doc-link" href="/guided/">index.md から探す</a>
-    <a class="portal-doc-link" href="/repository-trees/">Repository trees</a>
-    <a class="portal-doc-link" href="/files/">Source files</a>
   </div>
 </nav>
 

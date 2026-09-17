@@ -111,25 +111,18 @@ class PwaAssetTests(unittest.TestCase):
     def test_generated_pages_receive_static_pwa_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             site_root = Path(temporary_directory)
-            preview_root = site_root / "repository-trees/previews/skill/revision"
-            preview_root.mkdir(parents=True)
             page = site_root / "index.html"
-            preview = preview_root / "preview.html"
             source = "<html><head><title>Page</title></head><body></body></html>"
             page.write_text(source, encoding="utf-8")
-            preview.write_text(source, encoding="utf-8")
             canonical_count, pwa_count = finalize_site_metadata.normalize_site_metadata(
                 site_root,
                 "https://templates.moukaeritai.work/",
             )
-            self.assertEqual(canonical_count, 2)
+            self.assertEqual(canonical_count, 1)
             self.assertEqual(pwa_count, 1)
             page_html = page.read_text(encoding="utf-8")
-            preview_html = preview.read_text(encoding="utf-8")
             self.assertIn('<link rel="manifest" href="/app.webmanifest">', page_html)
             self.assertIn('<meta name="theme-color" content="#3f51b5">', page_html)
-            self.assertNotIn('rel="manifest"', preview_html)
-            self.assertNotIn('name="theme-color"', preview_html)
 
     def test_conflicting_static_pwa_metadata_is_rejected(self) -> None:
         source = "<html><head><link rel=\"manifest\" href=\"/other.webmanifest\"></head><body></body></html>"
@@ -246,7 +239,6 @@ class PwaAssetTests(unittest.TestCase):
 
     def test_service_worker_classifies_instant_navigation_document_paths(self) -> None:
         worker = (ROOT / "assets/service-worker.js").read_text(encoding="utf-8")
-        self.assertIn('url.pathname.startsWith("/repository-trees/previews/")', worker)
         self.assertIn('if (request.destination !== "")', worker)
         self.assertIn('const accept = request.headers.get("Accept") || ""', worker)
         self.assertIn('accept.toLowerCase().includes("text/html")', worker)

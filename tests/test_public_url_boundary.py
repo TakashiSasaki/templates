@@ -4,7 +4,6 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
-from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -46,27 +45,6 @@ class PublicURLBoundaryTests(unittest.TestCase):
         self.write("index.html", '<a href="/templates/guide/">Guide</a>')
         self.assertEqual(["index.html"], self.failures())
 
-    def test_source_view_allows_retired_text_when_not_an_attribute(self) -> None:
-        self.write(
-            "files/site/content/index.html",
-            "<pre>https://takashisasaki.github.io/templates/legacy/</pre>",
-        )
-        self.assertEqual([], self.failures())
-
-    def test_source_view_rejects_retired_attribute(self) -> None:
-        self.write(
-            "files/site/content/index.html",
-            '<a href="https://templates.moukaeritai.work/templates/legacy/">Legacy</a>',
-        )
-        self.assertEqual(["files/site/content/index.html"], self.failures())
-
-    def test_source_view_rejects_entity_encoded_retired_attribute(self) -> None:
-        self.write(
-            "files/site/content/index.html",
-            '<a href="&#47;templates&#47;legacy/">Legacy</a>',
-        )
-        self.assertEqual(["files/site/content/index.html"], self.failures())
-
     def test_guided_view_uses_structural_attribute_boundary(self) -> None:
         self.write(
             "ja/guided/index.html",
@@ -80,21 +58,6 @@ class PublicURLBoundaryTests(unittest.TestCase):
             "<loc>https://templates.moukaeritai.work/templates/legacy/</loc>",
         )
         self.assertEqual(["sitemap.xml"], self.failures())
-
-    def test_clean_source_view_skips_structural_parser(self) -> None:
-        text = (
-            "<html><body><pre>"
-            "https://github.com/TakashiSasaki/templates/blob/deadbeef/README.md"
-            "</pre></body></html>"
-        )
-        with mock.patch.object(
-            check_public_url_boundary.URLAttributeParser,
-            "feed",
-            side_effect=AssertionError("parser should not run for a clean source view"),
-        ):
-            self.assertFalse(
-                check_public_url_boundary.structured_retired_target_present(text)
-            )
 
     def test_candidate_in_script_falls_back_without_false_failure(self) -> None:
         text = (

@@ -13,7 +13,6 @@ PUBLIC_URL_BOUNDARY_CHECKER = ROOT / "scripts/check_public_url_boundary.py"
 sys.path.insert(0, str(ROOT / "scripts"))
 
 import finalize_site_metadata  # noqa: E402
-from site_renderer import repository_trees as generate_repository_trees  # noqa: E402
 import prepare_site_metadata  # noqa: E402
 
 
@@ -144,28 +143,6 @@ class PublicUrlContractTests(unittest.TestCase):
         self.assertEqual("/", parsed.path)
         self.assertFalse(parsed.query)
         self.assertFalse(parsed.fragment)
-
-    def test_production_configuration_generates_root_based_public_paths(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary_directory:
-            config_file = Path(temporary_directory) / "zensical.toml"
-            config_file.write_text(
-                "[project]\n" f'site_url = "{CANONICAL_URL}"\n',
-                encoding="utf-8",
-            )
-            base_path = generate_repository_trees.configured_base_path(config_file)
-
-        self.assertEqual("/", base_path)
-        self.assertEqual(
-            "/skill/",
-            generate_repository_trees.published_url(base_path, "skill/index.md"),
-        )
-        self.assertEqual(
-            "/repository-trees/skill/",
-            generate_repository_trees.published_url(
-                base_path,
-                "repository-trees/skill.md",
-            ),
-        )
 
 
 class DeploymentWorkflowWiringTests(unittest.TestCase):
