@@ -57,7 +57,7 @@ class BundleArtifactTests(unittest.TestCase):
     def test_attempt_window_and_all_identity_bindings(self):
         name='publication-bundle-'+self.manifest['identity']+'-2-site'
         metadata={'id':1,'expired':False,'digest':'sha256:'+'d'*64,'name':name,'workflow_run':{'id':2,'head_sha':'a'*40},'created_at':'2026-09-16T12:00:03Z'}
-        run={'id':2,'run_attempt':2,'head_sha':'a'*40,'head_repository':{'full_name':'TakashiSasaki/templates'}}
+        run={'id':2,'run_attempt':2,'head_sha':'a'*40,'head_repository':{'full_name':'TakashiSasaki/templates'},'status':'completed','conclusion':'success'}
         job={'name':'build / integration / Qualify Integration candidate (site)','run_attempt':2,'status':'completed','conclusion':'success','started_at':'2026-09-16T12:00:00Z','completed_at':'2026-09-16T12:00:10Z'}
         expected=dict(artifact_id=1,archive_digest=metadata['digest'],run_id=2,attempt=2,producer='a'*40,workflow_head='a'*40,repository='TakashiSasaki/templates',identity=self.manifest['identity'],artifact_name=name)
         binding(metadata,run,[job,{**job,'name':'freshness / Qualify Integration candidate (freshness)'}],**expected)

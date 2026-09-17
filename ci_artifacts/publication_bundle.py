@@ -11,11 +11,20 @@ from site_renderer.bundle import validate
 
 
 def binding(metadata, run, jobs, *, artifact_id, archive_digest, run_id, attempt,
-            producer, workflow_head, repository, identity, artifact_name):
+            producer, workflow_head, repository, identity, artifact_name,
+            workflow_name=None, workflow_event=None, workflow_path=None):
     if (run.get('id') != run_id or run.get('run_attempt') != attempt
             or run.get('head_sha') != workflow_head
             or run.get('head_repository',{}).get('full_name') != repository):
         raise ArtifactError('Bundle workflow run/head/attempt binding mismatch')
+    if workflow_name is not None and run.get('name') != workflow_name:
+        raise ArtifactError('Bundle workflow identity mismatch')
+    if workflow_event is not None and run.get('event') != workflow_event:
+        raise ArtifactError('Bundle workflow event mismatch')
+    if workflow_path is not None and run.get('path') != workflow_path:
+        raise ArtifactError('Bundle workflow path mismatch')
+    if run.get('status') != 'completed' or run.get('conclusion') != 'success':
+        raise ArtifactError('Bundle workflow run was not successful')
     if (metadata.get('id') != artifact_id or metadata.get('expired') is not False
             or metadata.get('digest') != archive_digest
             or metadata.get('workflow_run',{}).get('id') != run_id
@@ -66,4 +75,3 @@ def extract(archive,target,*,archive_digest,identity,producer,providers,validato
 
 def api(path):
     return json.loads(subprocess.check_output(['gh','api',path],text=True))
-

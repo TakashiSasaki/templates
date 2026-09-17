@@ -17,13 +17,13 @@ permissions:
 jobs:
   integration_controller:
     if: github.repository == 'TakashiSasaki/templates'
-    uses: TakashiSasaki/templates/.github/workflows/integration-reconcile.yml@b9072b935ce7889aa4211270017ffcd3eaefbcb1
+    uses: TakashiSasaki/templates/.github/workflows/integration-reconcile.yml@4ef00ac091d210cb0474da00cf0802836c6c14e3
     with:
       producer_ref: ${{ github.event.client_payload.producer_ref }}
       composition_ref: ${{ github.event.client_payload.composition_ref || '' }}
       policy_ref: ${{ github.event.client_payload.policy_ref || '' }}
       modeling_ref: ${{ github.event.client_payload.modeling_ref || '' }}
-      controller_ref: b9072b935ce7889aa4211270017ffcd3eaefbcb1
+      controller_ref: 4ef00ac091d210cb0474da00cf0802836c6c14e3
     secrets: inherit
     permissions:
       contents: write

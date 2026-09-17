@@ -32,6 +32,11 @@ on:
         required: false
         type: string
         default: ''
+      trusted_release_required:
+        description: Require an exact promoted Integration Bundle for this build
+        required: false
+        type: boolean
+        default: false
     outputs:
       artifact_id:
         value: ${{ jobs.build.outputs.artifact_id }}
@@ -73,6 +78,7 @@ jobs:
       reuse_pr_build: ${{ inputs.reuse_pr_build || false }}
       site_ref: ${{ inputs.deployment_revision || inputs.site_ref || github.event.pull_request.head.sha || github.sha }}
       deployment_timestamp: ${{ inputs.deployment_timestamp }}
+      trusted_release_required: ${{ inputs.trusted_release_required || false }}
   classify_browser:
     name: Classify browser acceptance scope
     uses: ./.github/workflows/classify.yml

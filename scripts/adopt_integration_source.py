@@ -69,6 +69,7 @@ def apply(current_path: Path, candidate_path: Path, *, expected_current_digest: 
     if result["classification"] == "NO_CHANGE":
         return result
     candidate_bytes = candidate_path.read_bytes()
+    mode = current_path.stat().st_mode & 0o777
     if _digest(current_path.read_bytes()) != expected_current_digest:
         raise BundleError("current lock changed before adoption write")
     with tempfile.NamedTemporaryFile("wb", prefix=".integration-source-", dir=current_path.parent, delete=False) as stream:
@@ -76,6 +77,7 @@ def apply(current_path: Path, candidate_path: Path, *, expected_current_digest: 
         stream.write(candidate_bytes)
         stream.flush()
         os.fsync(stream.fileno())
+    os.chmod(temporary, mode)
     try:
         os.replace(temporary, current_path)
     except Exception:

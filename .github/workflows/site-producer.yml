@@ -24,6 +24,10 @@ on:
       artifact_name:
         type: string
         default: github-pages
+      trusted_release_required:
+        description: Require the exact Integration promoted Bundle and trusted receipt
+        type: boolean
+        default: false
     outputs:
       artifact_id:
         value: ${{ jobs.build.outputs.artifact_id }}
@@ -56,11 +60,21 @@ jobs:
         id: select
         env:
           GH_TOKEN: ${{ github.token }}
-        run: python3 scripts/acquire_integration_bundle.py locate --receipt receipt.json --github-output "$GITHUB_OUTPUT"
+          REQUIRE_TRUSTED_RELEASE: ${{ inputs.trusted_release_required }}
+          EXPECTED_POLICY_REVISION: ${{ vars.PUBLICATION_POLICY_REVISION || '' }}
+          EXPECTED_CONTROLLER_REVISION: ${{ vars.PUBLICATION_CONTROLLER_REVISION || '' }}
+        run: |
+          args=(locate --receipt receipt.json --github-output "$GITHUB_OUTPUT")
+          if [ "$REQUIRE_TRUSTED_RELEASE" = true ]; then
+            args+=(--require-trusted-release)
+            if [ -n "$EXPECTED_POLICY_REVISION" ]; then args+=(--expected-policy-revision "$EXPECTED_POLICY_REVISION"); fi
+            if [ -n "$EXPECTED_CONTROLLER_REVISION" ]; then args+=(--expected-controller-revision "$EXPECTED_CONTROLLER_REVISION"); fi
+          fi
+          python3 scripts/acquire_integration_bundle.py "${args[@]}"
   regenerate:
     needs: selection
-    if: ${{ needs.selection.outputs.available == 'false' }}
-    uses: TakashiSasaki/templates/.github/workflows/integration-qualification.yml@b9072b935ce7889aa4211270017ffcd3eaefbcb1
+    if: ${{ needs.selection.outputs.available == 'false' && inputs.trusted_release_required != true }}
+    uses: TakashiSasaki/templates/.github/workflows/integration-qualification.yml@4ef00ac091d210cb0474da00cf0802836c6c14e3
     with:
       producer_ref: ${{ needs.selection.outputs.integration_revision }}
       artifact_namespace: site-adoption
@@ -86,6 +100,17 @@ jobs:
           ref: ${{ inputs.site_ref }}
           path: site-source
           persist-credentials: false
+      - name: Check out the trusted Site receipt verifier
+        if: ${{ inputs.trusted_release_required == true }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: trusted-controller
+          sparse-checkout: |
+            scripts/acquire_trusted_integration_receipt.py
+            scripts/verify_trusted_integration_receipt.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
       - name: Resolve checked-out Site revision
         id: site_revision
         run: python3 site-source/scripts/resolve_site_checkout.py --root site-source --output "$GITHUB_OUTPUT"
@@ -109,6 +134,26 @@ jobs:
           python3 site-source/scripts/acquire_integration_bundle.py consume --lock site-source/integration-source.json --receipt receipt.json --output publication-bundle
           python3 -c 'import json; print("receipt=" + json.dumps(json.load(open("receipt.json")),separators=(",",":")))' >> "$GITHUB_OUTPUT"
         id: bundle
+      - name: Re-verify the exact promoted receipt from trusted Site code
+        if: ${{ inputs.trusted_release_required == true }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_POLICY_REVISION: ${{ vars.PUBLICATION_POLICY_REVISION || '' }}
+          EXPECTED_CONTROLLER_REVISION: ${{ vars.PUBLICATION_CONTROLLER_REVISION || '' }}
+        run: |
+          EXPECTED_INTEGRATION_REVISION=$(python3 -c 'import json; print(json.load(open("site-source/integration-source.json"))["revision"])')
+          EXPECTED_BUNDLE_IDENTITY=$(python3 -c 'import json; print(json.load(open("site-source/integration-source.json"))["bundle_identity"])')
+          EXPECTED_BUNDLE_CONTENT_DIGEST=$(python3 -c 'import json; print(json.load(open("site-source/integration-source.json"))["content_digest"])')
+          args=(
+            --receipt receipt.json
+            --repository "$GITHUB_REPOSITORY"
+            --expected-integration-revision "$EXPECTED_INTEGRATION_REVISION"
+            --expected-bundle-identity "$EXPECTED_BUNDLE_IDENTITY"
+            --expected-bundle-content-digest "$EXPECTED_BUNDLE_CONTENT_DIGEST"
+          )
+          if [ -n "$EXPECTED_POLICY_REVISION" ]; then args+=(--expected-policy-revision "$EXPECTED_POLICY_REVISION"); fi
+          if [ -n "$EXPECTED_CONTROLLER_REVISION" ]; then args+=(--expected-controller-revision "$EXPECTED_CONTROLLER_REVISION"); fi
+          python3 trusted-controller/scripts/verify_trusted_integration_receipt.py "${args[@]}"
       - name: Classify selected Bundle against Site support
         id: compatibility
         env:

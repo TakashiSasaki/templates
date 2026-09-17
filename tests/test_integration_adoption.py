@@ -45,6 +45,26 @@ class AdoptionTests(unittest.TestCase):
   with self.assertRaises(BundleError):validate_locked(self.root,self.lock)
  def test_missing_artifact_evidence_allows_explicit_regeneration(self):
   with patch('site_renderer.acquire.paginated',return_value=[]):self.assertIsNone(locate(self.lock))
+ def test_base_receipt_shape_is_verified_before_consumption(self):
+  from site_renderer.acquire import verify_receipt
+  from unittest.mock import patch
+  identity=self.lock['bundle_identity'];digest='sha256:'+'d'*64
+  value={'repository':'TakashiSasaki/templates','producer':self.lock['revision'],'identity':identity,
+         'run_id':2,'attempt':2,'workflow_head':'a'*40,'artifact_id':1,
+         'archive_digest':digest,'artifact_name':f'publication-bundle-{identity}-2-integration'}
+  metadata={'id':1,'expired':False,'digest':digest,'name':value['artifact_name'],
+            'workflow_run':{'id':2,'head_sha':'a'*40}}
+  run={'id':2,'run_attempt':2,'head_sha':'a'*40,
+       'head_repository':{'full_name':'TakashiSasaki/templates'},
+       'name':'Validate Integration authority','event':'workflow_dispatch',
+       'path':'.github/workflows/validate-integration.yml','status':'completed','conclusion':'success'}
+  with patch('site_renderer.acquire.api',side_effect=[metadata,run]), \
+       patch('site_renderer.acquire.paginated',return_value=[]), \
+       patch('site_renderer.acquire.binding') as bound:
+   self.assertEqual(verify_receipt(self.lock,value),'repos/TakashiSasaki/templates/actions')
+   bound.assert_called_once()
+ def test_trusted_deployment_lane_never_falls_back_to_regeneration(self):
+  with patch('site_renderer.acquire.paginated',return_value=[]):self.assertIsNone(locate(self.lock,require_trusted_release=True))
  def test_misbound_artifact_evidence_cannot_fall_back_to_regeneration(self):
   from ci_artifacts.transport import ArtifactError
   with patch('site_renderer.acquire.paginated',return_value=[{'id':1,'head_sha':'f'*40,'conclusion':'success'}]),self.assertRaises(ArtifactError):locate(self.lock)

@@ -193,7 +193,25 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
         self.assertIn("github.repository == 'TakashiSasaki/templates'", workflow)
         self.assertIn("github.event_name == 'workflow_dispatch'", workflow)
         self.assertIn("github.ref == 'refs/heads/site'", workflow)
+        for required in (
+            "vars.PUBLICATION_AUTOMATION_MODE == 'auto-publish'",
+            "vars.PUBLICATION_AUTOMATION_AUTHORIZED == 'true'",
+            "vars.PUBLICATION_POLICY_REVISION != ''",
+            "vars.PUBLICATION_CONTROLLER_REVISION != ''",
+            "vars.PUBLICATION_AUTOMATION_KILL_SWITCH != 'true'",
+        ):
+            with self.subTest(required=required):
+                self.assertIn(required, workflow)
         self.assertNotIn("github.event.repository.default_branch", workflow)
+
+        reconcile = (ROOT / ".github/workflows/publication-reconcile.yml").read_text(encoding="utf-8")
+        self.assertIn("id: trusted_receipt", reconcile)
+        self.assertIn("MISSING_TRUSTED_INTEGRATION_RECEIPT", reconcile)
+        self.assertIn("TRUSTED_RECEIPT_AVAILABLE", reconcile)
+        self.assertIn(
+            'if [ -d publication-bundle ] && [ "$TRUSTED_RECEIPT_AVAILABLE" = true ]; then',
+            reconcile,
+        )
 
         self.assertIn("TZ=Asia/Tokyo", workflow)
         self.assertIn("deployment_timestamp:", workflow)
@@ -208,6 +226,7 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
         self.assertIn("name: github-pages", workflow)
         self.assertIn("actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d", workflow)
         self.assertIn("actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346", workflow)
+        self.assertIn("artifact_name: github-pages", workflow)
         self.assertIn("\n  deploy:\n", workflow)
 
         metadata = workflow.index("  deployment_metadata:")

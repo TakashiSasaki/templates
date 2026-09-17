@@ -49,6 +49,8 @@ TEST_ENTRYPOINTS = ("tests/test_*.py",)
 
 BUILD_ENTRYPOINTS = (
     "scripts/acquire_integration_bundle.py",
+    "scripts/acquire_trusted_integration_receipt.py",
+    "scripts/verify_trusted_integration_receipt.py",
     "scripts/resolve_site_checkout.py",
     "scripts/site_build_artifact.py",
     "scripts/run_core_tests.py",

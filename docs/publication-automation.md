@@ -23,6 +23,11 @@ The default `site` branch also contains a thin `repository_dispatch` adapter
 for provider qualification events. It forwards exact revisions to the pinned
 Integration controller; it does not perform Integration semantics itself.
 
+Integration's candidate report is not a Site or adoption authorization. The
+upstream controller must provide a trusted receipt bound to the exact Bundle
+artifact, run attempt, and controller/Policy pins; missing or self-claimed
+qualification evidence stops the downstream flow.
+
 ## Modes
 
 `shadow` is the repository default. Candidate discovery, structured reports,
@@ -37,7 +42,10 @@ merge; the controller does not bypass either.
 `auto-publish` adds the final Pages path. The deployment job is still gated by
 the exact artifact ID/digest emitted by the producer, a successful final
 artifact gate, current Site/Integration identities, and the `github-pages`
-environment. No timestamp or provenance file may be rewritten after that gate.
+environment. Its build must locate the unexpired promoted Integration Bundle
+and re-verify the trusted promotion receipt; an absent or expired release does
+not trigger read-only regeneration. No timestamp or provenance file may be
+rewritten after that gate.
 
 ## One-time activation checklist
 

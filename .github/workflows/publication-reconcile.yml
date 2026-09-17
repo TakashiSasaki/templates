@@ -51,6 +51,41 @@ on:
         type: string
         required: false
         default: ''
+      verified_receipt_artifact_id:
+        description: Exact trusted Integration promotion receipt artifact ID
+        type: string
+        required: false
+        default: ''
+      verified_receipt_artifact_digest:
+        description: Exact trusted Integration promotion receipt artifact digest
+        type: string
+        required: false
+        default: ''
+      verified_receipt_artifact_name:
+        description: Exact trusted Integration promotion receipt artifact name
+        type: string
+        required: false
+        default: ''
+      verified_receipt_digest:
+        description: SHA-256 of the trusted receipt JSON payload
+        type: string
+        required: false
+        default: ''
+      workflow_head:
+        description: Exact Integration promotion workflow head SHA
+        type: string
+        required: false
+        default: ''
+      workflow_name:
+        description: Exact Integration promotion workflow name
+        type: string
+        required: false
+        default: ''
+      workflow_event:
+        description: Exact Integration promotion workflow event
+        type: string
+        required: false
+        default: ''
 permissions:
   contents: read
   actions: read
@@ -62,6 +97,7 @@ env:
   AUTOMATION_MODE: ${{ vars.PUBLICATION_AUTOMATION_MODE || 'shadow' }}
   KILL_SWITCH: ${{ vars.PUBLICATION_AUTOMATION_KILL_SWITCH || 'false' }}
   AUTHORIZED: ${{ vars.PUBLICATION_AUTOMATION_AUTHORIZED || 'false' }}
+  GH_TOKEN: ${{ github.token }}
 jobs:
   classify:
     runs-on: ubuntu-24.04
@@ -69,12 +105,20 @@ jobs:
       classification: ${{ steps.report.outputs.classification }}
       idempotency_key: ${{ steps.report.outputs.idempotency_key }}
       site_gate: ${{ steps.report.outputs.site_gate }}
+      site_base_revision: ${{ steps.site_base.outputs.revision }}
+      site_lock_digest: ${{ steps.site_base.outputs.lock_digest }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: site
           fetch-depth: 0
           persist-credentials: false
+      - name: Snapshot the current Site consumer base
+        id: site_base
+        run: |
+          revision=$(git rev-parse HEAD)
+          echo "revision=$revision" >> "$GITHUB_OUTPUT"
+          echo "lock_digest=$(sha256sum integration-source.json | awk '{print $1}')" >> "$GITHUB_OUTPUT"
       - name: Bind the exact dispatch identities
         env:
           INTEGRATION: ${{ inputs.integration_revision || github.event.client_payload.integration_revision }}
@@ -88,6 +132,63 @@ jobs:
             --bundle-identity "$IDENTITY" \
             --content-digest "$CONTENT" \
             --output candidate-integration-source.json
+      - name: Acquire the trusted Integration promotion receipt
+        id: trusted_receipt
+        env:
+          RECEIPT_ID: ${{ inputs.verified_receipt_artifact_id || github.event.client_payload.verified_receipt_artifact_id || '' }}
+          RECEIPT_DIGEST: ${{ inputs.verified_receipt_artifact_digest || github.event.client_payload.verified_receipt_artifact_digest || '' }}
+          RECEIPT_NAME: ${{ inputs.verified_receipt_artifact_name || github.event.client_payload.verified_receipt_artifact_name || '' }}
+          RECEIPT_CONTENT_DIGEST: ${{ inputs.verified_receipt_digest || github.event.client_payload.verified_receipt_digest || '' }}
+          BUNDLE_ID: ${{ inputs.artifact_id || github.event.client_payload.artifact_id || '' }}
+          BUNDLE_DIGEST: ${{ inputs.artifact_digest || github.event.client_payload.artifact_digest || '' }}
+          BUNDLE_NAME: ${{ inputs.artifact_name || github.event.client_payload.artifact_name || '' }}
+          RUN_ID: ${{ inputs.run_id || github.event.client_payload.run_id || '' }}
+          ATTEMPT: ${{ inputs.attempt || github.event.client_payload.attempt || '' }}
+          WORKFLOW_HEAD: ${{ inputs.workflow_head || github.event.client_payload.workflow_head || '' }}
+          WORKFLOW_NAME: ${{ inputs.workflow_name || github.event.client_payload.workflow_name || '' }}
+          WORKFLOW_EVENT: ${{ inputs.workflow_event || github.event.client_payload.workflow_event || '' }}
+          INTEGRATION: ${{ inputs.integration_revision || github.event.client_payload.integration_revision || '' }}
+          IDENTITY: ${{ inputs.bundle_identity || github.event.client_payload.bundle_identity || '' }}
+          CONTENT: ${{ inputs.content_digest || github.event.client_payload.content_digest || '' }}
+          EXPECTED_POLICY: ${{ vars.PUBLICATION_POLICY_REVISION || '' }}
+          EXPECTED_CONTROLLER: ${{ vars.PUBLICATION_CONTROLLER_REVISION || '' }}
+        run: |
+          if [ -z "$RECEIPT_ID$RECEIPT_DIGEST$RECEIPT_NAME" ]; then
+            echo 'available=false' >> "$GITHUB_OUTPUT"
+            echo 'reason=MISSING_TRUSTED_INTEGRATION_RECEIPT' >> "$GITHUB_OUTPUT"
+            echo 'No trusted Integration promotion receipt was supplied; Site qualification and adoption remain stopped.' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          test -n "$RECEIPT_ID" && test -n "$RECEIPT_DIGEST" && test -n "$RECEIPT_NAME"
+          test -n "$BUNDLE_ID" && test -n "$BUNDLE_DIGEST" && test -n "$BUNDLE_NAME"
+          test -n "$RUN_ID" && test -n "$ATTEMPT" && test -n "$WORKFLOW_HEAD" && test -n "$WORKFLOW_NAME" && test -n "$WORKFLOW_EVENT"
+          receipt_args=(
+            --repository "$GITHUB_REPOSITORY"
+            --artifact-id "$RECEIPT_ID"
+            --artifact-digest "$RECEIPT_DIGEST"
+            --artifact-name "$RECEIPT_NAME"
+            --bundle-artifact-id "$BUNDLE_ID"
+            --bundle-artifact-digest "$BUNDLE_DIGEST"
+            --bundle-artifact-name "$BUNDLE_NAME"
+            --run-id "$RUN_ID"
+            --attempt "$ATTEMPT"
+            --workflow-head "$WORKFLOW_HEAD"
+            --workflow-name "$WORKFLOW_NAME"
+            --workflow-event "$WORKFLOW_EVENT"
+            --workflow-path ".github/workflows/integration-promotion-notify.yml"
+            --bundle-identity "$IDENTITY"
+            --bundle-content-digest "$CONTENT"
+            --integration-revision "$INTEGRATION"
+            --output trusted-integration-receipt.json
+          )
+          if [ -n "$EXPECTED_POLICY" ]; then receipt_args+=(--expected-policy-revision "$EXPECTED_POLICY"); fi
+          if [ -n "$EXPECTED_CONTROLLER" ]; then receipt_args+=(--expected-controller-revision "$EXPECTED_CONTROLLER"); fi
+          python3 scripts/acquire_trusted_integration_receipt.py "${receipt_args[@]}"
+          if [ -n "$RECEIPT_CONTENT_DIGEST" ]; then
+            test "$RECEIPT_CONTENT_DIGEST" = "$(sha256sum trusted-integration-receipt.json | awk '{print $1}')"
+          fi
+          echo 'available=true' >> "$GITHUB_OUTPUT"
+          echo 'reason=TRUSTED_INTEGRATION_RECEIPT_AVAILABLE' >> "$GITHUB_OUTPUT"
       - name: Acquire the exact qualified Integration Bundle
         env:
           ARTIFACT_ID: ${{ inputs.artifact_id || github.event.client_payload.artifact_id || '' }}
@@ -128,17 +229,25 @@ jobs:
           INTEGRATION: ${{ inputs.integration_revision || github.event.client_payload.integration_revision }}
           TRUSTED_POLICY: ${{ vars.PUBLICATION_POLICY_REVISION || '' }}
           TRUSTED_CONTROLLER: ${{ vars.PUBLICATION_CONTROLLER_REVISION || '' }}
+          TRUSTED_RECEIPT_AVAILABLE: ${{ steps.trusted_receipt.outputs.available || 'false' }}
         run: |
-          if [ -d publication-bundle ]; then
+          if [ -d publication-bundle ] && [ "$TRUSTED_RECEIPT_AVAILABLE" = true ]; then
+            evidence_args=(
+              --evidence-ref "workflow://${{ github.workflow }}#${{ github.run_id }}/${{ github.run_attempt }}"
+              --evidence-ref "trusted-receipt://$(sha256sum trusted-integration-receipt.json | awk '{print $1}')"
+            )
+            qualification_status=0
             python3 scripts/qualify_site_candidate.py \
               --site-root . \
               --bundle publication-bundle \
               --candidate-lock candidate-integration-source.json \
               --trusted-policy-revision "$TRUSTED_POLICY" \
               --trusted-controller-revision "$TRUSTED_CONTROLLER" \
-              --evidence-ref "workflow://${{ github.workflow }}#${{ github.run_id }}/${{ github.run_attempt }}" \
-              --output site-reconcile-report.json
-          else
+              "${evidence_args[@]}" \
+              --output site-reconcile-report.json || qualification_status=$?
+            test -s site-reconcile-report.json
+            echo "site_qualification_exit=$qualification_status" >> "$GITHUB_STEP_SUMMARY"
+          elif [ ! -d publication-bundle ]; then
             python3 - <<'PYCODE' > site-reconcile-report.json
             import hashlib, json
             payload = {
@@ -149,6 +258,21 @@ jobs:
                 'requirements': {'required': [], 'supported': [], 'missing': [], 'unsupported': [], 'fallbacks': {}},
                 'checks': {'required': ['site-qualification'], 'results': {}, 'not_run': ['site-qualification']},
                 'evidence_refs': [], 'allowed_mutations': [], 'next_action': 'obtain the exact unexpired Bundle artifact',
+            }
+            payload['idempotency_key'] = hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+            print(json.dumps(payload, indent=2, sort_keys=True))
+            PYCODE
+          else
+            python3 - <<'PYCODE' > site-reconcile-report.json
+            import hashlib, json
+            payload = {
+                'schema_version': 1, 'boundary': 'integration-to-site', 'stage': 'qualification',
+                'classification': 'INFRASTRUCTURE_FAILURE', 'reason_codes': ['MISSING_TRUSTED_INTEGRATION_RECEIPT'],
+                'affected_authorities': ['integration'], 'inputs': json.load(open('candidate-integration-source.json')),
+                'trusted': {'policy_revision': None, 'controller_revision': None},
+                'requirements': {'required': [], 'supported': [], 'missing': [], 'unsupported': [], 'fallbacks': {}},
+                'checks': {'required': ['site-qualification'], 'results': {}, 'not_run': ['site-qualification']},
+                'evidence_refs': [], 'allowed_mutations': [], 'next_action': 'obtain the exact unexpired trusted Integration promotion receipt',
             }
             payload['idempotency_key'] = hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
             print(json.dumps(payload, indent=2, sort_keys=True))
@@ -165,6 +289,7 @@ jobs:
               report.get('boundary') == 'integration-to-site'
               and report.get('classification') == 'NOT_ELIGIBLE'
               and isinstance(report.get('evidence_refs'), list) and bool(report['evidence_refs'])
+              and any(value.startswith('trusted-receipt://') for value in report['evidence_refs'] if isinstance(value, str))
               and not checks.get('not_run')
               and isinstance(checks.get('results'), dict)
               and bool(checks['results'])
@@ -187,6 +312,8 @@ jobs:
       needs.classify.outputs.site_gate == 'passed' &&
       (vars.PUBLICATION_AUTOMATION_MODE == 'adoption-only' || vars.PUBLICATION_AUTOMATION_MODE == 'auto-publish') &&
       vars.PUBLICATION_AUTOMATION_AUTHORIZED == 'true' &&
+      vars.PUBLICATION_POLICY_REVISION != '' &&
+      vars.PUBLICATION_CONTROLLER_REVISION != '' &&
       vars.PUBLICATION_AUTOMATION_KILL_SWITCH != 'true'
     runs-on: ubuntu-24.04
     permissions:
@@ -202,16 +329,38 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: site
+          ref: ${{ needs.classify.outputs.site_base_revision }}
           fetch-depth: 0
           persist-credentials: false
+      - name: Reject a stale Site consumer base
+        env:
+          EXPECTED_SITE_BASE: ${{ needs.classify.outputs.site_base_revision }}
+        run: |
+          test -n "$EXPECTED_SITE_BASE"
+          test "$EXPECTED_SITE_BASE" = "$(git rev-parse HEAD)"
+          test "$EXPECTED_SITE_BASE" = "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/site" --jq '.object.sha')"
       - name: Require the one-time activated controller credential
         run: test -n "$GH_TOKEN"
       - name: Apply only the four Integration selection fields
         run: |
-          python3 scripts/render_integration_candidate_lock.py --revision "$INTEGRATION" --bundle-schema "$SCHEMA" --bundle-identity "$IDENTITY" --content-digest "$CONTENT" --output candidate-integration-source.json
+          candidate_lock="$RUNNER_TEMP/candidate-integration-source.json"
+          adoption_report="$RUNNER_TEMP/adoption-report.json"
+          python3 scripts/render_integration_candidate_lock.py --revision "$INTEGRATION" --bundle-schema "$SCHEMA" --bundle-identity "$IDENTITY" --content-digest "$CONTENT" --output "$candidate_lock"
           expected=$(sha256sum integration-source.json | awk '{print $1}')
-          python3 scripts/adopt_integration_source.py --current integration-source.json --candidate candidate-integration-source.json --expected-current-digest "$expected" --apply --output adoption-report.json
+          python3 scripts/adopt_integration_source.py --current integration-source.json --candidate "$candidate_lock" --expected-current-digest "$expected" --apply --output "$adoption_report"
+          test -z "$(git status --porcelain=v1 --untracked-files=all | sed '/^ M integration-source\.json$/d')"
+          test "$(git diff --name-only)" = "integration-source.json"
+          test -z "$(git diff --summary)"
+          python3 - "$adoption_report" integration-source.json <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+          report = json.loads(Path(sys.argv[1]).read_text(encoding='utf-8'))
+          if report.get('classification') != 'AUTO_PROCESSABLE' or report.get('applied') is not True:
+              raise SystemExit('Site lock updater did not produce an applied expected patch')
+          if report.get('expected_bytes') != Path(sys.argv[2]).read_text(encoding='utf-8'):
+              raise SystemExit('applied Site lock bytes differ from the trusted expected patch')
+          PY
       - name: Create or reconcile the idempotent Site adoption PR
         env:
           BRANCH: automation/site-publication-$IDEMPOTENCY_KEY
@@ -219,7 +368,7 @@ jobs:
           gh auth setup-git
           git config user.name publication-controller
           git config user.email publication-controller@users.noreply.github.com
-          existing=$(gh pr list --base site --head "$BRANCH" --state open --json number --jq '.[0].number')
+          existing=$(gh pr list --repo "$GITHUB_REPOSITORY" --base site --head "$BRANCH" --state open --json number --jq '.[0].number')
           if [ -n "$existing" ]; then
             echo "Existing idempotent Site adoption PR #$existing remains authoritative."
             exit 0
@@ -233,9 +382,9 @@ jobs:
           git diff --cached --quiet && exit 0
           git commit -m "chore(site): adopt qualified Integration Bundle"
           git push --force-with-lease origin "HEAD:$BRANCH"
-          existing=$(gh pr list --base site --head "$BRANCH" --json number --jq '.[0].number')
+          existing=$(gh pr list --repo "$GITHUB_REPOSITORY" --base site --head "$BRANCH" --json number --jq '.[0].number')
           if [ -z "$existing" ]; then
-            gh pr create --base site --head "$BRANCH" --title "chore(site): adopt qualified Integration Bundle" --body "Guarded Site lock adoption. Idempotency key: $IDEMPOTENCY_KEY. Auto-merge remains subject to branch protection and required CI."
+            gh pr create --repo "$GITHUB_REPOSITORY" --base site --head "$BRANCH" --title "chore(site): adopt qualified Integration Bundle" --body "Guarded Site lock adoption. Consumer base: $EXPECTED_SITE_BASE. Idempotency key: $IDEMPOTENCY_KEY. Auto-merge remains subject to branch protection and required CI."
           fi
-          pr=$(gh pr list --base site --head "$BRANCH" --json number --jq '.[0].number')
-          gh pr merge "$pr" --auto --squash
+          pr=$(gh pr list --repo "$GITHUB_REPOSITORY" --base site --head "$BRANCH" --json number --jq '.[0].number')
+          gh pr merge "$pr" --repo "$GITHUB_REPOSITORY" --auto --squash
