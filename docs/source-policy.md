@@ -12,6 +12,8 @@ Do not copy a complete standard, ontology, schema, license text, or database sol
 
 A future admitted snapshot must record exact source, edition, retrieval provenance, byte digest, applicable rights evidence, base URI, and reference closure. The current draft deliberately rejects external local-path artifacts. Such an extension needs its own design, validation, and review; an agent must not evade it by changing ownership to local.
 
+The bounded publication export is narrower still: `subject_ownership` records the normative owner of the described external subject, and `redistribution` records what the Bundle may carry. Modeling's record export is `external-as-recorded` plus `local-record-metadata`; it carries only the locally authored administrative JSON. A reference URL or download URL is never fetched or vendored by publication materialization.
+
 ## Adoption is separate
 
 A record's `not-adopted` state describes this inventory's registration act. It does not claim that no other authority or outside project uses the standard. Downstream adoption is a consumer fact, not an endorsement inferred from registration.

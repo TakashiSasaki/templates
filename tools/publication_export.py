@@ -4,6 +4,8 @@ from __future__ import annotations
 import json
 from pathlib import Path, PurePosixPath
 
+import catalog as record_catalog
+
 
 class ExportError(ValueError):
     pass
@@ -29,11 +31,15 @@ def _safe(value: object, field: str) -> PurePosixPath:
 
 
 def validate(root: Path) -> None:
-    catalog = _json(root, "docs/publication-catalog.json")
-    if catalog.get("schema_version") != 4 or set(catalog) != {"schema_version", "documents", "assets"}:
+    # The exported records are locally authored administrative metadata.  Run
+    # the canonical offline record validator here so a publication export can
+    # never turn an arbitrary external payload into a record asset.
+    record_catalog.load(root)
+    publication_catalog = _json(root, "docs/publication-catalog.json")
+    if publication_catalog.get("schema_version") != 4 or set(publication_catalog) != {"schema_version", "documents", "assets"}:
         raise ExportError("publication catalog must be schema version 4")
-    documents = catalog["documents"]
-    assets = catalog["assets"]
+    documents = publication_catalog["documents"]
+    assets = publication_catalog["assets"]
     if not isinstance(documents, list) or not documents or not isinstance(assets, list):
         raise ExportError("publication catalog documents/assets are invalid")
     homes = [item for item in documents if isinstance(item, dict) and item.get("home") is True]
@@ -47,6 +53,7 @@ def validate(root: Path) -> None:
         if not path.is_file() or path.is_symlink():
             raise ExportError(f"document source is not regular: {source}")
     destinations: list[PurePosixPath] = []
+    record_assets = []
     for index, item in enumerate(assets):
         if not isinstance(item, dict) or set(item) != {"source", "destination", "optional", "source_kind"}:
             raise ExportError(f"assets[{index}] has an invalid shape")
@@ -54,6 +61,10 @@ def validate(root: Path) -> None:
         destination = _safe(item["destination"], f"assets[{index}].destination")
         if item["source_kind"] != "tracked":
             raise ExportError("Modeling export only permits tracked assets")
+        if item["source"] == "records":
+            record_assets.append(item)
+            if item["destination"] != "records":
+                raise ExportError("record metadata must retain the records destination")
         path = root / source
         if not path.exists() or path.is_symlink():
             raise ExportError(f"asset source is not a regular tree: {source}")
@@ -65,6 +76,16 @@ def validate(root: Path) -> None:
     declaration = _json(root, "docs/publication-capabilities.json")
     if declaration.get("schema_version") != 1 or declaration.get("provider") != "modeling":
         raise ExportError("publication capability declaration is not Modeling-owned")
+    record_exports = [item for item in declaration.get("exports", [])
+                      if isinstance(item, dict) and item.get("kind") == "record"]
+    if len(record_assets) != 1 or len(record_exports) != 1:
+        raise ExportError("the bounded export must declare exactly one local record metadata tree")
+    record_export = record_exports[0]
+    if (set(record_export) != {"kind", "namespace", "media_type", "identity_basis",
+                               "feature", "subject_ownership", "redistribution"}
+            or record_export["subject_ownership"] != "external-as-recorded"
+            or record_export["redistribution"] != "local-record-metadata"):
+        raise ExportError("record export must separate external subject ownership from local metadata redistribution")
 
 
 if __name__ == "__main__":
