@@ -37,7 +37,7 @@ class ReleaseBoundaryTests(unittest.TestCase):
         for value in (caller,workflow):self.assertTrue(all(p=='read' for p in value['permissions'].values()))
         steps=workflow['jobs']['qualify']['steps']
         self.assertEqual([s['with']['path'] for s in steps if s.get('uses','').startswith('actions/checkout@')],
-                         ['integration-source','composition-source','policy-source','modeling-source'])
+                         ['integration-source','controller-source','composition-source','policy-source','modeling-source'])
         modeling_checkout = next(
             step for step in steps if step.get('with', {}).get('path') == 'modeling-source'
         )
@@ -51,6 +51,22 @@ class ReleaseBoundaryTests(unittest.TestCase):
         for obsolete in ('test_bundle_review_invariants','test_translation_manifest_closure','verify_bootstrap_equivalence.py','bootstrap_equivalence'):self.assertNotIn(obsolete,commands)
         for prohibited in ('site_renderer','render_publication_bundle','playwright','deploy-pages','upload-pages-artifact','pages: write','site-source'):
             self.assertNotIn(prohibited,(ROOT/'.github/workflows/integration-qualification.yml').read_text())
+
+    def test_reconciliation_requires_trusted_bundle_receipt_and_does_not_execute_candidate_code(self):
+        reconcile = (ROOT / '.github/workflows/integration-reconcile.yml').read_text()
+        self.assertIn('publication_bundle_artifact.py "${args[@]}"', reconcile)
+        self.assertIn('verify_qualification_report.py', reconcile)
+        self.assertIn('--qualification qualification/verified-report.json', reconcile)
+        self.assertIn('--source-qualification qualification/compatibility-report.json', reconcile)
+        controller = reconcile.split('  controller:', 1)[1].split('  promote_lock_pr:', 1)[0]
+        self.assertNotIn('integration-source/scripts/', controller)
+        self.assertNotIn('candidate-root', controller)
+        qualification = (ROOT / '.github/workflows/integration-qualification.yml').read_text()
+        self.assertIn('verify_bundle_equivalence.py', qualification)
+        self.assertIn('trusted_rebuild: true', reconcile)
+        self.assertIn('--code-revision "$CONTROLLER"', qualification)
+        self.assertNotIn('test "$PRODUCER" = "$CONTROLLER"', qualification)
+        self.assertIn('PUBLICATION_CONTROLLER_REVISION', reconcile)
 
     def test_exact_producer_binding_rejects_mutable_and_mismatched_inputs(self):
         head=subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip()

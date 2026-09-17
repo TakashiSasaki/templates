@@ -74,6 +74,27 @@ Corrupt or misbound evidence fails closed; absent evidence can require regenerat
 No workflow timestamps, run IDs or attempt counters contaminate deterministic identity.
 The artifact is a candidate artifact, not an automatically promoted release.
 
+## Trusted reconciliation receipt
+
+The report produced by the candidate qualification checkout is untrusted input;
+its `passed` strings and `AUTO_PROCESSABLE` claim are never an adoption gate.
+The reconciliation workflow first consumes the exact Bundle artifact through the
+run/head/attempt/artifact binding above. Its read-only controller checkout then
+validates the Bundle, reads provider capability declarations as data, and checks
+that a trusted-controller regeneration is byte-equivalent to the candidate
+generation. The producer identity may differ from the controller code revision:
+the latter is an independently pinned execution root, while the former remains
+the exact Integration revision represented by the Bundle. Only the resulting
+verified receipt can reach the authorization classifier. The privileged lock-PR
+job executes only the trusted deterministic lock updater and never checks out or
+runs provider/Integration candidate code.
+
+Activation must pin both `PUBLICATION_CONTROLLER_REVISION` and
+`PUBLICATION_POLICY_REVISION` to reviewed exact commits. An empty pin is
+report-only, even when the artifact and all qualification checks are valid.
+Changing a provider revision does not change the execution Policy pin, and
+publishing Policy documentation does not update that pin.
+
 The current output contract is Bundle v3 for the committed Composition + Policy tuple and
 Bundle v4 for the explicit Modeling + Composition + Policy tuple. Structurally valid stale
 reader derivatives remain available with exact provider-owned reviewed/current canonical

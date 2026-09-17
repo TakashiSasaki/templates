@@ -30,6 +30,8 @@ def _digest(data: bytes) -> str:
 
 
 def _canonical(path: Path) -> tuple[dict, bytes]:
+    if path.is_symlink():
+        raise SourceLockError(f"{path} must not be a symbolic link")
     data = read_json_object(path)
     resolved = resolve_sources(path, {})
     canonical = render_source_lock(resolved)
@@ -79,11 +81,13 @@ def apply(current_path: Path, candidate_path: Path, *, expected_current_digest: 
     if _digest(current_path.read_bytes()) != expected_current_digest:
         raise SourceLockError("publication source lock changed before adoption write")
     candidate_bytes = candidate_path.read_bytes()
+    mode = current_path.stat().st_mode & 0o777
     with tempfile.NamedTemporaryFile("wb", prefix=".publication-sources-", dir=current_path.parent, delete=False) as stream:
         temporary = Path(stream.name)
         stream.write(candidate_bytes)
         stream.flush()
         os.fsync(stream.fileno())
+    os.chmod(temporary, mode)
     try:
         os.replace(temporary, current_path)
     except Exception:

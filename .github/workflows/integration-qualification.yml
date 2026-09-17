@@ -22,6 +22,14 @@ on:
         description: Ordered candidate mapping IDs, without changing reviewed locks
         type: string
         default: ''
+      trusted_rebuild:
+        description: Rebuild and bind the final Bundle with trusted controller code
+        type: boolean
+        default: false
+      trusted_policy_revision:
+        description: Active execution Policy pin; empty is report-only evidence
+        type: string
+        default: ''
   workflow_call:
     inputs:
       producer_ref:
@@ -49,6 +57,14 @@ on:
         description: Exact trusted Integration controller SHA for the evidence report
         type: string
         default: ''
+      trusted_rebuild:
+        description: Rebuild and bind the final Bundle with trusted controller code
+        type: boolean
+        default: false
+      trusted_policy_revision:
+        description: Active execution Policy pin; empty is report-only evidence
+        type: string
+        default: ''
     outputs:
       producer_revision:
         value: ${{ jobs.qualify.outputs.producer_revision }}
@@ -70,8 +86,26 @@ on:
         value: ${{ jobs.qualify.outputs.artifact_digest }}
       artifact_name:
         value: ${{ jobs.qualify.outputs.artifact_name }}
+      qualification_artifact_id:
+        value: ${{ jobs.qualify.outputs.qualification_artifact_id }}
+      qualification_artifact_digest:
+        value: ${{ jobs.qualify.outputs.qualification_artifact_digest }}
+      qualification_artifact_name:
+        value: ${{ jobs.qualify.outputs.qualification_artifact_name }}
       compatibility_classification:
         value: ${{ jobs.qualify.outputs.compatibility_classification }}
+      workflow_run_id:
+        value: ${{ jobs.qualify.outputs.workflow_run_id }}
+      workflow_attempt:
+        value: ${{ jobs.qualify.outputs.workflow_attempt }}
+      workflow_head:
+        value: ${{ jobs.qualify.outputs.workflow_head }}
+      trusted_equivalence:
+        value: ${{ jobs.qualify.outputs.trusted_equivalence }}
+      workflow_name:
+        value: ${{ jobs.qualify.outputs.workflow_name }}
+      workflow_event:
+        value: ${{ jobs.qualify.outputs.workflow_event }}
 permissions:
   contents: read
   actions: read
@@ -84,13 +118,22 @@ jobs:
       composition_revision: ${{ steps.refs.outputs.composition }}
       policy_revision: ${{ steps.refs.outputs.policy }}
       modeling_revision: ${{ steps.refs.outputs.modeling }}
-      bundle_schema: ${{ steps.bundle.outputs.bundle_schema }}
-      bundle_identity: ${{ steps.bundle.outputs.bundle_identity }}
-      bundle_content_digest: ${{ steps.bundle.outputs.bundle_content_digest }}
+      bundle_schema: ${{ steps.selected.outputs.bundle_schema }}
+      bundle_identity: ${{ steps.selected.outputs.bundle_identity }}
+      bundle_content_digest: ${{ steps.selected.outputs.bundle_content_digest }}
       artifact_id: ${{ steps.upload.outputs.artifact-id }}
       artifact_digest: sha256:${{ steps.upload.outputs.artifact-digest }}
-      artifact_name: publication-bundle-${{ steps.bundle.outputs.bundle_identity }}-${{ github.run_attempt }}-${{ inputs.artifact_namespace || 'candidate' }}
+      artifact_name: publication-bundle-${{ steps.selected.outputs.bundle_identity }}-${{ github.run_attempt }}-${{ inputs.artifact_namespace || 'candidate' }}
+      qualification_artifact_id: ${{ steps.report_upload.outputs.artifact-id }}
+      qualification_artifact_digest: sha256:${{ steps.report_upload.outputs.artifact-digest }}
+      qualification_artifact_name: publication-compatibility-${{ steps.selected.outputs.bundle_identity }}-${{ github.run_attempt }}-${{ inputs.artifact_namespace || 'candidate' }}
       compatibility_classification: ${{ steps.report.outputs.classification }}
+      workflow_run_id: ${{ github.run_id }}
+      workflow_attempt: ${{ github.run_attempt }}
+      workflow_head: ${{ github.sha }}
+      trusted_equivalence: ${{ steps.trusted_bundle.outputs.equivalence }}
+      workflow_name: ${{ github.workflow }}
+      workflow_event: ${{ github.event_name }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -116,6 +159,26 @@ jobs:
         env:
           EXPECTED_PRODUCER: ${{ inputs.producer_ref || github.sha }}
         run: python3 integration-source/scripts/resolve_producer_checkout.py --root integration-source --expected "$EXPECTED_PRODUCER" --output "$GITHUB_OUTPUT"
+      - name: Checkout the trusted controller for independent regeneration
+        if: ${{ inputs.trusted_rebuild == true }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ inputs.trusted_controller_revision || github.workflow_sha }}
+          path: controller-source
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Require an explicit trusted controller pin
+        if: ${{ inputs.trusted_rebuild == true }}
+        env:
+          CONTROLLER: ${{ inputs.trusted_controller_revision }}
+        run: |
+          test -n "$CONTROLLER"
+          python3 - "$CONTROLLER" <<'PY'
+          import re
+          import sys
+          if re.fullmatch(r'[0-9a-f]{40}', sys.argv[1]) is None:
+              raise SystemExit('trusted_controller_revision must be a full lowercase commit SHA')
+          PY
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ steps.refs.outputs.composition }}
@@ -167,33 +230,86 @@ jobs:
           fi
           qualification_args+=(--staging-ids "${STAGING_IDS:-$STAGING_ID}" --output publication-bundle --github-output "$GITHUB_OUTPUT")
           python3 integration-source/scripts/qualify_integration.py "${qualification_args[@]}"
+      - name: Regenerate and compare with trusted controller code
+        id: trusted_bundle
+        if: ${{ inputs.trusted_rebuild == true }}
+        env:
+          PRODUCER: ${{ steps.producer.outputs.sha }}
+          CONTROLLER: ${{ inputs.trusted_controller_revision || github.workflow_sha }}
+          STAGING_IDS: ${{ inputs.publication_staging_ids }}
+          STAGING_ID: ${{ inputs.publication_staging_id }}
+        run: |
+          args=(
+            --integration-root controller-source
+            --producer-revision "$PRODUCER"
+            --code-revision "$CONTROLLER"
+            --composition-root composition-source --composition-revision "${{ steps.refs.outputs.composition }}"
+            --policy-root policy-source --policy-revision "${{ steps.refs.outputs.policy }}"
+            --staging-ids "${STAGING_IDS:-$STAGING_ID}"
+            --output trusted-publication-bundle
+          )
+          if [ -d modeling-source ]; then
+            args+=(--modeling-root modeling-source --modeling-revision "${{ steps.refs.outputs.modeling }}")
+          fi
+          python3 controller-source/scripts/produce_publication_bundle.py "${args[@]}"
+          python3 controller-source/scripts/verify_bundle_equivalence.py \
+            --candidate publication-bundle --trusted trusted-publication-bundle
+          echo 'equivalence=passed' >> "$GITHUB_OUTPUT"
+      - name: Select the immutable Bundle for transport
+        id: selected
+        env:
+          TRUSTED_REBUILD: ${{ inputs.trusted_rebuild }}
+        run: |
+          bundle_root=publication-bundle
+          if [ "$TRUSTED_REBUILD" = true ]; then bundle_root=trusted-publication-bundle; fi
+          python3 - "$bundle_root" <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          import pathlib
+          import sys
+          root = pathlib.Path(sys.argv[1])
+          manifest = json.loads((root / "bundle.json").read_text(encoding="utf-8"))
+          for key in ("schema_version", "identity", "content_digest"):
+              print(f"bundle_{'schema' if key == 'schema_version' else key}={manifest[key]}")
+          PY
       - name: Package qualified Bundle
-        run: python3 integration-source/scripts/publication_bundle_artifact.py pack --bundle publication-bundle --output bundle.tar
+        env:
+          TRUSTED_REBUILD: ${{ inputs.trusted_rebuild }}
+        run: |
+          bundle_root=publication-bundle
+          if [ "$TRUSTED_REBUILD" = true ]; then bundle_root=trusted-publication-bundle; fi
+          python3 integration-source/scripts/publication_bundle_artifact.py pack --bundle "$bundle_root" --output bundle.tar
       - name: Create structured qualification report
         id: report
         env:
-          TRUSTED_POLICY: ${{ steps.refs.outputs.policy }}
+          TRUSTED_REBUILD: ${{ inputs.trusted_rebuild }}
+          TRUSTED_POLICY: ${{ inputs.trusted_policy_revision || steps.refs.outputs.policy }}
           TRUSTED_CONTROLLER: ${{ inputs.trusted_controller_revision || github.workflow_sha }}
         run: |
+          bundle_root=publication-bundle
+          if [ "$TRUSTED_REBUILD" = true ]; then bundle_root=trusted-publication-bundle; fi
           report_args=(
-            --bundle publication-bundle
+            --bundle "$bundle_root"
             --integration-revision "${{ steps.producer.outputs.sha }}"
             --composition-root composition-source
             --policy-root policy-source
             --trusted-policy-revision "$TRUSTED_POLICY"
             --trusted-controller-revision "$TRUSTED_CONTROLLER"
             --evidence-ref "workflow://${{ github.workflow }}#${{ github.run_id }}/${{ github.run_attempt }}"
-            --evidence-ref "bundle://${{ steps.bundle.outputs.bundle_identity }}"
+            --evidence-ref "bundle://${{ steps.selected.outputs.bundle_identity }}"
             --output compatibility-report.json
           )
+          if [ "$TRUSTED_REBUILD" = true ]; then
+            report_args+=(--evidence-ref "trusted-bundle-equivalence://${{ steps.selected.outputs.bundle_identity }}")
+          fi
           if [ -d modeling-source ]; then report_args+=(--modeling-root modeling-source); fi
           python3 integration-source/scripts/build_qualification_report.py "${report_args[@]}"
           echo "classification=$(python3 -c 'import json; print(json.load(open("compatibility-report.json"))["classification"])')" >> "$GITHUB_OUTPUT"
           cat compatibility-report.json >> "$GITHUB_STEP_SUMMARY"
       - name: Publish structured qualification report
+        id: report_upload
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: publication-compatibility-${{ steps.bundle.outputs.bundle_identity }}-${{ github.run_attempt }}-${{ inputs.artifact_namespace || 'candidate' }}
+          name: publication-compatibility-${{ steps.selected.outputs.bundle_identity }}-${{ github.run_attempt }}-${{ inputs.artifact_namespace || 'candidate' }}
           path: compatibility-report.json
           if-no-files-found: error
           retention-days: 7
@@ -201,7 +317,7 @@ jobs:
         id: upload
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: publication-bundle-${{ steps.bundle.outputs.bundle_identity }}-${{ github.run_attempt }}-${{ inputs.artifact_namespace || 'candidate' }}
+          name: publication-bundle-${{ steps.selected.outputs.bundle_identity }}-${{ github.run_attempt }}-${{ inputs.artifact_namespace || 'candidate' }}
           path: bundle.tar
           if-no-files-found: error
           retention-days: 7

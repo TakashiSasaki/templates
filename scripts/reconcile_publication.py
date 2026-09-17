@@ -11,6 +11,7 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
+import re
 import sys
 from typing import Any
 
@@ -21,8 +22,81 @@ from scripts.adopt_publication_sources import plan
 from scripts.resolve_publication_sources import SourceLockError, read_json_object
 
 
+SHA = re.compile(r"^[0-9a-f]{40}$")
+DIGEST = re.compile(r"^[0-9a-f]{64}$")
+ARTIFACT_DIGEST = re.compile(r"^sha256:[0-9a-f]{64}$")
+TRUSTED_CHECKS = {
+    "report-shape", "bundle-contract", "bundle-equivalence",
+    "provider-declarations", "identity-binding",
+}
+
+
 def _key(value: dict[str, Any]) -> str:
     return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+
+def _verified_receipt(
+    report: dict[str, Any],
+    *,
+    source_qualification: Path | None,
+    expected_controller_revision: str | None,
+) -> tuple[bool, str]:
+    """Require an independently generated receipt before any positive gate."""
+    verification = report.get("verification")
+    if not isinstance(verification, dict):
+        return False, "TRUSTED_EVIDENCE_NOT_VERIFIED"
+    required = {
+        "schema_version", "verifier_revision", "source_report_digest",
+        "workflow_run_id", "workflow_attempt", "workflow_head", "artifact_id",
+        "workflow_name", "workflow_event", "artifact_digest", "artifact_name", "bundle_identity",
+        "bundle_content_digest", "trusted_checks",
+    }
+    if set(verification) != required or verification.get("schema_version") != 1:
+        return False, "TRUSTED_EVIDENCE_RECEIPT_MALFORMED"
+    verifier = verification.get("verifier_revision")
+    if not isinstance(verifier, str) or SHA.fullmatch(verifier) is None:
+        return False, "TRUSTED_EVIDENCE_VERIFIER_IDENTITY_INVALID"
+    if expected_controller_revision is not None and verifier != expected_controller_revision:
+        return False, "TRUSTED_EVIDENCE_VERIFIER_REVISION_MISMATCH"
+    if source_qualification is None:
+        return False, "SOURCE_QUALIFICATION_DIGEST_NOT_BOUND"
+    try:
+        source_digest = hashlib.sha256(source_qualification.read_bytes()).hexdigest()
+    except OSError:
+        return False, "SOURCE_QUALIFICATION_UNREADABLE"
+    if verification.get("source_report_digest") != source_digest:
+        return False, "SOURCE_QUALIFICATION_DIGEST_MISMATCH"
+    if (report.get("classification") != "NOT_ELIGIBLE"
+            or report.get("boundary") != "provider-to-integration"
+            or report.get("stage") != "qualification"):
+        return False, "TRUSTED_EVIDENCE_REPORT_NOT_QUALIFICATION"
+    if (report.get("inputs", {}).get("bundle_identity") != verification.get("bundle_identity")
+            or report.get("inputs", {}).get("bundle_content_digest") != verification.get("bundle_content_digest")):
+        return False, "TRUSTED_EVIDENCE_BUNDLE_IDENTITY_MISMATCH"
+    if not isinstance(verification.get("workflow_run_id"), int) or verification["workflow_run_id"] <= 0:
+        return False, "TRUSTED_EVIDENCE_RUN_ID_INVALID"
+    if not isinstance(verification.get("workflow_attempt"), int) or verification["workflow_attempt"] <= 0:
+        return False, "TRUSTED_EVIDENCE_ATTEMPT_INVALID"
+    if not isinstance(verification.get("artifact_id"), int) or verification["artifact_id"] <= 0:
+        return False, "TRUSTED_EVIDENCE_ARTIFACT_ID_INVALID"
+    if not isinstance(verification.get("workflow_head"), str) or SHA.fullmatch(verification["workflow_head"]) is None:
+        return False, "TRUSTED_EVIDENCE_WORKFLOW_HEAD_INVALID"
+    if not isinstance(verification.get("workflow_name"), str) or not verification["workflow_name"].strip():
+        return False, "TRUSTED_EVIDENCE_WORKFLOW_NAME_INVALID"
+    if not isinstance(verification.get("workflow_event"), str) or not verification["workflow_event"].strip():
+        return False, "TRUSTED_EVIDENCE_WORKFLOW_EVENT_INVALID"
+    if not isinstance(verification.get("artifact_digest"), str) or ARTIFACT_DIGEST.fullmatch(verification["artifact_digest"]) is None:
+        return False, "TRUSTED_EVIDENCE_ARTIFACT_DIGEST_INVALID"
+    if (not isinstance(verification.get("bundle_identity"), str)
+            or DIGEST.fullmatch(verification["bundle_identity"]) is None
+            or not isinstance(verification.get("bundle_content_digest"), str)
+            or DIGEST.fullmatch(verification["bundle_content_digest"]) is None):
+        return False, "TRUSTED_EVIDENCE_BUNDLE_DIGEST_INVALID"
+    checks = verification.get("trusted_checks")
+    if (not isinstance(checks, dict) or set(checks) != TRUSTED_CHECKS
+            or any(value != "passed" for value in checks.values())):
+        return False, "TRUSTED_EVIDENCE_CHECKS_INCOMPLETE"
+    return True, ""
 
 
 def reconcile(
@@ -34,8 +108,10 @@ def reconcile(
     authorization: bool,
     kill_switch: bool,
     expected_integration_revision: str | None = None,
+    expected_consumer_base: str | None = None,
     expected_policy_revision: str | None = None,
     expected_controller_revision: str | None = None,
+    source_qualification: Path | None = None,
 ) -> dict[str, Any]:
     if mode not in {"shadow", "adoption-only", "auto-publish"}:
         raise SourceLockError("unsupported automation mode")
@@ -59,7 +135,7 @@ def reconcile(
     if qualification is None:
         raise SourceLockError("a qualification report is required for a candidate")
     report = read_json_object(qualification)
-    required_report = {"schema_version", "classification", "inputs", "trusted", "checks", "evidence_refs"}
+    required_report = {"schema_version", "classification", "inputs", "trusted", "checks", "evidence_refs", "verification"}
     if (not required_report <= set(report)
             or type(report.get("schema_version")) is not int
             or report["schema_version"] != 1):
@@ -90,6 +166,21 @@ def reconcile(
             "allowed_mutations": [],
             "next_action": "stop and obtain a new exact qualification report",
         }
+    verified, verification_reason = _verified_receipt(
+        report,
+        source_qualification=source_qualification,
+        expected_controller_revision=expected_controller_revision,
+    )
+    if not verified:
+        return {
+            **report,
+            "stage": "authorization",
+            "classification": "QUALIFICATION_FAILED",
+            "reason_codes": [verification_reason],
+            "affected_authorities": ["integration"],
+            "allowed_mutations": [],
+            "next_action": "stop and obtain a trusted qualification receipt",
+        }
     current_publications = current_value.get("publications")
     candidate_value = read_json_object(candidate)
     candidate_publications = candidate_value.get("publications")
@@ -118,7 +209,19 @@ def reconcile(
             "allowed_mutations": [],
             "next_action": "requalify the current Integration producer revision",
         }
-    if (expected_policy_revision is not None
+    if (expected_consumer_base is not None
+            and (not SHA.fullmatch(expected_consumer_base)
+                 or expected_consumer_base != report["inputs"].get("integration_revision"))):
+        return {
+            **report,
+            "stage": "authorization",
+            "classification": "SUPERSEDED",
+            "reason_codes": ["CONSUMER_BASE_DOES_NOT_MATCH_PRODUCER"],
+            "affected_authorities": ["integration"],
+            "allowed_mutations": [],
+            "next_action": "requalify after the exact Integration consumer base is stable",
+        }
+    if (expected_policy_revision
             and report["trusted"].get("policy_revision") != expected_policy_revision):
         return {
             **report,
@@ -149,6 +252,16 @@ def reconcile(
         return {**report, **mutation, "stage": "authorization", "classification": "NOT_ELIGIBLE", "reason_codes": ["SHADOW_MODE"], "allowed_mutations": [], "next_action": "compare the report; activation is required before adoption"}
     if not authorization:
         return {**report, **mutation, "stage": "authorization", "classification": "NOT_ELIGIBLE", "reason_codes": ["AUTHORIZATION_NOT_GRANTED"], "allowed_mutations": [], "next_action": "verify the trusted Policy activation grant"}
+    if not expected_policy_revision or not expected_controller_revision:
+        return {
+            **report,
+            **mutation,
+            "stage": "authorization",
+            "classification": "NOT_ELIGIBLE",
+            "reason_codes": ["TRUSTED_ACTIVATION_PIN_MISSING"],
+            "allowed_mutations": [],
+            "next_action": "configure the reviewed active Policy and controller pins before adoption",
+        }
     return {
         **report,
         **mutation,
@@ -169,8 +282,10 @@ def main() -> int:
     parser.add_argument("--authorization", action="store_true")
     parser.add_argument("--kill-switch", action="store_true")
     parser.add_argument("--expected-integration-revision")
+    parser.add_argument("--expected-consumer-base")
     parser.add_argument("--expected-policy-revision")
     parser.add_argument("--expected-controller-revision")
+    parser.add_argument("--source-qualification", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     try:
@@ -182,8 +297,10 @@ def main() -> int:
             authorization=args.authorization,
             kill_switch=args.kill_switch,
             expected_integration_revision=args.expected_integration_revision,
+            expected_consumer_base=args.expected_consumer_base,
             expected_policy_revision=args.expected_policy_revision,
             expected_controller_revision=args.expected_controller_revision,
+            source_qualification=args.source_qualification,
         )
     except (OSError, SourceLockError, ValueError) as exc:
         parser.error(str(exc))

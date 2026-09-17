@@ -160,7 +160,8 @@ def add_generic_modeling_locale_labels(data, modeling_documents):
     return result
 
 
-def produce(*, root, provider_roots, provider_revisions, producer_revision, output, repository='TakashiSasaki/templates', staging_ids=()):
+def produce(*, root, provider_roots, provider_revisions, producer_revision, output,
+            repository='TakashiSasaki/templates', staging_ids=(), code_revision=None):
     root, output = Path(root), Path(output)
     providers = provider_order(provider_roots)
     if set(provider_revisions) != set(providers):
@@ -170,7 +171,12 @@ def produce(*, root, provider_roots, provider_revisions, producer_revision, outp
     # wire representation for the guided-navigation contract.
     provider_roots = {name: provider_roots[name] for name in providers}
     provider_revisions = {name: provider_revisions[name] for name in providers}
-    require_revision(root, producer_revision)
+    # Candidate qualification uses the producer checkout itself.  Trusted
+    # reconciliation may instead regenerate a candidate producer identity from
+    # a separately pinned controller checkout; equivalence with the candidate
+    # Bundle is required before that identity can be used.
+    code_revision = producer_revision if code_revision is None else code_revision
+    require_revision(root, code_revision)
     for name in providers:require_revision(provider_roots[name], provider_revisions[name])
     if root.resolve() != Path(__file__).resolve().parents[1]:
         raise BundleError('producer code and configuration must use the same exact checkout')
@@ -281,7 +287,7 @@ def produce(*, root, provider_roots, provider_revisions, producer_revision, outp
         producer={'authority':'integration','revision':producer_revision}
         write(bundle/'provenance.json',{'schema_version':1,'producer':producer,'providers':provider_revisions})
         for name in providers:require_revision(provider_roots[name],provider_revisions[name])
-        require_revision(root,producer_revision)
+        require_revision(root,code_revision)
         if {p:digest(regular(root,p).read_bytes()) for p in CONFIGURATION_FILES} != {p:v for p,v in configuration.items() if p!='staging_ids'}:
             raise BundleError('configuration changed during generation')
         result=seal(
@@ -300,6 +306,7 @@ def main(producer=produce):
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--integration-root',type=Path,required=True)
     p.add_argument('--producer-revision',required=True)
+    p.add_argument('--code-revision', help='Exact revision of the trusted code checkout when it differs from the producer identity')
     p.add_argument('--composition-root',type=Path,required=True)
     p.add_argument('--composition-revision',required=True)
     p.add_argument('--modeling-root',type=Path)
@@ -318,7 +325,7 @@ def main(producer=produce):
         if args.modeling_root is not None:
             provider_roots['modeling']=args.modeling_root
             provider_revisions['modeling']=args.modeling_revision
-        result=producer(root=args.integration_root,producer_revision=args.producer_revision,provider_roots=provider_roots,provider_revisions=provider_revisions,staging_ids=args.staging_ids.split(',') if args.staging_ids else [],output=args.output)
+        result=producer(root=args.integration_root,producer_revision=args.producer_revision,code_revision=args.code_revision,provider_roots=provider_roots,provider_revisions=provider_revisions,staging_ids=args.staging_ids.split(',') if args.staging_ids else [],output=args.output)
     except (ValueError,RuntimeError,OSError) as exc:p.error(str(exc))
     if args.github_output:
         with args.github_output.open('a') as stream:

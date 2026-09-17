@@ -75,3 +75,8 @@ class IntegrationQualificationTests(unittest.TestCase):
         self.assertIn('scripts/run_integration_preflight.py fast',commands)
         self.assertNotIn('tests.test_translation_manifest_closure',commands)
         self.assertIn('scripts/qualify_integration.py',commands)
+
+    def test_trusted_regeneration_can_bind_a_distinct_producer_identity(self):
+        from integration.producer import produce
+        import inspect
+        self.assertIn('code_revision', inspect.signature(produce).parameters)

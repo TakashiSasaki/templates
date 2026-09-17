@@ -71,7 +71,9 @@ jobs:
       composition_ref: ${{ inputs.composition_ref || github.event.client_payload.composition_ref || '' }}
       policy_ref: ${{ inputs.policy_ref || github.event.client_payload.policy_ref || '' }}
       modeling_ref: ${{ inputs.modeling_ref || github.event.client_payload.modeling_ref || '' }}
-      trusted_controller_revision: ${{ inputs.controller_ref || github.workflow_sha }}
+      trusted_controller_revision: ${{ inputs.controller_ref || vars.PUBLICATION_CONTROLLER_REVISION || '' }}
+      trusted_rebuild: true
+      trusted_policy_revision: ${{ vars.PUBLICATION_POLICY_REVISION || '' }}
       artifact_namespace: reconciliation
     permissions:
       contents: read
@@ -84,28 +86,113 @@ jobs:
     outputs:
       classification: ${{ steps.reconcile.outputs.classification }}
       idempotency_key: ${{ steps.reconcile.outputs.idempotency_key }}
+      consumer_base: ${{ steps.base.outputs.revision }}
+      consumer_lock_digest: ${{ steps.base.outputs.lock_digest }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: ${{ inputs.controller_ref || github.workflow_sha || github.sha }}
+          ref: ${{ inputs.controller_ref || vars.PUBLICATION_CONTROLLER_REVISION || github.sha }}
           fetch-depth: 0
           persist-credentials: false
+      - name: Snapshot the current Integration consumer base
+        id: base
+        run: |
+          git fetch --quiet origin refs/heads/integration
+          revision=$(git rev-parse FETCH_HEAD)
+          git show "$revision:publication-sources.json" > current-publication-sources.json
+          echo "revision=$revision" >> "$GITHUB_OUTPUT"
+          echo "lock_digest=$(sha256sum current-publication-sources.json | awk '{print $1}')" >> "$GITHUB_OUTPUT"
       - name: Download the exact structured qualification report
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: publication-compatibility-${{ needs.qualify.outputs.bundle_identity }}-${{ github.run_attempt }}-reconciliation
           path: qualification
+      - name: Checkout exact provider declarations as data
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.qualify.outputs.composition_revision }}
+          path: provider-inputs/composition
+          persist-credentials: false
+      - name: Checkout exact Policy declaration as data
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.qualify.outputs.policy_revision }}
+          path: provider-inputs/policy
+          persist-credentials: false
+      - name: Checkout exact Modeling declaration as data
+        if: ${{ needs.qualify.outputs.modeling_revision != '' }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.qualify.outputs.modeling_revision }}
+          path: provider-inputs/modeling
+          persist-credentials: false
+      - name: Consume the exact Bundle artifact through the trusted transport
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          MODELING: ${{ needs.qualify.outputs.modeling_revision }}
+        run: |
+          args=(
+            consume
+            --repository "$REPOSITORY"
+            --artifact-id "${{ needs.qualify.outputs.artifact_id }}"
+            --archive-digest "${{ needs.qualify.outputs.artifact_digest }}"
+            --bundle-identity "${{ needs.qualify.outputs.bundle_identity }}"
+            --producer "${{ needs.qualify.outputs.producer_revision }}"
+            --workflow-head "${{ needs.qualify.outputs.workflow_head }}"
+            --workflow-name "${{ needs.qualify.outputs.workflow_name }}"
+            --workflow-event "${{ needs.qualify.outputs.workflow_event }}"
+            --artifact-name "${{ needs.qualify.outputs.artifact_name }}"
+            --run-id "${{ needs.qualify.outputs.workflow_run_id }}"
+            --attempt "${{ needs.qualify.outputs.workflow_attempt }}"
+            --composition "${{ needs.qualify.outputs.composition_revision }}"
+            --policy "${{ needs.qualify.outputs.policy_revision }}"
+            --output qualification/bundle
+          )
+          if [ -n "$MODELING" ]; then args+=(--modeling "$MODELING"); fi
+          python3 scripts/publication_bundle_artifact.py "${args[@]}"
       - name: Render the expected lock without executing candidate code
         env:
           COMPOSITION: ${{ inputs.composition_ref || github.event.client_payload.composition_ref || '' }}
           POLICY: ${{ inputs.policy_ref || github.event.client_payload.policy_ref || '' }}
           MODELING: ${{ inputs.modeling_ref || github.event.client_payload.modeling_ref || '' }}
         run: |
-          args=(--lock publication-sources.json --output candidate-lock.json)
+          args=(--lock current-publication-sources.json --output candidate-lock.json)
           if [ -n "$COMPOSITION" ]; then args+=(--override "composition=$COMPOSITION"); fi
           if [ -n "$POLICY" ]; then args+=(--override "policy=$POLICY"); fi
           if [ -n "$MODELING" ]; then args+=(--candidate-provider modeling --override "modeling=$MODELING"); fi
           python3 scripts/render_candidate_source_lock.py "${args[@]}"
+      - name: Verify the report and Bundle with the trusted controller
+        env:
+          EXPECTED_POLICY: ${{ vars.PUBLICATION_POLICY_REVISION || '' }}
+          EXPECTED_CONTROLLER: ${{ inputs.controller_ref || vars.PUBLICATION_CONTROLLER_REVISION || '' }}
+          MODELING: ${{ needs.qualify.outputs.modeling_revision }}
+        run: |
+          args=(
+            --report qualification/compatibility-report.json
+            --bundle qualification/bundle
+            --candidate candidate-lock.json
+            --composition-root provider-inputs/composition
+            --composition-revision "${{ needs.qualify.outputs.composition_revision }}"
+            --policy-root provider-inputs/policy
+            --policy-revision "${{ needs.qualify.outputs.policy_revision }}"
+            --expected-integration-revision "${{ needs.qualify.outputs.producer_revision }}"
+            --expected-controller-revision "$EXPECTED_CONTROLLER"
+            --workflow-run-id "${{ needs.qualify.outputs.workflow_run_id }}"
+            --workflow-attempt "${{ needs.qualify.outputs.workflow_attempt }}"
+            --workflow-head "${{ needs.qualify.outputs.workflow_head }}"
+            --workflow-name "${{ needs.qualify.outputs.workflow_name }}"
+            --workflow-event "${{ needs.qualify.outputs.workflow_event }}"
+            --artifact-id "${{ needs.qualify.outputs.artifact_id }}"
+            --artifact-digest "${{ needs.qualify.outputs.artifact_digest }}"
+            --artifact-name "${{ needs.qualify.outputs.artifact_name }}"
+            --output qualification/verified-report.json
+          )
+          if [ -n "$MODELING" ]; then
+            args+=(--modeling-root provider-inputs/modeling --modeling-revision "$MODELING")
+          fi
+          if [ -n "$EXPECTED_POLICY" ]; then args+=(--expected-policy-revision "$EXPECTED_POLICY"); fi
+          python3 scripts/verify_qualification_report.py "${args[@]}"
       - name: Classify the guarded reconciliation transaction
         id: reconcile
         env:
@@ -113,7 +200,7 @@ jobs:
           KILL_SWITCH: ${{ env.AUTOMATION_KILL_SWITCH }}
           EXPECTED_INTEGRATION: ${{ needs.qualify.outputs.producer_revision }}
           EXPECTED_POLICY: ${{ vars.PUBLICATION_POLICY_REVISION || '' }}
-          EXPECTED_CONTROLLER: ${{ vars.PUBLICATION_CONTROLLER_REVISION || inputs.controller_ref || github.workflow_sha }}
+          EXPECTED_CONTROLLER: ${{ inputs.controller_ref || vars.PUBLICATION_CONTROLLER_REVISION || '' }}
         run: |
           auth_args=()
           if [ "$AUTHORIZED" = true ]; then auth_args+=(--authorization); fi
@@ -121,10 +208,12 @@ jobs:
           if [ "$KILL_SWITCH" = true ]; then kill_args+=(--kill-switch); fi
           python3 scripts/reconcile_publication.py \
             --mode "$AUTOMATION_MODE" \
-            --current publication-sources.json \
+            --current current-publication-sources.json \
             --candidate candidate-lock.json \
-            --qualification qualification/compatibility-report.json \
+            --qualification qualification/verified-report.json \
+            --source-qualification qualification/compatibility-report.json \
             --expected-integration-revision "$EXPECTED_INTEGRATION" \
+            --expected-consumer-base "$EXPECTED_CONSUMER_BASE" \
             --expected-policy-revision "$EXPECTED_POLICY" \
             --expected-controller-revision "$EXPECTED_CONTROLLER" \
             "${auth_args[@]}" "${kill_args[@]}" \
@@ -140,6 +229,8 @@ jobs:
       needs.controller.outputs.classification == 'AUTO_PROCESSABLE' &&
       (vars.PUBLICATION_AUTOMATION_MODE == 'adoption-only' || vars.PUBLICATION_AUTOMATION_MODE == 'auto-publish') &&
       vars.PUBLICATION_AUTOMATION_AUTHORIZED == 'true' &&
+      vars.PUBLICATION_POLICY_REVISION != '' &&
+      vars.PUBLICATION_CONTROLLER_REVISION != '' &&
       vars.PUBLICATION_AUTOMATION_KILL_SWITCH != 'true'
     runs-on: ubuntu-24.04
     permissions:
@@ -147,6 +238,8 @@ jobs:
       pull-requests: write
     env:
       GH_TOKEN: ${{ secrets.PUBLICATION_APP_TOKEN }}
+      EXPECTED_CONSUMER_BASE: ${{ needs.controller.outputs.consumer_base }}
+      CONTROLLER_REF: ${{ inputs.controller_ref || vars.PUBLICATION_CONTROLLER_REVISION }}
       COMPOSITION: ${{ inputs.composition_ref || github.event.client_payload.composition_ref || '' }}
       POLICY: ${{ inputs.policy_ref || github.event.client_payload.policy_ref || '' }}
       MODELING: ${{ inputs.modeling_ref || github.event.client_payload.modeling_ref || '' }}
@@ -154,44 +247,61 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: ${{ inputs.controller_ref || github.workflow_sha || github.sha }}
+          ref: ${{ inputs.controller_ref || vars.PUBLICATION_CONTROLLER_REVISION }}
+          path: controller-source
           fetch-depth: 0
           persist-credentials: false
       - name: Require the one-time activated controller credential
         run: test -n "$GH_TOKEN"
+      - name: Check out the exact Integration consumer base
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.controller.outputs.consumer_base }}
+          path: integration-base
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Reject a stale Integration consumer base
+        run: |
+          test -n "$EXPECTED_CONSUMER_BASE"
+          test "$EXPECTED_CONSUMER_BASE" = "$(git -C integration-base rev-parse HEAD)"
+          test "$EXPECTED_CONSUMER_BASE" = "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/integration" --jq '.object.sha')"
       - name: Apply only the deterministic source-lock patch
         run: |
-          args=(--lock publication-sources.json --output candidate-lock.json)
+          args=(--lock integration-base/publication-sources.json --output candidate-lock.json)
           if [ -n "$COMPOSITION" ]; then args+=(--override "composition=$COMPOSITION"); fi
           if [ -n "$POLICY" ]; then args+=(--override "policy=$POLICY"); fi
           if [ -n "$MODELING" ]; then args+=(--candidate-provider modeling --override "modeling=$MODELING"); fi
-          python3 scripts/render_candidate_source_lock.py "${args[@]}"
-          expected=$(sha256sum publication-sources.json | awk '{print $1}')
-          python3 scripts/adopt_publication_sources.py --current publication-sources.json --candidate candidate-lock.json --expected-current-digest "$expected" --apply --output adoption-report.json
+          python3 controller-source/scripts/render_candidate_source_lock.py "${args[@]}"
+          expected=$(sha256sum integration-base/publication-sources.json | awk '{print $1}')
+          python3 controller-source/scripts/adopt_publication_sources.py --current integration-base/publication-sources.json --candidate candidate-lock.json --expected-current-digest "$expected" --apply --output adoption-report.json
+          test "$(git -C integration-base diff --name-only)" = "publication-sources.json"
+          test -z "$(git -C integration-base diff --summary)"
       - name: Create or reconcile the idempotent adoption PR
         env:
           BRANCH: automation/publication-$IDEMPOTENCY_KEY
         run: |
           gh auth setup-git
-          git config user.name publication-controller
-          git config user.email publication-controller@users.noreply.github.com
-          existing=$(gh pr list --base integration --head "$BRANCH" --state open --json number --jq '.[0].number')
+          git -C integration-base config user.name publication-controller
+          git -C integration-base config user.email publication-controller@users.noreply.github.com
+          existing=$(gh pr list --repo "$GITHUB_REPOSITORY" --base integration --head "$BRANCH" --state open --json number --jq '.[0].number')
           if [ -n "$existing" ]; then
             echo "Existing idempotent Integration adoption PR #$existing remains authoritative."
             exit 0
           fi
-          if git ls-remote --exit-code origin "refs/heads/$BRANCH" >/dev/null 2>&1; then
+          if git -C integration-base ls-remote --exit-code origin "refs/heads/$BRANCH" >/dev/null 2>&1; then
             echo 'An idempotency branch exists without an open PR; stop for human recovery.' >&2
             exit 1
           fi
-          git switch -c "$BRANCH"
-          git add publication-sources.json
-          git diff --cached --quiet && exit 0
-          git commit -m "chore(integration): adopt qualified publication candidate"
-          git push --force-with-lease origin "HEAD:$BRANCH"
-          existing=$(gh pr list --base integration --head "$BRANCH" --json number --jq '.[0].number')
+          git -C integration-base switch -c "$BRANCH"
+          git -C integration-base add publication-sources.json
+          git -C integration-base diff --cached --quiet && exit 0
+          test "$(git -C integration-base diff --cached --name-only)" = "publication-sources.json"
+          test -z "$(git -C integration-base diff --cached --summary)"
+          git -C integration-base commit -m "chore(integration): adopt qualified publication candidate"
+          git -C integration-base push --force-with-lease origin "HEAD:$BRANCH"
+          existing=$(gh pr list --repo "$GITHUB_REPOSITORY" --base integration --head "$BRANCH" --json number --jq '.[0].number')
           if [ -z "$existing" ]; then
-            gh pr create --base integration --head "$BRANCH" --title "chore(integration): adopt qualified publication candidate" --body "Guarded deterministic lock adoption. Idempotency key: $IDEMPOTENCY_KEY. Auto-merge remains subject to branch protection and required CI."
+            gh pr create --repo "$GITHUB_REPOSITORY" --base integration --head "$BRANCH" --title "chore(integration): adopt qualified publication candidate" --body "Guarded deterministic lock adoption. Consumer base: $EXPECTED_CONSUMER_BASE. Idempotency key: $IDEMPOTENCY_KEY. Auto-merge remains subject to branch protection and required CI."
           fi
-          pr=$(gh pr list --base integration --head "$BRANCH" --json number --jq '.[0].number')
-          gh pr merge "$pr" --auto --squash
+          pr=$(gh pr list --repo "$GITHUB_REPOSITORY" --base integration --head "$BRANCH" --json number --jq '.[0].number')
+          gh pr merge "$pr" --repo "$GITHUB_REPOSITORY" --auto --squash

@@ -1,4 +1,5 @@
 import json
+import hashlib
 from pathlib import Path
 import tempfile
 import unittest
@@ -15,6 +16,54 @@ class PublicationSourceAdoptionTests(unittest.TestCase):
         if modeling is not None:
             revisions = {"modeling": modeling, **revisions}
         return render_source_lock(revisions)
+
+    def _qualification(self, root, inputs):
+        """Build a synthetic receipt; candidate claims alone are not enough."""
+        source = root / "source-report.json"
+        source.write_bytes(b"candidate report bytes")
+        bundle_identity = "a" * 64
+        content_digest = "b" * 64
+        report = {
+            "schema_version": 1,
+            "boundary": "provider-to-integration",
+            "stage": "qualification",
+            "classification": "NOT_ELIGIBLE",
+            "reason_codes": ["AUTHORIZATION_NOT_GRANTED"],
+            "affected_authorities": [],
+            "inputs": {
+                **inputs,
+                "bundle_identity": bundle_identity,
+                "bundle_content_digest": content_digest,
+            },
+            "trusted": {"policy_revision": "c" * 40, "controller_revision": "e" * 40},
+            "checks": {"required": ["producer"], "results": {"producer": "passed"}},
+            "evidence_refs": ["workflow://test"],
+            "verification": {
+                "schema_version": 1,
+                "verifier_revision": "e" * 40,
+                "source_report_digest": hashlib.sha256(source.read_bytes()).hexdigest(),
+                "workflow_run_id": 1,
+                "workflow_attempt": 1,
+                "workflow_head": "e" * 40,
+                "workflow_name": "test-workflow",
+                "workflow_event": "workflow_dispatch",
+                "artifact_id": 2,
+                "artifact_digest": "sha256:" + "d" * 64,
+                "artifact_name": "publication-bundle-" + bundle_identity + "-1-test",
+                "bundle_identity": bundle_identity,
+                "bundle_content_digest": content_digest,
+                "trusted_checks": {
+                    "report-shape": "passed",
+                    "bundle-contract": "passed",
+                    "bundle-equivalence": "passed",
+                    "provider-declarations": "passed",
+                    "identity-binding": "passed",
+                },
+            },
+        }
+        receipt = root / "verified-report.json"
+        receipt.write_text(json.dumps(report), encoding="utf-8")
+        return receipt, source
 
     def test_modeling_addition_is_an_explicit_schema_transition(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -69,23 +118,15 @@ class PublicationSourceAdoptionTests(unittest.TestCase):
             root = Path(directory)
             current = root / "current.json"
             candidate = root / "candidate.json"
-            report = root / "report.json"
             current.write_bytes(self._lock())
             candidate.write_bytes(self._lock(modeling="d" * 40))
-            report.write_text(json.dumps({
-                "schema_version": 1,
-                "classification": "NOT_ELIGIBLE",
-                "inputs": {
+            report, source = self._qualification(root, {
                     "integration_revision": "e" * 40,
                     "modeling_revision": "d" * 40,
                     "composition_revision": "b" * 40,
                     "policy_revision": "c" * 40,
-                },
-                "trusted": {"policy_revision": "c" * 40, "controller_revision": "e" * 40},
-                "checks": {"required": ["producer"], "results": {"producer": "passed"}},
-                "evidence_refs": ["workflow://test"],
-            }))
-            result = reconcile(mode="shadow", current=current, candidate=candidate, qualification=report, authorization=True, kill_switch=False)
+            })
+            result = reconcile(mode="shadow", current=current, candidate=candidate, qualification=report, source_qualification=source, authorization=True, kill_switch=False)
             self.assertEqual(result["classification"], "NOT_ELIGIBLE")
             self.assertIn("SHADOW_MODE", result["reason_codes"])
 
@@ -94,24 +135,16 @@ class PublicationSourceAdoptionTests(unittest.TestCase):
             root = Path(directory)
             current = root / "current.json"
             candidate = root / "candidate.json"
-            report = root / "report.json"
             current.write_bytes(self._lock())
             candidate.write_bytes(self._lock(modeling="d" * 40))
-            report.write_text(json.dumps({
-                "schema_version": 1,
-                "classification": "NOT_ELIGIBLE",
-                "inputs": {
+            report, source = self._qualification(root, {
                     "integration_revision": "e" * 40,
                     "modeling_revision": "a" * 40,
                     "composition_revision": "b" * 40,
                     "policy_revision": "c" * 40,
-                },
-                "trusted": {"policy_revision": "c" * 40, "controller_revision": "e" * 40},
-                "checks": {"required": ["producer"], "results": {"producer": "passed"}},
-                "evidence_refs": ["workflow://test"],
-            }))
+            })
             result = reconcile(mode="adoption-only", current=current, candidate=candidate,
-                               qualification=report, authorization=True, kill_switch=False)
+                               qualification=report, source_qualification=source, authorization=True, kill_switch=False)
             self.assertEqual(result["classification"], "INVALID_INPUT")
             self.assertIn("QUALIFICATION_INPUT_DOES_NOT_MATCH_CANDIDATE_LOCK", result["reason_codes"])
 
@@ -120,25 +153,17 @@ class PublicationSourceAdoptionTests(unittest.TestCase):
             root = Path(directory)
             current = root / "current.json"
             candidate = root / "candidate.json"
-            report = root / "report.json"
             current.write_bytes(self._lock())
             candidate.write_bytes(self._lock(modeling="d" * 40))
-            report.write_text(json.dumps({
-                "schema_version": 1,
-                "classification": "NOT_ELIGIBLE",
-                "inputs": {
+            report, source = self._qualification(root, {
                     "integration_revision": "e" * 40,
                     "modeling_revision": "d" * 40,
                     "composition_revision": "b" * 40,
                     "policy_revision": "c" * 40,
-                },
-                "trusted": {"policy_revision": "c" * 40, "controller_revision": "e" * 40},
-                "checks": {"required": ["producer"], "results": {"producer": "passed"}},
-                "evidence_refs": ["workflow://test"],
-            }))
+            })
             result = reconcile(
                 mode="adoption-only", current=current, candidate=candidate,
-                qualification=report, authorization=True, kill_switch=False,
+                qualification=report, source_qualification=source, authorization=True, kill_switch=False,
                 expected_integration_revision="e" * 40,
                 expected_policy_revision="c" * 40,
                 expected_controller_revision="e" * 40,
@@ -151,13 +176,37 @@ class PublicationSourceAdoptionTests(unittest.TestCase):
 
             stopped = reconcile(
                 mode="adoption-only", current=current, candidate=candidate,
-                qualification=report, authorization=True, kill_switch=True,
+                qualification=report, source_qualification=source, authorization=True, kill_switch=True,
                 expected_integration_revision="e" * 40,
                 expected_policy_revision="c" * 40,
                 expected_controller_revision="e" * 40,
             )
             self.assertEqual(stopped["classification"], "NOT_ELIGIBLE")
             self.assertIn("KILL_SWITCH_ACTIVE", stopped["reason_codes"])
+
+    def test_reconciliation_stops_when_consumer_base_is_not_the_qualified_producer(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            current = root / "current.json"
+            candidate = root / "candidate.json"
+            current.write_bytes(self._lock())
+            candidate.write_bytes(self._lock(modeling="d" * 40))
+            report, source = self._qualification(root, {
+                "integration_revision": "e" * 40,
+                "modeling_revision": "d" * 40,
+                "composition_revision": "b" * 40,
+                "policy_revision": "c" * 40,
+            })
+            result = reconcile(
+                mode="adoption-only", current=current, candidate=candidate,
+                qualification=report, source_qualification=source, authorization=True, kill_switch=False,
+                expected_integration_revision="e" * 40,
+                expected_consumer_base="f" * 40,
+                expected_policy_revision="c" * 40,
+                expected_controller_revision="e" * 40,
+            )
+            self.assertEqual(result["classification"], "SUPERSEDED")
+            self.assertIn("CONSUMER_BASE_DOES_NOT_MATCH_PRODUCER", result["reason_codes"])
 
 
 if __name__ == "__main__":
