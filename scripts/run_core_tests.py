@@ -7,7 +7,8 @@ Classifies and executes repository unit and contract tests according to the stag
   manifests, site links, public URL boundaries, workflow boundaries, and classifiers).
   Executes without external provider checkouts or external browser binaries.
 - L2 Integration: Provider-dependent tests (requiring checked-out and materialized
-  composition/policy providers) and browser/node-dependent integration tests.
+  composition/policy providers). Node and browser acceptance are owned by their
+  dedicated workflow scripts rather than this Python module classifier.
 """
 
 from __future__ import annotations
@@ -19,10 +20,6 @@ from pathlib import Path
 
 # Tests that strictly require checked-out and materialized external provider checkouts.
 PROVIDER_INTEGRATION_MODULES = frozenset()  # Provider qualification belongs to Integration.
-
-# Tests that strictly require Node.js or browser execution engines.
-BROWSER_INTEGRATION_MODULES = frozenset()
-
 
 def get_default_tests_dir() -> Path:
     repo_root = Path(__file__).resolve().parents[1]
@@ -38,20 +35,16 @@ def classify_test_modules(
     all_modules = sorted([f.stem for f in tests_dir.glob("test_*.py")])
     core = []
     provider = []
-    browser = []
 
     for mod in all_modules:
         if mod in PROVIDER_INTEGRATION_MODULES:
             provider.append(mod)
-        elif mod in BROWSER_INTEGRATION_MODULES:
-            browser.append(mod)
         else:
             core.append(mod)
 
     return {
         "core": core,
         "provider": provider,
-        "browser": browser,
     }
 
 
@@ -72,14 +65,10 @@ def load_test_suite(
         selected = categories["core"]
     elif suite_name == "provider":
         selected = categories["provider"]
-    elif suite_name == "browser":
-        selected = categories["browser"]
     elif suite_name == "integration":
-        selected = sorted(categories["provider"] + categories["browser"])
+        selected = sorted(categories["provider"])
     elif suite_name == "all":
-        selected = sorted(
-            categories["core"] + categories["provider"] + categories["browser"]
-        )
+        selected = sorted(categories["core"] + categories["provider"])
     else:
         raise ValueError(f"Unknown test suite: {suite_name!r}")
 
@@ -111,7 +100,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--suite",
-        choices=["core", "provider", "browser", "integration", "all"],
+        choices=["core", "provider", "integration", "all"],
         default="core",
         help="Test suite boundary to execute (default: core)",
     )

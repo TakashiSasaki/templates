@@ -282,6 +282,22 @@ class VerifySiteFullQualificationTests(unittest.TestCase):
 
     @patch("scripts.verify_site_full_qualification.fetch_run_jobs")
     @patch("scripts.verify_site_full_qualification.fetch_workflow_runs")
+    def test_missing_individual_mandatory_suite_returns_one(self, mock_runs, mock_jobs) -> None:
+        runs, jobs_by_id = build_mock_hierarchy(missing_suites={"playground_browser"})
+        mock_runs.return_value = runs
+        mock_jobs.side_effect = lambda repo, run_id, token, run_attempt=1: jobs_by_id.get(run_id, [])
+
+        result = verify_qualification(
+            repo="TakashiSasaki/templates",
+            head_sha="0123456789abcdef",
+            token="dummy",
+            timeout_seconds=0,
+            poll_interval_seconds=0,
+        )
+        self.assertEqual(1, result)
+
+    @patch("scripts.verify_site_full_qualification.fetch_run_jobs")
+    @patch("scripts.verify_site_full_qualification.fetch_workflow_runs")
     def test_required_check_failure_returns_one(self, mock_runs, mock_jobs) -> None:
         runs, jobs_by_id = build_mock_hierarchy(
             status_overrides={"build": "completed"},

@@ -2,15 +2,15 @@
 """Site Full Qualification aggregate verification.
 
 Verifies that all L3 full-qualification checks are executed, exact-head bound,
-and successful across all independent Site workflows:
+and successful across the current Site qualification DAG:
 - Site Construction CI (build, browser/PWA check, and construction aggregate)
-- Provider coexistence (coexistence integration and gate)
-- Site reference consumer (composition, candidate build, and browser/PWA acceptance)
-- Publication freshness (resolve, composition candidate build, and freshness report)
-- Publication materialization and publication contract v4
-- Site Composition Playground (projection consumer and explainability/browser)
-- Cross-authority acceptance (one exact candidate build and Chromium consumer)
-- Website contract and policy validation
+- Site reference and cross-authority consumers
+- Site Composition Playground projection, explainability, and browser acceptance
+- Website contract, policy, and core validation
+
+The required set is the eleven jobs in `.github/workflows/build-pages.yml`.
+Provider coexistence, publication freshness, and Bundle production remain
+Integration responsibilities and are not silently implied by this Site gate.
 """
 
 from __future__ import annotations
@@ -174,7 +174,7 @@ def evaluate_suites(
     qualification_run_id: int | None = None,
     min_run_id: int | None = None,
 ) -> tuple[dict[str, SuiteEvaluation], list[str]]:
-    """Evaluates all 19 suites against exact head workflow runs.
+    """Evaluates all eleven current Site DAG suites against exact-head runs.
 
     Returns (evaluations_by_key, missing_external_workflow_paths).
     """
@@ -467,7 +467,8 @@ def verify_qualification(
                     print(f"  - {ev.suite.description} (workflow: {ev.suite.workflow_path}): state={ev.state}", file=sys.stderr)
             return 1
 
-        # Success condition: all 19 suites are successful and no missing external workflows
+        # Success condition: all current DAG suites are successful and no
+        # required workflow path is missing.
         if len(successful_items) == len(REQUIRED_SUITES) and not missing_workflows:
             print("\n✅ All required L3 Full Qualification suites COMPLETED and GREEN:")
             print("| Stage / Role | Workflow | Check Run / Job Name | Run ID | Attempt / API job attempt / origin | Status | Conclusion |")

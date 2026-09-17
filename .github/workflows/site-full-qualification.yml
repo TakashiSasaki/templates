@@ -30,7 +30,7 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: 3.12.13
-      - name: Validate exact-head Full Qualification across all Site workflows
+      - name: Validate exact-head Full Qualification across the Site DAG
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HEAD_SHA: ${{ inputs.head_sha }}

@@ -49,5 +49,7 @@ are outside Bundle identity and are qualified as Site artifact inputs.
 Provider work and Integration releases do not run Site Chromium, mobile or PWA suites.
 Site-only fixes can qualify against an unchanged Bundle. Explicit manual deployment
 runs the full Site DAG against its timestamped artifact and deploys only after success.
-The full qualification aggregator verifies actual required jobs rather than treating
-a workflow shell or skipped browser suite as acceptance.
+The full qualification aggregator verifies the eleven actual required DAG jobs rather
+than treating a workflow shell or skipped job as acceptance. Browser acceptance is
+provided by the applicable Playwright workflows; there is no empty Python browser
+suite.
