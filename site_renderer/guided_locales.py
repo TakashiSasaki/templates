@@ -330,7 +330,6 @@ def render_localized_index(
     edges: list[dict[str, Any]],
 ) -> str:
     language = validate_language(language)
-    repository = graph.get("repository", "TakashiSasaki/templates")
     source_path = canonical_index["path"]
     source = github_blob_url(repository, provider["revision"], source_path)
     revision = github_commit_url(repository, provider["revision"])
@@ -443,6 +442,7 @@ def render_localized_landing(
     locale: dict[str, dict[str, dict[str, Any]]],
 ) -> str:
     language = validate_language(language)
+    repository = graph.get("repository", "TakashiSasaki/templates")
     ja = is_japanese(language)
     strings = JA_STRINGS
     cards = []

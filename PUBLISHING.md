@@ -23,6 +23,9 @@ Integration workflow. Corrupt or misbound evidence fails closed.
 provider documents, read models and translations already qualified upstream.
 It does not parse provider catalogs, translation manifests or Git objects.
 Site's own content and translations remain Site-owned.
+The selected provider models still supply bounded build-time views for the
+transitional Site source presentation; that presentation is removed by the
+following browser-retirement change.
 
 `build-provenance.json` records the exact Site revision and adopted Bundle identity,
 Integration revision and provider provenance. `publication-bundle.json` exposes
