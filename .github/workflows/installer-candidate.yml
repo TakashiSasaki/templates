@@ -2,8 +2,6 @@ name: Policy installer candidate
 
 on:
   pull_request:
-    branches:
-      - policy
     types:
       - opened
       - synchronize
