@@ -1,14 +1,9 @@
 from pathlib import Path
 import json
-import shutil
 import tempfile
 import unittest
 
 from integration.capabilities import CapabilityError, validate_catalog_closure, validate_provider_declaration
-
-
-ROOT = Path(__file__).resolve().parents[1]
-
 
 class CapabilityTests(unittest.TestCase):
     def test_provider_declarations_are_bound_to_registry(self):
@@ -16,9 +11,26 @@ class CapabilityTests(unittest.TestCase):
             with tempfile.TemporaryDirectory() as directory:
                 root = Path(directory)
                 (root / "docs").mkdir()
-                shutil.copyfile(
-                    ROOT.parent / f"impl-{provider}" / "docs/publication-capabilities.json",
-                    root / "docs/publication-capabilities.json",
+                (root / "docs/publication-capabilities.json").write_text(
+                    json.dumps({
+                        "schema_version": 1,
+                        "provider": provider,
+                        "protocol": "publication-bundle",
+                        "exports": [{
+                            "kind": "document",
+                            "namespace": f"{provider}.fixture",
+                            "media_type": "text/markdown",
+                            "identity_basis": "fixture",
+                            "feature": "publication.generic-document.v1",
+                            "rights": "allowlisted",
+                        }],
+                        "requirements": [{
+                            "feature": "publication.generic-document.v1",
+                            "required": True,
+                            "fallback": "generic-document",
+                        }],
+                    }),
+                    encoding="utf-8",
                 )
                 with self.subTest(provider=provider):
                     declaration = validate_provider_declaration(root, provider)
