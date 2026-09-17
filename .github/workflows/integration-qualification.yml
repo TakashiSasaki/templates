@@ -45,6 +45,10 @@ on:
       artifact_namespace:
         type: string
         default: candidate
+      trusted_controller_revision:
+        description: Exact trusted Integration controller SHA for the evidence report
+        type: string
+        default: ''
     outputs:
       producer_revision:
         value: ${{ jobs.qualify.outputs.producer_revision }}
@@ -169,7 +173,7 @@ jobs:
         id: report
         env:
           TRUSTED_POLICY: ${{ steps.refs.outputs.policy }}
-          TRUSTED_CONTROLLER: ${{ github.workflow_sha }}
+          TRUSTED_CONTROLLER: ${{ inputs.trusted_controller_revision || github.workflow_sha }}
         run: |
           report_args=(
             --bundle publication-bundle

@@ -22,10 +22,36 @@ on:
         description: Optional exact Modeling candidate SHA
         type: string
         default: ''
+      controller_ref:
+        description: Exact trusted Integration controller SHA when called externally
+        type: string
+        default: ''
   repository_dispatch:
     types:
       - publication.provider-qualified
       - publication.reconcile
+  workflow_call:
+    inputs:
+      producer_ref:
+        description: Exact trusted Integration producer SHA
+        type: string
+        required: true
+      composition_ref:
+        description: Optional exact Composition candidate SHA
+        type: string
+        default: ''
+      policy_ref:
+        description: Optional exact Policy candidate SHA
+        type: string
+        default: ''
+      modeling_ref:
+        description: Optional exact Modeling candidate SHA
+        type: string
+        default: ''
+      controller_ref:
+        description: Exact trusted Integration controller SHA
+        type: string
+        required: true
 permissions:
   contents: read
   actions: read
@@ -41,10 +67,11 @@ jobs:
   qualify:
     uses: ./.github/workflows/integration-qualification.yml
     with:
-      producer_ref: ${{ inputs.producer_ref || github.sha }}
-      composition_ref: ${{ inputs.composition_ref || '' }}
-      policy_ref: ${{ inputs.policy_ref || '' }}
-      modeling_ref: ${{ inputs.modeling_ref || '' }}
+      producer_ref: ${{ inputs.producer_ref || github.event.client_payload.producer_ref || github.sha }}
+      composition_ref: ${{ inputs.composition_ref || github.event.client_payload.composition_ref || '' }}
+      policy_ref: ${{ inputs.policy_ref || github.event.client_payload.policy_ref || '' }}
+      modeling_ref: ${{ inputs.modeling_ref || github.event.client_payload.modeling_ref || '' }}
+      trusted_controller_revision: ${{ inputs.controller_ref || github.workflow_sha }}
       artifact_namespace: reconciliation
     permissions:
       contents: read
@@ -60,7 +87,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ inputs.controller_ref || github.workflow_sha || github.sha }}
           fetch-depth: 0
           persist-credentials: false
       - name: Download the exact structured qualification report
@@ -70,9 +97,9 @@ jobs:
           path: qualification
       - name: Render the expected lock without executing candidate code
         env:
-          COMPOSITION: ${{ inputs.composition_ref || '' }}
-          POLICY: ${{ inputs.policy_ref || '' }}
-          MODELING: ${{ inputs.modeling_ref || '' }}
+          COMPOSITION: ${{ inputs.composition_ref || github.event.client_payload.composition_ref || '' }}
+          POLICY: ${{ inputs.policy_ref || github.event.client_payload.policy_ref || '' }}
+          MODELING: ${{ inputs.modeling_ref || github.event.client_payload.modeling_ref || '' }}
         run: |
           args=(--lock publication-sources.json --output candidate-lock.json)
           if [ -n "$COMPOSITION" ]; then args+=(--override "composition=$COMPOSITION"); fi
@@ -86,7 +113,7 @@ jobs:
           KILL_SWITCH: ${{ env.AUTOMATION_KILL_SWITCH }}
           EXPECTED_INTEGRATION: ${{ needs.qualify.outputs.producer_revision }}
           EXPECTED_POLICY: ${{ vars.PUBLICATION_POLICY_REVISION || '' }}
-          EXPECTED_CONTROLLER: ${{ vars.PUBLICATION_CONTROLLER_REVISION || github.workflow_sha }}
+          EXPECTED_CONTROLLER: ${{ vars.PUBLICATION_CONTROLLER_REVISION || inputs.controller_ref || github.workflow_sha }}
         run: |
           auth_args=()
           if [ "$AUTHORIZED" = true ]; then auth_args+=(--authorization); fi
@@ -120,14 +147,14 @@ jobs:
       pull-requests: write
     env:
       GH_TOKEN: ${{ secrets.PUBLICATION_APP_TOKEN }}
-      COMPOSITION: ${{ inputs.composition_ref || '' }}
-      POLICY: ${{ inputs.policy_ref || '' }}
-      MODELING: ${{ inputs.modeling_ref || '' }}
+      COMPOSITION: ${{ inputs.composition_ref || github.event.client_payload.composition_ref || '' }}
+      POLICY: ${{ inputs.policy_ref || github.event.client_payload.policy_ref || '' }}
+      MODELING: ${{ inputs.modeling_ref || github.event.client_payload.modeling_ref || '' }}
       IDEMPOTENCY_KEY: ${{ needs.controller.outputs.idempotency_key }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ inputs.controller_ref || github.workflow_sha || github.sha }}
           fetch-depth: 0
           persist-credentials: false
       - name: Require the one-time activated controller credential
