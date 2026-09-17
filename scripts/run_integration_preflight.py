@@ -155,6 +155,10 @@ def run_providers(args: argparse.Namespace, expected_head: str) -> None:
     policy_root = args.policy_root.resolve()
     composition_revision = exact_revision(args.composition_revision, "Composition revision")
     policy_revision = exact_revision(args.policy_revision, "Policy revision")
+    modeling_root = args.modeling_root.resolve() if args.modeling_root else None
+    modeling_revision = exact_revision(args.modeling_revision, "Modeling revision") if args.modeling_revision else None
+    if (modeling_root is None) != (modeling_revision is None):
+        raise PreflightFailure("Modeling root and revision must be supplied together")
     require_clean_tree()
     run_fast(expected_head)
     validate_publication_lock()
@@ -164,14 +168,19 @@ def run_providers(args: argparse.Namespace, expected_head: str) -> None:
         raise PreflightFailure("Composition checkout does not match its exact revision")
     if resolve_producer.resolve_checkout(policy_root) != policy_revision:
         raise PreflightFailure("Policy checkout does not match its exact revision")
-    run(command(
+    if modeling_root is not None and resolve_producer.resolve_checkout(modeling_root) != modeling_revision:
+        raise PreflightFailure("Modeling checkout does not match its exact revision")
+    materialization = [
         "scripts/materialize_publication_assets.py",
         "--publication", f"composition={composition_root}",
         "--publication", f"policy={policy_root}",
-    ))
+    ]
+    if modeling_root is not None:
+        materialization.extend(("--publication", f"modeling={modeling_root}"))
+    run(command(*materialization))
     with tempfile.TemporaryDirectory(prefix="integration-preflight-providers-") as directory:
         output = Path(directory) / "publication-bundle"
-        run(command(
+        qualification = [
             "scripts/qualify_integration.py",
             "--integration-root", str(ROOT),
             "--producer-revision", expected_head,
@@ -179,8 +188,11 @@ def run_providers(args: argparse.Namespace, expected_head: str) -> None:
             "--composition-revision", composition_revision,
             "--policy-root", str(policy_root),
             "--policy-revision", policy_revision,
-            "--output", str(output),
-        ))
+        ]
+        if modeling_root is not None:
+            qualification.extend(("--modeling-root", str(modeling_root), "--modeling-revision", modeling_revision))
+        qualification.extend(("--output", str(output)))
+        run(command(*qualification))
         archive = Path(directory) / "bundle.tar"
         run(command("scripts/publication_bundle_artifact.py", "pack", "--bundle", str(output), "--output", str(archive)))
         if not archive.is_file():
@@ -193,13 +205,16 @@ def run_providers(args: argparse.Namespace, expected_head: str) -> None:
         with zipfile.ZipFile(zip_path, "w") as zipped:
             zipped.write(archive, "bundle.tar")
         extracted = Path(directory) / "extracted"
+        expected_providers = {"composition": composition_revision, "policy": policy_revision}
+        if modeling_root is not None:
+            expected_providers["modeling"] = modeling_revision
         extracted_manifest = extract(
             zip_path,
             extracted,
             archive_digest="sha256:" + hashlib.sha256(zip_path.read_bytes()).hexdigest(),
             identity=manifest["identity"],
             producer=expected_head,
-            providers={"composition": composition_revision, "policy": policy_revision},
+            providers=expected_providers,
         )
         if extracted_manifest != manifest:
             raise PreflightFailure("provider Bundle pack/extract round trip changed the manifest")
@@ -213,6 +228,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--composition-revision")
     parser.add_argument("--policy-root", type=Path)
     parser.add_argument("--policy-revision")
+    parser.add_argument("--modeling-root", type=Path)
+    parser.add_argument("--modeling-revision")
     return parser.parse_args(argv)
 
 

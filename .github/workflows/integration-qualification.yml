@@ -14,6 +14,10 @@ on:
         description: Exact Policy candidate SHA (empty uses reviewed lock)
         type: string
         default: ''
+      modeling_ref:
+        description: Exact Modeling candidate SHA (required for a three-provider candidate)
+        type: string
+        default: ''
       publication_staging_ids:
         description: Ordered candidate mapping IDs, without changing reviewed locks
         type: string
@@ -27,6 +31,9 @@ on:
         type: string
         default: ''
       policy_ref:
+        type: string
+        default: ''
+      modeling_ref:
         type: string
         default: ''
       publication_staging_ids:
@@ -45,6 +52,8 @@ on:
         value: ${{ jobs.qualify.outputs.composition_revision }}
       policy_revision:
         value: ${{ jobs.qualify.outputs.policy_revision }}
+      modeling_revision:
+        value: ${{ jobs.qualify.outputs.modeling_revision }}
       bundle_identity:
         value: ${{ jobs.qualify.outputs.bundle_identity }}
       bundle_content_digest:
@@ -55,6 +64,8 @@ on:
         value: ${{ jobs.qualify.outputs.artifact_digest }}
       artifact_name:
         value: ${{ jobs.qualify.outputs.artifact_name }}
+      compatibility_classification:
+        value: ${{ jobs.qualify.outputs.compatibility_classification }}
 permissions:
   contents: read
   actions: read
@@ -66,13 +77,15 @@ jobs:
       producer_revision: ${{ steps.producer.outputs.sha }}
       composition_revision: ${{ steps.refs.outputs.composition }}
       policy_revision: ${{ steps.refs.outputs.policy }}
+      modeling_revision: ${{ steps.refs.outputs.modeling }}
       bundle_identity: ${{ steps.bundle.outputs.bundle_identity }}
       bundle_content_digest: ${{ steps.bundle.outputs.bundle_content_digest }}
       artifact_id: ${{ steps.upload.outputs.artifact-id }}
       artifact_digest: sha256:${{ steps.upload.outputs.artifact-digest }}
       artifact_name: publication-bundle-${{ steps.bundle.outputs.bundle_identity }}-${{ github.run_attempt }}-${{ inputs.artifact_namespace || 'candidate' }}
+      compatibility_classification: ${{ steps.report.outputs.classification }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ inputs.producer_ref || github.sha }}
           path: integration-source
@@ -83,25 +96,34 @@ jobs:
         env:
           COMPOSITION: ${{ inputs.composition_ref }}
           POLICY: ${{ inputs.policy_ref }}
+          MODELING: ${{ inputs.modeling_ref }}
         run: |
           overrides=()
           if [ -n "$COMPOSITION" ]; then overrides+=(--override "composition=$COMPOSITION"); fi
           if [ -n "$POLICY" ]; then overrides+=(--override "policy=$POLICY"); fi
-          python3 integration-source/scripts/resolve_publication_sources.py --lock integration-source/publication-sources.json --output "$GITHUB_OUTPUT" "${overrides[@]}"
+          candidates=()
+          if [ -n "$MODELING" ]; then overrides+=(--override "modeling=$MODELING"); candidates+=(--candidate-provider modeling); fi
+          python3 integration-source/scripts/resolve_publication_sources.py --lock integration-source/publication-sources.json --output "$GITHUB_OUTPUT" "${candidates[@]}" "${overrides[@]}"
       - name: Bind producer revision
         id: producer
         env:
           EXPECTED_PRODUCER: ${{ inputs.producer_ref || github.sha }}
         run: python3 integration-source/scripts/resolve_producer_checkout.py --root integration-source --expected "$EXPECTED_PRODUCER" --output "$GITHUB_OUTPUT"
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ steps.refs.outputs.composition }}
           path: composition-source
           persist-credentials: false
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ steps.refs.outputs.policy }}
           path: policy-source
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        if: ${{ steps.refs.outputs.modeling != '' }}
+        with:
+          ref: ${{ steps.refs.outputs.modeling }}
+          path: modeling-source
           persist-credentials: false
       - name: Install locked producer dependencies
         run: |
@@ -114,7 +136,9 @@ jobs:
         run: python3 scripts/run_integration_preflight.py fast --expected-head "$EXPECTED_HEAD"
       - name: Materialize provider-owned catalog outputs
         run: |
-          python3 integration-source/scripts/materialize_publication_assets.py --publication composition=composition-source --publication policy=policy-source
+          args=(--publication composition=composition-source --publication policy=policy-source)
+          if [ -d modeling-source ]; then args+=(--publication modeling=modeling-source); fi
+          python3 integration-source/scripts/materialize_publication_assets.py "${args[@]}"
       - name: Qualify exact inputs and deterministic regeneration
         id: bundle
         env:
@@ -125,18 +149,50 @@ jobs:
             echo 'Select one staging argument' >&2
             exit 1
           fi
-          python3 integration-source/scripts/qualify_integration.py \
-            --integration-root integration-source \
-            --producer-revision "${{ steps.producer.outputs.sha }}" \
-            --composition-root composition-source --composition-revision "${{ steps.refs.outputs.composition }}" \
-            --policy-root policy-source --policy-revision "${{ steps.refs.outputs.policy }}" \
-            --staging-ids "${STAGING_IDS:-$STAGING_ID}" \
-            --output publication-bundle --github-output "$GITHUB_OUTPUT"
+          qualification_args=(
+            --integration-root integration-source
+            --producer-revision "${{ steps.producer.outputs.sha }}"
+            --composition-root composition-source --composition-revision "${{ steps.refs.outputs.composition }}"
+            --policy-root policy-source --policy-revision "${{ steps.refs.outputs.policy }}"
+          )
+          if [ -d modeling-source ]; then
+            qualification_args+=(--modeling-root modeling-source --modeling-revision "$(git -C modeling-source rev-parse HEAD)")
+          fi
+          qualification_args+=(--staging-ids "${STAGING_IDS:-$STAGING_ID}" --output publication-bundle --github-output "$GITHUB_OUTPUT")
+          python3 integration-source/scripts/qualify_integration.py "${qualification_args[@]}"
       - name: Package qualified Bundle
         run: python3 integration-source/scripts/publication_bundle_artifact.py pack --bundle publication-bundle --output bundle.tar
+      - name: Create structured qualification report
+        id: report
+        if: ${{ steps.refs.outputs.modeling != '' }}
+        env:
+          TRUSTED_POLICY: ${{ steps.refs.outputs.policy }}
+          TRUSTED_CONTROLLER: ${{ github.workflow_sha }}
+        run: |
+          python3 integration-source/scripts/build_qualification_report.py \
+            --bundle publication-bundle \
+            --integration-revision "${{ steps.producer.outputs.sha }}" \
+            --modeling-root modeling-source \
+            --composition-root composition-source \
+            --policy-root policy-source \
+            --trusted-policy-revision "$TRUSTED_POLICY" \
+            --trusted-controller-revision "$TRUSTED_CONTROLLER" \
+            --evidence-ref "workflow://${{ github.workflow }}#${{ github.run_id }}/${{ github.run_attempt }}" \
+            --evidence-ref "bundle://${{ steps.bundle.outputs.bundle_identity }}" \
+            --output compatibility-report.json
+          echo "classification=$(python3 -c 'import json; print(json.load(open("compatibility-report.json"))["classification"])')" >> "$GITHUB_OUTPUT"
+          cat compatibility-report.json >> "$GITHUB_STEP_SUMMARY"
+      - name: Publish structured qualification report
+        if: ${{ steps.refs.outputs.modeling != '' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: publication-compatibility-${{ steps.bundle.outputs.bundle_identity }}-${{ github.run_attempt }}-${{ inputs.artifact_namespace || 'candidate' }}
+          path: compatibility-report.json
+          if-no-files-found: error
+          retention-days: 7
       - name: Publish immutable Bundle artifact
         id: upload
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: publication-bundle-${{ steps.bundle.outputs.bundle_identity }}-${{ github.run_attempt }}-${{ inputs.artifact_namespace || 'candidate' }}
           path: bundle.tar

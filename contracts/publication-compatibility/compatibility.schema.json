@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:templates:publication-compatibility:1",
+  "title": "Publication compatibility declaration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "provider", "protocol", "exports", "requirements"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "provider": {
+      "type": "string",
+      "enum": ["modeling", "composition", "policy"]
+    },
+    "protocol": {"type": "string", "minLength": 1},
+    "exports": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/export"}
+    },
+    "requirements": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/requirement"}
+    }
+  },
+  "$defs": {
+    "feature": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[.-][a-z0-9]+)*$"
+    },
+    "export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "namespace", "media_type", "identity_basis"],
+      "properties": {
+        "kind": {"enum": ["document", "asset", "record", "catalog"]},
+        "namespace": {"type": "string", "minLength": 1},
+        "media_type": {"type": "string", "minLength": 1},
+        "identity_basis": {"type": "string", "minLength": 1},
+        "feature": {"$ref": "#/$defs/feature"},
+        "rights": {"type": "string", "enum": ["allowlisted", "reference-only", "not-assessed"]}
+      }
+    },
+    "requirement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["feature", "required", "fallback"],
+      "properties": {
+        "feature": {"$ref": "#/$defs/feature"},
+        "required": {"type": "boolean"},
+        "fallback": {"type": "string", "enum": ["none", "generic-document", "ignore"]}
+      }
+    }
+  }
+}

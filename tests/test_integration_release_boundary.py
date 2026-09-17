@@ -33,7 +33,12 @@ class ReleaseBoundaryTests(unittest.TestCase):
         self.assertEqual(caller['jobs']['qualification']['needs'],'contracts')
         for value in (caller,workflow):self.assertTrue(all(p=='read' for p in value['permissions'].values()))
         steps=workflow['jobs']['qualify']['steps']
-        self.assertEqual([s['with']['path'] for s in steps if s.get('uses','').startswith('actions/checkout@')],['integration-source','composition-source','policy-source'])
+        self.assertEqual([s['with']['path'] for s in steps if s.get('uses','').startswith('actions/checkout@')],
+                         ['integration-source','composition-source','policy-source','modeling-source'])
+        modeling_checkout = next(
+            step for step in steps if step.get('with', {}).get('path') == 'modeling-source'
+        )
+        self.assertIn('steps.refs.outputs.modeling', modeling_checkout['if'])
         integration_checkout = next(
             step for step in steps if step.get('with', {}).get('path') == 'integration-source'
         )

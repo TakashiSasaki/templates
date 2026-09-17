@@ -1,4 +1,4 @@
-"""Publication Bundle v3 integrity contract; independent of either implementation."""
+"""Publication Bundle v3/v4 integrity contract; independent of either implementation."""
 from __future__ import annotations
 import hashlib
 import json
@@ -6,6 +6,7 @@ import re
 from pathlib import Path, PurePosixPath
 
 SCHEMA_VERSION = 3
+SCHEMA_VERSION_V4 = 4
 SHA = re.compile(r'^[0-9a-f]{40}$')
 DIGEST = re.compile(r'^[0-9a-f]{64}$')
 MAX_FILES = 50000
@@ -15,6 +16,10 @@ MODELS = ('documents.json', 'navigation.json', 'translation-availability.json',
           'glossary.json', 'guided-navigation.json', 'guided-locales.json',
           'provenance.json')
 MODEL_SET = frozenset(MODELS)
+PROVIDER_SETS = {
+    3: frozenset({'composition', 'policy'}),
+    4: frozenset({'modeling', 'composition', 'policy'}),
+}
 FIELDS = {'schema_version', 'producer', 'providers', 'configuration_digest',
           'files', 'content_digest', 'identity'}
 
@@ -131,7 +136,8 @@ def _validate_closed_inventory(files, expected_publication_paths=None):
         )
 
 
-def seal(root, *, producer, providers, configuration_digest, expected_publication_paths):
+def seal(root, *, producer, providers, configuration_digest, expected_publication_paths,
+         schema_version=None):
     if (root / 'bundle.json').exists():
         raise BundleError('Bundle already sealed')
     expected_publication_paths = _normalize_expected_publication_paths(
@@ -139,7 +145,11 @@ def seal(root, *, producer, providers, configuration_digest, expected_publicatio
     )
     files = inventory(root)
     _validate_closed_inventory(files, expected_publication_paths)
-    data = dict(schema_version=SCHEMA_VERSION, producer=producer, providers=providers,
+    if schema_version is None:
+        schema_version = SCHEMA_VERSION
+    if schema_version not in PROVIDER_SETS or set(providers) != PROVIDER_SETS[schema_version]:
+        raise BundleError('provider set does not match Bundle schema')
+    data = dict(schema_version=schema_version, producer=producer, providers=providers,
                 configuration_digest=configuration_digest, files=files,
                 content_digest=digest(canonical(files)))
     data['identity'] = digest(canonical(data))
@@ -157,14 +167,17 @@ def validate(root, *, expected_identity=None, expected_producer=None,
             expected_publication_paths
         )
     data = read_json(regular(root, 'bundle.json'))
-    if not isinstance(data, dict) or set(data) != FIELDS or type(data['schema_version']) is not int or data['schema_version'] != SCHEMA_VERSION:
+    if (not isinstance(data, dict) or set(data) != FIELDS
+            or type(data['schema_version']) is not int
+            or data['schema_version'] not in PROVIDER_SETS):
         raise BundleError('unsupported Bundle schema or fields')
+    schema_version = data['schema_version']
     producer, providers = data['producer'], data['providers']
     if (not isinstance(producer, dict) or set(producer) != {'authority', 'revision'}
             or producer['authority'] not in {'site-internal-integration', 'integration'}
             or not isinstance(producer['revision'], str) or not SHA.fullmatch(producer['revision'])):
         raise BundleError('invalid producer identity')
-    if (not isinstance(providers, dict) or set(providers) != {'composition', 'policy'}
+    if (not isinstance(providers, dict) or set(providers) != PROVIDER_SETS[schema_version]
             or any(not isinstance(v, str) or not SHA.fullmatch(v) for v in providers.values())):
         raise BundleError('invalid provider identities')
     for field in ('configuration_digest', 'content_digest', 'identity'):

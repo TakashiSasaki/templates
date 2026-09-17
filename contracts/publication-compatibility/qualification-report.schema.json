@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:templates:publication-qualification-report:1",
+  "title": "Publication qualification report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "boundary", "stage", "classification", "reason_codes",
+    "affected_authorities", "inputs", "trusted", "requirements", "checks",
+    "evidence_refs", "allowed_mutations", "next_action", "idempotency_key"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "boundary": {"anyOf": [{"enum": ["provider-to-integration", "integration-to-site", "site-to-pages"]}, {"type": "null"}]},
+    "stage": {"anyOf": [{"enum": ["preflight", "qualification", "authorization", "deployment"]}, {"type": "null"}]},
+    "classification": {
+      "enum": [
+        "COMPATIBLE_PENDING_QUALIFICATION", "AUTO_PROCESSABLE", "ADAPTATION_REQUIRED",
+        "CROSS_PROVIDER_CONFLICT", "INVALID_INPUT", "UNKNOWN", "QUALIFICATION_FAILED",
+        "INFRASTRUCTURE_FAILURE", "NOT_ELIGIBLE", "SUPERSEDED", "NO_CHANGE"
+      ]
+    },
+    "reason_codes": {"type": "array", "items": {"type": "string"}},
+    "affected_authorities": {"type": "array", "items": {"type": "string"}},
+    "inputs": {"type": "object", "additionalProperties": {"type": "string"}},
+    "trusted": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_revision", "controller_revision"],
+      "properties": {
+        "policy_revision": {"type": ["string", "null"], "pattern": "^[0-9a-f]{40}$"},
+        "controller_revision": {"type": ["string", "null"], "pattern": "^[0-9a-f]{40}$"}
+      }
+    },
+    "requirements": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required", "supported", "missing", "unsupported", "fallbacks"],
+      "properties": {
+        "required": {"type": "array", "items": {"type": "string"}},
+        "supported": {"type": "array", "items": {"type": "string"}},
+        "missing": {"type": "array", "items": {"type": "string"}},
+        "unsupported": {"type": "array", "items": {"type": "string"}},
+        "fallbacks": {"type": "object", "additionalProperties": {"type": "string"}}
+      }
+    },
+    "checks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required", "results", "not_run"],
+      "properties": {
+        "required": {"type": "array", "items": {"type": "string"}},
+        "results": {"type": "object", "additionalProperties": {"enum": ["passed", "failed", "skipped"]}},
+        "not_run": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "evidence_refs": {"type": "array", "items": {"type": "string"}},
+    "allowed_mutations": {"type": "array", "items": {"type": "string"}},
+    "next_action": {"type": "string"},
+    "idempotency_key": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

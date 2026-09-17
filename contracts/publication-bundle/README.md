@@ -1,4 +1,9 @@
-# Integrated Publication Bundle v3
+# Integrated Publication Bundle v3/v4
+
+Bundle schema 3 remains valid for the committed Composition + Policy lock.
+Bundle schema 4 is the explicit three-provider extension: `modeling`,
+`composition`, and `policy`. A v4 Bundle is never inferred from a v3 content
+digest; schema, provider set, producer revision, and identity must all match.
 
 The public `publication_bundle.contract` validator and JSON schema define the versioned
 Integration output. `integration/producer.py` is the independent implementation;

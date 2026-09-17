@@ -14,6 +14,8 @@ from integration.publication_contract import (
     resolve_without_symlinks,
     safe_relative_path,
 )
+from integration.publication_contract_v4 import load_publication_catalog_v4
+from integration.capabilities import validate_catalog_closure, validate_provider_declaration
 
 AUDIENCE_TITLES: dict[str, str] = {
     "use": "Use templates",
@@ -78,10 +80,22 @@ def load_catalog(
     name: str,
     root: Path,
 ) -> tuple[dict[str, dict[str, Any]], list[dict[str, Any]]]:
+    declaration = validate_provider_declaration(root, name)
+    catalog_path = root / "docs/publication-catalog.json"
     try:
-        catalog = load_materialized_publication_catalog(root, name)
-    except PublicationMaterializationError as exc:
-        raise AssemblyError(str(exc)) from exc
+        raw_version = json.loads(catalog_path.read_text(encoding="utf-8"))["schema_version"]
+    except (OSError, UnicodeError, ValueError, KeyError, TypeError) as exc:
+        raise AssemblyError(f"unable to inspect {name} publication catalog: {exc}") from exc
+    if raw_version == 4:
+        try:
+            catalog = load_publication_catalog_v4(root, label=f"{name} catalog")
+        except Exception as exc:
+            raise AssemblyError(str(exc)) from exc
+    else:
+        try:
+            catalog = load_materialized_publication_catalog(root, name)
+        except PublicationMaterializationError as exc:
+            raise AssemblyError(str(exc)) from exc
 
     documents = {
         document.document_id: {
@@ -96,9 +110,15 @@ def load_catalog(
             "source": asset.source,
             "destination": asset.destination,
             "optional": asset.optional,
+            "source_kind": getattr(asset, "source_kind", "tracked"),
         }
         for asset in catalog.assets
     ]
+    validate_catalog_closure(
+        declaration,
+        document_count=len(documents),
+        asset_count=len(assets),
+    )
     return documents, assets
 
 
@@ -472,4 +492,3 @@ def parse_publications(values: list[str]) -> dict[str, Path]:
     if not result:
         raise AssemblyError("at least one --publication is required")
     return result
-

@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "features": {
+    "publication.generic-document.v1": {
+      "kind": "document",
+      "fallback": "generic-document",
+      "required_checks": ["bundle-closure", "site-generic-renderer"]
+    },
+    "publication.opaque-json.v1": {
+      "kind": "asset",
+      "fallback": "generic-document",
+      "required_checks": ["bundle-closure"]
+    },
+    "publication.static-asset.v1": {
+      "kind": "asset",
+      "fallback": "none",
+      "required_checks": ["bundle-closure", "site-links"]
+    }
+  }
+}

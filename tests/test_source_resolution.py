@@ -11,6 +11,7 @@ from scripts.resolve_publication_sources import (
     PUBLICATION_NAMES,
     SourceLockError,
     parse_overrides,
+    resolve_candidate_sources,
     resolve_sources,
     write_outputs,
 )
@@ -79,6 +80,35 @@ class SourceResolutionTests(unittest.TestCase):
             )
             self.assertNotEqual(result.returncode, 0)
             self.assertFalse(output.exists())
+
+    def test_modeling_requires_an_explicit_candidate_override(self) -> None:
+        with self.assertRaisesRegex(SourceLockError, "explicit full SHA"):
+            resolve_candidate_sources(LOCK, {}, required_new_providers=("modeling",))
+        resolved = resolve_candidate_sources(
+            LOCK,
+            {"modeling": "a" * 40},
+            required_new_providers=("modeling",),
+        )
+        self.assertEqual(tuple(resolved), ("modeling", "composition", "policy"))
+
+    def test_schema_two_lock_can_be_read_after_explicit_modeling_adoption(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "lock.json"
+            path.write_bytes(
+                json.dumps({
+                    "schema_version": 2,
+                    "repository": "TakashiSasaki/templates",
+                    "publications": {
+                        "modeling": {"revision": "a" * 40},
+                        "composition": {"revision": "b" * 40},
+                        "policy": {"revision": "c" * 40},
+                    },
+                }).encode()
+            )
+            self.assertEqual(
+                resolve_sources(path, {}),
+                {"modeling": "a" * 40, "composition": "b" * 40, "policy": "c" * 40},
+            )
 
 
 if __name__ == "__main__":
