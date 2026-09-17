@@ -1,0 +1,41 @@
+{
+  "schema_version": 4,
+  "documents": [
+    {"id": "catalog", "source": "CATALOG.md", "optional": false, "home": true},
+    {"id": "adms", "source": "docs/resources/adms.md", "optional": false, "home": false},
+    {"id": "datacite", "source": "docs/resources/datacite.md", "optional": false, "home": false},
+    {"id": "dcat-ap", "source": "docs/resources/dcat-ap.md", "optional": false, "home": false},
+    {"id": "dcat", "source": "docs/resources/dcat.md", "optional": false, "home": false},
+    {"id": "dcterms", "source": "docs/resources/dcterms.md", "optional": false, "home": false},
+    {"id": "foaf", "source": "docs/resources/foaf.md", "optional": false, "home": false},
+    {"id": "iso-11179-3", "source": "docs/resources/iso-11179-3.md", "optional": false, "home": false},
+    {"id": "json-ld", "source": "docs/resources/json-ld.md", "optional": false, "home": false},
+    {"id": "json-schema", "source": "docs/resources/json-schema.md", "optional": false, "home": false},
+    {"id": "mod", "source": "docs/resources/mod.md", "optional": false, "home": false},
+    {"id": "mods", "source": "docs/resources/mods.md", "optional": false, "home": false},
+    {"id": "ndc", "source": "docs/resources/ndc.md", "optional": false, "home": false},
+    {"id": "odrl", "source": "docs/resources/odrl.md", "optional": false, "home": false},
+    {"id": "owl2", "source": "docs/resources/owl2.md", "optional": false, "home": false},
+    {"id": "premis", "source": "docs/resources/premis.md", "optional": false, "home": false},
+    {"id": "prof", "source": "docs/resources/prof.md", "optional": false, "home": false},
+    {"id": "prov-o", "source": "docs/resources/prov-o.md", "optional": false, "home": false},
+    {"id": "rdf", "source": "docs/resources/rdf.md", "optional": false, "home": false},
+    {"id": "rdfs", "source": "docs/resources/rdfs.md", "optional": false, "home": false},
+    {"id": "resource-record", "source": "docs/resources/resource-record.md", "optional": false, "home": false},
+    {"id": "ro-crate", "source": "docs/resources/ro-crate.md", "optional": false, "home": false},
+    {"id": "semver", "source": "docs/resources/semver.md", "optional": false, "home": false},
+    {"id": "shacl", "source": "docs/resources/shacl.md", "optional": false, "home": false},
+    {"id": "shacl12", "source": "docs/resources/shacl12.md", "optional": false, "home": false},
+    {"id": "skos", "source": "docs/resources/skos.md", "optional": false, "home": false},
+    {"id": "spdx", "source": "docs/resources/spdx.md", "optional": false, "home": false},
+    {"id": "sssom", "source": "docs/resources/sssom.md", "optional": false, "home": false},
+    {"id": "udc-summary", "source": "docs/resources/udc-summary.md", "optional": false, "home": false},
+    {"id": "udc", "source": "docs/resources/udc.md", "optional": false, "home": false},
+    {"id": "uri", "source": "docs/resources/uri.md", "optional": false, "home": false},
+    {"id": "xsd", "source": "docs/resources/xsd.md", "optional": false, "home": false}
+  ],
+  "assets": [
+    {"source": "records", "destination": "records", "optional": false, "source_kind": "tracked"},
+    {"source": "schemas", "destination": "schemas", "optional": false, "source_kind": "tracked"}
+  ]
+}

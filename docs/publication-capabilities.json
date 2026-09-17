@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "provider": "modeling",
+  "protocol": "publication-bundle",
+  "exports": [
+    {"kind": "catalog", "namespace": "modeling.catalog", "media_type": "text/markdown", "identity_basis": "catalog.json", "feature": "publication.generic-document.v1", "rights": "allowlisted"},
+    {"kind": "record", "namespace": "modeling.records", "media_type": "application/json", "identity_basis": "record-id-and-sha256", "feature": "publication.opaque-json.v1", "rights": "reference-only"},
+    {"kind": "asset", "namespace": "modeling.schemas", "media_type": "application/schema+json", "identity_basis": "path-and-sha256", "feature": "publication.static-asset.v1", "rights": "allowlisted"}
+  ],
+  "requirements": [
+    {"feature": "publication.generic-document.v1", "required": true, "fallback": "generic-document"},
+    {"feature": "publication.opaque-json.v1", "required": true, "fallback": "generic-document"},
+    {"feature": "publication.static-asset.v1", "required": true, "fallback": "none"}
+  ]
+}

@@ -5,13 +5,15 @@ import sys
 import unittest
 
 import catalog
+import publication_export
 
 
 def main() -> int:
     root = Path(__file__).resolve().parents[1]
     try:
         records, collections = catalog.project(root, check=True)
-    except (catalog.CatalogError, OSError, UnicodeError) as exc:
+        publication_export.validate(root)
+    except (catalog.CatalogError, publication_export.ExportError, OSError, UnicodeError, ValueError) as exc:
         print(f"Catalog qualification failed: {exc}", file=sys.stderr)
         return 1
     suite = unittest.TestLoader().discover(str(root / "tests"), pattern="test_*.py")
