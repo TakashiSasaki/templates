@@ -24,3 +24,41 @@ jobs:
     # The companion provider comes only from this reviewed Integration lock.
     # Evidence binds this exact candidate and Integration contract; it does not
     # promote provider locks, adopt Site input, render Site, or authorize deployment.
+
+  notify-integration:
+    name: Notify Integration after provider qualification
+    needs: compatibility
+    if: >-
+      github.repository == 'TakashiSasaki/templates' &&
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/policy' &&
+      needs.compatibility.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Dispatch the qualified immutable provider revision
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PROVIDER: policy
+          PROVIDER_REVISION: ${{ github.sha }}
+          WORKFLOW_HEAD: ${{ github.workflow_sha }}
+        run: |
+          python3 - "$PROVIDER_REVISION" "$WORKFLOW_HEAD" <<'PY'
+          import re
+          import sys
+          for label, value in zip(("provider revision", "workflow revision"), sys.argv[1:]):
+              if re.fullmatch(r"[0-9a-f]{40}", value) is None:
+                  raise SystemExit(f"{label} is not an immutable commit SHA")
+          PY
+          gh api "repos/$GITHUB_REPOSITORY/dispatches" \
+            --method POST \
+            -f event_type='publication.provider-qualified' \
+            -f "client_payload[provider]=$PROVIDER" \
+            -f "client_payload[provider_revision]=$PROVIDER_REVISION" \
+            -f "client_payload[provider_qualification_run_id]=$GITHUB_RUN_ID" \
+            -f "client_payload[provider_qualification_attempt]=$GITHUB_RUN_ATTEMPT" \
+            -f "client_payload[qualification_workflow_head]=$WORKFLOW_HEAD" \
+            -f "client_payload[qualification_workflow_name]=Policy Integration compatibility" \
+            -f "client_payload[qualification_workflow_event]=$GITHUB_EVENT_NAME" \
+            -f "client_payload[qualification_workflow_path]=.github/workflows/integration-compatibility.yml"

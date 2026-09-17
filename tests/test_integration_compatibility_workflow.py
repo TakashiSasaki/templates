@@ -18,7 +18,14 @@ class IntegrationCompatibilityTests(unittest.TestCase):
         self.assertIn("!github.event.pull_request.draft", text)
         self.assertIn("branches: [policy]", text)
         self.assertIn("actions: read", text)
-        self.assertNotRegex(text, r"(?m)^\s*(?:pages|id-token|contents): write")
+        self.assertNotRegex(text, r"(?m)^\s*(?:pages|id-token): write")
+        self.assertEqual(text.count("      contents: write"), 1)
+        notify = text.split("  notify-integration:", 1)[1]
+        self.assertIn("github.event_name == 'push'", notify)
+        self.assertIn("github.ref == 'refs/heads/policy'", notify)
+        self.assertIn("publication.provider-qualified", notify)
+        self.assertIn("client_payload[provider_revision]", notify)
+        self.assertNotIn("client_payload[producer_ref]", notify)
         self.assertNotIn("build-pages", text)
         self.assertNotIn("site_ref:", text)
 
