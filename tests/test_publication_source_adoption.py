@@ -47,6 +47,7 @@ class PublicationSourceAdoptionTests(unittest.TestCase):
                 "workflow_head": "e" * 40,
                 "workflow_name": "test-workflow",
                 "workflow_event": "workflow_dispatch",
+                "workflow_path": ".github/workflows/integration-reconcile.yml",
                 "artifact_id": 2,
                 "artifact_digest": "sha256:" + "d" * 64,
                 "artifact_name": "publication-bundle-" + bundle_identity + "-1-test",

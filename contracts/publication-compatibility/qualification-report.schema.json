@@ -57,6 +57,45 @@
     "evidence_refs": {"type": "array", "items": {"type": "string"}},
     "allowed_mutations": {"type": "array", "items": {"type": "string"}},
     "next_action": {"type": "string"},
-    "idempotency_key": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+    "idempotency_key": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version", "verifier_revision", "source_report_digest",
+        "workflow_run_id", "workflow_attempt", "workflow_head",
+        "workflow_name", "workflow_event", "workflow_path", "artifact_id",
+        "artifact_digest", "artifact_name", "bundle_identity",
+        "bundle_content_digest", "trusted_checks"
+      ],
+      "properties": {
+        "schema_version": {"const": 1},
+        "verifier_revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "source_report_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "workflow_run_id": {"type": "integer", "minimum": 1},
+        "workflow_attempt": {"type": "integer", "minimum": 1},
+        "workflow_head": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "workflow_name": {"type": "string", "minLength": 1},
+        "workflow_event": {"type": "string", "minLength": 1},
+        "workflow_path": {"type": "string", "minLength": 1},
+        "artifact_id": {"type": "integer", "minimum": 1},
+        "artifact_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "artifact_name": {"type": "string", "pattern": "^publication-bundle-[0-9a-f]{64}-[0-9]+-[a-z][a-z0-9-]*$"},
+        "bundle_identity": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "bundle_content_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "trusted_checks": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["report-shape", "bundle-contract", "bundle-equivalence", "provider-declarations", "identity-binding"],
+          "properties": {
+            "report-shape": {"const": "passed"},
+            "bundle-contract": {"const": "passed"},
+            "bundle-equivalence": {"const": "passed"},
+            "provider-declarations": {"const": "passed"},
+            "identity-binding": {"const": "passed"}
+          }
+        }
+      }
+    }
   }
 }

@@ -242,6 +242,7 @@ def verify(
     workflow_head: str,
     workflow_name: str,
     workflow_event: str,
+    workflow_path: str,
     artifact_id: int,
     artifact_digest: str,
     artifact_name: str,
@@ -255,6 +256,8 @@ def verify(
         raise QualificationEvidenceError("qualification workflow name is missing")
     if not isinstance(workflow_event, str) or not workflow_event.strip():
         raise QualificationEvidenceError("qualification workflow event is missing")
+    if not isinstance(workflow_path, str) or not workflow_path.strip():
+        raise QualificationEvidenceError("qualification workflow path is missing")
     if expected_policy_revision:
         _sha(expected_policy_revision, "expected Policy revision")
     if workflow_run_id <= 0 or workflow_attempt <= 0 or artifact_id <= 0:
@@ -349,6 +352,7 @@ def verify(
             "workflow_head": workflow_head,
             "workflow_name": workflow_name,
             "workflow_event": workflow_event,
+            "workflow_path": workflow_path,
             "artifact_id": artifact_id,
             "artifact_digest": artifact_digest,
             "artifact_name": artifact_name,
@@ -385,6 +389,7 @@ def main() -> int:
     parser.add_argument("--workflow-head", required=True)
     parser.add_argument("--workflow-name", required=True)
     parser.add_argument("--workflow-event", required=True)
+    parser.add_argument("--workflow-path", required=True)
     parser.add_argument("--artifact-id", type=int, required=True)
     parser.add_argument("--artifact-digest", required=True)
     parser.add_argument("--artifact-name", required=True)
@@ -412,6 +417,7 @@ def main() -> int:
             workflow_head=args.workflow_head,
             workflow_name=args.workflow_name,
             workflow_event=args.workflow_event,
+            workflow_path=args.workflow_path,
             artifact_id=args.artifact_id,
             artifact_digest=args.artifact_digest,
             artifact_name=args.artifact_name,

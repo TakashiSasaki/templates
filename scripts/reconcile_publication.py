@@ -48,7 +48,7 @@ def _verified_receipt(
     required = {
         "schema_version", "verifier_revision", "source_report_digest",
         "workflow_run_id", "workflow_attempt", "workflow_head", "artifact_id",
-        "workflow_name", "workflow_event", "artifact_digest", "artifact_name", "bundle_identity",
+        "workflow_name", "workflow_event", "workflow_path", "artifact_digest", "artifact_name", "bundle_identity",
         "bundle_content_digest", "trusted_checks",
     }
     if set(verification) != required or verification.get("schema_version") != 1:
@@ -85,6 +85,8 @@ def _verified_receipt(
         return False, "TRUSTED_EVIDENCE_WORKFLOW_NAME_INVALID"
     if not isinstance(verification.get("workflow_event"), str) or not verification["workflow_event"].strip():
         return False, "TRUSTED_EVIDENCE_WORKFLOW_EVENT_INVALID"
+    if not isinstance(verification.get("workflow_path"), str) or not verification["workflow_path"].strip():
+        return False, "TRUSTED_EVIDENCE_WORKFLOW_PATH_INVALID"
     if not isinstance(verification.get("artifact_digest"), str) or ARTIFACT_DIGEST.fullmatch(verification["artifact_digest"]) is None:
         return False, "TRUSTED_EVIDENCE_ARTIFACT_DIGEST_INVALID"
     if (not isinstance(verification.get("bundle_identity"), str)

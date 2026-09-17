@@ -12,7 +12,10 @@ jobs:
       github.repository == 'TakashiSasaki/templates' &&
       github.event.pull_request.merged == true &&
       startsWith(github.event.pull_request.head.ref, 'automation/publication-') &&
-      github.event.pull_request.base.ref == 'integration'
+      github.event.pull_request.base.ref == 'integration' &&
+      vars.PUBLICATION_POLICY_REVISION != '' &&
+      vars.PUBLICATION_CONTROLLER_REVISION != '' &&
+      vars.PUBLICATION_AUTOMATION_KILL_SWITCH != 'true'
     uses: ./.github/workflows/integration-qualification.yml
     with:
       producer_ref: ${{ github.event.pull_request.merge_commit_sha }}
@@ -28,7 +31,10 @@ jobs:
     needs: release_qualification
     if: >-
       github.repository == 'TakashiSasaki/templates' &&
-      needs.release_qualification.result == 'success'
+      needs.release_qualification.result == 'success' &&
+      vars.PUBLICATION_POLICY_REVISION != '' &&
+      vars.PUBLICATION_CONTROLLER_REVISION != '' &&
+      vars.PUBLICATION_AUTOMATION_KILL_SWITCH != 'true'
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -83,6 +89,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           MODELING: ${{ needs.release_qualification.outputs.modeling_revision }}
         run: |
+          WORKFLOW_PATH="${GITHUB_WORKFLOW_REF#*/.github/workflows/}"
+          WORKFLOW_PATH="${WORKFLOW_PATH%@*}"
+          test -n "$WORKFLOW_PATH"
           args=(
             consume
             --repository "$GITHUB_REPOSITORY"
@@ -93,6 +102,7 @@ jobs:
             --workflow-head "${{ needs.release_qualification.outputs.workflow_head }}"
             --workflow-name "${{ needs.release_qualification.outputs.workflow_name }}"
             --workflow-event "${{ needs.release_qualification.outputs.workflow_event }}"
+            --workflow-path "$WORKFLOW_PATH"
             --artifact-name "${{ needs.release_qualification.outputs.artifact_name }}"
             --run-id "${{ needs.release_qualification.outputs.workflow_run_id }}"
             --attempt "${{ needs.release_qualification.outputs.workflow_attempt }}"
@@ -118,6 +128,7 @@ jobs:
             --workflow-head "${{ needs.release_qualification.outputs.workflow_head }}"
             --workflow-name "${{ needs.release_qualification.outputs.workflow_name }}"
             --workflow-event "${{ needs.release_qualification.outputs.workflow_event }}"
+            --workflow-path "$WORKFLOW_PATH"
             --artifact-id "${{ needs.release_qualification.outputs.artifact_id }}"
             --artifact-digest "${{ needs.release_qualification.outputs.artifact_digest }}"
             --artifact-name "${{ needs.release_qualification.outputs.artifact_name }}"
@@ -152,7 +163,10 @@ jobs:
       needs.verify_release.result == 'success' &&
       github.event.pull_request.merged == true &&
       startsWith(github.event.pull_request.head.ref, 'automation/publication-') &&
-      github.event.pull_request.base.ref == 'integration'
+      github.event.pull_request.base.ref == 'integration' &&
+      vars.PUBLICATION_POLICY_REVISION != '' &&
+      vars.PUBLICATION_CONTROLLER_REVISION != '' &&
+      vars.PUBLICATION_AUTOMATION_KILL_SWITCH != 'true'
     runs-on: ubuntu-24.04
     steps:
       - name: Dispatch exact merged Integration identity to Site

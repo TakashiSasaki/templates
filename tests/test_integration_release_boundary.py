@@ -67,6 +67,20 @@ class ReleaseBoundaryTests(unittest.TestCase):
         self.assertIn('--code-revision "$CONTROLLER"', qualification)
         self.assertNotIn('test "$PRODUCER" = "$CONTROLLER"', qualification)
         self.assertIn('PUBLICATION_CONTROLLER_REVISION', reconcile)
+        self.assertIn('EXPECTED_CONSUMER_BASE: ${{ steps.base.outputs.revision }}', reconcile)
+        self.assertIn('--workflow-path "$WORKFLOW_PATH"', reconcile)
+
+    def test_promotion_receipt_keeps_trusted_activation_gate_at_notify_boundary(self):
+        workflow = (ROOT / '.github/workflows/integration-promotion-notify.yml').read_text()
+        notify = workflow.split('  notify:', 1)[1]
+        for required in (
+            "vars.PUBLICATION_POLICY_REVISION != ''",
+            "vars.PUBLICATION_CONTROLLER_REVISION != ''",
+            "vars.PUBLICATION_AUTOMATION_KILL_SWITCH != 'true'",
+        ):
+            with self.subTest(required=required):
+                self.assertIn(required, notify)
+        self.assertIn('--workflow-path "$WORKFLOW_PATH"', workflow)
 
     def test_exact_producer_binding_rejects_mutable_and_mismatched_inputs(self):
         head=subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip()

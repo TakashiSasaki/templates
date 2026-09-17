@@ -132,6 +132,9 @@ jobs:
           REPOSITORY: ${{ github.repository }}
           MODELING: ${{ needs.qualify.outputs.modeling_revision }}
         run: |
+          WORKFLOW_PATH="${GITHUB_WORKFLOW_REF#*/.github/workflows/}"
+          WORKFLOW_PATH="${WORKFLOW_PATH%@*}"
+          test -n "$WORKFLOW_PATH"
           args=(
             consume
             --repository "$REPOSITORY"
@@ -142,6 +145,7 @@ jobs:
             --workflow-head "${{ needs.qualify.outputs.workflow_head }}"
             --workflow-name "${{ needs.qualify.outputs.workflow_name }}"
             --workflow-event "${{ needs.qualify.outputs.workflow_event }}"
+            --workflow-path "$WORKFLOW_PATH"
             --artifact-name "${{ needs.qualify.outputs.artifact_name }}"
             --run-id "${{ needs.qualify.outputs.workflow_run_id }}"
             --attempt "${{ needs.qualify.outputs.workflow_attempt }}"
@@ -168,6 +172,9 @@ jobs:
           EXPECTED_CONTROLLER: ${{ inputs.controller_ref || vars.PUBLICATION_CONTROLLER_REVISION || '' }}
           MODELING: ${{ needs.qualify.outputs.modeling_revision }}
         run: |
+          WORKFLOW_PATH="${GITHUB_WORKFLOW_REF#*/.github/workflows/}"
+          WORKFLOW_PATH="${WORKFLOW_PATH%@*}"
+          test -n "$WORKFLOW_PATH"
           args=(
             --report qualification/compatibility-report.json
             --bundle qualification/bundle
@@ -183,6 +190,7 @@ jobs:
             --workflow-head "${{ needs.qualify.outputs.workflow_head }}"
             --workflow-name "${{ needs.qualify.outputs.workflow_name }}"
             --workflow-event "${{ needs.qualify.outputs.workflow_event }}"
+            --workflow-path "$WORKFLOW_PATH"
             --artifact-id "${{ needs.qualify.outputs.artifact_id }}"
             --artifact-digest "${{ needs.qualify.outputs.artifact_digest }}"
             --artifact-name "${{ needs.qualify.outputs.artifact_name }}"
@@ -199,6 +207,7 @@ jobs:
           AUTHORIZED: ${{ env.AUTOMATION_AUTHORIZED }}
           KILL_SWITCH: ${{ env.AUTOMATION_KILL_SWITCH }}
           EXPECTED_INTEGRATION: ${{ needs.qualify.outputs.producer_revision }}
+          EXPECTED_CONSUMER_BASE: ${{ steps.base.outputs.revision }}
           EXPECTED_POLICY: ${{ vars.PUBLICATION_POLICY_REVISION || '' }}
           EXPECTED_CONTROLLER: ${{ inputs.controller_ref || vars.PUBLICATION_CONTROLLER_REVISION || '' }}
         run: |
