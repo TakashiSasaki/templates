@@ -36,7 +36,10 @@ class CompositionPreflightTests(unittest.TestCase):
             recorded.append((name, tuple(argv)))
 
         with mock.patch.object(preflight, "run_check", side_effect=record):
-            preflight.run_owned_validators("base-sha")
+            preflight.run_owned_validators(
+                "base-sha",
+                include_integration_publication=True,
+            )
 
         self.assertEqual(
             [name for name, _ in recorded],
@@ -80,6 +83,19 @@ class CompositionPreflightTests(unittest.TestCase):
         self.assertNotIn("validate_publication.py", commands)
         self.assertIn("validate_translations.py", commands)
         self.assertIn("validate_component_versions.py", commands)
+
+    def test_ready_keeps_composition_playground_check_without_integration_protocol(self) -> None:
+        recorded: list[tuple[str, tuple[str, ...]]] = []
+
+        def record(name: str, argv, **_kwargs) -> None:
+            recorded.append((name, tuple(argv)))
+
+        with mock.patch.object(preflight, "run_check", side_effect=record):
+            preflight.run_owned_validators("base-sha")
+
+        names = [name for name, _ in recorded]
+        self.assertIn("playground-generated-state", names)
+        self.assertNotIn("composition-publication", names)
 
     def test_publication_reuse_flag_is_explicit(self) -> None:
         args = preflight.parse_args(

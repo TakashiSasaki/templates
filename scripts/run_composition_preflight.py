@@ -87,23 +87,25 @@ def resolve_component_version_base(explicit: str | None) -> str:
 def run_owned_validators(
     component_version_base: str,
     *,
+    include_integration_publication: bool = False,
     publication_already_validated: bool = False,
 ) -> None:
     checks: list[tuple[str, list[str]]] = []
     if not publication_already_validated:
-        checks.extend(
-            [
-                (
-                    "playground-generated-state",
-                    command(
-                        "scripts/generate_composition_playground_publication.py",
-                        "--check-dir",
-                        "generated",
-                    ),
+        checks.append(
+            (
+                "playground-generated-state",
+                command(
+                    "scripts/generate_composition_playground_publication.py",
+                    "--check-dir",
+                    "generated",
                 ),
-                ("composition-publication", command("-I", "scripts/validate_publication.py")),
-            ]
+            )
         )
+        if include_integration_publication:
+            checks.append(
+                ("composition-publication", command("-I", "scripts/validate_publication.py"))
+            )
     checks.extend(
         [
             ("translation-availability", command("-I", "scripts/validate_translations.py", "--allow-stale")),
@@ -286,6 +288,11 @@ def run_ready(component_version_base: str, expected_head: str) -> None:
     require_clean_tree()
     run_check("phase-zero-source", command("-I", "scripts/composition_phase_zero.py"))
     run_owned_validators(component_version_base)
+    print(
+        "COMPOSITION_PREFLIGHT_CHECK_DEFERRED name=composition-publication "
+        "reason=reviewed Integration protocol checkout is an explicit cross-authority input",
+        flush=True,
+    )
     run_consumer_spine()
     run_core_ready()
     run_playground_provenance(expected_head)
@@ -365,6 +372,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
         if args.profile == "ready" and args.validators_only:
             raise PreflightFailure("ready does not support --validators-only")
+        include_integration_publication = bool(
+            args.integration_publication_protocol
+            or os.environ.get("INTEGRATION_PUBLICATION_PROTOCOL_ROOT")
+        )
         if args.profile == "ready":
             run_ready(component_version_base, head)
             print(f"COMPOSITION_PREFLIGHT_PASS profile={args.profile} head={head}", flush=True)
@@ -387,6 +398,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 os.environ["CHROMEWEBDRIVER"] = driver
         run_owned_validators(
             component_version_base,
+            include_integration_publication=include_integration_publication,
             publication_already_validated=args.publication_already_validated,
         )
         if args.validators_only:
