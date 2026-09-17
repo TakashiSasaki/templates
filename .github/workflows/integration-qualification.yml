@@ -195,6 +195,29 @@ jobs:
           ref: ${{ steps.refs.outputs.modeling }}
           path: modeling-source
           persist-credentials: false
+      - name: Create isolated provider materialization checkouts
+        env:
+          COMPOSITION: ${{ steps.refs.outputs.composition }}
+          POLICY: ${{ steps.refs.outputs.policy }}
+          MODELING: ${{ steps.refs.outputs.modeling }}
+        run: |
+          set -euo pipefail
+          mkdir -p materialized-provider-inputs
+          clone_provider() {
+            local name="$1"
+            local source="$2"
+            local revision="$3"
+            local target="materialized-provider-inputs/$name"
+            git clone --quiet --shared "$source" "$target"
+            git -C "$target" checkout --quiet --detach "$revision"
+            test "$(git -C "$target" rev-parse HEAD)" = "$revision"
+            test -z "$(git -C "$target" status --porcelain=v1 --untracked-files=all)"
+          }
+          clone_provider composition composition-source "$COMPOSITION"
+          clone_provider policy policy-source "$POLICY"
+          if [ -n "$MODELING" ]; then
+            clone_provider modeling modeling-source "$MODELING"
+          fi
       - name: Install locked producer dependencies
         run: |
           python3 -m pip install --no-deps -r integration-source/requirements-build.lock
@@ -206,8 +229,8 @@ jobs:
         run: python3 scripts/run_integration_preflight.py fast --expected-head "$EXPECTED_HEAD"
       - name: Materialize provider-owned catalog outputs
         run: |
-          args=(--publication composition=composition-source --publication policy=policy-source)
-          if [ -d modeling-source ]; then args+=(--publication modeling=modeling-source); fi
+          args=(--publication composition=materialized-provider-inputs/composition --publication policy=materialized-provider-inputs/policy)
+          if [ -d materialized-provider-inputs/modeling ]; then args+=(--publication modeling=materialized-provider-inputs/modeling); fi
           python3 integration-source/scripts/materialize_publication_assets.py "${args[@]}"
       - name: Qualify exact inputs and deterministic regeneration
         id: bundle
@@ -222,11 +245,11 @@ jobs:
           qualification_args=(
             --integration-root integration-source
             --producer-revision "${{ steps.producer.outputs.sha }}"
-            --composition-root composition-source --composition-revision "${{ steps.refs.outputs.composition }}"
-            --policy-root policy-source --policy-revision "${{ steps.refs.outputs.policy }}"
+            --composition-root materialized-provider-inputs/composition --composition-revision "${{ steps.refs.outputs.composition }}"
+            --policy-root materialized-provider-inputs/policy --policy-revision "${{ steps.refs.outputs.policy }}"
           )
-          if [ -d modeling-source ]; then
-            qualification_args+=(--modeling-root modeling-source --modeling-revision "$(git -C modeling-source rev-parse HEAD)")
+          if [ -d materialized-provider-inputs/modeling ]; then
+            qualification_args+=(--modeling-root materialized-provider-inputs/modeling --modeling-revision "${{ steps.refs.outputs.modeling }}")
           fi
           qualification_args+=(--staging-ids "${STAGING_IDS:-$STAGING_ID}" --output publication-bundle --github-output "$GITHUB_OUTPUT")
           python3 integration-source/scripts/qualify_integration.py "${qualification_args[@]}"
@@ -243,13 +266,13 @@ jobs:
             --integration-root controller-source
             --producer-revision "$PRODUCER"
             --code-revision "$CONTROLLER"
-            --composition-root composition-source --composition-revision "${{ steps.refs.outputs.composition }}"
-            --policy-root policy-source --policy-revision "${{ steps.refs.outputs.policy }}"
+            --composition-root materialized-provider-inputs/composition --composition-revision "${{ steps.refs.outputs.composition }}"
+            --policy-root materialized-provider-inputs/policy --policy-revision "${{ steps.refs.outputs.policy }}"
             --staging-ids "${STAGING_IDS:-$STAGING_ID}"
             --output trusted-publication-bundle
           )
-          if [ -d modeling-source ]; then
-            args+=(--modeling-root modeling-source --modeling-revision "${{ steps.refs.outputs.modeling }}")
+          if [ -d materialized-provider-inputs/modeling ]; then
+            args+=(--modeling-root materialized-provider-inputs/modeling --modeling-revision "${{ steps.refs.outputs.modeling }}")
           fi
           python3 controller-source/scripts/produce_publication_bundle.py "${args[@]}"
           python3 controller-source/scripts/verify_bundle_equivalence.py \

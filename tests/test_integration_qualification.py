@@ -75,6 +75,9 @@ class IntegrationQualificationTests(unittest.TestCase):
         self.assertIn('scripts/run_integration_preflight.py fast',commands)
         self.assertNotIn('tests.test_translation_manifest_closure',commands)
         self.assertIn('scripts/qualify_integration.py',commands)
+        self.assertIn('materialized-provider-inputs', commands)
+        self.assertIn('git clone --quiet --shared', commands)
+        self.assertIn('--composition-root composition-source', commands)
 
     def test_trusted_regeneration_can_bind_a_distinct_producer_identity(self):
         from integration.producer import produce

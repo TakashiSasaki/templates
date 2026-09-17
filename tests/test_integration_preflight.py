@@ -52,6 +52,13 @@ class IntegrationPreflightTests(unittest.TestCase):
                     with self.assertRaisesRegex(preflight.PreflightFailure, "full lowercase commit SHA"):
                         preflight.run_providers(args, "a" * 40)
 
+    def test_provider_materialization_uses_isolated_checkouts(self) -> None:
+        source = (ROOT / "scripts/run_integration_preflight.py").read_text(encoding="utf-8")
+        self.assertIn("clone_provider_for_materialization", source)
+        self.assertIn('git", "clone", "--quiet", "--shared"', source)
+        self.assertIn("materialized-provider-inputs", source)
+        self.assertIn("must be clean before materialization", source)
+
 
     def test_discovery_fails_if_a_test_import_is_not_represented(self) -> None:
         self.assertGreaterEqual(preflight.validate_discovery(), 43)

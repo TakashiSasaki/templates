@@ -150,6 +150,28 @@ def exact_revision(value: str, label: str) -> str:
     return value
 
 
+def require_clean_provider(root: Path, label: str, expected_revision: str) -> None:
+    if root.is_symlink() or not root.is_dir():
+        raise PreflightFailure(f"{label} checkout must be a regular directory")
+    actual = git_output("rev-parse", "HEAD", cwd=root)
+    if actual != expected_revision:
+        raise PreflightFailure(f"{label} checkout does not match its exact revision")
+    if git_output("status", "--porcelain=v1", "--untracked-files=all", cwd=root):
+        raise PreflightFailure(f"{label} checkout must be clean before materialization")
+
+
+def clone_provider_for_materialization(
+    root: Path,
+    revision: str,
+    target: Path,
+    label: str,
+) -> Path:
+    run(["git", "clone", "--quiet", "--shared", str(root), str(target)])
+    run(["git", "-C", str(target), "checkout", "--quiet", "--detach", revision])
+    require_clean_provider(target, label, revision)
+    return target
+
+
 def run_providers(args: argparse.Namespace, expected_head: str) -> None:
     composition_root = args.composition_root.resolve()
     policy_root = args.policy_root.resolve()
@@ -170,27 +192,54 @@ def run_providers(args: argparse.Namespace, expected_head: str) -> None:
         raise PreflightFailure("Policy checkout does not match its exact revision")
     if modeling_root is not None and resolve_producer.resolve_checkout(modeling_root) != modeling_revision:
         raise PreflightFailure("Modeling checkout does not match its exact revision")
-    materialization = [
-        "scripts/materialize_publication_assets.py",
-        "--publication", f"composition={composition_root}",
-        "--publication", f"policy={policy_root}",
-    ]
+    require_clean_provider(composition_root, "Composition", composition_revision)
+    require_clean_provider(policy_root, "Policy", policy_revision)
     if modeling_root is not None:
-        materialization.extend(("--publication", f"modeling={modeling_root}"))
-    run(command(*materialization))
+        require_clean_provider(modeling_root, "Modeling", modeling_revision)
     with tempfile.TemporaryDirectory(prefix="integration-preflight-providers-") as directory:
+        materialized_root = Path(directory) / "materialized-provider-inputs"
+        materialized_root.mkdir()
+        materialized_composition = clone_provider_for_materialization(
+            composition_root,
+            composition_revision,
+            materialized_root / "composition",
+            "Composition materialization",
+        )
+        materialized_policy = clone_provider_for_materialization(
+            policy_root,
+            policy_revision,
+            materialized_root / "policy",
+            "Policy materialization",
+        )
+        materialized_modeling = None
+        if modeling_root is not None:
+            materialized_modeling = clone_provider_for_materialization(
+                modeling_root,
+                modeling_revision,
+                materialized_root / "modeling",
+                "Modeling materialization",
+            )
+        materialization = [
+            "scripts/materialize_publication_assets.py",
+            "--publication", f"composition={materialized_composition}",
+            "--publication", f"policy={materialized_policy}",
+        ]
+        if materialized_modeling is not None:
+            materialization.extend(("--publication", f"modeling={materialized_modeling}"))
+        run(command(*materialization))
+
         output = Path(directory) / "publication-bundle"
         qualification = [
             "scripts/qualify_integration.py",
             "--integration-root", str(ROOT),
             "--producer-revision", expected_head,
-            "--composition-root", str(composition_root),
+            "--composition-root", str(materialized_composition),
             "--composition-revision", composition_revision,
-            "--policy-root", str(policy_root),
+            "--policy-root", str(materialized_policy),
             "--policy-revision", policy_revision,
         ]
-        if modeling_root is not None:
-            qualification.extend(("--modeling-root", str(modeling_root), "--modeling-revision", modeling_revision))
+        if materialized_modeling is not None:
+            qualification.extend(("--modeling-root", str(materialized_modeling), "--modeling-revision", modeling_revision))
         qualification.extend(("--output", str(output)))
         run(command(*qualification))
         archive = Path(directory) / "bundle.tar"
