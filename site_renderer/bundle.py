@@ -4,8 +4,9 @@ Integration qualifies provider declarations and semantics. Site authenticates th
 selected immutable artifact, never parses provider catalogs/manifests or Git blobs.
 """
 from pathlib import Path
-from publication_bundle.contract import (BundleError, SHA, DIGEST, MODELS, FIELDS, PROVIDER_SETS, PROVIDER_ORDERS,
-    canonical, digest, read_json, safe_path, regular, inventory)
+from publication_bundle.contract import (BundleError, SHA, DIGEST, MODELS, FIELDS, FIELDS_V4,
+    PROVIDER_SETS, PROVIDER_ORDERS, canonical, digest, read_json, safe_path, regular,
+    inventory, requirements_digest, validate_requirements)
 
 
 def load_lock(path):
@@ -30,11 +31,20 @@ def validate_locked(root, lock):
 def validate(root, *, expected_identity=None, expected_producer=None, expected_providers=None):
     root = Path(root)
     data = read_json(regular(root, 'bundle.json'))
-    if (not isinstance(data, dict) or set(data) != FIELDS
-            or type(data['schema_version']) is not int
+    if not isinstance(data, dict):
+        raise BundleError('unsupported Bundle schema or fields')
+    expected_fields = FIELDS if data.get('schema_version') == 3 else FIELDS_V4
+    if (set(data) != expected_fields
+            or type(data.get('schema_version')) is not int
             or data['schema_version'] not in PROVIDER_SETS):
         raise BundleError('unsupported Bundle schema or fields')
     schema_version = data['schema_version']
+    if schema_version == 4:
+        validate_requirements(data['requirements'], PROVIDER_SETS[schema_version])
+        if (not isinstance(data['requirements_digest'], str)
+                or not DIGEST.fullmatch(data['requirements_digest'])
+                or requirements_digest(data['requirements']) != data['requirements_digest']):
+            raise BundleError('Bundle requirements digest mismatch')
     producer, providers = data['producer'], data['providers']
     if (not isinstance(producer, dict) or set(producer) != {'authority', 'revision'}
             or producer['authority'] != 'integration'

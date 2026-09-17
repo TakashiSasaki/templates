@@ -35,7 +35,7 @@ def _candidate_lock_needs_commit(candidate_site: Path, candidate_lock: Path) -> 
     return any(current[field] != candidate[field] for field in identity_fields)
 
 
-def _report(lock: dict[str, Any], *, trusted: dict[str, str | None], classification: str, reasons: list[str], checks: dict[str, str], evidence: list[str], site_revision: str | None = None, site_base_revision: str | None = None) -> dict[str, Any]:
+def _report(lock: dict[str, Any], *, trusted: dict[str, str | None], classification: str, reasons: list[str], checks: dict[str, str], evidence: list[str], site_revision: str | None = None, site_base_revision: str | None = None, requirements: dict[str, Any] | None = None) -> dict[str, Any]:
     inputs = {
         "site_revision": site_revision,
         "site_base_revision": site_base_revision,
@@ -65,7 +65,7 @@ def _report(lock: dict[str, Any], *, trusted: dict[str, str | None], classificat
         "affected_authorities": [] if classification in {"NOT_ELIGIBLE", "NO_CHANGE"} else ["site"],
         "inputs": inputs,
         "trusted": trusted,
-        "requirements": {"required": ["bundle-integrity", "generic-markdown-renderer", "pages-artifact-provenance"], "supported": ["bundle-integrity", "generic-markdown-renderer", "pages-artifact-provenance"], "missing": [], "unsupported": [], "fallbacks": {}},
+        "requirements": requirements or {"closure": [], "required": ["bundle-integrity", "generic-markdown-renderer", "pages-artifact-provenance"], "supported": ["bundle-integrity", "generic-markdown-renderer", "pages-artifact-provenance"], "missing": [], "unsupported": [], "fallbacks": {}},
         "checks": {"required": list(checks), "results": checks, "not_run": [name for name, result in checks.items() if result != "passed"]},
         "evidence_refs": evidence,
         "allowed_mutations": [],
@@ -99,6 +99,25 @@ def qualify(site_root: Path, bundle: Path, candidate_lock: Path, *, trusted: dic
             subprocess.run(["git", "-C", str(candidate_site), "add", "integration-source.json"], check=True)
             subprocess.run(["git", "-C", str(candidate_site), "commit", "--quiet", "-m", "dry-run: bind candidate Integration Bundle"], check=True)
         candidate_revision = subprocess.check_output(["git", "-C", str(candidate_site), "rev-parse", "HEAD"], text=True).strip()
+        from scripts.classify_site_compatibility import classify as classify_compatibility
+        compatibility = classify_compatibility(
+            bundle,
+            support_path=candidate_site / "contracts/site-publication-support.json",
+            trusted=trusted,
+            site_revision=candidate_revision,
+        )
+        if compatibility["classification"] != "COMPATIBLE_PENDING_QUALIFICATION":
+            return _report(
+                lock,
+                trusted=trusted,
+                classification=compatibility["classification"],
+                reasons=compatibility["reason_codes"],
+                checks={"bundle-integrity": "passed"},
+                evidence=evidence + [f"site-candidate://{candidate_revision}"],
+                site_revision=candidate_revision,
+                site_base_revision=original_site_revision,
+                requirements=compatibility["requirements"],
+            )
         subprocess.run([
             sys.executable, str(candidate_site / "scripts/render_publication_bundle.py"),
             "--bundle", str(bundle), "--bundle-identity", lock["bundle_identity"],
@@ -113,9 +132,10 @@ def qualify(site_root: Path, bundle: Path, candidate_lock: Path, *, trusted: dic
         check_reader(build / "site", bundle, lock)
         check_artifact_contract(build / "site", bundle, lock)
         checks["pages-artifact-provenance"] = "passed"
+        checks["site-capability-preflight"] = "passed"
         classification = "NO_CHANGE" if not lock_changed else "NOT_ELIGIBLE"
         reasons = ["ALREADY_SELECTED"] if not lock_changed else ["AUTHORIZATION_NOT_GRANTED"]
-        result = _report(lock, trusted=trusted, classification=classification, reasons=reasons, checks=checks, evidence=evidence + [f"site-candidate://{candidate_revision}"], site_revision=candidate_revision, site_base_revision=original_site_revision)
+        result = _report(lock, trusted=trusted, classification=classification, reasons=reasons, checks=checks, evidence=evidence + [f"site-candidate://{candidate_revision}"], site_revision=candidate_revision, site_base_revision=original_site_revision, requirements=compatibility["requirements"])
         return result
 
 

@@ -9,6 +9,7 @@ SCHEMA_VERSION = 3
 SCHEMA_VERSION_V4 = 4
 SHA = re.compile(r'^[0-9a-f]{40}$')
 DIGEST = re.compile(r'^[0-9a-f]{64}$')
+FEATURE = re.compile(r'^[a-z0-9]+(?:[.-][a-z0-9]+)*\.v[0-9]+$')
 MAX_FILES = 50000
 MAX_BYTES = 1024 * 1024 * 1024
 MODELS = ('documents.json', 'navigation.json', 'translation-availability.json',
@@ -17,6 +18,9 @@ MODELS = ('documents.json', 'navigation.json', 'translation-availability.json',
           'provenance.json')
 FIELDS = {'schema_version', 'producer', 'providers', 'configuration_digest',
           'files', 'content_digest', 'identity'}
+FIELDS_V4 = FIELDS | {'requirements', 'requirements_digest'}
+REQUIREMENT_FIELDS = {'provider', 'feature', 'required', 'fallback'}
+FALLBACKS = frozenset({'none', 'generic-document', 'ignore'})
 PROVIDER_SETS = {
     3: frozenset({'composition', 'policy'}),
     4: frozenset({'modeling', 'composition', 'policy'}),
@@ -38,6 +42,35 @@ def canonical(value):
 
 def digest(value):
     return hashlib.sha256(value).hexdigest()
+
+
+def validate_requirements(value, providers):
+    """Validate the provider-bound requirement closure carried by Bundle v4."""
+    if not isinstance(value, list):
+        raise BundleError('Bundle requirements must be an array')
+    seen = set()
+    for requirement in value:
+        if not isinstance(requirement, dict) or set(requirement) != REQUIREMENT_FIELDS:
+            raise BundleError('invalid Bundle requirement entry')
+        provider = requirement['provider']
+        feature = requirement['feature']
+        if provider not in providers:
+            raise BundleError('Bundle requirement is bound to an absent provider')
+        if not isinstance(feature, str) or FEATURE.fullmatch(feature) is None:
+            raise BundleError('invalid Bundle requirement feature')
+        if type(requirement['required']) is not bool:
+            raise BundleError('Bundle requirement required flag must be boolean')
+        if requirement['fallback'] not in FALLBACKS:
+            raise BundleError('invalid Bundle requirement fallback')
+        key = (provider, feature)
+        if key in seen:
+            raise BundleError('duplicate Bundle requirement')
+        seen.add(key)
+    return value
+
+
+def requirements_digest(value):
+    return digest(canonical(value))
 
 
 def read_json(path):

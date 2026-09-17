@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "repository": "TakashiSasaki/templates",
-  "revision": "fd978a01fb934187500655481b6f744db7eacbf9",
-  "bundle_schema": 3,
-  "bundle_identity": "5ea93b439a728def10e51fff5786ef1c26de9e760580a1c44dd05bfc40f3d320",
-  "content_digest": "9c79750843a8ae52ce8804a463c6b8f74def3fa5dc883fbdd0de6f3978f17366"
+  "revision": "b38adf7b042eba08b2b849f753acb5ed3ea40fd1",
+  "bundle_schema": 4,
+  "bundle_identity": "267759cb630c744621f12529a19df35b5ee3af5aad9efbe630ebcec83d261064",
+  "content_digest": "64ce780831a9c4a9cd7750750d1151f8be932622dffd6a3321f37c13d4c3745b"
 }

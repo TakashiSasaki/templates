@@ -47,6 +47,14 @@ and re-verify the trusted promotion receipt; an absent or expired release does
 not trigger read-only regeneration. No timestamp or provenance file may be
 rewritten after that gate.
 
+Manual publication remains available in every non-kill-switched mode. An explicit
+`workflow_dispatch` on `site` uses `automatic=false` by default, binds the requested
+exact Site SHA, runs the same Site qualification and immutable artifact checks, and
+deploys only that artifact through `github-pages`. The manual dispatch is the human
+authorization; it does not require `PUBLICATION_AUTOMATION_MODE=auto-publish` or
+`PUBLICATION_AUTOMATION_AUTHORIZED=true`. The automatic dispatch sets `automatic=true`
+and requires all of the stricter activation variables.
+
 ## One-time activation checklist
 
 After all authority PRs have been reviewed and landed, an authorized operator

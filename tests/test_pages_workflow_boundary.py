@@ -245,6 +245,29 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
         self.assertLess(metadata, build)
         self.assertLess(build, deploy)
 
+    def test_manual_shadow_dispatch_and_automatic_dispatch_have_distinct_gates(self) -> None:
+        import yaml
+
+        workflow = yaml.safe_load(DEPLOY_WORKFLOW.read_text(encoding="utf-8"))
+        inputs = workflow[True]["workflow_dispatch"]["inputs"]
+        self.assertEqual(inputs["automatic"]["type"], "boolean")
+        self.assertFalse(inputs["automatic"]["default"])
+        text = DEPLOY_WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("inputs.automatic != true", text)
+        self.assertIn("inputs.automatic == true", text)
+        self.assertIn("BUILD_RECEIPT: ${{ needs.build.outputs.bundle_receipt }}", text)
+        self.assertIn("trusted receipt and final artifact selected different Bundle inputs", text)
+        self.assertIn("-f \"automatic=true\"", (ROOT / ".github/workflows/site-publication-notify.yml").read_text(encoding="utf-8"))
+        jobs = workflow["jobs"]
+        for name, job in jobs.items():
+            permissions = job.get("permissions", {})
+            if name == "deploy":
+                self.assertEqual(permissions.get("pages"), "write")
+                self.assertEqual(permissions.get("id-token"), "write")
+            else:
+                self.assertNotIn("pages", permissions)
+                self.assertNotIn("id-token", permissions)
+
     def test_aggregate_ci_validate_gate_and_force_full_qualification(self) -> None:
         workflow = BUILD_WORKFLOW.read_text(encoding="utf-8")
         classify_workflow = (ROOT / ".github/workflows/classify.yml").read_text(encoding="utf-8")

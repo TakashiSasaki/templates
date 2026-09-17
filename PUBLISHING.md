@@ -8,8 +8,8 @@ translation availability, glossary, guided graphs and exact provenance. Site
 selects only an exact reviewed Integration release through
 `integration-source.json`.
 
-The Integration selection therefore covers Composition and Policy provider
-revisions explicitly; it does not grant Site direct access to either provider.
+The Integration selection therefore covers Modeling, Composition, and Policy
+provider revisions explicitly; it does not grant Site direct access to any provider.
 
 The lock binds the Integration commit, Bundle schema, identity and content digest.
 There is no active `publication-sources.json` in Site. Provider candidate work
@@ -59,6 +59,14 @@ trusted policy/controller identity, positive qualification results, freshness an
 an allowlisted expected patch. The controller stops on unknown, invalid,
 unsupported, stale, failed, or unauthorized results.
 
+`deploy-pages.yml` retains a separate human-authorized path: an explicit
+`workflow_dispatch` with `automatic=false` (the default) runs the same exact Site
+qualification, artifact, provenance, and deploy-time freshness gates while Shadow
+remains active. It still honors the repository-wide kill switch. The automatic path
+must set `automatic=true` and additionally satisfy `auto-publish`, authorization, and
+the active exact Policy/controller pins; a controller event cannot use the manual
+authorization path.
+
 The initial repository configuration is `shadow`; it does not mutate locks or
 publish. After review and landing, one explicit activation may select the next
 mode after the minimal-permission GitHub App token, branch protection, and
@@ -100,6 +108,7 @@ exact full commit revisions.
 ## External deployment gate
 
 The `github-pages` environment custom deployment branch policy must allow exactly the `site` branch.
-The obsolete `main` authorization has been removed. Do not broaden the environment to all branches.
+The live setting must be rechecked before activation; an obsolete `main` authorization or
+an unset Pages workflow source is a stop condition. Do not broaden the environment to all branches.
 `https://templates.moukaeritai.work/` is the configured Pages base URL and HTTPS enforcement is enabled.
-These settings were verified during the final architecture audit; recheck before release.
+These settings are activation prerequisites, not claims made by this implementation PR.

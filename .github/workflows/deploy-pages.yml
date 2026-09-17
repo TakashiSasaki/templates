@@ -9,6 +9,11 @@ on:
         type: string
         required: false
         default: ''
+      automatic:
+        description: Set true only for the separately authorized post-adoption automation path
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
@@ -27,11 +32,13 @@ jobs:
       github.repository == 'TakashiSasaki/templates' &&
       github.event_name == 'workflow_dispatch' &&
       github.ref == 'refs/heads/site' &&
-      vars.PUBLICATION_AUTOMATION_MODE == 'auto-publish' &&
-      vars.PUBLICATION_AUTOMATION_AUTHORIZED == 'true' &&
-      vars.PUBLICATION_POLICY_REVISION != '' &&
-      vars.PUBLICATION_CONTROLLER_REVISION != '' &&
-      vars.PUBLICATION_AUTOMATION_KILL_SWITCH != 'true'
+      ((inputs.automatic != true && vars.PUBLICATION_AUTOMATION_KILL_SWITCH != 'true') ||
+       (inputs.automatic == true &&
+        vars.PUBLICATION_AUTOMATION_MODE == 'auto-publish' &&
+        vars.PUBLICATION_AUTOMATION_AUTHORIZED == 'true' &&
+        vars.PUBLICATION_POLICY_REVISION != '' &&
+        vars.PUBLICATION_CONTROLLER_REVISION != '' &&
+        vars.PUBLICATION_AUTOMATION_KILL_SWITCH != 'true'))
     runs-on: ubuntu-latest
     outputs:
       deployment_timestamp: ${{ steps.timestamp.outputs.deployment_timestamp }}
@@ -59,6 +66,7 @@ jobs:
           PYCODE
       - name: Capture the trusted publication identities
         id: trusted_identity
+        if: ${{ inputs.automatic == true }}
         env:
           POLICY_REVISION: ${{ vars.PUBLICATION_POLICY_REVISION }}
           CONTROLLER_REVISION: ${{ vars.PUBLICATION_CONTROLLER_REVISION }}
@@ -82,11 +90,13 @@ jobs:
       github.repository == 'TakashiSasaki/templates' &&
       github.event_name == 'workflow_dispatch' &&
       github.ref == 'refs/heads/site' &&
-      vars.PUBLICATION_AUTOMATION_MODE == 'auto-publish' &&
-      vars.PUBLICATION_AUTOMATION_AUTHORIZED == 'true' &&
-      vars.PUBLICATION_POLICY_REVISION != '' &&
-      vars.PUBLICATION_CONTROLLER_REVISION != '' &&
-      vars.PUBLICATION_AUTOMATION_KILL_SWITCH != 'true'
+      ((inputs.automatic != true && vars.PUBLICATION_AUTOMATION_KILL_SWITCH != 'true') ||
+       (inputs.automatic == true &&
+        vars.PUBLICATION_AUTOMATION_MODE == 'auto-publish' &&
+        vars.PUBLICATION_AUTOMATION_AUTHORIZED == 'true' &&
+        vars.PUBLICATION_POLICY_REVISION != '' &&
+        vars.PUBLICATION_CONTROLLER_REVISION != '' &&
+        vars.PUBLICATION_AUTOMATION_KILL_SWITCH != 'true'))
     needs: deployment_metadata
     uses: ./.github/workflows/build-pages.yml
     with:
@@ -102,11 +112,13 @@ jobs:
       github.repository == 'TakashiSasaki/templates' &&
       github.event_name == 'workflow_dispatch' &&
       github.ref == 'refs/heads/site' &&
-      vars.PUBLICATION_AUTOMATION_MODE == 'auto-publish' &&
-      vars.PUBLICATION_AUTOMATION_AUTHORIZED == 'true' &&
-      vars.PUBLICATION_POLICY_REVISION != '' &&
-      vars.PUBLICATION_CONTROLLER_REVISION != '' &&
-      vars.PUBLICATION_AUTOMATION_KILL_SWITCH != 'true' &&
+      ((inputs.automatic != true && vars.PUBLICATION_AUTOMATION_KILL_SWITCH != 'true') ||
+       (inputs.automatic == true &&
+        vars.PUBLICATION_AUTOMATION_MODE == 'auto-publish' &&
+        vars.PUBLICATION_AUTOMATION_AUTHORIZED == 'true' &&
+        vars.PUBLICATION_POLICY_REVISION != '' &&
+        vars.PUBLICATION_CONTROLLER_REVISION != '' &&
+        vars.PUBLICATION_AUTOMATION_KILL_SWITCH != 'true')) &&
       needs.deployment_metadata.result == 'success' &&
       needs.build.result == 'success'
     needs:
@@ -165,11 +177,13 @@ jobs:
       github.repository == 'TakashiSasaki/templates' &&
       github.event_name == 'workflow_dispatch' &&
       github.ref == 'refs/heads/site' &&
-      vars.PUBLICATION_AUTOMATION_MODE == 'auto-publish' &&
-      vars.PUBLICATION_AUTOMATION_AUTHORIZED == 'true' &&
-      vars.PUBLICATION_POLICY_REVISION != '' &&
-      vars.PUBLICATION_CONTROLLER_REVISION != '' &&
-      vars.PUBLICATION_AUTOMATION_KILL_SWITCH != 'true' &&
+      ((inputs.automatic != true && vars.PUBLICATION_AUTOMATION_KILL_SWITCH != 'true') ||
+       (inputs.automatic == true &&
+        vars.PUBLICATION_AUTOMATION_MODE == 'auto-publish' &&
+        vars.PUBLICATION_AUTOMATION_AUTHORIZED == 'true' &&
+        vars.PUBLICATION_POLICY_REVISION != '' &&
+        vars.PUBLICATION_CONTROLLER_REVISION != '' &&
+        vars.PUBLICATION_AUTOMATION_KILL_SWITCH != 'true')) &&
       needs.deployment_metadata.result == 'success' &&
       needs.build.result == 'success' &&
       needs.artifact_gate.result == 'success'
@@ -197,6 +211,8 @@ jobs:
           EXPECTED_ARTIFACT_ID: ${{ needs.build.outputs.artifact_id }}
           EXPECTED_ARTIFACT_DIGEST: ${{ needs.build.outputs.artifact_digest }}
           EXPECTED_BUILD_INPUTS: ${{ needs.build.outputs.build_inputs }}
+          BUILD_RECEIPT: ${{ needs.build.outputs.bundle_receipt }}
+          AUTOMATIC: ${{ inputs.automatic }}
         run: |
           python3 - <<'PYCODE'
           import json
@@ -209,31 +225,44 @@ jobs:
           def api(path):
               return json.loads(subprocess.check_output(['gh', 'api', path], text=True))
 
-          def repository_variable(name):
+          def repository_variable(name, default=None):
               try:
                   value = api(f'repos/{repository}/actions/variables/{name}')
-              except subprocess.CalledProcessError as exc:
-                  raise SystemExit(f'publication variable {name} is unavailable') from exc
+              except subprocess.CalledProcessError:
+                  if default is not None:
+                      return default
+                  raise
               result = value.get('value')
               if not isinstance(result, str):
                   raise SystemExit(f'publication variable {name} has no string value')
               return result
 
-          current = {
-              'mode': repository_variable('PUBLICATION_AUTOMATION_MODE'),
-              'authorized': repository_variable('PUBLICATION_AUTOMATION_AUTHORIZED'),
-              'policy': repository_variable('PUBLICATION_POLICY_REVISION'),
-              'controller': repository_variable('PUBLICATION_CONTROLLER_REVISION'),
-              'kill_switch': repository_variable('PUBLICATION_AUTOMATION_KILL_SWITCH'),
-          }
-          if current['mode'] != 'auto-publish' or current['authorized'] != 'true':
-              raise SystemExit('publication authorization changed before Pages deployment')
-          if current['kill_switch'] != 'false':
+          kill_switch = repository_variable('PUBLICATION_AUTOMATION_KILL_SWITCH', 'false')
+          if kill_switch != 'false':
               raise SystemExit('publication kill switch is enabled before Pages deployment')
-          if current['policy'] != os.environ['EXPECTED_POLICY_REVISION']:
-              raise SystemExit('trusted Policy revision changed before Pages deployment')
-          if current['controller'] != os.environ['EXPECTED_CONTROLLER_REVISION']:
-              raise SystemExit('trusted controller revision changed before Pages deployment')
+
+          receipt = json.loads(os.environ['BUILD_RECEIPT'])
+          trusted = receipt.get('trusted_receipt')
+          if not isinstance(trusted, dict):
+              raise SystemExit('the qualified build did not carry a trusted Integration receipt')
+          for field in ('policy_revision', 'controller_revision'):
+              if not re.fullmatch(r'[0-9a-f]{40}', trusted.get(field, '')):
+                  raise SystemExit(f'trusted receipt {field} is not an exact SHA')
+          if os.environ['AUTOMATIC'].lower() == 'true':
+              current = {
+                  'mode': repository_variable('PUBLICATION_AUTOMATION_MODE'),
+                  'authorized': repository_variable('PUBLICATION_AUTOMATION_AUTHORIZED'),
+                  'policy': repository_variable('PUBLICATION_POLICY_REVISION'),
+                  'controller': repository_variable('PUBLICATION_CONTROLLER_REVISION'),
+              }
+              if current['mode'] != 'auto-publish' or current['authorized'] != 'true':
+                  raise SystemExit('publication authorization changed before Pages deployment')
+              if current['policy'] != os.environ['EXPECTED_POLICY_REVISION']:
+                  raise SystemExit('trusted Policy revision changed before Pages deployment')
+              if current['controller'] != os.environ['EXPECTED_CONTROLLER_REVISION']:
+                  raise SystemExit('trusted controller revision changed before Pages deployment')
+              if trusted['policy_revision'] != current['policy'] or trusted['controller_revision'] != current['controller']:
+                  raise SystemExit('trusted receipt identities differ from active automation pins')
 
           expected_site = os.environ['EXPECTED_SITE_REVISION']
           ref = api(f'repos/{repository}/git/ref/heads/site')
@@ -261,6 +290,10 @@ jobs:
           bundle = inputs.get('publication_bundle')
           if not isinstance(bundle, dict) or not isinstance(bundle.get('identity'), str) or not bundle['identity']:
               raise SystemExit('Pages artifact is missing the selected Bundle identity')
+          if (receipt.get('producer') != bundle.get('producer', {}).get('revision')
+                  or receipt.get('identity') != bundle.get('identity')
+                  or trusted.get('bundle_content_digest') != bundle.get('content_digest')):
+              raise SystemExit('trusted receipt and final artifact selected different Bundle inputs')
           print(json.dumps({
               'artifact_id': artifact['id'],
               'digest': artifact['digest'],
