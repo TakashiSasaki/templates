@@ -7,7 +7,7 @@ ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github" / "workflows" / "schema-validation.yml"
 VALIDATOR = ROOT / "scripts" / "validate_publication.py"
 GUIDE = ROOT / "docs" / "publication-catalog.md"
-PINNED_INTEGRATION_SHA = "a30699cf7dc56bf3ef7a1b6fd8f6ffd45cdd426d"
+PINNED_INTEGRATION_SHA = "9430a7dc124bbcfe66847c04e584bd54bed29ad3"
 
 
 class PublicationProtocolConsumptionTests(unittest.TestCase):
