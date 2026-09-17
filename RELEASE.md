@@ -69,9 +69,12 @@ Corrupt or misbound evidence fails closed; absent evidence can require regenerat
 No workflow timestamps, run IDs or attempt counters contaminate deterministic identity.
 The artifact is a candidate artifact, not an automatically promoted release.
 
-The current output contract is Bundle v3: structurally valid stale reader derivatives
-remain available with exact provider-owned reviewed/current canonical evidence, while
-provider repository source/tree payloads are no longer transported for Site browsing.
-The P5/P7 releases used v1 current-only publication and P8 used v2. This breaking version
-change does not update Site, provider translation prose, or synchronization hashes. Site
-adoption and warning presentation remain a separate human decision.
+The current output contract is Bundle v3 for the committed Composition + Policy tuple and
+Bundle v4 for the explicit Modeling + Composition + Policy tuple. Structurally valid stale
+reader derivatives remain available with exact provider-owned reviewed/current canonical
+evidence, while provider repository source/tree payloads are no longer transported for
+Site browsing. The P5/P7 releases used v1 current-only publication and P8 used v2. These
+versioned changes do not update Site, provider translation prose, or synchronization
+hashes by implication. Site adoption and warning presentation remain a separate gate;
+after activation the controller may perform only the pre-authorized mechanical lock
+mutation, never a semantic approval.

@@ -21,10 +21,13 @@ hub-and-orphan topology.
 
 The landed I1–I3 stack established contracts, mappings, locks, provenance, the independent
 producer, public read-model contract, deterministic qualification and immutable transport.
-The current Bundle v3 contract carries semantic publication/navigation projections and
-exact provenance, not provider repository source corpora for a Site-owned browser.
-Promotion requires explicit review and qualification; an Integration release stops before
-Site adoption. Nothing here deploys or automatically follows provider heads.
+The current Bundle v3 contract carries semantic publication/navigation projections for the
+committed Composition + Policy tuple; Bundle v4 is the explicit Modeling + Composition +
+Policy extension. Both carry exact provenance, not provider repository source corpora for
+a Site-owned browser. Shadow is the initial release mode. After one-time activation,
+pre-authorized exact candidates may be mechanically promoted subject to qualification,
+freshness, branch protection, and the separate Site gate. Nothing here deploys Pages or
+follows mutable provider heads.
 
 `site-manifest.json` is retained as the existing destination/reader-IA contract filename.
 `integration/site-slots.json` declares downstream Site content slots, without copying their

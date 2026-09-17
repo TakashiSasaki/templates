@@ -259,9 +259,13 @@ def classify_preflight(payload: Mapping[str, Any]) -> dict[str, Any]:
         return _finish(report, "INVALID_INPUT", [str(exc)])
     except CrossProviderConflictError as exc:
         return _finish(_invalid_report(payload), "CROSS_PROVIDER_CONFLICT", [str(exc)], authority="integration")
+    except Exception as exc:
+        # Unknown implementation errors are a stop, never an adaptation or
+        # success signal. Keep the result machine-readable for the controller.
+        return _finish(_invalid_report(payload), "UNKNOWN", ["UNEXPECTED_CLASSIFIER_ERROR", type(exc).__name__])
 
 
-def classify_qualification(payload: Mapping[str, Any]) -> dict[str, Any]:
+def _classify_qualification(payload: Mapping[str, Any]) -> dict[str, Any]:
     """Classify final qualification; every required check must be applied and pass."""
     preflight = classify_preflight(payload)
     if preflight["classification"] != "COMPATIBLE_PENDING_QUALIFICATION":
@@ -302,3 +306,15 @@ def classify_qualification(payload: Mapping[str, Any]) -> dict[str, Any]:
     if payload.get("authorization") is not True:
         return _finish(report, "NOT_ELIGIBLE", ["AUTHORIZATION_NOT_GRANTED"], authority="integration", next_action="human review or activation")
     return _finish(report, "AUTO_PROCESSABLE", ["QUALIFICATION_PASSED", "AUTHORIZATION_GRANTED"], next_action="apply only the allowlisted mutation")
+
+
+def classify_qualification(payload: Mapping[str, Any]) -> dict[str, Any]:
+    """Return a structured stop for unexpected final-qualification errors."""
+    try:
+        return _classify_qualification(payload)
+    except Exception as exc:
+        return _finish(
+            _invalid_report(payload, "qualification"),
+            "UNKNOWN",
+            ["UNEXPECTED_CLASSIFIER_ERROR", type(exc).__name__],
+        )
