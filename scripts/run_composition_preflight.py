@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 from contextlib import ExitStack
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -28,6 +29,18 @@ RUNTIME_SMOKES = (
     "scripts/smoke_test_remote_skill_installer.py",
 )
 PUBLICATION_DESCRIPTOR = ROOT / "generated" / "publication-descriptor.json"
+BYTECODE_ROOTS = tuple(
+    ROOT / relative
+    for relative in (
+        "components",
+        "catalog",
+        "recipes",
+        "schemas",
+        "scripts",
+        "tests",
+        "skills/composition/scripts",
+    )
+)
 
 
 class PreflightFailure(RuntimeError):
@@ -217,6 +230,35 @@ def require_clean_tree() -> None:
         )
 
 
+def cleanup_ready_outputs() -> None:
+    """Remove validation-only outputs produced by the local core suite."""
+
+    if PUBLICATION_DESCRIPTOR.is_symlink() or PUBLICATION_DESCRIPTOR.is_file():
+        PUBLICATION_DESCRIPTOR.unlink()
+    elif PUBLICATION_DESCRIPTOR.exists():
+        raise PreflightFailure(
+            "ready produced a non-file publication descriptor that cannot be removed"
+        )
+
+    cache_directories: list[Path] = []
+    bytecode_files: list[Path] = []
+    for root in BYTECODE_ROOTS:
+        if not root.is_dir():
+            continue
+        for path in root.rglob("*"):
+            if path.name == "__pycache__":
+                cache_directories.append(path)
+            elif path.is_file() and path.suffix in {".pyc", ".pyo"}:
+                bytecode_files.append(path)
+    for path in bytecode_files:
+        path.unlink()
+    for path in sorted(cache_directories, key=lambda item: len(item.parts), reverse=True):
+        if path.is_symlink():
+            path.unlink()
+        elif path.is_dir():
+            shutil.rmtree(path)
+
+
 def run_core_ready() -> None:
     run_check(
         "core-discovery",
@@ -377,7 +419,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             or os.environ.get("INTEGRATION_PUBLICATION_PROTOCOL_ROOT")
         )
         if args.profile == "ready":
-            run_ready(component_version_base, head)
+            try:
+                run_ready(component_version_base, head)
+            finally:
+                cleanup_ready_outputs()
             print(f"COMPOSITION_PREFLIGHT_PASS profile={args.profile} head={head}", flush=True)
             return 0
         if not args.validators_only:

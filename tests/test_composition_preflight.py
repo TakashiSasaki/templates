@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import subprocess
 import sys
+import tempfile
 import unittest
 from argparse import Namespace
 from pathlib import Path
@@ -96,6 +97,24 @@ class CompositionPreflightTests(unittest.TestCase):
         names = [name for name, _ in recorded]
         self.assertIn("playground-generated-state", names)
         self.assertNotIn("composition-publication", names)
+
+    def test_ready_cleanup_removes_validation_only_outputs(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            descriptor = root / "generated" / "publication-descriptor.json"
+            descriptor.parent.mkdir()
+            descriptor.write_text("generated", encoding="utf-8")
+            cache = root / "scripts" / "__pycache__"
+            cache.mkdir(parents=True)
+            (cache / "preflight.cpython.pyc").write_bytes(b"generated")
+
+            with mock.patch.object(preflight, "PUBLICATION_DESCRIPTOR", descriptor), mock.patch.object(
+                preflight, "BYTECODE_ROOTS", (root / "scripts",)
+            ):
+                preflight.cleanup_ready_outputs()
+
+            self.assertFalse(descriptor.exists())
+            self.assertFalse(cache.exists())
 
     def test_publication_reuse_flag_is_explicit(self) -> None:
         args = preflight.parse_args(
