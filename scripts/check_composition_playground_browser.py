@@ -19,6 +19,7 @@ DOCUMENT = ROOT / "docs" / "composition-playground.md"
 FIXTURE = ROOT / "tests" / "fixtures" / "composition-playground-v1-explain.json"
 CORE_JS = ROOT / "assets" / "javascripts" / "composition-playground.js"
 EXPLAIN_JS = ROOT / "assets" / "javascripts" / "composition-playground-explain.js"
+GITHUB_URL_JS = ROOT / "assets" / "javascripts" / "github-url.js"
 CSS = ROOT / "assets" / "stylesheets" / "composition-playground.css"
 SERVICE_WORKER = ROOT / "assets" / "service-worker.js"
 PROJECTION_PATH = "/composition/playground/composition-playground-v1.json.gz"
@@ -98,6 +99,7 @@ def prepare_harness(root: Path) -> None:
     (root / "composition" / "playground").mkdir(parents=True)
     shutil.copyfile(CORE_JS, root / "javascripts" / CORE_JS.name)
     shutil.copyfile(EXPLAIN_JS, root / "javascripts" / EXPLAIN_JS.name)
+    shutil.copyfile(GITHUB_URL_JS, root / "javascripts" / GITHUB_URL_JS.name)
     shutil.copyfile(CSS, root / "stylesheets" / CSS.name)
     service_worker_source = SERVICE_WORKER.read_text(encoding="utf-8")
     static_assets_match = re.search(r"const STATIC_ASSETS = (\[[^;]+\]);", service_worker_source)
@@ -181,6 +183,7 @@ def prepare_harness(root: Path) -> None:
     }};
     if ("serviceWorker" in navigator) navigator.serviceWorker.register("/service-worker.js");
   </script>
+  <script src="/javascripts/github-url.js" defer></script>
   <script src="/javascripts/composition-playground.js" defer></script>
   <script src="/javascripts/composition-playground-explain.js" defer></script>
 </head>
