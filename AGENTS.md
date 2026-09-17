@@ -2,6 +2,14 @@
 
 These are canonical, handwritten, English branch-local instructions. Read AUTHORITY.md before making changes. This file defines local application of the authority boundary; it does not replace the Policy authority's general repository-change policy.
 
+## Local skills and required commands
+
+For resource registration or revision, read `.agents/skills/register-information-model/SKILL.md` and `docs/intake.md`. These apply this authority's contract without acquiring another authority's decision rights.
+
+Install the pinned tooling with `python -m pip install -r requirements-dev.txt`. After source edits, run `python tools/catalog.py generate` and then **`python tools/qualify.py`**. The latter is the canonical local/CI entrypoint: it checks generated freshness and executes the discovered tests, rejecting an empty test run. Dependency installation may use the network; catalog qualification must not retrieve upstream definitions.
+
+The initial administrative profile deliberately has narrower capabilities than the conceptual authority domain. Read its documented limits before adding an unsupported language, identifier, snapshot, relationship scope, or adoption state. Extend the contract and tests rather than misrepresenting the resource to pass validation.
+
 ## Before mutation
 
 1. Retrieve live branch/head, relevant PRs, and affected authority contracts. Verify the actual branch and history. Do not trust an old conversation's SHA or infer ownership from file placement.
