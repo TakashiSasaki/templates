@@ -19,7 +19,7 @@ class ReleaseBoundaryTests(unittest.TestCase):
         steps=workflow['jobs']['qualify']['steps']
         self.assertEqual([s['with']['path'] for s in steps if s.get('uses','').startswith('actions/checkout@')],['integration-source','composition-source','policy-source'])
         commands='\n'.join(s.get('run','') for s in steps)
-        for required in ('qualify_integration.py','test_publication_bundle','test_stale_translation_publication','publication_bundle_artifact.py pack','--expected "$EXPECTED_PRODUCER"'):self.assertIn(required,commands)
+        for required in ('qualify_integration.py','run_integration_preflight.py fast','publication_bundle_artifact.py pack','--expected "$EXPECTED_PRODUCER"'):self.assertIn(required,commands)
         for obsolete in ('test_bundle_review_invariants','test_translation_manifest_closure','verify_bootstrap_equivalence.py','bootstrap_equivalence'):self.assertNotIn(obsolete,commands)
         for prohibited in ('site_renderer','render_publication_bundle','playwright','deploy-pages','upload-pages-artifact','pages: write','site-source'):
             self.assertNotIn(prohibited,(ROOT/'.github/workflows/integration-qualification.yml').read_text())

@@ -24,6 +24,7 @@ class IntegrationQualificationTests(unittest.TestCase):
             with patch('integration.qualification.produce',side_effect=produce),self.assertRaisesRegex(BundleError,'not deterministic'):
                 qualify(output=Path(tmp)/'bundle',producer_revision=PRODUCER['revision'],provider_revisions=PROVIDERS)
             self.assertEqual(len(counter),2)
+            self.assertFalse((Path(tmp)/'bundle').exists())
 
     def test_qualification_cli_imports_without_site_implementation(self):
         result=subprocess.run([sys.executable,'scripts/qualify_integration.py','--help'],cwd=ROOT,capture_output=True,text=True)
@@ -33,7 +34,6 @@ class IntegrationQualificationTests(unittest.TestCase):
     def test_reusable_candidate_qualification_reaches_stale_contract_regressions(self):
         workflow=yaml.safe_load((ROOT/'.github/workflows/integration-qualification.yml').read_text())
         commands='\n'.join(step.get('run','') for step in workflow['jobs']['qualify']['steps'])
-        self.assertIn('tests.test_stale_translation_publication',commands)
-        self.assertIn('tests.test_publication_bundle',commands)
+        self.assertIn('scripts/run_integration_preflight.py fast',commands)
         self.assertNotIn('tests.test_translation_manifest_closure',commands)
         self.assertIn('scripts/qualify_integration.py',commands)
