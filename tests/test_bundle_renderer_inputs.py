@@ -1,4 +1,5 @@
 """Prove rendering binds immutable inputs and a safe publication destination."""
+import importlib
 from pathlib import Path
 import shutil
 import os
@@ -37,6 +38,36 @@ class RendererInputTests(unittest.TestCase):
                 self.output=alias/'nested'/'output'
                 with self.assertRaisesRegex(BundleError,'symlink'):self.render()
                 self.assertFalse((source/'nested').exists());alias.unlink()
+
+    def test_zensical_uses_user_scripts_fallback_without_path_candidate(self):
+        module = importlib.import_module('site_renderer.render')
+        path_dir = self.root / 'path'
+        path_dir.mkdir()
+        user_scripts = self.root / 'user-scripts'
+        user_scripts.mkdir()
+        candidate = user_scripts / 'zensical'
+        candidate.write_text('#!/bin/sh\n', encoding='utf-8')
+        candidate.chmod(0o755)
+        interpreter = self.root / 'python'
+        interpreter.write_text('', encoding='utf-8')
+        with patch.dict(os.environ, {'PATH': str(path_dir)}, clear=False), \
+             patch.object(module.sys, 'executable', str(interpreter)), \
+             patch.object(module.sysconfig, 'get_path', return_value=str(user_scripts)):
+            self.assertEqual(module.zensical_executable(), str(candidate))
+
+    def test_zensical_fails_closed_when_no_candidate_exists(self):
+        module = importlib.import_module('site_renderer.render')
+        path_dir = self.root / 'empty-path'
+        path_dir.mkdir()
+        user_scripts = self.root / 'empty-user-scripts'
+        user_scripts.mkdir()
+        interpreter = self.root / 'python-without-zensical'
+        interpreter.write_text('', encoding='utf-8')
+        with patch.dict(os.environ, {'PATH': str(path_dir)}, clear=False), \
+             patch.object(module.sys, 'executable', str(interpreter)), \
+             patch.object(module.sysconfig, 'get_path', return_value=str(user_scripts)), \
+             self.assertRaisesRegex(BundleError, 'zensical executable is not available'):
+            module.zensical_executable()
 
     def test_renderer_reads_only_the_validated_private_bundle_snapshot(self):
         def consume(**args):

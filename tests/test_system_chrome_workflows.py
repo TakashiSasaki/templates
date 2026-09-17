@@ -17,10 +17,13 @@ BROWSER_SCRIPTS = (
     ROOT / "scripts/check_glossary_locale_chrome.py",
     ROOT / "scripts/check_pwa_capabilities.py",
     ROOT / "scripts/check_pwa_commit_regressions.py",
+    ROOT / "scripts/check_pwa_freshness.py",
     ROOT / "scripts/check_pwa_locale_chrome.py",
     ROOT / "scripts/check_pwa_slow_convergence.py",
     ROOT / "scripts/check_search_history.py",
     ROOT / "scripts/check_search_history_review_regressions.py",
+    ROOT / "scripts/check_stale_translation_runtime.py",
+    ROOT / "scripts/check_reference_website.py",
 )
 
 
@@ -28,7 +31,7 @@ class SystemChromeWorkflowTests(unittest.TestCase):
     def test_browser_scripts_select_official_system_chrome_channel(self) -> None:
         for path in BROWSER_SCRIPTS:
             source = path.read_text(encoding="utf-8")
-            self.assertIn('playwright.chromium.launch(channel="chrome"', source)
+            self.assertRegex(source, r"chromium\.launch\([^)]*channel=\"chrome\"")
             self.assertNotIn("playwright.chromium.launch()", source)
 
     def test_direct_browser_entry_points_remain_executable(self) -> None:
@@ -49,15 +52,14 @@ class SystemChromeWorkflowTests(unittest.TestCase):
     def test_browser_workflows_use_system_chrome_except_pwa_lifecycle_jobs(self) -> None:
         workflows = (
             ROOT / ".github/workflows/build-pages.yml",
+            ROOT / ".github/workflows/reference-consumer.yml",
             ROOT / ".github/workflows/site-composition-playground-explain.yml",
             ROOT / ".github/workflows/site-composition-playground-cross-authority.yml",
         )
         for path in workflows:
             source = path.read_text(encoding="utf-8")
-            if path.name in {"build-pages.yml", "mobile-visual-regression.yml"}:
-                self.assertIn("playwright install", source)
-            else:
-                self.assertNotIn("playwright install", source)
+            self.assertNotIn("playwright install", source)
+            self.assertNotIn("ms-playwright", source)
             self.assertIn("google-chrome --version", source)
 
 

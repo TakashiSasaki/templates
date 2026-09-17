@@ -154,15 +154,6 @@ jobs:
       - name: Validate visual entrypoint dependency boundary
         if: ${{ needs.classify_browser.outputs.browser_required == 'true' }}
         run: python3 scripts/check_python_dependencies.py . --environment visual
-      - name: Cache Playwright binaries
-        if: ${{ needs.classify_browser.outputs.browser_required == 'true' && (needs.classify_browser.outputs.pwa_required == 'true' || needs.classify_browser.outputs.full_required == 'true') }}
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-${{ runner.arch }}-playwright-shell-${{ hashFiles('requirements-visual.txt') }}
-      - name: Install Playwright Chromium for PWA lifecycle
-        if: ${{ needs.classify_browser.outputs.browser_required == 'true' && (needs.classify_browser.outputs.pwa_required == 'true' || needs.classify_browser.outputs.full_required == 'true') }}
-        run: python3 -m playwright install --only-shell chromium
       - name: Verify system Chrome runtime
         if: ${{ needs.classify_browser.outputs.browser_required == 'true' }}
         run: |

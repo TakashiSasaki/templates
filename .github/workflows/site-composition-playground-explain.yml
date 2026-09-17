@@ -48,7 +48,7 @@ jobs:
           echo "Playwright launch mode: channel=chrome" >> "$GITHUB_STEP_SUMMARY"
       - name: Run 360px keyboard, share-state, and desktop-grid acceptance
         run: |
-          python3 -I scripts/check_composition_playground_browser.py
-          python3 -I scripts/check_composition_playground_final_browser.py
-          python3 -I scripts/check_composition_playground_final_three_browser.py
-          python3 -I scripts/check_composition_playground_final_grid_browser.py
+          python3 scripts/check_composition_playground_browser.py
+          python3 scripts/check_composition_playground_final_browser.py
+          python3 scripts/check_composition_playground_final_three_browser.py
+          python3 scripts/check_composition_playground_final_grid_browser.py

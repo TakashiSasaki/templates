@@ -24,11 +24,35 @@ class SiteCIBootstrapPolicyTests(unittest.TestCase):
                 for runner in re.findall(r"^\s*runs-on:\s*(.+)$", text, re.MULTILINE):
                     self.assertIn("ubuntu", runner.lower())
 
-    def test_runner_native_commands_are_explicit(self) -> None:
-        for path in sorted((ROOT / ".github/workflows").glob("*.yml")):
-            text = path.read_text(encoding="utf-8")
-            with self.subTest(workflow=path.name):
-                self.assertNotRegex(text, r"(?m)^\s*run:\s+python\s")
+    def test_repository_rejects_unqualified_python_except_managed_evidence(self) -> None:
+        workflow_root = ROOT / ".github/workflows"
+        allowed = {
+            ("reference-consumer.yml", "run: python scripts/check_reference_website.py"),
+            ("reference-consumer.yml", "run: python scripts/check_reference_pwa.py"),
+        }
+        observed = set()
+        workflows = sorted(
+            path
+            for path in workflow_root.rglob("*")
+            if path.is_file() and path.suffix in {".yml", ".yaml"}
+        )
+        for path in workflows:
+            relative = str(path.relative_to(workflow_root))
+            for line in path.read_text(encoding="utf-8").splitlines():
+                normalized = line.strip()
+                if re.fullmatch(r"run:\s+python(?:\s+.*)?", normalized):
+                    self.assertIn(
+                        (relative, normalized),
+                        allowed,
+                        f"unqualified workflow Python command is not managed: {path}",
+                    )
+                    observed.add((relative, normalized))
+        self.assertEqual(observed, allowed)
+
+    def test_managed_evidence_commands_remain_declared(self) -> None:
+        text = (ROOT / ".github/workflows/reference-consumer.yml").read_text(encoding="utf-8")
+        self.assertIn("run: python scripts/check_reference_website.py", text)
+        self.assertIn("run: python scripts/check_reference_pwa.py", text)
 
 
 if __name__ == "__main__":

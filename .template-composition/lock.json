@@ -60,7 +60,7 @@
       "destination": ".github/workflows/validate-website.yml",
       "component": "artifact.website-core",
       "ownership": "managed",
-      "materialized_sha256": "ed8794e9801ce75aaf8d442d420eca13f49e6a17e33a5b68cf7c181779c8b27c"
+      "materialized_sha256": "8bfa4d70957d67965bfc0cec2135e1dc8a73ba3fe1f59f4e51a7fbb3b448f496"
     },
     {
       "destination": ".template-composition/checkpoint.py",

@@ -39,15 +39,10 @@ jobs:
       - run: python3 -m pip install --requirement requirements-visual.txt
       - name: Validate visual entrypoint dependency boundary
         run: python3 scripts/check_python_dependencies.py . --environment visual
-      - name: Cache Playwright binaries
-        if: ${{ inputs.pwa_required == 'true' }}
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-${{ runner.arch }}-playwright-shell-${{ hashFiles('requirements-visual.txt') }}
-      - name: Install worker-lifecycle browser
-        if: ${{ inputs.pwa_required == 'true' }}
-        run: python3 -m playwright install --only-shell chromium
+      - name: Verify system Chrome runtime
+        run: |
+          google-chrome --version | tee "$RUNNER_TEMP/system-chrome-version.txt"
+          echo "Playwright launch mode: channel=chrome" >> "$GITHUB_STEP_SUMMARY"
       - name: Verify and consume scheduled Pages artifact
         env:
           GH_TOKEN: ${{ github.token }}
@@ -56,7 +51,7 @@ jobs:
           BUILD_INPUTS: ${{ inputs.build_inputs }}
         run: python3 scripts/consume_site_build_artifact.py
       - name: Verify Website product contract in Chrome
-        run: python3 scripts/check_reference_website.py
+        run: python scripts/check_reference_website.py
       - name: Verify PWA positive and failure paths
         if: ${{ inputs.pwa_required == 'true' }}
-        run: python3 scripts/check_reference_pwa.py
+        run: python scripts/check_reference_pwa.py

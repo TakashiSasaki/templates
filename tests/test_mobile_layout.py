@@ -157,12 +157,8 @@ class MobileLayoutRegressionTests(unittest.TestCase):
             "sudo apt-get install --yes --no-install-recommends fonts-ipafont-gothic",
             check_block,
         )
-        self.assertIn(
-            "python3 -m playwright install --only-shell chromium",
-            check_block,
-        )
         self.assertNotIn(
-            "python3 -m playwright install --with-deps --only-shell chromium",
+            "playwright install",
             check_block,
         )
         self.assertIn("build/mobile-visual", check_block)
