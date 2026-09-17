@@ -232,6 +232,51 @@ jobs:
           args=(--publication composition=materialized-provider-inputs/composition --publication policy=materialized-provider-inputs/policy)
           if [ -d materialized-provider-inputs/modeling ]; then args+=(--publication modeling=materialized-provider-inputs/modeling); fi
           python3 integration-source/scripts/materialize_publication_assets.py "${args[@]}"
+      - name: Classify the exact provider contract before Bundle qualification
+        id: preflight
+        env:
+          TRUSTED_POLICY: ${{ inputs.trusted_policy_revision || steps.refs.outputs.policy }}
+          TRUSTED_CONTROLLER: ${{ inputs.trusted_controller_revision || github.workflow_sha }}
+        run: |
+          preflight_report="$RUNNER_TEMP/integration-preflight-report.json"
+          args=(
+            --integration-root integration-source
+            --integration-revision "${{ steps.producer.outputs.sha }}"
+            --composition-root materialized-provider-inputs/composition
+            --composition-revision "${{ steps.refs.outputs.composition }}"
+            --policy-root materialized-provider-inputs/policy
+            --policy-revision "${{ steps.refs.outputs.policy }}"
+            --trusted-policy-revision "$TRUSTED_POLICY"
+            --trusted-controller-revision "$TRUSTED_CONTROLLER"
+            --evidence-ref "workflow://${{ github.workflow }}#${{ github.run_id }}/${{ github.run_attempt }}"
+            --output "$preflight_report"
+          )
+          if [ -d materialized-provider-inputs/modeling ]; then
+            args+=(
+              --modeling-root materialized-provider-inputs/modeling
+              --modeling-revision "${{ steps.refs.outputs.modeling }}"
+            )
+          fi
+          classifier_status=0
+          python3 integration-source/scripts/qualify_compatibility_preflight.py "${args[@]}" || classifier_status=$?
+          test -s "$preflight_report"
+          classification=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["classification"])' "$preflight_report")
+          echo "classification=$classification" >> "$GITHUB_OUTPUT"
+          echo "classifier_exit=$classifier_status" >> "$GITHUB_STEP_SUMMARY"
+          cat "$preflight_report" >> "$GITHUB_STEP_SUMMARY"
+      - name: Publish the static preflight report
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: integration-preflight-${{ github.run_attempt }}-${{ inputs.artifact_namespace || 'candidate' }}
+          path: ${{ runner.temp }}/integration-preflight-report.json
+          if-no-files-found: error
+          retention-days: 7
+      - name: Require a compatible static preflight before heavy qualification
+        if: ${{ steps.preflight.outputs.classification != 'COMPATIBLE_PENDING_QUALIFICATION' }}
+        run: |
+          echo 'Integration static preflight did not authorize Bundle qualification.' >&2
+          exit 1
       - name: Qualify exact inputs and deterministic regeneration
         id: bundle
         env:

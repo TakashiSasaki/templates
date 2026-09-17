@@ -52,6 +52,21 @@ class ReleaseBoundaryTests(unittest.TestCase):
         for prohibited in ('site_renderer','render_publication_bundle','playwright','deploy-pages','upload-pages-artifact','pages: write','site-source'):
             self.assertNotIn(prohibited,(ROOT/'.github/workflows/integration-qualification.yml').read_text())
 
+    def test_static_compatibility_preflight_gates_heavy_bundle_qualification(self):
+        workflow = (ROOT / '.github/workflows/integration-qualification.yml').read_text()
+        self.assertIn('qualify_compatibility_preflight.py', workflow)
+        self.assertIn('preflight_report="$RUNNER_TEMP/integration-preflight-report.json"', workflow)
+        self.assertIn('integration-preflight-${{ github.run_attempt }}', workflow)
+        preflight = workflow.index('qualify_compatibility_preflight.py')
+        qualification = workflow.index('qualify_integration.py')
+        self.assertLess(preflight, qualification)
+        self.assertIn(
+            "steps.preflight.outputs.classification != 'COMPATIBLE_PENDING_QUALIFICATION'",
+            workflow,
+        )
+        self.assertIn('Create isolated provider materialization checkouts', workflow)
+        self.assertNotIn('continue-on-error: true', workflow)
+
     def test_reconciliation_requires_trusted_bundle_receipt_and_does_not_execute_candidate_code(self):
         reconcile = (ROOT / '.github/workflows/integration-reconcile.yml').read_text()
         self.assertIn('publication_bundle_artifact.py "${args[@]}"', reconcile)
