@@ -2,6 +2,7 @@
 import argparse
 import hashlib
 import json
+import os
 from pathlib import Path
 import re
 import subprocess
@@ -194,6 +195,16 @@ def verify_receipt(lock,value):
     }
     if namespace not in workflows:
         raise ArtifactError('Integration artifact namespace is not approved for Site acquisition')
+    current_run_id = None
+    try:
+        current_run_id = int(os.environ['GITHUB_RUN_ID'])
+    except (KeyError, ValueError):
+        pass
+    allow_active_caller = (
+        namespace == 'site-adoption'
+        and os.environ.get('GITHUB_ACTIONS') == 'true'
+        and current_run_id == value.get('run_id')
+    )
     for workflow_name, workflow_event, workflow_path in workflows[namespace]:
         if run.get('name') != workflow_name or (workflow_event is not None and run.get('event') != workflow_event) or run.get('path') != workflow_path:
             continue
@@ -203,6 +214,8 @@ def verify_receipt(lock,value):
             workflow_event=workflow_event,
             workflow_path=workflow_path,
             **{key: value[key] for key in BASE_RECEIPT_FIELDS},
+            allow_active_run=allow_active_caller,
+            active_run_id=current_run_id,
         )
         if 'trusted_receipt' in value:
             trusted=value['trusted_receipt']

@@ -12,7 +12,8 @@ from site_renderer.bundle import validate
 
 def binding(metadata, run, jobs, *, artifact_id, archive_digest, run_id, attempt,
             producer, workflow_head, repository, identity, artifact_name,
-            workflow_name=None, workflow_event=None, workflow_path=None):
+            workflow_name=None, workflow_event=None, workflow_path=None,
+            allow_active_run=False, active_run_id=None):
     if (run.get('id') != run_id or run.get('run_attempt') != attempt
             or run.get('head_sha') != workflow_head
             or run.get('head_repository',{}).get('full_name') != repository):
@@ -23,7 +24,15 @@ def binding(metadata, run, jobs, *, artifact_id, archive_digest, run_id, attempt
         raise ArtifactError('Bundle workflow event mismatch')
     if workflow_path is not None and run.get('path') != workflow_path:
         raise ArtifactError('Bundle workflow path mismatch')
-    if run.get('status') != 'completed' or run.get('conclusion') != 'success':
+    successful_run = run.get('status') == 'completed' and run.get('conclusion') == 'success'
+    active_caller_run = (
+        allow_active_run
+        and run.get('status') == 'in_progress'
+        and run.get('conclusion') in (None, '')
+        and isinstance(active_run_id, int)
+        and run.get('id') == active_run_id
+    )
+    if not (successful_run or active_caller_run):
         raise ArtifactError('Bundle workflow run was not successful')
     if (metadata.get('id') != artifact_id or metadata.get('expired') is not False
             or metadata.get('digest') != archive_digest
