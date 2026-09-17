@@ -78,11 +78,6 @@ jobs:
           path: integration-source
           fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-python@v6
-        with:
-          python-version: '3.12'
-          cache: pip
-          cache-dependency-path: integration-source/requirements-build.lock
       - name: Resolve exact producer and reviewed companion inputs
         id: refs
         env:
@@ -92,12 +87,12 @@ jobs:
           overrides=()
           if [ -n "$COMPOSITION" ]; then overrides+=(--override "composition=$COMPOSITION"); fi
           if [ -n "$POLICY" ]; then overrides+=(--override "policy=$POLICY"); fi
-          python integration-source/scripts/resolve_publication_sources.py --lock integration-source/publication-sources.json --output "$GITHUB_OUTPUT" "${overrides[@]}"
+          python3 integration-source/scripts/resolve_publication_sources.py --lock integration-source/publication-sources.json --output "$GITHUB_OUTPUT" "${overrides[@]}"
       - name: Bind producer revision
         id: producer
         env:
           EXPECTED_PRODUCER: ${{ inputs.producer_ref || github.sha }}
-        run: python integration-source/scripts/resolve_producer_checkout.py --root integration-source --expected "$EXPECTED_PRODUCER" --output "$GITHUB_OUTPUT"
+        run: python3 integration-source/scripts/resolve_producer_checkout.py --root integration-source --expected "$EXPECTED_PRODUCER" --output "$GITHUB_OUTPUT"
       - uses: actions/checkout@v7
         with:
           ref: ${{ steps.refs.outputs.composition }}
@@ -110,16 +105,16 @@ jobs:
           persist-credentials: false
       - name: Install locked producer dependencies
         run: |
-          python -m pip install --no-deps -r integration-source/requirements-build.lock
-          python -m pip check
+          python3 -m pip install --no-deps -r integration-source/requirements-build.lock
+          python3 -m pip check
       - name: Run canonical Integration local preflight
         working-directory: integration-source
         env:
           EXPECTED_HEAD: ${{ inputs.producer_ref || github.sha }}
-        run: python scripts/run_integration_preflight.py fast --expected-head "$EXPECTED_HEAD"
+        run: python3 scripts/run_integration_preflight.py fast --expected-head "$EXPECTED_HEAD"
       - name: Materialize provider-owned catalog outputs
         run: |
-          python integration-source/scripts/materialize_publication_assets.py --publication composition=composition-source --publication policy=policy-source
+          python3 integration-source/scripts/materialize_publication_assets.py --publication composition=composition-source --publication policy=policy-source
       - name: Qualify exact inputs and deterministic regeneration
         id: bundle
         env:
@@ -130,7 +125,7 @@ jobs:
             echo 'Select one staging argument' >&2
             exit 1
           fi
-          python integration-source/scripts/qualify_integration.py \
+          python3 integration-source/scripts/qualify_integration.py \
             --integration-root integration-source \
             --producer-revision "${{ steps.producer.outputs.sha }}" \
             --composition-root composition-source --composition-revision "${{ steps.refs.outputs.composition }}" \
@@ -138,7 +133,7 @@ jobs:
             --staging-ids "${STAGING_IDS:-$STAGING_ID}" \
             --output publication-bundle --github-output "$GITHUB_OUTPUT"
       - name: Package qualified Bundle
-        run: python integration-source/scripts/publication_bundle_artifact.py pack --bundle publication-bundle --output bundle.tar
+        run: python3 integration-source/scripts/publication_bundle_artifact.py pack --bundle publication-bundle --output bundle.tar
       - name: Publish immutable Bundle artifact
         id: upload
         uses: actions/upload-artifact@v4
