@@ -64,9 +64,9 @@ def build_payload(args: argparse.Namespace) -> dict[str, Any]:
     if producer != {"authority": "integration", "revision": args.integration_revision}:
         raise ValueError("Bundle producer identity does not match the qualification input")
     providers = read_json(args.bundle / "provenance.json").get("providers")
-    if not isinstance(providers, dict) or set(providers) not in {
-        {"composition", "policy"},
-        {"modeling", "composition", "policy"},
+    if not isinstance(providers, dict) or frozenset(providers) not in {
+        frozenset({"composition", "policy"}),
+        frozenset({"modeling", "composition", "policy"}),
     }:
         raise ValueError("qualification report requires an approved exact provider tuple")
     provider_names = tuple(name for name in PROVIDERS if name in providers)
