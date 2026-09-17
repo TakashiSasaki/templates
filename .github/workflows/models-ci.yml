@@ -1,7 +1,6 @@
 name: Models qualification
 on:
   pull_request:
-    branches: [models, 'codex/models-*']
   push:
     branches: [models]
 permissions:

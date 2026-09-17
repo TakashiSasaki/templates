@@ -288,7 +288,12 @@ class CatalogTests(unittest.TestCase):
     def test_ci_uses_canonical_entrypoint_and_stack_bases(self):
         text = (self.root / ".github/workflows/models-ci.yml").read_text()
         self.assertIn("python3 tools/qualify.py", text)
-        self.assertIn("branches: [models, 'codex/models-*']", text)
+        pull_request = text.split("  pull_request:\n", 1)[1].split(
+            "  push:\n", 1
+        )[0]
+        self.assertNotIn("branches:", pull_request)
+        self.assertNotIn("codex/models-arbitrary-stack-base", pull_request)
+        self.assertIn("branches: [models]", text)
         self.assertNotIn("actions/setup-python", text)
         self.assertNotIn("python-version", text)
         self.assertNotIn("cache: pip", text)
