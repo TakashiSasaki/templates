@@ -8,6 +8,7 @@ from site_renderer.guided import (
     heading_anchor,
     index_page_path,
     page_shell,
+    project_immutable_source_links,
     render_index_page,
     render_landing,
     validate_provider_graph,
@@ -122,6 +123,32 @@ class IndexNavigationViewerHeadingEdgeTests(unittest.TestCase):
         self.assertIn('<h2 id="links">Links</h2>', rendered)
         self.assertNotIn("<h2>Links</h2>", rendered)
         self.assertIn("Links before the first provider section", rendered)
+
+    def test_public_graph_projects_known_github_branch_sources_to_provider_sha(self) -> None:
+        graph = {
+            "repository": "TakashiSasaki/templates",
+            "providers": [
+                minimal_provider(
+                    name="policy",
+                    edges=[
+                        {
+                            "kind": "external",
+                            "raw_target": "https://github.com/TakashiSasaki/templates/blob/policy/CONTRIBUTING.md",
+                            "target": "https://github.com/TakashiSasaki/templates/blob/policy/CONTRIBUTING.md",
+                        }
+                    ],
+                )
+            ],
+        }
+
+        projected = project_immutable_source_links(graph)
+        target = projected["providers"][0]["edges"][0]["target"]
+        self.assertEqual(
+            target,
+            "https://github.com/TakashiSasaki/templates/blob/"
+            + ("a" * 40)
+            + "/CONTRIBUTING.md",
+        )
 
     def test_directory_edges_route_to_immutable_github_tree(self) -> None:
         href, route_kind, external = edge_href(

@@ -5,13 +5,19 @@ import json
 import re
 import shutil
 import unicodedata
+import copy
 from pathlib import Path, PurePosixPath
 from typing import Any
 from urllib.parse import quote, urlsplit
 from publication_bundle.graph import *
 from publication_bundle.graph import _section_title, _section_level
 from publication_bundle.paths import public_path
-from site_renderer.github import github_blob_url, github_commit_url, github_tree_url
+from site_renderer.github import (
+    github_blob_url,
+    github_commit_url,
+    github_tree_url,
+    immutable_github_source_url,
+)
 
 GUIDED_ROOT = Path("guided")
 
@@ -143,6 +149,11 @@ def edge_href(
     if kind == "fragment":
         return fragment_suffix(fragment), "same index", False
     if kind == "external":
+        target = immutable_github_source_url(
+            target,
+            {provider: revision},
+            repository=repository or "TakashiSasaki/templates",
+        )
         return target + fragment_suffix(fragment), "external", True
     if kind == "directory":
         if fragment is None:
@@ -470,6 +481,40 @@ def render_landing(graph: dict[str, Any]) -> str:
     return page_shell("Index-guided document discovery", body, "/guided/")
 
 
+def project_immutable_source_links(
+    graph: dict[str, Any],
+    *,
+    revisions: dict[str, str] | None = None,
+) -> dict[str, Any]:
+    """Project provider-source URLs in the public graph onto exact revisions.
+
+    The Bundle graph keeps the provider's semantic target as supplied by
+    Integration. The Site's public graph is a rendered projection, so known
+    GitHub blob/tree branch refs are replaced there without changing graph
+    routing fields such as the file path used for publication resolution.
+    """
+    projected = copy.deepcopy(graph)
+    known = dict(revisions or {})
+    known.update(
+        {
+            provider["name"]: provider["revision"]
+            for provider in projected.get("providers", [])
+        }
+    )
+    repository = projected.get("repository", "TakashiSasaki/templates")
+    for provider in projected.get("providers", []):
+        for edge in provider.get("edges", []):
+            if edge.get("kind") != "external":
+                continue
+            for field in ("raw_target", "target"):
+                value = edge.get(field)
+                if isinstance(value, str):
+                    edge[field] = immutable_github_source_url(
+                        value, known, repository=repository
+                    )
+    return projected
+
+
 def validate_render_destinations(destinations: list[Path]) -> None:
     ordered = sorted(
         ((destination.parts, destination) for destination in destinations),
@@ -497,6 +542,7 @@ def validate_render_destinations(destinations: list[Path]) -> None:
 
 
 def generate_from_bundle(repository, graph, published, output_root):
+    graph = project_immutable_source_links(graph)
     landing = render_landing(graph)
     rendered: list[tuple[Path, str]] = []
     messages: list[str] = []
