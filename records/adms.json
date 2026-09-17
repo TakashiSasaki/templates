@@ -1,7 +1,7 @@
 {
   "$schema": "https://github.com/TakashiSasaki/templates/raw/refs/heads/modeling/schemas/resource-record-0.1.schema.json",
   "id": "adms",
-  "recordRevision": 1,
+  "recordRevision": 2,
   "recordAuthority": "modeling",
   "resourceId": "https://semiceu.github.io/ADMS/releases/2.00/",
   "identityBasis": "upstream-entrypoint",

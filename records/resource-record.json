@@ -1,7 +1,7 @@
 {
   "$schema": "https://github.com/TakashiSasaki/templates/raw/refs/heads/modeling/schemas/resource-record-0.1.schema.json",
   "id": "resource-record",
-  "recordRevision": 1,
+  "recordRevision": 2,
   "recordAuthority": "modeling",
   "resourceId": "https://github.com/TakashiSasaki/templates/raw/refs/heads/modeling/schemas/resource-record-0.1.schema.json",
   "identityBasis": "local-identifier",

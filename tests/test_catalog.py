@@ -91,7 +91,7 @@ class CatalogTests(unittest.TestCase):
 
     def test_non_json_nan(self):
         path = self.root / "records/dcat.json"
-        path.write_text(path.read_text().replace('"recordRevision": 1', '"recordRevision": NaN'))
+        path.write_text(path.read_text().replace('"recordRevision": 2', '"recordRevision": NaN'))
         self.rejected()
 
     def test_invalid_dates(self):

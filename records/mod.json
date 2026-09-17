@@ -1,7 +1,7 @@
 {
   "$schema": "https://github.com/TakashiSasaki/templates/raw/refs/heads/modeling/schemas/resource-record-0.1.schema.json",
   "id": "mod",
-  "recordRevision": 1,
+  "recordRevision": 2,
   "recordAuthority": "modeling",
   "resourceId": "https://fair-impact.github.io/MOD/index-en.html",
   "identityBasis": "upstream-entrypoint",
