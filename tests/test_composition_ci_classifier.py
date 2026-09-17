@@ -173,9 +173,10 @@ class CompositionCIClassifierTests(unittest.TestCase):
         self.assertNotIn("force-compatibility", classifier)
         self.assertIn("Record runtime CI selection", classifier)
         self.assertIn(
-            "default qualification: Ubuntu 24.04 / Python 3.11", classifier
+            "runner-provided Ubuntu Python executes the canonical runtime checks",
+            classifier,
         )
-        self.assertIn("explicit compatibility checkpoints only", classifier)
+        self.assertNotIn("explicit compatibility checkpoints only", classifier)
 
         validate = workflow.split("\n  validate:\n", 1)[1]
         self.assertIn("name: consumer runtime validate", validate)

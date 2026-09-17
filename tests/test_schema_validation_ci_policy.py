@@ -135,6 +135,14 @@ class SchemaValidationCIPolicyTests(unittest.TestCase):
         self.assertNotIn(integration_protocol_ref, browser)
         self.assertNotIn("Check out Integration publication protocol", browser)
 
+    def test_workflow_uses_runner_python_without_runtime_selection(self) -> None:
+        for path in sorted((ROOT / ".github/workflows").glob("*.yml")):
+            with self.subTest(workflow=path.name):
+                workflow = path.read_text(encoding="utf-8")
+                self.assertNotIn("actions/setup-python", workflow)
+                self.assertNotIn("python-version", workflow)
+                self.assertNotIn("windows-", workflow.lower())
+
 
 if __name__ == "__main__":
     unittest.main()

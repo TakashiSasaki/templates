@@ -73,15 +73,10 @@ jobs:
           persist-credentials: false
           fetch-depth: 1
 
-      - name: Set up Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version: "3.12"
-          cache: pip
-          cache-dependency-path: requirements-dev.lock
-
+      # Keep this venv: the locked development dependencies are the validation
+      # boundary, and the ephemeral runner's host Python is not that boundary.
       - name: Create isolated validation environment
-        run: python -I -m venv --clear .venv
+        run: python3 -I -m venv --clear .venv
 
       - name: Install locked validation dependencies
         run: .venv/bin/python -m pip install --isolated --disable-pip-version-check --no-deps --requirement requirements-dev.lock
@@ -147,15 +142,9 @@ jobs:
           persist-credentials: false
           fetch-depth: 1
 
-      - name: Set up Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version: "3.12"
-          cache: pip
-          cache-dependency-path: requirements-dev.lock
-
+      # Keep this venv for the locked development-dependency boundary.
       - name: Create isolated validation environment
-        run: python -I -m venv --clear .venv
+        run: python3 -I -m venv --clear .venv
 
       - name: Install locked validation dependencies
         run: .venv/bin/python -m pip install --isolated --disable-pip-version-check --no-deps --requirement requirements-dev.lock
@@ -191,15 +180,9 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Set up Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version: "3.12"
-          cache: pip
-          cache-dependency-path: requirements-dev.lock
-
+      # Keep this venv for the locked development-dependency boundary.
       - name: Create isolated validation environment
-        run: python -I -m venv --clear .venv
+        run: python3 -I -m venv --clear .venv
 
       - name: Install locked validation dependencies
         run: .venv/bin/python -m pip install --isolated --disable-pip-version-check --no-deps --requirement requirements-dev.lock
@@ -207,12 +190,10 @@ jobs:
       - name: Verify dependency graph
         run: .venv/bin/python -m pip check
 
-      - name: Prepare compatible ChromeDriver
+      - name: Select runner-provided ChromeDriver
         run: |
-          driver_path="$(
-            .venv/bin/python -I scripts/prepare_chromedriver.py \
-              --output-dir "$RUNNER_TEMP/composition-chromedriver"
-          )"
+          driver_path="$(command -v chromedriver)"
+          test -n "$driver_path"
           echo "CHROMEWEBDRIVER=$driver_path" >> "$GITHUB_ENV"
 
       - name: Verify real-browser evidence runtime

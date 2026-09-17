@@ -19,7 +19,6 @@ class RemoteExecutableIntegrityInventoryTests(unittest.TestCase):
             "skills/composition/scripts/runtime_checkout.py",
             "skills/composition/scripts/run_checkout.py",
             "examples/onboarding/task-ledger/browser_proof.py",
-            "scripts/prepare_chromedriver.py",
         ):
             self.assertIn(resource, self.text)
         for classification in (
@@ -37,7 +36,6 @@ class RemoteExecutableIntegrityInventoryTests(unittest.TestCase):
             "skills/composition/scripts/runtime_checkout.py": "imported/loaded as executable code",
             "skills/composition/scripts/run_checkout.py": "imported/loaded as executable code",
             "examples/onboarding/task-ledger/browser_proof.py": "downloaded then executed",
-            "scripts/prepare_chromedriver.py": "downloaded then executed",
             "Documentation-only external links": "documentation-only",
             "Contract JSON, schemas, and generated local files": "data only",
         }
@@ -54,13 +52,13 @@ class RemoteExecutableIntegrityInventoryTests(unittest.TestCase):
         self.assertIn("immutable identity", self.text)
         self.assertIn("exact bytes received for execution", self.text)
         self.assertIn("full Git SHA plus received-byte SHA-256", self.text)
-        self.assertIn("no SHA-256 or signed manifest verification", self.text)
+        self.assertIn("no independent archive SHA-256", self.text)
         self.assertIn("text reserialization", self.text)
 
     def test_inventory_limits_digest_requirement_to_executable_resources(self) -> None:
         self.assertIn("does not require digests for ordinary documentation links", self.text)
         self.assertIn("does not add a generic digest field to every remote file", self.text)
-        self.assertIn("Residual supply-chain risk remains", self.text)
+        self.assertIn("archive bytes are not separately digest-pinned", self.text)
 
 
 if __name__ == "__main__":

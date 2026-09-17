@@ -27,15 +27,10 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Set up Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version: "3.12"
-          cache: pip
-          cache-dependency-path: requirements-dev.lock
-
+      # Keep this venv: the locked development dependencies are the validation
+      # boundary, and the ephemeral runner's host Python is not that boundary.
       - name: Create isolated validation environment
-        run: python -I -m venv --clear .venv
+        run: python3 -I -m venv --clear .venv
 
       - name: Install locked validation dependencies
         run: .venv/bin/python -m pip install --isolated --disable-pip-version-check --no-deps --requirement requirements-dev.lock
