@@ -7,12 +7,15 @@ there is no second active provider build/cache subsystem in Site.
 
 ## Construction and qualification
 
-Run `python scripts/run_site_preflight.py fast --expected-head <exact Site SHA>`
-for the complete local Site core suite. For a verified Bundle and generated Site,
-run `python scripts/run_site_preflight.py ready --expected-head <exact Site SHA>
---bundle <verified Bundle directory> --site-root <artifact directory>`.
-This reaches core, browser-controller and Bundle reader contracts. It accepts no
-provider checkout roots. Integration owns source semantics and provider qualification.
+Run `python scripts/run_site_preflight.py fast` for the L0 checks: diff hygiene,
+syntax/import checks, changed-test checks, JSON syntax and classifier validation.
+Run `python scripts/run_site_preflight.py ready` before spending CI resources.
+The ready gate runs the complete core suite, all applicable pure Node tests, acquires
+the exact Bundle named by `integration-source.json`, renders the real Site renderer,
+and validates the generated artifact. It accepts no provider checkout roots and fails
+when the exact qualified Bundle is unavailable. `--bundle <verified Bundle directory>
+--site-root <artifact directory>` remains available for isolated artifact checks.
+Integration owns source semantics and provider qualification.
 
 Remote construction uses the existing base-authoritative path classifier. Unknown
 or CI-authority changes fail closed to broader checks. `ci/full-qualification`

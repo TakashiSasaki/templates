@@ -169,6 +169,7 @@ jobs:
           assert provenance['integration']['content_digest']==lock['content_digest']
           PYCODE
           python site-source/scripts/check_bundle_reader.py --site-root build/site --bundle publication-bundle
+          python site-source/scripts/check_site_artifact.py --site-root build/site --bundle publication-bundle --lock site-source/integration-source.json
       - name: Embed exact build input identity
         if: ${{ steps.artifact.outputs.reused != 'true' }}
         run: cp build-inputs.json build/site/ci-build-inputs.json
