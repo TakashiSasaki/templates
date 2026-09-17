@@ -192,6 +192,11 @@ def test_installer_workflow_is_exact_head_path_scoped_and_runner_native() -> Non
     workflow = WORKFLOW.read_text(encoding="utf-8")
     assert "name: Policy installer candidate" in workflow
     assert "pull_request:" in workflow
+    pull_request = workflow.split("  pull_request:\n", 1)[1].split(
+        "\n\npermissions:", 1
+    )[0]
+    assert "branches:" not in pull_request
+    assert "codex/ciopt-policy-1-runtime" not in pull_request
     assert "push:" not in workflow
     assert "paths:" in workflow
     assert "scripts/install_agent_policy_skill.py" in workflow

@@ -114,28 +114,28 @@ A valid cache hit requires no network access. A cache miss downloads the runtime
 
 The canonical repository-maintainer requirement to run appropriate validation is `repository-policy/maintainer-validation.md`. The sequence below documents the current reproducible Policy CI baseline and its implementation-specific trust boundary; it is evidence and operational guidance rather than a second policy authority.
 
-The validated CI baseline is CPython 3.12.13 on `ubuntu-24.04`. Remove externally supplied Python and pip inputs before the first Python invocation, disable pip configuration files, create the virtual environment with an isolated bootstrap interpreter, and install only the reviewed lock graph:
+The CI validation path uses the Python already provided by the Ubuntu runner. Remove externally supplied Python and pip inputs before the first Python invocation, disable pip configuration files, create the virtual environment with an isolated bootstrap interpreter where the locked dependency boundary requires one, and install only the reviewed lock graph:
 
 ```bash
 unset PYTHONHOME PYTHONPATH PYTHONUSERBASE PIP_REQUIREMENT PIP_CONSTRAINT PIP_BUILD_CONSTRAINT PIP_REQUIRE_HASHES PIP_DRY_RUN PIP_NO_BINARY PIP_ONLY_BINARY PIP_PLATFORM PIP_PYTHON_VERSION PIP_IMPLEMENTATION PIP_ABI PIP_UPLOADED_PRIOR_TO PIP_INDEX_URL PIP_EXTRA_INDEX_URL PIP_NO_INDEX PIP_FIND_LINKS PIP_TARGET PIP_PREFIX PIP_ROOT PIP_USER PIP_PYTHON PIP_CACHE_DIR PIP_NO_CACHE_DIR PIP_QUIET PIP_EDITABLE PIP_GROUP PIP_REQUIREMENTS_FROM_SCRIPT PIP_REPORT PIP_CONFIG_SETTINGS PIP_IGNORE_REQUIRES_PYTHON PIP_LOG
 export PIP_CONFIG_FILE=/dev/null
-python -I -m venv --clear .venv
+python3 -I -m venv --clear .venv
 . .venv/bin/activate
-python -m pip install --disable-pip-version-check --no-deps --requirement requirements-ci.lock
-python -m pip install --disable-pip-version-check --no-deps --no-build-isolation -e .
-python scripts/verify_ci_environment.py
-python -m pip check
-python scripts/verify-release-state.py
-python scripts/verify_skill_installer_release.py
-python -m ruff check src tests scripts skills/agent-policy/scripts
-python -m pytest
-python -m compileall -q src scripts skills/agent-policy/scripts
+python3 -m pip install --disable-pip-version-check --no-deps --requirement requirements-ci.lock
+python3 -m pip install --disable-pip-version-check --no-deps --no-build-isolation -e .
+python3 scripts/verify_ci_environment.py
+python3 -m pip check
+python3 scripts/verify-release-state.py
+python3 scripts/verify_skill_installer_release.py
+python3 -m ruff check src tests scripts skills/agent-policy/scripts
+python3 -m pytest
+python3 -m compileall -q src scripts skills/agent-policy/scripts
 agent-policy --help
 ```
 
 `requirements-ci.txt` records the reviewed direct test and build inputs. `requirements-ci.lock` records the complete dependency graph for the selected CI baseline. Both use arbitrary exact equality (`===`), so an unrequested local version such as `4.26.0+corp` does not satisfy a reviewed public version such as `4.26.0`. The local project is installed separately with dependency resolution and build isolation disabled. `scripts/verify_ci_environment.py` requires the installed distribution set to equal the lock plus the editable `takashisasaki-agent-policy` project, excluding only the virtual environment's bootstrap `pip`. It also requires the installed project's `direct_url.json` to identify this repository root with `dir_info.editable` set to true, so a same-name, same-version wheel cannot stand in for the checked-out source.
 
-Consumer-runtime validation has a separate, narrower contract. `requirements-runtime.lock` records the exact runtime-only distribution set, excluding development, test, and build-only packages and excluding the local `takashisasaki-agent-policy` distribution itself. `scripts/smoke_test_runtime_distribution.py` creates a fresh virtual environment, removes inherited Python and pip package-selection inputs, installs every locked runtime distribution with `--no-deps`, installs the local project separately with `--no-deps`, runs `pip check`, verifies the installed set, and invokes `agent-policy --help`. `scripts/verify_runtime_environment.py` requires that dedicated environment to equal `requirements-runtime.lock` plus the local project, excluding only virtual-environment bootstrap distributions (`pip`, `setuptools`, and `wheel`). `.github/workflows/runtime-distribution.yml` exercises this contract on Ubuntu and Windows across Python 3.11 through 3.14.
+Consumer-runtime validation has a separate, narrower contract. `requirements-runtime.lock` records the exact runtime-only distribution set, excluding development, test, and build-only packages and excluding the local `takashisasaki-agent-policy` distribution itself. `scripts/smoke_test_runtime_distribution.py` creates a fresh virtual environment because package isolation is the behavior under test, removes inherited Python and pip package-selection inputs, installs every locked runtime distribution with `--no-deps`, installs the local project separately with `--no-deps`, runs `pip check`, verifies the installed set, and invokes `agent-policy --help`. `scripts/verify_runtime_environment.py` requires that dedicated environment to equal `requirements-runtime.lock` plus the local project, excluding only virtual-environment bootstrap distributions (`pip`, `setuptools`, and `wheel`). `.github/workflows/runtime-distribution.yml` exercises this contract once on the Ubuntu runner's Python and preserves both the runtime and skill-source checks.
 
 The dependency locks fix exact distribution version strings. They do not provide byte-for-byte artifact reproducibility or cryptographic index-origin reproducibility because hashes and source URLs are not recorded. Hash enforcement and explicit repository-origin enforcement are separate trust-boundary changes. Dependency-input and lock changes are made through the repository's reviewed change process.
 
