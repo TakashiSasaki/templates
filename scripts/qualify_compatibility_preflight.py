@@ -101,6 +101,9 @@ def _destinations(
 
 def build_payload(args: argparse.Namespace) -> dict[str, Any]:
     integration_root = args.integration_root.resolve(strict=True)
+    integration_revision = _sha(args.integration_revision, "Integration revision")
+    if checked_revision(integration_root) != integration_revision:
+        raise ValueError("Integration checkout revision differs from the exact preflight input")
     provider_roots: dict[str, Path] = {
         "composition": args.composition_root.resolve(strict=True),
         "policy": args.policy_root.resolve(strict=True),
@@ -114,6 +117,12 @@ def build_payload(args: argparse.Namespace) -> dict[str, Any]:
             raise ValueError("Modeling root and revision must be supplied together")
         provider_roots["modeling"] = args.modeling_root.resolve(strict=True)
         provider_revisions["modeling"] = _sha(args.modeling_revision, "Modeling revision")
+
+    provider_revisions = {
+        provider: provider_revisions[provider]
+        for provider in PROVIDERS
+        if provider in provider_revisions
+    }
 
     names = tuple(provider for provider in PROVIDERS if provider in provider_roots)
     if frozenset(names) not in {frozenset(BASE_PROVIDERS), frozenset(PROVIDERS)}:
@@ -137,7 +146,7 @@ def build_payload(args: argparse.Namespace) -> dict[str, Any]:
     return {
         "boundary": "provider-to-integration",
         "inputs": {
-            "integration_revision": _sha(args.integration_revision, "Integration revision"),
+            "integration_revision": integration_revision,
             "bundle_schema": "4" if "modeling" in names else "3",
             **{f"{provider}_revision": provider_revisions[provider] for provider in names},
         },
