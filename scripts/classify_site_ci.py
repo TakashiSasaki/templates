@@ -31,6 +31,7 @@ CI_CONTROL_EXACT_PATHS = frozenset(
         "scripts/consume_site_build_artifact.py",
         "scripts/run_site_preflight.py",
         "scripts/classify_site_ci.py",
+        "scripts/collect_site_changed_paths.py",
         "scripts/classify_site_browser_acceptance.py",
         "scripts/classify_provider_coexistence.py",
         "scripts/classify_publication_freshness.py",

@@ -143,16 +143,13 @@ jobs:
             echo "requiring_paths=all" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          base_tree="$RUNNER_TEMP/site-authority-files.txt"
-          if ! git ls-tree -r --name-only "$BASE_SHA" > "$base_tree"; then
-            {
-              write_full_outputs
-              echo "authority_source=base-authority-unavailable-full"
-              echo "reason=Site authority could not be determined from the pull-request base; full qualification requested"
-            } >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          if ! grep -Fxq '.github/workflows/build-pages.yml' "$base_tree" || ! grep -Fxq 'scripts/classify_site_ci.py' "$base_tree"; then
+          changed_paths="$RUNNER_TEMP/site-browser-paths.txt"
+          boundary_status=0
+          python scripts/collect_site_changed_paths.py \
+            --base "$BASE_SHA" \
+            --head "$HEAD_SHA" \
+            --output "$changed_paths" || boundary_status=$?
+          if [ "$boundary_status" -eq 10 ]; then
             {
               write_non_site_outputs
               echo "authority_source=base-non-site"
@@ -160,12 +157,27 @@ jobs:
             } >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          changed_paths="$RUNNER_TEMP/site-browser-paths.txt"
-          if ! git diff --name-only --no-renames "$BASE_SHA" "$HEAD_SHA" > "$changed_paths"; then
+          if [ "$boundary_status" -eq 20 ]; then
+            {
+              write_full_outputs
+              echo "authority_source=base-authority-unavailable-full"
+              echo "reason=Site authority could not be determined from the pull-request base; full qualification requested"
+            } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "$boundary_status" -eq 21 ]; then
             {
               write_full_outputs
               echo "authority_source=base-diff-unavailable-full"
               echo "reason=Site changed paths could not be determined from the pull-request base; full qualification requested"
+            } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "$boundary_status" -ne 0 ]; then
+            {
+              write_full_outputs
+              echo "authority_source=base-classification-unavailable-full"
+              echo "reason=Site base classification failed unexpectedly; full qualification requested"
             } >> "$GITHUB_OUTPUT"
             exit 0
           fi
