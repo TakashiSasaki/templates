@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import re
-from urllib.parse import quote_from_bytes
+from urllib.parse import quote_from_bytes, unquote, urlsplit
 
 
 FULL_SHA = re.compile(r"\A[0-9a-f]{40}\Z")
@@ -74,3 +74,43 @@ def github_tree_url(
 ) -> str:
     """Return the immutable directory/tree page for an exact full SHA."""
     return _url("tree", repository, revision, path, fragment)
+
+
+def immutable_github_source_url(
+    url: str,
+    revisions: dict[str, str],
+    *,
+    repository: str = "TakashiSasaki/templates",
+) -> str:
+    """Replace known authority refs in a repository source URL with SHAs.
+
+    Unknown refs and repositories are left untouched. A full SHA is retained as
+    a blob/tree ref, never reinterpreted as a commit page.
+    """
+    if not isinstance(url, str):
+        return url
+    parsed = urlsplit(url)
+    if parsed.scheme != "https" or parsed.netloc != "github.com":
+        return url
+    parts = parsed.path.split("/")
+    if len(parts) < 5 or "/".join(parts[1:3]) != repository:
+        return url
+    kind, ref = parts[3], parts[4]
+    if kind not in {"blob", "tree"}:
+        return url
+    revision = revisions.get(ref, ref if FULL_SHA.fullmatch(ref) else None)
+    if revision is None:
+        return url
+    path = unquote("/".join(parts[5:]))
+    try:
+        rewritten = (
+            github_blob_url(repository, revision, path, fragment=parsed.fragment or None)
+            if kind == "blob"
+            else github_tree_url(repository, revision, path, fragment=parsed.fragment or None)
+        )
+    except GitHubUrlError:
+        return url
+    if parsed.query:
+        base, marker, fragment = rewritten.partition("#")
+        rewritten = f"{base}?{parsed.query}{marker}{fragment}"
+    return rewritten

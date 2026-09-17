@@ -5,6 +5,7 @@ from site_renderer.github import (
     github_blob_url,
     github_commit_url,
     github_tree_url,
+    immutable_github_source_url,
 )
 
 
@@ -42,3 +43,29 @@ class GitHubUrlTests(unittest.TestCase):
         for path in ("/absolute", "../escape", "docs//file.md"):
             with self.subTest(path=path), self.assertRaises(GitHubUrlError):
                 github_blob_url(REPOSITORY, REVISION, path)
+
+    def test_rewrites_only_known_authority_refs_and_preserves_kind_query_and_fragment(self):
+        revisions = {"site": "a" * 40, "integration": "b" * 40, "composition": "c" * 40, "policy": "d" * 40}
+        self.assertEqual(
+            immutable_github_source_url(
+                "https://github.com/TakashiSasaki/templates/blob/policy/README.md#development",
+                revisions,
+            ),
+            "https://github.com/TakashiSasaki/templates/blob/" + "d" * 40 + "/README.md#development",
+        )
+        self.assertEqual(
+            immutable_github_source_url(
+                "https://github.com/TakashiSasaki/templates/tree/integration?plain=1",
+                revisions,
+            ),
+            "https://github.com/TakashiSasaki/templates/tree/" + "b" * 40 + "?plain=1",
+        )
+        self.assertEqual(
+            immutable_github_source_url(
+                "https://github.com/TakashiSasaki/templates/blob/" + "e" * 40 + "/docs/a file.md",
+                revisions,
+            ),
+            "https://github.com/TakashiSasaki/templates/blob/" + "e" * 40 + "/docs/a%20file.md",
+        )
+        external = "https://github.com/other/templates/blob/policy/README.md"
+        self.assertEqual(immutable_github_source_url(external, revisions), external)
