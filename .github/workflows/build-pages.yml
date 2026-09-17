@@ -143,24 +143,17 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RECEIPT: ${{ needs.build.outputs.bundle_receipt }}
         run: |
-          python -c 'import os; from pathlib import Path; Path("receipt.json").write_text(os.environ["RECEIPT"])'
-          python scripts/acquire_integration_bundle.py consume --receipt receipt.json --output publication-bundle
+          python3 -c 'import os; from pathlib import Path; Path("receipt.json").write_text(os.environ["RECEIPT"])'
+          python3 scripts/acquire_integration_bundle.py consume --receipt receipt.json --output publication-bundle
       - name: Check audience artifact contract before browser setup
         if: ${{ needs.classify_browser.outputs.browser_required == 'true' }}
         run: python3 scripts/check_audience_artifact.py --site-root build/site --bundle publication-bundle
-      - name: Set up Python
-        if: ${{ needs.classify_browser.outputs.browser_required == 'true' }}
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.12'
-          cache: pip
-          cache-dependency-path: requirements-visual.txt
       - name: Install Playwright controller
         if: ${{ needs.classify_browser.outputs.browser_required == 'true' }}
-        run: python -m pip install --disable-pip-version-check -r requirements-visual.txt
+        run: python3 -m pip install --disable-pip-version-check -r requirements-visual.txt
       - name: Validate visual entrypoint dependency boundary
         if: ${{ needs.classify_browser.outputs.browser_required == 'true' }}
-        run: python scripts/check_python_dependencies.py . --environment visual
+        run: python3 scripts/check_python_dependencies.py . --environment visual
       - name: Cache Playwright binaries
         if: ${{ needs.classify_browser.outputs.browser_required == 'true' && (needs.classify_browser.outputs.pwa_required == 'true' || needs.classify_browser.outputs.full_required == 'true') }}
         uses: actions/cache@v4
@@ -169,7 +162,7 @@ jobs:
           key: ${{ runner.os }}-${{ runner.arch }}-playwright-shell-${{ hashFiles('requirements-visual.txt') }}
       - name: Install Playwright Chromium for PWA lifecycle
         if: ${{ needs.classify_browser.outputs.browser_required == 'true' && (needs.classify_browser.outputs.pwa_required == 'true' || needs.classify_browser.outputs.full_required == 'true') }}
-        run: python -m playwright install --only-shell chromium
+        run: python3 -m playwright install --only-shell chromium
       - name: Verify system Chrome runtime
         if: ${{ needs.classify_browser.outputs.browser_required == 'true' }}
         run: |
@@ -184,7 +177,7 @@ jobs:
       - name: Check changed-feature audience
         if: ${{ needs.classify_browser.outputs.browser_required == 'true' && needs.classify_browser.outputs.browser_priority == 'audience' }}
         run: |
-          python scripts/check_audience_runtime.py \
+          python3 scripts/check_audience_runtime.py \
             --site-root build/site \
             --output build/mobile-visual/audience-runtime.json \
             --bundle publication-bundle
@@ -192,86 +185,86 @@ jobs:
       - name: Check changed-feature search
         if: ${{ needs.classify_browser.outputs.browser_required == 'true' && needs.classify_browser.outputs.browser_priority == 'search' }}
         run: |
-          python scripts/check_search_history.py \
+          python3 scripts/check_search_history.py \
             --site-root build/site \
             --output build/search-history/search-history.json
         id: priority_search
       - name: Check changed-feature pwa
         if: ${{ needs.classify_browser.outputs.browser_required == 'true' && (needs.classify_browser.outputs.pwa_required == 'true' || needs.classify_browser.outputs.full_required == 'true') && needs.classify_browser.outputs.browser_priority == 'pwa' }}
         run: |
-          python scripts/check_pwa_freshness.py \
+          python3 scripts/check_pwa_freshness.py \
             --site-root build/site \
             --output build/mobile-visual/pwa-freshness.json
         id: priority_pwa
       - name: Check changed-feature layout
         if: ${{ needs.classify_browser.outputs.browser_required == 'true' && needs.classify_browser.outputs.browser_priority == 'layout' }}
         run: |
-          python scripts/check_mobile_layout.py \
+          python3 scripts/check_mobile_layout.py \
             --site-root build/site \
             --output-root build/mobile-visual
         id: priority_layout
       - name: Check mobile layout geometry
         if: ${{ needs.classify_browser.outputs.browser_required == 'true' && steps.priority_layout.outcome != 'success' }}
         run: |
-          python scripts/check_mobile_layout.py \
+          python3 scripts/check_mobile_layout.py \
             --site-root build/site \
             --output-root build/mobile-visual
       - name: Check localized inline Glossary chrome
         if: ${{ needs.classify_browser.outputs.browser_required == 'true' }}
         run: |
-          python scripts/check_glossary_locale_chrome.py \
+          python3 scripts/check_glossary_locale_chrome.py \
             --site-root build/site \
             --output build/mobile-visual/glossary-locale-chrome.json
       - name: Check assembled audience runtime and navigation
         if: ${{ needs.classify_browser.outputs.browser_required == 'true' && steps.priority_audience.outcome != 'success' }}
         run: |
-          python scripts/check_audience_runtime.py \
+          python3 scripts/check_audience_runtime.py \
             --site-root build/site \
             --output build/mobile-visual/audience-runtime.json \
             --bundle publication-bundle
       - name: Check Site search history
         if: ${{ needs.classify_browser.outputs.browser_required == 'true' && steps.priority_search.outcome != 'success' }}
         run: |
-          python scripts/check_search_history.py \
+          python3 scripts/check_search_history.py \
             --site-root build/site \
             --output build/search-history/search-history.json
       - name: Check review regressions for Site search history
         if: ${{ needs.classify_browser.outputs.browser_required == 'true' }}
         run: |
-          python scripts/check_search_history_review_regressions.py \
+          python3 scripts/check_search_history_review_regressions.py \
             --site-root build/site \
             --output build/search-history/review-regressions.json
       - name: Check translation warnings online and offline
         if: ${{ needs.classify_browser.outputs.browser_required == 'true' && (needs.classify_browser.outputs.pwa_required == 'true' || needs.classify_browser.outputs.full_required == 'true') }}
-        run: python scripts/check_stale_translation_runtime.py --site-root build/site --bundle publication-bundle --output build/mobile-visual/translation-status.json
+        run: python3 scripts/check_stale_translation_runtime.py --site-root build/site --bundle publication-bundle --output build/mobile-visual/translation-status.json
       - name: Check PWA freshness lifecycle
         if: ${{ needs.classify_browser.outputs.browser_required == 'true' && (needs.classify_browser.outputs.pwa_required == 'true' || needs.classify_browser.outputs.full_required == 'true') && steps.priority_pwa.outcome != 'success' }}
         run: |
-          python scripts/check_pwa_freshness.py \
+          python3 scripts/check_pwa_freshness.py \
             --site-root build/site \
             --output build/mobile-visual/pwa-freshness.json
       - name: Check localized PWA freshness chrome
         if: ${{ needs.classify_browser.outputs.browser_required == 'true' && (needs.classify_browser.outputs.pwa_required == 'true' || needs.classify_browser.outputs.full_required == 'true') }}
         run: |
-          python scripts/check_pwa_locale_chrome.py \
+          python3 scripts/check_pwa_locale_chrome.py \
             --site-root build/site \
             --output build/mobile-visual/pwa-locale-chrome.json
       - name: Check PWA document commit correlation
         if: ${{ needs.classify_browser.outputs.browser_required == 'true' && (needs.classify_browser.outputs.pwa_required == 'true' || needs.classify_browser.outputs.full_required == 'true') }}
         run: |
-          python scripts/check_pwa_commit_regressions.py \
+          python3 scripts/check_pwa_commit_regressions.py \
             --site-root build/site \
             --output build/mobile-visual/pwa-document-commit.json
       - name: Check PWA freshness capability messaging
         if: ${{ needs.classify_browser.outputs.browser_required == 'true' && (needs.classify_browser.outputs.pwa_required == 'true' || needs.classify_browser.outputs.full_required == 'true') }}
         run: |
-          python scripts/check_pwa_capabilities.py \
+          python3 scripts/check_pwa_capabilities.py \
             --site-root build/site \
             --output build/mobile-visual/pwa-capabilities.json
       - name: Check PWA slow-network convergence
         if: ${{ needs.classify_browser.outputs.browser_required == 'true' && (needs.classify_browser.outputs.pwa_required == 'true' || needs.classify_browser.outputs.full_required == 'true') }}
         run: |
-          python scripts/check_pwa_slow_convergence.py \
+          python3 scripts/check_pwa_slow_convergence.py \
             --site-root build/site \
             --output build/mobile-visual/pwa-slow-convergence.json
       - name: Upload search-history evidence
@@ -306,18 +299,12 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 1
           persist-credentials: false
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.12'
-          cache: pip
-          cache-dependency-path: requirements.txt
       - name: Install dependencies
-        run: python -m pip install --requirement requirements.txt
+        run: python3 -m pip install --requirement requirements.txt
       - name: Validate core entrypoint dependency boundary
-        run: python scripts/check_python_dependencies.py . --environment core
+        run: python3 scripts/check_python_dependencies.py . --environment core
       - name: Run core unit and contract validation
-        run: python scripts/run_core_tests.py --verbose
+        run: python3 scripts/run_core_tests.py --verbose
   validate:
     name: Site Construction CI / validate
     if: |-
@@ -381,17 +368,14 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
-      - uses: actions/setup-python@v6
-        with:
-          python-version: 3.12.13
       - name: Validate Site-owned Website contracts
-        run: python scripts/validate_website_contracts.py .
+        run: python3 scripts/validate_website_contracts.py .
       - name: Validate Site-owned Playground declarations
-        run: python scripts/validate_site_declarations.py .
+        run: python3 scripts/validate_site_declarations.py .
       - name: Validate Python entrypoint dependency boundaries
-        run: python scripts/check_python_dependencies.py .
+        run: python3 scripts/check_python_dependencies.py .
       - name: Validate selected Composition components
-        run: python .template-composition/validate.py .
+        run: python3 .template-composition/validate.py .
   full_qualification:
     name: Site Full Qualification / validate
     needs:

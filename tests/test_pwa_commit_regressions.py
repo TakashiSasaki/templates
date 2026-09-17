@@ -30,7 +30,7 @@ class PwaCommitRegressionTests(unittest.TestCase):
     def test_mobile_visual_workflow_runs_commit_checker(self) -> None:
         workflow = WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("Check PWA document commit correlation", workflow)
-        self.assertIn("python scripts/check_pwa_commit_regressions.py", workflow)
+        self.assertIn("python3 scripts/check_pwa_commit_regressions.py", workflow)
         self.assertIn("build/mobile-visual/pwa-document-commit.json", workflow)
 
 

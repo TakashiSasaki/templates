@@ -84,7 +84,7 @@ class PwaCapabilityRegressionTests(unittest.TestCase):
     def test_mobile_visual_workflow_runs_capability_checker(self) -> None:
         workflow = WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("Check PWA freshness capability messaging", workflow)
-        self.assertIn("python scripts/check_pwa_capabilities.py", workflow)
+        self.assertIn("python3 scripts/check_pwa_capabilities.py", workflow)
         self.assertIn("build/mobile-visual/pwa-capabilities.json", workflow)
 
 

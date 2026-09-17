@@ -19,4 +19,4 @@ jobs:
         with:
           command: check
       - name: Verify review output freshness and regeneration
-        run: python .github/tests/test_policy_outputs.py
+        run: python3 .github/tests/test_policy_outputs.py

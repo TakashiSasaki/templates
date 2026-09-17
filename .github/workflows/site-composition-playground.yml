@@ -21,12 +21,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 1
           persist-credentials: false
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: ''
       - name: Run canonical Playground source validation
         env:
           EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
-        run: python scripts/run_site_preflight.py fast --check node --check site-contracts --check dependency-boundary --expected-head "$EXPECTED_HEAD"
+        run: python3 scripts/run_site_preflight.py fast --check node --check site-contracts --check dependency-boundary --expected-head "$EXPECTED_HEAD"

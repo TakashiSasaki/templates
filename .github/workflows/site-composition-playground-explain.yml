@@ -21,19 +21,10 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
           persist-credentials: false
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: ''
-      - name: Set up Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
-        with:
-          python-version: '3.12'
       - name: Run Playground consumer and explainability tests
         env:
           EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
-        run: python scripts/run_site_preflight.py fast --check node --check site-contracts --check dependency-boundary --expected-head "$EXPECTED_HEAD"
+        run: python3 scripts/run_site_preflight.py fast --check node --check site-contracts --check dependency-boundary --expected-head "$EXPECTED_HEAD"
   browser:
     name: Playground browser acceptance
     needs:
@@ -47,22 +38,17 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
-      - uses: actions/setup-python@v6
-        with:
-          python-version: '3.12'
-          cache: pip
-          cache-dependency-path: requirements-visual.txt
       - name: Install browser acceptance dependency
-        run: python -m pip install --disable-pip-version-check --requirement requirements-visual.txt
+        run: python3 -m pip install --disable-pip-version-check --requirement requirements-visual.txt
       - name: Validate visual entrypoint dependency boundary
-        run: python scripts/check_python_dependencies.py . --environment visual
+        run: python3 scripts/check_python_dependencies.py . --environment visual
       - name: Verify system Chrome runtime
         run: |
           google-chrome --version
           echo "Playwright launch mode: channel=chrome" >> "$GITHUB_STEP_SUMMARY"
       - name: Run 360px keyboard, share-state, and desktop-grid acceptance
         run: |
-          python -I scripts/check_composition_playground_browser.py
-          python -I scripts/check_composition_playground_final_browser.py
-          python -I scripts/check_composition_playground_final_three_browser.py
-          python -I scripts/check_composition_playground_final_grid_browser.py
+          python3 -I scripts/check_composition_playground_browser.py
+          python3 -I scripts/check_composition_playground_final_browser.py
+          python3 -I scripts/check_composition_playground_final_three_browser.py
+          python3 -I scripts/check_composition_playground_final_grid_browser.py

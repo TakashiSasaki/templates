@@ -32,7 +32,7 @@ class BuildPagesReusableWorkflowTests(unittest.TestCase):
         self.assertIn(site_checkout, text)
         self.assertIn(workflow_checkout, text)
         self.assertIn("workflow-source/.github/workflows/site-producer.yml", text)
-        self.assertIn("run: python site-source/scripts/site_build_artifact.py", text)
+        self.assertIn("run: python3 site-source/scripts/site_build_artifact.py", text)
 
     def test_reusable_build_keeps_artifact_discovery_read_only(self) -> None:
         text = WORKFLOW.read_text(encoding="utf-8")
@@ -42,7 +42,7 @@ class BuildPagesReusableWorkflowTests(unittest.TestCase):
 
     def test_reusable_build_passes_resolved_checkout_sha_to_preflight(self):
         text = WORKFLOW.read_text()
-        self.assertIn('python site-source/scripts/resolve_site_checkout.py', text)
+        self.assertIn('python3 site-source/scripts/resolve_site_checkout.py', text)
         self.assertIn('ref: ${{ inputs.site_ref }}', text)
         self.assertIn('--lock site-source/integration-source.json', text)
         self.assertIn('scripts/render_publication_bundle.py', text)

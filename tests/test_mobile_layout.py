@@ -149,7 +149,7 @@ class MobileLayoutRegressionTests(unittest.TestCase):
         )
         self.assertNotIn("Wait for documentation artifact build", workflow)
         self.assertNotIn("workflow_id: 'build-pages.yml'", workflow)
-        self.assertIn("actions/setup-python@v6", check_block)
+        self.assertNotIn("actions/setup-python", check_block)
         self.assertIn("requirements-visual.txt", check_block)
         self.assertIn("Install Japanese browser font", check_block)
         self.assertIn("sudo apt-get update", check_block)
@@ -158,11 +158,11 @@ class MobileLayoutRegressionTests(unittest.TestCase):
             check_block,
         )
         self.assertIn(
-            "python -m playwright install --only-shell chromium",
+            "python3 -m playwright install --only-shell chromium",
             check_block,
         )
         self.assertNotIn(
-            "python -m playwright install --with-deps --only-shell chromium",
+            "python3 -m playwright install --with-deps --only-shell chromium",
             check_block,
         )
         self.assertIn("build/mobile-visual", check_block)
