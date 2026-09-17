@@ -45,8 +45,11 @@ python scripts/run_composition_preflight.py ready \
 `ready` runs the Composition-owned validators, the consumer spine, the complete
 core unittest suite, Playground projection provenance, and dependency-boundary
 checks. It does not download ChromeDriver, contact GitHub, fetch a remote
-installer, use an external Integration checkout, or run the browser suite. For
-on-demand local runtime checks, run
+installer, use an external Integration checkout, or run the browser suite. The
+five core publication-contract tests that consume the reviewed Integration
+protocol remain in the canonical core suite and are reported as skipped unless
+`INTEGRATION_PUBLICATION_PROTOCOL_ROOT` is supplied; CI runs them with the
+exact reviewed protocol checkout. For on-demand local runtime checks, run
 `python -I scripts/run_composer_runtime_checks.py --check runtime-core` (or
 `--check all`). The `full` profile is the explicit browser, remote-installer and
 Integration-protocol path; the normal and broad compatibility matrices remain

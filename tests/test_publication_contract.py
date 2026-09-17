@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import re
 import subprocess
 import sys
@@ -17,6 +18,11 @@ GUIDED_INDEX_PATHS = [
 ]
 GUIDED_LINK = re.compile(r"^- \[[^\]]+\]\(.+\)[ \t]+[-–—][ \t]+\S.+$")
 LINK_TARGET = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
+INTEGRATION_PROTOCOL_ENV = "INTEGRATION_PUBLICATION_PROTOCOL_ROOT"
+REVIEWED_INTEGRATION_PROTOCOL_REQUIRED = unittest.skipUnless(
+    os.environ.get(INTEGRATION_PROTOCOL_ENV),
+    "requires the reviewed Integration publication protocol checkout",
+)
 
 
 def load_validator():
@@ -28,6 +34,7 @@ def load_validator():
 
 
 class CompositionPublicationContractTests(unittest.TestCase):
+    @REVIEWED_INTEGRATION_PROTOCOL_REQUIRED
     def test_provider_publication_is_valid(self):
         result = subprocess.run(
             [sys.executable, str(VALIDATOR)],
@@ -39,6 +46,7 @@ class CompositionPublicationContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("Composition publication validation: OK", result.stdout)
 
+    @REVIEWED_INTEGRATION_PROTOCOL_REQUIRED
     def test_catalog_is_composition_owned_and_has_one_home(self):
         validator = load_validator()
         catalog = validator.load_publication_catalog()
@@ -61,6 +69,7 @@ class CompositionPublicationContractTests(unittest.TestCase):
         self.assertNotIn("template/README.md", sources)
         self.assertEqual(catalog.glossary_source.as_posix(), "docs/glossary.yml")
 
+    @REVIEWED_INTEGRATION_PROTOCOL_REQUIRED
     def test_publication_boundary_does_not_exclude_or_disavow_catalog_documents(self):
         """Keep the human boundary contract aligned with the catalog allowlist."""
         validator = load_validator()
@@ -151,6 +160,7 @@ class CompositionPublicationContractTests(unittest.TestCase):
         self.assertIn("`update` preserves", guide)
         self.assertIn("`upgrade` accepts", guide)
 
+    @REVIEWED_INTEGRATION_PROTOCOL_REQUIRED
     def test_publication_assets_cover_closed_production_authorities(self):
         validator = load_validator()
         catalog = validator.load_publication_catalog()
@@ -162,6 +172,7 @@ class CompositionPublicationContractTests(unittest.TestCase):
         validator.validate_machine_coverage(catalog)
         self.assertEqual(catalog.glossary_source.as_posix(), "docs/glossary.yml")
 
+    @REVIEWED_INTEGRATION_PROTOCOL_REQUIRED
     def test_all_repository_markdown_is_classified_once(self):
         validator = load_validator()
         catalog = validator.load_publication_catalog()
