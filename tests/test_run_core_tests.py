@@ -8,7 +8,6 @@ from pathlib import Path
 from unittest.mock import patch
 
 from scripts.run_core_tests import (
-    BROWSER_INTEGRATION_MODULES,
     PROVIDER_INTEGRATION_MODULES,
     classify_test_modules,
     load_test_suite,
@@ -24,15 +23,11 @@ class RunCoreTestsContractTests(unittest.TestCase):
 
         core_set = set(classification["core"])
         provider_set = set(classification["provider"])
-        browser_set = set(classification["browser"])
 
         self.assertEqual(provider_set, PROVIDER_INTEGRATION_MODULES)
-        self.assertEqual(browser_set, BROWSER_INTEGRATION_MODULES)
         self.assertTrue(core_set.isdisjoint(provider_set))
-        self.assertTrue(core_set.isdisjoint(browser_set))
-        self.assertTrue(provider_set.isdisjoint(browser_set))
 
-        reconstructed = sorted(list(core_set | provider_set | browser_set))
+        reconstructed = sorted(list(core_set | provider_set))
         self.assertEqual(all_modules, reconstructed)
         self.assertGreaterEqual(len(core_set), 100)  # Retained post-cutover consumer/UI module floor.
         self.assertIn("test_publication_bundle", core_set)
@@ -52,6 +47,12 @@ class RunCoreTestsContractTests(unittest.TestCase):
         self.assertCountEqual(core + integration, discovered)
         self.assertFalse(PROVIDER_INTEGRATION_MODULES)
         self.assertFalse(any('test_exact_checked_out_provider_descriptors' in name for name in core))
+
+    def test_browser_is_not_an_empty_python_suite(self) -> None:
+        with self.assertRaises(ValueError):
+            load_test_suite("browser")
+        workflow = Path(__file__).resolve().parents[1] / ".github/workflows/build-pages.yml"
+        self.assertNotIn("run_core_tests.py --suite browser", workflow.read_text(encoding="utf-8"))
 
     def test_missing_integration_prerequisite_is_failure(self) -> None:
         class Missing(unittest.TestCase):

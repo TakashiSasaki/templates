@@ -279,9 +279,6 @@ jobs:
           path: build/search-history
           if-no-files-found: warn
           retention-days: 7
-      - name: Run Site browser controller regressions
-        if: ${{ needs.classify_browser.outputs.browser_required == 'true' }}
-        run: python scripts/run_core_tests.py --suite browser
       - name: Upload mobile visual evidence
         if: ${{ always() && needs.classify_browser.outputs.browser_required == 'true' }}
         uses: actions/upload-artifact@v4
