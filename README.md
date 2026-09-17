@@ -16,18 +16,18 @@ The [intake procedure](docs/intake.md) and [agent skill](.agents/skills/register
 
 ## Local validation
 
-Use Python 3.11. Install the selected tooling once:
+Use the available `python3`. Install the selected tooling once:
 
 ```sh
-python -m pip install -r requirements-dev.txt
-python tools/qualify.py
+python3 -m pip install -r requirements-dev.txt
+python3 tools/qualify.py
 ```
 
 Validation is offline after installation. Edit records, not generated indexes or resource documentation. Regenerate and recheck:
 
 ```sh
-python tools/catalog.py generate
-python tools/qualify.py
+python3 tools/catalog.py generate
+python3 tools/qualify.py
 ```
 
 The checker validates both administrative schemas, all records and collection references, ownership, edition/distribution references, scoped provenance, local artifact hashes, and byte-for-byte freshness of generated outputs. It is not an external schema validator or an entailment engine.

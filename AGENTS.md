@@ -32,7 +32,7 @@ The initial administrative profile deliberately has narrower capabilities than t
 - Reuse an established JSON Schema/RDF validation engine rather than implementing a competing partial schema interpreter. Network access must not be required to validate the committed registry.
 - Validate schemas, record shape, semantic invariants, duplicate identities, references, languages, provenance, and generated-output freshness. Add negative tests for new invariants.
 - Do not invent hashes, licenses, reviewed state, or passing tests. Bind results to the exact file tree or commit and distinguish local checks, CI, and independent review.
-- Keep CI lean: Ubuntu and Python 3.11 by default. Windows or a Python-version matrix requires explicit instruction. Run local checks before expensive CI; do not add unrelated Site builds.
+- Keep CI lean: use the GitHub-hosted Ubuntu runner and its existing `python3`; do not select a Python minor version or add a compatibility matrix. Run local checks before expensive CI; do not add unrelated Site builds.
 - Keep normative constraints, validators, test vectors, results, and browser UI separate. Unsupported checks must not report conformance.
 
 ## Collaboration and completion
