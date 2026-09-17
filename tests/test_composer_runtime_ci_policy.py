@@ -10,15 +10,7 @@ from types import ModuleType
 
 ROOT = Path(__file__).resolve().parents[1]
 FAST_WORKFLOW = ROOT / ".github/workflows/composer-runtime.yml"
-FULL_WORKFLOW = ROOT / ".github/workflows/composer-full-compatibility.yml"
 RUNNER = ROOT / "scripts/run_composer_runtime_checks.py"
-SUPPORTED_PYTHONS = {"3.11", "3.12", "3.13", "3.14"}
-SUPPORTED_OSES = {"ubuntu-24.04", "windows-2022"}
-FULL_PAIRS = {
-    (os_name, version)
-    for os_name in SUPPORTED_OSES
-    for version in SUPPORTED_PYTHONS
-}
 EXPECTED_SCRIPTS = (
     "smoke_test_runtime_distribution.py",
     "smoke_test_materialized_validation.py",
@@ -43,32 +35,6 @@ def _job_block(workflow: str, name: str) -> str:
         end = matches[index + 1].start() if index + 1 < len(matches) else len(jobs)
         return jobs[match.start():end]
     raise AssertionError(f"missing workflow job: {name}")
-
-
-def _include_rows(job: str) -> list[dict[str, str]]:
-    lines = job.splitlines()
-    try:
-        start = lines.index("        include:") + 1
-    except ValueError as exc:
-        raise AssertionError("job has no matrix include list") from exc
-
-    rows: list[dict[str, str]] = []
-    current: dict[str, str] | None = None
-    for line in lines[start:]:
-        if line.startswith("          - "):
-            if current is not None:
-                rows.append(current)
-            current = {}
-            key, value = line[len("          - "):].split(":", 1)
-            current[key] = _unquote(value)
-        elif current is not None and line.startswith("            "):
-            key, value = line.strip().split(":", 1)
-            current[key] = _unquote(value)
-        else:
-            break
-    if current is not None:
-        rows.append(current)
-    return rows
 
 
 def _trigger_body(workflow: str, event: str) -> str:
@@ -109,7 +75,6 @@ class ComposerRuntimeCIPolicyTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.fast_workflow = FAST_WORKFLOW.read_text(encoding="utf-8")
-        cls.full_workflow = FULL_WORKFLOW.read_text(encoding="utf-8")
         cls.runner = _load_runner()
 
     def test_fast_gate_triggers_only_for_authority_push_and_ordinary_pr(self) -> None:
@@ -201,63 +166,10 @@ class ComposerRuntimeCIPolicyTests(unittest.TestCase):
             validate,
         )
 
-    def test_full_qualification_has_only_explicit_checkpoint_triggers(self) -> None:
-        self.assertEqual(
-            _trigger_list(self.full_workflow, "push", "tags"),
-            ["composition-compatibility-*"],
+    def test_full_compatibility_workflow_is_not_active(self) -> None:
+        self.assertFalse(
+            (ROOT / ".github/workflows/composer-full-compatibility.yml").exists()
         )
-        self.assertEqual(
-            _trigger_list(self.full_workflow, "pull_request", "branches"),
-            ["composition"],
-        )
-        self.assertEqual(
-            _trigger_list(self.full_workflow, "pull_request", "types"), ["labeled"]
-        )
-        trigger = self.full_workflow.split("\njobs:\n", 1)[0]
-        self.assertNotIn("schedule:", trigger)
-        self.assertNotIn("workflow_dispatch:", trigger)
-        self.assertNotIn("synchronize", trigger)
-
-        qualify = _job_block(self.full_workflow, "qualify")
-        self.assertIn("github.event_name == 'push'", qualify)
-        self.assertIn("github.event.label.name == 'ci/full-compatibility'", qualify)
-        self.assertIn("CANDIDATE_SHA: ${{ github.sha }}", qualify)
-
-    def test_full_qualification_is_one_complete_eight_environment_matrix(self) -> None:
-        job = _job_block(self.full_workflow, "compatibility-runtime")
-        rows = _include_rows(job)
-        pairs = {(row["os"], row["python-version"]) for row in rows}
-        self.assertEqual(pairs, FULL_PAIRS)
-        self.assertEqual(len(rows), 8)
-        self.assertIn("\n      fail-fast: false\n", job)
-        self.assertIn("needs.qualify.result == 'success'", job)
-        self.assertEqual(
-            {
-                row["pip-config-file"]
-                for row in rows
-                if row["os"] == "ubuntu-24.04"
-            },
-            {"/dev/null"},
-        )
-        self.assertEqual(
-            {
-                row["pip-config-file"]
-                for row in rows
-                if row["os"] == "windows-2022"
-            },
-            {"NUL"},
-        )
-        self.assertEqual(
-            job.count("python -I scripts/run_composer_runtime_checks.py --check all"),
-            1,
-        )
-        for obsolete in (
-            "compatibility-clean-runtime",
-            "compatibility-materialized-validation",
-            "compatibility-skill-runner",
-        ):
-            with self.assertRaisesRegex(AssertionError, "missing workflow job"):
-                _job_block(self.full_workflow, obsolete)
 
     def test_canonical_runner_covers_every_runtime_surface_once(self) -> None:
         self.assertEqual(self.runner.selected_scripts("all"), EXPECTED_SCRIPTS)
@@ -291,22 +203,8 @@ class ComposerRuntimeCIPolicyTests(unittest.TestCase):
             "scripts/run_composer_runtime_checks.py --check skill-runner",
             self.fast_workflow,
         )
-        self.assertIn(
-            "scripts/run_composer_runtime_checks.py --check all",
-            self.full_workflow,
-        )
-        for workflow in (self.fast_workflow, self.full_workflow):
-            for script in EXPECTED_SCRIPTS:
-                self.assertNotIn(f"python -I scripts/{script}", workflow)
-
-    def test_full_final_validator_requires_combined_matrix(self) -> None:
-        validate = _job_block(self.full_workflow, "validate")
-        self.assertIn("name: full compatibility validate", validate)
-        self.assertIn("github.event.label.name == 'ci/full-compatibility'", validate)
-        for dependency in ("qualify", "compatibility-runtime"):
-            self.assertIn(f"      - {dependency}\n", validate)
-        self.assertIn('test "$QUALIFY_RESULT" = success', validate)
-        self.assertIn('test "$COMPATIBILITY_RUNTIME_RESULT" = success', validate)
+        for script in EXPECTED_SCRIPTS:
+            self.assertNotIn(f"python -I scripts/{script}", self.fast_workflow)
 
 
 if __name__ == "__main__":
