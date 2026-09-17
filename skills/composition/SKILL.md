@@ -1,7 +1,7 @@
 ---
 name: composition
 description: Use TakashiSasaki/templates Composition to create, adopt, inspect, update, upgrade, recover, or validate a new or existing repository. Use when the user asks to use TakashiSasaki/templates, Composition, or its templates with a project.
-compatibility: Requires CPython 3.11–3.14 and HTTPS access.
+compatibility: Requires CPython 3.11–3.14 and HTTPS access. CI qualification is limited to runner-provided `python3` on GitHub-hosted `ubuntu-24.04`; other accepted local versions are not continuously qualified.
 ---
 
 # Composition
@@ -20,10 +20,12 @@ Use this as the single repository-facing entry point for the Composition Compose
 
 ## Consumer prerequisites
 
-Normal consumer execution requires:
+The runner accepts these local prerequisites:
 
 - CPython 3.11, 3.12, 3.13, or 3.14; and
 - HTTPS access when the selected immutable source archive or Python packages must be acquired.
+
+Repository CI continuously qualifies only the runner-provided `python3` on GitHub-hosted `ubuntu-24.04`. The other accepted local versions are expected to work according to the runner's explicit gate, but are not continuously qualified by this repository; this is not a multi-version CI guarantee.
 
 Normal consumers do **not** need Git, `git clone`, `curl`, `wget`, a templates checkout, a manually created virtual environment, or knowledge of the `site` / `composition` / `policy` branch topology. Git remains appropriate for Composition authority maintainers who deliberately run the Composer from a reviewed source checkout.
 

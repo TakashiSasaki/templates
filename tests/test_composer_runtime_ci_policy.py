@@ -82,19 +82,40 @@ class ComposerRuntimeCIPolicyTests(unittest.TestCase):
             _trigger_list(self.fast_workflow, "push", "branches"), ["composition"]
         )
         self.assertEqual(
-            _trigger_list(self.fast_workflow, "pull_request", "branches"),
-            ["composition", "feat/composition-*"],
-        )
-        self.assertEqual(
             set(_trigger_list(self.fast_workflow, "pull_request", "types")),
             {"opened", "synchronize", "reopened"},
         )
+        self.assertNotIn("branches:", _trigger_body(self.fast_workflow, "pull_request"))
         trigger = self.fast_workflow.split("\njobs:\n", 1)[0]
         self.assertNotIn("composition-compatibility-*", trigger)
         self.assertNotIn("labeled", trigger)
         self.assertNotIn("unlabeled", trigger)
         self.assertNotIn("schedule:", trigger)
         self.assertNotIn("workflow_dispatch:", trigger)
+
+    def test_stacked_authority_base_is_not_filtered_by_branch_spelling(self) -> None:
+        pull_request = _trigger_body(self.fast_workflow, "pull_request")
+        arbitrary_base = "authority-local/stack-with-an-arbitrary-name"
+        self.assertNotIn("branches:", pull_request)
+        self.assertNotIn(arbitrary_base, pull_request)
+
+    def test_documented_local_runtime_and_ci_scope_match_the_implementation(self) -> None:
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        skill = (ROOT / "skills/composition/SKILL.md").read_text(encoding="utf-8")
+        runtime = (ROOT / "skills/composition/scripts/runtime_checkout.py").read_text(
+            encoding="utf-8"
+        )
+        for name, document, runtime_contract in (
+            ("README", readme, "CPython 3.11 through 3.14"),
+            ("SKILL", skill, "CPython 3.11, 3.12, 3.13, or 3.14"),
+        ):
+            with self.subTest(document=name):
+                self.assertIn(runtime_contract, document)
+                self.assertIn("runner-provided `python3`", document)
+                self.assertIn("ubuntu-24.04", document)
+                self.assertIn("not continuously qualified", document)
+        self.assertIn("SUPPORTED_MIN = (3, 11)", runtime)
+        self.assertIn("SUPPORTED_MAX_EXCLUSIVE = (3, 15)", runtime)
 
     def test_fast_classifier_has_no_full_compatibility_decision(self) -> None:
         classifier = _job_block(self.fast_workflow, "classify_runtime")

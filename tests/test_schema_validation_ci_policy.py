@@ -45,6 +45,17 @@ def _trigger_branches(workflow: str, event: str) -> list[str]:
     ]
 
 
+def _trigger_body(workflow: str, event: str) -> str:
+    trigger = workflow.split("\njobs:\n", 1)[0]
+    match = re.search(
+        rf"(?ms)^  {re.escape(event)}:\n(?P<body>.*?)(?=^  [A-Za-z_]+:|\Z)",
+        trigger,
+    )
+    if not match:
+        raise AssertionError(f"missing trigger: {event}")
+    return match.group("body")
+
+
 def _job_block(workflow: str, name: str) -> str:
     jobs = workflow.split("\njobs:\n", 1)[1]
     matches = list(re.finditer(r"(?m)^  ([A-Za-z0-9_-]+):\n", jobs))
@@ -64,12 +75,14 @@ class SchemaValidationCIPolicyTests(unittest.TestCase):
     def test_schema_validation_uses_pr_and_authoritative_push_tiers_only(self) -> None:
         self.assertEqual(_trigger_events(self.workflow), ["push", "pull_request"])
         self.assertEqual(_trigger_branches(self.workflow, "push"), ["composition"])
-        self.assertEqual(
-            _trigger_branches(self.workflow, "pull_request"),
-            ["composition", "feat/composition-*", "feat/workspace-*"],
-        )
+        self.assertNotIn("branches:", _trigger_body(self.workflow, "pull_request"))
         trigger = self.workflow.split("\njobs:\n", 1)[0]
         self.assertNotIn("agent/composition-", trigger)
+
+    def test_arbitrary_authority_local_stacked_base_is_not_excluded(self) -> None:
+        pull_request = _trigger_body(self.workflow, "pull_request")
+        self.assertNotIn("branches:", pull_request)
+        self.assertNotIn("codex/ciopt-composition-1-compatibility", pull_request)
 
     def test_schema_validation_reuses_canonical_validator_preflight(self) -> None:
         primary = _job_block(self.workflow, "primary")
