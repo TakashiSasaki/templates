@@ -5,7 +5,11 @@ Profiles:
 
 * ``fast`` is a cheap development preflight and may inspect a dirty tree.
 * ``source-ready`` is the clean, exact-commit gate for spending remote CI
-  resources. It runs every cheap repository-owned source check.
+  resources. It runs every repository-owned source check that needs no
+  managed runtime, package installation, artifact, browser, or network.
+* ``composition-validation`` runs the managed Composition consumer validator;
+  Composition may provision its own validation runtime for this explicit
+  boundary.
 * ``artifact-local`` validates an already produced Bundle and rendered Site;
   both paths are required and no artifact is acquired or rendered.
 
@@ -20,6 +24,7 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import tomllib
 
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -28,6 +33,7 @@ from scripts.classify_site_ci import classify_paths
 from scripts.site_check_registry import (
     ARTIFACT_LOCAL_CHECKS,
     CHECK_NAMES,
+    MANAGED_VALIDATION_CHECKS,
     SOURCE_READY_CHECKS,
     playground_node_tests,
 )
@@ -39,6 +45,7 @@ CHECKS = CHECK_NAMES
 PROFILES = {
     "fast": ("l0",),
     "source-ready": SOURCE_READY_CHECKS,
+    "composition-validation": MANAGED_VALIDATION_CHECKS,
     "artifact-local": ARTIFACT_LOCAL_CHECKS,
 }
 
@@ -107,6 +114,33 @@ def run_l0(base_ref: str, path_file: Path | None) -> None:
         candidate = ROOT / path
         if candidate.is_file() and candidate.suffix == ".json":
             _run([sys.executable, "-m", "json.tool", str(candidate)])
+        elif candidate.is_file() and candidate.suffix in {".yaml", ".yml"}:
+            _validate_yaml(candidate)
+        elif candidate.is_file() and candidate.suffix == ".toml":
+            _validate_toml(candidate)
+
+
+def _validate_yaml(path: Path) -> None:
+    """Parse YAML without attempting to interpret GitHub expressions."""
+
+    try:
+        import yaml
+    except ImportError as exc:
+        raise RuntimeError("YAML parser dependency PyYAML is unavailable") from exc
+    try:
+        yaml.safe_load(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, yaml.YAMLError) as exc:
+        raise RuntimeError(f"invalid YAML syntax in {path}: {exc}") from exc
+
+
+def _validate_toml(path: Path) -> None:
+    """Parse TOML, accounting for Site's generated navigation placeholder."""
+
+    try:
+        text = path.read_text(encoding="utf-8").replace("__GENERATED_NAV__", "[]")
+        tomllib.loads(text)
+    except (OSError, UnicodeError, tomllib.TOMLDecodeError) as exc:
+        raise RuntimeError(f"invalid TOML syntax in {path}: {exc}") from exc
 
 
 def run_core() -> None:
@@ -122,6 +156,10 @@ def run_node() -> None:
 def run_site_contracts() -> None:
     _run([sys.executable, "scripts/validate_website_contracts.py", "."])
     _run([sys.executable, "scripts/validate_site_declarations.py", "."])
+
+
+def run_dependency_boundary() -> None:
+    _run([sys.executable, "scripts/check_python_dependencies.py"])
 
 
 def run_composition_consumer() -> None:
@@ -177,6 +215,8 @@ def run_check(check: str, args: argparse.Namespace) -> None:
         run_node()
     elif check == "site-contracts":
         run_site_contracts()
+    elif check == "dependency-boundary":
+        run_dependency_boundary()
     elif check == "composition-consumer":
         run_composition_consumer()
     elif check == "assembly":
@@ -210,7 +250,8 @@ def main(argv: list[str] | None = None) -> int:
         choices=PROFILES,
         help=(
             "fast=dirty-tree construction loop; source-ready=clean cheap source "
-            "gate; artifact-local=explicit Bundle/Site checks"
+            "gate; composition-validation=managed Composition check; "
+            "artifact-local=explicit Bundle/Site checks"
         ),
     )
     parser.add_argument("--check", action="append", choices=CHECKS)

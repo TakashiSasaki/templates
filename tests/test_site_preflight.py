@@ -3,14 +3,17 @@ from pathlib import Path
 from unittest.mock import patch
 import builtins
 import importlib
+import os
 import subprocess
 import sys
+from tempfile import TemporaryDirectory
 import unittest
 
 from scripts import run_site_preflight as preflight
 from scripts.site_check_registry import (
     ARTIFACT_LOCAL_CHECKS,
     CHECK_NAMES,
+    MANAGED_VALIDATION_CHECKS,
     REMOTE_CHECKS,
     REMOTE_ACCEPTANCE_CLASSES,
     SOURCE_READY_CHECKS,
@@ -67,6 +70,43 @@ class SitePreflightTests(unittest.TestCase):
             list(SOURCE_READY_CHECKS),
         )
 
+    def test_source_ready_does_not_start_managed_runtime_from_empty_cache(self):
+        with TemporaryDirectory() as cache:
+            with patch.dict(
+                os.environ,
+                {
+                    "COMPOSITION_VALIDATION_CACHE": cache,
+                    "PIP_INDEX_URL": "http://127.0.0.1:9/simple",
+                    "PIP_NO_INDEX": "1",
+                },
+            ), patch.object(
+                preflight, "_git_output", side_effect=["a" * 40, ""]
+            ), patch.object(preflight, "run_l0"), patch.object(
+                preflight, "run_core"
+            ), patch.object(preflight, "run_node"), patch.object(
+                preflight, "run_site_contracts"
+            ), patch.object(preflight, "run_dependency_boundary"), patch.object(
+                preflight,
+                "run_composition_consumer",
+                side_effect=AssertionError("source-ready attempted managed validation"),
+            ):
+                self.assertEqual(
+                    preflight.main(["source-ready", "--expected-head", "a" * 40]),
+                    0,
+                )
+            self.assertEqual(tuple(Path(cache).iterdir()), ())
+
+    def test_managed_composition_validation_is_explicitly_classified(self):
+        self.assertEqual(
+            preflight.PROFILES["composition-validation"],
+            MANAGED_VALIDATION_CHECKS,
+        )
+        self.assertNotIn("composition-consumer", SOURCE_READY_CHECKS)
+        self.assertEqual(
+            CHECK_SPECS["composition-consumer"].execution_class,
+            "managed-validation",
+        )
+
     def test_source_ready_requires_an_explicit_expected_head(self):
         with patch.object(preflight, "run_check") as run_check, patch.object(
             preflight.subprocess, "check_output", return_value="a" * 40
@@ -114,6 +154,40 @@ class SitePreflightTests(unittest.TestCase):
             [call.args[0] for call in run.call_args_list],
         )
 
+    def test_l0_parses_changed_yaml_and_toml_without_running_workflow_semantics(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            yaml_path = root / "valid.yml"
+            toml_path = root / "valid.toml"
+            yaml_path.write_text("jobs:\n  build:\n    runs-on: ubuntu-latest\n", encoding="utf-8")
+            toml_path.write_text("[project]\nname = 'fixture'\n", encoding="utf-8")
+            with patch.object(preflight, "_changed_paths", return_value=()):
+                preflight._validate_yaml(yaml_path)
+                preflight._validate_toml(toml_path)
+
+    def test_l0_rejects_invalid_yaml_and_toml(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            yaml_path = root / "invalid.yml"
+            toml_path = root / "invalid.toml"
+            yaml_path.write_text("jobs:\n  - broken: [\n", encoding="utf-8")
+            toml_path.write_text("[project\nname = 'fixture'\n", encoding="utf-8")
+            with self.assertRaisesRegex(RuntimeError, "invalid YAML syntax"):
+                preflight._validate_yaml(yaml_path)
+            with self.assertRaisesRegex(RuntimeError, "invalid TOML syntax"):
+                preflight._validate_toml(toml_path)
+
+    def test_node_inventory_discovers_new_matching_file_from_root(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "tests").mkdir()
+            discovered = root / "tests" / "composition-playground-new.test.mjs"
+            discovered.write_text("// fixture\n", encoding="utf-8")
+            self.assertEqual(
+                ("tests/composition-playground-new.test.mjs",),
+                playground_node_tests(root),
+            )
+
     def test_exact_assembly_uses_located_bundle_and_actual_renderer(self):
         lock = {"bundle_identity": "b" * 64}
         receipt = {"artifact_id": 9}
@@ -156,7 +230,11 @@ class SitePreflightTests(unittest.TestCase):
         self.assertIn("tests/composition-playground-topology.test.mjs", preflight.NODE_TESTS)
 
     def test_local_profiles_exclude_remote_acceptance_classes(self):
-        local_checks = set(SOURCE_READY_CHECKS) | set(ARTIFACT_LOCAL_CHECKS)
+        local_checks = (
+            set(SOURCE_READY_CHECKS)
+            | set(MANAGED_VALIDATION_CHECKS)
+            | set(ARTIFACT_LOCAL_CHECKS)
+        )
         self.assertEqual(set(preflight.CHECKS), set(CHECK_NAMES))
         self.assertTrue(local_checks)
         self.assertEqual(
@@ -191,4 +269,11 @@ class SitePreflightTests(unittest.TestCase):
                 [sys.executable, "scripts/validate_website_contracts.py", "."],
                 [sys.executable, "scripts/validate_site_declarations.py", "."],
             ],
+        )
+
+    def test_dependency_boundary_uses_static_contract_runner(self):
+        with patch.object(preflight, "_run") as run:
+            preflight.run_dependency_boundary()
+        run.assert_called_once_with(
+            [sys.executable, "scripts/check_python_dependencies.py"]
         )

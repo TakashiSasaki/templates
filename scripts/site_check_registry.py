@@ -22,6 +22,7 @@ class CheckSpec:
 EXECUTION_CLASSES = (
     "source/core",
     "node/source",
+    "managed-validation",
     "rendered-artifact",
     "real-browser/PWA",
     "GitHub/API",
@@ -33,9 +34,14 @@ CHECKS = (
     CheckSpec("node", "node/source", "all Composition Playground Node tests"),
     CheckSpec("site-contracts", "source/core", "Site-owned declaration and contract checks"),
     CheckSpec(
-        "composition-consumer",
+        "dependency-boundary",
         "source/core",
-        "the managed Composition consumer validator",
+        "Python entrypoint imports versus environment requirements",
+    ),
+    CheckSpec(
+        "composition-consumer",
+        "managed-validation",
+        "the managed Composition consumer validator (may provision a runtime)",
     ),
     CheckSpec("assembly", "rendered-artifact", "exact Bundle-to-Site assembly"),
     CheckSpec("bundle-reader", "rendered-artifact", "an explicit Bundle reader check"),
@@ -68,8 +74,13 @@ SOURCE_READY_CHECKS = (
     "core",
     "node",
     "site-contracts",
-    "composition-consumer",
+    "dependency-boundary",
 )
+
+# Composition owns the validator and its runtime provisioning.  Keep this
+# check available through an explicit profile, but do not make it part of the
+# advertised no-install source gate.
+MANAGED_VALIDATION_CHECKS = ("composition-consumer",)
 
 # Artifact-local validation is deliberately explicit and fail-closed.  It does
 # not acquire a Bundle or render a Site; callers must supply both inputs.
@@ -96,6 +107,7 @@ def validate_registry() -> None:
         raise ValueError("Site check registry names are not unique")
     for profile, checks in {
         "source-ready": SOURCE_READY_CHECKS,
+        "composition-validation": MANAGED_VALIDATION_CHECKS,
         "artifact-local": ARTIFACT_LOCAL_CHECKS,
     }.items():
         unknown = sorted(set(checks) - set(CHECK_NAMES))
@@ -109,6 +121,16 @@ def validate_registry() -> None:
     local_checks = set(SOURCE_READY_CHECKS) | set(ARTIFACT_LOCAL_CHECKS)
     if any(CHECK_SPECS[name].execution_class in REMOTE_ACCEPTANCE_CLASSES for name in local_checks):
         raise ValueError("a local Site profile contains remote acceptance")
+    if any(
+        CHECK_SPECS[name].execution_class not in {"source/core", "node/source"}
+        for name in SOURCE_READY_CHECKS
+    ):
+        raise ValueError("source-ready contains a check that may need managed runtime or artifacts")
+    if any(
+        CHECK_SPECS[name].execution_class != "managed-validation"
+        for name in MANAGED_VALIDATION_CHECKS
+    ):
+        raise ValueError("composition-validation contains a non-managed check")
 
 
 validate_registry()

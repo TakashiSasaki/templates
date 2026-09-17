@@ -33,7 +33,7 @@ jobs:
       - name: Run Playground consumer and explainability tests
         env:
           EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
-        run: python scripts/run_site_preflight.py fast --check node --check site-contracts --expected-head "$EXPECTED_HEAD"
+        run: python scripts/run_site_preflight.py fast --check node --check site-contracts --check dependency-boundary --expected-head "$EXPECTED_HEAD"
   browser:
     name: Playground browser acceptance
     needs:
@@ -54,6 +54,8 @@ jobs:
           cache-dependency-path: requirements-visual.txt
       - name: Install browser acceptance dependency
         run: python -m pip install --disable-pip-version-check --requirement requirements-visual.txt
+      - name: Validate visual entrypoint dependency boundary
+        run: python scripts/check_python_dependencies.py . --environment visual
       - name: Verify system Chrome runtime
         run: |
           google-chrome --version

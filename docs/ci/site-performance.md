@@ -9,15 +9,18 @@ there is no second active provider build/cache subsystem in Site.
 
 Run `python scripts/run_site_preflight.py fast` for the cheap construction loop:
 diff hygiene on committed, staged and unstaged changes, changed-file syntax/tests,
-JSON syntax and classifier validation. `fast` may run on a dirty tree; untracked
-non-ignored files are included in its changed-path inventory.
+JSON, YAML and TOML parser validation, and classifier validation. `fast` may run on
+a dirty tree; untracked non-ignored files are included in its changed-path inventory.
 
 Run `SITE_HEAD=$(git rev-parse HEAD) && python scripts/run_site_preflight.py
 source-ready --expected-head "$SITE_HEAD"` before spending CI resources.
 `source-ready` is the clean exact-head local gate: the current committed HEAD must
 match the supplied SHA and the index, working tree and untracked-file inventory must
 all be clean. It then runs the complete core suite, the canonical Playground Node
-inventory, Site-owned source contracts and the managed Composition consumer validator.
+inventory, Site-owned source contracts, static Python dependency-boundary checks for
+the core/build/visual/Composition requirements inputs. It does not run the managed
+Composition consumer validator; run the explicit
+`composition-validation` profile when that managed check is needed.
 It does not acquire a Bundle, render a Site, use a provider checkout, or launch a
 browser.
 
