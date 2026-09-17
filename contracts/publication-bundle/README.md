@@ -10,12 +10,16 @@ and the complete payload inventory/digest. Canonical JSON sorts keys with ASCII 
 compact separators, no nonfinite numbers, and an LF. Execution timestamps and workflow
 run/attempt IDs belong to separate transport evidence, never content identity.
 
-The v3 inventory is structurally closed: it contains the nine named semantic models
-and the exact qualified `publication/` outputs declared in `bundle.json.files` only.
-The validator compares that declaration with the physical Bundle inventory, so any
-undeclared sidecar is invalid regardless of its path suffix or content. Semantic
-source paths, exact provenance, guided navigation and publication content remain
-valid; the contract does not classify ordinary publication content by field names.
+The v3 inventory is structurally closed: the producer derives an exact qualified
+`publication/` output set from the authoritative document destinations, provider
+asset declarations, and translation-publication declarations. Sealing requires
+the physical output set to equal that qualified set plus the nine named semantic
+models. `bundle.json.files` records that already-validated result; it does not
+authorize arbitrary files that happened to exist before sealing. Undeclared
+sidecars and provider repository/source corpora are therefore invalid regardless
+of path suffix or content. Semantic source paths, exact provenance, guided
+navigation and ordinary publication content remain valid; the contract does not
+classify JSON by field names.
 
 The Bundle includes canonical and structurally valid current/stale translated publication content/assets, public
 destinations, navigation and locale projections, exact translation availability, integrated

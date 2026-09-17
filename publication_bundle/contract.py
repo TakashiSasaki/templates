@@ -92,34 +92,70 @@ def inventory(root):
     return result
 
 
-def _validate_closed_inventory(files):
-    """Require the v3 inventory to contain only declared model/output paths.
+def _normalize_expected_publication_paths(paths):
+    if paths is None:
+        raise BundleError('qualified publication output set is required')
+    result = set()
+    for value in paths:
+        if isinstance(value, PurePosixPath):
+            value = value.as_posix()
+        path = safe_path(value)
+        if len(path.parts) < 2 or path.parts[0] != 'publication':
+            raise BundleError('qualified publication output must be under publication/: ' + str(value))
+        result.add(path.as_posix())
+    return frozenset(result)
 
-    ``files`` is the existing Bundle declaration for the exact qualified
-    output.  The physical inventory is compared with it below, so an
-    undeclared publication sidecar is rejected by path and membership rather
-    than by guessing from its filename, extension, or JSON vocabulary.
+
+def _validate_closed_inventory(files, expected_publication_paths=None):
+    """Require the v3 inventory to be an exact semantic/output closure.
+
+    The producer derives ``expected_publication_paths`` from its authoritative
+    document, asset, and translation declarations.  ``bundle.json.files`` is
+    then only the authenticated record of that already-qualified set; it does
+    not authorize an arbitrary file merely because it was present during
+    sealing.
     """
     for path in files:
         if path not in MODEL_SET and not path.startswith('publication/'):
             raise BundleError('Bundle contains undeclared non-publication payload: ' + path)
+    if expected_publication_paths is None:
+        return
+    expected = MODEL_SET | set(expected_publication_paths)
+    actual = set(files)
+    if actual != expected:
+        missing = sorted(expected - actual)
+        extra = sorted(actual - expected)
+        raise BundleError(
+            'publication output closure mismatch: '
+            f'missing={missing} extra={extra}'
+        )
 
 
-def seal(root, *, producer, providers, configuration_digest):
+def seal(root, *, producer, providers, configuration_digest, expected_publication_paths):
     if (root / 'bundle.json').exists():
         raise BundleError('Bundle already sealed')
+    expected_publication_paths = _normalize_expected_publication_paths(
+        expected_publication_paths
+    )
     files = inventory(root)
+    _validate_closed_inventory(files, expected_publication_paths)
     data = dict(schema_version=SCHEMA_VERSION, producer=producer, providers=providers,
                 configuration_digest=configuration_digest, files=files,
                 content_digest=digest(canonical(files)))
     data['identity'] = digest(canonical(data))
     (root / 'bundle.json').write_bytes(canonical(data))
-    validate(root, expected_producer=producer, expected_providers=providers)
+    validate(root, expected_producer=producer, expected_providers=providers,
+             expected_publication_paths=expected_publication_paths)
     return data
 
 
-def validate(root, *, expected_identity=None, expected_producer=None, expected_providers=None):
+def validate(root, *, expected_identity=None, expected_producer=None,
+             expected_providers=None, expected_publication_paths=None):
     root = Path(root)
+    if expected_publication_paths is not None:
+        expected_publication_paths = _normalize_expected_publication_paths(
+            expected_publication_paths
+        )
     data = read_json(regular(root, 'bundle.json'))
     if not isinstance(data, dict) or set(data) != FIELDS or type(data['schema_version']) is not int or data['schema_version'] != SCHEMA_VERSION:
         raise BundleError('unsupported Bundle schema or fields')
@@ -146,7 +182,7 @@ def validate(root, *, expected_identity=None, expected_producer=None, expected_p
     files = data['files']
     if not isinstance(files, dict) or not set(MODELS) <= files.keys():
         raise BundleError('incomplete Bundle models')
-    _validate_closed_inventory(files)
+    _validate_closed_inventory(files, expected_publication_paths)
     for path, record in files.items():
         safe_path(path)
         if path == 'bundle.json' or not isinstance(record, dict) or set(record) != {'size', 'sha256'} or type(record['size']) is not int or record['size'] < 0 or not isinstance(record['sha256'], str) or not DIGEST.fullmatch(record['sha256']):

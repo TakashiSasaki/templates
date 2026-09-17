@@ -28,7 +28,33 @@ def fixture(root):
     return root
 
 
-def finish(root):return seal(root,producer=PRODUCER,providers=PROVIDERS,configuration_digest='d'*64)
+def declared_publication_paths(root):
+    documents = json.loads((root / 'documents.json').read_text())
+    paths = {
+        'publication/' + document['destination']
+        for document in documents
+        if not document['slot']
+    }
+    publication = json.loads((root / 'translation-publication.json').read_text())
+    paths.update(
+        'publication/' + record['translation_destination']
+        for record in publication['translations']
+    )
+    return paths
+
+
+def finish(root, expected_publication_paths=None):
+    return seal(
+        root,
+        producer=PRODUCER,
+        providers=PROVIDERS,
+        configuration_digest='d' * 64,
+        expected_publication_paths=(
+            declared_publication_paths(root)
+            if expected_publication_paths is None
+            else expected_publication_paths
+        ),
+    )
 
 
 def translation_fixture(root, status='current'):
@@ -156,14 +182,40 @@ class BundleTests(unittest.TestCase):
             'source_text': 'ordinary publication data',
             'preview': {'entries': ['published']},
         }))
-        finish(root)
+        finish(root, declared_publication_paths(root) | {'publication/asset.json'})
 
-    def test_undeclared_publication_sidecar_is_rejected_by_membership(self):
+    def test_undeclared_publication_sidecar_is_rejected_before_sealing(self):
         root = fixture(self.base / 'publication-sidecar')
-        finish(root)
         (root / 'publication' / 'renamed-source.bin').write_bytes(b'opaque source corpus')
-        with self.assertRaisesRegex(BundleError, 'digest/inventory mismatch'):
-            validate(root)
+        with self.assertRaisesRegex(BundleError, 'publication output closure mismatch'):
+            finish(root)
+
+    def test_undeclared_json_sidecar_is_rejected_before_sealing(self):
+        root = fixture(self.base / 'publication-json-sidecar')
+        (root / 'publication' / 'asset.json').write_bytes(b'{"ok": true}\n')
+        with self.assertRaisesRegex(BundleError, 'publication output closure mismatch'):
+            finish(root)
+
+    def test_renamed_source_corpus_is_rejected_by_path_closure(self):
+        root = fixture(self.base / 'publication-renamed-corpus')
+        (root / 'publication' / 'harmless.dat').write_bytes(b'provider source corpus')
+        with self.assertRaisesRegex(BundleError, 'publication output closure mismatch'):
+            finish(root)
+
+    def test_missing_declared_publication_output_is_rejected(self):
+        root = fixture(self.base / 'publication-missing')
+        expected = declared_publication_paths(root) | {'publication/declared.json'}
+        with self.assertRaisesRegex(BundleError, 'publication output closure mismatch'):
+            finish(root, expected)
+
+    def test_publication_inventory_is_exactly_the_qualified_set(self):
+        root = fixture(self.base / 'publication-exact')
+        expected = declared_publication_paths(root)
+        data = finish(root, expected)
+        self.assertEqual(
+            {path for path in data['files'] if path.startswith('publication/')},
+            expected,
+        )
 
     def test_translation_projection_validates_without_provider_sources(self):
         root = translation_fixture(self.base / 'translation')
