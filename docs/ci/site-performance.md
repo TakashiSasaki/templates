@@ -9,8 +9,8 @@ there is no second active provider build/cache subsystem in Site.
 
 Run `python scripts/run_site_preflight.py fast` for the cheap construction loop:
 diff hygiene on committed, staged and unstaged changes, changed-file syntax/tests,
-JSON syntax and classifier validation. `fast` may run on a dirty tree; untracked
-non-ignored files are included in its changed-path inventory.
+JSON, YAML and TOML parser validation, and classifier validation. `fast` may run on
+a dirty tree; untracked non-ignored files are included in its changed-path inventory.
 
 Run `SITE_HEAD=$(git rev-parse HEAD) && python scripts/run_site_preflight.py
 source-ready --expected-head "$SITE_HEAD"` before spending CI resources.

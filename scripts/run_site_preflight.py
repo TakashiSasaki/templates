@@ -20,6 +20,7 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import tomllib
 
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -107,6 +108,33 @@ def run_l0(base_ref: str, path_file: Path | None) -> None:
         candidate = ROOT / path
         if candidate.is_file() and candidate.suffix == ".json":
             _run([sys.executable, "-m", "json.tool", str(candidate)])
+        elif candidate.is_file() and candidate.suffix in {".yaml", ".yml"}:
+            _validate_yaml(candidate)
+        elif candidate.is_file() and candidate.suffix == ".toml":
+            _validate_toml(candidate)
+
+
+def _validate_yaml(path: Path) -> None:
+    """Parse YAML without attempting to interpret GitHub expressions."""
+
+    try:
+        import yaml
+    except ImportError as exc:
+        raise RuntimeError("YAML parser dependency PyYAML is unavailable") from exc
+    try:
+        yaml.safe_load(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, yaml.YAMLError) as exc:
+        raise RuntimeError(f"invalid YAML syntax in {path}: {exc}") from exc
+
+
+def _validate_toml(path: Path) -> None:
+    """Parse TOML, accounting for Site's generated navigation placeholder."""
+
+    try:
+        text = path.read_text(encoding="utf-8").replace("__GENERATED_NAV__", "[]")
+        tomllib.loads(text)
+    except (OSError, UnicodeError, tomllib.TOMLDecodeError) as exc:
+        raise RuntimeError(f"invalid TOML syntax in {path}: {exc}") from exc
 
 
 def run_core() -> None:

@@ -60,6 +60,53 @@ class WebsiteContractDeclarationTests(unittest.TestCase):
             temporary.cleanup()
         self.assertTrue(any("extra_css" in error for error in errors))
 
+    def test_template_javascript_asset_is_required(self) -> None:
+        temporary, root = self._checkout_sources()
+        try:
+            template_path = root / "zensical.template.toml"
+            template = template_path.read_text(encoding="utf-8")
+            template_path.write_text(
+                template.replace('  "javascripts/composition-playground.js",\n', ""),
+                encoding="utf-8",
+            )
+            errors = validate(root)
+        finally:
+            temporary.cleanup()
+        self.assertTrue(any("extra_javascript" in error for error in errors))
+
+    def test_provenance_binding_is_required(self) -> None:
+        temporary, root = self._checkout_sources()
+        try:
+            page_path = root / "docs/composition-playground.md"
+            page = page_path.read_text(encoding="utf-8")
+            page_path.write_text(
+                page.replace('data-provenance-url="/build-provenance.json"', ""),
+                encoding="utf-8",
+            )
+            errors = validate(root)
+        finally:
+            temporary.cleanup()
+        self.assertTrue(any("provenance URL" in error for error in errors))
+
+    def test_semantic_provider_and_projection_bindings_are_required(self) -> None:
+        for attribute in (
+            "data-playground-semantic-revision",
+            "data-playground-provider-revision",
+            "data-playground-projection-id",
+        ):
+            temporary, root = self._checkout_sources()
+            try:
+                page_path = root / "docs/composition-playground.md"
+                page = page_path.read_text(encoding="utf-8")
+                import re
+
+                page = re.sub(rf"\s+{attribute}(?=[\s>])", "", page, count=1)
+                page_path.write_text(page, encoding="utf-8")
+                errors = validate(root)
+            finally:
+                temporary.cleanup()
+            self.assertTrue(any(attribute in error for error in errors), attribute)
+
     def test_accessible_playground_markup_is_required(self) -> None:
         temporary, root = self._checkout_sources()
         try:
