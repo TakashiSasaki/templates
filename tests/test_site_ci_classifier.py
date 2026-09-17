@@ -127,7 +127,7 @@ class SiteCIClassifierTests(unittest.TestCase):
     def test_publication_paths_require_publication_workflow(self) -> None:
         decision = classify_paths(
             [
-                "scripts/prepare_repository_tree_publication.py",
+                "scripts/resolve_publication_sources.py",
                 "site-manifest.json",
                 "PUBLICATION_FRESHNESS.md",
             ]
@@ -151,19 +151,6 @@ class SiteCIClassifierTests(unittest.TestCase):
         self.assertTrue(decision.build_required)
         self.assertTrue(decision.publication_required)
         self.assertEqual("publication-sensitive", decision.risk_class)
-
-    def test_unlisted_runtime_build_inputs_require_freshness_candidate_build(self) -> None:
-        decision = classify_paths(
-            ["scripts/generate_repository_file_previews_composition.py"]
-        )
-        self.assertTrue(decision.core_required)
-        self.assertTrue(decision.build_required)
-        self.assertFalse(decision.browser_required)
-        self.assertFalse(decision.pwa_required)
-        self.assertFalse(decision.publication_required)
-        self.assertFalse(decision.full_required)
-        self.assertTrue(decision.freshness_candidate_required)
-        self.assertEqual("runtime-sensitive", decision.risk_class)
 
     def test_cross_authority_changes_require_cross_authority(self) -> None:
         decision = classify_paths(
@@ -370,7 +357,6 @@ class SiteCIClassifierTests(unittest.TestCase):
 
     def test_known_build_only_scripts_require_build_but_skip_browser(self) -> None:
         for script_path in (
-            "scripts/generate_repository_browser.py",
             "scripts/generate_index_navigation.py",
             "scripts/finalize_site_metadata.py",
             "scripts/site_build_profile.py",

@@ -30,8 +30,6 @@ class PwaDocumentCacheReviewRegressionTests(unittest.TestCase):
             "/javascripts/guided-copy.js",
             "/javascripts/pwa.js",
             "/javascripts/reader-navigation.js",
-            "/javascripts/repository-browser.js",
-            "/javascripts/repository-tree-viewer.js",
         }
         self.assertTrue(expected <= static_assets)
         self.assertIn("/site-chrome-locales.json", static_assets)
@@ -125,12 +123,6 @@ class PwaDocumentCacheReviewRegressionTests(unittest.TestCase):
             '"cached-unverified",\n    generation,\n    true',
             fallback[publish_state:],
         )
-
-    def test_sandbox_previews_are_not_pwa_document_surfaces(self) -> None:
-        self.assertIn('url.pathname.startsWith("/repository-trees/previews/")', self.worker)
-        preview_guard = self.worker.index('url.pathname.startsWith("/repository-trees/previews/")')
-        navigate_branch = self.worker.index('request.mode === "navigate"')
-        self.assertLess(preview_guard, navigate_branch)
 
     def test_dotted_instant_navigation_paths_can_use_accept_header(self) -> None:
         self.assertIn('const accept = request.headers.get("Accept") || ""', self.worker)

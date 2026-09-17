@@ -50,17 +50,6 @@ class ReaderNavigationLocaleTests(unittest.TestCase):
                     },
                 ],
             },
-            {
-                "title": "Repository trees",
-                "children": [
-                    {
-                        "title": "Overview",
-                        "publication": "site",
-                        "document": "trees",
-                        "destination": PurePosixPath("repository-trees/index.md"),
-                    }
-                ],
-            },
         ]
 
     def write_payload(self, path: Path, payload: object) -> None:
@@ -97,11 +86,6 @@ class ReaderNavigationLocaleTests(unittest.TestCase):
                 "id": "composition-model",
                 "canonical": "Composition model",
                 "localized": "Composition モデル",
-            },
-            {
-                "id": "repository-trees",
-                "canonical": "Repository trees",
-                "localized": "リポジトリツリー",
             },
         ]
 
@@ -164,7 +148,7 @@ class ReaderNavigationLocaleTests(unittest.TestCase):
             overlays = load_overlays(path, self.navigation())
 
             self.assertEqual(overlays["ja"]["Overview"], "概要")
-            self.assertEqual(len(overlays["ja"]), 6)
+            self.assertEqual(len(overlays["ja"]), 5)
 
     def test_schema_and_root_fields_fail_closed(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

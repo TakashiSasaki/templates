@@ -41,17 +41,13 @@ def cli_argv(site_root: Path, *extra: str) -> list[str]:
 
 
 class FreshnessMetadataTests(unittest.TestCase):
-    def test_generates_identity_and_annotates_non_preview_html(self) -> None:
+    def test_generates_identity_and_annotates_all_html(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             site_root = Path(directory)
             nested = site_root / "guide"
-            preview = site_root / "repository-trees/previews/composition/revision"
             nested.mkdir()
-            preview.mkdir(parents=True)
             (site_root / "index.html").write_text(page(), encoding="utf-8")
             (nested / "index.html").write_text(page("guide"), encoding="utf-8")
-            preview_page = preview / "preview.html"
-            preview_page.write_text(page("preview"), encoding="utf-8")
 
             output, annotated = generate_freshness_metadata.generate_freshness_metadata(
                 site_root,
@@ -77,10 +73,6 @@ class FreshnessMetadataTests(unittest.TestCase):
             )
             self.assertIn(marker, (site_root / "index.html").read_text(encoding="utf-8"))
             self.assertIn(marker, (nested / "index.html").read_text(encoding="utf-8"))
-            self.assertNotIn(
-                "templates-site-revision",
-                preview_page.read_text(encoding="utf-8"),
-            )
 
             _, second_annotated = generate_freshness_metadata.generate_freshness_metadata(
                 site_root,

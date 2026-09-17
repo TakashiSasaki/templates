@@ -76,16 +76,11 @@ def retired_target(value: str) -> bool:
 def uses_structured_attribute_check(relative: PurePosixPath) -> bool:
     if relative.suffix.lower() != ".html":
         return False
-    browser_source_view = (
-        len(relative.parts) == 4
-        and relative.parts[0] == "files"
-        and relative.parts[2] == "content"
-    )
     guided_view = bool(relative.parts) and (
         relative.parts[0] == "guided"
         or (len(relative.parts) > 1 and relative.parts[1] == "guided")
     )
-    return browser_source_view or guided_view
+    return guided_view
 
 
 def structured_retired_target_present(text: str) -> bool:

@@ -150,30 +150,6 @@
       "socialPreview": "none"
     },
     {
-      "pageId": "site-repository-trees",
-      "title": "Overview",
-      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
-      "indexability": "index",
-      "canonicalPathPolicy": "route-canonical",
-      "socialPreview": "none"
-    },
-    {
-      "pageId": "site-repository-tree-composition",
-      "title": "Composition tree",
-      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
-      "indexability": "index",
-      "canonicalPathPolicy": "route-canonical",
-      "socialPreview": "none"
-    },
-    {
-      "pageId": "site-repository-tree-policy",
-      "title": "Policy tree",
-      "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",
-      "indexability": "index",
-      "canonicalPathPolicy": "route-canonical",
-      "socialPreview": "none"
-    },
-    {
       "pageId": "composition-overview",
       "title": "Overview",
       "description": "A reproducible documentation portal for Website, Web application, Agent Skill, and coding-agent Policy guidance.",

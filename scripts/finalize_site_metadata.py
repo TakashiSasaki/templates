@@ -489,11 +489,6 @@ def generated_html_files(site_root: Path) -> tuple[Path, list[Path]]:
     return resolved_root, html_files
 
 
-def is_inline_preview(path: Path, site_root: Path) -> bool:
-    relative = path.relative_to(site_root)
-    return relative.parts[:2] == ("repository-trees", "previews")
-
-
 def normalize_canonical_links(site_root: Path, canonical_url: str) -> int:
     canonical_url = validate_canonical_url(canonical_url)
     _, html_files = generated_html_files(site_root)
@@ -667,9 +662,8 @@ def normalize_site_metadata(
         except (OSError, UnicodeError) as exc:
             raise SiteMetadataError(f"unable to read generated HTML {path}: {exc}") from exc
         updated = rewrite_canonical_link(source, canonical_url, path)
-        if not is_inline_preview(path, resolved_root):
-            updated = ensure_pwa_metadata(updated, path)
-            pwa_pages += 1
+        updated = ensure_pwa_metadata(updated, path)
+        pwa_pages += 1
         updated = enhance_guided_copy_controls(
             updated,
             canonical_url,

@@ -1,7 +1,7 @@
-"""Viewer regressions consume output models without provider producer fixtures."""
-import copy,json,tempfile,unittest
+"""Guided navigation regressions consume the semantic graph without providers."""
+import tempfile,unittest
 from pathlib import Path
-from site_renderer import guided,previews,repository_browser
+from site_renderer import guided
 from tests.test_index_navigation_viewer_hardening import provider_graph,edge
 
 class BundleViewerSurfaceTests(unittest.TestCase):
@@ -21,14 +21,6 @@ class BundleViewerSurfaceTests(unittest.TestCase):
    self.assertIn('&lt;script&gt;alert(1)&lt;/script&gt;',page)
    self.assertNotIn('<script>alert(1)</script>',page)
    self.assertTrue((root/'guided/example/docs/architecture/index.html').exists())
- def test_source_preview_never_executes_html(self):
-  page=previews.render_preview_page('example','a'*40,b'<script>.html','b'*40,'<script>alert(1)</script>')
-  self.assertIn('&lt;script&gt;alert(1)&lt;/script&gt;',page)
-  self.assertIn("default-src 'none'",page);self.assertNotIn('<script>alert(1)</script>',page)
- def test_source_browser_navigation_uses_supplied_provider_order(self):
-  html=repository_browser.branch_nav('zeta',branches=('site','zeta','alpha'))
-  self.assertLess(html.index('zeta/'),html.index('alpha/'))
-  self.assertNotIn('composition/',html);self.assertIn('aria-current="page"',html)
  def test_failed_guided_output_has_no_partial_tree(self):
   from unittest.mock import patch
   graph={'schema_version':1,'repository':'owner/repo','providers':[provider_graph()]}

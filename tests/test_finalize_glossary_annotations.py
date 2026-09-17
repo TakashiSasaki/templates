@@ -244,19 +244,15 @@ class FinalizeGlossaryAnnotationTests(unittest.TestCase):
         self.assertEqual(second_count, 0)
         self.assertEqual(second, first)
 
-    def test_site_finalizer_skips_non_document_viewer_routes(self) -> None:
+    def test_site_finalizer_skips_glossary_route(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             glossary = root / "index.json"
             glossary.write_text(json.dumps(model()), encoding="utf-8")
             normal = root / "guide" / "index.html"
-            files = root / "files" / "site" / "content" / "x.html"
             glossary_page = root / "glossary" / "index.html"
-            tree = root / "repository-trees" / "site" / "index.html"
             root_glossary = root / "glossary.html"
-            root_files = root / "files.html"
-            root_tree = root / "repository-trees.html"
-            excluded = (files, glossary_page, tree, root_glossary, root_files, root_tree)
+            excluded = (glossary_page, root_glossary)
             for path in (normal, *excluded):
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text(

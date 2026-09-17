@@ -60,6 +60,6 @@ import site_renderer.guided_locales
                 return [local]
             providers={'translations':[{'publication':'composition','language':'ja','canonical_destination':'provider.md','translation_destination':'ja/provider.md'}]}
             nav={'locale_labels':{},'navigation':{},'audience_runtime':{'documents':{},'routes':{},'overviews':{}}}
-            with patch('site_renderer.local_content.read_entries',return_value=[]), patch('site_renderer.local_content.publish_translations',side_effect=publish), patch('site_renderer.local_content.reconcile_translation_fragments'), patch('site_renderer.local_content.build_reader_coverage',return_value={'languages':['ja']}), patch('site_renderer.local_content.load_overlays',return_value={}), patch('site_renderer.local_content.build_runtime_map',return_value={}):
+            with patch('site_renderer.local_content.tracked_paths',return_value=frozenset()), patch('site_renderer.local_content.publish_translations',side_effect=publish), patch('site_renderer.local_content.reconcile_translation_fragments'), patch('site_renderer.local_content.build_reader_coverage',return_value={'languages':['ja']}), patch('site_renderer.local_content.load_overlays',return_value={}), patch('site_renderer.local_content.build_runtime_map',return_value={}):
                 fill(source,docs,[{'slot':True,'publication':'site','document':'home','source':'index.md','destination':'index.md'}],nav,providers,{},output)
             self.assertEqual((docs/'ja/index.md').read_text(),'[Provider](/ja/provider/)')

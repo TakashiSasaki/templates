@@ -7,7 +7,7 @@ import re
 import string
 import unicodedata
 from urllib.parse import SplitResult, quote, unquote_to_bytes, urlsplit, urlunsplit
-from publication_bundle.repository import BIDIRECTIONAL_CONTROLS
+from publication_bundle.identity import BIDIRECTIONAL_CONTROLS
 
 NON_MARKDOWN_LINE_SEPARATORS = frozenset({"\u2028", "\u2029"})
 
@@ -348,4 +348,3 @@ def validate_external_location(
         raise IndexNavigationError(
             f"malformed external link in {source}:{line}: {target!r}"
         )
-

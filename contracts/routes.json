@@ -201,39 +201,6 @@
       }
     },
     {
-      "id": "site-repository-trees",
-      "path": "/repository-trees/",
-      "canonical": true,
-      "aliases": [],
-      "deepLink": true,
-      "accessibility": {
-        "documentTitleRequired": true,
-        "focusTarget": "main-heading"
-      }
-    },
-    {
-      "id": "site-repository-tree-composition",
-      "path": "/repository-trees/composition/",
-      "canonical": true,
-      "aliases": [],
-      "deepLink": true,
-      "accessibility": {
-        "documentTitleRequired": true,
-        "focusTarget": "main-heading"
-      }
-    },
-    {
-      "id": "site-repository-tree-policy",
-      "path": "/repository-trees/policy/",
-      "canonical": true,
-      "aliases": [],
-      "deepLink": true,
-      "accessibility": {
-        "documentTitleRequired": true,
-        "focusTarget": "main-heading"
-      }
-    },
-    {
       "id": "composition-overview",
       "path": "/composition/",
       "canonical": true,

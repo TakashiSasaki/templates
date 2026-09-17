@@ -130,27 +130,6 @@
       "parentPageId": "site-portal-home"
     },
     {
-      "id": "site-repository-trees",
-      "routeId": "site-repository-trees",
-      "role": "content",
-      "title": "Overview",
-      "parentPageId": "site-portal-home"
-    },
-    {
-      "id": "site-repository-tree-composition",
-      "routeId": "site-repository-tree-composition",
-      "role": "content",
-      "title": "Composition tree",
-      "parentPageId": "site-portal-home"
-    },
-    {
-      "id": "site-repository-tree-policy",
-      "routeId": "site-repository-tree-policy",
-      "role": "content",
-      "title": "Policy tree",
-      "parentPageId": "site-portal-home"
-    },
-    {
       "id": "composition-overview",
       "routeId": "composition-overview",
       "role": "content",
@@ -982,9 +961,6 @@
     "site-language-contract",
     "site-site-pwa-contract",
     "site-ci-performance",
-    "site-repository-trees",
-    "site-repository-tree-composition",
-    "site-repository-tree-policy",
     "composition-overview",
     "composition-composition-concepts",
     "composition-evaluation-guide",

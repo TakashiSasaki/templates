@@ -8,9 +8,9 @@ import shutil
 from pathlib import Path, PurePosixPath
 from typing import Any
 from urllib.parse import quote
-from publication_bundle.repository import *
 from publication_bundle.graph import *
 from publication_bundle.graph import _section_title, _section_level
+from publication_bundle.paths import public_path
 from site_renderer.guided import *
 from site_renderer.github import github_blob_url, github_commit_url, github_tree_url
 
@@ -232,7 +232,7 @@ def translated_edge_href(
             # exists in a future contract; otherwise the localized anchor is unsafe.
             if translated_destination is not None and fragment is None:
                 return (
-                    published_url("/", translated_destination),
+                    public_path(translated_destination),
                     "published document",
                     False,
                 )

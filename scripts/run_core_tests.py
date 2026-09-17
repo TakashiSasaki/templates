@@ -21,15 +21,7 @@ from pathlib import Path
 PROVIDER_INTEGRATION_MODULES = frozenset()  # Provider qualification belongs to Integration.
 
 # Tests that strictly require Node.js or browser execution engines.
-BROWSER_INTEGRATION_MODULES = frozenset(
-    {
-        "test_repository_browser_deep_links",
-        "test_repository_browser_filter",
-        "test_repository_browser_mobile",
-        "test_repository_browser_modern_listener",
-        "test_repository_browser_sharing",
-    }
-)
+BROWSER_INTEGRATION_MODULES = frozenset()
 
 
 def get_default_tests_dir() -> Path:
