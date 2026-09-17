@@ -102,14 +102,14 @@ def run_exact_assembly(bundle: Path | None, site_root: Path | None) -> dict[str,
             )
         accepted_bundle = workspace / "publication-bundle"
         acquire.consume(lock, receipt, accepted_bundle)
-        output = workspace / "site"
+        output = workspace / "build"
         render(
             bundle=accepted_bundle,
             site_root=ROOT,
             output=output,
             expected_identity=lock["bundle_identity"],
         )
-        return check_site_artifact(output, accepted_bundle, lock)
+        return check_site_artifact(output / "site", accepted_bundle, lock)
 
 
 def run_check(check: str, args: argparse.Namespace) -> None:
