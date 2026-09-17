@@ -19,7 +19,6 @@ from scripts.classify_composition_ci import (
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMA_WORKFLOW = ROOT / ".github/workflows/schema-validation.yml"
 CONSUMER_WORKFLOW = ROOT / ".github/workflows/composer-runtime.yml"
-FULL_COMPATIBILITY_WORKFLOW = ROOT / ".github/workflows/composer-full-compatibility.yml"
 CLASSIFIER = ROOT / "scripts/classify_composition_ci.py"
 LEGACY_CLASSIFIER = ROOT / "scripts/classify_real_browser_ci.py"
 
@@ -207,7 +206,9 @@ class CompositionCIClassifierTests(unittest.TestCase):
         self.assertNotIn("unlabeled", trigger)
         self.assertNotIn("paths-ignore:", trigger)
         self.assertNotIn("paths:", trigger)
-        self.assertTrue(FULL_COMPATIBILITY_WORKFLOW.is_file())
+        self.assertFalse(
+            (ROOT / ".github/workflows/composer-full-compatibility.yml").exists()
+        )
 
 
 if __name__ == "__main__":

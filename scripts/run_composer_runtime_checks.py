@@ -43,7 +43,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
             "Run the same Composition consumer-runtime smoke checks used by "
-            "the default and explicit compatibility workflows."
+            "the canonical consumer-runtime workflow."
         )
     )
     parser.add_argument(
