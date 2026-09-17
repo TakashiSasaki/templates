@@ -6,9 +6,14 @@ It validates every Bundle model and generates twice from identical exact inputs.
 Existing Policy evidence-applicability and expected-invalidation rules apply. This
 bootstrap adds no parallel frontier model or mandatory ledger schema.
 
-The `Validate Integration authority` workflow validates the exact proposed head and
-calls Integration qualification. It checks out only Integration, Composition and Policy,
-with read-only contents/actions permission, and stops at the immutable Bundle artifact.
+The `Validate Integration authority` workflow validates the exact proposed head in its
+contracts job. Its qualification job is intentionally explicit `workflow_dispatch` only:
+the operator must provide full producer, Composition and Policy SHAs (and may provide a
+Modeling SHA for Bundle v4). Pull-request and push checks do not silently qualify against
+the legacy reviewed lock, whose providers predate this declaration contract. Candidate
+events and the dispatch path call Integration qualification with exact provider checkouts.
+The qualification workflow checks out only Integration and the named providers, with
+read-only contents/actions permission, and stops at the immutable Bundle artifact.
 There is no Site checkout, rendering/browser/PWA lane, Pages artifact or deployment.
 
 Default companions come from `publication-sources.json`. Explicit full-SHA candidate

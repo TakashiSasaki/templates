@@ -29,7 +29,10 @@ class ReleaseBoundaryTests(unittest.TestCase):
         caller=yaml.safe_load((ROOT/'.github/workflows/validate-integration.yml').read_text())
         workflow=yaml.safe_load((ROOT/'.github/workflows/integration-qualification.yml').read_text())
         self.assertEqual(caller['jobs']['qualification']['uses'],'./.github/workflows/integration-qualification.yml')
-        self.assertEqual(caller['jobs']['qualification']['with']['producer_ref'],'${{ github.event.pull_request.head.sha || github.sha }}')
+        self.assertEqual(caller['jobs']['qualification']['if'],'${{ github.event_name == \'workflow_dispatch\' }}')
+        self.assertEqual(caller['jobs']['qualification']['with']['producer_ref'],'${{ inputs.producer_ref }}')
+        self.assertEqual(caller['jobs']['qualification']['with']['composition_ref'],'${{ inputs.composition_ref }}')
+        self.assertEqual(caller['jobs']['qualification']['with']['policy_ref'],'${{ inputs.policy_ref }}')
         self.assertEqual(caller['jobs']['qualification']['needs'],'contracts')
         for value in (caller,workflow):self.assertTrue(all(p=='read' for p in value['permissions'].values()))
         steps=workflow['jobs']['qualify']['steps']
