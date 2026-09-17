@@ -80,7 +80,20 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
         self.assertIn("persist-credentials: false", classify_workflow)
         self.assertIn("python-version: '3.12.13'", classify_workflow)
         self.assertIn("git diff --name-only --no-renames", classify_workflow)
-        self.assertIn("test -s \"$RUNNER_TEMP/site-browser-paths.txt\"", classify_workflow)
+        self.assertNotIn("Collect exact pull-request changed paths", classify_workflow)
+        self.assertNotIn("test -s \"$RUNNER_TEMP/site-browser-paths.txt\"", classify_workflow)
+        self.assertIn(
+            "if ! git diff --name-only --no-renames \"$BASE_SHA\" \"$HEAD_SHA\" > \"$changed_paths\"; then",
+            classify_workflow,
+        )
+        self.assertIn("base-diff-unavailable-full", classify_workflow)
+        self.assertIn("valid-empty-pull-request-diff", classify_workflow)
+        self.assertIn("write_full_outputs", classify_workflow)
+        classifier_prefix = classify_workflow.split(
+            "      - name: Classify acceptance scope\n", maxsplit=1
+        )[0]
+        self.assertNotIn("git diff --name-only --no-renames", classifier_prefix)
+        self.assertIn("--changed-paths \"$changed_paths\"", classify_workflow)
         self.assertIn("git show \"$BASE_SHA:scripts/classify_site_ci.py\"", classify_workflow)
         self.assertIn("python -I \"$classifier_dir/classify_site_ci.py\"", classify_workflow)
         self.assertNotIn("python -I scripts/classify_site_browser_acceptance.py", classify_workflow)
