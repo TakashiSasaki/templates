@@ -18,10 +18,8 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
         trigger_block = workflow.split("\npermissions:\n", maxsplit=1)[0]
         build_block, check_block = workflow.split("\n  check:\n", maxsplit=1)
 
-        self.assertIn(
-            "  pull_request:\n    branches:\n      - site",
-            trigger_block,
-        )
+        self.assertIn("  pull_request:\n", trigger_block)
+        self.assertNotIn("branches:", trigger_block)
         self.assertIn("  workflow_call:", trigger_block)
         self.assertNotIn("\n  push:\n", trigger_block)
         self.assertNotIn("composition_ref:", workflow)
@@ -58,6 +56,7 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
         self.assertIn("test \"$CLASSIFIER_RESULT\" = success", check_block)
         self.assertIn("scripts/consume_site_build_artifact.py", check_block)
         self.assertIn("needs.build.outputs.artifact_digest", check_block)
+        self.assertIn("needs.classify_browser.outputs.site_candidate == 'true'", check_block)
 
     def test_browser_classifier_is_exact_head_fail_closed_and_parallel_to_build(self) -> None:
         workflow = BUILD_WORKFLOW.read_text(encoding="utf-8")
@@ -80,14 +79,27 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
         self.assertIn("fetch-depth: 0", classify_workflow)
         self.assertIn("persist-credentials: false", classify_workflow)
         self.assertIn("python-version: '3.12.13'", classify_workflow)
-        self.assertIn("git diff --name-only --no-renames", classify_workflow)
-        self.assertIn("test -s \"$RUNNER_TEMP/site-browser-paths.txt\"", classify_workflow)
+        self.assertNotIn("Collect exact pull-request changed paths", classify_workflow)
+        self.assertNotIn("test -s \"$RUNNER_TEMP/site-browser-paths.txt\"", classify_workflow)
+        self.assertIn(
+            "python scripts/collect_site_changed_paths.py \\",
+            classify_workflow,
+        )
+        self.assertIn("base-diff-unavailable-full", classify_workflow)
+        self.assertIn("valid-empty-pull-request-diff", classify_workflow)
+        self.assertIn("write_full_outputs", classify_workflow)
+        self.assertIn("boundary_status=0", classify_workflow)
+        self.assertIn('"$boundary_status" -eq 20', classify_workflow)
+        self.assertIn('"$boundary_status" -eq 21', classify_workflow)
+        self.assertIn("base-classification-unavailable-full", classify_workflow)
+        self.assertIn("--changed-paths \"$changed_paths\"", classify_workflow)
         self.assertIn("git show \"$BASE_SHA:scripts/classify_site_ci.py\"", classify_workflow)
         self.assertIn("python -I \"$classifier_dir/classify_site_ci.py\"", classify_workflow)
         self.assertNotIn("python -I scripts/classify_site_browser_acceptance.py", classify_workflow)
         self.assertNotIn("python -I scripts/classify_site_ci.py", classify_workflow)
         self.assertIn("authority_source=\"base-unavailable-full\"", classify_workflow)
         self.assertIn("browser_required: ${{ steps.classify.outputs.browser_required }}", classify_workflow)
+        self.assertIn("site_candidate: ${{ steps.classify.outputs.site_candidate }}", classify_workflow)
         self.assertNotIn("required: ${{ steps.classify.outputs.required }}", classify_workflow)
         self.assertIn("reason: ${{ steps.classify.outputs.reason }}", classify_workflow)
 

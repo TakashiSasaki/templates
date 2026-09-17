@@ -8,6 +8,7 @@ from pathlib import Path
 
 from scripts.classify_site_ci import (
     classify_paths,
+    is_site_authority_snapshot,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -372,6 +373,58 @@ class SiteCIClassifierTests(unittest.TestCase):
                 self.assertFalse(decision.full_required)
                 self.assertTrue(decision.freshness_candidate_required)
                 self.assertEqual("runtime-sensitive", decision.risk_class)
+
+    def test_current_bundle_and_renderer_paths_are_explicitly_classified(self) -> None:
+        for path in ("integration-source.json", "publication_bundle/contract.py", "contracts/publication-bundle/bundle.schema.json"):
+            with self.subTest(path=path):
+                decision = classify_paths([path])
+                self.assertTrue(decision.core_required)
+                self.assertTrue(decision.build_required)
+                self.assertTrue(decision.publication_required)
+                self.assertFalse(decision.browser_required)
+                self.assertFalse(decision.full_required)
+                self.assertNotEqual("unknown", decision.risk_class)
+
+        for path in (
+            "site_renderer/acquire.py",
+            "site_renderer/bundle.py",
+            "site_renderer/render.py",
+            "scripts/acquire_integration_bundle.py",
+            "scripts/render_publication_bundle.py",
+            "scripts/check_bundle_reader.py",
+            "scripts/check_site_artifact.py",
+        ):
+            with self.subTest(path=path):
+                decision = classify_paths([path])
+                self.assertTrue(decision.core_required)
+                self.assertTrue(decision.build_required)
+                self.assertFalse(decision.browser_required)
+                self.assertFalse(decision.full_required)
+                self.assertNotEqual("unknown", decision.risk_class)
+
+    def test_site_authority_snapshot_predicate_is_branch_name_independent(self) -> None:
+        markers = {".github/workflows/build-pages.yml", "scripts/classify_site_ci.py"}
+        self.assertTrue(is_site_authority_snapshot(markers))
+        self.assertTrue(is_site_authority_snapshot(markers | {"arbitrary/stack/file.py"}))
+        self.assertFalse(is_site_authority_snapshot({"scripts/classify_site_ci.py"}))
+        self.assertFalse(is_site_authority_snapshot({".github/workflows/build-pages.yml"}))
+
+    def test_source_link_renderers_are_browser_sensitive_but_not_pwa(self) -> None:
+        for path in (
+            "site_renderer/github.py",
+            "site_renderer/guided.py",
+            "site_renderer/guided_locales.py",
+            "site_renderer/local_content.py",
+        ):
+            with self.subTest(path=path):
+                decision = classify_paths([path])
+                self.assertTrue(decision.core_required)
+                self.assertTrue(decision.build_required)
+                self.assertTrue(decision.browser_required)
+                self.assertTrue(decision.reference_consumer_required)
+                self.assertFalse(decision.pwa_required)
+                self.assertFalse(decision.full_required)
+                self.assertEqual("browser-sensitive", decision.risk_class)
 
     def test_pwa_icon_assets_require_pwa_and_browser(self) -> None:
         for icon_path in (

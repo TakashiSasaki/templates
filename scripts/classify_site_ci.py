@@ -31,6 +31,7 @@ CI_CONTROL_EXACT_PATHS = frozenset(
         "scripts/consume_site_build_artifact.py",
         "scripts/run_site_preflight.py",
         "scripts/classify_site_ci.py",
+        "scripts/collect_site_changed_paths.py",
         "scripts/classify_site_browser_acceptance.py",
         "scripts/classify_provider_coexistence.py",
         "scripts/classify_publication_freshness.py",
@@ -49,6 +50,13 @@ CI_CONTROL_PREFIXES = (
     "tests/test_pages_workflow_boundary",
     "tests/test_verify_site_full_qualification",
     "tests/test_run_core_tests",
+)
+
+# The reusable workflow uses the same immutable base snapshot to decide whether
+# a pull request belongs to the Site authority. Branch names are deliberately
+# not part of this predicate so arbitrary stacked Site branches remain covered.
+SITE_AUTHORITY_MARKERS = frozenset(
+    {".github/workflows/build-pages.yml", "scripts/classify_site_ci.py"}
 )
 
 # CI Observability surfaces that do not alter the generated Site or browser runtime.
@@ -133,6 +141,12 @@ BROWSER_EXACT_PATHS = frozenset(
         "contracts/document-metadata.json",
         "contracts/site-discovery.json",
         "contracts/manifest.json",
+        # These render user-visible source/provenance destinations. A change can
+        # alter generated HTML even when no browser JavaScript changes.
+        "site_renderer/github.py",
+        "site_renderer/guided.py",
+        "site_renderer/guided_locales.py",
+        "site_renderer/local_content.py",
     }
 )
 BROWSER_PREFIXES = (
@@ -151,6 +165,7 @@ BROWSER_PREFIXES = (
 # Known site build and generator surfaces.
 BUILD_EXACT_PATHS = frozenset(
     {
+        "integration-source.json",
         "requirements.txt",
         "site-manifest.json",
         "reader-navigation-locales.json",
@@ -192,7 +207,19 @@ BUILD_EXACT_PATHS = frozenset(
         "scripts/validate_website_contracts.py",
         "scripts/validate_website_evidence.py",
         "scripts/website_evidence_targets.py",
+        "scripts/acquire_integration_bundle.py",
+        "scripts/check_bundle_reader.py",
+        "scripts/check_site_artifact.py",
+        "scripts/render_publication_bundle.py",
     }
+)
+
+# Site consumes these versioned semantic Bundle models and their contract
+# definition. They require an exact Bundle-to-Site build, but do not by
+# themselves imply browser/PWA acceptance.
+BUNDLE_PUBLICATION_PREFIXES = (
+    "publication_bundle/",
+    "contracts/publication-bundle/",
 )
 
 # Publication, schema, and cross-authority integration surfaces.
@@ -231,6 +258,7 @@ CROSS_AUTHORITY_PREFIXES = (
 # Publication materialization, freshness, and staging surfaces.
 PUBLICATION_EXACT_PATHS = frozenset(
     {
+        "integration-source.json",
         "publication-sources.json",
         "publication-staging.json",
         "composition.json",
@@ -260,6 +288,7 @@ PUBLICATION_PREFIXES = (
     "tests/test_assembly_materialization_",
     "tests/test_composer_",
     "tests/test_materialize_publication_",
+    *BUNDLE_PUBLICATION_PREFIXES,
 )
 
 # Reference consumer surfaces.
@@ -286,6 +315,11 @@ REFERENCE_CONSUMER_PREFIXES = ("tests/test_reference_",)
 
 class ClassificationError(ValueError):
     """Raised when changed paths cannot be safely classified."""
+
+
+def is_site_authority_snapshot(paths: Iterable[str]) -> bool:
+    """Return whether a repository tree contains the Site CI authority markers."""
+    return SITE_AUTHORITY_MARKERS <= set(paths)
 
 
 @dataclass(frozen=True)
@@ -388,6 +422,8 @@ def is_core_only_path(path: str) -> bool:
 def is_known_runtime_path(path: str) -> bool:
     return (
         path in BUILD_EXACT_PATHS
+        or path.startswith("site_renderer/")
+        or path.startswith(BUNDLE_PUBLICATION_PREFIXES)
         or (path.startswith("schemas/") and path.endswith(".json"))
         or (path.startswith("tests/test_") and path.endswith(".py"))
         or path.startswith("tests/fixtures/")
