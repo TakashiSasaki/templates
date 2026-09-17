@@ -111,5 +111,5 @@
       "additionalProperties": false
     }
   },
-  "$comment": "publication_bundle.contract additionally enforces safe physical paths, exact bounded inventory, content and identity hashes, semantic model closure, translations, glossary, graph and provenance."
+  "$comment": "publication_bundle.contract additionally enforces safe physical paths, exact bounded inventory, structural model/publication closure, content and identity hashes, translations, glossary, graph and provenance."
 }

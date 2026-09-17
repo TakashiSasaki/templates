@@ -143,22 +143,6 @@ class BundleTests(unittest.TestCase):
         self.assertFalse((root / 'provider-repositories.json').exists())
         self.assertNotIn('provider-repositories.json', json.loads((root / 'bundle.json').read_text())['files'])
 
-    def test_renamed_repository_source_models_are_rejected(self):
-        for name, payload in {
-            'provider-source-index.json': {
-                'provider': 'composition', 'revision': 'b' * 40,
-                'entries': [{'path': 'docs/index.md', 'object_id': 'f' * 40}],
-            },
-            'source-previews.json': {
-                'previews': [{'path': 'docs/index.md', 'source_text': '# source'}],
-            },
-        }.items():
-            with self.subTest(name=name):
-                root = fixture(self.base / name)
-                (root / name).write_bytes(canonical(payload))
-                with self.assertRaisesRegex(BundleError, 'undeclared|source payload'):
-                    finish(root)
-
     def test_semantic_source_identity_and_navigation_are_allowed(self):
         root = fixture(self.base / 'semantic')
         documents = json.loads((root / 'documents.json').read_text())
@@ -166,13 +150,20 @@ class BundleTests(unittest.TestCase):
         (root / 'documents.json').write_bytes(canonical(documents))
         finish(root)
 
-    def test_declared_publication_json_cannot_hide_source_preview_payload(self):
+    def test_publication_json_is_not_content_scanned(self):
         root = fixture(self.base / 'publication-json')
-        (root / 'publication' / 'preview.json').write_bytes(canonical({
-            'source_text': '# provider source',
+        (root / 'publication' / 'asset.json').write_bytes(canonical({
+            'source_text': 'ordinary publication data',
+            'preview': {'entries': ['published']},
         }))
-        with self.assertRaisesRegex(BundleError, 'source payload'):
-            finish(root)
+        finish(root)
+
+    def test_undeclared_publication_sidecar_is_rejected_by_membership(self):
+        root = fixture(self.base / 'publication-sidecar')
+        finish(root)
+        (root / 'publication' / 'renamed-source.bin').write_bytes(b'opaque source corpus')
+        with self.assertRaisesRegex(BundleError, 'digest/inventory mismatch'):
+            validate(root)
 
     def test_translation_projection_validates_without_provider_sources(self):
         root = translation_fixture(self.base / 'translation')

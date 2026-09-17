@@ -15,12 +15,6 @@ MODELS = ('documents.json', 'navigation.json', 'translation-availability.json',
           'glossary.json', 'guided-navigation.json', 'guided-locales.json',
           'provenance.json')
 MODEL_SET = frozenset(MODELS)
-SOURCE_CORPUS_KEYS = frozenset({
-    'blob_contents', 'browser', 'browser_records', 'inline_preview',
-    'nonviewable_blobs', 'preview', 'previews', 'raw_source',
-    'repository_entries', 'repository_tree', 'source_bytes', 'source_corpus',
-    'source_text', 'tracked_entries',
-})
 FIELDS = {'schema_version', 'producer', 'providers', 'configuration_digest',
           'files', 'content_digest', 'identity'}
 
@@ -98,32 +92,17 @@ def inventory(root):
     return result
 
 
-def _contains_browser_source_payload(value):
-    """Reject browser/source-corpus records without rejecting semantic paths."""
-    if isinstance(value, dict):
-        keys = set(value)
-        if keys & SOURCE_CORPUS_KEYS:
-            return True
-        # A renamed repository inventory commonly retains this identifying
-        # shape even when its filename and field names have changed.
-        if 'entries' in keys and keys & {'provider', 'provider_name', 'authority', 'revision', 'repository'}:
-            return True
-        return any(_contains_browser_source_payload(item) for item in value.values())
-    if isinstance(value, list):
-        return any(_contains_browser_source_payload(item) for item in value)
-    return False
+def _validate_closed_inventory(files):
+    """Require the v3 inventory to contain only declared model/output paths.
 
-
-def _validate_lean_inventory(root, files):
-    """Keep the v3 wire inventory semantic/publication-only and browser-free."""
+    ``files`` is the existing Bundle declaration for the exact qualified
+    output.  The physical inventory is compared with it below, so an
+    undeclared publication sidecar is rejected by path and membership rather
+    than by guessing from its filename, extension, or JSON vocabulary.
+    """
     for path in files:
         if path not in MODEL_SET and not path.startswith('publication/'):
             raise BundleError('Bundle contains undeclared non-publication payload: ' + path)
-        if not path.endswith('.json'):
-            continue
-        payload = read_json(regular(root, path))
-        if _contains_browser_source_payload(payload):
-            raise BundleError('Bundle contains repository-browser source payload: ' + path)
 
 
 def seal(root, *, producer, providers, configuration_digest):
@@ -167,7 +146,7 @@ def validate(root, *, expected_identity=None, expected_producer=None, expected_p
     files = data['files']
     if not isinstance(files, dict) or not set(MODELS) <= files.keys():
         raise BundleError('incomplete Bundle models')
-    _validate_lean_inventory(root, files)
+    _validate_closed_inventory(files)
     for path, record in files.items():
         safe_path(path)
         if path == 'bundle.json' or not isinstance(record, dict) or set(record) != {'size', 'sha256'} or type(record['size']) is not int or record['size'] < 0 or not isinstance(record['sha256'], str) or not DIGEST.fullmatch(record['sha256']):
