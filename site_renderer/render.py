@@ -13,8 +13,10 @@ import sys
 import tempfile
 
 from publication_bundle.contract import BundleError, read_json, regular, canonical, digest
+from publication_bundle.markdown import _rewrite_markdown
 from site_renderer.bundle import validate, validate_locked, load_lock
 from site_renderer.git import checked_revision
+from site_renderer.github import immutable_github_source_url
 from site_renderer import guided, guided_locales
 from site_renderer.config import render_nav
 from site_renderer.local_content import fill, put
@@ -190,6 +192,11 @@ def render_snapshot(*,bundle,site_root,output,identity,site_revision,parent_iden
                 put(regular(bundle,name),docs/name.removeprefix('publication/'))
         documents=read_json(bundle/'documents.json');nav=read_json(bundle/'navigation.json')
         translations=fill(site_root,docs,documents,nav,read_json(bundle/'translation-publication.json'),read_json(bundle/'translation-availability.json'),build,site_revision=site_revision)
+        source_revisions={'site':site_revision,'integration':identity['producer']['revision'],**identity['providers']}
+        for path in sorted(docs.rglob('*.md')):
+            relative=path.relative_to(docs).as_posix()
+            text,_=_rewrite_markdown(path.read_text(encoding='utf-8'),source_document=Path(relative),site_document=Path(relative),document_targets={},asset_rules=[],docs_root=docs,publication='absolute-source-links',site_source_paths=None,absolute_url_rewriter=lambda url: immutable_github_source_url(url,source_revisions))
+            path.write_text(text,encoding='utf-8')
         # This script exposes the same pure Site-owned metadata function used by the old CLI.
         import importlib.util
         spec=importlib.util.spec_from_file_location('_site_translation_metadata',site_root/'scripts/translation_reader_metadata.py')

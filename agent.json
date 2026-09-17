@@ -19,7 +19,7 @@
     },
     "integration": {
       "role": "cross-authority-publication-integration",
-      "contract": "Integrated Publication Bundle v2",
+      "contract": "Integrated Publication Bundle v3",
       "provider_selection_owner": true
     },
     "site": {

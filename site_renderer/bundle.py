@@ -1,4 +1,4 @@
-"""Site consumption of reviewed Bundle v2: integrity and render-input structure only.
+"""Site consumption of reviewed Bundle v3: integrity and render-input structure only.
 
 Integration qualifies provider declarations and semantics. Site authenticates the
 selected immutable artifact, never parses provider catalogs/manifests or Git blobs.
@@ -12,7 +12,7 @@ def load_lock(path):
     lock=read_json(path)
     if (not isinstance(lock,dict) or set(lock)!={'schema_version','repository','revision','bundle_schema','bundle_identity','content_digest'}
             or type(lock['schema_version']) is not int or lock['schema_version']!=1
-            or type(lock['bundle_schema']) is not int or lock['bundle_schema']!=2
+            or type(lock['bundle_schema']) is not int or lock['bundle_schema']!=3
             or lock['repository']!='TakashiSasaki/templates'
             or not isinstance(lock['revision'],str) or not SHA.fullmatch(lock['revision'])
             or any(not isinstance(lock[k],str) or not DIGEST.fullmatch(lock[k]) for k in ('bundle_identity','content_digest'))):
@@ -30,7 +30,7 @@ def validate_locked(root, lock):
 def validate(root, *, expected_identity=None, expected_producer=None, expected_providers=None):
     root = Path(root)
     data = read_json(regular(root, 'bundle.json'))
-    if not isinstance(data, dict) or set(data) != FIELDS or type(data['schema_version']) is not int or data['schema_version'] != 2:
+    if not isinstance(data, dict) or set(data) != FIELDS or type(data['schema_version']) is not int or data['schema_version'] != 3:
         raise BundleError('unsupported Bundle schema or fields')
     producer, providers = data['producer'], data['providers']
     if (not isinstance(producer, dict) or set(producer) != {'authority', 'revision'}
@@ -94,12 +94,6 @@ def validate(root, *, expected_identity=None, expected_producer=None, expected_p
             elif (node.get('publication'), node.get('document')) not in keys or node.get('destination') not in destinations:
                 raise BundleError('navigation references absent document')
     for nodes in navigation['navigation'].values():walk(nodes)
-    repos = read_json(regular(root, 'provider-repositories.json'))
-    if not isinstance(repos, dict) or set(repos) != set(providers):
-        raise BundleError('incomplete provider source models')
-    for name, model in repos.items():
-        if not isinstance(model, dict) or model.get('revision') != providers[name]:
-            raise BundleError('repository model revision mismatch')
     graph = read_json(regular(root, 'guided-navigation.json'))
     if not isinstance(graph, dict) or {p.get('name'):p.get('revision') for p in graph.get('providers', [])} != providers:
         raise BundleError('guided graph provenance mismatch')

@@ -4,6 +4,7 @@ import { createRequire } from "node:module";
 import test from "node:test";
 
 const require = createRequire(import.meta.url);
+globalThis.TemplatesGithubUrls = require("../assets/javascripts/github-url.js");
 const playground = require("../assets/javascripts/composition-playground.js");
 const fixture = JSON.parse(
   fs.readFileSync(new URL("./fixtures/composition-playground-v1.json", import.meta.url), "utf8")

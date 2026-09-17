@@ -6,12 +6,13 @@ from pathlib import Path
 import sys
 if __package__ in (None, ''):sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from site_renderer.bundle import load_lock,validate_locked
+from site_renderer.guided import project_immutable_source_links
 from publication_bundle.paths import public_path
 
 
 def check(site,bundle,lock):
     manifest=validate_locked(bundle,lock)
-    graph=json.loads((bundle/'guided-navigation.json').read_text())
+    graph=project_immutable_source_links(json.loads((bundle/'guided-navigation.json').read_text()))
     if json.loads((site/'guided/graph.json').read_text())!=graph:raise ValueError('guided graph projection drift')
     if json.loads((site/'glossary/index.json').read_text())!=json.loads((bundle/'glossary.json').read_text()):raise ValueError('glossary projection drift')
     translations=json.loads((bundle/'translation-publication.json').read_text())['translations']

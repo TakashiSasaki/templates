@@ -75,14 +75,18 @@ class BundleTests(unittest.TestCase):
             with self.assertRaises(BundleError):finish(root)
 
     def test_provenance_and_graph_revision_mismatch_fail(self):
-        for file in ('provenance.json','guided-navigation.json','provider-repositories.json'):
+        for file in ('provenance.json','guided-navigation.json'):
             root=fixture(self.base/file)
             data=json.loads((root/file).read_text())
             if file=='provenance.json':data['providers']['policy']='f'*40
-            elif file=='guided-navigation.json':data['providers'][0]['revision']='f'*40
-            else:data['policy']['revision']='f'*40
+            else:data['providers'][0]['revision']='f'*40
             (root/file).write_bytes(canonical(data))
             with self.assertRaises(BundleError):finish(root)
+
+    def test_repository_source_corpus_is_not_a_bundle_model(self):
+        root=fixture(self.base/'bundle')
+        self.assertNotIn('provider-repositories.json', MODELS)
+        self.assertFalse((root/'provider-repositories.json').exists())
 
     def test_semantic_navigation_closure(self):
         root=fixture(self.base/'bundle')

@@ -1,11 +1,11 @@
-"""Publication Bundle v2 wire-integrity primitives for the Site consumer."""
+"""Publication Bundle v3 wire-integrity primitives for the Site consumer."""
 from __future__ import annotations
 import hashlib
 import json
 import re
 from pathlib import Path, PurePosixPath
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 SHA = re.compile(r'^[0-9a-f]{40}$')
 DIGEST = re.compile(r'^[0-9a-f]{64}$')
 MAX_FILES = 50000
@@ -13,7 +13,7 @@ MAX_BYTES = 1024 * 1024 * 1024
 MODELS = ('documents.json', 'navigation.json', 'translation-availability.json',
           'translation-publication.json', 'reader-navigation-runtime.json',
           'glossary.json', 'guided-navigation.json', 'guided-locales.json',
-          'provider-repositories.json', 'provenance.json')
+          'provenance.json')
 FIELDS = {'schema_version', 'producer', 'providers', 'configuration_digest',
           'files', 'content_digest', 'identity'}
 
@@ -89,4 +89,3 @@ def inventory(root):
             raise BundleError('Bundle resource limit exceeded')
         result[relative] = {'size': size, 'sha256': digest(p.read_bytes())}
     return result
-

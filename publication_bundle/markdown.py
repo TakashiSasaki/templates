@@ -253,8 +253,15 @@ def _rewrite_markdown(
     publication: str,
     site_source_paths: frozenset[bytes] | None,
     site_source_url: Any | None = None,
+    absolute_url_rewriter: Any | None = None,
 ) -> tuple[str, int]:
     def rewrite(destination: str) -> str:
+        wrapped = destination.startswith("<") and destination.endswith(">")
+        value = destination[1:-1] if wrapped else destination
+        if absolute_url_rewriter is not None:
+            updated = absolute_url_rewriter(value)
+            if updated != value:
+                return f"<{updated}>" if wrapped else updated
         return _rewrite_destination(
             destination,
             source_document=source_document,

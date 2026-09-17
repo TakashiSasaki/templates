@@ -95,7 +95,7 @@ class ScheduledArtifactBindingTests(unittest.TestCase):
         expected = inputs(repository='owner/repo')
         metadata = dict(id=123, expired=False, digest=digest, workflow_run=dict(id=456, head_sha='a'*40))
         args = dict(artifact_id=123, archive_digest=digest, run_id=456, head='a'*40,
-                    repository='owner/repo', locked={'revision':'f'*40,'bundle_schema':2,'bundle_identity':'1'*64,'content_digest':'2'*64})
+                    repository='owner/repo', locked={'revision':'f'*40,'bundle_schema':3,'bundle_identity':'1'*64,'content_digest':'2'*64})
         validate_binding(metadata, expected, **args)
         for field, value in [('site', 'f'*40), ('composition', 'f'*40), ('policy', 'f'*40), ('repository', 'other/repo'), ('staging', 'candidate')]:
             changed = {**expected, field: value}
