@@ -32,13 +32,14 @@ class ReferenceEvidenceCommandTests(unittest.TestCase):
                 self.assertIn(harness["locator"], tokens)
                 self.assertTrue((ROOT / harness["locator"]).is_file())
 
-    def test_browser_job_gates_playwright_binary_setup_on_pwa_required(self):
+    def test_browser_job_uses_runner_chrome_without_managed_browser_setup(self):
         workflow = yaml.safe_load((ROOT / ".github/workflows/reference-consumer.yml").read_text())
-        steps = workflow["jobs"]["browser"]["steps"]
-        cache_step = next(s for s in steps if s.get("name") == "Cache Playwright binaries")
-        install_step = next(s for s in steps if s.get("name") == "Install worker-lifecycle browser")
-        self.assertIn("inputs.pwa_required == 'true'", cache_step.get("if", ""))
-        self.assertIn("inputs.pwa_required == 'true'", install_step.get("if", ""))
+        text = (ROOT / ".github/workflows/reference-consumer.yml").read_text()
+        self.assertNotIn("Cache Playwright binaries", text)
+        self.assertNotIn("playwright install", text)
+        self.assertNotIn("ms-playwright", text)
+        verify_step = next(s for s in workflow["jobs"]["browser"]["steps"] if s.get("name") == "Verify system Chrome runtime")
+        self.assertIn("google-chrome --version", verify_step["run"])
 
 
 if __name__ == "__main__":

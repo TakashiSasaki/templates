@@ -123,8 +123,6 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
             "Check out proposed Site revision",
             "Verify and consume scheduled Pages artifact",
             "Install Playwright controller",
-            "Cache Playwright binaries",
-            "Install Playwright Chromium for PWA lifecycle",
             "Verify system Chrome runtime",
             "Install Japanese browser font",
             "Check mobile layout geometry",
@@ -138,8 +136,6 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
             "Check review regressions for Site search history",
         )
         pwa_steps = {
-            "Cache Playwright binaries",
-            "Install Playwright Chromium for PWA lifecycle",
             "Check PWA freshness lifecycle",
             "Check localized PWA freshness chrome",
             "Check PWA document commit correlation",

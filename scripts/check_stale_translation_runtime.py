@@ -50,7 +50,7 @@ def run(site,bundle,output=None):
     evidence={'integration':identity['producer']['revision'],'bundle_identity':identity['identity'],'stale_route':stale_route,'current_route':current_route,'missing_route':missing_route,'checks':[]}
     try:
         with sync_playwright() as pw:
-            browser=pw.chromium.launch(headless=True)
+            browser=pw.chromium.launch(channel="chrome", headless=True)
             context=browser.new_context(viewport={'width':390,'height':844})
             page=context.new_page()
             def warning(label):
