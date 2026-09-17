@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "mode": "shadow",
+  "kill_switch": false,
+  "boundaries": ["provider-to-integration", "integration-to-site", "site-to-pages"],
+  "allowed_mutations": [
+    "integration:publication-sources.json:publications.*.revision",
+    "site:integration-source.json:revision,bundle_schema,bundle_identity,content_digest"
+  ],
+  "self_update": false
+}
