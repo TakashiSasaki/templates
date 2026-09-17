@@ -5,6 +5,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+from unittest.mock import patch
 
 import scripts.ci_change_classification as common
 import scripts.classify_policy_ci as policy_ci
@@ -87,6 +88,21 @@ def test_shared_diff_classifier_preserves_fail_closed_path_and_sha_rules() -> No
         pass
     else:
         raise AssertionError("expected invalid SHA to fail closed")
+
+
+def test_base_diff_unavailable_is_an_explicit_classification_failure() -> None:
+    def unavailable(*_args, **_kwargs):
+        return subprocess.CompletedProcess(
+            ["git", "diff"], 128, stdout=b"", stderr=b"unknown revision"
+        )
+
+    with patch("scripts.ci_change_classification.subprocess.run", unavailable):
+        try:
+            common.changed_paths(ROOT, "a" * 40, "b" * 40)
+        except common.ClassificationError as exc:
+            assert "git diff failed" in str(exc)
+        else:
+            raise AssertionError("an unavailable classifier base must fail closed")
 
 
 def test_policy_classifier_github_output_is_stable_and_non_path_bearing() -> None:

@@ -107,3 +107,24 @@ The audit record must not claim completion while any gate is failed, unknown, wa
 ## Explicit non-goals
 
 Completion work must not introduce application-category profiles, Web surface or route contracts, framework or deployment topology decisions, a generic arbitrary-command executor, mutable toolchain references, or a Pages deployment path on `policy`.
+
+## Local readiness commands
+
+Run `python3 scripts/run_policy_preflight.py fast --expected-head "$(git rev-parse HEAD)"`
+while editing for the cheap changed-area checks. Before starting expensive CI, use
+the exact-head gate from a clean checkout:
+
+```sh
+HEAD_SHA=$(git rev-parse HEAD)
+python3 scripts/run_policy_preflight.py ready \
+  --base-ref <BASE_REF> \
+  --expected-head "$HEAD_SHA"
+```
+
+`ready` runs the complete local full suite and reuses the CI path classifier to
+run `release-state` and `trusted-review` whenever the changed paths require them.
+Classifier errors, unavailable bases and unknown decisions fail closed by running
+both checks. The default Ubuntu 24.04/Python 3.11 runtime is the local readiness
+target; the Python 3.12–3.14 and Windows matrix remains an explicit remote
+compatibility check. Release/deployment qualification and GitHub artifact checks
+also remain remote.
