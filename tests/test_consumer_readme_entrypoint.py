@@ -31,7 +31,6 @@ class ConsumerReadmeEntrypointTests(unittest.TestCase):
             "Skill",
             "Webapp",
             "Glossary",
-            "Repository trees",
             "https://templates.moukaeritai.work/composition/",
             "https://templates.moukaeritai.work/policy/",
         ):

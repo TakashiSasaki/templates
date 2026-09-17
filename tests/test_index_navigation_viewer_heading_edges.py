@@ -123,7 +123,7 @@ class IndexNavigationViewerHeadingEdgeTests(unittest.TestCase):
         self.assertNotIn("<h2>Links</h2>", rendered)
         self.assertIn("Links before the first provider section", rendered)
 
-    def test_directory_edges_route_to_the_immutable_branch_browser(self) -> None:
+    def test_directory_edges_route_to_immutable_github_tree(self) -> None:
         href, route_kind, external = edge_href(
             "skill",
             "a" * 40,
@@ -133,10 +133,60 @@ class IndexNavigationViewerHeadingEdgeTests(unittest.TestCase):
                 "fragment": None,
             },
             {},
+            "TakashiSasaki/templates",
         )
 
-        self.assertEqual(href, "/files/skill/")
-        self.assertEqual(route_kind, "repository directory")
+        self.assertEqual(
+            href,
+            "https://github.com/TakashiSasaki/templates/tree/"
+            + ("a" * 40)
+            + "/docs/examples",
+        )
+        self.assertEqual(route_kind, "immutable directory")
+        self.assertTrue(external)
+
+    def test_unpublished_source_file_routes_to_immutable_github_blob(self) -> None:
+        href, route_kind, external = edge_href(
+            "skill",
+            "a" * 40,
+            {"kind": "file", "target": "docs/notes.md", "fragment": None},
+            {},
+            "TakashiSasaki/templates",
+        )
+
+        self.assertEqual(
+            href,
+            "https://github.com/TakashiSasaki/templates/blob/"
+            + ("a" * 40)
+            + "/docs/notes.md",
+        )
+        self.assertEqual(route_kind, "immutable source")
+        self.assertTrue(external)
+
+    def test_published_source_file_remains_a_site_document(self) -> None:
+        href, route_kind, external = edge_href(
+            "skill",
+            "a" * 40,
+            {"kind": "file", "target": "docs/index.md", "fragment": None},
+            {"docs/index.md": "skill/index.md"},
+            "TakashiSasaki/templates",
+        )
+
+        self.assertEqual(href, "/skill/")
+        self.assertEqual(route_kind, "published document")
+        self.assertFalse(external)
+
+    def test_index_source_remains_a_guided_document(self) -> None:
+        href, route_kind, external = edge_href(
+            "skill",
+            "a" * 40,
+            {"kind": "index", "target": "docs/index.md", "fragment": None},
+            {},
+            "TakashiSasaki/templates",
+        )
+
+        self.assertEqual(href, "/guided/skill/")
+        self.assertEqual(route_kind, "index")
         self.assertFalse(external)
 
     def test_non_index_source_path_is_rejected(self) -> None:
@@ -221,6 +271,7 @@ class IndexNavigationViewerHeadingEdgeTests(unittest.TestCase):
 
     def test_landing_escapes_untrusted_diagnostic_values(self) -> None:
         graph = {
+            "repository": "TakashiSasaki/templates",
             "providers": [
                 minimal_provider(
                     diagnostics={

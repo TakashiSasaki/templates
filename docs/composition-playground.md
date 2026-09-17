@@ -27,8 +27,8 @@ This page consumes published provider projections. It does not resolve dependenc
       <h2 id="playground-result-title">Canonical result</h2>
       <p data-playground-validity role="status" aria-live="polite" aria-atomic="true"></p>
       <dl class="composition-playground__provenance">
-        <dt>Semantic source revision</dt><dd><code data-playground-semantic-revision></code></dd>
-        <dt>Published Composition provider revision</dt><dd><code data-playground-provider-revision></code></dd>
+        <dt>Semantic source revision</dt><dd><a data-playground-semantic-revision-link target="_blank" rel="noopener"><code data-playground-semantic-revision></code></a></dd>
+        <dt>Published Composition provider revision</dt><dd><a data-playground-provider-revision-link target="_blank" rel="noopener"><code data-playground-provider-revision></code></a></dd>
         <dt>Projection identity</dt><dd><code data-playground-projection-id></code></dd>
       </dl>
       <h3>Resolved components</h3><ul data-playground-resolved></ul>

@@ -12,6 +12,7 @@ from publication_bundle.repository import *
 from publication_bundle.graph import *
 from publication_bundle.graph import _section_title, _section_level
 from site_renderer.guided import *
+from site_renderer.github import github_blob_url, github_commit_url, github_tree_url
 
 from publication_bundle.locales import LANGUAGE_TAG
 
@@ -290,12 +291,12 @@ def render_localized_edge(
     )
     source = immutable_target_url(repository, provider["revision"], edge)
     attrs = ' target="_blank" rel="noopener"' if external else ""
-    origin = github_url(
+    origin = github_blob_url(
         repository,
         provider["revision"],
-        "blob",
-        edge["source"].encode("utf-8"),
-    ) + f"#L{edge['line']}"
+        edge["source"],
+        fragment=f"L{edge['line']}",
+    )
     ja = is_japanese(language)
     metadata = [
         f'<span class="badge">{html.escape(ROUTE_LABELS_JA.get(route_kind, route_kind) if ja else route_kind)}</span>',
@@ -330,12 +331,8 @@ def render_localized_index(
 ) -> str:
     language = validate_language(language)
     source_path = canonical_index["path"]
-    source = github_url(
-        repository,
-        provider["revision"],
-        "blob",
-        source_path.encode("utf-8"),
-    )
+    source = github_blob_url(repository, provider["revision"], source_path)
+    revision = github_commit_url(repository, provider["revision"])
     breadcrumbs = []
     for path in path_chain(source_path, parents):
         path_overlay = overlay_indexes.get(path)
@@ -374,9 +371,9 @@ def render_localized_index(
         f'<nav class="breadcrumbs" aria-label="Index path">{breadcrumb_html}</nav>',
         '<div class="meta">',
         f'<p><strong>{html.escape(strings["provider"] if ja else "Provider")}:</strong> <code>{html.escape(provider["name"])}</code></p>',
-        f'<p><strong>{html.escape(strings["revision"] if ja else "Revision")}:</strong> <code>{html.escape(provider["revision"])}</code></p>',
+        f'<p><strong>{html.escape(strings["revision"] if ja else "Revision")}:</strong> <a href="{html.escape(revision, quote=True)}" target="_blank" rel="noopener"><code>{html.escape(provider["revision"])}</code></a></p>',
         f'<p><strong>{html.escape(strings["source"] if ja else "Source")}:</strong> <code>{html.escape(source_path)}</code> · <a href="{html.escape(source, quote=True)}" target="_blank" rel="noopener">{html.escape(strings["immutable_source"] if ja else "immutable GitHub source")}</a></p>',
-        f'<p><strong>{html.escape(strings["repository"] if ja else "Repository")}:</strong> <a href="/files/{quote(provider["name"], safe="")}/">{html.escape(strings["browse_snapshot"] if ja else "browse the same snapshot")}</a></p>',
+        f'<p><strong>{html.escape(strings["repository"] if ja else "Repository")}:</strong> <a href="{html.escape(github_tree_url(repository, provider["revision"]), quote=True)}" target="_blank" rel="noopener">{html.escape(strings["browse_snapshot"] if ja else "open the same snapshot on GitHub")}</a></p>',
         "</div>",
     ]
     if unsectioned:
@@ -445,6 +442,7 @@ def render_localized_landing(
     locale: dict[str, dict[str, dict[str, Any]]],
 ) -> str:
     language = validate_language(language)
+    repository = graph.get("repository", "TakashiSasaki/templates")
     ja = is_japanese(language)
     strings = JA_STRINGS
     cards = []
@@ -460,11 +458,11 @@ def render_localized_landing(
         cards.append(
             '<section class="provider-card">'
             f'<h2><a href="{html.escape(target, quote=True)}">{html.escape(name)}</a></h2>'
-            f'<p><code>{html.escape(provider["revision"])}</code></p>'
+            f'<p><a href="{html.escape(github_commit_url(repository, provider["revision"]), quote=True)}" target="_blank" rel="noopener"><code>{html.escape(provider["revision"])}</code></a></p>'
             f'<p>{diagnostics["index_count"]} {html.escape(strings["reachable"] if ja else "reachable indexes")} · '
             f'{diagnostics["edge_count"]} {html.escape(strings["links"] if ja else "links")} · '
             f'{html.escape(strings["depth"] if ja else "maximum index depth")} {diagnostics["max_index_depth"]}</p>'
-            f'<p><a href="/files/{quote(name, safe="")}/">{html.escape(strings["browse_same"] if ja else "Browse the same repository snapshot")}</a></p>'
+            f'<p><a href="{html.escape(github_tree_url(repository, provider["revision"]), quote=True)}" target="_blank" rel="noopener">{html.escape(strings["browse_same"] if ja else "Open the same repository snapshot on GitHub")}</a></p>'
             "</section>"
         )
     body = "\n".join(
@@ -472,7 +470,7 @@ def render_localized_landing(
             f'<p class="eyebrow">{html.escape(strings["human_agent"] if ja else "Human / agent shared path")}</p>',
             f'<h1>{html.escape(strings["landing_title"] if ja else "Index-guided document discovery")}</h1>',
             f'<p class="notice">{html.escape(strings["landing_notice"] if ja else "This localized view follows the canonical provider-owned index navigation graph.")}</p>',
-            f'<p><a href="/guided/graph.json">{html.escape(strings["inspect_graph"] if ja else "Inspect the machine-readable navigation graph")}</a> · <a href="/files/">{html.escape(strings["browse_all"] if ja else "Browse all source snapshots")}</a></p>',
+            f'<p><a href="/guided/graph.json">{html.escape(strings["inspect_graph"] if ja else "Inspect the machine-readable navigation graph")}</a></p>',
             f'<div class="provider-grid">{"".join(cards)}</div>',
         ]
     )
@@ -598,4 +596,3 @@ def generate_from_bundle(repository, graph, overlays, reader_translations, publi
             remove_generated_guided_root(root, safe_output_root)
         raise
     return messages
-

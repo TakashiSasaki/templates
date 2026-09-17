@@ -84,14 +84,13 @@ class PortalPublicationPolicyTests(unittest.TestCase):
             "`/capabilities/`",
             "`/lifecycle/`",
             "`/policy/`",
-            "`/repository-trees/`",
-            "`/files/`",
             "`/guided/`",
             "`/glossary/`",
         ):
             with self.subTest(entry=entry):
                 self.assertIn(entry, policy)
         self.assertNotIn("`/overview/`", policy)
+        self.assertIn("immutable GitHub blob/tree links", policy)
         self.assertIn("Composition and Policy", policy)
         self.assertIn("former Skill/Webapp copyable-template trees are retired", policy)
 

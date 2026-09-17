@@ -76,6 +76,7 @@ Object.defineProperty(globalThis, "navigator", {
 });
 
 const require = createRequire(import.meta.url);
+globalThis.TemplatesGithubUrls = require("../assets/javascripts/github-url.js");
 const playground = require("../assets/javascripts/composition-playground.js");
 
 function clone(value) {
@@ -129,7 +130,8 @@ function makeHarness(name) {
   for (const selector of [
     "[data-playground-status]", "[data-playground-app]", "[data-playground-recipe]",
     "[data-playground-optionals]", "[data-playground-validity]", "[data-playground-semantic-revision]",
-    "[data-playground-provider-revision]", "[data-playground-projection-id]", "[data-playground-resolved]",
+    "[data-playground-provider-revision]", "[data-playground-semantic-revision-link]",
+    "[data-playground-provider-revision-link]", "[data-playground-projection-id]", "[data-playground-resolved]",
     "[data-playground-config]", "[data-playground-copy]"
   ]) selectors.set(selector, new FakeNode(selector.includes("recipe") ? "select" : "div"));
   selectors.get("[data-playground-app]").hidden = true;

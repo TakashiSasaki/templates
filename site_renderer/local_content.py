@@ -1,6 +1,7 @@
 """Fill declared slots from Site's own content, never from provider checkouts."""
 from pathlib import Path, PurePosixPath
 import json
+from urllib.parse import unquote
 from publication_bundle.contract import BundleError, regular, safe_path
 from publication_bundle.paths import public_path
 from publication_bundle.markdown import _rewrite_markdown
@@ -11,6 +12,7 @@ from site_renderer.owned_content.translation_fragment_reconciliation import reco
 from site_renderer.owned_content.translation_link_selection import rewrite_current_localized_links
 from site_renderer.owned_content.translation_coverage import build_reader_coverage
 from site_renderer.owned_content.reader_navigation_locales import build_runtime_map, load_overlays
+from site_renderer.github import github_blob_url
 
 
 def put(source, target):
@@ -28,7 +30,7 @@ def copy_assets(source,target):
         put(path,target/path.relative_to(source))
 
 
-def fill(site_root,docs_root,documents,nav,provider_translations,coverage,output):
+def fill(site_root,docs_root,documents,nav,provider_translations,coverage,output,*,site_revision=None):
     slots=[d for d in documents if d['slot']]
     local_docs={d['document']:{'source':PurePosixPath(d['source']),'optional':False,'home':d['destination']=='index.md'} for d in slots}
     pages=[{**d,'destination':PurePosixPath(d['destination'])} for d in slots]
@@ -36,9 +38,25 @@ def fill(site_root,docs_root,documents,nav,provider_translations,coverage,output
     copy_assets(site_root/'assets',docs_root)
     published={PurePosixPath(d['source']):PurePosixPath(d['destination']) for d in slots}
     source_paths=frozenset(e.path for e in read_entries(site_root) if entry_label(e)=='file')
+    def site_source_url(source, suffix):
+        query, marker, fragment = suffix.partition("#")
+        url = github_blob_url(
+            'TakashiSasaki/templates',
+            site_revision,
+            source,
+            fragment=unquote(fragment) if marker else None,
+        )
+        if query:
+            if marker:
+                base, hash_marker, hash_value = url.partition("#")
+                url = base + query + hash_marker + hash_value
+            else:
+                url += query
+        return url
+
     for d in slots:
         path=docs_root/d['destination']
-        text,_=_rewrite_markdown(path.read_text(encoding='utf-8'),source_document=PurePosixPath(d['source']),site_document=PurePosixPath(d['destination']),document_targets=published,asset_rules=[],docs_root=docs_root,publication='site',site_source_paths=source_paths)
+        text,_=_rewrite_markdown(path.read_text(encoding='utf-8'),source_document=PurePosixPath(d['source']),site_document=PurePosixPath(d['destination']),document_targets=published,asset_rules=[],docs_root=docs_root,publication='site',site_source_paths=source_paths,site_source_url=site_source_url)
         path.write_text(text,encoding='utf-8')
     local={'site':(site_root,local_docs,[])}
     records=publish_translations(local,pages,docs_root)

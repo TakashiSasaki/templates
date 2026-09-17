@@ -14,10 +14,10 @@ import tempfile
 
 from publication_bundle.contract import BundleError, read_json, regular, canonical, digest
 from site_renderer.bundle import validate, validate_locked, load_lock
-from publication_bundle.repository import TreeEntry, FileRecord, PreviewRecord, build_tree, configured_base_path
+from publication_bundle.repository import configured_base_path
 from publication_bundle.source_models import raw_path
 from publication_bundle.source_reader import checked_revision, collect_records
-from site_renderer import repository_trees as trees, previews, repository_browser as browser, guided, guided_locales
+from site_renderer import guided, guided_locales
 from site_renderer.config import render_nav
 from site_renderer.local_content import fill, put
 
@@ -190,12 +190,14 @@ def render(*,bundle,site_root,output,expected_identity,public_url='https://templ
 
 def render_snapshot(*,bundle,site_root,output,identity,site_revision,parent_identity,parent_directory,original_bundle,original_site,public_url,deployment_timestamp):
     with tempfile.TemporaryDirectory(prefix='site-render-') as temporary:
+        from publication_bundle.repository import FileRecord, PreviewRecord, TreeEntry, build_tree
+        from site_renderer import previews, repository_browser as browser, repository_trees as trees
         build=Path(temporary)/'build';build.mkdir();docs=build/'docs';docs.mkdir()
         for name in identity['files']:
             if name.startswith('publication/'):
                 put(regular(bundle,name),docs/name.removeprefix('publication/'))
         documents=read_json(bundle/'documents.json');nav=read_json(bundle/'navigation.json')
-        translations=fill(site_root,docs,documents,nav,read_json(bundle/'translation-publication.json'),read_json(bundle/'translation-availability.json'),build)
+        translations=fill(site_root,docs,documents,nav,read_json(bundle/'translation-publication.json'),read_json(bundle/'translation-availability.json'),build,site_revision=site_revision)
         # This script exposes the same pure Site-owned metadata function used by the old CLI.
         import importlib.util
         spec=importlib.util.spec_from_file_location('_site_translation_metadata',site_root/'scripts/translation_reader_metadata.py')

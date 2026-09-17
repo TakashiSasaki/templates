@@ -5,6 +5,7 @@ import test from "node:test";
 import { gzipSync } from "node:zlib";
 
 const require = createRequire(import.meta.url);
+globalThis.TemplatesGithubUrls = require("../assets/javascripts/github-url.js");
 const playground = require("../assets/javascripts/composition-playground.js");
 const fixturePath = new URL("./fixtures/composition-playground-v1.json", import.meta.url);
 
@@ -129,6 +130,31 @@ function fakeRoot(name) {
   const status = { textContent: "" };
   const app = { hidden: true };
   const placeholder = {};
+  const semanticRevision = { textContent: "" };
+  const providerRevision = { textContent: "" };
+  const semanticRevisionLink = { href: "" };
+  const providerRevisionLink = { href: "" };
+  const projectionId = { textContent: "" };
+  const resolved = { firstChild: null, appendChild() {}, removeChild() {} };
+  const config = { textContent: "" };
+  const recipe = { value: "", addEventListener() {} };
+  const optionals = { firstChild: null, appendChild() {}, removeChild() {} };
+  const copy = { addEventListener() {} };
+  const selectors = new Map([
+    ["[data-playground-status]", status],
+    ["[data-playground-app]", app],
+    ["[data-playground-recipe]", recipe],
+    ["[data-playground-optionals]", optionals],
+    ["[data-playground-validity]", { textContent: "" }],
+    ["[data-playground-semantic-revision]", semanticRevision],
+    ["[data-playground-provider-revision]", providerRevision],
+    ["[data-playground-semantic-revision-link]", semanticRevisionLink],
+    ["[data-playground-provider-revision-link]", providerRevisionLink],
+    ["[data-playground-projection-id]", projectionId],
+    ["[data-playground-resolved]", resolved],
+    ["[data-playground-config]", config],
+    ["[data-playground-copy]", copy]
+  ]);
   return {
     name,
     isConnected: true,
@@ -139,9 +165,7 @@ function fakeRoot(name) {
     status,
     app,
     querySelector(selector) {
-      if (selector === "[data-playground-status]") return status;
-      if (selector === "[data-playground-app]") return app;
-      return placeholder;
+      return selectors.get(selector) || placeholder;
     }
   };
 }

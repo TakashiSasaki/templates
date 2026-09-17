@@ -108,7 +108,6 @@ your separate product repository
     <a class="portal-doc-link" href="/glossary/">Glossary</a>
     <a class="portal-doc-link" href="/guided/">Browse by index.md</a>
     <a class="portal-doc-link" href="repository-trees/">Repository trees</a>
-    <a class="portal-doc-link" href="files/">Source files</a>
   </div>
 </nav>
 

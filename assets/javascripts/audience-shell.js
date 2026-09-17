@@ -164,7 +164,7 @@
     if (!utilities) { utilities = document.createElement("nav"); utilities.className = "audience-utilities"; shell.append(utilities); }
     utilities.setAttribute("aria-label", text === labels.ja ? "共通ツール" : "Shared tools");
     utilities.replaceChildren();
-    for (const [route, en, ja] of [["/glossary/","Glossary","用語集"],["/files/","Source","ソース"],["/guided/","Browse by index","索引から探す"],["/build-provenance.json","Build provenance","ビルド来歴"]]) {
+    for (const [route, en, ja] of [["/glossary/","Glossary","用語集"],["/guided/","Browse by index","索引から探す"],["/build-provenance.json","Build provenance","ビルド来歴"]]) {
       const link = document.createElement("a"); link.href = href(route); link.textContent = text === labels.ja ? ja : en; utilities.append(link);
     }
     function list(nodes, trail = []) {

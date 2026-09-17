@@ -4,7 +4,7 @@ Four independent authorities provide reusable Composition and Policy systems and
 
 - **Composition** owns artifact, capability, lifecycle and topology semantics, Composer, schemas, documentation and translations.
 - **Policy** owns coding-agent operating semantics, procedures, profiles, tooling, documentation and translations.
-- **Integration** selects reviewed providers and produces a deterministic Integrated Publication Bundle, including reader IA, translation availability, glossary, guided navigation and immutable source models.
+- **Integration** selects reviewed providers and produces a deterministic Integrated Publication Bundle, including reader IA, translation availability, glossary, guided navigation and exact provenance.
 - **Site** renders the selected Bundle and owns presentation, browser runtime, PWA, accessibility and explicit GitHub Pages deployment.
 
 ## Start here
@@ -22,7 +22,7 @@ Choose the path that matches the task you are trying to accomplish:
 | Follow the Website product walkthrough | [Website](https://templates.moukaeritai.work/website/) |
 | Understand Web application-specific artifact semantics | [Webapp](https://templates.moukaeritai.work/webapp/) |
 | Look up a repository term without leaving the documentation | [Glossary](https://templates.moukaeritai.work/glossary/) |
-| Inspect the exact reviewed provider source behind a page | [Repository trees](https://templates.moukaeritai.work/repository-trees/) or [source files](https://templates.moukaeritai.work/files/) |
+| Inspect the exact reviewed provider source behind a page | Follow the immutable GitHub source links in [Guided navigation](https://templates.moukaeritai.work/guided/) |
 
 A first-time application author normally starts with **Composition**, then uses **Policy** when the product repository also needs coding-agent operating rules. You do not need to understand Site publication internals, provider branches, or deployment workflows before using either authority.
 
