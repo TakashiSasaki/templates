@@ -348,7 +348,9 @@ def main(arguments: Sequence[str] | None = None) -> int:
             if not args.expected_head:
                 raise RuntimeError("ready requires --expected-head")
             if args.checks:
-                raise RuntimeError("ready does not accept --check; use --base-ref for applicability")
+                raise RuntimeError(
+                    "ready does not accept --check; use --base-ref for applicability"
+                )
             if not args.base_ref:
                 raise RuntimeError("ready requires --base-ref")
             selected = run_ready(args.base_ref, head)

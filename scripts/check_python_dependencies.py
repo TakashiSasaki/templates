@@ -4,11 +4,10 @@
 from __future__ import annotations
 
 import ast
-from dataclasses import dataclass
 import re
-from pathlib import Path
 import sys
-
+from dataclasses import dataclass
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 REQUIREMENT = re.compile(
@@ -158,11 +157,14 @@ def validate_environment(
             continue
         distribution = IMPORT_DISTRIBUTIONS.get(module)
         if distribution is None:
-            errors.append(f"{environment.name}: no bounded distribution mapping for import {module}")
+            errors.append(
+                f"{environment.name}: no bounded distribution mapping for import {module}"
+            )
             continue
         if normalize(distribution) not in requirements:
             errors.append(
-                f"{environment.name}: import {module} requires undeclared distribution {distribution}"
+                f"{environment.name}: import {module} requires undeclared distribution "
+                f"{distribution}"
             )
     return errors
 
