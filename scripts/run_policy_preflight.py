@@ -10,6 +10,8 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 PYTHON_ROOTS = (
     ROOT / "src",
     ROOT / "tests",
@@ -210,6 +212,10 @@ def check_docs() -> None:
     run(sys.executable, "-m", "mkdocs", "build", "--strict", "--clean")
 
 
+def check_dependency_boundary() -> None:
+    run(sys.executable, "scripts/check_python_dependencies.py")
+
+
 def check_release_state() -> None:
     source_ref = os.environ.get("POLICY_SOURCE_REF", "HEAD")
     run(sys.executable, "scripts/verify-release-state.py", "--git-ref", source_ref)
@@ -225,6 +231,63 @@ def check_trusted_review() -> None:
     )
 
 
+def require_clean_tree() -> None:
+    status = subprocess.check_output(
+        ["git", "status", "--porcelain=v1", "--untracked-files=all"],
+        cwd=ROOT,
+        text=True,
+    ).strip()
+    if status:
+        raise RuntimeError(
+            "ready requires a clean index and working tree with no untracked files"
+        )
+
+
+def fail_closed_decision(reason: str):
+    from scripts.classify_policy_ci import Decision
+
+    return Decision(True, reason, True, reason, "full")
+
+
+def classify_ready_applicability(base_ref: str, head: str):
+    """Reuse the CI classifier and make every classifier failure run both probes."""
+
+    try:
+        from scripts import classify_policy_ci
+
+        paths = classify_policy_ci.changed_paths(base_ref, head)
+        decision = classify_policy_ci.classify_paths(paths)
+        if not isinstance(decision, classify_policy_ci.Decision):
+            return fail_closed_decision("malformed-classifier-output")
+        if not all(
+            isinstance(value, bool)
+            for value in (
+                decision.release_state_required,
+                decision.trusted_review_required,
+            )
+        ):
+            return fail_closed_decision("unknown-applicability-result")
+        return decision
+    except Exception as exc:  # classifier uncertainty must never skip a probe
+        print(f"Policy applicability classification fell back to full: {exc}", file=sys.stderr)
+        return fail_closed_decision("base-classifier-unavailable")
+
+
+def run_ready(base_ref: str, head: str) -> tuple[str, ...]:
+    require_clean_tree()
+    selected = list(PROFILES["full"])
+    decision = classify_ready_applicability(base_ref, head)
+    if decision.release_state_required:
+        selected.append("release-state")
+    if decision.trusted_review_required:
+        selected.append("trusted-review")
+    for name in selected:
+        print(f"POLICY_PREFLIGHT_CHECK_START name={name} head={head}", flush=True)
+        CHECKS[name]()
+        print(f"POLICY_PREFLIGHT_CHECK_PASS name={name} head={head}", flush=True)
+    return tuple(selected)
+
+
 CHECKS: dict[str, Callable[[], None]] = {
     "compile": check_compile,
     "environment": check_environment,
@@ -237,6 +300,7 @@ CHECKS: dict[str, Callable[[], None]] = {
     "installed-command": check_installed_command,
     "runtime": check_runtime,
     "docs": check_docs,
+    "dependency-boundary": check_dependency_boundary,
     "release-state": check_release_state,
     "trusted-review": check_trusted_review,
 }
@@ -254,8 +318,10 @@ PROFILES = {
         "installed-command",
         "runtime",
         "docs",
+        "dependency-boundary",
     ),
 }
+PROFILES["ready"] = PROFILES["full"]
 
 
 def parse_args(arguments: Sequence[str] | None = None) -> argparse.Namespace:
@@ -263,6 +329,7 @@ def parse_args(arguments: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("profile", nargs="?", choices=sorted(PROFILES), default="fast")
     parser.add_argument("--check", choices=sorted(CHECKS), action="append", dest="checks")
     parser.add_argument("--expected-head")
+    parser.add_argument("--base-ref")
     return parser.parse_args(arguments)
 
 
@@ -276,12 +343,21 @@ def main(arguments: Sequence[str] | None = None) -> int:
             file=sys.stderr,
         )
         return 1
-    selected = tuple(args.checks or PROFILES[args.profile])
     try:
-        for name in selected:
-            print(f"POLICY_PREFLIGHT_CHECK_START name={name} head={head}", flush=True)
-            CHECKS[name]()
-            print(f"POLICY_PREFLIGHT_CHECK_PASS name={name} head={head}", flush=True)
+        if args.profile == "ready":
+            if not args.expected_head:
+                raise RuntimeError("ready requires --expected-head")
+            if args.checks:
+                raise RuntimeError("ready does not accept --check; use --base-ref for applicability")
+            if not args.base_ref:
+                raise RuntimeError("ready requires --base-ref")
+            selected = run_ready(args.base_ref, head)
+        else:
+            selected = tuple(args.checks or PROFILES[args.profile])
+            for name in selected:
+                print(f"POLICY_PREFLIGHT_CHECK_START name={name} head={head}", flush=True)
+                CHECKS[name]()
+                print(f"POLICY_PREFLIGHT_CHECK_PASS name={name} head={head}", flush=True)
     except (OSError, RuntimeError, ValueError, subprocess.CalledProcessError) as exc:
         print(
             f"POLICY_PREFLIGHT_FAIL profile={args.profile} head={head} error={exc}",
