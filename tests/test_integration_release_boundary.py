@@ -18,6 +18,10 @@ class ReleaseBoundaryTests(unittest.TestCase):
         for value in (caller,workflow):self.assertTrue(all(p=='read' for p in value['permissions'].values()))
         steps=workflow['jobs']['qualify']['steps']
         self.assertEqual([s['with']['path'] for s in steps if s.get('uses','').startswith('actions/checkout@')],['integration-source','composition-source','policy-source'])
+        integration_checkout = next(
+            step for step in steps if step.get('with', {}).get('path') == 'integration-source'
+        )
+        self.assertEqual(integration_checkout['with']['fetch-depth'], 0)
         commands='\n'.join(s.get('run','') for s in steps)
         for required in ('qualify_integration.py','run_integration_preflight.py fast','publication_bundle_artifact.py pack','--expected "$EXPECTED_PRODUCER"'):self.assertIn(required,commands)
         for obsolete in ('test_bundle_review_invariants','test_translation_manifest_closure','verify_bootstrap_equivalence.py','bootstrap_equivalence'):self.assertNotIn(obsolete,commands)

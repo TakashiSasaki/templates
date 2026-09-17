@@ -76,6 +76,7 @@ jobs:
         with:
           ref: ${{ inputs.producer_ref || github.sha }}
           path: integration-source
+          fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-python@v6
         with:
