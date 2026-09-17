@@ -5,6 +5,12 @@ Bundle schema 4 is the explicit three-provider extension: `modeling`,
 `composition`, and `policy`. A v4 Bundle is never inferred from a v3 content
 digest; schema, provider set, producer revision, and identity must all match.
 
+Unlike v3, a v4 manifest carries an Integration-normalized `requirements`
+closure and its `requirements_digest`. Each entry names the provider that
+declared the requirement, its required/optional status, and the only permitted
+fallback. The closure is part of Bundle identity. Site compares this exact
+property with its support contract; it never reads raw provider declarations.
+
 The public `publication_bundle.contract` validator and JSON schema define the versioned
 Integration output. `integration/producer.py` is the independent implementation;
 consumers must not import that implementation. The producer requires only its own exact

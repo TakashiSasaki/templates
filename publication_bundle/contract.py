@@ -9,6 +9,7 @@ SCHEMA_VERSION = 3
 SCHEMA_VERSION_V4 = 4
 SHA = re.compile(r'^[0-9a-f]{40}$')
 DIGEST = re.compile(r'^[0-9a-f]{64}$')
+FEATURE = re.compile(r'^[a-z0-9]+(?:[.-][a-z0-9]+)*$')
 MAX_FILES = 50000
 MAX_BYTES = 1024 * 1024 * 1024
 MODELS = ('documents.json', 'navigation.json', 'translation-availability.json',
@@ -26,6 +27,9 @@ PROVIDER_ORDERS = {
 }
 FIELDS = {'schema_version', 'producer', 'providers', 'configuration_digest',
           'files', 'content_digest', 'identity'}
+FIELDS_V4 = FIELDS | {'requirements', 'requirements_digest'}
+REQUIREMENT_FIELDS = frozenset({'provider', 'feature', 'required', 'fallback'})
+REQUIREMENT_FALLBACKS = frozenset({'none', 'generic-document', 'ignore'})
 
 
 class BundleError(ValueError):
@@ -39,6 +43,43 @@ def canonical(value):
 
 def digest(value):
     return hashlib.sha256(value).hexdigest()
+
+
+def validate_requirements(value, providers):
+    """Validate the Integration-normalized Site requirement closure.
+
+    This is intentionally a public Bundle contract.  It checks structure,
+    provider binding, and fallback syntax, but does not infer support from a
+    feature's spelling.  Site compares the exact closure with its own support
+    contract; a syntactically new feature therefore fails closed as an
+    adaptation rather than being silently accepted.
+    """
+    if not isinstance(value, list):
+        raise BundleError('Bundle requirements must be an array')
+    if not isinstance(providers, dict):
+        raise BundleError('Bundle providers are required before validating requirements')
+    allowed_providers = set(providers)
+    seen = set()
+    for index, item in enumerate(value):
+        if not isinstance(item, dict) or set(item) != REQUIREMENT_FIELDS:
+            raise BundleError(f'invalid Bundle requirement at index {index}')
+        provider = item['provider']
+        feature = item['feature']
+        if (not isinstance(provider, str) or provider not in allowed_providers
+                or not isinstance(feature, str) or FEATURE.fullmatch(feature) is None):
+            raise BundleError(f'invalid Bundle requirement identity at index {index}')
+        if type(item['required']) is not bool or item['fallback'] not in REQUIREMENT_FALLBACKS:
+            raise BundleError(f'invalid Bundle requirement fallback at index {index}')
+        key = (provider, feature)
+        if key in seen:
+            raise BundleError(f'duplicate Bundle requirement: {provider}:{feature}')
+        seen.add(key)
+    return value
+
+
+def requirements_digest(value):
+    """Return the canonical digest of a validated normalized closure."""
+    return digest(canonical(value))
 
 
 def read_json(path):
@@ -141,7 +182,7 @@ def _validate_closed_inventory(files, expected_publication_paths=None):
 
 
 def seal(root, *, producer, providers, configuration_digest, expected_publication_paths,
-         schema_version=None):
+         schema_version=None, requirements=None):
     if (root / 'bundle.json').exists():
         raise BundleError('Bundle already sealed')
     expected_publication_paths = _normalize_expected_publication_paths(
@@ -156,6 +197,10 @@ def seal(root, *, producer, providers, configuration_digest, expected_publicatio
     data = dict(schema_version=schema_version, producer=producer, providers=providers,
                 configuration_digest=configuration_digest, files=files,
                 content_digest=digest(canonical(files)))
+    if schema_version == SCHEMA_VERSION_V4:
+        validate_requirements(requirements, providers)
+        data['requirements'] = requirements
+        data['requirements_digest'] = requirements_digest(requirements)
     data['identity'] = digest(canonical(data))
     (root / 'bundle.json').write_bytes(canonical(data))
     validate(root, expected_producer=producer, expected_providers=providers,
@@ -171,11 +216,13 @@ def validate(root, *, expected_identity=None, expected_producer=None,
             expected_publication_paths
         )
     data = read_json(regular(root, 'bundle.json'))
-    if (not isinstance(data, dict) or set(data) != FIELDS
-            or type(data['schema_version']) is not int
+    if (not isinstance(data, dict) or type(data.get('schema_version')) is not int
             or data['schema_version'] not in PROVIDER_SETS):
         raise BundleError('unsupported Bundle schema or fields')
     schema_version = data['schema_version']
+    expected_fields = FIELDS_V4 if schema_version == SCHEMA_VERSION_V4 else FIELDS
+    if set(data) != expected_fields:
+        raise BundleError('unsupported Bundle schema or fields')
     producer, providers = data['producer'], data['providers']
     if (not isinstance(producer, dict) or set(producer) != {'authority', 'revision'}
             or producer['authority'] not in {'site-internal-integration', 'integration'}
@@ -196,6 +243,12 @@ def validate(root, *, expected_identity=None, expected_producer=None,
         raise BundleError('producer revision mismatch')
     if expected_providers is not None and providers != expected_providers:
         raise BundleError('provider revision mismatch')
+    if schema_version == SCHEMA_VERSION_V4:
+        validate_requirements(data['requirements'], providers)
+        if (not isinstance(data['requirements_digest'], str)
+                or not DIGEST.fullmatch(data['requirements_digest'])
+                or requirements_digest(data['requirements']) != data['requirements_digest']):
+            raise BundleError('Bundle requirements digest mismatch')
     files = data['files']
     if not isinstance(files, dict) or not set(MODELS) <= files.keys():
         raise BundleError('incomplete Bundle models')

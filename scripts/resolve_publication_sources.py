@@ -194,20 +194,22 @@ def resolve_candidate_sources(
     *,
     required_new_providers: tuple[str, ...] = (),
 ) -> dict[str, str]:
-    """Resolve a candidate tuple without changing the committed v1 lock.
+    """Resolve a candidate tuple without changing the committed lock.
 
-    The committed lock remains the two-provider production baseline.  A new
-    provider is accepted only when its full-SHA override is explicit and the
-    caller names it as part of the candidate tuple.
+    During the explicit v1-to-v2 transition, a provider absent from the
+    committed lock may be added only by an explicit full-SHA override.  Once
+    the v2 lock is committed, the same option remains useful for evaluating a
+    replacement revision, but it never changes the lock by itself.
     """
     resolved = resolve_sources(path, overrides)
     for name in required_new_providers:
-        if name not in ALL_PUBLICATION_NAMES or name in PUBLICATION_NAMES:
+        if name not in ALL_PUBLICATION_NAMES:
             raise SourceLockError(f"invalid new candidate provider: {name}")
         value = overrides.get(name)
         if value is None or FULL_COMMIT_PATTERN.fullmatch(value) is None:
             raise SourceLockError(f"candidate requires an explicit full SHA for {name}")
-        resolved[name] = value
+        if name not in resolved:
+            resolved[name] = value
     unexpected = set(overrides) - set(resolved)
     if unexpected:
         raise SourceLockError("candidate contains unrequested providers: " + ", ".join(sorted(unexpected)))

@@ -22,8 +22,8 @@ from typing import Any
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from integration.capabilities import CapabilityError, validate_catalog_closure, validate_provider_declaration
-from publication_bundle.contract import BundleError, read_json, validate
+from integration.capabilities import CapabilityError, normalize_requirement_closure, validate_catalog_closure, validate_provider_declaration
+from publication_bundle.contract import BundleError, read_json, requirements_digest, validate
 from scripts.resolve_publication_sources import SourceLockError, read_json_object, resolve_sources
 
 
@@ -119,23 +119,6 @@ def _git_identity(root: Path, provider: str, expected: str) -> None:
     )
     if status.returncode != 0 or status.stdout:
         raise QualificationEvidenceError(f"{provider} checkout is not a clean exact tree")
-
-
-def _merge_requirements(declarations: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
-    merged: dict[str, dict[str, Any]] = {}
-    for declaration in declarations.values():
-        for item in declaration["requirements"]:
-            feature = item["feature"]
-            current = merged.setdefault(
-                feature,
-                {"feature": feature, "required": False, "fallback": item["fallback"]},
-            )
-            current["required"] = current["required"] or item["required"]
-            if item["fallback"] == "none" or current["fallback"] == "none":
-                current["fallback"] = "none"
-            elif item["fallback"] == "generic-document":
-                current["fallback"] = "generic-document"
-    return [merged[name] for name in sorted(merged)]
 
 
 def _bundle_counts(bundle: Path, providers: dict[str, str]) -> tuple[dict[str, int], dict[str, int]]:
@@ -315,7 +298,10 @@ def verify(
             document_count=document_counts[provider],
             asset_count=asset_counts[provider],
         )
-    requirements = _merge_requirements(declarations)
+    requirements = normalize_requirement_closure(declarations, tuple(selected))
+    if manifest["schema_version"] == 4:
+        if manifest.get("requirements") != requirements or manifest.get("requirements_digest") != requirements_digest(requirements):
+            raise QualificationEvidenceError("Bundle requirement closure is not bound to the exact provider declarations")
     expected_requirements = {
         "required": [item["feature"] for item in requirements if item["required"]],
         "supported": sorted(SUPPORTED_FEATURES),

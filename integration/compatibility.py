@@ -48,6 +48,7 @@ class Requirement:
     feature: str
     required: bool
     fallback: str
+    provider: str | None = None
 
 
 def _sha(value: Any, field: str) -> str:
@@ -66,17 +67,26 @@ def _requirements(value: Any) -> list[Requirement]:
     if not isinstance(value, list):
         raise InvalidInputError("requirements must be an array")
     result: list[Requirement] = []
-    seen: set[str] = set()
+    seen: set[tuple[str | None, str]] = set()
     for index, raw in enumerate(value):
-        if not isinstance(raw, dict) or set(raw) != {"feature", "required", "fallback"}:
+        if not isinstance(raw, dict) or set(raw) not in (
+            {"feature", "required", "fallback"},
+            {"provider", "feature", "required", "fallback"},
+        ):
             raise InvalidInputError(f"requirements[{index}] has an invalid shape")
         feature, required, fallback = raw["feature"], raw["required"], raw["fallback"]
-        if not isinstance(feature, str) or not feature or feature in seen:
+        provider = raw.get("provider")
+        if not isinstance(feature, str) or not feature:
             raise InvalidInputError(f"requirements[{index}].feature is missing or duplicated")
         if type(required) is not bool or fallback not in {"none", "generic-document", "ignore"}:
             raise InvalidInputError(f"requirements[{index}] has an invalid required/fallback value")
-        seen.add(feature)
-        result.append(Requirement(feature, required, fallback))
+        if provider is not None and (not isinstance(provider, str) or not provider):
+            raise InvalidInputError(f"requirements[{index}].provider is invalid")
+        key = (provider, feature)
+        if key in seen:
+            raise InvalidInputError(f"requirements[{index}].feature is missing or duplicated")
+        seen.add(key)
+        result.append(Requirement(feature, required, fallback, provider))
     return result
 
 
@@ -208,6 +218,8 @@ def classify_preflight(payload: Mapping[str, Any]) -> dict[str, Any]:
         if not isinstance(supported, list) or any(not isinstance(item, str) for item in supported):
             raise InvalidInputError("consumer.supported_features must be an array of feature IDs")
         requirements = _requirements(candidate.get("requirements", []))
+        if any(item.provider is not None and item.provider not in providers for item in requirements):
+            raise InvalidInputError("candidate requirement names a provider outside the exact tuple")
         consumer_fallbacks = consumer.get("fallbacks", {})
         if (not isinstance(consumer_fallbacks, dict)
                 or any(not isinstance(key, str) or not isinstance(value, str)

@@ -19,7 +19,7 @@ from typing import Any
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from integration.capabilities import validate_provider_declaration
+from integration.capabilities import normalize_requirement_closure, validate_provider_declaration
 from integration.compatibility import classify_preflight
 from integration.git import checked_revision
 from integration.publication_model import load_catalog, parse_manifest, read_json
@@ -42,20 +42,11 @@ def _sha(value: str, label: str) -> str:
 
 
 def _requirements(roots: dict[str, Path], names: tuple[str, ...]) -> list[dict[str, Any]]:
-    merged: dict[str, dict[str, Any]] = {}
-    for provider in names:
-        declaration = validate_provider_declaration(roots[provider], provider)
-        for item in declaration["requirements"]:
-            current = merged.setdefault(
-                item["feature"],
-                {"feature": item["feature"], "required": False, "fallback": item["fallback"]},
-            )
-            current["required"] = current["required"] or item["required"]
-            if item["fallback"] == "none" or current["fallback"] == "none":
-                current["fallback"] = "none"
-            elif item["fallback"] == "generic-document":
-                current["fallback"] = "generic-document"
-    return [merged[name] for name in sorted(merged)]
+    declarations = {
+        provider: validate_provider_declaration(roots[provider], provider)
+        for provider in names
+    }
+    return normalize_requirement_closure(declarations, names)
 
 
 def _destinations(

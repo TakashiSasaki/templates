@@ -16,6 +16,8 @@ FEATURES_PATH = Path("contracts/publication-compatibility/feature-registry.json"
 PROTOCOL = "publication-bundle"
 FALLBACKS = {"none", "generic-document", "ignore"}
 RIGHTS = {"allowlisted", "reference-only", "not-assessed"}
+RECORD_SUBJECT_OWNERSHIP = "external-as-recorded"
+RECORD_REDISTRIBUTION = "local-record-metadata"
 EXPORT_KINDS = {"document", "asset", "record", "catalog"}
 
 
@@ -75,7 +77,8 @@ def validate_provider_declaration(root: Path, provider: str) -> dict[str, Any]:
     for index, item in enumerate(exports):
         if not isinstance(item, dict):
             raise CapabilityError(f"{provider}.exports[{index}] must be an object")
-        allowed = {"kind", "namespace", "media_type", "identity_basis", "feature", "rights"}
+        allowed = {"kind", "namespace", "media_type", "identity_basis", "feature", "rights",
+                   "subject_ownership", "redistribution"}
         if not set(item) <= allowed or not {"kind", "namespace", "media_type", "identity_basis"} <= set(item):
             raise CapabilityError(f"{provider}.exports[{index}] has an invalid shape")
         if item["kind"] not in EXPORT_KINDS or any(
@@ -91,6 +94,13 @@ def validate_provider_declaration(root: Path, provider: str) -> dict[str, Any]:
         rights = item.get("rights")
         if rights is not None and rights not in RIGHTS:
             raise CapabilityError(f"{provider}.exports[{index}] has invalid rights")
+        if item["kind"] == "record" and provider == "modeling":
+            expected = {"kind", "namespace", "media_type", "identity_basis", "feature",
+                        "subject_ownership", "redistribution"}
+            if set(item) != expected or item["subject_ownership"] != RECORD_SUBJECT_OWNERSHIP or item["redistribution"] != RECORD_REDISTRIBUTION:
+                raise CapabilityError(
+                    "modeling record export must separate external subject ownership from local metadata redistribution"
+                )
     requirements = value["requirements"]
     if not isinstance(requirements, list):
         raise CapabilityError(f"{provider} requirements must be an array")
@@ -110,6 +120,30 @@ def validate_provider_declaration(root: Path, provider: str) -> dict[str, Any]:
         requirement_features.add(feature)
     return {"provider": provider, "protocol": PROTOCOL, "exports": exports, "requirements": requirements,
             "export_features": sorted(export_features)}
+
+
+def normalize_requirement_closure(
+    declarations: dict[str, dict[str, Any]],
+    providers: tuple[str, ...] | list[str] | None = None,
+) -> list[dict[str, Any]]:
+    """Project provider requirements into a deterministic, provider-bound closure."""
+    names = tuple(providers or declarations)
+    if set(names) != set(declarations):
+        raise CapabilityError("requirement closure providers do not match declarations")
+    result: list[dict[str, Any]] = []
+    for provider in names:
+        declaration = declarations[provider]
+        if declaration.get("provider") != provider:
+            raise CapabilityError(f"requirement closure has a misbound {provider} declaration")
+        for item in declaration.get("requirements", []):
+            result.append({
+                "provider": provider,
+                "feature": item["feature"],
+                "required": item["required"],
+                "fallback": item["fallback"],
+            })
+    result.sort(key=lambda item: (names.index(item["provider"]), item["feature"]))
+    return result
 
 
 def validate_catalog_closure(declaration: dict[str, Any], *, document_count: int, asset_count: int) -> None:

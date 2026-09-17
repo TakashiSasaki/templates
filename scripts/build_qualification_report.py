@@ -16,7 +16,7 @@ from typing import Any
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from integration.capabilities import validate_provider_declaration
+from integration.capabilities import normalize_requirement_closure, validate_provider_declaration
 from integration.compatibility import classify_qualification
 from publication_bundle.contract import read_json
 
@@ -30,20 +30,11 @@ FEATURES = (
 
 
 def _requirements(roots: dict[str, Path], providers: tuple[str, ...]) -> list[dict[str, Any]]:
-    merged: dict[str, dict[str, Any]] = {}
-    for provider in providers:
-        declaration = validate_provider_declaration(roots[provider], provider)
-        for item in declaration["requirements"]:
-            current = merged.setdefault(
-                item["feature"],
-                {"feature": item["feature"], "required": False, "fallback": item["fallback"]},
-            )
-            current["required"] = current["required"] or item["required"]
-            if item["fallback"] == "none" or current["fallback"] == "none":
-                current["fallback"] = "none"
-            elif item["fallback"] == "generic-document":
-                current["fallback"] = "generic-document"
-    return [merged[name] for name in sorted(merged)]
+    declarations = {
+        provider: validate_provider_declaration(roots[provider], provider)
+        for provider in providers
+    }
+    return normalize_requirement_closure(declarations, providers)
 
 
 def _destinations(bundle: Path) -> list[str]:
@@ -72,6 +63,10 @@ def build_payload(args: argparse.Namespace) -> dict[str, Any]:
     provider_names = tuple(name for name in PROVIDERS if name in providers)
     roots = {provider: Path(getattr(args, f"{provider}_root")) for provider in provider_names}
     requirements = _requirements(roots, provider_names)
+    if bundle.get("schema_version") == 4:
+        from publication_bundle.contract import requirements_digest
+        if bundle.get("requirements") != requirements or bundle.get("requirements_digest") != requirements_digest(requirements):
+            raise ValueError("Bundle requirement closure does not match provider declarations")
     provider_registry = {provider: "TakashiSasaki/templates" for provider in provider_names}
     inputs = {
         "integration_revision": args.integration_revision,

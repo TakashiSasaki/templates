@@ -20,6 +20,7 @@ from integration.translation_coverage import build_reader_coverage
 from integration.reader_navigation_locales import load_overlays, build_runtime_map
 from integration.glossary import integrate_glossaries
 from integration.git import checked_revision
+from integration.capabilities import normalize_requirement_closure, validate_provider_declaration
 from integration import generate_index_navigation as navigation
 from integration import generate_index_navigation_base as navigation_base
 from integration import generate_index_navigation_locales as locales
@@ -190,10 +191,13 @@ def produce(*, root, provider_roots, provider_revisions, producer_revision, outp
     slots = read_json(root/'integration/site-slots.json','Site content slots')
     slot_documents = {d['id']:d for d in slots['documents']}
     publications = {}
+    declarations = {}
     for name in providers:
         provider_root = Path(provider_roots[name])
+        declarations[name] = validate_provider_declaration(provider_root, name)
         docs, assets = load_catalog(name,provider_root)
         publications[name] = (provider_root,docs,assets)
+    requirements = normalize_requirement_closure(declarations, providers)
     if 'modeling' in providers:
         manifest_data = add_generic_modeling_pages(manifest_data, publications['modeling'][1])
         overlay_data = add_generic_modeling_locale_labels(overlay_data, publications['modeling'][1])
@@ -297,6 +301,7 @@ def produce(*, root, provider_roots, provider_revisions, producer_revision, outp
             configuration_digest=digest(canonical(configuration)),
             expected_publication_paths=qualified_publication_paths,
             schema_version=4 if 'modeling' in providers else 3,
+            requirements=requirements if 'modeling' in providers else None,
         )
         bundle.rename(output)
     return result
