@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import re
+import tempfile
 import unittest
 from pathlib import Path
+
+from scripts.check_python_dependencies import Environment, validate, validate_environment
 
 ROOT = Path(__file__).resolve().parents[1]
 EXACT_REQUIREMENT = re.compile(
@@ -51,6 +54,22 @@ class RuntimeDependencyContractTests(unittest.TestCase):
             [],
             f"runtime/dev lock version mismatch for runtime dependencies: {mismatched}",
         )
+
+    def test_entrypoint_dependency_contract_is_current(self) -> None:
+        self.assertEqual([], validate(ROOT))
+
+    def test_missing_jsonschema_from_development_fixture_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "requirements-dev.lock").write_text("attrs===1.0\n", encoding="utf-8")
+            (root / "scripts").mkdir()
+            (root / "tests").mkdir()
+            (root / "scripts" / "entry.py").write_text(
+                "from jsonschema import Draft202012Validator\n", encoding="utf-8"
+            )
+            environment = Environment("fixture", "requirements-dev.lock", ("scripts/entry.py",))
+            errors = validate_environment(root, environment)
+        self.assertTrue(any("jsonschema" in error for error in errors), errors)
 
 
 if __name__ == "__main__":

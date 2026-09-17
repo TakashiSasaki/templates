@@ -32,6 +32,29 @@ workflows and tests are the executable authority for exact commands. The
 independent-evaluator path. It evaluates the Composition provider, rather than
 validating a consumer product that happens to have been composed from it.
 
+For repeated local editing, run `python scripts/run_composition_preflight.py fast`.
+Before starting expensive CI, run the exact-head ready gate from a clean checkout:
+
+```sh
+HEAD_SHA=$(git rev-parse HEAD)
+python scripts/run_composition_preflight.py ready \
+  --component-version-base <BASE_REF> \
+  --expected-head "$HEAD_SHA"
+```
+
+`ready` runs the Composition-owned validators, the consumer spine, the complete
+core unittest suite, Playground projection provenance, and dependency-boundary
+checks. It does not download ChromeDriver, contact GitHub, fetch a remote
+installer, use an external Integration checkout, or run the browser suite. The
+five core publication-contract tests that consume the reviewed Integration
+protocol remain in the canonical core suite and are reported as skipped unless
+`INTEGRATION_PUBLICATION_PROTOCOL_ROOT` is supplied; CI runs them with the
+exact reviewed protocol checkout. For on-demand local runtime checks, run
+`python -I scripts/run_composer_runtime_checks.py --check runtime-core` (or
+`--check all`). The `full` profile is the explicit browser, remote-installer and
+Integration-protocol path; the normal and broad compatibility matrices remain
+remote CI checks.
+
 The [authority migration history](migrations/composition-authority-migration.md)
 is retained as provenance for provider maintenance. It is not a consumer
 contract-migration procedure.

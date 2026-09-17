@@ -58,12 +58,11 @@ jobs:
         env:
           EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
         run: |
-          actual_head="$(git rev-parse HEAD)"
-          test "$actual_head" = "$EXPECTED_HEAD"
-          for projection in composition-playground-v1.json composition-playground-intent-v1.json; do
-            projection_head="$(python -c "import json; print(json.load(open('$projection'))['source']['revision'])")"
-            test "$projection_head" = "$EXPECTED_HEAD"
-          done
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          .venv/bin/python -I scripts/validate_playground_provenance.py \
+            --projection composition-playground-v1.json \
+            --projection composition-playground-intent-v1.json \
+            --expected-head "$EXPECTED_HEAD"
 
       - name: Upload canonical projection artifacts
         uses: actions/upload-artifact@v4
