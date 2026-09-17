@@ -1,0 +1,11 @@
+{
+  "authority": "models",
+  "status": "independent-authority",
+  "scope": "reusable information models explicitly accepted here and their descriptive records",
+  "canonicalLanguage": "en",
+  "history": "independent-root",
+  "automaticProviderFollowing": false,
+  "integrationAdoption": "not-enabled",
+  "sitePublication": "not-enabled",
+  "deployment": "not-authorized"
+}

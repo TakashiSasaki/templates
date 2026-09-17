@@ -1,0 +1,36 @@
+# Agent instructions — Models authority
+
+These are canonical, handwritten, English branch-local instructions. Read AUTHORITY.md before making changes. This file defines local application of the authority boundary; it does not replace the Policy authority's general repository-change policy.
+
+## Before mutation
+
+1. Retrieve live branch/head, relevant PRs, and affected authority contracts. Verify the actual branch and history. Do not trust an old conversation's SHA or infer ownership from file placement.
+2. Keep `models` independent from `composition`, `policy`, `integration`, and `site`. Never import their Git ancestry. Do not change another authority or enable publication without explicit authorization.
+3. State scope, non-goals, acceptance evidence, and the stopping boundary. There is no production compatibility requirement.
+
+## Resource intake
+
+- Decide whether the contribution is a locally owned model, an external resource description, a local profile/mapping, an implementation, or presentation. File extensions do not decide ownership.
+- Record upstream normative ownership separately from local record ownership. Registration is not endorsement, adoption, or transfer. Existing authority-specific schemas stay with their semantic owner.
+- Read primary sources. Preserve canonical identifiers, original edition labels, applicable languages, source URLs, and bounded observation claims. An inspected landing page does not prove a downloaded distribution's checksum or legal status.
+- Use English for English canonical sources and Japanese for Japanese canonical sources. Keep canonical titles and mark translations; do not silently translate normative meaning.
+- Distinguish resource, release, representation, distribution, snapshot, record, and Git identities. Do not label a mutable URL immutable, equate an open subset with a full classification, or claim every representation is lossless.
+- External bodies are reference-only by default. Do not vendor full standards, classification databases, license text, or executable code merely because publicly accessible. Check permissions and provenance before any separate snapshot intake.
+- Use established relationship predicates when their actual semantics fit. Keep exact/close matches, class equivalence, individual identity, and dependency separate. Attribute local assertions explicitly and bind version-sensitive assertions to versions.
+
+## Editing and validation
+
+- Treat individually authored records as source and generated catalogs as projections. Never independently edit a generated index.
+- Reuse an established JSON Schema/RDF validation engine rather than implementing a competing partial schema interpreter. Network access must not be required to validate the committed registry.
+- Validate schemas, record shape, semantic invariants, duplicate identities, references, languages, provenance, and generated-output freshness. Add negative tests for new invariants.
+- Do not invent hashes, licenses, reviewed state, or passing tests. Bind results to the exact file tree or commit and distinguish local checks, CI, and independent review.
+- Keep CI lean: Ubuntu and Python 3.11 by default. Windows or a Python-version matrix requires explicit instruction. Run local checks before expensive CI; do not add unrelated Site builds.
+- Keep normative constraints, validators, test vectors, results, and browser UI separate. Unsupported checks must not report conformance.
+
+## Collaboration and completion
+
+- Prefer logically separated stacked PRs, each based on its predecessor. Do not block downstream implementation on upstream CI, review, or merge.
+- Preserve independent authority histories and leave existing authorities unchanged unless explicitly authorized.
+- Maintain operational work/resume state in PR descriptions/comments, not in a Git-tracked session transcript. GitHub remains canonical for PR/head/CI/review facts. Do not duplicate review-finding ledgers.
+- After the final stack member, request exactly one whole-stack Codex diagnostic review covering dependencies, overlap/gaps, design consistency, final behavior, test adequacy, and unrelated changes. Include the authority's root/seed changes where relevant. Do not request per-member reviews as substitutes or repeat the whole-stack request.
+- Unless explicitly instructed otherwise, stop after that request and hand off without waiting for review and without merging. Report PR topology, exact heads, tests, outstanding CI/review, start/end/duration, and any tool limitation.
