@@ -116,6 +116,13 @@ def classify(
         report["next_action"] = "stop and inspect the exact candidate"
         report["evidence_refs"] = [str(exc)]
         return report
+    except Exception as exc:
+        report["classification"] = "UNKNOWN"
+        report["reason_codes"] = ["UNEXPECTED_CLASSIFIER_ERROR", type(exc).__name__]
+        report["affected_authorities"] = ["site"]
+        report["next_action"] = "stop and inspect the trusted classifier"
+        report["evidence_refs"] = [type(exc).__name__]
+        return report
 
 
 def main() -> int:
