@@ -3,6 +3,7 @@ import { createRequire } from "node:module";
 import test from "node:test";
 
 const require = createRequire(import.meta.url);
+globalThis.TemplatesGithubUrls = require("../assets/javascripts/github-url.js");
 const playground = require("../assets/javascripts/composition-playground.js");
 
 function clone(value) {
@@ -201,6 +202,8 @@ function fakeHarness(name, metaRevision = "c".repeat(40)) {
   const validity = make("p");
   const semanticRevision = make("code");
   const providerRevision = make("code");
+  const semanticRevisionLink = make("a");
+  const providerRevisionLink = make("a");
   const projectionId = make("code");
   const resolved = make("ul");
   const config = make("pre");
@@ -212,6 +215,8 @@ function fakeHarness(name, metaRevision = "c".repeat(40)) {
   selectors.set("[data-playground-validity]", validity);
   selectors.set("[data-playground-semantic-revision]", semanticRevision);
   selectors.set("[data-playground-provider-revision]", providerRevision);
+  selectors.set("[data-playground-semantic-revision-link]", semanticRevisionLink);
+  selectors.set("[data-playground-provider-revision-link]", providerRevisionLink);
   selectors.set("[data-playground-projection-id]", projectionId);
   selectors.set("[data-playground-resolved]", resolved);
   selectors.set("[data-playground-config]", config);
