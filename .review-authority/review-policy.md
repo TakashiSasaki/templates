@@ -41,6 +41,31 @@ corresponding authority and refresh affected bindings before use.
 _Source: `TakashiSasaki/templates@733c86941f8154f301a225054d88c6b8a477058a:policy/core/repository-topology-discovery.md`; rule ID: `core.discover-repository-topology-fail-closed`; severity: `mandatory`._
 
 
+## Discover local-checkout topology separately from repository topology
+
+Before a mutation whose safety depends on local checkout layout, inspect
+`contracts/local-checkout-topology.json` independently from
+`contracts/repository-topology.json`. Absence selects no explicit local-checkout
+topology and never infers a default workspace layout. A present but unreadable,
+unsafe, malformed, unsupported, or contradicted declaration must halt dependent
+operations.
+
+Composition owns local-checkout semantics. Consume the immutable schema and
+validator snapshot identified in `agent_policy/_local_checkout_contract/source.json`;
+consumer files cannot weaken it. Declaration validation proves only the intended
+pattern, not current Git state.
+
+For a declared Bare Worktree pattern, independently resolve and verify the common
+Git directory, current worktree root, workspace root, linked-worktree inventory,
+and target-branch occupancy using Git state. Never assume repository root equals
+worktree root. Treat HEAD/index/working-directory state as worktree-specific and
+refs, config, fetch, maintenance, and object storage as shared common-repository
+state. Reject unsafe/symlinked declaration paths and any required live-state
+contradiction before mutation.
+
+_Source: `TakashiSasaki/templates@733c86941f8154f301a225054d88c6b8a477058a:policy/core/local-checkout-topology-discovery.md`; rule ID: `core.discover-local-checkout-topology-fail-closed`; severity: `mandatory`._
+
+
 ## Define the change contract before editing
 
 Before editing, identify the requested outcome, the allowed change surface, the existing behavior and invariants that must be preserved, explicit non-goals, and the evidence required for acceptance. Treat unspecified behavior as preserved unless the requested change necessarily alters it; do not silently broaden the contract to resolve ambiguity or implementation difficulty.
@@ -80,6 +105,10 @@ _Source: `TakashiSasaki/templates@733c86941f8154f301a225054d88c6b8a477058a:polic
 
 Use the verification command declared by the repository and add focused checks needed for the changed behavior or failure mode. Confirm that the executed checks cover the changed surface and the current revision; a check that is pending, skipped, not triggered, stale, blocked, or merely inspected is not a passing result. Report every required check that was not run or did not pass.
 
+A validation claim is supported only when the claimed check is reachable from and actually executed by the authoritative validation entrypoint used to produce the evidence. A helper or test file existing beside a green workflow is not evidence that its assertions ran. Establish the effective path through workflow selection, canonical checker or test discovery, helper invocation, and the claimed assertion, including material conditions that can skip it. A module outside test discovery, an uncalled wrapper, an unused generated validation projection, or an assertion executed only in an optional/non-required lane cannot substantiate a claim of coverage by the required lane. Successful unrelated checks do not fill that gap.
+
+Use repository-appropriate evidence such as source inspection with execution results, test discovery, workflow wiring tests, or runtime markers; universal static call-graph tooling is not required. Reachability alone is not a passing result: establish execution and the claimed outcome for the applicable revision, configuration, and evidence layer. If the effective path or execution cannot be established, report that coverage as unverified rather than accepting a green aggregate result.
+
 _Source: `TakashiSasaki/templates@733c86941f8154f301a225054d88c6b8a477058a:policy/core/testing.md`; rule ID: `testing.run-required-checks`; severity: `mandatory`._
 
 
@@ -90,6 +119,8 @@ When a change relies on a structured contract, mutable lifecycle, asynchronous c
 Derive the cases from the changed invariant rather than from a fixed universal matrix. Do not require unrelated combinations, speculative stress cases, or exhaustive permutations when they do not exercise a material failure mode. A focused test may be unit-, integration-, system-, or workflow-level as long as it reaches the layer where the invariant can actually fail.
 
 When a defect or review finding proves that one dimension of an invariant was previously unguarded, inspect the bounded sibling dimensions that share the same root cause before declaring the repair complete. Examples include success versus failure completion, current versus stale context, listed relation versus required converse, missing versus extra structured fields, and nominal outer bound versus effective inner containment boundary. Add regression evidence for sibling cases that are materially reachable; do not broaden the change into unrelated cleanup.
+
+Close the materially reachable finding family before deliberately sending the repair to expensive final qualification or independent acceptance review. Where correctness depends on a downstream consumer, exercise a small representative path through the actual canonical entrypoint and consumer setup. A mock assertion that a helper received an argument does not establish that the real consumer received the required bytes, state, or resource. Keep unit tests where useful, but obtain evidence at the boundary where the changed invariant can fail; use existing validators rather than duplicating their semantics.
 
 _Source: `TakashiSasaki/templates@733c86941f8154f301a225054d88c6b8a477058a:policy/core/adversarial-invariant-testing.md`; rule ID: `testing.require-adversarial-invariant-coverage`; severity: `mandatory`._
 
@@ -289,6 +320,10 @@ Orchestration MUST distinguish these states:
 - `productive_parallel_work` — work performed while another dependency is pending that directly advances the declared completion frontier.
 
 A long-running CI job that is validly pending is `external_wait`, not `diagnostic_stall`, even when the provider exposes only an unchanged `pending` or `in_progress` status. Orchestration MUST separately define the condition that makes an opaque wait stale, timed out, failed, or otherwise eligible for reassessment; an unchanged status alone is not agent stall.
+
+Observation of an `external_wait` MUST itself be bounded. Orchestration MUST NOT enter an unbounded or long-lived synchronous sleep, watch, or poll loop merely to wait for CI, review, deployment, publication, or another external dependency to finish. Each foreground observation interval MUST have a finite stop condition appropriate to the execution surface, such as a bounded number of status reads, a bounded elapsed observation window when reliable time measurement exists, or a provider operation with an explicit finite timeout. This bounds agent observation activity; it does not impose a universal timeout on the external dependency itself.
+
+If that observation interval ends while the dependency is still legitimately pending, orchestration MUST preserve the dependency as `external_wait`, record its identity and concrete resume condition, and switch to available `productive_parallel_work`. When no authorized productive parallel work remains and further progress depends only on the external result, orchestration MUST checkpoint recoverable state and yield control at a resumable boundary rather than keep a worker or interactive turn occupied solely by synchronous waiting. Yielding control MUST NOT be reported as task completion, acceptance, or satisfaction of the pending dependency. On a later authorized resume, orchestration MUST refresh the dependency state before acting on it.
 
 Parallel work while waiting MUST directly advance completion. Appropriate examples include downstream stacked-branch preparation, PR-body synchronization, review-debt audit, exact-head applicability audit, deterministic test preparation, and known documentation synchronization. Unrelated architecture exploration, optional features, cleanup, or scope expansion MUST NOT be justified as parallel work merely because an external dependency is pending.
 
@@ -506,7 +541,7 @@ This routing discipline is not an additional acceptance checklist. Optional diag
 
 ## Authority boundary
 
-The active canonical authorities are `composition`, `policy`, `integration`, and `site`, with independent histories. Composition and Policy own provider semantics, documentation, translations, and synchronization metadata. Integration owns exact reviewed provider selection, publication staging, IA, read models, translation availability, Bundle production, and qualification. Site owns presentation, browser runtime, accessibility, PWA, Pages artifact packaging, and explicit deployment. Site is not a parent or super-authority.
+The active canonical authorities are `modeling`, `composition`, `policy`, `integration`, and `site`, with independent histories. Modeling owns bounded information-model records and discovery documentation; Composition and Policy own their provider semantics, documentation, translations, and synchronization metadata. Integration owns exact reviewed provider selection, publication staging, IA, read models, translation availability, Bundle production, and qualification. Site owns presentation, browser runtime, accessibility, PWA, Pages artifact packaging, and explicit deployment. Site is not a parent or super-authority.
 
 Site consumes only the versioned Integration output contract for provider publication. Site may release a runtime fix against unchanged Integration; Integration may advance without Site adoption or deployment. Site must not recalculate provider translation freshness. Provider-owned synchronization metadata must never be silently updated. Repository-local Agent Skills orchestrate Site maintenance and merge acceptance; they do not create another semantic authority.
 

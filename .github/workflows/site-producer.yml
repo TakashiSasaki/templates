@@ -117,6 +117,7 @@ jobs:
         run: |
           python3 site-source/scripts/classify_site_compatibility.py \
             --bundle publication-bundle \
+            --support site-source/contracts/site-publication-support.json \
             --trusted-policy-revision "$TRUSTED_POLICY_REVISION" \
             --trusted-controller-revision "$TRUSTED_CONTROLLER_REVISION" \
             --site-revision "${{ steps.site_revision.outputs.sha }}" \

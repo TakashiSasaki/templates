@@ -45,6 +45,7 @@ class BuildPagesReusableWorkflowTests(unittest.TestCase):
         self.assertIn('python3 site-source/scripts/resolve_site_checkout.py', text)
         self.assertIn('ref: ${{ inputs.site_ref }}', text)
         self.assertIn('--lock site-source/integration-source.json', text)
+        self.assertIn('--support site-source/contracts/site-publication-support.json', text)
         self.assertIn('scripts/render_publication_bundle.py', text)
         self.assertNotIn('composition_ref', text)
         self.assertNotIn('policy_ref', text)
