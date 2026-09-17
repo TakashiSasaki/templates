@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "provider": "composition",
+  "protocol": "publication-bundle",
+  "exports": [
+    {"kind": "document", "namespace": "composition.documentation", "media_type": "text/markdown", "identity_basis": "catalog-document-id", "feature": "publication.generic-document.v1", "rights": "allowlisted"},
+    {"kind": "asset", "namespace": "composition.assets", "media_type": "application/octet-stream", "identity_basis": "destination-and-sha256", "feature": "publication.static-asset.v1", "rights": "allowlisted"}
+  ],
+  "requirements": [
+    {"feature": "publication.generic-document.v1", "required": true, "fallback": "generic-document"},
+    {"feature": "publication.static-asset.v1", "required": true, "fallback": "none"}
+  ]
+}
