@@ -67,9 +67,11 @@ and deployed-document/cache freshness are separate dimensions.
 Integration's Publication catalogs are explicit allowlists. Branch-wide copies and
 unrestricted glob-based publication are prohibited. Adding a file to a provider branch does not publish it.
 Generated destinations are stable public paths in the Bundle contract.
-The Site does not implement a provider source browser. GitHub owns source browsing;
-Site source/provenance links identify exact full commit revisions. Provider source
-content is not transported through the Bundle merely for browsing.
+The Site, Composition, and Policy source browsers display bounded build-time views.
+Symlinks and gitlinks are never followed. Source content is escaped and sandboxed,
+not executed as application HTML. The Bundle bounds provider content before Site
+receives it. Site source/provenance links outside those browser views identify
+exact full commit revisions.
 
 ## External deployment gate
 

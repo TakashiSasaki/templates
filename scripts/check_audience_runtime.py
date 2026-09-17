@@ -229,8 +229,8 @@ def check(
             results.append({'localized_neutral_navigation': 'delayed reader map -> cached native snapshot restores localized navigation on a second audience-to-neutral transition'})
             context.close()
 
-            for path, target, overview in [('/web/', 'maintain', '/maintain/site/maintenance/'),
-                    ('/policy/contributing/', 'use', '/web/'), ('/', 'maintain', '/maintain/site/maintenance/')]:
+            for path, target, overview in [('/web/', 'maintain', '/repository-trees/'),
+                    ('/policy/contributing/', 'use', '/web/'), ('/', 'maintain', '/repository-trees/')]:
                 context = browser.new_context(service_workers='block'); page = context.new_page()
                 page.goto(base + path)
                 state(page, 'neutral' if path == '/' else ('use' if path == '/web/' else 'maintain'))
