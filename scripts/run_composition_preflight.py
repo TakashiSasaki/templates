@@ -207,6 +207,91 @@ def run_full_tests() -> None:
         run_check(Path(smoke).stem.replace("smoke_test_", ""), command("-I", smoke))
 
 
+def require_clean_tree() -> None:
+    status = git_output("status", "--porcelain=v1", "--untracked-files=all")
+    if status:
+        raise PreflightFailure(
+            "ready requires a clean index and working tree with no untracked files"
+        )
+
+
+def run_core_ready() -> None:
+    run_check(
+        "core-discovery",
+        command(
+            "scripts/run_unittest_shard.py",
+            "--suite",
+            "core",
+            "--shard-count",
+            "1",
+            "--verify-only",
+        ),
+    )
+    run_check(
+        "core-tests",
+        command(
+            "scripts/run_unittest_shard.py",
+            "--suite",
+            "core",
+            "--shard-count",
+            "1",
+            "--shard-index",
+            "0",
+        ),
+    )
+
+
+def run_playground_provenance(expected_head: str) -> None:
+    with tempfile.TemporaryDirectory(prefix="composition-playground-ready-") as directory:
+        output = Path(directory)
+        base = output / "composition-playground-v1.json"
+        intent = output / "composition-playground-intent-v1.json"
+        run_check(
+            "playground-base-projection",
+            command("scripts/generate_composition_playground.py", "--output", str(base)),
+        )
+        run_check(
+            "playground-intent-projection",
+            command("scripts/generate_composition_playground_intent.py", "--output", str(intent)),
+        )
+        run_check(
+            "playground-projection-provenance",
+            command(
+                "scripts/validate_playground_provenance.py",
+                "--projection",
+                str(base),
+                "--projection",
+                str(intent),
+                "--expected-head",
+                expected_head,
+            ),
+        )
+    run_check(
+        "playground-publication-provenance",
+        command(
+            "scripts/validate_playground_provenance.py",
+            "--publication-dir",
+            "generated",
+        ),
+    )
+
+
+def run_dependency_boundary() -> None:
+    run_check("dependency-boundary", command("scripts/check_python_dependencies.py"))
+
+
+def run_ready(component_version_base: str, expected_head: str) -> None:
+    """Run all cheap deterministic checks without Integration or browser inputs."""
+
+    require_clean_tree()
+    run_check("phase-zero-source", command("-I", "scripts/composition_phase_zero.py"))
+    run_owned_validators(component_version_base)
+    run_consumer_spine()
+    run_core_ready()
+    run_playground_provenance(expected_head)
+    run_dependency_boundary()
+
+
 def run_real_browser_tests(driver: str) -> None:
     browser_env = dict(os.environ)
     browser_env["CHROMEWEBDRIVER"] = driver
@@ -227,7 +312,7 @@ def run_real_browser_tests(driver: str) -> None:
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("profile", choices=("fast", "full"))
+    parser.add_argument("profile", choices=("fast", "ready", "full"))
     parser.add_argument("--component-version-base")
     parser.add_argument("--expected-head")
     parser.add_argument("--integration-publication-protocol", type=Path)
@@ -258,6 +343,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             raise PreflightFailure(
                 f"exact-head mismatch: expected {args.expected_head}, found {head}"
             )
+        if args.profile == "ready" and not args.expected_head:
+            raise PreflightFailure("ready requires --expected-head")
         if args.publication_already_validated:
             if not args.validators_only:
                 raise PreflightFailure(
@@ -276,6 +363,12 @@ def main(argv: Sequence[str] | None = None) -> int:
             os.environ["INTEGRATION_PUBLICATION_PROTOCOL_ROOT"] = str(
                 args.integration_publication_protocol.resolve()
             )
+        if args.profile == "ready" and args.validators_only:
+            raise PreflightFailure("ready does not support --validators-only")
+        if args.profile == "ready":
+            run_ready(component_version_base, head)
+            print(f"COMPOSITION_PREFLIGHT_PASS profile={args.profile} head={head}", flush=True)
+            return 0
         if not args.validators_only:
             if args.profile == "full" and args.integration_publication_protocol is None:
                 raise PreflightFailure("full preflight requires --integration-publication-protocol")

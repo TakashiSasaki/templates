@@ -24,6 +24,7 @@ class CompositionPreflightTests(unittest.TestCase):
 
     def test_profiles_are_explicit_and_full_requires_integration_protocol(self) -> None:
         self.assertEqual(preflight.parse_args(["fast"]).profile, "fast")
+        self.assertEqual(preflight.parse_args(["ready"]).profile, "ready")
         self.assertEqual(preflight.parse_args(["full"]).profile, "full")
         with self.assertRaises(SystemExit):
             preflight.parse_args(["other"])
@@ -141,6 +142,44 @@ class CompositionPreflightTests(unittest.TestCase):
         consumer_spine.assert_called_once_with()
         focused_tests.assert_not_called()
         full_tests.assert_called_once_with()
+
+    def test_ready_runs_cheap_checks_without_integration_or_browser(self) -> None:
+        with mock.patch.object(preflight, "git_output", return_value=""), mock.patch.object(
+            preflight, "run_check"
+        ), mock.patch.object(preflight, "run_owned_validators") as validators, mock.patch.object(
+            preflight, "run_consumer_spine"
+        ) as consumer_spine, mock.patch.object(
+            preflight, "run_core_ready"
+        ) as core, mock.patch.object(
+            preflight, "run_playground_provenance"
+        ) as provenance, mock.patch.object(
+            preflight, "run_dependency_boundary"
+        ) as dependencies:
+            preflight.run_ready("base-sha", "a" * 40)
+
+        validators.assert_called_once_with("base-sha")
+        consumer_spine.assert_called_once_with()
+        core.assert_called_once_with()
+        provenance.assert_called_once_with("a" * 40)
+        dependencies.assert_called_once_with()
+
+    def test_ready_rejects_dirty_tree_before_validation(self) -> None:
+        with mock.patch.object(preflight, "git_output", return_value=" M changed.py"), mock.patch.object(
+            preflight, "run_owned_validators"
+        ) as validators:
+            with self.assertRaisesRegex(preflight.PreflightFailure, "clean index"):
+                preflight.run_ready("base-sha", "a" * 40)
+        validators.assert_not_called()
+
+    def test_ready_requires_exact_head_argument(self) -> None:
+        with mock.patch.object(preflight, "git_output", return_value="a" * 40), mock.patch.object(
+            preflight, "run_ready"
+        ) as ready:
+            self.assertEqual(
+                preflight.main(["ready", "--component-version-base", "base-sha"]),
+                1,
+            )
+        ready.assert_not_called()
 
 
 if __name__ == "__main__":
