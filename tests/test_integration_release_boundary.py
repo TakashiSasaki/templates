@@ -9,6 +9,14 @@ from integration.freshness import classify,PublicationFreshnessError
 ROOT=Path(__file__).resolve().parents[1]
 
 class ReleaseBoundaryTests(unittest.TestCase):
+    def test_active_workflows_use_runner_python_without_runtime_selection(self):
+        for workflow in sorted((ROOT / ".github/workflows").glob("*.yml")):
+            text = workflow.read_text(encoding="utf-8")
+            with self.subTest(workflow=workflow.name):
+                self.assertNotIn("actions/setup-python", text)
+                self.assertNotIn("python-version", text)
+                self.assertNotIn("windows-", text.lower())
+
     def test_workflow_reaches_qualification_without_site_or_write_permissions(self):
         caller=yaml.safe_load((ROOT/'.github/workflows/validate-integration.yml').read_text())
         workflow=yaml.safe_load((ROOT/'.github/workflows/integration-qualification.yml').read_text())
