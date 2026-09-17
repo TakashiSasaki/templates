@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import test from "node:test";
 const require = createRequire(import.meta.url);
+globalThis.TemplatesGithubUrls = require("../assets/javascripts/github-url.js");
 const playground = require("../assets/javascripts/composition-playground.js");
 async function topologyFixture() {
   const text = await readFile(new URL("./fixtures/composition-playground-v1.json", import.meta.url), "utf8");
