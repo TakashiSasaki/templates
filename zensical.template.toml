@@ -17,6 +17,7 @@ extra_css = [
   "stylesheets/composition-playground.css"
 ]
 extra_javascript = [
+  "javascripts/github-url.js",
   "javascripts/repository-tree-viewer.js",
   "javascripts/pwa.js",
   "javascripts/reader-navigation.js",

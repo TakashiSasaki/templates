@@ -11,6 +11,7 @@ from urllib.parse import quote, urlsplit
 from publication_bundle.repository import *
 from publication_bundle.graph import *
 from publication_bundle.graph import _section_title, _section_level
+from site_renderer.github import github_blob_url, github_commit_url, github_tree_url
 
 GUIDED_ROOT = Path("guided")
 
@@ -145,22 +146,29 @@ def edge_href(
         return target + fragment_suffix(fragment), "external", True
     if kind == "directory":
         if fragment is None:
+            if repository is None:
+                raise IndexNavigationViewerError(
+                    "repository is required for a directory"
+                )
             return (
-                f"/files/{quote(provider, safe='')}/",
-                "repository directory",
-                False,
+                github_tree_url(repository, revision, immutable_edge_path(kind, target)),
+                "immutable directory",
+                True,
             )
         if repository is None:
             raise IndexNavigationViewerError(
                 "repository is required for a directory fragment"
             )
-        source = github_url(
-            repository,
-            revision,
-            "tree",
-            immutable_edge_path(kind, target),
+        return (
+            github_tree_url(
+                repository,
+                revision,
+                immutable_edge_path(kind, target),
+                fragment=fragment,
+            ),
+            "immutable directory",
+            True,
         )
-        return source + fragment_suffix(fragment), "immutable directory", True
     if kind == "file":
         destination = published.get(target)
         if destination is not None:
@@ -174,15 +182,14 @@ def edge_href(
                 raise IndexNavigationViewerError(
                     "repository is required for a source-file fragment"
                 )
-            source = github_url(
-                repository, revision, "blob", target.encode("utf-8")
+            source = github_blob_url(
+                repository, revision, target, fragment=fragment
             )
-            return source + fragment_suffix(fragment), "immutable source", True
-        relative = viewer_relative_url(provider, revision, target.encode("utf-8"))
+            return source, "immutable source", True
         return (
-            f"/files/{quote(provider, safe='')}/{relative}",
-            "source file",
-            False,
+            github_blob_url(repository, revision, target),
+            "immutable source",
+            True,
         )
     raise IndexNavigationViewerError(f"unsupported edge kind: {kind}")
 
@@ -199,12 +206,9 @@ def immutable_target_url(repository: str, revision: str, edge: dict[str, Any]) -
         git_kind = "tree"
     else:
         git_kind = "blob"
-    return github_url(
-        repository,
-        revision,
-        git_kind,
-        immutable_edge_path(kind, target),
-    )
+    if git_kind == "tree":
+        return github_tree_url(repository, revision, immutable_edge_path(kind, target))
+    return github_blob_url(repository, revision, immutable_edge_path(kind, target))
 
 
 def provider_render_indexes(
@@ -336,12 +340,12 @@ def render_edge(
             f'<a href="{html.escape(source, quote=True)}" target="_blank" rel="noopener">'
             "immutable source</a>"
         )
-    origin = github_url(
+    origin = github_blob_url(
         repository,
         provider["revision"],
-        "blob",
-        edge["source"].encode("utf-8"),
-    ) + f"#L{edge['line']}"
+        edge["source"],
+        fragment=f"L{edge['line']}",
+    )
     metadata = [
         f'<span class="badge">{html.escape(route_kind)}</span>',
         f'<a href="{html.escape(origin, quote=True)}" target="_blank" rel="noopener">index line {edge["line"]}</a>',
@@ -367,12 +371,8 @@ def render_index_page(
     parents: dict[str, tuple[str, str]] | None = None,
 ) -> str:
     source_path = index["path"]
-    source = github_url(
-        repository,
-        provider["revision"],
-        "blob",
-        source_path.encode("utf-8"),
-    )
+    source = github_blob_url(repository, provider["revision"], source_path)
+    revision = github_commit_url(repository, provider["revision"])
     breadcrumbs = breadcrumb_chain(provider, source_path, indexes, parents)
     breadcrumb_html = "".join(
         f'<span><a href="{html.escape(url, quote=True)}">{html.escape(title)}</a></span>'
@@ -399,9 +399,9 @@ def render_index_page(
         f'<nav class="breadcrumbs" aria-label="Index path">{breadcrumb_html}</nav>',
         '<div class="meta">',
         f'<p><strong>Provider:</strong> <code>{html.escape(provider["name"])}</code></p>',
-        f'<p><strong>Revision:</strong> <code>{html.escape(provider["revision"])}</code></p>',
+        f'<p><strong>Revision:</strong> <a href="{html.escape(revision, quote=True)}" target="_blank" rel="noopener"><code>{html.escape(provider["revision"])}</code></a></p>',
         f'<p><strong>Source:</strong> <code>{html.escape(source_path)}</code> · <a href="{html.escape(source, quote=True)}" target="_blank" rel="noopener">immutable GitHub source</a></p>',
-        f'<p><strong>Repository:</strong> <a href="/files/{quote(provider["name"], safe="")}/">browse the same snapshot</a></p>',
+        f'<p><strong>Repository:</strong> <a href="{html.escape(github_tree_url(repository, provider["revision"]), quote=True)}" target="_blank" rel="noopener">open the same snapshot on GitHub</a></p>',
         "</div>",
     ]
 
@@ -451,11 +451,11 @@ def render_landing(graph: dict[str, Any]) -> str:
         cards.append(
             '<section class="provider-card">'
             f'<h2><a href="/guided/{quote(provider["name"], safe="")}/">{html.escape(provider["name"])}</a></h2>'
-            f'<p><code>{html.escape(provider["revision"])}</code></p>'
+            f'<p><a href="{html.escape(github_commit_url(graph["repository"], provider["revision"]), quote=True)}" target="_blank" rel="noopener"><code>{html.escape(provider["revision"])}</code></a></p>'
             f'<p>{index_count} reachable indexes · '
             f'{edge_count} links · '
             f'maximum index depth {max_depth}</p>'
-            f'<p><a href="/files/{quote(provider["name"], safe="")}/">Browse the same repository snapshot</a></p>'
+            f'<p><a href="{html.escape(github_tree_url(graph["repository"], provider["revision"]), quote=True)}" target="_blank" rel="noopener">Open the same repository snapshot on GitHub</a></p>'
             "</section>"
         )
     body = "\n".join(
@@ -463,7 +463,7 @@ def render_landing(graph: dict[str, Any]) -> str:
             '<p class="eyebrow">Human / agent shared path</p>',
             "<h1>Index-guided document discovery</h1>",
             '<p class="notice">Follow the same provider-owned <code>index.md</code> structure that an AI agent can use before falling back to search. This surface is generated from immutable provider revisions and is separate from the Site-authored reader navigation.</p>',
-            '<p><a href="/guided/graph.json">Inspect the machine-readable navigation graph</a> · <a href="/files/">Browse all source snapshots</a></p>',
+            '<p><a href="/guided/graph.json">Inspect the machine-readable navigation graph</a></p>',
             f'<div class="provider-grid">{"".join(cards)}</div>',
         ]
     )
@@ -544,4 +544,3 @@ def generate_from_bundle(repository, graph, published, output_root):
             shutil.rmtree(guided, ignore_errors=True)
         raise
     return messages
-

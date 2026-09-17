@@ -5,6 +5,7 @@ import test from "node:test";
 
 const require = createRequire(import.meta.url);
 const core = require("../assets/javascripts/composition-playground.js");
+globalThis.TemplatesGithubUrls = require("../assets/javascripts/github-url.js");
 const explain = require("../assets/javascripts/composition-playground-explain.js");
 const fixturePath = new URL("./fixtures/composition-playground-v1-explain.json", import.meta.url);
 const documentPath = new URL("../docs/composition-playground.md", import.meta.url);
@@ -98,8 +99,10 @@ test("reader document and runtime registration expose explainability without cha
     assert.ok(document.includes(marker), marker);
   }
   const coreIndex = template.indexOf('"javascripts/composition-playground.js"');
+  const githubIndex = template.indexOf('"javascripts/github-url.js"');
   const explainIndex = template.indexOf('"javascripts/composition-playground-explain.js"');
-  assert.ok(coreIndex >= 0 && explainIndex > coreIndex);
+  assert.ok(githubIndex >= 0 && coreIndex > githubIndex && explainIndex > coreIndex);
+  assert.match(worker, /"\/javascripts\/github-url\.js"/);
   assert.match(worker, /"\/javascripts\/composition-playground\.js"/);
   assert.match(worker, /"\/javascripts\/composition-playground-explain\.js"/);
 });

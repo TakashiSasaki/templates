@@ -742,6 +742,10 @@
   function renderCase(document, nodes, projection, provenance, item) {
     nodes.semanticRevision.textContent = projection.semanticRevision;
     nodes.providerRevision.textContent = provenance.providerRevision;
+    const githubUrls = scope.TemplatesGithubUrls;
+    if (!githubUrls) throw new ProjectionError("MALFORMED_PROVENANCE", "GitHub URL helper is not loaded");
+    nodes.semanticRevisionLink.href = githubUrls.commit("TakashiSasaki/templates", projection.semanticRevision);
+    nodes.providerRevisionLink.href = githubUrls.commit("TakashiSasaki/templates", provenance.providerRevision);
     nodes.projectionId.textContent = projection.projectionId;
     nodes.validity.textContent = item.valid
       ? labels.valid
@@ -880,6 +884,8 @@
       validity: root.querySelector("[data-playground-validity]"),
       semanticRevision: root.querySelector("[data-playground-semantic-revision]"),
       providerRevision: root.querySelector("[data-playground-provider-revision]"),
+      semanticRevisionLink: root.querySelector("[data-playground-semantic-revision-link]"),
+      providerRevisionLink: root.querySelector("[data-playground-provider-revision-link]"),
       projectionId: root.querySelector("[data-playground-projection-id]"),
       resolved: root.querySelector("[data-playground-resolved]"),
       config: root.querySelector("[data-playground-config]"),

@@ -2,6 +2,7 @@
 import copy
 from pathlib import Path
 from publication_bundle.contract import read_json,canonical,BundleError
+from site_renderer.github import github_tree_url
 
 
 def project(template,bundle):
@@ -12,7 +13,7 @@ def project(template,bundle):
     for name,revision in bundle['providers'].items():
         if name not in result['authorities']:raise BundleError('unknown discovery authority')
         result['authorities'][name]['publication_revision']=revision
-        result['authorities'][name]['canonical_repository_url']=f"https://github.com/{result['repository']}/tree/{revision}"
+        result['authorities'][name]['canonical_repository_url']=github_tree_url(result['repository'], revision)
     result['authorities']['integration']['revision']=bundle['producer']['revision']
     return result
 

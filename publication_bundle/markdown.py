@@ -103,6 +103,7 @@ def _rewrite_destination(
     docs_root: Path,
     publication: str,
     site_source_paths: frozenset[bytes] | None,
+    site_source_url: Any | None,
 ) -> str:
     parsed = _split_destination(destination)
     if parsed is None:
@@ -119,11 +120,12 @@ def _rewrite_destination(
     if site_target is None:
         site_target = _asset_target(source_target, asset_rules, docs_root)
     if site_target is None:
-        if publication == "site" and not suffix and site_source_paths is not None:
+        if publication == "site" and site_source_paths is not None:
             encoded_path = source_target.as_posix().encode("utf-8")
             if encoded_path in site_source_paths:
-                encoded = quote(source_target.as_posix(), safe="/@-._~")
-                return f"/files/site/#file={encoded}"
+                if site_source_url is None:
+                    raise ValueError("Site source URL helper is required")
+                return site_source_url(source_target.as_posix(), suffix)
         return destination
 
     start = site_document.parent.as_posix()
@@ -250,6 +252,7 @@ def _rewrite_markdown(
     docs_root: Path,
     publication: str,
     site_source_paths: frozenset[bytes] | None,
+    site_source_url: Any | None = None,
 ) -> tuple[str, int]:
     def rewrite(destination: str) -> str:
         return _rewrite_destination(
@@ -261,6 +264,7 @@ def _rewrite_markdown(
             docs_root=docs_root,
             publication=publication,
             site_source_paths=site_source_paths,
+            site_source_url=site_source_url,
         )
 
     output: list[str] = []
@@ -290,4 +294,3 @@ def _rewrite_markdown(
         output.append(line)
 
     return "".join(output), rewrites
-

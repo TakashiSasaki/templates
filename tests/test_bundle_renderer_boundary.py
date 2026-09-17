@@ -22,7 +22,6 @@ sys.meta_path.insert(0,DenyIntegration())
 import site_renderer.render
 import site_renderer.local_content
 import site_renderer.guided_locales
-import site_renderer.repository_browser
 '''
         result=subprocess.run([sys.executable,'-c',code],cwd=ROOT,capture_output=True,text=True)
         self.assertEqual(result.returncode,0,result.stderr)

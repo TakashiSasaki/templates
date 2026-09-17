@@ -226,6 +226,7 @@ class GlossaryInlineAssetTests(unittest.TestCase):
         self.assertEqual(
             project["extra_javascript"],
             [
+                "javascripts/github-url.js",
                 "javascripts/repository-tree-viewer.js",
                 "javascripts/pwa.js",
                 "javascripts/reader-navigation.js",

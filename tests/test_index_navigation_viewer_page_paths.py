@@ -61,6 +61,7 @@ class IndexNavigationViewerPagePathTests(unittest.TestCase):
 
     def test_guided_landing_displays_its_public_path(self) -> None:
         graph = {
+            "repository": "TakashiSasaki/templates",
             "providers": [
                 {
                     "name": "skill",

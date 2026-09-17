@@ -51,7 +51,7 @@
   }
 
   function sourceUrl(revision, path) {
-    return `https://github.com/TakashiSasaki/templates/blob/${revision}/${path}`;
+    return globalScope.TemplatesGithubUrls.blob("TakashiSasaki/templates", revision, path);
   }
 
   function reasonText(reason) {

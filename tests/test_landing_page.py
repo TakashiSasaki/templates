@@ -86,8 +86,8 @@ class LandingPageTests(unittest.TestCase):
         self.assertIn("in another repository", primary)
         self.assertIn("TakashiSasaki/templates itself", primary)
         self.assertIn('href="/web/?audience=use"', primary)
-        self.assertIn('href="/repository-trees/?audience=maintain"', primary)
-        for destination in ("web/", "composition/use/skill-first-use-walkthrough/", "policy/getting-started/", "/glossary/", "files/"):
+        self.assertIn('href="/maintain/site/maintenance/?audience=maintain"', primary)
+        for destination in ("web/", "composition/use/skill-first-use-walkthrough/", "policy/getting-started/", "/glossary/"):
             self.assertIn(f'href="{destination}"', discovery)
 
     def test_landing_page_references_only_declared_svg_artwork(self) -> None:
@@ -224,6 +224,7 @@ class LandingPageTests(unittest.TestCase):
         self.assertEqual(
             parsed["project"]["extra_javascript"],
             [
+                "javascripts/github-url.js",
                 "javascripts/repository-tree-viewer.js",
                 "javascripts/pwa.js",
                 "javascripts/reader-navigation.js",

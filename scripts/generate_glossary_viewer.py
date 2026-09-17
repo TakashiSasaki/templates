@@ -22,6 +22,7 @@ from urllib.parse import quote, urlsplit
 import idna
 
 from publication_bundle.glossary import *
+from site_renderer.github import github_blob_url
 
 PROVIDER_LABELS = {
     "site": "Site",
@@ -93,14 +94,7 @@ def _join_labels(values: list[str], language: str | None = None) -> str:
 
 def source_url(repository: str, term: dict[str, Any]) -> str:
     repository = _validate_repository(repository)
-    owner, name = repository.split("/", 1)
-    source = "/".join(
-        quote(part, safe="") for part in term["source_path"].split("/")
-    )
-    return (
-        f"https://github.com/{quote(owner, safe='')}/{quote(name, safe='')}/blob/"
-        f"{term['source_revision']}/{source}"
-    )
+    return github_blob_url(repository, term["source_revision"], term["source_path"])
 
 
 def provider_label(provider: str) -> str:
