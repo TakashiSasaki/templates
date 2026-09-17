@@ -2,14 +2,16 @@
 
 ## Input authority
 
-Composition and Policy remain independent providers. Integration selects their
-reviewed exact revisions and owns publication mappings, staging, translation
-availability, glossary, guided graphs and exact provenance. Site selects only
-an exact reviewed Integration release through `integration-source.json`.
+Modeling, Composition, and Policy remain independent providers. Integration
+selects their exact provider tuple and owns publication mappings, staging,
+translation availability, glossary, guided graphs and exact provenance. Site
+selects only an exact reviewed Integration release through
+`integration-source.json`.
 
 The lock binds the Integration commit, Bundle schema, identity and content digest.
-There is no active `publication-sources.json` in Site. Provider candidate work and
-Integration releases stop before Site PWA qualification or deployment.
+There is no active `publication-sources.json` in Site. Provider candidate work
+and Integration releases stop before Site PWA qualification or deployment unless
+the downstream gates and automation mode explicitly authorize the next boundary.
 
 ## Immutable acquisition and rendering
 
@@ -43,11 +45,27 @@ Focused construction follows the existing CI classifier; the final frontier uses
 `ci/full-qualification` and requires all actual acceptance suites to succeed.
 Review findings must be dispositioned and exact-head acceptance must remain valid.
 
-After reviewed changes land and final Site qualification succeeds, a human-authorized
-`deploy-pages.yml` dispatch on `site` captures the deployment timestamp and runs the
-complete qualification DAG again against that timestamped artifact before deploying
-it. The browser consumers reuse that same immutable artifact. Only this workflow
-has Pages deployment permissions. No push or Integration event deploys the Site.
+The publication controller has three explicit modes: `shadow` (the initial mode,
+read-only reports), `adoption-only` (an authorized Integration/Site lock PR, no
+Pages write), and `auto-publish` (the same gates followed by Pages deployment).
+Compatibility is never authorization. Every mode requires exact input identities,
+trusted policy/controller identity, positive qualification results, freshness and
+an allowlisted expected patch. The controller stops on unknown, invalid,
+unsupported, stale, failed, or unauthorized results.
+
+The initial repository configuration is `shadow`; it does not mutate locks or
+publish. After review and landing, one explicit activation may select the next
+mode after the minimal-permission GitHub App token, branch protection, and
+`github-pages` environment restrictions are verified. The activation procedure
+is not self-applied by this implementation PR.
+
+In `auto-publish`, the Pages path captures the deployment timestamp, performs
+the complete qualification DAG against the final Site SHA, and deploys the exact
+artifact produced by that run. The browser consumers and deployment job do not
+regenerate or rewrite it. Only the deployment job has `pages: write` and
+`id-token: write`; a kill switch stops new adoption/deployment and keeps the
+last successful publication. Rollback selects a previously known-good immutable
+lock and artifact through a separate guarded procedure.
 
 ## Reader routes
 

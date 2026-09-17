@@ -1,4 +1,4 @@
-# Site consumer of Integrated Publication Bundle v3
+# Site consumer of Integrated Publication Bundle v3/v4
 
 The independent Integration authority owns the producer, provider semantics
 validation, and canonical [Bundle contract](https://github.com/TakashiSasaki/templates/blob/fd978a01fb934187500655481b6f744db7eacbf9/contracts/publication-bundle/README.md).
@@ -34,3 +34,9 @@ Site artifact provenance schema 3 records `site_commit` and the adopted
 the latter unchanged. Integration adoption changes the explicit lock; a moving
 Integration branch never changes a Site build. Pages deployment remains a
 separate explicit Site operation.
+
+Bundle v3 remains the committed two-provider baseline. Bundle v4 is the bounded
+three-provider tuple (modeling, composition, policy); Modeling records, catalog
+documentation and schemas are consumed only through the Bundle. The
+generic-document feature is a presentation fallback, not automatic adoption of
+a new Site semantic contract.

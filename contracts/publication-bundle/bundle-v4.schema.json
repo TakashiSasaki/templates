@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:templates:publication-bundle:4",
+  "title": "Integrated Publication Bundle v4 identity manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "producer",
+    "providers",
+    "configuration_digest",
+    "files",
+    "content_digest",
+    "identity"
+  ],
+  "properties": {
+    "schema_version": {"const": 4},
+    "producer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["authority", "revision"],
+      "properties": {
+        "authority": {"enum": ["site-internal-integration", "integration"]},
+        "revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"}
+      }
+    },
+    "providers": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["modeling", "composition", "policy"],
+      "properties": {
+        "modeling": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "composition": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "policy": {"type": "string", "pattern": "^[0-9a-f]{40}$"}
+      }
+    },
+    "configuration_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "content_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "identity": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "files": {
+      "type": "object",
+      "minProperties": 9,
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["size", "sha256"],
+        "properties": {
+          "size": {"type": "integer", "minimum": 0},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+        }
+      }
+    }
+  },
+  "$comment": "Site validates the bounded physical inventory and semantic closure before rendering."
+}

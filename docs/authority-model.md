@@ -1,9 +1,10 @@
 # Repository authority model
 
-The repository has four independent authorities and Git histories:
+The repository has five independent authorities and Git histories:
 
 | Authority | Responsibility |
 |---|---|
+| Modeling | Information-model records, bounded discovery catalog and resource documentation; registration does not transfer normative ownership |
 | Composition | Composition-specific artifacts, capabilities, lifecycle/topology semantics, Composer, schemas, validators and consumer contracts |
 | Policy | Coding-agent operating policy, procedures, profiles, review/release semantics and adoption/validation tooling |
 | Integration | Reviewed provider selection, cross-authority contracts, publication mapping and staging, IA, translation availability, glossary, guided/source models and deterministic Publication Bundles |
@@ -138,7 +139,7 @@ evidence or projection a new source of semantics.
 
 ## Machine discovery
 
-`agent.json` schema 6 projects all four roles and the dependency direction.
+`agent.json` schema 6 projects all five roles and the dependency direction.
 Its Site token is `presentation-runtime-deployment`; Integration's token is
 `cross-authority-publication-integration`. The integration contract registry is
 Integration-owned. Published discovery adds exact immutable Bundle/provider provenance.

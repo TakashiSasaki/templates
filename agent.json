@@ -8,6 +8,10 @@
     "lock": "integration-source.json"
   },
   "authorities": {
+    "modeling": {
+      "role": "information-model-registry-and-resource-records",
+      "canonical_entry": "https://templates.moukaeritai.work/modeling/"
+    },
     "composition": {
       "role": "artifact-foundation-capability-lifecycle-topology-semantics",
       "canonical_entry": "https://templates.moukaeritai.work/composition/"
@@ -40,6 +44,10 @@
     }
   },
   "dependency_direction": [
+    [
+      "modeling",
+      "integration"
+    ],
     [
       "composition",
       "integration"

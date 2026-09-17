@@ -7,8 +7,8 @@ from site_renderer.github import github_tree_url
 
 def project(template,bundle):
     result=copy.deepcopy(template)
-    if result.get('schema_version')!=6 or set(result['authorities'])!={'composition','policy','integration','site'}:
-        raise BundleError('invalid four-authority discovery template')
+    if result.get('schema_version')!=6 or set(result['authorities'])!={'modeling','composition','policy','integration','site'}:
+        raise BundleError('invalid five-authority discovery template')
     result['integration_source']={k:bundle[k] for k in ('schema_version','identity','content_digest','producer','providers')}
     for name,revision in bundle['providers'].items():
         if name not in result['authorities']:raise BundleError('unknown discovery authority')

@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:templates:site-publication-support:1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "protocol", "supported_features", "required_runtime", "fallbacks"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "protocol": {"const": "publication-bundle"},
+    "supported_features": {"type": "array", "items": {"type": "string"}, "minItems": 1, "uniqueItems": true},
+    "required_runtime": {"type": "array", "items": {"type": "string"}, "minItems": 1, "uniqueItems": true},
+    "fallbacks": {"type": "object", "additionalProperties": {"enum": ["none", "generic-document", "ignore"]}}
+  }
+}

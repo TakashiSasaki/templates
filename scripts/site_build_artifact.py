@@ -48,10 +48,15 @@ def identity(*, repository: str, site: str, bundle: dict, workflow: bytes,
              runtime: str = '', qualification_suite: str = 'bundle-renderer') -> dict:
     if not re.fullmatch(r'[0-9a-f]{40}', site):
         raise ArtifactError('build revisions must be full immutable SHAs')
+    provider_sets = {
+        3: {'composition', 'policy'},
+        4: {'modeling', 'composition', 'policy'},
+    }
     if (not isinstance(bundle,dict) or set(bundle)!={'schema_version','producer','providers','identity','content_digest'}
-            or type(bundle['schema_version']) is not int or bundle['schema_version']!=3
+            or type(bundle['schema_version']) is not int or bundle['schema_version'] not in provider_sets
             or bundle['producer'].get('authority')!='integration'
             or not re.fullmatch(r'[0-9a-f]{40}',bundle['producer'].get('revision',''))
+            or set(bundle['providers']) != provider_sets[bundle['schema_version']]
             or any(not re.fullmatch(r'[0-9a-f]{40}',v) for v in bundle['providers'].values())
             or any(not re.fullmatch(r'[0-9a-f]{64}',bundle[k]) for k in ('identity','content_digest'))):
         raise ArtifactError('invalid immutable Bundle input identity')

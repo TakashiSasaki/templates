@@ -1,4 +1,4 @@
-"""Publication Bundle v3 wire-integrity primitives for the Site consumer."""
+"""Publication Bundle v3/v4 wire-integrity primitives for the Site consumer."""
 from __future__ import annotations
 import hashlib
 import json
@@ -6,6 +6,7 @@ import re
 from pathlib import Path, PurePosixPath
 
 SCHEMA_VERSION = 3
+SCHEMA_VERSION_V4 = 4
 SHA = re.compile(r'^[0-9a-f]{40}$')
 DIGEST = re.compile(r'^[0-9a-f]{64}$')
 MAX_FILES = 50000
@@ -16,6 +17,14 @@ MODELS = ('documents.json', 'navigation.json', 'translation-availability.json',
           'provenance.json')
 FIELDS = {'schema_version', 'producer', 'providers', 'configuration_digest',
           'files', 'content_digest', 'identity'}
+PROVIDER_SETS = {
+    3: frozenset({'composition', 'policy'}),
+    4: frozenset({'modeling', 'composition', 'policy'}),
+}
+PROVIDER_ORDERS = {
+    3: ('composition', 'policy'),
+    4: ('modeling', 'composition', 'policy'),
+}
 
 
 class BundleError(ValueError):

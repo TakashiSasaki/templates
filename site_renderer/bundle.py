@@ -1,10 +1,10 @@
-"""Site consumption of reviewed Bundle v3: integrity and render-input structure only.
+"""Site consumption of reviewed Bundle v3/v4: integrity and render-input structure only.
 
 Integration qualifies provider declarations and semantics. Site authenticates the
 selected immutable artifact, never parses provider catalogs/manifests or Git blobs.
 """
 from pathlib import Path
-from publication_bundle.contract import (BundleError, SHA, DIGEST, MODELS, FIELDS,
+from publication_bundle.contract import (BundleError, SHA, DIGEST, MODELS, FIELDS, PROVIDER_SETS, PROVIDER_ORDERS,
     canonical, digest, read_json, safe_path, regular, inventory)
 
 
@@ -12,7 +12,7 @@ def load_lock(path):
     lock=read_json(path)
     if (not isinstance(lock,dict) or set(lock)!={'schema_version','repository','revision','bundle_schema','bundle_identity','content_digest'}
             or type(lock['schema_version']) is not int or lock['schema_version']!=1
-            or type(lock['bundle_schema']) is not int or lock['bundle_schema']!=3
+            or type(lock['bundle_schema']) is not int or lock['bundle_schema'] not in PROVIDER_SETS
             or lock['repository']!='TakashiSasaki/templates'
             or not isinstance(lock['revision'],str) or not SHA.fullmatch(lock['revision'])
             or any(not isinstance(lock[k],str) or not DIGEST.fullmatch(lock[k]) for k in ('bundle_identity','content_digest'))):
@@ -30,14 +30,17 @@ def validate_locked(root, lock):
 def validate(root, *, expected_identity=None, expected_producer=None, expected_providers=None):
     root = Path(root)
     data = read_json(regular(root, 'bundle.json'))
-    if not isinstance(data, dict) or set(data) != FIELDS or type(data['schema_version']) is not int or data['schema_version'] != 3:
+    if (not isinstance(data, dict) or set(data) != FIELDS
+            or type(data['schema_version']) is not int
+            or data['schema_version'] not in PROVIDER_SETS):
         raise BundleError('unsupported Bundle schema or fields')
+    schema_version = data['schema_version']
     producer, providers = data['producer'], data['providers']
     if (not isinstance(producer, dict) or set(producer) != {'authority', 'revision'}
             or producer['authority'] != 'integration'
             or not isinstance(producer['revision'], str) or not SHA.fullmatch(producer['revision'])):
         raise BundleError('invalid producer identity')
-    if (not isinstance(providers, dict) or not providers
+    if (not isinstance(providers, dict) or set(providers) != PROVIDER_SETS[schema_version]
             or any(not isinstance(v, str) or not SHA.fullmatch(v) for v in providers.values())):
         raise BundleError('invalid provider identities')
     for field in ('configuration_digest', 'content_digest', 'identity'):
@@ -100,9 +103,12 @@ def validate(root, *, expected_identity=None, expected_producer=None, expected_p
     validate_translation_state(root, documents, providers)
     from publication_bundle.navigation import validate_navigation
     from publication_bundle.locales import load_overlays,LocaleViewerError
+    from publication_bundle.graph import load_graph, IndexNavigationViewerError
     validate_navigation(root,navigation,documents)
-    try:load_overlays(root/'guided-locales.json',graph)
-    except LocaleViewerError as exc:raise BundleError(str(exc)) from exc
+    try:
+        load_overlays(root/'guided-locales.json',graph)
+        load_graph(root/'guided-navigation.json', provider_order=PROVIDER_ORDERS[data['schema_version']])
+    except (LocaleViewerError, IndexNavigationViewerError) as exc:raise BundleError(str(exc)) from exc
     return data
 
 
