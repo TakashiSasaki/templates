@@ -18,7 +18,6 @@ def fixture(root):
     models['navigation.json']={'schema_version':1,'navigation':{'use':[{'publication':'composition','document':'intro','destination':'intro.md','title':'Intro'}]},'locale_labels':{'schema_version':1,'canonical_language':'en','locales':[{'language':'ja','labels':[{'id':'intro','canonical':'Intro','localized':'はじめに'},{'id':'use','canonical':'Use templates','localized':'利用'}]}]},'audience_runtime':{'schema_version':1,'audiences':['use'],'documents':{'intro.md':{'destination':'intro.md','key':'composition:intro','audiences':['use'],'primary':'use','is_landing':False,'title':'Intro'}},'routes':audience_routes(['intro.md']),'navigation':{'use':[{'title':'Intro','destination':'intro.md','href':'/intro/'}]},'overviews':{'use':'/intro/'},'landing_destination':'intro.md'}}
     models['guided-locales.json']={'schema_version':1,'canonical_graph_schema_version':1,'canonical_language':'en','locales':[]}
     models['reader-navigation-runtime.json']={'schema_version':1,'canonical_language':'en','locales':[{'language':'ja','labels':{'Intro':'はじめに','Use templates':'利用'},'routes':{}}]}
-    models['provider-repositories.json']={k:{'revision':v,'entries':[],'browser':[],'previews':[],'nonviewable_blobs':{},'published':({'docs/index.md':'intro.md'} if k=='composition' else {})} for k,v in PROVIDERS.items()}
     models['guided-navigation.json']={'schema_version':1,'repository':'TakashiSasaki/templates','providers':[{'name':k,'revision':v,'root_index':'docs/index.md','indexes':[{'path':'docs/index.md','title':'Intro','sections':[],'depth':0,'object_id':'f'*40}],'edges':[],'diagnostics':{'index_count':1,'edge_count':0,'max_index_depth':0,'cycle_edges':[],'multiple_parent_indexes':[]}} for k,v in PROVIDERS.items()]}
     models['translation-availability.json']={'schema_version':1,'canonical_language':'en','surface':'reader','languages':[],'summary':{'current':0,'stale':0,'missing':0},'by_language':{},'records':[]}
     models['translation-publication.json']={'schema_version':1,'canonical_language':'en','translations':[]}
@@ -30,6 +29,42 @@ def fixture(root):
 
 
 def finish(root):return seal(root,producer=PRODUCER,providers=PROVIDERS,configuration_digest='d'*64)
+
+
+def translation_fixture(root, status='current'):
+    root = fixture(root)
+    canonical_sha = 'b' * 40
+    reviewed_sha = canonical_sha if status == 'current' else 'e' * 40
+    coverage = {
+        'schema_version': 1,
+        'canonical_language': 'en',
+        'surface': 'reader',
+        'languages': ['ja'],
+        'summary': {'current': int(status == 'current'), 'stale': int(status == 'stale'), 'missing': 0},
+        'by_language': {'ja': {'current': int(status == 'current'), 'stale': int(status == 'stale'), 'missing': 0}},
+        'records': [{
+            'publication': 'composition', 'document': 'intro', 'language': 'ja',
+            'canonical_source': 'docs/index.md', 'canonical_destination': 'intro.md',
+            'status': status, 'translation_source': 'translations/ja/docs/index.md',
+            'canonical_blob_sha': reviewed_sha, 'current_blob_sha': canonical_sha,
+        }],
+    }
+    publication = {
+        'schema_version': 1,
+        'canonical_language': 'en',
+        'translations': [{
+            'publication': 'composition', 'language': 'ja',
+            'canonical_destination': 'intro.md', 'translation_destination': 'ja/intro.md',
+        }],
+    }
+    (root / 'translation-availability.json').write_bytes(canonical(coverage))
+    (root / 'translation-publication.json').write_bytes(canonical(publication))
+    runtime = json.loads((root / 'reader-navigation-runtime.json').read_text())
+    runtime['locales'][0]['routes'] = {'/intro/': '/ja/intro/'}
+    (root / 'reader-navigation-runtime.json').write_bytes(canonical(runtime))
+    (root / 'publication/ja').mkdir()
+    (root / 'publication/ja/intro.md').write_text('# Japanese\n')
+    return root
 
 
 class BundleTests(unittest.TestCase):
@@ -93,14 +128,29 @@ class BundleTests(unittest.TestCase):
             with self.assertRaises(BundleError):finish(root)
 
     def test_provenance_and_graph_revision_mismatch_fail(self):
-        for file in ('provenance.json','guided-navigation.json','provider-repositories.json'):
+        for file in ('provenance.json','guided-navigation.json'):
             root=fixture(self.base/file)
             data=json.loads((root/file).read_text())
             if file=='provenance.json':data['providers']['policy']='f'*40
             elif file=='guided-navigation.json':data['providers'][0]['revision']='f'*40
-            else:data['policy']['revision']='f'*40
             (root/file).write_bytes(canonical(data))
             with self.assertRaises(BundleError):finish(root)
+
+    def test_repository_browser_payload_is_not_a_bundle_model(self):
+        self.assertNotIn('provider-repositories.json', MODELS)
+        root = fixture(self.base / 'bundle')
+        finish(root)
+        self.assertFalse((root / 'provider-repositories.json').exists())
+        self.assertNotIn('provider-repositories.json', json.loads((root / 'bundle.json').read_text())['files'])
+
+    def test_translation_projection_validates_without_provider_sources(self):
+        root = translation_fixture(self.base / 'translation')
+        finish(root)
+        publication = json.loads((root / 'translation-publication.json').read_text())
+        publication['translations'][0]['translation_destination'] = 'intro.md'
+        (root / 'translation-publication.json').write_bytes(canonical(publication))
+        with self.assertRaises(BundleError):
+            finish(root)
 
     def test_semantic_navigation_closure(self):
         root=fixture(self.base/'bundle')

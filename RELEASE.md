@@ -49,12 +49,10 @@ python scripts/qualify_integration.py \
   --output OUTPUT_OUTSIDE_SOURCE_CHECKOUTS
 ```
 
-P5 additionally invokes `scripts/verify_bootstrap_equivalence.py --bundle OUTPUT`.
-Its historical reference is bound to the landed Site snapshot, without requiring Site
-source/code at execution. Bootstrap PR branches request this additional workflow check.
-The reusable workflow's `bootstrap_equivalence` flag is false for normal future candidate
-qualification: the historical P5 payload is not a permanent freeze on provider/IA changes.
-Never describe a result without this comparison as bootstrap-equivalence evidence.
+Historical P5 bootstrap equivalence remains documented in the archived bootstrap
+evidence, but it is not part of the current Bundle-v3 qualification workflow. The
+browser/source-corpus payload was intentionally removed from the public contract, so
+future candidates are qualified against the current producer and exact provider inputs.
 
 ## Immutable transport and reuse
 
@@ -67,8 +65,9 @@ Corrupt or misbound evidence fails closed; absent evidence can require regenerat
 No workflow timestamps, run IDs or attempt counters contaminate deterministic identity.
 The artifact is a candidate artifact, not an automatically promoted release.
 
-The current output contract is Bundle v2: structurally valid stale reader derivatives
-remain available with exact provider-owned reviewed/current canonical evidence. The
-P5/P7 releases used v1 current-only publication. This version change does not update
-Site, provider translation prose, or synchronization hashes. Site adoption and warning
-presentation remain a separate human decision.
+The current output contract is Bundle v3: structurally valid stale reader derivatives
+remain available with exact provider-owned reviewed/current canonical evidence, while
+provider repository source/tree payloads are no longer transported for Site browsing.
+The P5/P7 releases used v1 current-only publication and P8 used v2. This breaking version
+change does not update Site, provider translation prose, or synchronization hashes. Site
+adoption and warning presentation remain a separate human decision.

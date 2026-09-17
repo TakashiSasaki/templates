@@ -151,11 +151,6 @@
           "localized": "Composition state"
         },
         {
-          "id": "composition-tree",
-          "canonical": "Composition tree",
-          "localized": "Composition tree"
-        },
-        {
           "id": "concepts-and-terminology",
           "canonical": "Concepts and terminology",
           "localized": "概念と用語"
@@ -401,11 +396,6 @@
           "localized": "Policy profiles"
         },
         {
-          "id": "policy-tree",
-          "canonical": "Policy tree",
-          "localized": "Policy tree"
-        },
-        {
           "id": "policy-composition-coexistence",
           "canonical": "Policy–Composition coexistence",
           "localized": "Policy–Composition 共存"
@@ -519,11 +509,6 @@
           "id": "repository-topology",
           "canonical": "Repository topology",
           "localized": "リポジトリトポロジ"
-        },
-        {
-          "id": "repository-trees",
-          "canonical": "Repository trees",
-          "localized": "リポジトリツリー"
         },
         {
           "id": "responsibility-boundaries",

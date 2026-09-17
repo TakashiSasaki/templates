@@ -1,4 +1,4 @@
-"""Bundle v2 publishes stale derivatives without inventing synchronization evidence."""
+"""Bundle v3 publishes stale derivatives without inventing synchronization evidence."""
 import hashlib
 import json
 from pathlib import Path, PurePosixPath
@@ -9,20 +9,29 @@ from ci_artifacts.publication_bundle import pack, extract
 from publication_bundle.contract import canonical, validate, BundleError
 from publication_bundle.authority_content.publish_translations import publish_translations, TranslationPublicationError
 from publication_bundle.authority_content.translation_fragment_reconciliation import reconcile_translation_fragments
-from tests import test_bundle_review_invariants as fixtures
-from tests.test_publication_bundle import finish, PRODUCER, PROVIDERS
+from tests.test_publication_bundle import finish, translation_fixture, PRODUCER, PROVIDERS
 
 
 class StaleBundleTests(unittest.TestCase):
-    setUp = fixtures.BundleReviewInvariants.setUp
-    read = fixtures.BundleReviewInvariants.read
-    write = fixtures.BundleReviewInvariants.write
-    translations = fixtures.BundleReviewInvariants.translations
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.root = Path(tmp.name) / 'bundle'
+
+    def read(self, name):
+        return json.loads((self.root / name).read_text())
+
+    def write(self, name, data):
+        (self.root / name).write_bytes(canonical(data))
+
+    def translations(self, status='current'):
+        self.root = translation_fixture(self.root, status)
+        return self.read('translation-availability.json')
 
     def test_stale_exact_evidence_survives_deterministic_archive_roundtrip(self):
         coverage=self.translations('stale');record=coverage['records'][0]
         self.assertNotEqual(record['canonical_blob_sha'],record['current_blob_sha'])
-        first=finish(self.root);self.assertEqual(first['schema_version'],2)
+        first=finish(self.root);self.assertEqual(first['schema_version'],3)
         (self.root/'bundle.json').unlink();self.assertEqual(first,finish(self.root))
         archive=self.root.parent/'bundle.tar';pack(self.root,archive)
         zip_path=self.root.parent/'bundle.zip'

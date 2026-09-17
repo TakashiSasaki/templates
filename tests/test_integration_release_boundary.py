@@ -19,12 +19,10 @@ class ReleaseBoundaryTests(unittest.TestCase):
         steps=workflow['jobs']['qualify']['steps']
         self.assertEqual([s['with']['path'] for s in steps if s.get('uses','').startswith('actions/checkout@')],['integration-source','composition-source','policy-source'])
         commands='\n'.join(s.get('run','') for s in steps)
-        for required in ('qualify_integration.py','test_bundle_review_invariants','verify_bootstrap_equivalence.py','publication_bundle_artifact.py pack','--expected "$EXPECTED_PRODUCER"'):self.assertIn(required,commands)
+        for required in ('qualify_integration.py','test_publication_bundle','test_stale_translation_publication','publication_bundle_artifact.py pack','--expected "$EXPECTED_PRODUCER"'):self.assertIn(required,commands)
+        for obsolete in ('test_bundle_review_invariants','test_translation_manifest_closure','verify_bootstrap_equivalence.py','bootstrap_equivalence'):self.assertNotIn(obsolete,commands)
         for prohibited in ('site_renderer','render_publication_bundle','playwright','deploy-pages','upload-pages-artifact','pages: write','site-source'):
             self.assertNotIn(prohibited,(ROOT/'.github/workflows/integration-qualification.yml').read_text())
-        bootstrap=next(s for s in steps if s.get('name')=='Verify requested bootstrap equivalence')
-        self.assertEqual(bootstrap['if'],'${{ inputs.bootstrap_equivalence }}')
-        self.assertFalse(workflow.get('on',workflow.get(True))['workflow_call']['inputs']['bootstrap_equivalence']['default'])
 
     def test_exact_producer_binding_rejects_mutable_and_mismatched_inputs(self):
         head=subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip()

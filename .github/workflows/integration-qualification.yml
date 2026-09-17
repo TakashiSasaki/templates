@@ -14,19 +14,12 @@ on:
         description: Exact Policy candidate SHA (empty uses reviewed lock)
         type: string
         default: ''
-      bootstrap_equivalence:
-        description: Verify the historical P5 Site snapshot (not a steady-state release baseline)
-        type: boolean
-        default: false
       publication_staging_ids:
         description: Ordered candidate mapping IDs, without changing reviewed locks
         type: string
         default: ''
   workflow_call:
     inputs:
-      bootstrap_equivalence:
-        type: boolean
-        default: false
       producer_ref:
         type: string
         required: true
@@ -120,7 +113,7 @@ jobs:
           python -m pip check
       - name: Validate Integration contract regression cases
         working-directory: integration-source
-        run: python -m unittest tests.test_publication_bundle tests.test_bundle_review_invariants tests.test_translation_manifest_closure tests.test_stale_translation_publication tests.test_integration_qualification tests.test_bundle_artifact -v
+        run: python -m unittest tests.test_publication_bundle tests.test_stale_translation_publication tests.test_integration_qualification tests.test_bundle_artifact -v
       - name: Materialize provider-owned catalog outputs
         run: |
           python integration-source/scripts/materialize_publication_assets.py --publication composition=composition-source --publication policy=policy-source
@@ -141,9 +134,6 @@ jobs:
             --policy-root policy-source --policy-revision "${{ steps.refs.outputs.policy }}" \
             --staging-ids "${STAGING_IDS:-$STAGING_ID}" \
             --output publication-bundle --github-output "$GITHUB_OUTPUT"
-      - name: Verify requested bootstrap equivalence
-        if: ${{ inputs.bootstrap_equivalence }}
-        run: python integration-source/scripts/verify_bootstrap_equivalence.py --bundle publication-bundle
       - name: Package qualified Bundle
         run: python integration-source/scripts/publication_bundle_artifact.py pack --bundle publication-bundle --output bundle.tar
       - name: Publish immutable Bundle artifact

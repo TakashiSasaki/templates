@@ -7,8 +7,9 @@ consumer tooling, catalogs, translations and Work-ledger policy.
 
 Integration owns reviewed provider selection, compatibility/publication closure,
 destinations and reader IA, semantic navigation, publication staging, provider freshness,
-translation availability derivation, integrated glossary, guided graph, immutable provider
-repository/source read models, provenance and deterministic Bundle qualification.
+translation availability derivation, integrated glossary, guided graph, exact provider
+provenance and deterministic Bundle qualification. It does not transport provider
+repository/source read models for Site browsing; GitHub owns source browsing.
 It may represent or validate provider declarations, but may not redefine their semantics.
 
 Site owns presentation and browser runtime, including source browser/search/glossary UI,
