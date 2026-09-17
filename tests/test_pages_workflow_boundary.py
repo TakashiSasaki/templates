@@ -228,6 +228,16 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
         self.assertIn("actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346", workflow)
         self.assertIn("artifact_name: github-pages", workflow)
         self.assertIn("\n  deploy:\n", workflow)
+        self.assertIn(
+            "Revalidate publication preconditions immediately before Pages deployment",
+            workflow,
+        )
+        self.assertIn("actions/variables/{name}", workflow)
+        self.assertIn("Site branch advanced before Pages deployment", workflow)
+        self.assertLess(
+            workflow.index("Revalidate publication preconditions immediately before Pages deployment"),
+            workflow.index("Configure GitHub Pages"),
+        )
 
         metadata = workflow.index("  deployment_metadata:")
         build = workflow.index("  build:")

@@ -23,30 +23,53 @@ if __package__ in (None, ""):
 from site_renderer.bundle import load_lock, validate_locked
 
 
-def _report(lock: dict[str, Any], *, trusted: dict[str, str | None], classification: str, reasons: list[str], checks: dict[str, str], evidence: list[str], site_revision: str | None = None) -> dict[str, Any]:
+def _candidate_lock_needs_commit(candidate_site: Path, candidate_lock: Path) -> bool:
+    current_lock = candidate_site / "integration-source.json"
+    if current_lock.is_symlink() or candidate_lock.is_symlink():
+        raise ValueError("candidate Site lock must not be a symbolic link")
+    if not current_lock.is_file():
+        return True
+    current = load_lock(current_lock)
+    candidate = load_lock(candidate_lock)
+    identity_fields = ("repository", "revision", "bundle_schema", "bundle_identity", "content_digest")
+    return any(current[field] != candidate[field] for field in identity_fields)
+
+
+def _report(lock: dict[str, Any], *, trusted: dict[str, str | None], classification: str, reasons: list[str], checks: dict[str, str], evidence: list[str], site_revision: str | None = None, site_base_revision: str | None = None) -> dict[str, Any]:
     inputs = {
         "site_revision": site_revision,
+        "site_base_revision": site_base_revision,
         "integration_revision": lock["revision"],
         "bundle_schema": str(lock["bundle_schema"]),
         "bundle_identity": lock["bundle_identity"],
         "bundle_content_digest": lock["content_digest"],
     }
     inputs = {key: value for key, value in inputs.items() if isinstance(value, str)}
-    seed = json.dumps({"boundary": "integration-to-site", "inputs": inputs, "trusted": trusted}, sort_keys=True, separators=(",", ":")).encode()
+    # A candidate checkout commit is an evidence identity, not a replay
+    # identity.  Git timestamps and the synthetic lock commit are deliberately
+    # excluded so the same Site base + selected Bundle reconciles to one key.
+    replay_inputs = {key: value for key, value in inputs.items() if key != "site_revision"}
+    seed = json.dumps({"boundary": "integration-to-site", "inputs": replay_inputs, "trusted": trusted}, sort_keys=True, separators=(",", ":")).encode()
+    if classification == "NOT_ELIGIBLE":
+        next_action = "adoption authorization is required"
+    elif classification == "NO_CHANGE":
+        next_action = "no Site lock mutation is required"
+    else:
+        next_action = "stop"
     return {
         "schema_version": 1,
         "boundary": "integration-to-site",
         "stage": "qualification",
         "classification": classification,
         "reason_codes": reasons,
-        "affected_authorities": [] if classification == "NOT_ELIGIBLE" else ["site"],
+        "affected_authorities": [] if classification in {"NOT_ELIGIBLE", "NO_CHANGE"} else ["site"],
         "inputs": inputs,
         "trusted": trusted,
         "requirements": {"required": ["bundle-integrity", "generic-markdown-renderer", "pages-artifact-provenance"], "supported": ["bundle-integrity", "generic-markdown-renderer", "pages-artifact-provenance"], "missing": [], "unsupported": [], "fallbacks": {}},
         "checks": {"required": list(checks), "results": checks, "not_run": [name for name, result in checks.items() if result != "passed"]},
         "evidence_refs": evidence,
         "allowed_mutations": [],
-        "next_action": "adoption authorization is required" if classification == "NOT_ELIGIBLE" else "stop",
+        "next_action": next_action,
         "idempotency_key": hashlib.sha256(seed).hexdigest(),
     }
 
@@ -54,6 +77,7 @@ def _report(lock: dict[str, Any], *, trusted: dict[str, str | None], classificat
 def qualify(site_root: Path, bundle: Path, candidate_lock: Path, *, trusted: dict[str, str | None], evidence: list[str], candidate_root: Path | None = None) -> dict[str, Any]:
     lock = load_lock(candidate_lock)
     original_site_revision = subprocess.check_output(["git", "-C", str(site_root), "rev-parse", "HEAD"], text=True).strip()
+    candidate_lock_bytes = candidate_lock.read_bytes()
     checks = {
         "bundle-integrity": "passed",
         "generic-markdown-renderer": "not-run",
@@ -66,11 +90,14 @@ def qualify(site_root: Path, bundle: Path, candidate_lock: Path, *, trusted: dic
         build = Path(temporary) / "build"
         subprocess.run(["git", "clone", "--quiet", "--shared", str(site_root), str(candidate_site)], check=True)
         subprocess.run(["git", "-C", str(candidate_site), "checkout", "--quiet", "--detach", original_site_revision], check=True)
-        shutil.copyfile(candidate_lock, candidate_site / "integration-source.json")
-        subprocess.run(["git", "-C", str(candidate_site), "config", "user.email", "publication-controller@users.noreply.github.com"], check=True)
-        subprocess.run(["git", "-C", str(candidate_site), "config", "user.name", "publication-controller"], check=True)
-        subprocess.run(["git", "-C", str(candidate_site), "add", "integration-source.json"], check=True)
-        subprocess.run(["git", "-C", str(candidate_site), "commit", "--quiet", "-m", "dry-run: bind candidate Integration Bundle"], check=True)
+        current_lock = candidate_site / "integration-source.json"
+        lock_changed = _candidate_lock_needs_commit(candidate_site, candidate_lock)
+        if lock_changed:
+            current_lock.write_bytes(candidate_lock_bytes)
+            subprocess.run(["git", "-C", str(candidate_site), "config", "user.email", "publication-controller@users.noreply.github.com"], check=True)
+            subprocess.run(["git", "-C", str(candidate_site), "config", "user.name", "publication-controller"], check=True)
+            subprocess.run(["git", "-C", str(candidate_site), "add", "integration-source.json"], check=True)
+            subprocess.run(["git", "-C", str(candidate_site), "commit", "--quiet", "-m", "dry-run: bind candidate Integration Bundle"], check=True)
         candidate_revision = subprocess.check_output(["git", "-C", str(candidate_site), "rev-parse", "HEAD"], text=True).strip()
         subprocess.run([
             sys.executable, str(candidate_site / "scripts/render_publication_bundle.py"),
@@ -86,8 +113,9 @@ def qualify(site_root: Path, bundle: Path, candidate_lock: Path, *, trusted: dic
         check_reader(build / "site", bundle, lock)
         check_artifact_contract(build / "site", bundle, lock)
         checks["pages-artifact-provenance"] = "passed"
-        result = _report(lock, trusted=trusted, classification="NOT_ELIGIBLE", reasons=["AUTHORIZATION_NOT_GRANTED"], checks=checks, evidence=evidence + [f"site-candidate://{candidate_revision}"], site_revision=candidate_revision)
-        result["inputs"]["site_base_revision"] = original_site_revision
+        classification = "NO_CHANGE" if not lock_changed else "NOT_ELIGIBLE"
+        reasons = ["ALREADY_SELECTED"] if not lock_changed else ["AUTHORIZATION_NOT_GRANTED"]
+        result = _report(lock, trusted=trusted, classification=classification, reasons=reasons, checks=checks, evidence=evidence + [f"site-candidate://{candidate_revision}"], site_revision=candidate_revision, site_base_revision=original_site_revision)
         return result
 
 

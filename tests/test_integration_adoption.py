@@ -80,6 +80,23 @@ class AdoptionTests(unittest.TestCase):
        patch('site_renderer.acquire.binding') as bound:
    self.assertEqual(verify_receipt(self.lock,value),'repos/TakashiSasaki/templates/actions')
    bound.assert_called_once()
+ def test_unapproved_workflow_identity_is_rejected(self):
+  from ci_artifacts.transport import ArtifactError
+  from site_renderer.acquire import verify_receipt
+  identity=self.lock['bundle_identity'];digest='sha256:'+'f'*64
+  value={'repository':'TakashiSasaki/templates','producer':self.lock['revision'],'identity':identity,
+         'run_id':4,'attempt':1,'workflow_head':'c'*40,'artifact_id':3,
+         'archive_digest':digest,'artifact_name':f'publication-bundle-{identity}-1-integration'}
+  metadata={'id':3,'expired':False,'digest':digest,'name':value['artifact_name'],
+            'workflow_run':{'id':4,'head_sha':'c'*40}}
+  run={'id':4,'run_attempt':1,'head_sha':'c'*40,
+       'head_repository':{'full_name':'TakashiSasaki/templates'},
+       'name':'Untrusted workflow','event':'workflow_dispatch',
+       'path':'.github/workflows/validate-integration.yml','status':'completed','conclusion':'success'}
+  with patch('site_renderer.acquire.api',side_effect=[metadata,run]), \
+       patch('site_renderer.acquire.paginated',return_value=[]):
+   with self.assertRaisesRegex(ArtifactError,'unapproved workflow identity'):
+    verify_receipt(self.lock,value)
  def test_trusted_deployment_lane_never_falls_back_to_regeneration(self):
   with patch('site_renderer.acquire.paginated',return_value=[]):self.assertIsNone(locate(self.lock,require_trusted_release=True))
  def test_misbound_artifact_evidence_cannot_fall_back_to_regeneration(self):
