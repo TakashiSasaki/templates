@@ -208,6 +208,9 @@ class SiteCIClassifierTests(unittest.TestCase):
             "scripts/classify_site_browser_acceptance.py",
             "scripts/verify_site_full_qualification.py",
             "scripts/run_core_tests.py",
+            "scripts/site_check_registry.py",
+            "scripts/validate_site_declarations.py",
+            "scripts/validate_website_contracts.py",
             "tests/test_site_ci_classifier.py",
             "tests/test_run_core_tests.py",
         ):

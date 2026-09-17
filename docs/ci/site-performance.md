@@ -7,23 +7,25 @@ there is no second active provider build/cache subsystem in Site.
 
 ## Construction and qualification
 
-Run `python scripts/run_site_preflight.py fast` for the L0 checks: diff hygiene on
-committed, staged and unstaged changes, changed-file syntax/tests, JSON syntax and
-classifier validation. `fast` is a cheap development preflight and may run on a dirty
-tree; untracked non-ignored files are included in its changed-path inventory.
+Run `python scripts/run_site_preflight.py fast` for the cheap construction loop:
+diff hygiene on committed, staged and unstaged changes, changed-file syntax/tests,
+JSON syntax and classifier validation. `fast` may run on a dirty tree; untracked
+non-ignored files are included in its changed-path inventory.
 
-Run `python scripts/run_site_preflight.py ready --expected-head <FULL_SITE_SHA>` before
-spending CI resources. `ready` is the clean exact-head local gate: the current
-committed HEAD must match the supplied SHA and the index, working tree and untracked
-file inventory must all be clean. It then runs the complete core suite, all applicable
-pure Node tests, acquires the exact Bundle named by `integration-source.json`, renders
-the real Site renderer, and validates the generated artifact. It accepts no provider
-checkout roots and fails when the exact qualified Bundle is unavailable.
+Run `SITE_HEAD=$(git rev-parse HEAD) && python scripts/run_site_preflight.py
+source-ready --expected-head "$SITE_HEAD"` before spending CI resources.
+`source-ready` is the clean exact-head local gate: the current committed HEAD must
+match the supplied SHA and the index, working tree and untracked-file inventory must
+all be clean. It then runs the complete core suite, the canonical Playground Node
+inventory, Site-owned source contracts and the managed Composition consumer validator.
+It does not acquire a Bundle, render a Site, use a provider checkout, or launch a
+browser.
 
-`python scripts/run_site_preflight.py full --bundle <verified Bundle directory>
---site-root <artifact directory>` remains available for isolated local assembly and
-artifact checks. None of these local profiles runs Playwright/browser/PWA acceptance;
-those remain conditional/full remote CI checks.
+`python scripts/run_site_preflight.py artifact-local --bundle <verified Bundle directory>
+--site-root <artifact directory>` validates an already produced Bundle and Site
+artifact. Both paths are required; the profile fails closed when either is absent.
+Neither local profile runs Playwright/browser/PWA acceptance; those remain
+conditional/full remote CI checks.
 Integration owns source semantics and provider qualification.
 
 Remote construction uses the existing base-authoritative path classifier. Unknown

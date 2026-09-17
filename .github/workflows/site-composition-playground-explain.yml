@@ -33,7 +33,7 @@ jobs:
       - name: Run Playground consumer and explainability tests
         env:
           EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
-        run: python scripts/run_site_preflight.py fast --check node-explainability --expected-head "$EXPECTED_HEAD"
+        run: python scripts/run_site_preflight.py fast --check node --check site-contracts --expected-head "$EXPECTED_HEAD"
   browser:
     name: Playground browser acceptance
     needs:

@@ -6,21 +6,37 @@ Read [PUBLISHING.md](PUBLISHING.md) for exact inputs and acceptance.
 
 ## Local validation
 
-Install the pinned requirements in `requirements-build.lock` and `requirements-visual.txt`.
-`python scripts/run_site_preflight.py fast` is the cheap dirty-tree development
-preflight: it checks diff hygiene, changed-file Python/JSON/tests and classifier
-applicability. It does not install browsers or acquire provider checkouts.
+Install the pinned requirements in `requirements-build.lock` and
+`requirements-visual.txt` when working on build or browser acceptance. The
+source-ready profile itself does not install packages, acquire provider
+checkouts, use a GitHub API, consume a Pages artifact, or launch a browser.
 
-Before spending remote CI resources, run
-`python scripts/run_site_preflight.py ready --expected-head FULL_SITE_SHA` from a
-clean checkout. This is the local CI-readiness gate: it requires the committed HEAD
-to match exactly, with no staged, unstaged or untracked files, then runs the complete
-core suite, applicable pure Node tests, exact Bundle acquisition and the real Site
-renderer plus generated-artifact checks. It accepts no provider checkout roots.
+For the fast construction loop, run:
 
-`run_site_preflight.py full --bundle PATH --site-root GENERATED_SITE` is the local
-assembly/artifact profile for explicit inputs; it does not run browser acceptance.
-Playwright, browser and PWA acceptance remain conditional/full remote CI checks.
+`python scripts/run_site_preflight.py fast`
+
+This checks diff hygiene, changed-file Python/JSON/tests and classifier
+applicability on a dirty tree.
+
+Before spending remote CI resources, record the committed head and run the
+source-ready gate from a clean checkout:
+
+`SITE_HEAD=$(git rev-parse HEAD) && python scripts/run_site_preflight.py source-ready --expected-head "$SITE_HEAD"`
+
+This runs the complete classified Python core suite, every cheap Playground
+Node test, Site-owned declaration/contract checks and the managed Composition
+consumer validator. It requires the committed HEAD to match exactly and the
+index, working tree and untracked-file inventory to be clean.
+
+For an already produced Publication Bundle and rendered Site, run the
+artifact-local profile with both inputs:
+
+`python scripts/run_site_preflight.py artifact-local --bundle PATH --site-root GENERATED_SITE`
+
+It fails closed when either path is absent and performs only explicit local
+Bundle-reader and rendered-Site checks. It does not acquire or render an
+artifact. Playwright, browser, PWA, cross-authority, immutable Pages-artifact
+qualification and GitHub/API acceptance remain remote CI checks.
 
 For physical isolation run `qualify_bundle_renderer.py --site-root . --bundle PATH
 --bundle-identity DIGEST --output NEW_PATH` with a clean committed Site candidate.

@@ -46,6 +46,7 @@ class BoundaryTests(unittest.TestCase):
    text=path.read_text()
    self.assertNotIn('--base ',text);self.assertNotIn('--composition-root',text);self.assertNotIn('--policy-root',text)
    self.assertIn('--bundle <verified Bundle directory>',text)
-  help_result=subprocess.run([sys.executable,str(ROOT/'scripts/run_site_preflight.py'),'ready','--help'],capture_output=True,text=True)
+  help_result=subprocess.run([sys.executable,str(ROOT/'scripts/run_site_preflight.py'),'source-ready','--help'],capture_output=True,text=True)
   self.assertEqual(help_result.returncode,0)
+  self.assertIn('artifact-local',subprocess.run([sys.executable,str(ROOT/'scripts/run_site_preflight.py'),'--help'],capture_output=True,text=True).stdout)
   for option in ('--expected-head','--bundle','--site-root'):self.assertIn(option,help_result.stdout)
