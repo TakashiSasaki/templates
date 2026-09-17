@@ -14,6 +14,11 @@ The only normal mutations are the exact provider revision fields in Integration'
 Site's `integration-source.json`. The controller never updates active Policy
 pins, `AGENTS.md`, workflows, validators, capabilities, or generated trees.
 
+Candidate qualification output is evidence, not authority: a controller must
+bind the exact run/attempt/artifact and independently validate the Bundle with
+trusted code before applying a positive adoption gate. A candidate report
+cannot grant its own authorization or change the active Policy/controller pin.
+
 The kill switch stops new adoption and deployment while preserving the last
 successful publication. Recovery selects a previously qualified fixed input or
 artifact; retry must not resurrect a superseded selection.
