@@ -1,6 +1,8 @@
 """Local staged qualification must reach the exact Site consumer boundary."""
 from pathlib import Path
 from unittest.mock import patch
+import builtins
+import importlib
 import subprocess
 import sys
 import unittest
@@ -12,6 +14,17 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class SitePreflightTests(unittest.TestCase):
+    def test_node_preflight_imports_without_build_only_dependencies(self):
+        original_import = builtins.__import__
+
+        def reject_build_dependency(name, *args, **kwargs):
+            if name == "idna":
+                raise ImportError("blocked for L0 dependency test")
+            return original_import(name, *args, **kwargs)
+
+        with patch.object(builtins, "__import__", reject_build_dependency):
+            importlib.reload(preflight)
+
     def test_provider_checkout_arguments_are_rejected(self):
         for argument in ("--composition-root", "--policy-root", "--staging-id"):
             result = subprocess.run(
@@ -95,11 +108,11 @@ class SitePreflightTests(unittest.TestCase):
     def test_exact_assembly_uses_located_bundle_and_actual_renderer(self):
         lock = {"bundle_identity": "b" * 64}
         receipt = {"artifact_id": 9}
-        with patch.object(preflight, "load_lock", return_value=lock), patch.object(
-            preflight.acquire, "locate", return_value=receipt
-        ) as locate, patch.object(preflight.acquire, "consume") as consume, patch.object(
-            preflight, "render"
-        ) as render, patch.object(preflight, "check_site_artifact", return_value={"html_pages": 1}):
+        with patch("site_renderer.bundle.load_lock", return_value=lock), patch(
+            "site_renderer.acquire.locate", return_value=receipt
+        ) as locate, patch("site_renderer.acquire.consume") as consume, patch(
+            "site_renderer.render.render"
+        ) as render, patch("scripts.check_site_artifact.check", return_value={"html_pages": 1}):
             result = preflight.run_exact_assembly(None, None)
         locate.assert_called_once_with(lock)
         consume.assert_called_once()
@@ -107,8 +120,8 @@ class SitePreflightTests(unittest.TestCase):
         self.assertEqual(result, {"html_pages": 1})
 
     def test_exact_assembly_fails_when_no_exact_bundle_is_available(self):
-        with patch.object(preflight, "load_lock", return_value={"revision": "c" * 40}), patch.object(
-            preflight.acquire, "locate", return_value=None
+        with patch("site_renderer.bundle.load_lock", return_value={"revision": "c" * 40}), patch(
+            "site_renderer.acquire.locate", return_value=None
         ), self.assertRaisesRegex(RuntimeError, "no exact qualified"):
             preflight.run_exact_assembly(None, None)
 

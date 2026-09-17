@@ -24,11 +24,6 @@ if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from scripts.classify_site_ci import classify_paths
-from scripts.check_site_artifact import check as check_site_artifact
-from site_renderer import acquire
-from site_renderer.bundle import load_lock
-from site_renderer.render import render
-from scripts.check_bundle_reader import check as check_bundle_reader
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -121,6 +116,11 @@ def run_node() -> None:
 
 
 def run_exact_assembly(bundle: Path | None, site_root: Path | None) -> dict[str, str | int]:
+    from scripts.check_site_artifact import check as check_site_artifact
+    from site_renderer import acquire
+    from site_renderer.bundle import load_lock
+    from site_renderer.render import render
+
     lock = load_lock(ROOT / "integration-source.json")
     if (bundle is None) != (site_root is None):
         raise RuntimeError("--bundle and --site-root must be provided together")
@@ -158,10 +158,16 @@ def run_check(check: str, args: argparse.Namespace) -> None:
         result = run_exact_assembly(args.bundle, args.site_root)
         print(json.dumps({"exact_site_assembly": result}, sort_keys=True))
     elif check == "bundle-reader":
+        from scripts.check_bundle_reader import check as check_bundle_reader
+        from site_renderer.bundle import load_lock
+
         if args.bundle is None or args.site_root is None:
             raise RuntimeError("Bundle reader validation requires --bundle and --site-root")
         check_bundle_reader(args.site_root, args.bundle, load_lock(ROOT / "integration-source.json"))
     elif check == "site-artifact":
+        from scripts.check_site_artifact import check as check_site_artifact
+        from site_renderer.bundle import load_lock
+
         result = check_site_artifact(
             args.site_root,
             args.bundle,
