@@ -77,6 +77,30 @@ def api(path):
     return json.loads(subprocess.check_output(['gh','api',path],text=True))
 
 
+def consume(args):
+    prefix=f'repos/{args.repository}/actions'
+    metadata=api(f'{prefix}/artifacts/{args.artifact_id}')
+    run=api(f'{prefix}/runs/{args.run_id}/attempts/{args.attempt}')
+    jobs=[]
+    for page in range(1,101):
+        batch=api(f'{prefix}/runs/{args.run_id}/attempts/{args.attempt}/jobs?per_page=100&page={page}')['jobs']
+        jobs+=batch
+        if len(batch)<100:break
+    else:raise ArtifactError('Bundle job pagination limit exceeded')
+    binding(metadata,run,jobs,artifact_id=args.artifact_id,archive_digest=args.archive_digest,run_id=args.run_id,attempt=args.attempt,producer=args.producer,workflow_head=args.workflow_head,repository=args.repository,identity=args.bundle_identity,artifact_name=args.artifact_name,workflow_name=args.workflow_name,workflow_event=args.workflow_event,workflow_path=args.workflow_path)
+    providers={'composition':args.composition,'policy':args.policy}
+    if args.modeling:
+        providers={'modeling':args.modeling,**providers}
+    # Keep the downloaded archive alive until verified_tar has checked and
+    # extracted it.  Returning from the TemporaryDirectory context first used
+    # to delete bundle.zip before extract() opened it.
+    with tempfile.TemporaryDirectory() as tmp:
+        archive=Path(tmp)/'bundle.zip'
+        with archive.open('wb') as output:
+            subprocess.run(['gh','api',f'{prefix}/artifacts/{args.artifact_id}/zip'],stdout=output,check=True)
+        return extract(archive,args.output,archive_digest=args.archive_digest,identity=args.bundle_identity,producer=args.producer,providers=providers)
+
+
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     sub=p.add_subparsers(dest='command',required=True)
@@ -92,24 +116,7 @@ def main():
     args=p.parse_args()
     if args.command=='pack':pack(args.bundle,args.output);return
     if not re.fullmatch(r'[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+',args.repository):p.error('invalid repository')
-    prefix=f'repos/{args.repository}/actions'
-    metadata=api(f'{prefix}/artifacts/{args.artifact_id}')
-    run=api(f'{prefix}/runs/{args.run_id}/attempts/{args.attempt}')
-    jobs=[]
-    for page in range(1,101):
-        batch=api(f'{prefix}/runs/{args.run_id}/attempts/{args.attempt}/jobs?per_page=100&page={page}')['jobs']
-        jobs+=batch
-        if len(batch)<100:break
-    else:raise ArtifactError('Bundle job pagination limit exceeded')
-    binding(metadata,run,jobs,artifact_id=args.artifact_id,archive_digest=args.archive_digest,run_id=args.run_id,attempt=args.attempt,producer=args.producer,workflow_head=args.workflow_head,repository=args.repository,identity=args.bundle_identity,artifact_name=args.artifact_name,workflow_name=args.workflow_name,workflow_event=args.workflow_event,workflow_path=args.workflow_path)
-    with tempfile.TemporaryDirectory() as tmp:
-        archive=Path(tmp)/'bundle.zip'
-        with archive.open('wb') as output:
-            subprocess.run(['gh','api',f'{prefix}/artifacts/{args.artifact_id}/zip'],stdout=output,check=True)
-    providers={'composition':args.composition,'policy':args.policy}
-    if args.modeling:
-        providers={'modeling':args.modeling,**providers}
-    extract(archive,args.output,archive_digest=args.archive_digest,identity=args.bundle_identity,producer=args.producer,providers=providers)
+    consume(args)
 
 
 if __name__=='__main__':main()
