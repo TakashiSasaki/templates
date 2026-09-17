@@ -100,6 +100,7 @@ Integration's Publication catalogs are explicit allowlists. Branch-wide copies a
 unrestricted glob-based publication are prohibited. Adding a file to a provider branch does not publish it.
 Generated destinations are stable public paths in the Bundle contract.
 The Site, Composition, and Policy source browsers display bounded build-time views.
+Composition and Policy source views remain bounded and do not transfer semantic ownership.
 Symlinks and gitlinks are never followed. Source content is escaped and sandboxed,
 not executed as application HTML. The Bundle bounds provider content before Site
 receives it. Site source/provenance links outside those browser views identify
@@ -108,7 +109,8 @@ exact full commit revisions.
 ## External deployment gate
 
 The `github-pages` environment custom deployment branch policy must allow exactly the `site` branch.
-The live setting must be rechecked before activation; an obsolete `main` authorization or
-an unset Pages workflow source is a stop condition. Do not broaden the environment to all branches.
+The obsolete `main` authorization has been removed from the intended contract. The live setting must
+still be rechecked before activation, and an obsolete `main` authorization or an unset Pages workflow
+source is a stop condition. Do not broaden the environment to all branches.
 `https://templates.moukaeritai.work/` is the configured Pages base URL and HTTPS enforcement is enabled.
 These settings are activation prerequisites, not claims made by this implementation PR.
