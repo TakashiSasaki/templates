@@ -6,7 +6,7 @@ Generic syntax and resolution rules for URI references.
 
 ## Identity and normative owner
 
-Record: `uri`; record authority: Models.
+Record: `uri`; record authority: Modeling.
 Normative owner of subject: [IETF](https://www.ietf.org/).
 Resource reference: https://www.rfc-editor.org/rfc/rfc3986
 Registration is for discovery, not adoption, endorsement, or transfer of normative ownership.

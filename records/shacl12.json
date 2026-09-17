@@ -1,8 +1,8 @@
 {
-  "$schema": "https://github.com/TakashiSasaki/templates/raw/refs/heads/models/schemas/resource-record-0.1.schema.json",
+  "$schema": "https://github.com/TakashiSasaki/templates/raw/refs/heads/modeling/schemas/resource-record-0.1.schema.json",
   "id": "shacl12",
-  "recordRevision": 1,
-  "recordAuthority": "models",
+  "recordRevision": 2,
+  "recordAuthority": "modeling",
   "resourceId": "https://www.w3.org/TR/shacl12-core/",
   "identityBasis": "upstream-entrypoint",
   "ownership": "external",

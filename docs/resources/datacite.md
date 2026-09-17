@@ -6,7 +6,7 @@ Metadata schema for registering and describing research outputs.
 
 ## Identity and normative owner
 
-Record: `datacite`; record authority: Models.
+Record: `datacite`; record authority: Modeling.
 Normative owner of subject: [DataCite Metadata Working Group](https://datacite.org/).
 Resource reference: https://schema.datacite.org/
 Registration is for discovery, not adoption, endorsement, or transfer of normative ownership.

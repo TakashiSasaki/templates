@@ -6,7 +6,7 @@ Application profile for interoperable data catalogs in a European context.
 
 ## Identity and normative owner
 
-Record: `dcat-ap`; record authority: Models.
+Record: `dcat-ap`; record authority: Modeling.
 Normative owner of subject: [European Commission SEMIC](https://interoperable-europe.ec.europa.eu/).
 Resource reference: https://semiceu.github.io/DCAT-AP/releases/3.0.0/
 Registration is for discovery, not adoption, endorsement, or transfer of normative ownership.

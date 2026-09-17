@@ -1,8 +1,8 @@
 {
-  "$schema": "https://github.com/TakashiSasaki/templates/raw/refs/heads/models/schemas/resource-record-0.1.schema.json",
+  "$schema": "https://github.com/TakashiSasaki/templates/raw/refs/heads/modeling/schemas/resource-record-0.1.schema.json",
   "id": "udc-summary",
-  "recordRevision": 1,
-  "recordAuthority": "models",
+  "recordRevision": 2,
+  "recordAuthority": "modeling",
   "resourceId": "https://udcsummary.info/",
   "identityBasis": "upstream-entrypoint",
   "ownership": "external",
@@ -45,8 +45,8 @@
       "predicate": "http://purl.org/dc/terms/isPartOf",
       "object": "https://udcc.org/",
       "assertedBy": {
-        "name": "Models record editors",
-        "id": "https://github.com/TakashiSasaki/templates/tree/models"
+        "name": "Modeling record editors",
+        "id": "https://github.com/TakashiSasaki/templates/tree/modeling"
       },
       "assertionOrigin": "local",
       "normativity": "informative",

@@ -1,12 +1,12 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/TakashiSasaki/templates/raw/refs/heads/models/schemas/resource-record-0.1.schema.json",
-  "title": "Models resource description record 0.1 (draft)",
+  "$id": "https://github.com/TakashiSasaki/templates/raw/refs/heads/modeling/schemas/resource-record-0.1.schema.json",
+  "title": "Modeling resource description record 0.1 (draft)",
   "description": "Administrative description contract, not ownership of the described resource or conformance to DCAT/ADMS. See docs/record-model.md.",
   "type": "object",
   "properties": {
     "$schema": {
-      "const": "https://github.com/TakashiSasaki/templates/raw/refs/heads/models/schemas/resource-record-0.1.schema.json"
+      "const": "https://github.com/TakashiSasaki/templates/raw/refs/heads/modeling/schemas/resource-record-0.1.schema.json"
     },
     "id": {
       "type": "string",
@@ -17,7 +17,7 @@
       "minimum": 1
     },
     "recordAuthority": {
-      "const": "models"
+      "const": "modeling"
     },
     "resourceId": {
       "type": "string",
@@ -595,7 +595,7 @@
           "normativeAuthority": {
             "properties": {
               "id": {
-                "const": "https://github.com/TakashiSasaki/templates/tree/models"
+                "const": "https://github.com/TakashiSasaki/templates/tree/modeling"
               }
             }
           }
@@ -622,7 +622,7 @@
             "properties": {
               "id": {
                 "not": {
-                  "const": "https://github.com/TakashiSasaki/templates/tree/models"
+                  "const": "https://github.com/TakashiSasaki/templates/tree/modeling"
                 }
               }
             }

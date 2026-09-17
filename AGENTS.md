@@ -1,4 +1,4 @@
-# Agent instructions — Models authority
+# Agent instructions — Modeling authority
 
 These are canonical, handwritten, English branch-local instructions. Read AUTHORITY.md before making changes. This file defines local application of the authority boundary; it does not replace the Policy authority's general repository-change policy.
 
@@ -13,7 +13,7 @@ The initial administrative profile deliberately has narrower capabilities than t
 ## Before mutation
 
 1. Retrieve live branch/head, relevant PRs, and affected authority contracts. Verify the actual branch and history. Do not trust an old conversation's SHA or infer ownership from file placement.
-2. Keep `models` independent from `composition`, `policy`, `integration`, and `site`. Never import their Git ancestry. Do not change another authority or enable publication without explicit authorization.
+2. Keep `modeling` independent from `composition`, `policy`, `integration`, and `site`. Never import their Git ancestry. Do not change another authority or enable publication without explicit authorization.
 3. State scope, non-goals, acceptance evidence, and the stopping boundary. There is no production compatibility requirement.
 
 ## Resource intake

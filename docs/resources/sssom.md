@@ -6,7 +6,7 @@ Exchange format and metadata for sets of semantic mappings.
 
 ## Identity and normative owner
 
-Record: `sssom`; record authority: Models.
+Record: `sssom`; record authority: Modeling.
 Normative owner of subject: [Mapping Commons](https://mapping-commons.github.io/).
 Resource reference: https://mapping-commons.github.io/sssom/
 Registration is for discovery, not adoption, endorsement, or transfer of normative ownership.

@@ -6,7 +6,7 @@ Information model for expressing permissions, prohibitions, duties, and related 
 
 ## Identity and normative owner
 
-Record: `odrl`; record authority: Models.
+Record: `odrl`; record authority: Modeling.
 Normative owner of subject: [World Wide Web Consortium (W3C)](https://www.w3.org/).
 Resource reference: https://www.w3.org/TR/odrl-model/
 Registration is for discovery, not adoption, endorsement, or transfer of normative ownership.

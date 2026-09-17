@@ -6,7 +6,7 @@ Provides class, property, and schema vocabulary for RDF.
 
 ## Identity and normative owner
 
-Record: `rdfs`; record authority: Models.
+Record: `rdfs`; record authority: Modeling.
 Normative owner of subject: [World Wide Web Consortium (W3C)](https://www.w3.org/).
 Resource reference: https://www.w3.org/TR/rdf-schema/
 Registration is for discovery, not adoption, endorsement, or transfer of normative ownership.

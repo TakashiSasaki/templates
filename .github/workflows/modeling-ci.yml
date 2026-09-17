@@ -1,12 +1,12 @@
-name: Models qualification
+name: Modeling qualification
 on:
   pull_request:
   push:
-    branches: [models]
+    branches: [modeling]
 permissions:
   contents: read
 concurrency:
-  group: models-ci-${{ github.event.pull_request.number || github.ref }}
+  group: modeling-ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 jobs:
   qualify:

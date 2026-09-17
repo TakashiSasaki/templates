@@ -6,7 +6,7 @@ JSON-based serialization for Linked Data.
 
 ## Identity and normative owner
 
-Record: `json-ld`; record authority: Models.
+Record: `json-ld`; record authority: Modeling.
 Normative owner of subject: [World Wide Web Consortium (W3C)](https://www.w3.org/).
 Resource reference: https://www.w3.org/TR/json-ld11/
 Registration is for discovery, not adoption, endorsement, or transfer of normative ownership.

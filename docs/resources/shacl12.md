@@ -6,7 +6,7 @@ Reference to the evolving SHACL 1.2 Core specification.
 
 ## Identity and normative owner
 
-Record: `shacl12`; record authority: Models.
+Record: `shacl12`; record authority: Modeling.
 Normative owner of subject: [World Wide Web Consortium (W3C)](https://www.w3.org/).
 Resource reference: https://www.w3.org/TR/shacl12-core/
 Registration is for discovery, not adoption, endorsement, or transfer of normative ownership.

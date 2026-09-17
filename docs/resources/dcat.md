@@ -6,7 +6,7 @@ Vocabulary for interoperable and federated catalogs; resource descriptions are n
 
 ## Identity and normative owner
 
-Record: `dcat`; record authority: Models.
+Record: `dcat`; record authority: Modeling.
 Normative owner of subject: [World Wide Web Consortium (W3C)](https://www.w3.org/).
 Resource reference: https://www.w3.org/TR/vocab-dcat-3/
 Registration is for discovery, not adoption, endorsement, or transfer of normative ownership.

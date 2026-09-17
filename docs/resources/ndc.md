@@ -6,7 +6,7 @@
 
 ## 識別と規範的所有者
 
-記述レコード: `ndc`。記述の所有者: Models。
+記述レコード: `ndc`。記述の所有者: Modeling。
 対象の規範的所有者: [日本図書館協会 分類委員会](https://www.jla.or.jp/committees/bunrui/)。
 対象の参照先: https://www.jla.or.jp/committees/bunrui/
 登録は発見のためのものであり、採用・推奨・規範的所有権の移譲を意味しない。

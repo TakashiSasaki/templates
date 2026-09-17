@@ -6,7 +6,7 @@ Controlled identifiers and metadata for licenses and exceptions.
 
 ## Identity and normative owner
 
-Record: `spdx`; record authority: Models.
+Record: `spdx`; record authority: Modeling.
 Normative owner of subject: [SPDX project](https://spdx.dev/).
 Resource reference: https://spdx.org/licenses/
 Registration is for discovery, not adoption, endorsement, or transfer of normative ownership.

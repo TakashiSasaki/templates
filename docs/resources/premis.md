@@ -6,7 +6,7 @@ Preservation metadata standard with documentation and associated machine-readabl
 
 ## Identity and normative owner
 
-Record: `premis`; record authority: Models.
+Record: `premis`; record authority: Modeling.
 Normative owner of subject: [Library of Congress and the standard's maintenance activity](https://www.loc.gov/standards/).
 Resource reference: https://www.loc.gov/standards/premis/
 Registration is for discovery, not adoption, endorsement, or transfer of normative ownership.

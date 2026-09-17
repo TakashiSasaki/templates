@@ -6,7 +6,7 @@ Metadata vocabulary aimed at describing semantic artefacts.
 
 ## Identity and normative owner
 
-Record: `mod`; record authority: Models.
+Record: `mod`; record authority: Modeling.
 Normative owner of subject: [FAIR-IMPACT MOD contributors](https://fair-impact.github.io/MOD/).
 Resource reference: https://fair-impact.github.io/MOD/index-en.html
 Registration is for discovery, not adoption, endorsement, or transfer of normative ownership.

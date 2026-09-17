@@ -6,7 +6,7 @@ Packaging and descriptive metadata for research objects and their associated fil
 
 ## Identity and normative owner
 
-Record: `ro-crate`; record authority: Models.
+Record: `ro-crate`; record authority: Modeling.
 Normative owner of subject: [RO-Crate community](https://www.researchobject.org/ro-crate/).
 Resource reference: https://www.researchobject.org/ro-crate/specification/1.2/
 Registration is for discovery, not adoption, endorsement, or transfer of normative ownership.
