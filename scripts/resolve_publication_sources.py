@@ -89,6 +89,10 @@ def parse_overrides(values: list[str]) -> dict[str, str]:
             raise SourceLockError(f"override references unknown publication: {name}")
         if not ref:
             raise SourceLockError(f"override for {name} must not be empty")
+        if FULL_COMMIT_PATTERN.fullmatch(ref) is None:
+            raise SourceLockError(
+                f"override for {name} must be a full lowercase commit SHA"
+            )
         if name in overrides:
             raise SourceLockError(f"duplicate override: {name}")
         overrides[name] = ref

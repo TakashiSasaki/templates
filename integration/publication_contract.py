@@ -339,6 +339,7 @@ def asset_files(
             files.append(child)
     if not files:
         raise PublicationContractError(f"{field} must not be empty: {relative}")
+    files.sort(key=lambda item: item.relative_to(path).as_posix())
     return tuple(files)
 
 

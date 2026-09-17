@@ -30,3 +30,22 @@ Site adoption. Nothing here deploys or automatically follows provider heads.
 `integration/site-slots.json` declares downstream Site content slots, without copying their
 presentation bytes. Those names are compatibility vocabulary, not Site implementation
 inputs. Provider lock identities are independent of coding-agent/toolchain adoption pins.
+
+## Local validation
+
+Run `python3 scripts/run_integration_preflight.py fast --expected-head "$(git rev-parse HEAD)"`
+while editing or before a commit. Before starting expensive CI, run the clean
+exact-head gate:
+
+```sh
+HEAD_SHA=$(git rev-parse HEAD)
+python3 scripts/run_integration_preflight.py ready \
+  --expected-head "$HEAD_SHA"
+```
+
+`ready` adds the reviewed publication-source lock, exact producer identity,
+deterministic fixture Bundle generation and local pack/extract round-trip. The
+`providers` profile is explicit and requires exact Composition and Policy roots
+and revisions; it performs local provider materialization and qualification
+without resolving mutable branches. GitHub artifact identity, immutable upload,
+run/attempt evidence and cross-authority candidate qualification remain remote.
