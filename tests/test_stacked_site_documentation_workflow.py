@@ -17,7 +17,9 @@ class StackedSiteDocumentationWorkflowTests(unittest.TestCase):
         self.assertTrue(is_site_authority_snapshot(markers | {"codex/future-stack-base"}))
         self.assertFalse(is_site_authority_snapshot({"integration-source.json"}))
         classifier = (WORKFLOW.parent / "classify.yml").read_text(encoding="utf-8")
-        self.assertIn("git ls-tree -r --name-only", classifier)
+        self.assertIn("scripts/collect_site_changed_paths.py", classifier)
+        self.assertIn('"$boundary_status" -eq 20', classifier)
+        self.assertIn('"$boundary_status" -eq 21', classifier)
         self.assertIn("site_candidate", classifier)
         jobs = yaml.safe_load(text)["jobs"]
         for job_name in (
