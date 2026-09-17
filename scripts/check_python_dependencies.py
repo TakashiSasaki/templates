@@ -26,9 +26,15 @@ class PythonEnvironment:
     entrypoints: tuple[str, ...]
     # Some environments execute repository tests in addition to their
     # production entrypoints. Test modules are inspected at module-import
-    # depth so browser-only lazy imports do not leak into the build contract.
+    # depth when traversed from their first-party imports so browser-only lazy
+    # imports do not leak into the build contract.
     shallow_entrypoints: tuple[str, ...] = ()
     include_nested_imports: bool = True
+    # Test bodies are executed by the core/build runners, so inspect imports
+    # nested in the test modules themselves. First-party modules reached from
+    # those tests remain module-import-depth-only; browser-only lazy imports
+    # are separately owned by the visual environment.
+    include_nested_shallow_imports: bool = False
     required_distributions: tuple[str, ...] = ()
 
 
@@ -104,12 +110,14 @@ ENVIRONMENTS = (
         "requirements.txt",
         CORE_ENTRYPOINTS,
         shallow_entrypoints=TEST_ENTRYPOINTS,
+        include_nested_shallow_imports=True,
     ),
     PythonEnvironment(
         "build",
         "requirements-build.lock",
         BUILD_ENTRYPOINTS,
         shallow_entrypoints=TEST_ENTRYPOINTS,
+        include_nested_shallow_imports=True,
         required_distributions=("zensical",),
     ),
     PythonEnvironment(
@@ -210,6 +218,15 @@ class _ImportVisitor(ast.NodeVisitor):
         if module:
             self.references.extend(
                 ImportReference(f"{module}.{alias.name}", node.level)
+                for alias in node.names
+                if alias.name != "*"
+            )
+        else:
+            # ``from . import helper`` stores an empty module in the AST. The
+            # package initializer is not the alias target; follow each named
+            # sibling so its imports remain inside the static contract.
+            self.references.extend(
+                ImportReference(alias.name, node.level)
                 for alias in node.names
                 if alias.name != "*"
             )
@@ -347,6 +364,8 @@ def _external_distributions(
     root: Path,
     entrypoints: list[Path],
     include_nested_imports: bool,
+    *,
+    nested_entrypoints: frozenset[Path] = frozenset(),
 ) -> tuple[set[str], list[str]]:
     pending = list(entrypoints)
     visited: set[Path] = set()
@@ -357,7 +376,10 @@ def _external_distributions(
         if path in visited:
             continue
         visited.add(path)
-        references, parse_error = _parse_imports(path, include_nested_imports)
+        references, parse_error = _parse_imports(
+            path,
+            include_nested_imports or path in nested_entrypoints,
+        )
         if parse_error is not None:
             errors.append(f"cannot parse {path.relative_to(root)}: {parse_error}")
             continue
@@ -398,7 +420,14 @@ def validate_environment(
     errors.extend(import_errors)
     if shallow_entrypoints:
         shallow_required, shallow_import_errors = _external_distributions(
-            root, shallow_entrypoints, include_nested_imports=False
+            root,
+            shallow_entrypoints,
+            include_nested_imports=False,
+            nested_entrypoints=(
+                frozenset(shallow_entrypoints)
+                if environment.include_nested_shallow_imports
+                else frozenset()
+            ),
         )
         required.update(shallow_required)
         errors.extend(shallow_import_errors)

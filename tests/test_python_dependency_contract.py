@@ -106,6 +106,53 @@ class PythonDependencyContractTests(unittest.TestCase):
             errors,
         )
 
+    def test_nested_core_test_imports_are_checked_without_visual_lazy_imports(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "requirements.txt").write_text("\n", encoding="utf-8")
+            (root / "tests").mkdir()
+            (root / "tests/test_core.py").write_text(
+                "def test_core():\n    import missing_core_distribution\n",
+                encoding="utf-8",
+            )
+            environment = PythonEnvironment(
+                name="core-fixture",
+                requirements="requirements.txt",
+                entrypoints=(),
+                shallow_entrypoints=("tests/test_*.py",),
+                include_nested_shallow_imports=True,
+            )
+            errors = validate_environment(root, environment)
+        self.assertTrue(
+            any("missing_core_distribution" in error for error in errors),
+            errors,
+        )
+
+    def test_relative_empty_module_alias_reaches_sibling_module(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            package = root / "package"
+            package.mkdir()
+            (root / "requirements.txt").write_text("\n", encoding="utf-8")
+            (package / "__init__.py").write_text(
+                "from . import helper\n",
+                encoding="utf-8",
+            )
+            (package / "helper.py").write_text(
+                "import missing_relative_distribution\n",
+                encoding="utf-8",
+            )
+            environment = PythonEnvironment(
+                name="relative-fixture",
+                requirements="requirements.txt",
+                entrypoints=("package/__init__.py",),
+            )
+            errors = validate_environment(root, environment)
+        self.assertTrue(
+            any("missing_relative_distribution" in error for error in errors),
+            errors,
+        )
+
     def test_environment_inventory_has_distinct_requirements_inputs(self) -> None:
         self.assertEqual(
             {environment.name for environment in ENVIRONMENTS},
@@ -116,3 +163,5 @@ class PythonDependencyContractTests(unittest.TestCase):
             len(ENVIRONMENTS),
         )
         self.assertTrue(environment_by_name("build").include_nested_imports)
+        self.assertTrue(environment_by_name("core").include_nested_shallow_imports)
+        self.assertTrue(environment_by_name("build").include_nested_shallow_imports)

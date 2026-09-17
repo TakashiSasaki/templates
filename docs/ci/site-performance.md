@@ -18,8 +18,9 @@ source-ready --expected-head "$SITE_HEAD"` before spending CI resources.
 match the supplied SHA and the index, working tree and untracked-file inventory must
 all be clean. It then runs the complete core suite, the canonical Playground Node
 inventory, Site-owned source contracts, static Python dependency-boundary checks for
-the core/build/visual/Composition requirements inputs, and the managed Composition
-consumer validator.
+the core/build/visual/Composition requirements inputs. It does not run the managed
+Composition consumer validator; run the explicit
+`composition-validation` profile when that managed check is needed.
 It does not acquire a Bundle, render a Site, use a provider checkout, or launch a
 browser.
 
