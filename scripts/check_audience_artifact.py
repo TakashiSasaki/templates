@@ -78,9 +78,10 @@ def validate_projection_parity(
     assert routes == complete_expected_routes, "assembled audience route projection drift"
 
 
-def check_artifact(site_root: Path, bundle: Path) -> dict:
+def check_artifact(site_root: Path, bundle: Path, lock: Path | None = None) -> dict:
     from site_renderer.bundle import validate_locked, load_lock
-    validate_locked(bundle,load_lock(Path(__file__).resolve().parents[1]/'integration-source.json'))
+    lock_path = lock or (Path(__file__).resolve().parents[1] / 'integration-source.json')
+    validate_locked(bundle, load_lock(lock_path))
     model=json.loads((site_root/'audience-runtime.json').read_text())
     expected=json.loads((bundle/'navigation.json').read_text())['audience_runtime']
     validate_projection_parity(site_root,model,expected,set())
@@ -103,8 +104,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--site-root', type=Path, required=True)
     parser.add_argument('--bundle',type=Path,required=True)
+    parser.add_argument('--lock', type=Path)
     args=parser.parse_args()
-    model=check_artifact(args.site_root,args.bundle)
+    model=check_artifact(args.site_root,args.bundle,args.lock)
     print(json.dumps({'stage': 'audience-static', 'documents': len(model['documents'])}))
 
 

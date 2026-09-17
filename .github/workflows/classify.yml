@@ -2,6 +2,10 @@ name: Classify Site CI
 on:
   workflow_call:
     inputs:
+      candidate_ref:
+        description: Exact Site revision whose acceptance scope is being classified
+        type: string
+        default: ''
       force_full:
         type: boolean
         default: false
@@ -76,9 +80,9 @@ jobs:
       site_candidate: ${{ steps.classify.outputs.site_candidate }}
     steps:
       - name: Check out repository history for change classification
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ inputs.candidate_ref || github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
           persist-credentials: false
       - name: Classify acceptance scope

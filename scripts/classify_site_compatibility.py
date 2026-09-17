@@ -25,8 +25,24 @@ CLASSIFICATIONS = {
 }
 
 
-def _report(bundle: dict[str, Any], stage: str = "preflight") -> dict[str, Any]:
+def _report(
+    bundle: dict[str, Any],
+    stage: str = "preflight",
+    *,
+    trusted: dict[str, str | None] | None = None,
+    site_revision: str | None = None,
+) -> dict[str, Any]:
     identity = bundle.get("bundle_identity") or bundle.get("identity")
+    producer = bundle.get("producer") if isinstance(bundle.get("producer"), dict) else {}
+    providers = bundle.get("providers") if isinstance(bundle.get("providers"), dict) else {}
+    inputs = {
+        "integration_revision": producer.get("revision"),
+        "bundle_schema": str(bundle.get("bundle_schema")) if bundle.get("bundle_schema") is not None else None,
+        "bundle_identity": identity,
+        "bundle_content_digest": bundle.get("content_digest"),
+        "site_revision": site_revision,
+    }
+    inputs.update({f"{name}_revision": revision for name, revision in providers.items()})
     return {
         "schema_version": 1,
         "boundary": "integration-to-site",
@@ -34,15 +50,8 @@ def _report(bundle: dict[str, Any], stage: str = "preflight") -> dict[str, Any]:
         "classification": "UNKNOWN",
         "reason_codes": [],
         "affected_authorities": [],
-        "inputs": {
-            key: value for key, value in {
-                "integration_revision": bundle.get("integration_revision") or bundle.get("revision"),
-                "bundle_schema": str(bundle.get("bundle_schema")) if bundle.get("bundle_schema") is not None else None,
-                "bundle_identity": identity,
-                "bundle_content_digest": bundle.get("content_digest"),
-            }.items() if isinstance(value, str)
-        },
-        "trusted": bundle.get("trusted", {"policy_revision": "0" * 40, "controller_revision": "0" * 40}),
+        "inputs": {key: value for key, value in inputs.items() if isinstance(value, str)},
+        "trusted": trusted or {"policy_revision": None, "controller_revision": None},
         "requirements": {"required": [], "supported": [], "missing": [], "unsupported": [], "fallbacks": {}},
         "checks": {"required": [], "results": {}, "not_run": []},
         "evidence_refs": [],
@@ -52,9 +61,15 @@ def _report(bundle: dict[str, Any], stage: str = "preflight") -> dict[str, Any]:
     }
 
 
-def classify(bundle_root: Path, *, support_path: Path, trusted: dict[str, str] | None = None) -> dict[str, Any]:
-    payload = {"bundle_identity": "", "trusted": trusted or {"policy_revision": "0" * 40, "controller_revision": "0" * 40}}
-    report = _report(payload)
+def classify(
+    bundle_root: Path,
+    *,
+    support_path: Path,
+    trusted: dict[str, str | None] | None = None,
+    site_revision: str | None = None,
+) -> dict[str, Any]:
+    payload = {"bundle_identity": "", "trusted": trusted}
+    report = _report(payload, trusted=trusted, site_revision=site_revision)
     try:
         support = read_json(support_path)
         if (set(support) != {"schema_version", "protocol", "supported_features", "required_runtime", "fallbacks"}
@@ -63,7 +78,17 @@ def classify(bundle_root: Path, *, support_path: Path, trusted: dict[str, str] |
         if not isinstance(support["supported_features"], list) or not all(isinstance(item, str) for item in support["supported_features"]):
             raise BundleError("invalid Site supported feature list")
         manifest = read_json(bundle_root / "bundle.json")
-        report = _report({"bundle_identity": manifest.get("identity"), "bundle_schema": manifest.get("schema_version"), "trusted": trusted or {"policy_revision": "0" * 40, "controller_revision": "0" * 40}})
+        report = _report(
+            {
+                "bundle_identity": manifest.get("identity"),
+                "bundle_schema": manifest.get("schema_version"),
+                "content_digest": manifest.get("content_digest"),
+                "producer": manifest.get("producer"),
+                "providers": manifest.get("providers"),
+            },
+            trusted=trusted,
+            site_revision=site_revision,
+        )
         if manifest.get("schema_version") == 4 and "modeling" not in manifest.get("providers", {}):
             return {**report, "classification": "INVALID_INPUT", "reason_codes": ["SCHEMA_PROVIDER_MISMATCH"], "affected_authorities": ["integration"]}
         validate(bundle_root)
@@ -97,9 +122,16 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--bundle", type=Path, required=True)
     parser.add_argument("--support", type=Path, default=Path("contracts/site-publication-support.json"))
+    parser.add_argument("--trusted-policy-revision")
+    parser.add_argument("--trusted-controller-revision")
+    parser.add_argument("--site-revision")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
-    report = classify(args.bundle, support_path=args.support)
+    trusted = {
+        "policy_revision": args.trusted_policy_revision,
+        "controller_revision": args.trusted_controller_revision,
+    }
+    report = classify(args.bundle, support_path=args.support, trusted=trusted, site_revision=args.site_revision)
     args.output.write_text(json.dumps(report, sort_keys=True, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(report, sort_keys=True))
     return 0 if report["classification"] == "COMPATIBLE_PENDING_QUALIFICATION" else 1

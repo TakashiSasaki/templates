@@ -3,7 +3,6 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from publication_bundle.contract import canonical
 from scripts.adopt_integration_source import plan
 
 
@@ -11,6 +10,9 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class SitePublicationSupportTests(unittest.TestCase):
+    def _bytes(self, value):
+        return (json.dumps(value, ensure_ascii=False, indent=2) + "\n").encode()
+
     def _lock(self, **overrides):
         value = {
             "schema_version": 1,
@@ -33,8 +35,8 @@ class SitePublicationSupportTests(unittest.TestCase):
             root = Path(directory)
             current = root / "current.json"
             candidate = root / "candidate.json"
-            current.write_bytes(canonical(self._lock()))
-            candidate.write_bytes(canonical(self._lock(revision="d" * 40, bundle_schema=4, bundle_identity="e" * 64, content_digest="f" * 64)))
+            current.write_bytes(self._bytes(self._lock()))
+            candidate.write_bytes(self._bytes(self._lock(revision="d" * 40, bundle_schema=4, bundle_identity="e" * 64, content_digest="f" * 64)))
             result = plan(current, candidate)
             self.assertEqual(result["classification"], "AUTO_PROCESSABLE")
             self.assertEqual(set(result["changed_fields"]), {"revision", "bundle_schema", "bundle_identity", "content_digest"})
@@ -44,8 +46,8 @@ class SitePublicationSupportTests(unittest.TestCase):
             root = Path(directory)
             current = root / "current.json"
             candidate = root / "candidate.json"
-            current.write_bytes(canonical(self._lock()))
-            candidate.write_bytes(canonical(self._lock(revision="d" * 40)))
+            current.write_bytes(self._bytes(self._lock()))
+            candidate.write_bytes(self._bytes(self._lock(revision="d" * 40)))
             before = current.read_bytes()
             plan(current, candidate)
             self.assertEqual(current.read_bytes(), before)

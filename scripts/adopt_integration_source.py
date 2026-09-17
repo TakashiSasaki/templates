@@ -11,7 +11,11 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import sys
 import tempfile
+
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from site_renderer.bundle import BundleError, load_lock
 
@@ -26,6 +30,10 @@ def _digest(value: bytes) -> str:
     return hashlib.sha256(value).hexdigest()
 
 
+def _canonical_lock(value: dict) -> bytes:
+    return (json.dumps(value, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
+
+
 def plan(current_path: Path, candidate_path: Path) -> dict:
     current_bytes = current_path.read_bytes()
     candidate_bytes = candidate_path.read_bytes()
@@ -33,6 +41,8 @@ def plan(current_path: Path, candidate_path: Path) -> dict:
         raise BundleError("lock inputs must not be symbolic links")
     current = load_lock(current_path)
     candidate = load_lock(candidate_path)
+    if candidate_bytes != _canonical_lock(candidate):
+        raise BundleError("candidate lock is not the deterministic renderer output")
     if set(current) != set(candidate):
         raise BundleError("candidate lock shape differs from current lock")
     changed = [key for key in current if current[key] != candidate[key]]

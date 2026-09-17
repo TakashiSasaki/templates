@@ -1,0 +1,241 @@
+name: Reconcile Site Integration selection
+
+# This listener is intentionally report-only while PUBLICATION_AUTOMATION_MODE
+# is unset. It is a thin transport adapter; semantic qualification remains in
+# Integration and Site-owned validators. It never invokes an LLM or agent API.
+on:
+  repository_dispatch:
+    types:
+      - publication.integration-promoted
+      - publication.reconcile
+  workflow_dispatch:
+    inputs:
+      integration_revision:
+        description: Exact Integration producer SHA
+        type: string
+        required: true
+      bundle_schema:
+        description: Exact Publication Bundle schema
+        type: number
+        required: true
+      bundle_identity:
+        description: Exact Bundle identity
+        type: string
+        required: true
+      content_digest:
+        description: Exact Bundle content digest
+        type: string
+        required: true
+      artifact_id:
+        description: Successful Integration artifact ID
+        type: string
+        required: false
+        default: ''
+      run_id:
+        description: Successful Integration workflow run ID
+        type: string
+        required: false
+        default: ''
+      attempt:
+        description: Successful Integration run attempt
+        type: string
+        required: false
+        default: ''
+      artifact_name:
+        description: Exact Integration Bundle artifact name
+        type: string
+        required: false
+        default: ''
+      artifact_digest:
+        description: Exact Integration Bundle archive digest
+        type: string
+        required: false
+        default: ''
+permissions:
+  contents: read
+  actions: read
+  pull-requests: read
+concurrency:
+  group: site-publication-reconciliation
+  cancel-in-progress: false
+env:
+  AUTOMATION_MODE: ${{ vars.PUBLICATION_AUTOMATION_MODE || 'shadow' }}
+  KILL_SWITCH: ${{ vars.PUBLICATION_AUTOMATION_KILL_SWITCH || 'false' }}
+  AUTHORIZED: ${{ vars.PUBLICATION_AUTOMATION_AUTHORIZED || 'false' }}
+jobs:
+  classify:
+    runs-on: ubuntu-24.04
+    outputs:
+      classification: ${{ steps.report.outputs.classification }}
+      idempotency_key: ${{ steps.report.outputs.idempotency_key }}
+      site_gate: ${{ steps.report.outputs.site_gate }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: site
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Bind the exact dispatch identities
+        env:
+          INTEGRATION: ${{ inputs.integration_revision || github.event.client_payload.integration_revision }}
+          SCHEMA: ${{ inputs.bundle_schema || github.event.client_payload.bundle_schema }}
+          IDENTITY: ${{ inputs.bundle_identity || github.event.client_payload.bundle_identity }}
+          CONTENT: ${{ inputs.content_digest || github.event.client_payload.content_digest }}
+        run: |
+          python3 scripts/render_integration_candidate_lock.py \
+            --revision "$INTEGRATION" \
+            --bundle-schema "$SCHEMA" \
+            --bundle-identity "$IDENTITY" \
+            --content-digest "$CONTENT" \
+            --output candidate-integration-source.json
+      - name: Acquire the exact qualified Integration Bundle
+        env:
+          ARTIFACT_ID: ${{ inputs.artifact_id || github.event.client_payload.artifact_id || '' }}
+          RUN_ID: ${{ inputs.run_id || github.event.client_payload.run_id || '' }}
+          ATTEMPT: ${{ inputs.attempt || github.event.client_payload.attempt || '' }}
+          EXPECTED_ARTIFACT_NAME: ${{ inputs.artifact_name || github.event.client_payload.artifact_name || '' }}
+          EXPECTED_ARTIFACT_DIGEST: ${{ inputs.artifact_digest || github.event.client_payload.artifact_digest || '' }}
+        run: |
+          if [ -z "$ARTIFACT_ID$RUN_ID$ATTEMPT" ]; then
+            echo 'No immutable Integration artifact receipt was supplied; Site qualification will remain stopped.' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          test -n "$ARTIFACT_ID" && test -n "$RUN_ID" && test -n "$ATTEMPT"
+          python3 scripts/acquire_integration_bundle.py receipt \
+            --lock candidate-integration-source.json \
+            --receipt receipt.json \
+            --artifact-id "$ARTIFACT_ID" \
+            --run-id "$RUN_ID" \
+            --attempt "$ATTEMPT"
+          EXPECTED_ARTIFACT_NAME="$EXPECTED_ARTIFACT_NAME" EXPECTED_ARTIFACT_DIGEST="$EXPECTED_ARTIFACT_DIGEST" \
+            python3 - <<'PYCODE'
+          import json
+          import os
+          from pathlib import Path
+          receipt = json.loads(Path('receipt.json').read_text())
+          for key, env_name in (('artifact_name', 'EXPECTED_ARTIFACT_NAME'), ('archive_digest', 'EXPECTED_ARTIFACT_DIGEST')):
+              expected = os.environ[env_name]
+              if expected and receipt.get(key) != expected:
+                  raise SystemExit(f'{key} differs from the dispatched immutable receipt')
+          PYCODE
+          python3 scripts/acquire_integration_bundle.py consume \
+            --lock candidate-integration-source.json \
+            --receipt receipt.json \
+            --output publication-bundle
+      - name: Site preflight against the selected public Bundle contract
+        id: report
+        env:
+          INTEGRATION: ${{ inputs.integration_revision || github.event.client_payload.integration_revision }}
+          TRUSTED_POLICY: ${{ vars.PUBLICATION_POLICY_REVISION || '' }}
+          TRUSTED_CONTROLLER: ${{ vars.PUBLICATION_CONTROLLER_REVISION || '' }}
+        run: |
+          if [ -d publication-bundle ]; then
+            python3 scripts/qualify_site_candidate.py \
+              --site-root . \
+              --bundle publication-bundle \
+              --candidate-lock candidate-integration-source.json \
+              --trusted-policy-revision "$TRUSTED_POLICY" \
+              --trusted-controller-revision "$TRUSTED_CONTROLLER" \
+              --evidence-ref "workflow://${{ github.workflow }}#${{ github.run_id }}/${{ github.run_attempt }}" \
+              --output site-reconcile-report.json
+          else
+            python3 - <<'PYCODE' > site-reconcile-report.json
+            import hashlib, json
+            payload = {
+                'schema_version': 1, 'boundary': 'integration-to-site', 'stage': 'qualification',
+                'classification': 'INFRASTRUCTURE_FAILURE', 'reason_codes': ['MISSING_INTEGRATION_ARTIFACT'],
+                'affected_authorities': ['integration'], 'inputs': json.load(open('candidate-integration-source.json')),
+                'trusted': {'policy_revision': None, 'controller_revision': None},
+                'requirements': {'required': [], 'supported': [], 'missing': [], 'unsupported': [], 'fallbacks': {}},
+                'checks': {'required': ['site-qualification'], 'results': {}, 'not_run': ['site-qualification']},
+                'evidence_refs': [], 'allowed_mutations': [], 'next_action': 'obtain the exact unexpired Bundle artifact',
+            }
+            payload['idempotency_key'] = hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+            print(json.dumps(payload, indent=2, sort_keys=True))
+            PYCODE
+          fi
+          classification=$(python3 -c 'import json; print(json.load(open("site-reconcile-report.json"))["classification"])')
+          idempotency=$(python3 -c 'import json; print(json.load(open("site-reconcile-report.json"))["idempotency_key"])')
+          site_gate=$(python3 - <<'PYCODE'
+          import json, re
+          report = json.load(open('site-reconcile-report.json'))
+          trusted = report.get('trusted', {})
+          checks = report.get('checks', {})
+          passed = (
+              report.get('boundary') == 'integration-to-site'
+              and report.get('classification') == 'NOT_ELIGIBLE'
+              and isinstance(report.get('evidence_refs'), list) and bool(report['evidence_refs'])
+              and not checks.get('not_run')
+              and isinstance(checks.get('results'), dict)
+              and bool(checks['results'])
+              and all(value == 'passed' for value in checks['results'].values())
+              and re.fullmatch(r'[0-9a-f]{40}', str(trusted.get('policy_revision', '')))
+              and re.fullmatch(r'[0-9a-f]{40}', str(trusted.get('controller_revision', '')))
+          )
+          print('passed' if passed else 'stopped')
+          PYCODE
+          )
+          echo "classification=$classification" >> "$GITHUB_OUTPUT"
+          echo "idempotency_key=$idempotency" >> "$GITHUB_OUTPUT"
+          echo "site_gate=$site_gate" >> "$GITHUB_OUTPUT"
+          cat site-reconcile-report.json >> "$GITHUB_STEP_SUMMARY"
+
+  adopt_lock_pr:
+    needs: classify
+    if: >-
+      needs.classify.result == 'success' &&
+      needs.classify.outputs.site_gate == 'passed' &&
+      (vars.PUBLICATION_AUTOMATION_MODE == 'adoption-only' || vars.PUBLICATION_AUTOMATION_MODE == 'auto-publish') &&
+      vars.PUBLICATION_AUTOMATION_AUTHORIZED == 'true' &&
+      vars.PUBLICATION_AUTOMATION_KILL_SWITCH != 'true'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ secrets.PUBLICATION_APP_TOKEN }}
+      INTEGRATION: ${{ inputs.integration_revision || github.event.client_payload.integration_revision }}
+      SCHEMA: ${{ inputs.bundle_schema || github.event.client_payload.bundle_schema }}
+      IDENTITY: ${{ inputs.bundle_identity || github.event.client_payload.bundle_identity }}
+      CONTENT: ${{ inputs.content_digest || github.event.client_payload.content_digest }}
+      IDEMPOTENCY_KEY: ${{ needs.classify.outputs.idempotency_key }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: site
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Require the one-time activated controller credential
+        run: test -n "$GH_TOKEN"
+      - name: Apply only the four Integration selection fields
+        run: |
+          python3 scripts/render_integration_candidate_lock.py --revision "$INTEGRATION" --bundle-schema "$SCHEMA" --bundle-identity "$IDENTITY" --content-digest "$CONTENT" --output candidate-integration-source.json
+          expected=$(sha256sum integration-source.json | awk '{print $1}')
+          python3 scripts/adopt_integration_source.py --current integration-source.json --candidate candidate-integration-source.json --expected-current-digest "$expected" --apply --output adoption-report.json
+      - name: Create or reconcile the idempotent Site adoption PR
+        env:
+          BRANCH: automation/site-publication-$IDEMPOTENCY_KEY
+        run: |
+          gh auth setup-git
+          git config user.name publication-controller
+          git config user.email publication-controller@users.noreply.github.com
+          existing=$(gh pr list --base site --head "$BRANCH" --state open --json number --jq '.[0].number')
+          if [ -n "$existing" ]; then
+            echo "Existing idempotent Site adoption PR #$existing remains authoritative."
+            exit 0
+          fi
+          if git ls-remote --exit-code origin "refs/heads/$BRANCH" >/dev/null 2>&1; then
+            echo 'An idempotency branch exists without an open PR; stop for human recovery.' >&2
+            exit 1
+          fi
+          git switch -c "$BRANCH"
+          git add integration-source.json
+          git diff --cached --quiet && exit 0
+          git commit -m "chore(site): adopt qualified Integration Bundle"
+          git push --force-with-lease origin "HEAD:$BRANCH"
+          existing=$(gh pr list --base site --head "$BRANCH" --json number --jq '.[0].number')
+          if [ -z "$existing" ]; then
+            gh pr create --base site --head "$BRANCH" --title "chore(site): adopt qualified Integration Bundle" --body "Guarded Site lock adoption. Idempotency key: $IDEMPOTENCY_KEY. Auto-merge remains subject to branch protection and required CI."
+          fi
+          pr=$(gh pr list --base site --head "$BRANCH" --json number --jq '.[0].number')
+          gh pr merge "$pr" --auto --squash

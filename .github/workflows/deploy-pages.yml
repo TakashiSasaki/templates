@@ -3,6 +3,12 @@ name: Deploy documentation from site
 # Keep this workflow source-controlled so each diagnostic retry uses a new commit SHA.
 on:
   workflow_dispatch:
+    inputs:
+      site_revision:
+        description: Exact merged Site SHA to qualify and deploy
+        type: string
+        required: false
+        default: ''
 
 permissions:
   contents: read
@@ -24,6 +30,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       deployment_timestamp: ${{ steps.timestamp.outputs.deployment_timestamp }}
+      site_revision: ${{ steps.site_revision.outputs.site_revision }}
 
     steps:
       - name: Capture deployment timestamp
@@ -31,6 +38,18 @@ jobs:
         run: |
           echo "deployment_timestamp=$(TZ=Asia/Tokyo date '+%Y-%m-%d %H:%M:%S JST')" \
             >> "$GITHUB_OUTPUT"
+      - name: Bind the exact Site revision
+        id: site_revision
+        env:
+          REQUESTED_SITE_REVISION: ${{ inputs.site_revision || github.sha }}
+        run: |
+          python3 - <<'PYCODE' >> "$GITHUB_OUTPUT"
+          import os, re
+          value = os.environ['REQUESTED_SITE_REVISION']
+          if not re.fullmatch(r'[0-9a-f]{40}', value):
+              raise SystemExit('site_revision must be a full lowercase commit SHA')
+          print('site_revision=' + value)
+          PYCODE
 
   build:
     if: >-
@@ -41,16 +60,81 @@ jobs:
     uses: ./.github/workflows/build-pages.yml
     with:
       deployment_timestamp: ${{ needs.deployment_metadata.outputs.deployment_timestamp }}
+      deployment_revision: ${{ needs.deployment_metadata.outputs.site_revision }}
     permissions:
       contents: read
       actions: read
+
+  artifact_gate:
+    if: >-
+      github.repository == 'TakashiSasaki/templates' &&
+      github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/site' &&
+      needs.deployment_metadata.result == 'success' &&
+      needs.build.result == 'success'
+    needs:
+      - deployment_metadata
+      - build
+    permissions:
+      contents: read
+      actions: read
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Verify the exact Pages artifact selected by the build
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARTIFACT_ID: ${{ needs.build.outputs.artifact_id }}
+          ARTIFACT_DIGEST: ${{ needs.build.outputs.artifact_digest }}
+          BUILD_INPUTS: ${{ needs.build.outputs.build_inputs }}
+          QUALIFICATION_GATE: ${{ needs.build.outputs.qualification_gate }}
+          EXPECTED_SITE_REVISION: ${{ needs.deployment_metadata.outputs.site_revision }}
+        run: |
+          test -n "$ARTIFACT_ID"
+          test "$ARTIFACT_DIGEST" = "sha256:${ARTIFACT_DIGEST#sha256:}"
+          test -n "$BUILD_INPUTS"
+          test "$QUALIFICATION_GATE" = success
+          gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}" > artifact.json
+          python3 - <<'PYCODE'
+          import json
+          import os
+          from pathlib import Path
+
+          artifact = json.loads(Path('artifact.json').read_text())
+          expected_digest = os.environ['ARTIFACT_DIGEST']
+          if artifact.get('name') != 'github-pages':
+              raise SystemExit('artifact name is not the canonical Pages artifact')
+          if artifact.get('expired') is not False:
+              raise SystemExit('Pages artifact is missing or expired')
+          if artifact.get('digest') != expected_digest:
+              raise SystemExit('Pages artifact digest differs from the producer output')
+          if artifact.get('workflow_run', {}).get('id') != int(os.environ['GITHUB_RUN_ID']):
+              raise SystemExit('Pages artifact belongs to a different workflow run')
+          inputs = json.loads(os.environ['BUILD_INPUTS'])
+          if not isinstance(inputs, dict) or not inputs.get('publication_bundle', {}).get('identity'):
+              raise SystemExit('build input identity is missing the selected Bundle identity')
+          if inputs.get('site') != os.environ['EXPECTED_SITE_REVISION']:
+              raise SystemExit('Pages artifact was built from a different Site revision')
+          ref = json.loads(__import__('subprocess').check_output([
+              'gh', 'api', f"repos/{os.environ['GITHUB_REPOSITORY']}/git/ref/heads/site"
+          ]))
+          if ref.get('object', {}).get('sha') != os.environ['EXPECTED_SITE_REVISION']:
+              raise SystemExit('Site branch advanced after the deployment build was selected')
+          print(json.dumps({'artifact_id': artifact['id'], 'digest': artifact['digest'], 'bundle_identity': inputs['publication_bundle']['identity'], 'site_revision': inputs['site']}, sort_keys=True))
+          PYCODE
+          echo 'Exact artifact gate passed; deployment may consume only this artifact.' >> "$GITHUB_STEP_SUMMARY"
 
   deploy:
     if: >-
       github.repository == 'TakashiSasaki/templates' &&
       github.event_name == 'workflow_dispatch' &&
-      github.ref == 'refs/heads/site'
-    needs: build
+      github.ref == 'refs/heads/site' &&
+      needs.deployment_metadata.result == 'success' &&
+      needs.build.result == 'success' &&
+      needs.artifact_gate.result == 'success'
+    needs:
+      - build
+      - artifact_gate
+      - deployment_metadata
     permissions:
       pages: write
       id-token: write
@@ -62,7 +146,7 @@ jobs:
     steps:
       - name: Configure GitHub Pages
         id: pages
-        uses: actions/configure-pages@v6
+        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6
 
       - name: Verify configured public URL
         env:
@@ -78,4 +162,4 @@ jobs:
 
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v5
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5

@@ -3,7 +3,12 @@ on:
   push:
     branches:
       - site
-  workflow_call: {}
+  workflow_call:
+    inputs:
+      site_revision:
+        description: Exact Site revision whose policy output is being checked
+        type: string
+        default: ''
 permissions:
   contents: read
 jobs:
@@ -13,7 +18,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ inputs.site_revision || github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - uses: TakashiSasaki/templates@733c86941f8154f301a225054d88c6b8a477058a
         with:

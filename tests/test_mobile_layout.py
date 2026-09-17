@@ -132,7 +132,7 @@ class MobileLayoutRegressionTests(unittest.TestCase):
     def test_visual_dependency_is_pinned(self) -> None:
         self.assertEqual(
             VISUAL_REQUIREMENTS.read_text(encoding="utf-8"),
-            "playwright==1.61.0\nPygments==2.20.0\nPyYAML==6.0.3\n",
+            "playwright==1.61.0\nPygments==2.20.0\nPyYAML==6.0.3\nidna==3.18\n",
         )
 
     def test_pr_build_runs_browser_regression_after_its_own_artifact(self) -> None:
@@ -162,7 +162,7 @@ class MobileLayoutRegressionTests(unittest.TestCase):
             check_block,
         )
         self.assertIn("build/mobile-visual", check_block)
-        self.assertIn("actions/upload-artifact@v4", check_block)
+        self.assertIn("actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02", check_block)
         self.assertIn(
             "github.event.pull_request.head.repo.full_name == github.repository",
             check_block,

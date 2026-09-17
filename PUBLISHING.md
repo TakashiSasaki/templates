@@ -8,6 +8,9 @@ translation availability, glossary, guided graphs and exact provenance. Site
 selects only an exact reviewed Integration release through
 `integration-source.json`.
 
+The Integration selection therefore covers Composition and Policy provider
+revisions explicitly; it does not grant Site direct access to either provider.
+
 The lock binds the Integration commit, Bundle schema, identity and content digest.
 There is no active `publication-sources.json` in Site. Provider candidate work
 and Integration releases stop before Site PWA qualification or deployment unless

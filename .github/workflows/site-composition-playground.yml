@@ -1,12 +1,19 @@
 name: Site Composition Playground
 on:
-  workflow_call: {}
+  workflow_call:
+    inputs:
+      site_revision:
+        description: Exact Site revision whose playground is being checked
+        type: string
+        default: ''
 permissions:
   contents: read
 jobs:
   classify:
     name: Classify Playground consumer requirement
     uses: ./.github/workflows/classify.yml
+    with:
+      candidate_ref: ${{ inputs.site_revision }}
     if: github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'ci/full-qualification' || github.event.label.name == 'ci/full-site-verification' || github.event.label.name == 'ci/browser'
   consumer:
     name: projection consumer
@@ -18,10 +25,10 @@ jobs:
       - name: Check out exact pull request head
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ inputs.site_revision || github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 1
           persist-credentials: false
       - name: Run canonical Playground source validation
         env:
-          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+          EXPECTED_HEAD: ${{ inputs.site_revision || github.event.pull_request.head.sha || github.sha }}
         run: python3 scripts/run_site_preflight.py fast --check node --check site-contracts --check dependency-boundary --expected-head "$EXPECTED_HEAD"

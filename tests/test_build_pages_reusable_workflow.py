@@ -17,13 +17,13 @@ class BuildPagesReusableWorkflowTests(unittest.TestCase):
 
         site_checkout = (
             "- name: Check out site implementation\n"
-            "        uses: actions/checkout@v7\n"
+            "        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7\n"
             "        with:\n"
             "          ref: ${{ inputs.site_ref }}"
         )
         workflow_checkout = (
             "- name: Check out executed build workflow definition\n"
-            "        uses: actions/checkout@v7\n"
+            "        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7\n"
             "        with:\n"
             "          ref: ${{ github.workflow_sha }}\n"
             "          path: workflow-source"

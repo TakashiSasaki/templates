@@ -33,6 +33,8 @@ on:
         value: ${{ jobs.build.outputs.build_inputs }}
       bundle_receipt:
         value: ${{ jobs.build.outputs.bundle_receipt }}
+      compatibility_classification:
+        value: ${{ jobs.build.outputs.compatibility_classification }}
 permissions:
   contents: read
   actions: read
@@ -46,7 +48,7 @@ jobs:
       integration_revision: ${{ steps.select.outputs.integration_revision }}
       receipt: ${{ steps.select.outputs.receipt }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ inputs.site_ref }}
           persist-credentials: false
@@ -58,7 +60,7 @@ jobs:
   regenerate:
     needs: selection
     if: ${{ needs.selection.outputs.available == 'false' }}
-    uses: TakashiSasaki/templates/.github/workflows/integration-qualification.yml@d2316a54db4011ba2936355065a86c80c2942c74
+    uses: TakashiSasaki/templates/.github/workflows/integration-qualification.yml@454fb86ce1ad5bc109fb334a5095fff15d6c114d
     with:
       producer_ref: ${{ needs.selection.outputs.integration_revision }}
       artifact_namespace: site-adoption
@@ -76,9 +78,10 @@ jobs:
       artifact_digest: ${{ steps.published.outputs.artifact_digest }}
       build_inputs: ${{ steps.published.outputs.build_inputs }}
       bundle_receipt: ${{ steps.bundle.outputs.receipt }}
+      compatibility_classification: ${{ steps.compatibility.outputs.classification }}
     steps:
       - name: Check out site implementation
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ inputs.site_ref }}
           path: site-source
@@ -106,8 +109,24 @@ jobs:
           python3 site-source/scripts/acquire_integration_bundle.py consume --lock site-source/integration-source.json --receipt receipt.json --output publication-bundle
           python3 -c 'import json; print("receipt=" + json.dumps(json.load(open("receipt.json")),separators=(",",":")))' >> "$GITHUB_OUTPUT"
         id: bundle
+      - name: Classify selected Bundle against Site support
+        id: compatibility
+        env:
+          TRUSTED_POLICY_REVISION: ${{ vars.PUBLICATION_POLICY_REVISION || '' }}
+          TRUSTED_CONTROLLER_REVISION: ${{ vars.PUBLICATION_CONTROLLER_REVISION || '' }}
+        run: |
+          python3 site-source/scripts/classify_site_compatibility.py \
+            --bundle publication-bundle \
+            --trusted-policy-revision "$TRUSTED_POLICY_REVISION" \
+            --trusted-controller-revision "$TRUSTED_CONTROLLER_REVISION" \
+            --site-revision "${{ steps.site_revision.outputs.sha }}" \
+            --output site-compatibility-report.json
+          classification=$(python3 -c 'import json; print(json.load(open("site-compatibility-report.json"))["classification"])')
+          test "$classification" = COMPATIBLE_PENDING_QUALIFICATION
+          echo "classification=$classification" >> "$GITHUB_OUTPUT"
+          cat site-compatibility-report.json >> "$GITHUB_STEP_SUMMARY"
       - name: Check out executed build workflow definition
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ github.workflow_sha }}
           path: workflow-source
@@ -145,7 +164,7 @@ jobs:
       - name: Verify the Pages entry point and deployment notice
         if: ${{ steps.artifact.outputs.reused != 'true' }}
         run: |
-          python3 site-source/scripts/check_audience_artifact.py --site-root build/site --bundle publication-bundle
+          python3 site-source/scripts/check_audience_artifact.py --site-root build/site --bundle publication-bundle --lock site-source/integration-source.json
           test -f build/site/index.html
           test -f build/site/app.webmanifest
           test -f build/site/service-worker.js
@@ -161,13 +180,21 @@ jobs:
           assert provenance['integration']['identity']==lock['bundle_identity']
           assert provenance['integration']['content_digest']==lock['content_digest']
           PYCODE
-          python3 site-source/scripts/check_bundle_reader.py --site-root build/site --bundle publication-bundle
+          python3 site-source/scripts/check_bundle_reader.py --site-root build/site --bundle publication-bundle --lock site-source/integration-source.json
           python3 site-source/scripts/check_site_artifact.py --site-root build/site --bundle publication-bundle --lock site-source/integration-source.json
       - name: Embed exact build input identity
         if: ${{ steps.artifact.outputs.reused != 'true' }}
         run: cp build-inputs.json build/site/ci-build-inputs.json
+      - name: Final immutable artifact qualification
+        if: ${{ steps.artifact.outputs.reused != 'true' }}
+        run: |
+          python3 site-source/scripts/check_audience_artifact.py --site-root build/site --bundle publication-bundle --lock site-source/integration-source.json
+          python3 site-source/scripts/check_bundle_reader.py --site-root build/site --bundle publication-bundle --lock site-source/integration-source.json
+          python3 site-source/scripts/check_site_artifact.py --site-root build/site --bundle publication-bundle --lock site-source/integration-source.json
+          test -s build/site/ci-build-inputs.json
+          echo 'Final artifact qualification passed; the next step uploads these exact bytes.' >> "$GITHUB_STEP_SUMMARY"
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v5
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5
         with:
           path: build/site
           name: ${{ inputs.artifact_name }}

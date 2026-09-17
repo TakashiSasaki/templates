@@ -65,7 +65,7 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
 
         classify_workflow = (ROOT / ".github/workflows/classify.yml").read_text(encoding="utf-8")
 
-        self.assertIn("actions/upload-pages-artifact@v5", PRODUCER_WORKFLOW.read_text())
+        self.assertIn("actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9", PRODUCER_WORKFLOW.read_text())
         self.assertNotIn("needs: build", classifier_block)
         self.assertIn("name: Classify browser acceptance scope", classifier_block)
         self.assertTrue(
@@ -73,8 +73,12 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
             or "scripts/classify_site_ci.py" in classifier_block
         )
         self.assertIn(
-            "ref: ${{ github.event.pull_request.head.sha || github.sha }}",
+            "ref: ${{ inputs.candidate_ref || github.event.pull_request.head.sha || github.sha }}",
             classify_workflow,
+        )
+        self.assertIn(
+            "candidate_ref: ${{ inputs.deployment_revision || inputs.site_ref || github.event.pull_request.head.sha || github.sha }}",
+            classifier_block,
         )
         self.assertIn("fetch-depth: 0", classify_workflow)
         self.assertIn("persist-credentials: false", classify_workflow)
@@ -194,12 +198,16 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
         self.assertIn("TZ=Asia/Tokyo", workflow)
         self.assertIn("deployment_timestamp:", workflow)
         self.assertIn("needs: deployment_metadata", workflow)
-        self.assertIn("needs: build", workflow)
+        self.assertIn("- build", workflow)
+        self.assertIn("artifact_gate", workflow)
+        self.assertIn('QUALIFICATION_GATE: ${{ needs.build.outputs.qualification_gate }}', workflow)
+        self.assertIn('test "$QUALIFICATION_GATE" = success', workflow)
+        self.assertIn("inputs['publication_bundle']['identity']", workflow)
         self.assertIn("pages: write", workflow)
         self.assertIn("id-token: write", workflow)
         self.assertIn("name: github-pages", workflow)
-        self.assertIn("actions/configure-pages@v6", workflow)
-        self.assertIn("actions/deploy-pages@v5", workflow)
+        self.assertIn("actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d", workflow)
+        self.assertIn("actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346", workflow)
         self.assertIn("\n  deploy:\n", workflow)
 
         metadata = workflow.index("  deployment_metadata:")
