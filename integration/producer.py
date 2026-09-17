@@ -45,6 +45,17 @@ def write(path, value):
     path.write_bytes(canonical(wire(value)))
 
 
+def _add_publication_asset_outputs(bundle_root, destination, source_is_directory, outputs):
+    """Record the exact files emitted by an authoritative asset declaration."""
+    target = bundle_root / 'publication' / destination
+    if not source_is_directory:
+        outputs.add((PurePosixPath('publication') / destination).as_posix())
+        return
+    for path in sorted(target.rglob('*')):
+        if path.is_file():
+            outputs.add(path.relative_to(bundle_root).as_posix())
+
+
 def require_revision(root, revision):
     if checked_revision(root) != revision:
         raise BundleError('checkout does not match exact revision')
@@ -93,6 +104,7 @@ def produce(*, root, provider_roots, provider_revisions, producer_revision, outp
         bundle=Path(temp)/'bundle';bundle.mkdir();docs_root=bundle/'publication';docs_root.mkdir()
         documents=[]
         included=[]
+        qualified_publication_paths=set()
         asset_rules={name:[] for name in PROVIDERS}
         for page in manifest.documents:
             name=page['publication'];is_slot=name=='site'
@@ -106,6 +118,9 @@ def produce(*, root, provider_roots, provider_revisions, producer_revision, outp
                 target=docs_root/page['destination'];target.parent.mkdir(parents=True,exist_ok=True)
                 target.write_bytes(path.read_bytes())
                 included.append(page)
+                qualified_publication_paths.add(
+                    (PurePosixPath('publication') / page['destination']).as_posix()
+                )
             documents.append(record)
         for name,(provider_root,_,assets) in publications.items():
             for asset in assets:
@@ -113,6 +128,12 @@ def produce(*, root, provider_roots, provider_revisions, producer_revision, outp
                 if not path.exists() and asset['optional']:continue
                 destination=PurePosixPath(name)/asset['destination']
                 copy_asset(path,docs_root/destination,name+' asset')
+                _add_publication_asset_outputs(
+                    bundle,
+                    destination,
+                    path.is_dir(),
+                    qualified_publication_paths,
+                )
                 asset_rules[name].append((asset['source'],destination,path.is_dir()))
         published={name:{doc['source']:str(doc['destination']) for doc in documents if doc['publication']==name} for name in PROVIDERS}
         for doc in documents:
@@ -124,6 +145,10 @@ def produce(*, root, provider_roots, provider_revisions, producer_revision, outp
         translations=publish_translations(publications,included,docs_root)
         reconcile_translation_fragments(publications,included,translations,docs_root)
         rewrite_available_localized_links(translations,docs_root)
+        qualified_publication_paths.update(
+            (PurePosixPath('publication') / record.translation_destination).as_posix()
+            for record in translations
+        )
         write(bundle/'documents.json',documents)
         # Filter only genuinely absent optional provider documents. Site slots stay required.
         included_keys={(d['publication'],d['document']) for d in documents}
@@ -154,7 +179,13 @@ def produce(*, root, provider_roots, provider_revisions, producer_revision, outp
         require_revision(root,producer_revision)
         if {p:digest(regular(root,p).read_bytes()) for p in CONFIGURATION_FILES} != {p:v for p,v in configuration.items() if p!='staging_ids'}:
             raise BundleError('configuration changed during generation')
-        result=seal(bundle,producer=producer,providers=provider_revisions,configuration_digest=digest(canonical(configuration)))
+        result=seal(
+            bundle,
+            producer=producer,
+            providers=provider_revisions,
+            configuration_digest=digest(canonical(configuration)),
+            expected_publication_paths=qualified_publication_paths,
+        )
         bundle.rename(output)
     return result
 
