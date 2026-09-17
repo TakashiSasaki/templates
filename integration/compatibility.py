@@ -14,7 +14,10 @@ from typing import Any, Mapping
 
 FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
 HEX_DIGEST = re.compile(r"^[0-9a-f]{64}$")
-PROVIDERS = frozenset({"modeling", "composition", "policy"})
+PROVIDER_SETS = (
+    frozenset({"composition", "policy"}),
+    frozenset({"modeling", "composition", "policy"}),
+)
 CLASSIFICATIONS = frozenset(
     {
         "COMPATIBLE_PENDING_QUALIFICATION", "AUTO_PROCESSABLE", "ADAPTATION_REQUIRED",
@@ -191,8 +194,8 @@ def classify_preflight(payload: Mapping[str, Any]) -> dict[str, Any]:
         if not isinstance(candidate, dict) or not isinstance(consumer, dict) or not isinstance(registry, dict):
             raise InvalidInputError("candidate, consumer and registry are required")
         providers = candidate.get("providers")
-        if not isinstance(providers, dict) or set(providers) != PROVIDERS:
-            raise InvalidInputError("candidate.providers must contain exactly the trusted provider set")
+        if not isinstance(providers, dict) or frozenset(providers) not in PROVIDER_SETS:
+            raise InvalidInputError("candidate.providers must contain an approved exact provider tuple")
         for provider, revision in providers.items():
             _sha(revision, f"candidate.providers.{provider}")
             if registry.get(provider) != "TakashiSasaki/templates":
@@ -205,6 +208,11 @@ def classify_preflight(payload: Mapping[str, Any]) -> dict[str, Any]:
         if not isinstance(supported, list) or any(not isinstance(item, str) for item in supported):
             raise InvalidInputError("consumer.supported_features must be an array of feature IDs")
         requirements = _requirements(candidate.get("requirements", []))
+        consumer_fallbacks = consumer.get("fallbacks", {})
+        if (not isinstance(consumer_fallbacks, dict)
+                or any(not isinstance(key, str) or not isinstance(value, str)
+                       for key, value in consumer_fallbacks.items())):
+            raise InvalidInputError("consumer.fallbacks must be a string map")
         report["requirements"]["required"] = [item.feature for item in requirements if item.required]
         report["requirements"]["supported"] = sorted(set(supported))
         missing: list[str] = []
@@ -213,11 +221,20 @@ def classify_preflight(payload: Mapping[str, Any]) -> dict[str, Any]:
         for item in requirements:
             if item.feature in supported:
                 continue
+            consumer_fallback = consumer_fallbacks.get(item.feature)
+            generic_allowed = (
+                item.fallback == "generic-document"
+                and consumer_fallback == "generic-document"
+                and "publication.generic-document.v1" in supported
+            )
+            ignore_allowed = item.fallback == "ignore" and consumer_fallback == "ignore"
+            if generic_allowed or ignore_allowed:
+                fallbacks[item.feature] = item.fallback
+                continue
             if item.required and item.fallback == "none":
                 missing.append(item.feature)
-            elif item.required:
+            else:
                 unsupported.append(item.feature)
-                fallbacks[item.feature] = item.fallback
         report["requirements"]["missing"] = missing
         report["requirements"]["unsupported"] = unsupported
         report["requirements"]["fallbacks"] = fallbacks

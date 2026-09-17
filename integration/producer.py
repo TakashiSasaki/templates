@@ -322,6 +322,7 @@ def main(producer=produce):
     except (ValueError,RuntimeError,OSError) as exc:p.error(str(exc))
     if args.github_output:
         with args.github_output.open('a') as stream:
+            stream.write('bundle_schema='+str(result['schema_version'])+'\n')
             stream.write('bundle_identity='+result['identity']+'\n')
             stream.write('bundle_content_digest='+result['content_digest']+'\n')
     print(json.dumps({k:v for k,v in result.items() if k!='files'},sort_keys=True))

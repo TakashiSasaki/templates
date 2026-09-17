@@ -103,6 +103,10 @@ def validate_provider_declaration(root: Path, provider: str) -> dict[str, Any]:
             raise CapabilityError(f"{provider}.requirements[{index}] uses an unknown or duplicate feature")
         if type(item["required"]) is not bool or item["fallback"] not in FALLBACKS:
             raise CapabilityError(f"{provider}.requirements[{index}] has invalid fallback metadata")
+        if item["required"] and feature not in export_features:
+            raise CapabilityError(
+                f"{provider}.requirements[{index}] is required but has no declared export coverage"
+            )
         requirement_features.add(feature)
     return {"provider": provider, "protocol": PROTOCOL, "exports": exports, "requirements": requirements,
             "export_features": sorted(export_features)}

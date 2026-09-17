@@ -1,0 +1,170 @@
+name: Reconcile Integration publication candidate
+
+# This controller starts in Shadow.  Changing the repository variable to an
+# activated mode is a one-time post-landing operation; this workflow does not
+# self-enable it and never calls an LLM or coding-agent service.
+on:
+  workflow_dispatch:
+    inputs:
+      producer_ref:
+        description: Exact trusted Integration producer SHA
+        type: string
+        default: ''
+      composition_ref:
+        description: Optional exact Composition candidate SHA
+        type: string
+        default: ''
+      policy_ref:
+        description: Optional exact Policy candidate SHA
+        type: string
+        default: ''
+      modeling_ref:
+        description: Optional exact Modeling candidate SHA
+        type: string
+        default: ''
+  repository_dispatch:
+    types:
+      - publication.provider-qualified
+      - publication.reconcile
+permissions:
+  contents: read
+  actions: read
+  pull-requests: read
+concurrency:
+  group: integration-publication-reconciliation
+  cancel-in-progress: false
+env:
+  AUTOMATION_MODE: ${{ vars.PUBLICATION_AUTOMATION_MODE || 'shadow' }}
+  AUTOMATION_KILL_SWITCH: ${{ vars.PUBLICATION_AUTOMATION_KILL_SWITCH || 'false' }}
+  AUTOMATION_AUTHORIZED: ${{ vars.PUBLICATION_AUTOMATION_AUTHORIZED || 'false' }}
+jobs:
+  qualify:
+    uses: ./.github/workflows/integration-qualification.yml
+    with:
+      producer_ref: ${{ inputs.producer_ref || github.sha }}
+      composition_ref: ${{ inputs.composition_ref || '' }}
+      policy_ref: ${{ inputs.policy_ref || '' }}
+      modeling_ref: ${{ inputs.modeling_ref || '' }}
+      artifact_namespace: reconciliation
+    permissions:
+      contents: read
+      actions: read
+
+  controller:
+    needs: qualify
+    if: ${{ needs.qualify.result == 'success' }}
+    runs-on: ubuntu-24.04
+    outputs:
+      classification: ${{ steps.reconcile.outputs.classification }}
+      idempotency_key: ${{ steps.reconcile.outputs.idempotency_key }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Download the exact structured qualification report
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: publication-compatibility-${{ needs.qualify.outputs.bundle_identity }}-${{ github.run_attempt }}-reconciliation
+          path: qualification
+      - name: Render the expected lock without executing candidate code
+        env:
+          COMPOSITION: ${{ inputs.composition_ref || '' }}
+          POLICY: ${{ inputs.policy_ref || '' }}
+          MODELING: ${{ inputs.modeling_ref || '' }}
+        run: |
+          args=(--lock publication-sources.json --output candidate-lock.json)
+          if [ -n "$COMPOSITION" ]; then args+=(--override "composition=$COMPOSITION"); fi
+          if [ -n "$POLICY" ]; then args+=(--override "policy=$POLICY"); fi
+          if [ -n "$MODELING" ]; then args+=(--candidate-provider modeling --override "modeling=$MODELING"); fi
+          python3 scripts/render_candidate_source_lock.py "${args[@]}"
+      - name: Classify the guarded reconciliation transaction
+        id: reconcile
+        env:
+          AUTHORIZED: ${{ env.AUTOMATION_AUTHORIZED }}
+          KILL_SWITCH: ${{ env.AUTOMATION_KILL_SWITCH }}
+          EXPECTED_INTEGRATION: ${{ needs.qualify.outputs.producer_revision }}
+          EXPECTED_POLICY: ${{ vars.PUBLICATION_POLICY_REVISION || '' }}
+          EXPECTED_CONTROLLER: ${{ vars.PUBLICATION_CONTROLLER_REVISION || github.workflow_sha }}
+        run: |
+          auth_args=()
+          if [ "$AUTHORIZED" = true ]; then auth_args+=(--authorization); fi
+          kill_args=()
+          if [ "$KILL_SWITCH" = true ]; then kill_args+=(--kill-switch); fi
+          python3 scripts/reconcile_publication.py \
+            --mode "$AUTOMATION_MODE" \
+            --current publication-sources.json \
+            --candidate candidate-lock.json \
+            --qualification qualification/compatibility-report.json \
+            --expected-integration-revision "$EXPECTED_INTEGRATION" \
+            --expected-policy-revision "$EXPECTED_POLICY" \
+            --expected-controller-revision "$EXPECTED_CONTROLLER" \
+            "${auth_args[@]}" "${kill_args[@]}" \
+            --output reconciliation-report.json
+          echo "classification=$(python3 -c 'import json; print(json.load(open("reconciliation-report.json"))["classification"])')" >> "$GITHUB_OUTPUT"
+          echo "idempotency_key=$(python3 -c 'import json; print(json.load(open("reconciliation-report.json"))["idempotency_key"])')" >> "$GITHUB_OUTPUT"
+          cat reconciliation-report.json >> "$GITHUB_STEP_SUMMARY"
+
+  promote_lock_pr:
+    needs: controller
+    if: >-
+      needs.controller.result == 'success' &&
+      needs.controller.outputs.classification == 'AUTO_PROCESSABLE' &&
+      (vars.PUBLICATION_AUTOMATION_MODE == 'adoption-only' || vars.PUBLICATION_AUTOMATION_MODE == 'auto-publish') &&
+      vars.PUBLICATION_AUTOMATION_AUTHORIZED == 'true' &&
+      vars.PUBLICATION_AUTOMATION_KILL_SWITCH != 'true'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ secrets.PUBLICATION_APP_TOKEN }}
+      COMPOSITION: ${{ inputs.composition_ref || '' }}
+      POLICY: ${{ inputs.policy_ref || '' }}
+      MODELING: ${{ inputs.modeling_ref || '' }}
+      IDEMPOTENCY_KEY: ${{ needs.controller.outputs.idempotency_key }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Require the one-time activated controller credential
+        run: test -n "$GH_TOKEN"
+      - name: Apply only the deterministic source-lock patch
+        run: |
+          args=(--lock publication-sources.json --output candidate-lock.json)
+          if [ -n "$COMPOSITION" ]; then args+=(--override "composition=$COMPOSITION"); fi
+          if [ -n "$POLICY" ]; then args+=(--override "policy=$POLICY"); fi
+          if [ -n "$MODELING" ]; then args+=(--candidate-provider modeling --override "modeling=$MODELING"); fi
+          python3 scripts/render_candidate_source_lock.py "${args[@]}"
+          expected=$(sha256sum publication-sources.json | awk '{print $1}')
+          python3 scripts/adopt_publication_sources.py --current publication-sources.json --candidate candidate-lock.json --expected-current-digest "$expected" --apply --output adoption-report.json
+      - name: Create or reconcile the idempotent adoption PR
+        env:
+          BRANCH: automation/publication-$IDEMPOTENCY_KEY
+        run: |
+          gh auth setup-git
+          git config user.name publication-controller
+          git config user.email publication-controller@users.noreply.github.com
+          existing=$(gh pr list --base integration --head "$BRANCH" --state open --json number --jq '.[0].number')
+          if [ -n "$existing" ]; then
+            echo "Existing idempotent Integration adoption PR #$existing remains authoritative."
+            exit 0
+          fi
+          if git ls-remote --exit-code origin "refs/heads/$BRANCH" >/dev/null 2>&1; then
+            echo 'An idempotency branch exists without an open PR; stop for human recovery.' >&2
+            exit 1
+          fi
+          git switch -c "$BRANCH"
+          git add publication-sources.json
+          git diff --cached --quiet && exit 0
+          git commit -m "chore(integration): adopt qualified publication candidate"
+          git push --force-with-lease origin "HEAD:$BRANCH"
+          existing=$(gh pr list --base integration --head "$BRANCH" --json number --jq '.[0].number')
+          if [ -z "$existing" ]; then
+            gh pr create --base integration --head "$BRANCH" --title "chore(integration): adopt qualified publication candidate" --body "Guarded deterministic lock adoption. Idempotency key: $IDEMPOTENCY_KEY. Auto-merge remains subject to branch protection and required CI."
+          fi
+          pr=$(gh pr list --base integration --head "$BRANCH" --json number --jq '.[0].number')
+          gh pr merge "$pr" --auto --squash

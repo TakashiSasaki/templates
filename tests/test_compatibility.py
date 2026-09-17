@@ -49,6 +49,20 @@ class CompatibilityTests(unittest.TestCase):
         report = classify_preflight(value)
         self.assertEqual(report["classification"], "ADAPTATION_REQUIRED")
 
+    def test_explicit_generic_fallback_is_processable(self):
+        value = payload()
+        feature = "publication.opaque-json.v1"
+        value["candidate"]["requirements"] = [{
+            "feature": feature,
+            "required": True,
+            "fallback": "generic-document",
+        }]
+        value["consumer"]["supported_features"] = ["publication.generic-document.v1"]
+        value["consumer"]["fallbacks"] = {feature: "generic-document"}
+        report = classify_preflight(value)
+        self.assertEqual(report["classification"], "COMPATIBLE_PENDING_QUALIFICATION")
+        self.assertEqual(report["requirements"]["fallbacks"], {feature: "generic-document"})
+
     def test_unsupported_required_feature_is_adaptation(self):
         value = payload()
         value["candidate"]["requirements"][0]["fallback"] = "none"

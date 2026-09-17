@@ -1,0 +1,61 @@
+name: Notify Site after Integration adoption
+on:
+  pull_request:
+    types: [closed]
+    branches: [integration]
+permissions:
+  contents: read
+jobs:
+  release_qualification:
+    if: >-
+      github.repository == 'TakashiSasaki/templates' &&
+      github.event.pull_request.merged == true &&
+      startsWith(github.event.pull_request.head.ref, 'automation/publication-') &&
+      github.event.pull_request.base.ref == 'integration'
+    uses: ./.github/workflows/integration-qualification.yml
+    with:
+      producer_ref: ${{ github.event.pull_request.merge_commit_sha }}
+      artifact_namespace: promoted
+    permissions:
+      contents: read
+      actions: read
+
+  notify:
+    needs: release_qualification
+    if: >-
+      github.repository == 'TakashiSasaki/templates' &&
+      needs.release_qualification.result == 'success' &&
+      github.event.pull_request.merged == true &&
+      startsWith(github.event.pull_request.head.ref, 'automation/publication-') &&
+      github.event.pull_request.base.ref == 'integration'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Dispatch exact merged Integration identity to Site
+        env:
+          GH_TOKEN: ${{ secrets.PUBLICATION_APP_TOKEN }}
+          PRODUCER_SHA: ${{ needs.release_qualification.outputs.producer_revision }}
+          BUNDLE_SCHEMA: ${{ needs.release_qualification.outputs.bundle_schema }}
+          BUNDLE_IDENTITY: ${{ needs.release_qualification.outputs.bundle_identity }}
+          CONTENT_DIGEST: ${{ needs.release_qualification.outputs.bundle_content_digest }}
+          ARTIFACT_ID: ${{ needs.release_qualification.outputs.artifact_id }}
+          ARTIFACT_DIGEST: ${{ needs.release_qualification.outputs.artifact_digest }}
+          ARTIFACT_NAME: ${{ needs.release_qualification.outputs.artifact_name }}
+          RUN_ID: ${{ github.run_id }}
+          ATTEMPT: ${{ github.run_attempt }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          test -n "$GH_TOKEN"
+          gh api repos/TakashiSasaki/templates/dispatches \
+            --method POST \
+            -f event_type='publication.integration-promoted' \
+            -f client_payload[boundary]='integration-to-site' \
+            -f "client_payload[integration_revision]=$PRODUCER_SHA" \
+            -f "client_payload[bundle_schema]=$BUNDLE_SCHEMA" \
+            -f "client_payload[bundle_identity]=$BUNDLE_IDENTITY" \
+            -f "client_payload[content_digest]=$CONTENT_DIGEST" \
+            -f "client_payload[artifact_id]=$ARTIFACT_ID" \
+            -f "client_payload[artifact_digest]=$ARTIFACT_DIGEST" \
+            -f "client_payload[artifact_name]=$ARTIFACT_NAME" \
+            -f "client_payload[run_id]=$RUN_ID" \
+            -f "client_payload[attempt]=$ATTEMPT" \
+            -f "client_payload[source_pr]=$PR_NUMBER"

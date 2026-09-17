@@ -29,9 +29,9 @@ FEATURES = (
 )
 
 
-def _requirements(roots: dict[str, Path]) -> list[dict[str, Any]]:
+def _requirements(roots: dict[str, Path], providers: tuple[str, ...]) -> list[dict[str, Any]]:
     merged: dict[str, dict[str, Any]] = {}
-    for provider in PROVIDERS:
+    for provider in providers:
         declaration = validate_provider_declaration(roots[provider], provider)
         for item in declaration["requirements"]:
             current = merged.setdefault(
@@ -60,15 +60,23 @@ def _destinations(bundle: Path) -> list[str]:
 
 def build_payload(args: argparse.Namespace) -> dict[str, Any]:
     bundle = read_json(args.bundle / "bundle.json")
+    producer = bundle.get("producer")
+    if producer != {"authority": "integration", "revision": args.integration_revision}:
+        raise ValueError("Bundle producer identity does not match the qualification input")
     providers = read_json(args.bundle / "provenance.json").get("providers")
-    if not isinstance(providers, dict) or set(providers) != set(PROVIDERS):
-        raise ValueError("qualification report requires the exact three-provider tuple")
-    roots = {provider: Path(getattr(args, f"{provider}_root")) for provider in PROVIDERS}
-    requirements = _requirements(roots)
-    provider_registry = {provider: "TakashiSasaki/templates" for provider in PROVIDERS}
+    if not isinstance(providers, dict) or set(providers) not in {
+        {"composition", "policy"},
+        {"modeling", "composition", "policy"},
+    }:
+        raise ValueError("qualification report requires an approved exact provider tuple")
+    provider_names = tuple(name for name in PROVIDERS if name in providers)
+    roots = {provider: Path(getattr(args, f"{provider}_root")) for provider in provider_names}
+    requirements = _requirements(roots, provider_names)
+    provider_registry = {provider: "TakashiSasaki/templates" for provider in provider_names}
     inputs = {
         "integration_revision": args.integration_revision,
-        **{f"{provider}_revision": providers[provider] for provider in PROVIDERS},
+        "bundle_schema": str(bundle["schema_version"]),
+        **{f"{provider}_revision": providers[provider] for provider in provider_names},
         "bundle_identity": bundle["identity"],
         "bundle_content_digest": bundle["content_digest"],
     }
@@ -107,7 +115,7 @@ def main() -> int:
     parser.add_argument("--bundle", type=Path, required=True)
     parser.add_argument("--integration-revision", required=True)
     for provider in PROVIDERS:
-        parser.add_argument(f"--{provider}-root", type=Path, required=True)
+        parser.add_argument(f"--{provider}-root", type=Path)
     parser.add_argument("--trusted-policy-revision", required=True)
     parser.add_argument("--trusted-controller-revision", required=True)
     parser.add_argument("--evidence-ref", action="append", default=[])

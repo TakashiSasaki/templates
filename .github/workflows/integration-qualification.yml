@@ -54,6 +54,8 @@ on:
         value: ${{ jobs.qualify.outputs.policy_revision }}
       modeling_revision:
         value: ${{ jobs.qualify.outputs.modeling_revision }}
+      bundle_schema:
+        value: ${{ jobs.qualify.outputs.bundle_schema }}
       bundle_identity:
         value: ${{ jobs.qualify.outputs.bundle_identity }}
       bundle_content_digest:
@@ -78,6 +80,7 @@ jobs:
       composition_revision: ${{ steps.refs.outputs.composition }}
       policy_revision: ${{ steps.refs.outputs.policy }}
       modeling_revision: ${{ steps.refs.outputs.modeling }}
+      bundle_schema: ${{ steps.bundle.outputs.bundle_schema }}
       bundle_identity: ${{ steps.bundle.outputs.bundle_identity }}
       bundle_content_digest: ${{ steps.bundle.outputs.bundle_content_digest }}
       artifact_id: ${{ steps.upload.outputs.artifact-id }}
@@ -164,26 +167,26 @@ jobs:
         run: python3 integration-source/scripts/publication_bundle_artifact.py pack --bundle publication-bundle --output bundle.tar
       - name: Create structured qualification report
         id: report
-        if: ${{ steps.refs.outputs.modeling != '' }}
         env:
           TRUSTED_POLICY: ${{ steps.refs.outputs.policy }}
           TRUSTED_CONTROLLER: ${{ github.workflow_sha }}
         run: |
-          python3 integration-source/scripts/build_qualification_report.py \
-            --bundle publication-bundle \
-            --integration-revision "${{ steps.producer.outputs.sha }}" \
-            --modeling-root modeling-source \
-            --composition-root composition-source \
-            --policy-root policy-source \
-            --trusted-policy-revision "$TRUSTED_POLICY" \
-            --trusted-controller-revision "$TRUSTED_CONTROLLER" \
-            --evidence-ref "workflow://${{ github.workflow }}#${{ github.run_id }}/${{ github.run_attempt }}" \
-            --evidence-ref "bundle://${{ steps.bundle.outputs.bundle_identity }}" \
+          report_args=(
+            --bundle publication-bundle
+            --integration-revision "${{ steps.producer.outputs.sha }}"
+            --composition-root composition-source
+            --policy-root policy-source
+            --trusted-policy-revision "$TRUSTED_POLICY"
+            --trusted-controller-revision "$TRUSTED_CONTROLLER"
+            --evidence-ref "workflow://${{ github.workflow }}#${{ github.run_id }}/${{ github.run_attempt }}"
+            --evidence-ref "bundle://${{ steps.bundle.outputs.bundle_identity }}"
             --output compatibility-report.json
+          )
+          if [ -d modeling-source ]; then report_args+=(--modeling-root modeling-source); fi
+          python3 integration-source/scripts/build_qualification_report.py "${report_args[@]}"
           echo "classification=$(python3 -c 'import json; print(json.load(open("compatibility-report.json"))["classification"])')" >> "$GITHUB_OUTPUT"
           cat compatibility-report.json >> "$GITHUB_STEP_SUMMARY"
       - name: Publish structured qualification report
-        if: ${{ steps.refs.outputs.modeling != '' }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: publication-compatibility-${{ steps.bundle.outputs.bundle_identity }}-${{ github.run_attempt }}-${{ inputs.artifact_namespace || 'candidate' }}
