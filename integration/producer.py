@@ -165,6 +165,11 @@ def produce(*, root, provider_roots, provider_revisions, producer_revision, outp
     providers = provider_order(provider_roots)
     if set(provider_revisions) != set(providers):
         raise BundleError('provider roots and revisions must describe the same exact tuple')
+    # Preserve the protocol-defined tuple order in every identity object.  A
+    # set-equivalent mapping with a different insertion order is not the same
+    # wire representation for the guided-navigation contract.
+    provider_roots = {name: provider_roots[name] for name in providers}
+    provider_revisions = {name: provider_revisions[name] for name in providers}
     require_revision(root, producer_revision)
     for name in providers:require_revision(provider_roots[name], provider_revisions[name])
     if root.resolve() != Path(__file__).resolve().parents[1]:
