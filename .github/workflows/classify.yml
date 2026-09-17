@@ -47,6 +47,8 @@ on:
         value: ${{ jobs.classify.outputs.risk_class }}
       authority_source:
         value: ${{ jobs.classify.outputs.authority_source }}
+      site_candidate:
+        value: ${{ jobs.classify.outputs.site_candidate }}
 
 jobs:
   classify:
@@ -71,6 +73,7 @@ jobs:
       freshness_candidate_required: ${{ steps.classify.outputs.freshness_candidate_required }}
       risk_class: ${{ steps.classify.outputs.risk_class }}
       authority_source: ${{ steps.classify.outputs.authority_source }}
+      site_candidate: ${{ steps.classify.outputs.site_candidate }}
     steps:
       - name: Check out repository history for change classification
         uses: actions/checkout@v7
@@ -100,7 +103,19 @@ jobs:
           FORCE_FULL_REQUESTED: ${{ inputs.force_full || github.event_name == 'workflow_dispatch' || github.event_name == 'push' || ((github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && (contains(github.event.pull_request.labels.*.name, 'ci/full-qualification') || contains(github.event.pull_request.labels.*.name, 'ci/full-site-verification'))) }}
         run: |
           set -euo pipefail
+          write_non_site_outputs() {
+            echo "site_candidate=false"
+            for capability in integration_required core_required build_required browser_required pwa_required reference_consumer_required cross_authority_required publication_required full_required playground_required coexistence_required freshness_candidate_required; do
+              echo "$capability=false"
+            done
+            echo "browser_priority=none"
+            echo "risk_class=non-site-authority"
+            echo "changed_count=unknown"
+            echo "requiring_count=0"
+            echo "requiring_paths=none"
+          }
           if [ "$EVENT_NAME" != pull_request ]; then
+            echo "site_candidate=true" >> "$GITHUB_OUTPUT"
             for capability in integration_required core_required build_required browser_required pwa_required reference_consumer_required cross_authority_required publication_required full_required playground_required coexistence_required freshness_candidate_required; do
               echo "$capability=true" >> "$GITHUB_OUTPUT"
             done
@@ -112,6 +127,24 @@ jobs:
             echo "requiring_paths=all" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+          base_tree="$RUNNER_TEMP/site-authority-files.txt"
+          if ! git ls-tree -r --name-only "$BASE_SHA" > "$base_tree"; then
+            {
+              write_non_site_outputs
+              echo "authority_source=base-authority-unavailable"
+              echo "reason=Site authority could not be determined from the pull-request base"
+            } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if ! grep -Fxq '.github/workflows/build-pages.yml' "$base_tree" || ! grep -Fxq 'scripts/classify_site_ci.py' "$base_tree"; then
+            {
+              write_non_site_outputs
+              echo "authority_source=base-non-site"
+              echo "reason=pull-request base is not a Site authority snapshot"
+            } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "site_candidate=true" >> "$GITHUB_OUTPUT"
           classifier_dir="$RUNNER_TEMP/site-ci-classifier-authority"
           rm -rf "$classifier_dir"
           mkdir -p "$classifier_dir"
@@ -133,6 +166,7 @@ jobs:
             authority_source="base-unavailable-full"
             {
               echo "authority_source=$authority_source"
+              echo "site_candidate=true"
               echo "integration_required=true"
               echo "core_required=true"
               echo "build_required=true"

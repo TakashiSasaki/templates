@@ -4,14 +4,6 @@ on:
     - cron: 43 19 * * *
   workflow_dispatch: null
   pull_request:
-    branches:
-      - site
-      - feat/site-*
-      - feat/s4-*
-      - site-composition-audience-publication-staging
-      - site-*
-      - perf/site-*
-      - codex/site-composition-playground-v1-shell
     types:
       - opened
       - synchronize
@@ -53,7 +45,7 @@ jobs:
       (inputs.site_ref != '' ||
        github.event_name != 'pull_request' ||
        github.event.pull_request.head.repo.full_name != github.repository ||
-       (needs.classify_browser.result == 'success' && needs.classify_browser.outputs.build_required == 'true'))
+       (needs.classify_browser.result == 'success' && needs.classify_browser.outputs.site_candidate == 'true' && needs.classify_browser.outputs.build_required == 'true'))
     needs:
       - classify_browser
     uses: ./.github/workflows/site-producer.yml
@@ -74,7 +66,7 @@ jobs:
        github.event.label.name == 'ci/full-site-verification' || github.event.label.name == 'ci/browser')
   check:
     if: |-
-      always() && github.repository == 'TakashiSasaki/templates' && (github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && inputs.site_ref == '' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && (github.event.action != 'labeled' ||
+      always() && github.repository == 'TakashiSasaki/templates' && (github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && inputs.site_ref == '' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && needs.classify_browser.outputs.site_candidate == 'true' && (github.event.action != 'labeled' ||
        github.event.label.name == 'ci/full-qualification' ||
        github.event.label.name == 'ci/full-site-verification' || github.event.label.name == 'ci/browser')
     needs:
@@ -301,7 +293,7 @@ jobs:
   core_tests:
     name: Core repository unit and contract validation
     if: |-
-      always() && github.repository == 'TakashiSasaki/templates' && inputs.site_ref == '' && (github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && (github.event.action != 'labeled' ||
+      always() && github.repository == 'TakashiSasaki/templates' && inputs.site_ref == '' && (github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && needs.classify_browser.outputs.site_candidate == 'true' && (github.event.action != 'labeled' ||
        github.event.label.name == 'ci/full-qualification' ||
        github.event.label.name == 'ci/full-site-verification' || github.event.label.name == 'ci/browser')
     needs:
@@ -327,7 +319,7 @@ jobs:
   validate:
     name: Site Construction CI / validate
     if: |-
-      always() && github.repository == 'TakashiSasaki/templates' && (github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && inputs.site_ref == '' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && (github.event.action != 'labeled' ||
+      always() && github.repository == 'TakashiSasaki/templates' && (github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && inputs.site_ref == '' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && needs.classify_browser.outputs.site_candidate == 'true' && (github.event.action != 'labeled' ||
        github.event.label.name == 'ci/full-qualification' ||
        github.event.label.name == 'ci/full-site-verification' || github.event.label.name == 'ci/browser')
     needs:
@@ -375,12 +367,12 @@ jobs:
   policy:
     needs:
       - classify_browser
-    if: ${{ inputs.site_ref == '' && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && needs.classify_browser.result == 'success' }}
+    if: ${{ inputs.site_ref == '' && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && needs.classify_browser.result == 'success' && needs.classify_browser.outputs.site_candidate == 'true' }}
     uses: ./.github/workflows/check-agent-policy.yml
   website_contract:
     needs:
       - classify_browser
-    if: ${{ inputs.site_ref == '' && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && needs.classify_browser.result == 'success' }}
+    if: ${{ inputs.site_ref == '' && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && needs.classify_browser.result == 'success' && needs.classify_browser.outputs.site_candidate == 'true' }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
@@ -405,7 +397,7 @@ jobs:
       - cross_authority
       - explainability
       - playground
-    if: ${{ always() && inputs.site_ref == '' && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && needs.classify_browser.result == 'success' && needs.classify_browser.outputs.full_required == 'true' }}
+    if: ${{ always() && inputs.site_ref == '' && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && needs.classify_browser.result == 'success' && needs.classify_browser.outputs.site_candidate == 'true' && needs.classify_browser.outputs.full_required == 'true' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 2
     steps:
@@ -428,7 +420,7 @@ jobs:
     needs:
       - classify_browser
       - build
-    if: ${{ inputs.site_ref == '' && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && needs.classify_browser.result == 'success' && needs.classify_browser.outputs.reference_consumer_required == 'true' }}
+    if: ${{ inputs.site_ref == '' && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && needs.classify_browser.result == 'success' && needs.classify_browser.outputs.site_candidate == 'true' && needs.classify_browser.outputs.reference_consumer_required == 'true' }}
     uses: ./.github/workflows/reference-consumer.yml
     with:
       artifact_id: ${{ needs.build.outputs.artifact_id }}
@@ -442,7 +434,7 @@ jobs:
     needs:
       - classify_browser
       - build
-    if: ${{ inputs.site_ref == '' && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && needs.classify_browser.result == 'success' && (needs.classify_browser.outputs.browser_required == 'true' || needs.classify_browser.outputs.cross_authority_required == 'true') }}
+    if: ${{ inputs.site_ref == '' && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && needs.classify_browser.result == 'success' && needs.classify_browser.outputs.site_candidate == 'true' && (needs.classify_browser.outputs.browser_required == 'true' || needs.classify_browser.outputs.cross_authority_required == 'true') }}
     uses: ./.github/workflows/site-composition-playground-cross-authority.yml
     with:
       artifact_id: ${{ needs.build.outputs.artifact_id }}
@@ -455,10 +447,10 @@ jobs:
   explainability:
     needs:
       - classify_browser
-    if: ${{ inputs.site_ref == '' && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && needs.classify_browser.result == 'success' && needs.classify_browser.outputs.playground_required == 'true' }}
+    if: ${{ inputs.site_ref == '' && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && needs.classify_browser.result == 'success' && needs.classify_browser.outputs.site_candidate == 'true' && needs.classify_browser.outputs.playground_required == 'true' }}
     uses: ./.github/workflows/site-composition-playground-explain.yml
   playground:
     needs:
       - classify_browser
-    if: ${{ inputs.site_ref == '' && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && needs.classify_browser.result == 'success' && needs.classify_browser.outputs.playground_required == 'true' }}
+    if: ${{ inputs.site_ref == '' && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && needs.classify_browser.result == 'success' && needs.classify_browser.outputs.site_candidate == 'true' && needs.classify_browser.outputs.playground_required == 'true' }}
     uses: ./.github/workflows/site-composition-playground.yml

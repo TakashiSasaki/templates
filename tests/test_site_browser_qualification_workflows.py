@@ -57,9 +57,8 @@ class BrowserWorkflowTests(unittest.TestCase):
         self.assertFalse((ROOT/'.github/workflows/mobile-visual-regression.yml').exists())
 
 class FullStackTriggerTests(unittest.TestCase):
-    def test_all_filtered_qualification_workflows_cover_canonical_bases(self):
-        canonical=set(workflow('build-pages.yml')[True]['pull_request']['branches'])
+    def test_qualification_workflow_does_not_reintroduce_branch_allowlists(self):
         for suite in REQUIRED_SUITES:
             events=workflow(suite.workflow_path.rsplit('/',1)[1])[True]['pull_request']
             if events and 'branches' in events:
-                self.assertEqual(canonical,set(events['branches']),suite.workflow_path)
+                self.fail(f"unexpected finite branch allowlist in {suite.workflow_path}")
