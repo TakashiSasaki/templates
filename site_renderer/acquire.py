@@ -175,7 +175,13 @@ def verify_receipt(lock,value):
         raise ArtifactError('Integration artifact namespace is not bound to its identity')
     namespace=artifact_name[len(marker):]
     workflows={
-        'integration': (("Validate Integration authority", "workflow_dispatch", ".github/workflows/validate-integration.yml"),),
+        # The committed Site lock predates the explicit-dispatch promotion
+        # lane.  Keep its same-repository pull_request qualification artifact
+        # readable while retaining exact workflow/run/head/artifact binding.
+        'integration': (
+            ("Validate Integration authority", "workflow_dispatch", ".github/workflows/validate-integration.yml"),
+            ("Validate Integration authority", "pull_request", ".github/workflows/validate-integration.yml"),
+        ),
         'promoted': (("Notify Site after Integration adoption", "pull_request", ".github/workflows/integration-promotion-notify.yml"),),
         'candidate': (("Qualify Integration candidate", "workflow_dispatch", ".github/workflows/integration-qualification.yml"),),
         # A Site build may regenerate an absent Bundle in its read-only

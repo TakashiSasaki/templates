@@ -63,6 +63,23 @@ class AdoptionTests(unittest.TestCase):
        patch('site_renderer.acquire.binding') as bound:
    self.assertEqual(verify_receipt(self.lock,value),'repos/TakashiSasaki/templates/actions')
    bound.assert_called_once()
+ def test_committed_release_pull_request_event_is_explicitly_supported(self):
+  from site_renderer.acquire import verify_receipt
+  identity=self.lock['bundle_identity'];digest='sha256:'+'e'*64
+  value={'repository':'TakashiSasaki/templates','producer':self.lock['revision'],'identity':identity,
+         'run_id':3,'attempt':1,'workflow_head':'b'*40,'artifact_id':2,
+         'archive_digest':digest,'artifact_name':f'publication-bundle-{identity}-1-integration'}
+  metadata={'id':2,'expired':False,'digest':digest,'name':value['artifact_name'],
+            'workflow_run':{'id':3,'head_sha':'b'*40}}
+  run={'id':3,'run_attempt':1,'head_sha':'b'*40,
+       'head_repository':{'full_name':'TakashiSasaki/templates'},
+       'name':'Validate Integration authority','event':'pull_request',
+       'path':'.github/workflows/validate-integration.yml','status':'completed','conclusion':'success'}
+  with patch('site_renderer.acquire.api',side_effect=[metadata,run]), \
+       patch('site_renderer.acquire.paginated',return_value=[]), \
+       patch('site_renderer.acquire.binding') as bound:
+   self.assertEqual(verify_receipt(self.lock,value),'repos/TakashiSasaki/templates/actions')
+   bound.assert_called_once()
  def test_trusted_deployment_lane_never_falls_back_to_regeneration(self):
   with patch('site_renderer.acquire.paginated',return_value=[]):self.assertIsNone(locate(self.lock,require_trusted_release=True))
  def test_misbound_artifact_evidence_cannot_fall_back_to_regeneration(self):
