@@ -10,7 +10,11 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+import sys
 from typing import Any
+
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from integration.capabilities import validate_provider_declaration
 from integration.compatibility import classify_qualification
