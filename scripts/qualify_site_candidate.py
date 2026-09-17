@@ -51,7 +51,7 @@ def _report(lock: dict[str, Any], *, trusted: dict[str, str | None], classificat
     }
 
 
-def qualify(site_root: Path, bundle: Path, candidate_lock: Path, *, trusted: dict[str, str | None], evidence: list[str]) -> dict[str, Any]:
+def qualify(site_root: Path, bundle: Path, candidate_lock: Path, *, trusted: dict[str, str | None], evidence: list[str], candidate_root: Path | None = None) -> dict[str, Any]:
     lock = load_lock(candidate_lock)
     original_site_revision = subprocess.check_output(["git", "-C", str(site_root), "rev-parse", "HEAD"], text=True).strip()
     checks = {
@@ -60,7 +60,9 @@ def qualify(site_root: Path, bundle: Path, candidate_lock: Path, *, trusted: dic
         "pages-artifact-provenance": "not-run",
     }
     with tempfile.TemporaryDirectory(prefix="site-candidate-") as temporary:
-        candidate_site = Path(temporary) / "site"
+        candidate_site = candidate_root or (Path(temporary) / "site")
+        if candidate_root is not None and (candidate_site.exists() or candidate_site.is_symlink()):
+            raise ValueError("candidate root already exists or is a symbolic link")
         build = Path(temporary) / "build"
         subprocess.run(["git", "clone", "--quiet", "--shared", str(site_root), str(candidate_site)], check=True)
         subprocess.run(["git", "-C", str(candidate_site), "checkout", "--quiet", "--detach", original_site_revision], check=True)
@@ -94,6 +96,11 @@ def main() -> int:
     parser.add_argument("--site-root", type=Path, default=Path("."))
     parser.add_argument("--bundle", type=Path, required=True)
     parser.add_argument("--candidate-lock", type=Path, required=True)
+    parser.add_argument(
+        "--candidate-root",
+        type=Path,
+        help="Optional persistent checkout for dry-runs; the qualified candidate revision remains available for artifact rendering",
+    )
     parser.add_argument("--trusted-policy-revision")
     parser.add_argument("--trusted-controller-revision")
     parser.add_argument("--evidence-ref", action="append", default=[])
@@ -101,7 +108,7 @@ def main() -> int:
     args = parser.parse_args()
     trusted = {"policy_revision": args.trusted_policy_revision or None, "controller_revision": args.trusted_controller_revision or None}
     try:
-        report = qualify(args.site_root, args.bundle, args.candidate_lock, trusted=trusted, evidence=args.evidence_ref)
+        report = qualify(args.site_root, args.bundle, args.candidate_lock, trusted=trusted, evidence=args.evidence_ref, candidate_root=args.candidate_root)
     except Exception as exc:
         report = _report(load_lock(args.candidate_lock), trusted=trusted, classification="QUALIFICATION_FAILED", reasons=["SITE_QUALIFICATION_FAILED"], checks={"bundle-integrity": "passed", "generic-markdown-renderer": "failed", "pages-artifact-provenance": "not-run"}, evidence=args.evidence_ref + [type(exc).__name__], site_revision=None)
     args.output.write_text(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
