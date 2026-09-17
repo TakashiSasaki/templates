@@ -52,8 +52,8 @@ protocol remain in the canonical core suite and are reported as skipped unless
 exact reviewed protocol checkout. For on-demand local runtime checks, run
 `python -I scripts/run_composer_runtime_checks.py --check runtime-core` (or
 `--check all`). The `full` profile is the explicit browser, remote-installer and
-Integration-protocol path; the normal and broad compatibility matrices remain
-remote CI checks.
+Integration-protocol path; CI uses the Ubuntu runner's browser and driver
+components rather than downloading a second browser driver.
 
 The [authority migration history](migrations/composition-authority-migration.md)
 is retained as provenance for provider maintenance. It is not a consumer

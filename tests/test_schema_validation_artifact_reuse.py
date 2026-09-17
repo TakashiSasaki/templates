@@ -83,11 +83,9 @@ class SchemaValidationArtifactReuseTests(unittest.TestCase):
         self.assertNotIn("Check out Integration publication protocol", browser)
         self.assertNotIn("scripts/materialize_publication.py", browser)
 
-    def test_schema_validation_uses_the_reviewed_python_312_lock_contract(self) -> None:
-        self.assertEqual(self.workflow.count('python-version: "3.12"'), 3)
-        self.assertNotIn('python-version: "3.11"', self.workflow)
-        self.assertNotIn('python-version: "3.13"', self.workflow)
-        self.assertNotIn('python-version: "3.14"', self.workflow)
+    def test_schema_validation_uses_the_locked_dependency_contract(self) -> None:
+        self.assertNotIn("actions/setup-python", self.workflow)
+        self.assertNotIn("python-version", self.workflow)
         self.assertNotIn("windows-2022", self.workflow)
 
     def test_final_gate_requires_parallel_core_jobs_and_browser_policy(self) -> None:

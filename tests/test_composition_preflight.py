@@ -148,6 +148,19 @@ class CompositionPreflightTests(unittest.TestCase):
         self.assertIsNotNone(browser_env)
         self.assertEqual(browser_env["CHROMEWEBDRIVER"], sys.executable)
 
+    def test_full_resolves_runner_chromedriver_when_environment_is_unset(self) -> None:
+        with tempfile.NamedTemporaryFile() as driver, mock.patch.dict(
+            preflight.os.environ, {}, clear=True
+        ), mock.patch.object(preflight.shutil, "which", return_value=driver.name):
+            self.assertEqual(preflight.resolve_chromedriver(), driver.name)
+
+    def test_full_requires_runner_chromedriver(self) -> None:
+        with mock.patch.dict(preflight.os.environ, {}, clear=True), mock.patch.object(
+            preflight.shutil, "which", return_value=None
+        ):
+            with self.assertRaisesRegex(preflight.PreflightFailure, "runner-provided"):
+                preflight.resolve_chromedriver()
+
     def test_full_runs_distinct_consumer_spine_without_focused_suite_duplication(self) -> None:
         args = Namespace(
             profile="full",
@@ -239,7 +252,6 @@ class PhaseZeroBoundaryTests(unittest.TestCase):
 
     def test_driver_build_mismatch_fails_before_launch(self):
         import composition_phase_zero as phase_zero
-        import prepare_chromedriver
-        with mock.patch.object(prepare_chromedriver, 'command_version', side_effect=['140.0.1.1', '139.0.1.1']):
+        with mock.patch.object(phase_zero, 'command_version', side_effect=['140.0.1.1', '139.0.1.1']):
             with self.assertRaisesRegex(RuntimeError, 'browser/driver build mismatch'):
                 phase_zero.check_browser(Path(sys.executable))

@@ -5,9 +5,6 @@ on:
     branches:
       - composition
   pull_request:
-    branches:
-      - composition
-      - 'feat/composition-*'
     types:
       - opened
       - synchronize
@@ -59,14 +56,13 @@ jobs:
             echo "- fast runtime required: \`$RUNTIME_REQUIRED\`"
             echo "- reason: \`$RUNTIME_REASON\`"
             echo "- changed paths: \`$CHANGED_COUNT\`"
-            echo '- default qualification: Ubuntu 24.04 / Python 3.11'
-            echo '- Windows and Python 3.12-3.14 are explicit compatibility checkpoints only'
+            echo '- runner-provided Ubuntu Python executes the canonical runtime checks'
           } >> "$GITHUB_STEP_SUMMARY"
 
   # Clean runtime and materialized validation share checkout/Python setup. They
   # remain parallel with the slower skill runner, preserving the fast critical path.
   runtime-core:
-    name: runtime core / Ubuntu / Python 3.11
+    name: runtime core / Ubuntu runner Python
     needs:
       - classify_runtime
     if: ${{ always() && !cancelled() && needs.classify_runtime.result == 'success' && needs.classify_runtime.outputs.required == 'true' }}
@@ -90,18 +86,11 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Set up Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version: "3.11"
-          cache: pip
-          cache-dependency-path: 'requirements*.lock'
-
       - name: Run canonical runtime-core checks
-        run: python -I scripts/run_composer_runtime_checks.py --check runtime-core
+        run: python3 -I scripts/run_composer_runtime_checks.py --check runtime-core
 
   skill-runner:
-    name: installed skill / Ubuntu / Python 3.11
+    name: installed skill / Ubuntu runner Python
     needs:
       - classify_runtime
     if: ${{ always() && !cancelled() && needs.classify_runtime.result == 'success' && needs.classify_runtime.outputs.required == 'true' }}
@@ -124,15 +113,8 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Set up Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version: "3.11"
-          cache: pip
-          cache-dependency-path: 'requirements*.lock'
-
       - name: Run canonical installed-skill checks
-        run: python -I scripts/run_composer_runtime_checks.py --check skill-runner
+        run: python3 -I scripts/run_composer_runtime_checks.py --check skill-runner
 
   validate:
     name: consumer runtime validate

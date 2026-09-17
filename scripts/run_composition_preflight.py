@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import argparse
-from contextlib import ExitStack
 import os
 import shutil
 import subprocess
@@ -192,32 +191,7 @@ def run_full_tests() -> None:
             "0",
         ),
     )
-    configured_driver = os.environ.get("CHROMEWEBDRIVER")
-    if configured_driver:
-        driver_path = Path(configured_driver)
-        if not driver_path.is_absolute() or not driver_path.is_file():
-            raise PreflightFailure(
-                "CHROMEWEBDRIVER must name an existing absolute regular file"
-            )
-        run_real_browser_tests(str(driver_path))
-    else:
-        with tempfile.TemporaryDirectory(
-            prefix="composition-preflight-chromedriver-"
-        ) as directory:
-            result = subprocess.run(
-                command(
-                    "-I", "scripts/prepare_chromedriver.py", "--output-dir", directory
-                ),
-                cwd=ROOT,
-                text=True,
-                capture_output=True,
-                check=False,
-            )
-            if result.returncode != 0:
-                detail = (result.stderr or result.stdout).strip()
-                raise PreflightFailure(f"browser-runtime-preparation failed: {detail}")
-            driver = result.stdout.strip().splitlines()[-1]
-            run_real_browser_tests(driver)
+    run_real_browser_tests(resolve_chromedriver())
     for smoke in RUNTIME_SMOKES:
         run_check(Path(smoke).stem.replace("smoke_test_", ""), command("-I", smoke))
 
@@ -359,6 +333,21 @@ def run_real_browser_tests(driver: str) -> None:
     )
 
 
+def resolve_chromedriver() -> str:
+    configured_driver = os.environ.get("CHROMEWEBDRIVER") or shutil.which("chromedriver")
+    if not configured_driver:
+        raise PreflightFailure(
+            "runner-provided ChromeDriver is required for the full Composition preflight"
+        )
+    driver_path = Path(configured_driver)
+    if not driver_path.is_absolute() or not driver_path.is_file():
+        raise PreflightFailure(
+            "CHROMEWEBDRIVER or runner-provided chromedriver must name an existing "
+            "absolute regular file"
+        )
+    return str(driver_path)
+
+
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("profile", choices=("fast", "ready", "full"))
@@ -383,7 +372,6 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv)
-    resources = ExitStack()
     try:
         configure_validation_environment()
         head = git_output("rev-parse", "HEAD")
@@ -431,14 +419,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             # Reject source/environment failures before publication generation or core.
             run_check("phase-zero-source", command("-I", "scripts/composition_phase_zero.py"))
             if args.profile == "full":
-                driver = os.environ.get("CHROMEWEBDRIVER")
-                if not driver:
-                    directory = resources.enter_context(tempfile.TemporaryDirectory(prefix="composition-phase-zero-"))
-                    result = subprocess.run(command("-I", "scripts/prepare_chromedriver.py", "--output-dir", directory),
-                                            cwd=ROOT, text=True, capture_output=True, check=False)
-                    if result.returncode:
-                        raise PreflightFailure(f"browser-runtime-preparation failed: {result.stderr.strip()}")
-                    driver = result.stdout.strip().splitlines()[-1]
+                driver = resolve_chromedriver()
                 run_check("phase-zero-browser", command("-I", "scripts/composition_phase_zero.py", "--driver", driver))
                 os.environ["CHROMEWEBDRIVER"] = driver
         run_owned_validators(
@@ -472,8 +453,6 @@ def main(argv: Sequence[str] | None = None) -> int:
     except (OSError, PreflightFailure) as exc:
         print(f"COMPOSITION_PREFLIGHT_FAIL: {exc}", file=sys.stderr, flush=True)
         return 1
-    finally:
-        resources.close()
 
 
 if __name__ == "__main__":

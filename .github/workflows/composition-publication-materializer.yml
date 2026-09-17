@@ -18,15 +18,8 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.12'
-          cache: pip
-          cache-dependency-path: 'requirements*.lock'
-
       - name: Install locked validation dependencies
-        run: python -m pip install --requirement requirements-dev.lock --no-deps
+        run: python3 -m pip install --requirement requirements-dev.lock --no-deps
 
       - name: Run materializer regressions
-        run: python -I tests/test_publication_materializer.py
+        run: python3 -I tests/test_publication_materializer.py

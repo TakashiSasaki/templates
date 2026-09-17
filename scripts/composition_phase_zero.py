@@ -4,12 +4,44 @@ from __future__ import annotations
 import argparse
 import os
 from pathlib import Path
+import re
 import subprocess
 import sys
 
 sys.dont_write_bytecode = True
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'scripts'))
+
+
+VERSION_RE = re.compile(r'\b(\d+\.\d+\.\d+\.\d+)\b')
+
+
+def command_version(command: str | Path) -> str:
+    result = subprocess.run(
+        [str(command), '--version'],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout).strip()
+        raise RuntimeError(
+            f'{command} --version failed with exit {result.returncode}'
+            + (f': {detail}' if detail else '')
+        )
+    match = VERSION_RE.search(result.stdout or result.stderr)
+    if match is None:
+        raise RuntimeError(
+            f'could not parse a four-part version from: '
+            f'{(result.stdout or result.stderr).strip()!r}'
+        )
+    return match.group(1)
+
+
+def version_build(version: str) -> str:
+    if VERSION_RE.fullmatch(version) is None:
+        raise RuntimeError(f'invalid four-part version: {version!r}')
+    return version.rsplit('.', 1)[0]
 
 
 def check_source(root: Path = ROOT) -> None:
@@ -30,7 +62,6 @@ def check_source(root: Path = ROOT) -> None:
 
 
 def check_browser(driver: Path) -> None:
-    from prepare_chromedriver import command_version, version_build
     if not driver.is_absolute() or not driver.is_file():
         raise RuntimeError('CHROMEWEBDRIVER must name an existing absolute regular file')
     chrome = command_version('google-chrome')
