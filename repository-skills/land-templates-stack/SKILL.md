@@ -48,7 +48,8 @@ not through a consumer's same-named `repository-policy/` file. This prevents
 a downstream checkout from shadowing the canonical rule and keeps the source
 closure explicit.
 
-The planner is an ephemeral, read-only pre-request guard. Build its JSON packet
+The planner is the canonical **adaptive scope selection** guard and an
+ephemeral, read-only pre-request guard. Build its JSON packet
 from the live PR topology, exact bindings, authority-owned impact facts, local
 and remote evidence, known finding references, and actual request state. Invoke
 the planner from the verified immutable snapshot before any external review

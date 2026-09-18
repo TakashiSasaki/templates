@@ -14,7 +14,7 @@ inputs:
   repository-policy/history-boundary.md:
     sha256: 4de61b1a469770d12e1e66326cba5fadc242aaef63389b8a219bff52a701b910
   repository-policy/maintainer-merge-routing.md:
-    sha256: e8020e05c4a165a8cb2f8de64e04f9810344c0cac67669848e7ac5fae1700898
+    sha256: 8328d03d26c2b479de86943bda2ceea4550d2ba8a976e334945adb3e4b9ca443
   repository-policy/maintainer-validation.md:
     sha256: 32726e455e4e307806916d2ea1ce44061a6a4a34ca24efedbfa8dd7e554c0960
   repository-policy/release-trust.md:
@@ -31,7 +31,7 @@ outputs:
   .agents/skills/orchestrate-repository-change/references/github-review-result-discovery.md:
     sha256: 60c8d950a886115385d08743e581e4e420ad027adc7cff7c1e748cfec7a7c11f
   .agents/skills/orchestrate-repository-change/references/human-handoff.md:
-    sha256: f44bfd6cbb1da284c75696e5ed5b1884ada6d583420866080fe5a508671c0c0e
+    sha256: c0cfa1caea7092e47a165d2f48da0dcfce873a259d79e633660e306ea919e62c
   .agents/skills/orchestrate-repository-change/references/pr-workflow-selection.md:
     sha256: 9d729a44b1916c79c94bfdbb4153e651e3aaf01ad4ef4a48a37a0e8fb523d487
   .agents/skills/orchestrate-repository-change/references/repository-topology-discovery.md:
@@ -45,7 +45,7 @@ outputs:
   .agents/skills/orchestrate-repository-change/references/serial-pr-workflow.md:
     sha256: da7d9b9d26dbd26060d9bbdec0122b37c9e34e245dd722091e60e0ef58971789
   .agents/skills/orchestrate-repository-change/references/stacked-pr-workflow.md:
-    sha256: 8b84ebf58b3f93137af93bf828298fcb3c54235a8210f44d200d8ec439e1821b
+    sha256: 01e028ef2fb2e2eb051dd3e22f74501e2f9abd392c2447cd2d121502021f74c3
   .agents/skills/orchestrate-repository-change/references/staged-ci-execution.md:
     sha256: 241654d2c3373cec25b9e04cc579065f37d4306059b7d14614372a4c339218fe
   .agents/skills/orchestrate-repository-change/references/work-ledger.md:
@@ -77,6 +77,6 @@ outputs:
   .agents/skills/pr-review/references/risk-domains/state-mutation-and-recovery.md:
     sha256: 0cd5b71178b43da5128f4d2e1bfab8f3df5d71439531a9010f351c4ed1468f44
   .review-authority/review-policy.md:
-    sha256: 2446b88cdf984aa062792eb6871615a29c17ded8329756ec6c1bd277d153a8fb
+    sha256: 6371abb09b7e4d128c6a9552ce3963cad6d487df4e6b0b059a0433c0cf503d5c
   AGENTS.md:
-    sha256: bbe215d75bcf585d4aa17765d671f06ece851922c285f1b1ff23bd16fe37e79a
+    sha256: 1d44b5321e9758a17446ef843b40c8be292976549ba64b897d1f6edb32d4bf84

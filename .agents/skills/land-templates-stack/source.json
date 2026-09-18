@@ -2,9 +2,9 @@
   "schema_version": 2,
   "kind": "repository-maintainer-skill-reference",
   "repository": "TakashiSasaki/templates",
-  "revision": "cebcfd7cb49180db13177043ec83726fcb2aee18",
+  "revision": "9fe0a5f12138b0b679127898d3b3ba3f26dbc469",
   "path": "repository-skills/land-templates-stack/SKILL.md",
-  "blob_sha": "e16c969544f5f045b44751514f75288426e0134d",
+  "blob_sha": "06efa38681e374636bcabcbcb984be5ec43b47ee",
   "closure": [
     {
       "path": "repository-policy/stacked-pr-landing.md",
