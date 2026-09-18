@@ -1,6 +1,8 @@
 import json
 from pathlib import Path
+import re
 import unittest
+import jsonschema
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -107,11 +109,88 @@ class MaintainerOnboardingTests(unittest.TestCase):
 
     def test_machine_projection_labels_current_and_historical_contracts(self):
         agent = json.loads((ROOT / "agent.json").read_text(encoding="utf-8"))
+        self.assertEqual(
+            agent["maintainer_entrypoint"],
+            {
+                "repository": "TakashiSasaki/templates",
+                "branch": "site",
+                "path": "docs/maintainer-onboarding.md",
+            },
+        )
         integration = agent["authorities"]["integration"]
         self.assertEqual(integration["contract"], "Integrated Publication Bundle v4")
         self.assertIn("Integrated Publication Bundle v3", integration["historical_compatibility"])
         self.assertEqual(agent["publication_state"]["selected_input"], "integration-source.json")
         self.assertIn("Pages artifact", agent["publication_state"]["deployed_evidence"])
+
+    def test_machine_maintainer_entrypoint_matches_schema_and_source(self):
+        agent = json.loads((ROOT / "agent.json").read_text(encoding="utf-8"))
+        schema = json.loads((ROOT / "schemas/agent-bootstrap.schema.json").read_text(encoding="utf-8"))
+        jsonschema.validate(agent, schema)
+        entrypoint = agent["maintainer_entrypoint"]
+        self.assertEqual(entrypoint["repository"], "TakashiSasaki/templates")
+        self.assertEqual(entrypoint["branch"], "site")
+        self.assertEqual(entrypoint["path"], "docs/maintainer-onboarding.md")
+        self.assertTrue((ROOT / entrypoint["path"]).is_file())
+
+    def test_clean_room_route_matrix_has_required_columns_and_all_scenarios(self):
+        lines = self.guide.splitlines()
+        header_index = next(
+            index for index, line in enumerate(lines)
+            if line.startswith("| Scenario | Semantic owner and authority branch |")
+        )
+        header = lines[header_index]
+        for column in (
+            "Semantic owner and authority branch",
+            "First document and skill",
+            "Editable source versus generated material",
+            "Cheapest useful validation, PR base, and cross-authority dependency",
+            "Stop, next safe action, and authorization",
+        ):
+            self.assertIn(column, header)
+        rows = []
+        for line in lines[header_index + 2:]:
+            if not line.startswith("|"):
+                break
+            rows.append(line)
+        self.assertEqual(len(rows), 10)
+        required_scenarios = (
+            "Register or revise an information-model record",
+            "Change a Composition schema, component, or recipe",
+            "Change a generic Policy maintenance or review procedure",
+            "Make a Site-only CSS or presentation fix",
+            "Diagnose a provider change that merged but is not visible on the published Web site",
+            "Diagnose a successful shadow qualification",
+            "Handle an auto-publication lock PR waiting for review",
+            "Resume interrupted work from an existing PR or checkpoint",
+            "Handle an expired artifact or active publication kill switch",
+            "Explain why Site may still select an older Integration Bundle while Integration has newer capability",
+        )
+        for scenario in required_scenarios:
+            with self.subTest(scenario=scenario):
+                self.assertTrue(any(row.startswith(f"| {scenario} |") for row in rows))
+
+    def test_live_state_retrieval_is_tool_neutral(self):
+        self.assertIn("authenticated GitHub read surface", self.guide)
+        self.assertIn("connector/API or `gh`", self.guide)
+        self.assertIn("`gh` example, not a repository-specific tool requirement", self.guide)
+        self.assertIn("branch", self.guide)
+        self.assertIn("full 40-character `HEAD`", self.guide)
+        self.assertIn("git status --short --branch", self.guide)
+
+    def test_cross_authority_routes_are_branch_qualified(self):
+        remote_links = re.findall(
+            r"https://github\.com/TakashiSasaki/templates/blob/([^/]+)/([^ )]+)",
+            self.guide,
+        )
+        self.assertGreaterEqual(len(remote_links), 10)
+        allowed_branches = {"modeling", "composition", "policy", "integration", "site"}
+        for branch, path in remote_links:
+            self.assertIn(branch, allowed_branches)
+            self.assertTrue(path)
+        relative_links = re.findall(r"\[[^\]]+\]\(([^)]+)\)", self.guide)
+        for relative_authority in ("../modeling", "../composition", "../policy", "../integration"):
+            self.assertFalse(any(target.startswith(relative_authority) for target in relative_links))
 
 
 if __name__ == "__main__":

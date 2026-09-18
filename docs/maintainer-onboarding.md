@@ -9,14 +9,17 @@ remain normative; this page is a navigation and handoff projection.
 ## First pass: establish the live task
 
 Work in the authority worktree that owns the requested meaning. Before editing,
-run the following from that checkout, replacing no values with example SHAs:
+use local Git commands plus an authenticated GitHub read surface to retrieve the
+live state. A connector/API or `gh` can satisfy the remote read; the command
+below is a `gh` example, not a repository-specific tool requirement. Replace no
+values with example SHAs:
 
 ```sh
 pwd
 git branch --show-current
 git rev-parse HEAD
 git status --short --branch
-gh pr list --repo TakashiSasaki/templates --state open --head "$(git branch --show-current)"
+gh pr list --repo TakashiSasaki/templates --state open --head "$(git branch --show-current)"  # example GitHub read
 ```
 
 The expected output is the authority branch, one full 40-character `HEAD`, an
@@ -56,6 +59,12 @@ authority merge relationship.
 The first three rows deliberately distinguish this repository's maintenance from
 consumer onboarding. A consumer repository should follow its installed product
 skill; it should not use this page to mutate a provider branch.
+
+The route matrix below is a clean-room maintenance walkthrough, not a second
+policy. It names the owner, first reading, editable source, validation boundary,
+and safe stop for each common task. If the default `site` branch does not yet
+link to this page, treat that as an onboarding-stack dependency rather than
+reconstructing the route from old pull requests.
 
 ## Source, projection, and generated material
 
@@ -150,18 +159,18 @@ place; it does not repair a lock that already advanced or select a rollback.
 These are document-only walkthroughs unless a human reviewer independently
 performs the route; no independent agent or external write is implied.
 
-| Scenario | Entry, decision, and expected stop |
-|---|---|
-| Register a new information model | Start here → Modeling `register-information-model` → edit `records/` → generate/qualify; stop before Integration adoption |
-| Change a Composition schema | Start here → Composition component owner and Composer/preflight; do not move it to Modeling; stop at Composition validation/provider declaration |
-| Change generic Policy procedure | Start here → Policy source and exact pinned renderer; regenerate outputs and run Policy checks; do not upgrade the toolchain pin without separate authorization |
-| Fix Site CSS only | Start here → Site source/test; keep `integration-source.json`; run Site source-ready/acceptance; no provider adoption is needed |
-| Provider merged but absent from Web | Run the publication table read-only: declaration → qualification → dispatch → mode/auth → Integration PR/merge → receipt → Site PR/gate → deployment; stop at the first unknown or failed identity |
-| Shadow qualification succeeded | Treat it as evidence only; do not change mode, resend, rerun, or open an adoption PR from the conversation |
-| Auto-publish adoption PR is review-waiting | This is a normal protected wait; do not bypass review/protection or report the Site as published |
-| Interrupted work | Restore the existing PR/Issue checkpoint, exact heads, run/artifact/review/auth state; reuse valid evidence and take one next safe action |
-| Artifact expired or kill switch active | Stop the automatic path; do not use manual publication as an unapproved bypass; an authorized operator must select the next path |
-| Site selects an older Bundle | Distinguish Integration's current capability from Site's selected lock and deployed artifact; changing the pin is a separate adoption decision |
+| Scenario | Semantic owner and authority branch | First document and skill | Editable source versus generated material | Cheapest useful validation, PR base, and cross-authority dependency | Stop, next safe action, and authorization |
+|---|---|---|---|---|---|
+| Register or revise an information-model record | Modeling / `modeling` | `AUTHORITY.md`, `AGENTS.md`, `docs/intake.md`, then `register-information-model` | Edit `records/`; generated catalogs and resource docs are outputs | `python3 tools/catalog.py generate`, then `python3 tools/qualify.py`; stack only on a Modeling PR; Integration is informational until a separately authorized publication path | Stop at registration/qualification evidence. Do not adopt in Integration, change mode, merge, dispatch, rerun, or deploy. |
+| Change a Composition schema, component, or recipe | Composition / `composition` | `AGENTS.md`, `README.md`, and the owning component contract | Edit components, recipes, schemas, and Composer source; regenerate `generated/` and materialized manifests | `python3 scripts/run_composition_preflight.py fast`, then the applicable committed `full` profile; stack on Composition only; provider declarations are cross-authority information, not Git ancestry | Stop at Composition contract and qualification. Do not move the change to Modeling or edit a Site lock without separate authorization. |
+| Change a generic Policy maintenance or review procedure | Policy / `policy` | `AGENTS.md`, `README.md`, `orchestrate-repository-change`, and the applicable `repository-policy/` source | Edit `.agent-policy.yml` and `repository-policy/`; regenerate `AGENTS.md`, review policy, lock, and skills | Use the exact selected toolchain and the documented Policy validation sequence; stack on Policy only; Site references are informational | Stop after Policy evidence. Do not promote the toolchain pin, merge, adopt, publish, or deploy under this task. |
+| Make a Site-only CSS or presentation fix | Site / `site` | `MAINTENANCE.md`, `PUBLISHING.md`, `AGENTS.md`, and the applicable Site skill | Edit Site source and tests; do not hand-edit generated `AGENTS.md`, build output, Pages artifacts, or `integration-source.json` | Run `python scripts/run_site_preflight.py fast`, then clean `source-ready` and relevant acceptance; stack on Site; retain the current Integration selection | Stop at Site PR/acceptance. A presentation change does not authorize provider adoption, lock updates, mode changes, merge, or deployment. |
+| Diagnose a provider change that merged but is not visible on the published Web site | Read-only investigation across the named authority boundary | Start with `docs/publication-automation.md`, then the current provider, Integration, and Site workflows | Edit nothing while diagnosing; retain provider SHA, Integration SHA, Site SHA, run/attempt, artifact, receipt, PR, and deployment identities | Walk declaration → qualification → dispatch → mode/auth → Integration lock PR/merge → receipt → Site lock PR/gate → deployment; each authority is an informational dependency, never a Git base | Stop at the first failed, stale, unauthorized, or unreadable boundary. Next safe action is a report or authorized handoff; do not dispatch, rerun, edit locks, or deploy. |
+| Diagnose a successful shadow qualification | Integration / `integration` | `RELEASE.md`, `integration-publication-maintenance`, and the publication runbook | Inspect candidate evidence, receipt, and mode; do not edit source or fabricate an adoption PR | Bind the shadow run, exact candidate, controller/policy pins, receipt, and artifact expiry; no PR base is created | Shadow success is evidence only. Stop and report; do not change mode, resend, rerun, or request adoption from this conversation. |
+| Handle an auto-publication lock PR waiting for review | Site or Integration controller boundary named by the PR | Publication runbook, `PUBLISHING.md`, and the Site cutover/acceptance skill | The controller may write only its allowlisted lock fields; do not hand-edit generated candidates or source semantics | Check exact base/head, controller receipt, CI, required review, branch protection, and current authorization; stack only within the owning authority | Waiting for required review is normal. Next safe action is the authorized review/merge decision; do not bypass protection, claim publication, or deploy. |
+| Resume interrupted work from an existing PR or checkpoint | The authority named by the existing PR/Issue checkpoint | Policy Work-ledger guidance, current authority `AGENTS.md`, and its skill | Restore live PR/head/base, run/attempt, artifact/receipt, review, and authorization state; reuse only current evidence | Check for an existing same-authority PR and exact-head evidence before creating anything; cross-authority references remain informational | Take one safe next action or record a stop. Do not create a duplicate PR/review/run, treat stale evidence as current, or poll indefinitely. |
+| Handle an expired artifact or active publication kill switch | Integration/Site publication boundary | Publication runbook and the current reconciliation/deploy workflows | Edit nothing; an expired artifact or kill switch invalidates the automatic candidate path, not the last successful deployment | Verify expiry, kill-switch state, current head, receipt, and existing PR read-only; no new PR base or rerun is inferred | Stop automatic processing. Next safe action is an authorized operator decision; do not use manual publication as an unapproved bypass, change mode, dispatch, rerun, or deploy. |
+| Explain why Site may still select an older Integration Bundle while Integration has newer capability | Site selection plus Integration capability, with both authorities kept independent | `docs/authority-model.md`, the publication runbook, and `integration-source.json` contract | Current capability is owned by Integration; Site's selected lock and generated/deployed projections are separate; edit the Site lock only through an authorized adoption path | Inspect exact Bundle identity, selected input, Site revision, and deployed artifact; an adoption PR, if authorized, is a Site PR based on Site | Stop with the distinction documented. A newer capability or notification does not change selection or deployment; no pin update, merge, or deployment is implied. |
 
 The completion record must name the semantic owner, branch and exact head,
 source/projection changes, local and remote validation, review state, PR
