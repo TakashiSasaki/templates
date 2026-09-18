@@ -20,7 +20,7 @@ from urllib.request import Request, urlopen
 
 
 ROOT = Path(__file__).resolve().parents[1]
-CANONICAL_REVISION = "b586d3caab11df3b7a396b202c2127d1f3453cfa"
+CANONICAL_REVISION = "fff57bfbb5f45d8608aa10c34519be7a0254f1d3"
 CANONICAL_SKILL_PATH = "repository-skills/land-templates-stack/SKILL.md"
 CANONICAL_SKILL_BLOB = "06efa38681e374636bcabcbcb984be5ec43b47ee"
 CANONICAL_RULE_PATH = "repository-policy/stacked-pr-landing.md"

@@ -53,7 +53,7 @@ the procedure. All five authority routes resolve the same immutable canonical
 snapshot:
 
 - repository: `TakashiSasaki/templates`;
-- revision: `b586d3caab11df3b7a396b202c2127d1f3453cfa`;
+- revision: `fff57bfbb5f45d8608aa10c34519be7a0254f1d3`;
 - rule: `repository-policy/stacked-pr-landing.md`, blob
   `9761cdbcd21b0e8ba2f3eb2ffb306725a82f5eef`;
 - landing Skill: `repository-skills/land-templates-stack/SKILL.md`, blob
@@ -64,7 +64,7 @@ snapshot:
 The local shim must resolve the rule and planner from that snapshot, not from a consumer
 worktree, mutable `policy` branch, latest ref, or unverified copy. Source
 failure is blocked. The separate shared PR gate remains pinned to
-`TakashiSasaki/templates@b586d3caab11df3b7a396b202c2127d1f3453cfa` and is
+`TakashiSasaki/templates@fff57bfbb5f45d8608aa10c34519be7a0254f1d3` and is
 loaded through the authority-local `pr-merge-gate` route. Site acceptance,
 review, merge authorization, publication, and deployment remain distinct
 states; this onboarding guide does not authorize any of them.
@@ -105,7 +105,7 @@ Edit the source that owns the meaning and regenerate its projections:
 
 The Site `AGENTS.md` is generated from Site's `.agent-policy.yml`,
 `policy/project.md`, and selected toolchain revision
-`b586d3caab11df3b7a396b202c2127d1f3453cfa`; update the source and run that
+`fff57bfbb5f45d8608aa10c34519be7a0254f1d3`; update the source and run that
 exact generator. Do not replace it with an unreviewed Policy checkout. The
 Policy authority's own generated outputs follow its separate pinned toolchain
 `33a7ab809225c2a8b8dd2598ef04d0a39cf076a7`. A toolchain adoption pin and a
