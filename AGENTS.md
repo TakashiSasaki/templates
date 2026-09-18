@@ -43,7 +43,7 @@ For maintenance of the `integration` authority itself, load
 `.agents/skills/land-templates-stack/SKILL.md` for a single PR or
 same-authority stack, then use `.agents/skills/pr-merge-gate/SKILL.md` for the
 shared acceptance gate. The landing source is pinned to
-`TakashiSasaki/templates@2a8ea9f26ec9cad2130f71fad6c86801c4c736b0`,
+`TakashiSasaki/templates@4d1f9bfc4122de961be84737196e8acce39c01f9`,
 `repository-skills/land-templates-stack/SKILL.md`, blob
 `06efa38681e374636bcabcbcb984be5ec43b47ee`; its rule and review-scope planner
 are resolved from that same snapshot. Verify its adjacent
