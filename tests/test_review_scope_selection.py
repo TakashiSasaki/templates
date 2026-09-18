@@ -84,6 +84,82 @@ def _key(packet: dict[str, object]) -> str:
     return initial["request_key"]
 
 
+@pytest.mark.parametrize(
+    "authority,invariant",
+    [
+        ("policy", "normative-routing"),
+        ("composition", "transaction-ownership"),
+        ("integration", "bundle-transport"),
+        ("modeling", "record-provenance"),
+        ("site", "browser-artifact"),
+    ],
+)
+def test_each_authority_routes_bounded_expanded_and_reusable_scope(
+    authority: str, invariant: str
+) -> None:
+    member_id = f"{authority}-maintenance"
+    packet = _packet(purpose=f"{authority}_maintenance")
+    candidate = packet["candidate"]
+    assert isinstance(candidate, dict)
+    candidate["authority"] = authority
+    candidate["members"] = [
+        {
+            "id": member_id,
+            "authority": authority,
+            "base_sha": _sha("a"),
+            "head_sha": _sha("b"),
+        }
+    ]
+    packet["change"] = {
+        "impact": "bounded",
+        "invariants": [invariant],
+        "affected_members": [member_id],
+        "contract_changed": False,
+        "trust_boundary_changed": False,
+        "topology_changed": False,
+    }
+
+    bounded = planner.plan(packet)
+    assert bounded["action"] == planner.ACTION_DELTA
+    assert bounded["selected_scope"]["members"] == [member_id]
+
+    binding = _binding(packet)
+    packet["reviews"] = [
+        {
+            "key": bounded["request_key"],
+            "status": "completed",
+            "purpose": packet["purpose"],
+            "candidate_binding": binding,
+            "candidate_binding_digest": planner._digest(binding),
+            "independent": True,
+            "metadata_complete": True,
+            "pagination_complete": True,
+            "coverage": {
+                "purposes": [packet["purpose"]],
+                "members": [member_id],
+                "invariants": [invariant],
+                "limitations": [],
+            },
+            "locator": f"{authority}-review",
+        }
+    ]
+    reused = planner.plan(packet)
+    assert reused["action"] == planner.ACTION_REUSE
+    assert reused["reusable_evidence"] == [f"{authority}-review"]
+
+    packet["change"] = {
+        "impact": "bounded",
+        "invariants": [invariant, "shared-contract"],
+        "affected_members": [member_id],
+        "contract_changed": True,
+        "trust_boundary_changed": False,
+        "topology_changed": False,
+    }
+    expanded = planner.plan(packet)
+    assert expanded["action"] == planner.ACTION_STACK
+    assert expanded["selected_scope"]["kind"] == "whole-stack"
+
+
 def test_bounded_change_selects_independent_delta_scope() -> None:
     packet = _packet(purpose="fix_verification")
     result = planner.plan(packet)
