@@ -582,7 +582,7 @@ Read the maintenance rule and its execution procedure from the same immutable
 source snapshot before changing a maintenance PR:
 
 - repository: `TakashiSasaki/templates`;
-- revision: `8a02580967c0eda9fc37954ee3149cafa5ad7c7f`;
+- revision: `eeed07873ac7c6385d8836031b7aabbf3a7cfb83`;
 - rule: `repository-policy/stacked-pr-landing.md`, blob
   `9761cdbcd21b0e8ba2f3eb2ffb306725a82f5eef`;
 - landing Skill: `repository-skills/land-templates-stack/SKILL.md`, blob
