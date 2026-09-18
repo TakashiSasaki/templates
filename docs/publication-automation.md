@@ -20,8 +20,11 @@ selection; its four selected identity fields are the only normal adoption
 mutation.
 
 The default `site` branch also contains a thin `repository_dispatch` adapter
-for provider qualification events. It forwards exact revisions to the pinned
-Integration controller; it does not perform Integration semantics itself.
+for provider qualification events. It validates the immutable provider facts,
+resolves the current `integration` authority head to one exact producer SHA,
+and forwards those facts to the pinned Integration controller; it does not
+perform Integration semantics itself. A producer-head race is handled by the
+controller's expected-base check rather than by trusting the event payload.
 
 Integration's candidate report is not a Site or adoption authorization. The
 upstream controller must provide a trusted receipt bound to the exact Bundle
