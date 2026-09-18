@@ -77,6 +77,6 @@ outputs:
   .agents/skills/pr-review/references/risk-domains/state-mutation-and-recovery.md:
     sha256: 0cd5b71178b43da5128f4d2e1bfab8f3df5d71439531a9010f351c4ed1468f44
   .review-authority/review-policy.md:
-    sha256: 909bd5de32b62e9289f2c7e442ab1461750a4d6c4243bf1744973e00ae62c1b1
+    sha256: 3087e9a7ddf5ea0954f8c21dab3a998bebffdfdf64f43b4d6bd91e43b55a1630
   AGENTS.md:
-    sha256: dfa8f08268b93091f4b025b7da3b24210f6c64a769dabf6d6501ed1d39f758c6
+    sha256: b4ef276fcd6075777ff16fced6f3021d28fddee3dcf9472788f29c49c61b7687
