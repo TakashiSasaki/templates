@@ -189,6 +189,7 @@ class CompositionPublicationContractTests(unittest.TestCase):
         }
         expected_exclusions = {
             PurePosixPath(".agents/skills/pr-merge-gate/SKILL.md"),
+            PurePosixPath(".agents/skills/land-templates-stack/SKILL.md"),
             PurePosixPath("AGENTS.md"),
             PurePosixPath("components/artifact.skill-core/files/AGENTS.md"),
             PurePosixPath("docs/guides/webmcp-capability.md"),
