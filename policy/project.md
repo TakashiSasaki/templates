@@ -32,7 +32,7 @@ variables, credentials, protections, runs, and deployments remain unknown.
 
 The following routes select consumer-owned procedural Skills. Canonical norms remain in the selected Policy profiles and this project policy.
 
-When working on the `site` authority, load the smallest matching skill from `.agents/skills/` before reconstructing a workflow from repository history.
+When working on the `site` authority, load the smallest matching skill from `.agents/skills/` before reconstructing a workflow from repository history. For review routing, load the immutable landing Skill's declared planner with the exact Site head/base, selected Bundle, changed invariants, prior coverage, and request state; the planner chooses scope but never proves Site semantics or authorizes merge.
 
 ## Skill routing
 
@@ -48,9 +48,10 @@ If more than one skill applies, use only the minimal set needed and follow them 
 `site-pr-exact-head-acceptance` establishes Site-specific acceptance evidence but never authorizes merge. Before declaring a Site PR merge-ready, merging it, or completing a task whose final action is a merge, load `pr-merge-gate`. Green CI and `reviews = 0` must never be interpreted as a clean review state.
 
 The repository-maintainer landing procedure is pinned to
-`TakashiSasaki/templates@a878da560c5286634b21671b54793e26ed8167b2`,
+`TakashiSasaki/templates@4e871785052e909deb6d2f9382674859461b2767`,
 `repository-skills/land-templates-stack/SKILL.md`, blob
-`b433bdf781eb1fd0f32a525bfd68bac2563316d7`. It resolves
+`e16c969544f5f045b44751514f75288426e0134d`; its rule and review-scope planner
+are resolved
 `repository-policy/stacked-pr-landing.md` from that same immutable snapshot,
 not from the Site worktree or a mutable branch. Keep this route separate from
 Site adoption and Pages deployment; it does not authorize merge or auto-merge.
@@ -71,3 +72,17 @@ This routing discipline is not an additional acceptance checklist. Optional diag
 The active canonical authorities are `modeling`, `composition`, `policy`, `integration`, and `site`, with independent histories. Modeling owns bounded information-model records and discovery documentation; Composition and Policy own their provider semantics, documentation, translations, and synchronization metadata. Integration owns exact reviewed provider selection, publication staging, IA, read models, translation availability, Bundle production, and qualification. Site owns presentation, browser runtime, accessibility, PWA, Pages artifact packaging, and explicit deployment. Site is not a parent or super-authority.
 
 Site consumes only the versioned Integration output contract for provider publication. Site may release a runtime fix against unchanged Integration; Integration may advance without Site adoption or deployment. Site must not recalculate provider translation freshness. Provider-owned synchronization metadata must never be silently updated. Repository-local Agent Skills orchestrate Site maintenance and merge acceptance; they do not create another semantic authority.
+
+## Adaptive Site review scope
+
+The first inexpensive checks are the canonical source-ready preflight,
+workflow/local inventory, renderer and contract tests, and HTML/link/provenance
+inspection. A fixed Bundle plus a bounded presentation change can stay within
+the affected Site delta, while Bundle-reader semantics, renderer meaning,
+browser/PWA/cache lifecycle, sanitization, trust boundaries, Integration
+adoption, or final-artifact/deployment bindings expand to the related Site
+scope and explicitly affected Integration inputs. A CSS change is not exempt
+when focus, authentication display, CSP, or navigation semantics change.
+Independent review remains required; reusable evidence must name the exact
+candidate, purpose, scope, and coverage. Site adoption of maintenance Policy
+is separate from `integration-source.json` and Pages deployment.

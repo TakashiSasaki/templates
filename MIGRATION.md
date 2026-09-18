@@ -108,8 +108,12 @@ Provider candidate qualification terminates at the Bundle with no Pages artifact
 
 S0 audit -> S1 boundary -> S2 Bundle -> S3 renderer -> S4 qualification.
 Use predecessor PR branches as bases and continue construction while CI is pending.
-After S4, request one cumulative Codex diagnostic review bound to the exact ordered
-stack, then hand off without polling or merging. Human landing precedes P5 bootstrap.
+After S4, prepare the final packet for the immutable review-scope planner and
+request one logical Codex diagnostic review at the scope it selects, bound to the
+exact ordered stack; then hand off without polling or merging. A later review is
+allowed when a new head, contract, binding, or material evidence gap justifies
+it, and duplicate active requests remain prohibited. Human landing precedes P5
+bootstrap.
 
 Future P5 bootstraps an unrelated Integration history from Site's then-reviewed
 provider locks. A changed producer revision changes overall Bundle identity; prove
