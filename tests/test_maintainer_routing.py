@@ -12,10 +12,10 @@ ROUTING = ROOT / "repository-policy" / "maintainer-merge-routing.md"
 CONFIG = ROOT / ".agent-policy.yml"
 AGENTS = ROOT / "AGENTS.md"
 REVIEW = ROOT / ".review-authority" / "review-policy.md"
-REVISION = "76050a8cd46b2d0167f3aaed599d85d7c0ff7994"
+REVISION = "b75326241e9579e00534a052036a93093851e202"
 RULE_BLOB = "9761cdbcd21b0e8ba2f3eb2ffb306725a82f5eef"
 SKILL_BLOB = "06efa38681e374636bcabcbcb984be5ec43b47ee"
-PLANNER_BLOB = "5d3859ca59a3a7d2998238522d203c600f42696b"
+PLANNER_BLOB = "91cb2617bfed51f69449c3c3b214ec3c33646983"
 GATE_REVISION = "94eb84397d913f2ebb0e2c79d0b841ae580fbc31"
 FULL_SHA = re.compile(r"[0-9a-f]{40}")
 
