@@ -171,6 +171,8 @@ def _change_scope(
     invariants = _require_list(change.get("invariants"), "change.invariants")
     if any(not isinstance(item, str) or not item.strip() for item in invariants):
         raise RoutingInputError("change.invariants must contain non-empty strings")
+    if not invariants:
+        raise RoutingInputError("change.invariants must not be empty")
     affected = _require_list(change.get("affected_members"), "change.affected_members")
     if any(not isinstance(item, str) or not item.strip() for item in affected):
         raise RoutingInputError("change.affected_members must contain non-empty strings")
@@ -283,14 +285,26 @@ def _review_covers(
     coverage = review.get("coverage")
     if not isinstance(coverage, dict):
         return False
-    purposes = coverage.get("purposes", [review.get("purpose")])
+    def _string_list(value: Any) -> list[str] | None:
+        if not isinstance(value, list):
+            return None
+        if any(not isinstance(item, str) or not item.strip() for item in value):
+            return None
+        return value
+
+    purposes = _string_list(coverage.get("purposes", [review.get("purpose")]))
+    members = _string_list(coverage.get("members", []))
+    invariants = _string_list(coverage.get("invariants", []))
+    limitations = _string_list(coverage.get("limitations", []))
+    if purposes is None or members is None or invariants is None or limitations is None:
+        return False
     if purpose not in purposes:
         return False
-    if set(scope["members"]) - set(coverage.get("members", [])):
+    if set(scope["members"]) - set(members):
         return False
-    if set(scope["invariants"]) - set(coverage.get("invariants", [])):
+    if set(scope["invariants"]) - set(invariants):
         return False
-    if coverage.get("limitations"):
+    if limitations:
         return False
     return True
 

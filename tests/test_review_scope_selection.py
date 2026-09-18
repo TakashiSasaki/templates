@@ -507,3 +507,45 @@ def test_missing_input_binding_fails_closed() -> None:
 
     with pytest.raises(planner.RoutingInputError, match="input_binding must be an object"):
         planner.plan(packet)
+
+
+def test_empty_invariant_scope_fails_closed() -> None:
+    change = _packet()["change"]
+    assert isinstance(change, dict)
+    change["invariants"] = []
+
+    with pytest.raises(planner.RoutingInputError, match="must not be empty"):
+        planner.plan(_packet(change=change))
+
+
+@pytest.mark.parametrize("field", ["purposes", "members", "invariants", "limitations"])
+def test_malformed_coverage_lists_are_not_reused(field: str) -> None:
+    packet = _packet()
+    initial = planner.plan(packet)
+    binding = _binding(packet)
+    coverage: dict[str, object] = {
+        "purposes": [packet["purpose"]],
+        "members": ["policy-p1"],
+        "invariants": ["review-scope"],
+        "limitations": [],
+    }
+    coverage[field] = {"policy-p1": False}
+    packet["reviews"] = [
+        {
+            "key": initial["request_key"],
+            "status": "completed",
+            "purpose": packet["purpose"],
+            "candidate_binding": binding,
+            "candidate_binding_digest": planner._digest(binding),
+            "input_binding": packet["input_binding"],
+            "input_binding_digest": planner._digest(packet["input_binding"]),
+            "independent": True,
+            "metadata_complete": True,
+            "pagination_complete": True,
+            "coverage": coverage,
+        }
+    ]
+
+    result = planner.plan(packet)
+
+    assert result["action"] == planner.ACTION_DELTA
