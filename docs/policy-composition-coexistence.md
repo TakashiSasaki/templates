@@ -197,7 +197,7 @@ The consumer relationships below are independent of the selected publication Bun
 | Relationship | Immutable revision | Meaning |
 | --- | --- | --- |
 | Composition consumer | `a739b3823660e3db742ff0e1e159d279126cba7c` | Governs the Site Website contracts and material ownership |
-| Policy maintenance procedure | `b196357a58a711b1dedc27b0e7f39ed947dc0e99` | Landing Skill, rule, and review-scope planner |
+| Policy maintenance procedure | `e9303fa4e7e2468e032985cc053b71ab6a6ca0d5` | Landing Skill, rule, and review-scope planner |
 | Policy generation toolchain | `671014164461a709e193d83e87d375ac12a34d56` | Generates AGENTS.md, reviewer instructions, and the Policy lock |
 | Publication input | `integration-source.json` | Exact reviewed Integration release and Bundle; provider identities are supplied by that Bundle |
 

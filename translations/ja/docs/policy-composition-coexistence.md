@@ -198,7 +198,7 @@ Website 製品は `website` recipe と `capability.pwa` を、保守作業は Po
 | 関係 | 不変 revision | 意味 |
 | --- | --- | --- |
 | Composition consumer | `a739b3823660e3db742ff0e1e159d279126cba7c` | Website 契約と material の所有関係 |
-| Policy maintenance procedure | `b196357a58a711b1dedc27b0e7f39ed947dc0e99` | 保守用 landing Skill・規則・review scope planner |
+| Policy maintenance procedure | `e9303fa4e7e2468e032985cc053b71ab6a6ca0d5` | 保守用 landing Skill・規則・review scope planner |
 | Policy generation toolchain | `671014164461a709e193d83e87d375ac12a34d56` | AGENTS.md・reviewer 指示・Policy lock の生成 |
 | Publication input | `integration-source.json` | レビュー済み Integration release と Bundle。provider の identity は Bundle が指定する |
 

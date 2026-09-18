@@ -43,7 +43,7 @@
     {
       "generated": true,
       "path": "AGENTS.md",
-      "sha256": "c432334120d36d97a13b423ae7f7058bbea84c502730650523b824efa86e3b13"
+      "sha256": "3118b6d75204e58c598e5ada648d1a42fbe1c5999bc7d1cb0e97f746da9dd8a9"
     }
   ],
   "state_path": ".agent-policy/adoption.json",
