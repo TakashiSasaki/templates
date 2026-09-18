@@ -16,6 +16,7 @@ contexts:
         - repository-policy/release-trust.md
         - repository-policy/toolchain-safety.md
         - repository-policy/maintainer-validation.md
+        - repository-policy/maintainer-merge-routing.md
         - repository-policy/documentation-boundary.md
   review:
     profiles:
@@ -30,6 +31,7 @@ contexts:
         - repository-policy/release-trust.md
         - repository-policy/toolchain-safety.md
         - repository-policy/maintainer-validation.md
+        - repository-policy/maintainer-merge-routing.md
         - repository-policy/documentation-boundary.md
 outputs:
   agents:
