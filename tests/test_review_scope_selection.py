@@ -25,7 +25,7 @@ def _sha(letter: str) -> str:
 
 def _packet(**overrides: object) -> dict[str, object]:
     packet: dict[str, object] = {
-        "schema_version": 1,
+        "schema_version": 2,
         "objective": "adaptive review routing",
         "purpose": "whole_stack_diagnostic",
         "candidate": {
@@ -56,6 +56,11 @@ def _packet(**overrides: object) -> dict[str, object]:
             "contract_changed": False,
             "trust_boundary_changed": False,
             "topology_changed": False,
+        },
+        "input_binding": {
+            "provider": "codex",
+            "contract_revision": "review-contract-1",
+            "evidence": {"ci": ["run-1"], "findings": []},
         },
         "preflight": {"status": "ready", "missing": []},
         "reviews": [],
@@ -131,6 +136,8 @@ def test_each_authority_routes_bounded_expanded_and_reusable_scope(
             "purpose": packet["purpose"],
             "candidate_binding": binding,
             "candidate_binding_digest": planner._digest(binding),
+            "input_binding": packet["input_binding"],
+            "input_binding_digest": planner._digest(packet["input_binding"]),
             "independent": True,
             "metadata_complete": True,
             "pagination_complete": True,
@@ -231,6 +238,8 @@ def test_explicit_coverage_reuses_completed_independent_result() -> None:
             "purpose": "whole_stack_diagnostic",
             "candidate_binding": binding,
             "candidate_binding_digest": planner._digest(binding),
+            "input_binding": packet["input_binding"],
+            "input_binding_digest": planner._digest(packet["input_binding"]),
             "independent": True,
             "metadata_complete": True,
             "pagination_complete": True,
@@ -284,6 +293,85 @@ def test_request_key_is_not_head_only() -> None:
     changed = _packet(objective="different objective")
 
     assert _key(packet) != _key(changed)
+
+
+def test_request_key_includes_validated_input_binding() -> None:
+    packet = _packet()
+    changed = _packet(
+        input_binding={
+            "provider": "codex",
+            "contract_revision": "review-contract-1",
+            "evidence": {"ci": ["run-2"], "findings": []},
+        }
+    )
+
+    assert _key(packet) != _key(changed)
+
+
+def test_completed_review_with_stale_candidate_binding_is_not_reused() -> None:
+    packet = _packet()
+    initial = planner.plan(packet)
+    stale_binding = _binding(packet)
+    stale_binding["head_sha"] = _sha("c")
+    packet["reviews"] = [
+        {
+            "key": initial["request_key"],
+            "status": "completed",
+            "purpose": packet["purpose"],
+            "candidate_binding": stale_binding,
+            "candidate_binding_digest": planner._digest(stale_binding),
+            "input_binding": packet["input_binding"],
+            "input_binding_digest": planner._digest(packet["input_binding"]),
+            "independent": True,
+            "metadata_complete": True,
+            "pagination_complete": True,
+            "coverage": {
+                "purposes": [packet["purpose"]],
+                "members": ["policy-p1"],
+                "invariants": ["review-scope"],
+                "limitations": [],
+            },
+        }
+    ]
+
+    result = planner.plan(packet)
+
+    assert result["action"] == planner.ACTION_DELTA
+
+
+def test_completed_review_with_changed_input_binding_is_not_reused() -> None:
+    packet = _packet()
+    initial = planner.plan(packet)
+    old_input_binding = packet["input_binding"]
+    packet["input_binding"] = {
+        "provider": "codex",
+        "contract_revision": "review-contract-1",
+        "evidence": {"ci": ["run-2"], "findings": []},
+    }
+    packet["reviews"] = [
+        {
+            "key": initial["request_key"],
+            "status": "completed",
+            "purpose": packet["purpose"],
+            "candidate_binding": _binding(packet),
+            "candidate_binding_digest": planner._digest(_binding(packet)),
+            "input_binding": old_input_binding,
+            "input_binding_digest": planner._digest(old_input_binding),
+            "independent": True,
+            "metadata_complete": True,
+            "pagination_complete": True,
+            "coverage": {
+                "purposes": [packet["purpose"]],
+                "members": ["policy-p1"],
+                "invariants": ["review-scope"],
+                "limitations": [],
+            },
+        }
+    ]
+
+    result = planner.plan(packet)
+
+    assert result["action"] == planner.ACTION_DELTA
 
 
 def test_same_head_new_contract_evidence_allows_additional_related_scope() -> None:
@@ -345,4 +433,12 @@ def test_invalid_candidate_binding_fails_closed() -> None:
     candidate["head_sha"] = "main"
 
     with pytest.raises(planner.RoutingInputError, match="full Git SHA"):
+        planner.plan(packet)
+
+
+def test_missing_input_binding_fails_closed() -> None:
+    packet = _packet()
+    del packet["input_binding"]
+
+    with pytest.raises(planner.RoutingInputError, match="input_binding must be an object"):
         planner.plan(packet)

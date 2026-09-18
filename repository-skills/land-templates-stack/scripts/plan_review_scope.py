@@ -12,12 +12,12 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import sys
 from pathlib import Path
 from typing import Any
 
-
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 REPOSITORY = "TakashiSasaki/templates"
 FULL_SHA_LENGTH = 40
 
@@ -80,11 +80,38 @@ def _require_list(value: Any, name: str) -> list[Any]:
 
 
 def _canonical(value: Any) -> str:
-    return json.dumps(value, sort_keys=True, separators=(",", ":"))
+    return json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False)
 
 
 def _digest(value: Any) -> str:
     return hashlib.sha256(_canonical(value).encode("utf-8")).hexdigest()
+
+
+def _is_json_data(value: Any) -> bool:
+    if value is None or isinstance(value, (bool, int, str)):
+        return True
+    if isinstance(value, float):
+        return math.isfinite(value)
+    if isinstance(value, list):
+        return all(_is_json_data(item) for item in value)
+    if isinstance(value, dict):
+        return all(
+            isinstance(key, str) and _is_json_data(item)
+            for key, item in value.items()
+        )
+    return False
+
+
+def _validate_json_data(value: Any, name: str) -> Any:
+    if not _is_json_data(value):
+        raise RoutingInputError(f"{name} must be JSON data")
+    return value
+
+
+def _input_binding(packet: dict[str, Any]) -> dict[str, Any]:
+    binding = _require_object(packet.get("input_binding"), "input_binding")
+    _validate_json_data(binding, "input_binding")
+    return binding
 
 
 def _validate_members(candidate: dict[str, Any]) -> list[dict[str, Any]]:
@@ -127,7 +154,9 @@ def _candidate_binding(candidate: dict[str, Any]) -> dict[str, Any]:
     return binding
 
 
-def _change_scope(change: dict[str, Any], members: list[dict[str, Any]]) -> tuple[dict[str, Any], list[str]]:
+def _change_scope(
+    change: dict[str, Any], members: list[dict[str, Any]]
+) -> tuple[dict[str, Any], list[str]]:
     impact = _require_string(change.get("impact"), "change.impact")
     if impact not in IMPACTS:
         raise RoutingInputError(f"change.impact must be one of {sorted(IMPACTS)}")
@@ -182,13 +211,15 @@ def _change_scope(change: dict[str, Any], members: list[dict[str, Any]]) -> tupl
 
 
 def _request_key(
-    packet: dict[str, Any], binding: dict[str, Any], scope: dict[str, Any]
+    packet: dict[str, Any],
+    binding: dict[str, Any],
+    scope: dict[str, Any],
+    input_binding: dict[str, Any],
 ) -> str:
     purpose = _require_string(packet.get("purpose"), "purpose")
     objective = _require_string(packet.get("objective"), "objective")
     contract = packet.get("contract", {})
-    if not isinstance(contract, (dict, list, str, int, float, bool)) and contract is not None:
-        raise RoutingInputError("contract must be JSON data")
+    _validate_json_data(contract, "contract")
     material = {
         "repository": binding["repository"],
         "objective": objective,
@@ -196,6 +227,7 @@ def _request_key(
         "candidate": binding,
         "scope": scope,
         "contract": contract,
+        "input_binding": input_binding,
     }
     return _digest(material)
 
@@ -206,6 +238,8 @@ def _review_covers(
     key: str,
     purpose: str,
     scope: dict[str, Any],
+    candidate_binding: dict[str, Any],
+    input_binding: dict[str, Any],
 ) -> bool:
     if review.get("key") != key or review.get("status") != "completed":
         return False
@@ -216,7 +250,18 @@ def _review_covers(
     if review.get("pagination_complete") is not True:
         return False
     binding = review.get("candidate_binding")
-    if not isinstance(binding, dict) or review.get("candidate_binding_digest") != _digest(binding):
+    if (
+        not isinstance(binding, dict)
+        or binding != candidate_binding
+        or review.get("candidate_binding_digest") != _digest(binding)
+    ):
+        return False
+    review_input_binding = review.get("input_binding")
+    if (
+        not isinstance(review_input_binding, dict)
+        or review_input_binding != input_binding
+        or review.get("input_binding_digest") != _digest(review_input_binding)
+    ):
         return False
     coverage = review.get("coverage")
     if not isinstance(coverage, dict):
@@ -256,9 +301,10 @@ def plan(packet: dict[str, Any]) -> dict[str, Any]:
 
     candidate = _require_object(packet.get("candidate"), "candidate")
     binding = _candidate_binding(candidate)
+    input_binding = _input_binding(packet)
     change = _require_object(packet.get("change"), "change")
     scope, reasons = _change_scope(change, candidate["members"])
-    key = _request_key(packet, binding, scope)
+    key = _request_key(packet, binding, scope, input_binding)
     missing = _validate_preflight(packet)
 
     reviews = _require_list(packet.get("reviews", []), "reviews")
@@ -277,6 +323,7 @@ def plan(packet: dict[str, Any]) -> dict[str, Any]:
     base_result = {
         "schema_version": SCHEMA_VERSION,
         "request_key": key,
+        "input_binding_digest": _digest(input_binding),
         "selected_scope": scope,
         "reusable_evidence": [],
         "missing_confirmation": list(missing),
@@ -307,7 +354,14 @@ def plan(packet: dict[str, Any]) -> dict[str, Any]:
             }
 
     for item in reviews:
-        if _review_covers(item, key=key, purpose=purpose, scope=scope):
+        if _review_covers(
+            item,
+            key=key,
+            purpose=purpose,
+            scope=scope,
+            candidate_binding=binding,
+            input_binding=input_binding,
+        ):
             return {
                 **base_result,
                 "action": ACTION_REUSE,
