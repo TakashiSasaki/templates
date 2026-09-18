@@ -461,6 +461,19 @@ def test_multiple_prior_whole_stack_results_do_not_create_a_numeric_cap() -> Non
     assert result["request_key"] == initial["request_key"]
 
 
+@pytest.mark.parametrize(
+    "field", ["contract_changed", "trust_boundary_changed", "topology_changed"]
+)
+@pytest.mark.parametrize("value", [1, "true", None])
+def test_non_boolean_scope_flag_fails_closed(field: str, value: object) -> None:
+    change = _packet()["change"]
+    assert isinstance(change, dict)
+    change[field] = value
+
+    with pytest.raises(planner.RoutingInputError, match="must be a boolean"):
+        planner.plan(_packet(change=change))
+
+
 def test_invalid_candidate_binding_fails_closed() -> None:
     packet = _packet()
     candidate = packet["candidate"]

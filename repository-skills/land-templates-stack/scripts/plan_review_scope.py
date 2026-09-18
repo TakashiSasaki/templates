@@ -17,6 +17,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
+
 SCHEMA_VERSION = 2
 REPOSITORY = "TakashiSasaki/templates"
 FULL_SHA_LENGTH = 40
@@ -114,6 +115,13 @@ def _input_binding(packet: dict[str, Any]) -> dict[str, Any]:
     return binding
 
 
+def _require_bool(value: Any, name: str) -> bool:
+    """Reject malformed scope flags instead of silently narrowing review scope."""
+    if not isinstance(value, bool):
+        raise RoutingInputError(f"{name} must be a boolean")
+    return value
+
+
 def _validate_members(candidate: dict[str, Any]) -> list[dict[str, Any]]:
     members = _require_list(candidate.get("members"), "candidate.members")
     if not members:
@@ -167,10 +175,19 @@ def _change_scope(
     if any(not isinstance(item, str) or not item.strip() for item in affected):
         raise RoutingInputError("change.affected_members must contain non-empty strings")
 
+    contract_changed = _require_bool(
+        change.get("contract_changed", False), "change.contract_changed"
+    )
+    trust_boundary_changed = _require_bool(
+        change.get("trust_boundary_changed", False), "change.trust_boundary_changed"
+    )
+    topology_changed = _require_bool(
+        change.get("topology_changed", False), "change.topology_changed"
+    )
     broad_flags = (
-        change.get("contract_changed") is True,
-        change.get("trust_boundary_changed") is True,
-        change.get("topology_changed") is True,
+        contract_changed,
+        trust_boundary_changed,
+        topology_changed,
         impact in {"unbounded", "unknown"},
     )
     whole_stack = any(broad_flags)
@@ -190,20 +207,20 @@ def _change_scope(
         "members": selected_members,
         "invariants": list(invariants),
         "impact": impact,
-        "contract_changed": change.get("contract_changed", False),
-        "trust_boundary_changed": change.get("trust_boundary_changed", False),
-        "topology_changed": change.get("topology_changed", False),
+        "contract_changed": contract_changed,
+        "trust_boundary_changed": trust_boundary_changed,
+        "topology_changed": topology_changed,
     }
     reasons: list[str] = []
     if impact == "unknown":
         reasons.append("impact_unknown")
     elif impact == "unbounded":
         reasons.append("impact_unbounded")
-    if change.get("contract_changed") is True:
+    if contract_changed:
         reasons.append("shared_contract_changed")
-    if change.get("trust_boundary_changed") is True:
+    if trust_boundary_changed:
         reasons.append("trust_boundary_changed")
-    if change.get("topology_changed") is True:
+    if topology_changed:
         reasons.append("dependency_topology_changed")
     if not reasons:
         reasons.append("bounded_impact_closure")

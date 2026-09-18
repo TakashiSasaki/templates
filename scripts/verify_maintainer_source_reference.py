@@ -88,8 +88,8 @@ def verify_source_reference(
     """Resolve both canonical files through one exact immutable revision."""
 
     schema_version = source.get("schema_version")
-    if schema_version not in {1, 2}:
-        raise SourceReferenceError("unsupported source reference schema")
+    if type(schema_version) is not int or schema_version != 2:
+        raise SourceReferenceError("source reference must use schema version 2")
     if source.get("kind") != "repository-maintainer-skill-reference":
         raise SourceReferenceError("unsupported source reference kind")
     if source.get("repository") != EXPECTED_REPOSITORY:
@@ -116,28 +116,27 @@ def verify_source_reference(
     if expected_rule_blob is not None and rule_blob != expected_rule_blob:
         raise SourceReferenceError("rule blob does not match the adopted pin")
     closure: dict[str, bytes] = {CANONICAL_RULE_PATH: rule}
-    if schema_version == 2:
-        declared_closure = source.get("closure")
-        if not isinstance(declared_closure, list):
-            raise SourceReferenceError("schema version 2 requires an explicit source closure")
-        entries: dict[str, str] = {}
-        for item in declared_closure:
-            if not isinstance(item, dict):
-                raise SourceReferenceError("source closure entries must be objects")
-            path = item.get("path")
-            blob = item.get("blob_sha")
-            if not isinstance(path, str) or path not in SOURCE_CLOSURE_PATHS:
-                raise SourceReferenceError("source closure contains an unexpected path")
-            if not isinstance(blob, str) or FULL_SHA.fullmatch(blob) is None:
-                raise SourceReferenceError("source closure blob must be a full lowercase SHA")
-            if path in entries:
-                raise SourceReferenceError("source closure contains a duplicate path")
-            entries[path] = blob
-        if set(entries) != set(SOURCE_CLOSURE_PATHS):
-            raise SourceReferenceError("source closure is incomplete")
-        for path, expected_blob in entries.items():
-            actual_blob, payload = _require_blob(repo, revision, path)
-            if actual_blob != expected_blob:
-                raise SourceReferenceError(f"declared closure blob does not match: {path}")
-            closure[path] = payload
+    declared_closure = source.get("closure")
+    if not isinstance(declared_closure, list):
+        raise SourceReferenceError("schema version 2 requires an explicit source closure")
+    entries: dict[str, str] = {}
+    for item in declared_closure:
+        if not isinstance(item, dict):
+            raise SourceReferenceError("source closure entries must be objects")
+        path = item.get("path")
+        blob = item.get("blob_sha")
+        if not isinstance(path, str) or path not in SOURCE_CLOSURE_PATHS:
+            raise SourceReferenceError("source closure contains an unexpected path")
+        if not isinstance(blob, str) or FULL_SHA.fullmatch(blob) is None:
+            raise SourceReferenceError("source closure blob must be a full lowercase SHA")
+        if path in entries:
+            raise SourceReferenceError("source closure contains a duplicate path")
+        entries[path] = blob
+    if set(entries) != set(SOURCE_CLOSURE_PATHS):
+        raise SourceReferenceError("source closure is incomplete")
+    for path, expected_blob in entries.items():
+        actual_blob, payload = _require_blob(repo, revision, path)
+        if actual_blob != expected_blob:
+            raise SourceReferenceError(f"declared closure blob does not match: {path}")
+        closure[path] = payload
     return VerifiedSource(revision, skill, rule, skill_blob, rule_blob, closure)
