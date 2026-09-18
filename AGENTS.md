@@ -457,7 +457,7 @@ unknown until the required authority-owned inspection or review resolves it.
 Additional diagnostic or whole-stack review is permitted when important new
 evidence, an incomplete prior result, a changed contract, or newly uncovered scope
 justifies it. There is no global numeric cap and no universal rule that forces every
-post-review change into targeted-only coverage. Cost, elapsed time, line count,
+post-review change into targeted scope alone. Cost, elapsed time, line count,
 green tests, or a warning threshold may be reported but never establishes a waiver.
 
 The planner is not a semantic validator, reviewer, merge gate, or authorization

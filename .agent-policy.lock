@@ -79,4 +79,4 @@ outputs:
   .review-authority/review-policy.md:
     sha256: ae79d440223edfd7dacdb5f13e57a314ca7b41406b4fe0df0ae900a0fb54a8a9
   AGENTS.md:
-    sha256: 5b2a1b2e3fae4b7a1358aee1929c639f7f85899a7d7b29d551fe91c06901d324
+    sha256: 8786ce25ce9ccdc109f7c9025954b419406965d6fc01108d11f555ea99b380ec
