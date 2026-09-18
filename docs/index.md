@@ -8,6 +8,7 @@
 ## Portal documents
 
 * [Graphical landing page](landing.md) - Provides the reader-facing home and top-level overview for the integrated documentation portal.
+* [Templates maintainer onboarding](maintainer-onboarding.md) - Routes maintainers of the five independent authorities to current sources, skills, validation, publication boundaries, and handoff.
 
 ## Publication data
 

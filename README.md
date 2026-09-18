@@ -1,7 +1,8 @@
 # TakashiSasaki/templates
 
-Four independent authorities provide reusable Composition and Policy systems and publish them through Integration and Site.
+Five independent authorities provide reusable source, Composition, Policy, Integration, and Site capabilities while preserving independent histories.
 
+- **Modeling** owns bounded information-model records and their generated discovery projections.
 - **Composition** owns artifact, capability, lifecycle and topology semantics, Composer, schemas, documentation and translations.
 - **Policy** owns coding-agent operating semantics, procedures, profiles, tooling, documentation and translations.
 - **Integration** selects reviewed providers and produces a deterministic Integrated Publication Bundle, including reader IA, translation availability, glossary, guided navigation and exact provenance.
@@ -26,6 +27,10 @@ Choose the path that matches the task you are trying to accomplish:
 
 A first-time application author normally starts with **Composition**, then uses **Policy** when the product repository also needs coding-agent operating rules. You do not need to understand Site publication internals, provider branches, or deployment workflows before using either authority.
 
+### Maintain this repository
+
+If you are changing `TakashiSasaki/templates` itself, use the [maintainer onboarding guide](docs/maintainer-onboarding.md). It routes the task to one of the five authority branches, names the first document/skill and validation, and keeps consumer onboarding separate from provider maintenance and the publication controller. Start by recording the live branch, full `HEAD`, dirty worktree, and related PRs; use explicit remote authority/path links when the source is on another branch.
+
 The rest of this README documents the repository authority and publication model for maintainers and readers who need provenance or Site implementation details.
 
 ## Repository authority model
@@ -41,8 +46,12 @@ provider provenance from the selected Bundle.
 
 Site's only provider-publication selection is [integration-source.json](integration-source.json).
 It binds an exact Integration revision, Bundle schema, identity and content digest.
-Integration owns the provider pair; Site has no active provider publication lock.
-New Integration releases do not trigger Site adoption or deployment.
+Integration owns the provider tuple; Site has no independent provider publication
+lock. A new Integration release alone is not Site-adoption authorization and does
+not deploy Pages. After a separately activated controller path supplies a trusted
+promotion receipt, the guarded Site controller may prepare an allowlisted lock PR;
+Site qualification, protected review/merge, and the deployment workflow remain
+separate states. A normal Site-only change retains the selected Integration lock.
 
 An explicit Integration adoption changes this lock. A Site-only UI, PWA or security
 fix retains it. Both use the same [Site qualification and deployment process](PUBLISHING.md).
@@ -51,7 +60,8 @@ Integration implementation source are absent.
 
 ## Local publication validation
 
-Read [MAINTENANCE.md](MAINTENANCE.md), [PUBLISHING.md](PUBLISHING.md) and
+Read [MAINTENANCE.md](MAINTENANCE.md), [PUBLISHING.md](PUBLISHING.md), the
+[publication automation handoff](docs/publication-automation.md), and
 [LANGUAGE.md](LANGUAGE.md). English is authoritative. Available stale translations
 carry a visible non-authoritative warning and a link to current English.
 

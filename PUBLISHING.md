@@ -1,5 +1,10 @@
 # Site publication and deployment
 
+For maintainer task ownership and the complete event/PR chain, read the [maintainer
+onboarding guide](docs/maintainer-onboarding.md) and [publication automation
+handoff](docs/publication-automation.md). This page remains the Site-owned
+qualification and deployment boundary.
+
 ## Input authority
 
 Modeling, Composition, and Policy remain independent providers. Integration
@@ -28,6 +33,14 @@ separate authorization path: it may use the explicitly pinned Integration
 qualification workflow to produce the exact current-lock Bundle in read-only
 mode, then applies the same Site qualification, provenance, artifact, freshness,
 and deploy-time gates. Corrupt or misbound evidence fails closed.
+
+The automatic controller path is different from a normal Site UI PR and from the
+manual `workflow_dispatch`: after external activation, exact trusted receipts and
+pins, positive qualification, an enabled mode, authorization, and a clear kill
+switch, it may prepare only an idempotent allowlisted lock PR. The PR's requested
+auto-merge, CI result, required review, actual merge, and Pages deployment are
+separate states. A notification is not adoption evidence, an Integration release
+does not imply Site adoption, and adding a provider file does not publish it.
 
 `render_publication_bundle.py` receives the Bundle and Site source only. It renders
 provider documents, read models and translations already qualified upstream.

@@ -475,6 +475,23 @@ This repository is not production-critical; backward compatibility is not requir
 
 Composition governs the installed Website product; Policy governs repository maintenance. Their consumer configuration, locks, toolchains, and operations remain independent of publication selection. Site selects one exact reviewed Integration release in `integration-source.json`. Integration alone selects provider publication revisions and produces the authenticated Publication Bundle. Site renders that Bundle without provider checkouts, catalog parsing, translation-manifest parsing, or provider freshness derivation.
 
+## Maintainer entry point
+
+The consumer-facing documentation and this repository's maintainer path are
+different. Start a `templates` maintenance task at
+`docs/maintainer-onboarding.md`, then select the owner and branch before loading
+the smallest branch-local skill. Read `MAINTENANCE.md`, `PUBLISHING.md`, and
+`docs/publication-automation.md` for Site-owned validation and publication
+boundaries. These links route to existing authority documents; they do not create
+a second normative authority or enable automation.
+
+When a reference belongs to another authority branch, use its explicit repository,
+branch/SHA, and path or a separate checkout. Do not describe a cross-branch file
+as a relative local path. Use a branch name for discovery and an immutable full
+SHA for evidence. The current capability, selected `integration-source.json`
+input, and deployed Pages artifact are separate states; unknown external
+variables, credentials, protections, runs, and deployments remain unknown.
+
 # Site-local procedural routing
 
 The following routes select consumer-owned procedural Skills. Canonical norms remain in the selected Policy profiles and this project policy.

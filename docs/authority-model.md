@@ -15,13 +15,23 @@ The repository has five independent authorities and Git histories:
 Site is not a parent or super-authority. Integration is independent of Site runtime.
 Site consumes only an exact versioned Integration output selected by
 `integration-source.json`. It has no independent provider publication lock.
-A provider/Integration release does not cause Site adoption or deployment. A Site-only
+A provider/Integration release alone is not Site-adoption authorization and does
+not cause deployment. After a separately activated controller path supplies a
+trusted receipt, it may prepare an allowlisted Site lock PR; Site qualification,
+protected review/merge, and Pages deployment remain separate states. A Site-only
 fix may retain the same Integration revision. Consumer tooling used to maintain
 Site is distinct from its provider-publication input.
 
+Keep three states separate when reading projections: (1) source capability, such
+as Integration's ability to produce Bundle v4; (2) the selected input in
+`integration-source.json`; and (3) the immutable Bundle/artifact and Site revision
+actually deployed. A current capability does not imply a selected or deployed
+input. The operational conditions and stop/recovery rules are in the
+[publication automation handoff](publication-automation.md).
+
 Provider-specific rules belong to their provider. Cross-authority publication rules
 belong to Integration. Site may render those rules and detect projection corruption;
-it cannot redefine them. The Integration [authority contract](https://github.com/TakashiSasaki/templates/blob/a2b21d731e3aea09f60c6f0dc8a9280089c1a946/AUTHORITY.md)
+it cannot redefine them. The Integration [authority contract](https://github.com/TakashiSasaki/templates/blob/integration/AUTHORITY.md)
 is canonical for cross-authority integration. This page is the Site reader projection.
 
 Translation ownership follows canonical ownership. Integration derives provider

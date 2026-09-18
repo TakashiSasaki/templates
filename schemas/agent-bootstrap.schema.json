@@ -6,6 +6,7 @@
   "required": [
     "schema_version",
     "repository",
+    "publication_state",
     "authorities",
     "integration_source",
     "integration_contracts",
@@ -17,6 +18,27 @@
     },
     "repository": {
       "const": "TakashiSasaki/templates"
+    },
+    "publication_state": {
+      "type": "object",
+      "required": [
+        "capability_source",
+        "selected_input",
+        "deployed_evidence"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "capability_source": {
+          "const": "Integration authority contract and producer"
+        },
+        "selected_input": {
+          "const": "integration-source.json"
+        },
+        "deployed_evidence": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     },
     "authorities": {
       "type": "object",
@@ -137,10 +159,83 @@
             },
             "providers": {
               "type": "object",
-              "additionalProperties": {
-                "type": "string",
-                "pattern": "^[0-9a-f]{40}$"
+              "required": [
+                "composition",
+                "policy"
+              ],
+              "properties": {
+                "composition": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{40}$"
+                },
+                "policy": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{40}$"
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "schema_version",
+            "identity",
+            "content_digest",
+            "producer",
+            "providers"
+          ],
+          "properties": {
+            "schema_version": {
+              "const": 4
+            },
+            "identity": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "content_digest": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "producer": {
+              "type": "object",
+              "required": [
+                "authority",
+                "revision"
+              ],
+              "properties": {
+                "authority": {
+                  "const": "integration"
+                },
+                "revision": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{40}$"
+                }
               }
+            },
+            "providers": {
+              "type": "object",
+              "required": [
+                "modeling",
+                "composition",
+                "policy"
+              ],
+              "properties": {
+                "modeling": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{40}$"
+                },
+                "composition": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{40}$"
+                },
+                "policy": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{40}$"
+                }
+              },
+              "additionalProperties": false
             }
           }
         }

@@ -6,9 +6,9 @@ inputs:
   .agent-policy.yml:
     sha256: 1c2ede3007e8386b47d66c4d9a9db037da38ea115735c5441acd96fc5da91216
   policy/project.md:
-    sha256: d46601422e8011a7f45aeed340ea4038dde0fa8db1015313d7a6320cf27e079d
+    sha256: ddb6f2cefe4c2bae3a08f0fca7afc059c6f3d6379b9e5629c6db53cce93b7cfd
 outputs:
   .review-authority/review-policy.md:
-    sha256: a0ac5fc5ce51d54f11e14da95ae263bc5d632cbbdb5569790fff73758dac0b8f
+    sha256: 579916f72ce7d736d4f63591309ab97241fecf668ff1a6859e0fb644d72db3d4
   AGENTS.md:
-    sha256: 0070f0b9b75f86c6447326ea7f078e5d585660d5195f84d7a653234f14b5e4c9
+    sha256: 560ff3f9982ded242234878b0918c5b102b7c9493a28ce2aa304131c443beac7

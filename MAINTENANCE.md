@@ -2,7 +2,10 @@
 
 Site maintains presentation, browser runtime, accessibility, PWA, artifact packaging
 and deployment. Cross-authority publication semantics live in Integration.
-Read [PUBLISHING.md](PUBLISHING.md) for exact inputs and acceptance.
+Read [PUBLISHING.md](PUBLISHING.md) for exact inputs and acceptance, and use the
+[maintainer onboarding guide](docs/maintainer-onboarding.md) for task ownership.
+The [publication automation handoff](docs/publication-automation.md) connects
+current workflows and stop/recovery boundaries without enabling them.
 
 ## Local validation
 
@@ -69,6 +72,12 @@ hand-edit managed validators or locks. Site browser tests consume the public con
 For Policy changes edit `.agent-policy.yml` and `policy/project.md`, then regenerate
 Policy-managed outputs with the exact selected toolchain. Never hand-edit `AGENTS.md`.
 Toolchain/consumer adoption is independent from provider publication adoption.
+
+The source/projection rule applies to this entry point too: edit Site source and
+`policy/project.md`, then regenerate `AGENTS.md`; do not edit generated instructions
+or rendered build artifacts directly. A Site-only task should keep
+`integration-source.json` unchanged. Provider publication, Bundle selection, and
+controller diagnosis route to Integration or the read-only publication handoff.
 
 ## Translation maintenance
 

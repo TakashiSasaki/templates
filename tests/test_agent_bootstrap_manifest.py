@@ -13,6 +13,15 @@ class AgentBootstrapManifestTests(unittest.TestCase):
     def setUp(self):
         self.template=json.loads((ROOT/'agent.json').read_text())
         self.bundle={'schema_version':3,'identity':'a'*64,'content_digest':'b'*64,'producer':{'authority':'integration','revision':'c'*40},'providers':{'composition':'d'*40,'policy':'e'*40}}
+
+    def v4_bundle(self):
+        return {
+            'schema_version':4,
+            'identity':'a'*64,
+            'content_digest':'b'*64,
+            'producer':{'authority':'integration','revision':'c'*40},
+            'providers':{'modeling':'f'*40,'composition':'d'*40,'policy':'e'*40},
+        }
     def test_repository_and_public_projections_are_identical(self):
         self.assertFalse((ROOT/'assets/agent.json').exists())
         self.assertFalse((ROOT/'assets/schemas/agent-bootstrap.schema.json').exists())
@@ -28,6 +37,14 @@ class AgentBootstrapManifestTests(unittest.TestCase):
             self.assertIn(revision,result['authorities'][name]['canonical_repository_url'])
         self.assertNotIn('composition_bootstrap',result)
         self.assertNotIn('policy_bootstrap',result)
+
+    def test_current_v4_bundle_projects_and_validates_without_downgrading(self):
+        schema=json.loads((ROOT/'schemas/agent-bootstrap.schema.json').read_text())
+        result=project(self.template,self.v4_bundle())
+        jsonschema.validate(result,schema)
+        self.assertEqual(result['integration_source']['schema_version'],4)
+        self.assertEqual(result['authorities']['modeling']['publication_revision'],'f'*40)
+        self.assertEqual(result['authorities']['integration']['contract'],'Integrated Publication Bundle v4')
     def test_site_asset_pipeline_places_discovery_contract_at_public_root(self):
         with tempfile.TemporaryDirectory() as tmp:
             write(ROOT,Path(tmp),self.bundle)

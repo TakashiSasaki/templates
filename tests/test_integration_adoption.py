@@ -165,7 +165,7 @@ class AdoptionTests(unittest.TestCase):
  def test_misbound_artifact_evidence_cannot_fall_back_to_regeneration(self):
   from ci_artifacts.transport import ArtifactError
   with patch('site_renderer.acquire.paginated',return_value=[{'id':1,'head_sha':'f'*40,'conclusion':'success'}]),self.assertRaises(ArtifactError):locate(self.lock)
- def test_discovery_is_a_bundle_projection_of_four_authorities(self):
+ def test_historical_v3_discovery_projection_keeps_five_authority_template(self):
   template=read_json(ROOT/'agent.json');schema=read_json(ROOT/'schemas/agent-bootstrap.schema.json')
   jsonschema.validate(template,schema);result=project(template,self.manifest);jsonschema.validate(result,schema)
   self.assertEqual(result['integration_source']['identity'],self.manifest['identity'])
