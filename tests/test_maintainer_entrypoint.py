@@ -47,7 +47,7 @@ class MaintainerEntrypointTests(unittest.TestCase):
         self.assertEqual(source["kind"], "repository-maintainer-skill-reference")
         self.assertEqual(source["repository"], "TakashiSasaki/templates")
         self.assertEqual(source["schema_version"], 2)
-        self.assertEqual(source["revision"], "769b69958d5deaf4adc1e59f856bcd8ca3e7bec5")
+        self.assertEqual(source["revision"], "671014164461a709e193d83e87d375ac12a34d56")
         self.assertEqual(source["path"], "repository-skills/land-templates-stack/SKILL.md")
         self.assertTrue(re.fullmatch(r"[0-9a-f]{40}", source["blob_sha"]))
         self.assertEqual(
@@ -59,7 +59,7 @@ class MaintainerEntrypointTests(unittest.TestCase):
                 },
                 {
                     "path": "repository-skills/land-templates-stack/scripts/plan_review_scope.py",
-                    "blob_sha": "195134289306cfce8641ab86e372d0d972cfa001",
+                    "blob_sha": "611b4cdf992f9752bf650874499232eba8fd00db",
                 },
             ],
         )
