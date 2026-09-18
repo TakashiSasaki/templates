@@ -7,6 +7,7 @@ engine and it never resolves a branch, tag, or consumer-worktree path.
 from __future__ import annotations
 
 import hashlib
+import os
 import re
 import subprocess
 from dataclasses import dataclass
@@ -37,18 +38,26 @@ def git_blob_sha(payload: bytes) -> str:
 
 
 def _git(repo: Path, *arguments: str) -> str:
+    environment = os.environ.copy()
+    environment["GIT_NO_REPLACE_OBJECTS"] = "1"
     try:
         return subprocess.check_output(
-            ["git", *arguments], cwd=repo, text=True, stderr=subprocess.PIPE
+            ["git", *arguments],
+            cwd=repo,
+            env=environment,
+            text=True,
+            stderr=subprocess.PIPE,
         ).strip()
     except (subprocess.CalledProcessError, OSError) as exc:
         raise SourceReferenceError("immutable Git object is unavailable") from exc
 
 
 def _git_bytes(repo: Path, *arguments: str) -> bytes:
+    environment = os.environ.copy()
+    environment["GIT_NO_REPLACE_OBJECTS"] = "1"
     try:
         return subprocess.check_output(
-            ["git", *arguments], cwd=repo, stderr=subprocess.PIPE
+            ["git", *arguments], cwd=repo, env=environment, stderr=subprocess.PIPE
         )
     except (subprocess.CalledProcessError, OSError) as exc:
         raise SourceReferenceError("immutable Git object is unavailable") from exc
@@ -89,6 +98,8 @@ def verify_source_reference(
     if not isinstance(declared_skill_blob, str) or FULL_SHA.fullmatch(declared_skill_blob) is None:
         raise SourceReferenceError("source blob must be a full lowercase SHA")
 
+    if _git(repo, "cat-file", "-t", revision) != "commit":
+        raise SourceReferenceError("source revision must name a commit object")
     _git(repo, "cat-file", "-e", f"{revision}^{{commit}}")
     skill_blob, skill = _require_blob(repo, revision, CANONICAL_SKILL_PATH)
     rule_blob, rule = _require_blob(repo, revision, CANONICAL_RULE_PATH)

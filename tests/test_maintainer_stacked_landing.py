@@ -200,6 +200,63 @@ def test_source_fixtures_use_the_immutable_reference_boundary() -> None:
             assert verified.rule != shadow.read_bytes()
 
 
+def test_source_boundary_rejects_tags_and_ignores_replacement_refs() -> None:
+    with tempfile.TemporaryDirectory() as temporary:
+        repo = Path(temporary)
+        _git("init", "-q", cwd=repo)
+        _git("config", "user.name", "fixture", cwd=repo)
+        _git("config", "user.email", "fixture@example.invalid", cwd=repo)
+        skill = repo / CANONICAL_SKILL_PATH
+        rule = repo / CANONICAL_RULE_PATH
+        skill.parent.mkdir(parents=True)
+        rule.parent.mkdir(parents=True)
+        skill.write_text("canonical skill\n", encoding="utf-8")
+        rule.write_text("canonical rule\n", encoding="utf-8")
+        _git("add", CANONICAL_SKILL_PATH, CANONICAL_RULE_PATH, cwd=repo)
+        _git("commit", "-q", "-m", "canonical", cwd=repo)
+        revision = _git("rev-parse", "HEAD", cwd=repo)
+        skill_blob = _git("rev-parse", f"{revision}:{CANONICAL_SKILL_PATH}", cwd=repo)
+        rule_blob = _git("rev-parse", f"{revision}:{CANONICAL_RULE_PATH}", cwd=repo)
+        source = {
+            "schema_version": 1,
+            "kind": "repository-maintainer-skill-reference",
+            "repository": "TakashiSasaki/templates",
+            "revision": revision,
+            "path": CANONICAL_SKILL_PATH,
+            "blob_sha": skill_blob,
+        }
+
+        _git("tag", "-a", "canonical-tag", "-m", "tag", revision, cwd=repo)
+        tag_revision = _git("rev-parse", "refs/tags/canonical-tag", cwd=repo)
+        source["revision"] = tag_revision
+        try:
+            verify_source_reference(
+                source,
+                repo=repo,
+                expected_skill_blob=skill_blob,
+                expected_rule_blob=rule_blob,
+            )
+        except SourceReferenceError:
+            pass
+        else:
+            raise AssertionError("annotated tag object was accepted as a commit")
+
+        source["revision"] = revision
+        skill.write_text("replacement skill\n", encoding="utf-8")
+        rule.write_text("replacement rule\n", encoding="utf-8")
+        _git("commit", "-q", "-am", "replacement", cwd=repo)
+        replacement = _git("rev-parse", "HEAD", cwd=repo)
+        _git("replace", revision, replacement, cwd=repo)
+        verified = verify_source_reference(
+            source,
+            repo=repo,
+            expected_skill_blob=skill_blob,
+            expected_rule_blob=rule_blob,
+        )
+        assert verified.skill == b"canonical skill\n"
+        assert verified.rule == b"canonical rule\n"
+
+
 def test_canonical_source_object_is_resolvable_from_the_current_snapshot() -> None:
     revision = _git("rev-parse", "HEAD")
     assert FULL_SHA.fullmatch(revision)
