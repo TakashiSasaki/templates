@@ -2,7 +2,7 @@
   "schema_version": 2,
   "kind": "repository-maintainer-skill-reference",
   "repository": "TakashiSasaki/templates",
-  "revision": "7b0399d122973f02209862d5531bde56f164a9e2",
+  "revision": "17265e73789eaf4fdce814a3c97c86406ccb6398",
   "path": "repository-skills/land-templates-stack/SKILL.md",
   "blob_sha": "06efa38681e374636bcabcbcb984be5ec43b47ee",
   "closure": [
@@ -12,7 +12,7 @@
     },
     {
       "path": "repository-skills/land-templates-stack/scripts/plan_review_scope.py",
-      "blob_sha": "195134289306cfce8641ab86e372d0d972cfa001"
+      "blob_sha": "611b4cdf992f9752bf650874499232eba8fd00db"
     }
   ]
 }
