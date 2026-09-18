@@ -84,12 +84,20 @@ def verify_source_reference(
     repo: Path,
     expected_skill_blob: str | None = None,
     expected_rule_blob: str | None = None,
+    expected_planner_blob: str | None = None,
 ) -> VerifiedSource:
     """Resolve both canonical files through one exact immutable revision."""
 
     schema_version = source.get("schema_version")
     if type(schema_version) is not int or schema_version != 2:
         raise SourceReferenceError("source reference must use schema version 2")
+    if (
+        not isinstance(expected_planner_blob, str)
+        or FULL_SHA.fullmatch(expected_planner_blob) is None
+    ):
+        raise SourceReferenceError(
+            "an expected planner blob is required for the adopted source"
+        )
     if source.get("kind") != "repository-maintainer-skill-reference":
         raise SourceReferenceError("unsupported source reference kind")
     if source.get("repository") != EXPECTED_REPOSITORY:
@@ -139,4 +147,6 @@ def verify_source_reference(
         if actual_blob != expected_blob:
             raise SourceReferenceError(f"declared closure blob does not match: {path}")
         closure[path] = payload
+    if entries[CANONICAL_PLANNER_PATH] != expected_planner_blob:
+        raise SourceReferenceError("planner blob does not match the adopted pin")
     return VerifiedSource(revision, skill, rule, skill_blob, rule_blob, closure)
