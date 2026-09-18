@@ -12,9 +12,10 @@ ROUTING = ROOT / "repository-policy" / "maintainer-merge-routing.md"
 CONFIG = ROOT / ".agent-policy.yml"
 AGENTS = ROOT / "AGENTS.md"
 REVIEW = ROOT / ".review-authority" / "review-policy.md"
-REVISION = "a878da560c5286634b21671b54793e26ed8167b2"
-RULE_BLOB = "9dd1c5498dd9b37ef91afd65ad400fbdee13ee29"
-SKILL_BLOB = "b433bdf781eb1fd0f32a525bfd68bac2563316d7"
+REVISION = "cebcfd7cb49180db13177043ec83726fcb2aee18"
+RULE_BLOB = "bf259a70a0fe1b1e2b04a293e49c353d6de70255"
+SKILL_BLOB = "e16c969544f5f045b44751514f75288426e0134d"
+PLANNER_BLOB = "3868d5d68c0670e138e3480c641a1edc3de6b1c0"
 FULL_SHA = re.compile(r"[0-9a-f]{40}")
 
 
@@ -45,8 +46,10 @@ def test_routing_declares_immutable_rule_and_skill_bindings() -> None:
         RULE_BLOB,
         "repository-skills/land-templates-stack/SKILL.md",
         SKILL_BLOB,
-        "733c86941f8154f301a225054d88c6b8a477058a",
-        "cb12e6aa296a0ba4e7871dc57b554ef867eeefed",
+        "repository-skills/land-templates-stack/scripts/plan_review_scope.py",
+        PLANNER_BLOB,
+        REVISION,
+        "b29bdb4a13c7854c002c5d99760fa1728373e1a6",
         "33a7ab809225c2a8b8dd2598ef04d0a39cf076a7",
         "stop as blocked",
         "single PR",
@@ -73,6 +76,13 @@ def test_pinned_objects_match_the_committed_snapshot() -> None:
         _git("rev-parse", f"{REVISION}:repository-skills/land-templates-stack/SKILL.md")
         == SKILL_BLOB
     )
+    assert (
+        _git(
+            "rev-parse",
+            f"{REVISION}:repository-skills/land-templates-stack/scripts/plan_review_scope.py",
+        )
+        == PLANNER_BLOB
+    )
 
 
 def test_policy_local_landing_entry_has_an_adjacent_source_manifest() -> None:
@@ -80,11 +90,24 @@ def test_policy_local_landing_entry_has_an_adjacent_source_manifest() -> None:
     source = ROOT / ".agents/skills/land-templates-stack/source.json"
     assert local_skill.is_file()
     data = json.loads(source.read_text(encoding="utf-8"))
+    assert data["schema_version"] == 2
     assert data["repository"] == "TakashiSasaki/templates"
     assert data["revision"] == REVISION
     assert data["path"] == "repository-skills/land-templates-stack/SKILL.md"
     assert data["blob_sha"] == SKILL_BLOB
+    assert data["closure"] == [
+        {
+            "path": "repository-policy/stacked-pr-landing.md",
+            "blob_sha": RULE_BLOB,
+        },
+        {
+            "path": "repository-skills/land-templates-stack/scripts/plan_review_scope.py",
+            "blob_sha": PLANNER_BLOB,
+        },
+    ]
     text = local_skill.read_text(encoding="utf-8")
+    assert "version-2" in text
+    assert "scope planner" in text
     assert ".agents/skills/pr-merge-gate/SKILL.md" in text
     assert "shim's separate" in text
     assert "`source.json` before loading" in text
@@ -101,7 +124,7 @@ def test_policy_local_gate_entry_has_a_separate_shared_gate_manifest() -> None:
         "schema_version": 1,
         "kind": "policy-adapter-reference",
         "repository": "TakashiSasaki/templates",
-        "revision": "733c86941f8154f301a225054d88c6b8a477058a",
+        "revision": REVISION,
         "path": "skills/pr-merge-gate/SKILL.md",
-        "blob_sha": "cb12e6aa296a0ba4e7871dc57b554ef867eeefed",
+        "blob_sha": "b29bdb4a13c7854c002c5d99760fa1728373e1a6",
     }

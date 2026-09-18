@@ -14,11 +14,13 @@ Read the maintenance rule and its execution procedure from the same immutable
 source snapshot before changing a maintenance PR:
 
 - repository: `TakashiSasaki/templates`;
-- revision: `a878da560c5286634b21671b54793e26ed8167b2`;
+- revision: `cebcfd7cb49180db13177043ec83726fcb2aee18`;
 - rule: `repository-policy/stacked-pr-landing.md`, blob
-  `9dd1c5498dd9b37ef91afd65ad400fbdee13ee29`;
+  `bf259a70a0fe1b1e2b04a293e49c353d6de70255`;
 - landing Skill: `repository-skills/land-templates-stack/SKILL.md`, blob
-  `b433bdf781eb1fd0f32a525bfd68bac2563316d7`.
+  `e16c969544f5f045b44751514f75288426e0134d`;
+- review scope planner: `repository-skills/land-templates-stack/scripts/plan_review_scope.py`, blob
+  `3868d5d68c0670e138e3480c641a1edc3de6b1c0`.
 
 The Policy authority also exposes the thin local entry at
 `.agents/skills/land-templates-stack/SKILL.md`; validate its adjacent
@@ -33,10 +35,11 @@ do not read a same-named file from the consumer worktree, `policy` branch, or
 an unverified local copy. If an object, path, SHA, or blob does not match,
 stop as blocked.
 
-The shared individual-PR acceptance gate is a separate immutable source:
-`TakashiSasaki/templates@733c86941f8154f301a225054d88c6b8a477058a`,
+The shared individual-PR acceptance gate is a separate immutable source,
+even when stored in the same candidate commit:
+`TakashiSasaki/templates@cebcfd7cb49180db13177043ec83726fcb2aee18`,
 `skills/pr-merge-gate/SKILL.md`, blob
-`cb12e6aa296a0ba4e7871dc57b554ef867eeefed`. The Policy generation toolchain
+`b29bdb4a13c7854c002c5d99760fa1728373e1a6`. The Policy generation toolchain
 pin remains separate at
 `TakashiSasaki/templates@33a7ab809225c2a8b8dd2598ef04d0a39cf076a7`.
 
