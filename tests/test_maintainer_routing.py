@@ -84,6 +84,10 @@ def test_policy_local_landing_entry_has_an_adjacent_source_manifest() -> None:
     assert data["revision"] == REVISION
     assert data["path"] == "repository-skills/land-templates-stack/SKILL.md"
     assert data["blob_sha"] == SKILL_BLOB
+    text = local_skill.read_text(encoding="utf-8")
+    assert ".agents/skills/pr-merge-gate/SKILL.md" in text
+    assert "shim's separate" in text
+    assert "`source.json` before loading" in text
 
 
 def test_policy_local_gate_entry_has_a_separate_shared_gate_manifest() -> None:
