@@ -118,6 +118,26 @@ class AdoptionTests(unittest.TestCase):
        patch('site_renderer.acquire.paginated',return_value=[job]), \
        patch.dict('os.environ',{'GITHUB_ACTIONS':'true','GITHUB_RUN_ID':'5'},clear=False):
    self.assertEqual(verify_receipt(self.lock,value),'repos/TakashiSasaki/templates/actions')
+ def test_active_site_adoption_caller_may_consume_when_github_reports_parent_queued(self):
+  from site_renderer.acquire import verify_receipt
+  identity=self.lock['bundle_identity'];digest='sha256:'+'c'*64
+  value={'repository':'TakashiSasaki/templates','producer':self.lock['revision'],'identity':identity,
+         'run_id':8,'attempt':1,'workflow_head':'f'*40,'artifact_id':6,
+         'archive_digest':digest,'artifact_name':f'publication-bundle-{identity}-1-site-adoption'}
+  metadata={'id':6,'expired':False,'digest':digest,'name':value['artifact_name'],
+            'workflow_run':{'id':8,'head_sha':'f'*40},'created_at':'2026-09-16T12:00:03Z'}
+  run={'id':8,'run_attempt':1,'head_sha':'f'*40,
+       'head_repository':{'full_name':'TakashiSasaki/templates'},
+       'name':'Build documentation artifact','event':'pull_request',
+       'path':'.github/workflows/build-pages.yml','status':'queued','conclusion':None,
+       'started_at':'2026-09-16T12:00:00Z'}
+  job={'name':'build / regenerate / Qualify Integration candidate (site-adoption)',
+       'run_attempt':1,'status':'completed','conclusion':'success',
+       'started_at':'2026-09-16T12:00:00Z','completed_at':'2026-09-16T12:00:10Z'}
+  with patch('site_renderer.acquire.api',side_effect=[metadata,run]), \
+       patch('site_renderer.acquire.paginated',return_value=[job]), \
+       patch.dict('os.environ',{'GITHUB_ACTIONS':'true','GITHUB_RUN_ID':'8'},clear=False):
+   self.assertEqual(verify_receipt(self.lock,value),'repos/TakashiSasaki/templates/actions')
  def test_active_site_adoption_caller_requires_the_current_actions_run(self):
   from ci_artifacts.transport import ArtifactError
   from site_renderer.acquire import verify_receipt

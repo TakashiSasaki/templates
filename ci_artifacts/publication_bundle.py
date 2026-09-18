@@ -27,7 +27,11 @@ def binding(metadata, run, jobs, *, artifact_id, archive_digest, run_id, attempt
     successful_run = run.get('status') == 'completed' and run.get('conclusion') == 'success'
     active_caller_run = (
         allow_active_run
-        and run.get('status') == 'in_progress'
+        # GitHub may report the parent workflow as queued while a nested
+        # reusable-workflow job is already executing.  The exact current run
+        # ID is still required; completed, failed, and cancelled runs never
+        # enter this exception.
+        and run.get('status') in ('queued', 'in_progress')
         and run.get('conclusion') in (None, '')
         and isinstance(active_run_id, int)
         and run.get('id') == active_run_id
