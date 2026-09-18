@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import importlib.util
 from pathlib import Path
 
@@ -7,11 +8,7 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 MODULE_PATH = (
-    ROOT
-    / "repository-skills"
-    / "land-templates-stack"
-    / "scripts"
-    / "plan_review_scope.py"
+    ROOT / "repository-skills" / "land-templates-stack" / "scripts" / "plan_review_scope.py"
 )
 SPEC = importlib.util.spec_from_file_location("plan_review_scope", MODULE_PATH)
 assert SPEC and SPEC.loader
@@ -56,6 +53,7 @@ def _packet(**overrides: object) -> dict[str, object]:
             "contract_changed": False,
             "trust_boundary_changed": False,
             "topology_changed": False,
+            "cross_member_interaction_changed": False,
         },
         "input_binding": {
             "provider": "codex",
@@ -65,6 +63,7 @@ def _packet(**overrides: object) -> dict[str, object]:
         "preflight": {"status": "ready", "missing": []},
         "reviews": [],
         "requests": [],
+        "discovery": {"requests_complete": True, "reviews_complete": True},
         "options": {},
     }
     packet.update(overrides)
@@ -122,6 +121,7 @@ def test_each_authority_routes_bounded_expanded_and_reusable_scope(
         "contract_changed": False,
         "trust_boundary_changed": False,
         "topology_changed": False,
+        "cross_member_interaction_changed": False,
     }
 
     bounded = planner.plan(packet)
@@ -162,6 +162,7 @@ def test_each_authority_routes_bounded_expanded_and_reusable_scope(
         "contract_changed": True,
         "trust_boundary_changed": False,
         "topology_changed": False,
+        "cross_member_interaction_changed": False,
     }
     expanded = planner.plan(packet)
     assert expanded["action"] == planner.ACTION_STACK
@@ -178,9 +179,15 @@ def test_bounded_change_selects_independent_delta_scope() -> None:
     assert result["merge_authorization"] == "not_established"
 
 
-@pytest.mark.parametrize("flag", [
-    "contract_changed", "trust_boundary_changed", "topology_changed",
-])
+@pytest.mark.parametrize(
+    "flag",
+    [
+        "contract_changed",
+        "trust_boundary_changed",
+        "topology_changed",
+        "cross_member_interaction_changed",
+    ],
+)
 def test_prior_delta_cannot_cover_semantic_expansion(flag: str) -> None:
     prior = planner.plan(_packet())["selected_scope"]
     current = dict(prior, kind="whole-stack", **{flag: True})
@@ -226,6 +233,7 @@ def test_shared_or_unknown_impact_expands_related_stack(change: dict[str, object
             "contract_changed": False,
             "trust_boundary_changed": False,
             "topology_changed": False,
+            "cross_member_interaction_changed": False,
             **change,
         }
     )
@@ -236,10 +244,23 @@ def test_shared_or_unknown_impact_expands_related_stack(change: dict[str, object
     assert result["selected_scope"]["members"] == ["policy-p1", "composition-c"]
 
 
+def _active_request(packet, key, status, **locator):
+    binding = _binding(packet)
+    return {
+        "key": key,
+        "status": status,
+        **locator,
+        "candidate_binding": binding,
+        "candidate_binding_digest": planner._digest(binding),
+        "input_binding": packet["input_binding"],
+        "input_binding_digest": planner._digest(packet["input_binding"]),
+    }
+
+
 def test_existing_inflight_request_is_reconciled_without_resubmission() -> None:
     packet = _packet()
     key = _key(packet)
-    packet["requests"] = [{"key": key, "status": "in_progress", "handle": "review-42"}]
+    packet["requests"] = [_active_request(packet, key, "in_progress", handle="review-42")]
 
     result = planner.plan(packet)
 
@@ -250,7 +271,7 @@ def test_existing_inflight_request_is_reconciled_without_resubmission() -> None:
 def test_submission_unknown_is_reconciled_before_retry() -> None:
     packet = _packet()
     key = _key(packet)
-    packet["requests"] = [{"key": key, "status": "submission_unknown", "locator": "comment-9"}]
+    packet["requests"] = [_active_request(packet, key, "submission_unknown", locator="comment-9")]
 
     result = planner.plan(packet)
 
@@ -302,6 +323,7 @@ def test_broader_completed_coverage_reuses_for_narrower_scope() -> None:
             "contract_changed": True,
             "trust_boundary_changed": False,
             "topology_changed": False,
+            "cross_member_interaction_changed": False,
         },
     )
     broad_result = planner.plan(broad)
@@ -523,6 +545,7 @@ def test_same_head_new_contract_evidence_allows_additional_related_scope() -> No
         "contract_changed": True,
         "trust_boundary_changed": False,
         "topology_changed": False,
+        "cross_member_interaction_changed": False,
     }
 
     result = planner.plan(packet)
@@ -541,6 +564,7 @@ def test_multiple_prior_whole_stack_results_do_not_create_a_numeric_cap() -> Non
             "contract_changed": True,
             "trust_boundary_changed": False,
             "topology_changed": False,
+            "cross_member_interaction_changed": False,
         }
     )
     initial = planner.plan(packet)
@@ -557,7 +581,13 @@ def test_multiple_prior_whole_stack_results_do_not_create_a_numeric_cap() -> Non
 
 
 @pytest.mark.parametrize(
-    "field", ["contract_changed", "trust_boundary_changed", "topology_changed"]
+    "field",
+    [
+        "contract_changed",
+        "trust_boundary_changed",
+        "topology_changed",
+        "cross_member_interaction_changed",
+    ],
 )
 @pytest.mark.parametrize("value", [1, "true", None])
 def test_non_boolean_scope_flag_fails_closed(field: str, value: object) -> None:
@@ -628,3 +658,89 @@ def test_malformed_coverage_lists_are_not_reused(field: str) -> None:
     result = planner.plan(packet)
 
     assert result["action"] == planner.ACTION_DELTA
+
+
+@pytest.mark.parametrize("field", planner.EXPANSION_FLAGS)
+def test_missing_scope_expansion_flag_fails_closed(field: str) -> None:
+    packet = _packet()
+    del packet["change"][field]
+    with pytest.raises(planner.RoutingInputError, match="must be a boolean"):
+        planner.plan(packet)
+
+
+def test_cross_member_interaction_expands_and_invalidates_delta_scope() -> None:
+    packet = _packet()
+    prior = planner.plan(packet)
+    packet["change"]["cross_member_interaction_changed"] = True
+    current = planner.plan(packet)
+    assert current["action"] == planner.ACTION_STACK
+    assert current["selected_scope"]["members"] == ["policy-p1", "composition-c"]
+    assert not planner._scope_dominates(prior["selected_scope"], current["selected_scope"])
+
+
+def test_set_like_scope_order_and_duplicates_do_not_duplicate_active_request() -> None:
+    packet = _packet()
+    packet["change"]["invariants"] = ["first", "second"]
+    packet["change"]["affected_members"] = ["policy-p1", "composition-c"]
+    initial = planner.plan(packet)
+    packet["requests"] = [
+        _active_request(packet, initial["request_key"], "in_progress", handle="review-42")
+    ]
+    packet["change"]["invariants"] = ["second", "first", "second"]
+    packet["change"]["affected_members"] = ["composition-c", "policy-p1", "policy-p1"]
+    result = planner.plan(packet)
+    assert result["request_key"] == initial["request_key"]
+    assert result["action"] == planner.ACTION_RECONCILE
+    # Ordered candidate topology is not a set and must remain binding material.
+    packet["candidate"]["members"].reverse()
+    assert planner.plan(packet)["request_key"] != initial["request_key"]
+
+
+@pytest.mark.parametrize("field", ["requests", "reviews", "discovery"])
+def test_missing_observed_provider_state_blocks_acquisition(field: str) -> None:
+    packet = _packet()
+    del packet[field]
+    assert planner.plan(packet)["action"] == planner.ACTION_MISSING
+
+
+@pytest.mark.parametrize("field", ["requests_complete", "reviews_complete"])
+@pytest.mark.parametrize("value", [None, False, 1, "true", [], {}])
+def test_incomplete_or_malformed_discovery_blocks_acquisition(field: str, value: object) -> None:
+    packet = _packet()
+    packet["discovery"][field] = value
+    assert planner.plan(packet)["action"] == planner.ACTION_MISSING
+
+
+@pytest.mark.parametrize("status", ["in_progress", "submission_unknown"])
+@pytest.mark.parametrize("field", ["candidate_binding", "input_binding"])
+def test_active_request_misassociated_metadata_cannot_suppress_current_review(
+    status: str, field: str
+) -> None:
+    packet = _packet()
+    active = copy.deepcopy(_active_request(packet, _key(packet), status, handle="old-review"))
+    if field == "candidate_binding":
+        active[field]["head_sha"] = _sha("c")
+    else:
+        active[field]["provider"] = "different-provider"
+    active[field + "_digest"] = planner._digest(active[field])
+    packet["requests"] = [active]
+    result = planner.plan(packet)
+    assert result["action"] == planner.ACTION_MISSING
+    assert not result["reusable_evidence"]
+
+
+@pytest.mark.parametrize("value", [None, {}, {"flag": True}])
+def test_active_request_requires_exact_json_input_binding(value: object) -> None:
+    packet = _packet(input_binding={"flag": 1})
+    active = _active_request(packet, _key(packet), "in_progress", handle="review")
+    active["input_binding"] = value
+    active["input_binding_digest"] = planner._digest(value)
+    packet["requests"] = [active]
+    assert planner.plan(packet)["action"] == planner.ACTION_MISSING
+
+
+@pytest.mark.parametrize("locator", [{}, {"handle": ""}, {"locator": " "}, {"handle": 1}])
+def test_active_request_requires_actionable_provider_locator(locator: dict) -> None:
+    packet = _packet()
+    packet["requests"] = [_active_request(packet, _key(packet), "submission_unknown", **locator)]
+    assert planner.plan(packet)["action"] == planner.ACTION_MISSING

@@ -5,6 +5,14 @@ This helper is deliberately read-only.  It does not inspect a repository, call a
 provider, submit a review, or establish merge authorization.  The maintenance
 Skill supplies the live facts and the shared merge gate remains authoritative for
 review evidence and acceptance.
+
+Packets explicitly supply requests/reviews and discovery.requests_complete /
+discovery.reviews_complete booleans after provider pagination and surface discovery.
+Every EXPANSION_FLAGS field is required, including cross-member interaction.
+Active request records bind candidate_binding/input_binding and their canonical
+digests as well as the request key, status and actionable provider handle/locator.
+Incomplete discovery or inconsistent active metadata stops acquisition; it is not
+an observed empty history and cannot justify a new external request.
 """
 
 from __future__ import annotations
@@ -46,6 +54,12 @@ PURPOSES = {
     "merge_acceptance",
 }
 IMPACTS = {"bounded", "unbounded", "unknown"}
+EXPANSION_FLAGS = (
+    "contract_changed",
+    "trust_boundary_changed",
+    "topology_changed",
+    "cross_member_interaction_changed",
+)
 
 
 class RoutingInputError(ValueError):
@@ -95,10 +109,7 @@ def _is_json_data(value: Any) -> bool:
     if isinstance(value, list):
         return all(_is_json_data(item) for item in value)
     if isinstance(value, dict):
-        return all(
-            isinstance(key, str) and _is_json_data(item)
-            for key, item in value.items()
-        )
+        return all(isinstance(key, str) and _is_json_data(item) for key, item in value.items())
     return False
 
 
@@ -180,22 +191,8 @@ def _change_scope(
     if any(not isinstance(item, str) or not item.strip() for item in affected):
         raise RoutingInputError("change.affected_members must contain non-empty strings")
 
-    contract_changed = _require_bool(
-        change.get("contract_changed", False), "change.contract_changed"
-    )
-    trust_boundary_changed = _require_bool(
-        change.get("trust_boundary_changed", False), "change.trust_boundary_changed"
-    )
-    topology_changed = _require_bool(
-        change.get("topology_changed", False), "change.topology_changed"
-    )
-    broad_flags = (
-        contract_changed,
-        trust_boundary_changed,
-        topology_changed,
-        impact in {"unbounded", "unknown"},
-    )
-    whole_stack = any(broad_flags)
+    flags = {flag: _require_bool(change.get(flag), f"change.{flag}") for flag in EXPANSION_FLAGS}
+    whole_stack = any(flags.values()) or impact in {"unbounded", "unknown"}
     if not affected:
         affected = [member["id"] for member in members]
     known_ids = {member["id"] for member in members}
@@ -206,27 +203,31 @@ def _change_scope(
             + ", ".join(unknown_ids)
         )
 
-    selected_members = [member["id"] for member in members] if whole_stack else affected
+    # Member topology remains ordered in the candidate binding. Selection is a set,
+    # projected in that canonical order; invariant order carries no scope meaning.
+    selected_members = [
+        member["id"] for member in members if whole_stack or member["id"] in affected
+    ]
     scope = {
         "kind": "whole-stack" if whole_stack else "delta",
         "members": selected_members,
-        "invariants": list(invariants),
+        "invariants": sorted(set(invariants)),
         "impact": impact,
-        "contract_changed": contract_changed,
-        "trust_boundary_changed": trust_boundary_changed,
-        "topology_changed": topology_changed,
+        **flags,
     }
     reasons: list[str] = []
     if impact == "unknown":
         reasons.append("impact_unknown")
     elif impact == "unbounded":
         reasons.append("impact_unbounded")
-    if contract_changed:
+    if flags["contract_changed"]:
         reasons.append("shared_contract_changed")
-    if trust_boundary_changed:
+    if flags["trust_boundary_changed"]:
         reasons.append("trust_boundary_changed")
-    if topology_changed:
+    if flags["topology_changed"]:
         reasons.append("dependency_topology_changed")
+    if flags["cross_member_interaction_changed"]:
+        reasons.append("cross_member_interaction_changed")
     if not reasons:
         reasons.append("bounded_impact_closure")
     return scope, reasons
@@ -278,7 +279,7 @@ def _scope_dominates(prior: Any, current: dict[str, Any]) -> bool:
         return False
     if not isinstance(prior.get("impact"), str) or prior["impact"] not in IMPACTS:
         return False
-    for flag in ("contract_changed", "trust_boundary_changed", "topology_changed"):
+    for flag in EXPANSION_FLAGS:
         if type(prior.get(flag)) is not bool:
             return False
         if current[flag] and not prior[flag]:
@@ -289,10 +290,7 @@ def _scope_dominates(prior: Any, current: dict[str, Any]) -> bool:
     if current["impact"] != "bounded" and prior["impact"] != current["impact"]:
         return False
     if prior["kind"] == "delta" and (
-        prior["impact"] != "bounded"
-        or any(prior[flag] for flag in (
-            "contract_changed", "trust_boundary_changed", "topology_changed"
-        ))
+        prior["impact"] != "bounded" or any(prior[flag] for flag in EXPANSION_FLAGS)
     ):
         return False
     for field in ("members", "invariants"):
@@ -347,6 +345,7 @@ def _review_covers(
     coverage = review.get("coverage")
     if not isinstance(coverage, dict):
         return False
+
     def _string_list(value: Any) -> list[str] | None:
         if not isinstance(value, list):
             return None
@@ -389,6 +388,29 @@ def _validate_preflight(packet: dict[str, Any]) -> list[str]:
     return missing
 
 
+def _discovery_missing(packet: dict[str, Any]) -> list[str]:
+    missing = [f"{field}_not_observed" for field in ("requests", "reviews") if field not in packet]
+    discovery = packet.get("discovery")
+    if not isinstance(discovery, dict):
+        return [*missing, "discovery_completeness_unknown"]
+    for field in ("requests_complete", "reviews_complete"):
+        if discovery.get(field) is not True:
+            missing.append(f"{field}_not_established")
+    return missing
+
+
+def _active_request_matches(
+    item: dict[str, Any], binding: dict[str, Any], inputs: dict[str, Any]
+) -> bool:
+    for field, current in (("candidate_binding", binding), ("input_binding", inputs)):
+        value = item.get(field)
+        if not isinstance(value, dict) or not _is_json_data(value):
+            return False
+        if item.get(field + "_digest") != _digest(value) or _digest(value) != _digest(current):
+            return False
+    return True
+
+
 def plan(packet: dict[str, Any]) -> dict[str, Any]:
     if packet.get("schema_version") != SCHEMA_VERSION:
         raise RoutingInputError("unsupported review-routing packet schema")
@@ -404,7 +426,7 @@ def plan(packet: dict[str, Any]) -> dict[str, Any]:
     scope, reasons = _change_scope(change, candidate["members"])
     binding_key = _binding_key(packet, binding, input_binding)
     key = _request_key(packet, binding, scope, input_binding)
-    missing = _validate_preflight(packet)
+    missing = [*_validate_preflight(packet), *_discovery_missing(packet)]
 
     reviews = _require_list(packet.get("reviews", []), "reviews")
     requests = _require_list(packet.get("requests", []), "requests")
@@ -445,12 +467,24 @@ def plan(packet: dict[str, Any]) -> dict[str, Any]:
             "in_progress",
             "submission_unknown",
         }:
+            locator = item.get("handle") or item.get("locator")
+            if not _active_request_matches(item, binding, input_binding) or not (
+                isinstance(locator, str) and locator.strip()
+            ):
+                return {
+                    **base_result,
+                    "action": ACTION_MISSING,
+                    "reason": ["active_request_binding_or_locator_unknown"],
+                    "request_state": item["status"],
+                    "missing_confirmation": ["current_provider_request_binding_and_locator"],
+                    "unknowns": ["reconcile_inconsistent_provider_metadata_before_resubmission"],
+                }
             return {
                 **base_result,
                 "action": ACTION_RECONCILE,
                 "reason": ["same_request_already_active"],
                 "request_state": item["status"],
-                "reusable_evidence": [item.get("handle") or item.get("locator") or key],
+                "reusable_evidence": [locator],
             }
 
     for item in reviews:
