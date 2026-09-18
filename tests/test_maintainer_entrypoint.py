@@ -1,6 +1,5 @@
 import json
 import re
-import subprocess
 from pathlib import Path
 import unittest
 
@@ -47,12 +46,9 @@ class MaintainerEntrypointTests(unittest.TestCase):
         self.assertEqual(source["path"], "repository-skills/land-templates-stack/SKILL.md")
         self.assertTrue(re.fullmatch(r"[0-9a-f]{40}", source["revision"]))
         self.assertTrue(re.fullmatch(r"[0-9a-f]{40}", source["blob_sha"]))
-        observed = subprocess.check_output(
-            ["git", "rev-parse", f"{source['revision']}:{source['path']}"],
-            cwd=ROOT,
-            text=True,
-        ).strip()
-        self.assertEqual(observed, source["blob_sha"])
+        # Authority histories are intentionally independent.  The consumer
+        # checkout need not contain the Policy commit object; the immutable
+        # source verifier retrieves or uses that exact snapshot separately.
         skill = (ROOT / ".agents/skills/land-templates-stack/SKILL.md").read_text(
             encoding="utf-8"
         )
