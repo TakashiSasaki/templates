@@ -14,7 +14,7 @@ inputs:
   repository-policy/history-boundary.md:
     sha256: 4de61b1a469770d12e1e66326cba5fadc242aaef63389b8a219bff52a701b910
   repository-policy/maintainer-merge-routing.md:
-    sha256: d87c055a01f1a5f67381b4a6020474f27c7d113995ef7f1425b6943b5b27d566
+    sha256: ae1d5910bd3dca41e5c631558908528d111b882839a60b456f1af071a59b16c3
   repository-policy/maintainer-validation.md:
     sha256: 32726e455e4e307806916d2ea1ce44061a6a4a34ca24efedbfa8dd7e554c0960
   repository-policy/release-trust.md:
@@ -77,6 +77,6 @@ outputs:
   .agents/skills/pr-review/references/risk-domains/state-mutation-and-recovery.md:
     sha256: 0cd5b71178b43da5128f4d2e1bfab8f3df5d71439531a9010f351c4ed1468f44
   .review-authority/review-policy.md:
-    sha256: b1f50c6b03c29591d7425f419b1d106f27c041d332bacf954d5d15cd3cd9a343
+    sha256: 799eafbc7a10e7d816d9512666b87d1ab1b880ca0ca0a03bcdae63665c9b6189
   AGENTS.md:
-    sha256: 9076a8aefcfde0c5baacb44a0a9fc88165039a0142767aa7e1d3bb28d647cd51
+    sha256: 534e89f37d87239cd3d13ccde308db4e62265807e5f2f31b1f0e2b796a9fa952
