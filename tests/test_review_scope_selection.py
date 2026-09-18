@@ -259,6 +259,51 @@ def test_explicit_coverage_reuses_completed_independent_result() -> None:
     assert result["reusable_evidence"] == ["review-17"]
 
 
+def test_broader_completed_coverage_reuses_for_narrower_scope() -> None:
+    packet = _packet(purpose="merge_acceptance")
+    broad = _packet(
+        purpose="merge_acceptance",
+        change={
+            "impact": "bounded",
+            "invariants": ["review-scope", "shared-contract"],
+            "affected_members": ["policy-p1", "composition-c"],
+            "contract_changed": True,
+            "trust_boundary_changed": False,
+            "topology_changed": False,
+        },
+    )
+    broad_result = planner.plan(broad)
+    binding = _binding(broad)
+    packet["reviews"] = [
+        {
+            "key": broad_result["request_key"],
+            "binding_key": broad_result["binding_key"],
+            "status": "completed",
+            "purpose": "merge_acceptance",
+            "candidate_binding": binding,
+            "candidate_binding_digest": planner._digest(binding),
+            "input_binding": broad["input_binding"],
+            "input_binding_digest": planner._digest(broad["input_binding"]),
+            "independent": True,
+            "metadata_complete": True,
+            "pagination_complete": True,
+            "coverage": {
+                "purposes": ["merge_acceptance"],
+                "members": ["policy-p1", "composition-c"],
+                "invariants": ["review-scope", "shared-contract"],
+                "limitations": [],
+            },
+            "locator": "broad-review-18",
+        }
+    ]
+
+    result = planner.plan(packet)
+
+    assert result["selected_scope"]["kind"] == "delta"
+    assert result["action"] == planner.ACTION_REUSE
+    assert result["reusable_evidence"] == ["broad-review-18"]
+
+
 @pytest.mark.parametrize("status", ["partial", "failed", "applicability_unknown", "stale"])
 def test_incomplete_review_result_does_not_establish_coverage(status: str) -> None:
     packet = _packet()

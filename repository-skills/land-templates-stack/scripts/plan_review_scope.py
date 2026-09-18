@@ -229,25 +229,41 @@ def _change_scope(
     return scope, reasons
 
 
+def _request_binding(
+    packet: dict[str, Any],
+    binding: dict[str, Any],
+    input_binding: dict[str, Any],
+) -> dict[str, Any]:
+    purpose = _require_string(packet.get("purpose"), "purpose")
+    objective = _require_string(packet.get("objective"), "objective")
+    contract = packet.get("contract", {})
+    _validate_json_data(contract, "contract")
+    return {
+        "repository": binding["repository"],
+        "objective": objective,
+        "purpose": purpose,
+        "candidate": binding,
+        "contract": contract,
+        "input_binding": input_binding,
+    }
+
+
+def _binding_key(
+    packet: dict[str, Any],
+    binding: dict[str, Any],
+    input_binding: dict[str, Any],
+) -> str:
+    return _digest(_request_binding(packet, binding, input_binding))
+
+
 def _request_key(
     packet: dict[str, Any],
     binding: dict[str, Any],
     scope: dict[str, Any],
     input_binding: dict[str, Any],
 ) -> str:
-    purpose = _require_string(packet.get("purpose"), "purpose")
-    objective = _require_string(packet.get("objective"), "objective")
-    contract = packet.get("contract", {})
-    _validate_json_data(contract, "contract")
-    material = {
-        "repository": binding["repository"],
-        "objective": objective,
-        "purpose": purpose,
-        "candidate": binding,
-        "scope": scope,
-        "contract": contract,
-        "input_binding": input_binding,
-    }
+    material = _request_binding(packet, binding, input_binding)
+    material["scope"] = scope
     return _digest(material)
 
 
@@ -255,12 +271,17 @@ def _review_covers(
     review: dict[str, Any],
     *,
     key: str,
+    binding_key: str,
     purpose: str,
     scope: dict[str, Any],
     candidate_binding: dict[str, Any],
     input_binding: dict[str, Any],
 ) -> bool:
-    if review.get("key") != key or review.get("status") != "completed":
+    if review.get("status") != "completed":
+        return False
+    same_scope_request = review.get("key") == key
+    broader_scope_result = review.get("binding_key") == binding_key
+    if not same_scope_request and not broader_scope_result:
         return False
     if review.get("independent") is not True:
         return False
@@ -340,6 +361,7 @@ def plan(packet: dict[str, Any]) -> dict[str, Any]:
     input_binding = _input_binding(packet)
     change = _require_object(packet.get("change"), "change")
     scope, reasons = _change_scope(change, candidate["members"])
+    binding_key = _binding_key(packet, binding, input_binding)
     key = _request_key(packet, binding, scope, input_binding)
     missing = _validate_preflight(packet)
 
@@ -358,6 +380,7 @@ def plan(packet: dict[str, Any]) -> dict[str, Any]:
 
     base_result = {
         "schema_version": SCHEMA_VERSION,
+        "binding_key": binding_key,
         "request_key": key,
         "input_binding_digest": _digest(input_binding),
         "selected_scope": scope,
@@ -393,6 +416,7 @@ def plan(packet: dict[str, Any]) -> dict[str, Any]:
         if _review_covers(
             item,
             key=key,
+            binding_key=binding_key,
             purpose=purpose,
             scope=scope,
             candidate_binding=binding,
