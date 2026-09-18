@@ -26,7 +26,7 @@ independent review.
 For maintenance of the `modeling` authority, load
 `.agents/skills/land-templates-stack/SKILL.md` for a single PR or
 same-authority stack and verify its adjacent immutable `source.json`. It pins
-`TakashiSasaki/templates@671014164461a709e193d83e87d375ac12a34d56`,
+`TakashiSasaki/templates@9085a0d169cc8c076fc5c05db23bb3e2d2d64955`,
 `repository-skills/land-templates-stack/SKILL.md`, blob
 `06efa38681e374636bcabcbcb984be5ec43b47ee`; its rule and review-scope planner
 are resolved from that
