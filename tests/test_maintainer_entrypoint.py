@@ -4,10 +4,12 @@ import unittest
 
 
 ROOT = Path(__file__).resolve().parents[1]
-CANONICAL_REVISION = "a878da560c5286634b21671b54793e26ed8167b2"
-CANONICAL_SKILL_BLOB = "b433bdf781eb1fd0f32a525bfd68bac2563316d7"
-SHARED_GATE_REVISION = "733c86941f8154f301a225054d88c6b8a477058a"
-SHARED_GATE_BLOB = "cb12e6aa296a0ba4e7871dc57b554ef867eeefed"
+CANONICAL_REVISION = "4e871785052e909deb6d2f9382674859461b2767"
+CANONICAL_SKILL_BLOB = "e16c969544f5f045b44751514f75288426e0134d"
+RULE_BLOB = "bf259a70a0fe1b1e2b04a293e49c353d6de70255"
+PLANNER_BLOB = "3868d5d68c0670e138e3480c641a1edc3de6b1c0"
+SHARED_GATE_REVISION = CANONICAL_REVISION
+SHARED_GATE_BLOB = "b29bdb4a13c7854c002c5d99760fa1728373e1a6"
 
 
 class MaintainerEntrypointTests(unittest.TestCase):
@@ -67,9 +69,20 @@ class MaintainerEntrypointTests(unittest.TestCase):
             )
         )
         self.assertEqual(source["kind"], "repository-maintainer-skill-reference")
+        self.assertEqual(source["schema_version"], 2)
         self.assertEqual(source["repository"], "TakashiSasaki/templates")
         self.assertEqual(source["revision"], CANONICAL_REVISION)
         self.assertEqual(source["blob_sha"], CANONICAL_SKILL_BLOB)
+        self.assertEqual(
+            source["closure"],
+            [
+                {"path": "repository-policy/stacked-pr-landing.md", "blob_sha": RULE_BLOB},
+                {
+                    "path": "repository-skills/land-templates-stack/scripts/plan_review_scope.py",
+                    "blob_sha": PLANNER_BLOB,
+                },
+            ],
+        )
         self.assertEqual(source["path"], "repository-skills/land-templates-stack/SKILL.md")
         gate = json.loads(
             (ROOT / ".agents/skills/pr-merge-gate/source.json").read_text(encoding="utf-8")
@@ -85,6 +98,26 @@ class MaintainerEntrypointTests(unittest.TestCase):
         self.assertIn("same immutable snapshot", landing)
         self.assertIn("authorize merge", landing)
         self.assertNotIn("CI_DISCOVERY_MIN_OBSERVATION_MINUTES", landing)
+
+    def test_integration_review_route_separates_tuple_qualification_and_expands(self):
+        instructions = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+        skill = " ".join(
+            (ROOT / ".agents/skills/integration-publication-maintenance/SKILL.md")
+            .read_text(encoding="utf-8")
+            .split()
+        )
+        for required in (
+            "immutable Policy planner",
+            "exact provider tuple",
+            "Bundle contract",
+            "independent exact-head delta review",
+            "trusted-controller",
+            "Provider-source review and tuple qualification remain separate",
+        ):
+            with self.subTest(required=required):
+                self.assertIn(required, instructions + " " + skill)
+        self.assertNotIn("Request one cumulative review per logical stack", instructions)
+        self.assertNotIn("targeted evidence whose bindings changed", instructions)
 
 
 if __name__ == "__main__":

@@ -67,3 +67,16 @@ result, remote workflow and review state, candidate/selected/deployed distinctio
 next safe action, and the stop boundary. Keep the checkpoint in the existing PR or
 Issue Work ledger. On resume, restore live state and reuse valid evidence; do not
 create a new ledger, empty commit, duplicate PR, or unbounded polling loop.
+
+## Adaptive review scope
+
+Before an independent review request, use the pinned Policy review-scope planner
+with the exact provider tuple, Bundle contract, ordered members, local preflight
+result, existing review coverage, and request state. A provider-reference update
+inside the current Bundle contract can use an independent exact-head delta
+review. Bundle/protocol, cross-provider closure, transport binding,
+trusted-controller, promotion, or authorization changes expand to the related
+Integration stack. Provider-source review and tuple qualification remain
+separate; CI success or cost does not waive independent review. Reuse an
+existing result only when its explicit candidate, tuple, purpose, coverage, and
+completion bindings still apply.
