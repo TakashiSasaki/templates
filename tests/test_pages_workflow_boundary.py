@@ -221,19 +221,28 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
         self.assertIn('QUALIFICATION_GATE: ${{ needs.build.outputs.qualification_gate }}', workflow)
         self.assertIn('test "$QUALIFICATION_GATE" = success', workflow)
         self.assertIn("inputs['publication_bundle']['identity']", workflow)
+        verifier = (ROOT / "scripts/revalidate_pages_deployment.py").read_text(encoding="utf-8")
         self.assertIn("pages: write", workflow)
         self.assertIn("id-token: write", workflow)
         self.assertIn("name: github-pages", workflow)
         self.assertIn("actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d", workflow)
         self.assertIn("actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346", workflow)
         self.assertIn("artifact_name: github-pages", workflow)
+        self.assertIn("actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1", workflow)
+        self.assertIn("ref: ${{ github.workflow_sha }}", workflow)
+        self.assertIn("sparse-checkout: scripts/revalidate_pages_deployment.py", workflow)
+        self.assertIn("persist-credentials: false", workflow)
+        self.assertIn("git -C .trusted-deployment-verifier rev-parse HEAD", workflow)
+        self.assertIn("python3 .trusted-deployment-verifier/scripts/revalidate_pages_deployment.py", workflow)
+        self.assertNotIn("except subprocess.CalledProcessError", workflow)
+        self.assertNotIn("repository_variable('PUBLICATION_AUTOMATION_KILL_SWITCH', 'false')", workflow)
         self.assertIn("\n  deploy:\n", workflow)
         self.assertIn(
             "Revalidate publication preconditions immediately before Pages deployment",
             workflow,
         )
-        self.assertIn("actions/variables/{name}", workflow)
-        self.assertIn("Site branch advanced before Pages deployment", workflow)
+        self.assertIn("actions/variables/{name}", verifier)
+        self.assertIn("Site branch advanced before Pages deployment", verifier)
         self.assertLess(
             workflow.index("Revalidate publication preconditions immediately before Pages deployment"),
             workflow.index("Configure GitHub Pages"),
@@ -259,8 +268,8 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
         self.assertIn("Human dispatch is the authorization for the manual lane", text)
         self.assertIn("cancel-in-progress: false", text)
         self.assertIn("BUILD_RECEIPT: ${{ needs.build.outputs.bundle_receipt }}", text)
-        self.assertIn("the automatic build did not carry a trusted Integration receipt", text)
-        self.assertIn("trusted receipt and final artifact selected different Bundle inputs", text)
+        self.assertIn("the automatic build did not carry a trusted Integration receipt", (ROOT / "scripts/revalidate_pages_deployment.py").read_text(encoding="utf-8"))
+        self.assertIn("trusted receipt and final artifact selected different Bundle inputs", (ROOT / "scripts/revalidate_pages_deployment.py").read_text(encoding="utf-8"))
         self.assertIn("-f \"automatic=true\"", (ROOT / ".github/workflows/site-publication-notify.yml").read_text(encoding="utf-8"))
         jobs = workflow["jobs"]
         for name, job in jobs.items():

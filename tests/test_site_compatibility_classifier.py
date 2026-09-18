@@ -77,6 +77,9 @@ class SiteCompatibilityClassifierTests(unittest.TestCase):
             self.assertEqual(result["classification"], "COMPATIBLE_PENDING_QUALIFICATION")
             self.assertEqual(result["requirements"]["closure"], DEFAULT_REQUIREMENTS)
             self.assertEqual(result["inputs"]["requirements_digest"], requirements_digest(DEFAULT_REQUIREMENTS))
+            self.assertEqual(result["checks"]["results"]["bundle-integrity"], "passed")
+            self.assertIn("generic-markdown-renderer", result["checks"]["not_run"])
+            self.assertIn("pages-artifact-provenance", result["checks"]["not_run"])
 
     def test_unknown_required_feature_stops_before_qualification(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -85,6 +88,7 @@ class SiteCompatibilityClassifierTests(unittest.TestCase):
             result = classify(self._v4(root, requirements), support_path=self._support(root))
             self.assertEqual(result["classification"], "ADAPTATION_REQUIRED")
             self.assertEqual(result["reason_codes"], ["REQUIRED_FEATURE_UNSUPPORTED"])
+            self.assertEqual(result["checks"]["results"]["bundle-integrity"], "passed")
             self.assertNotIn("generic-markdown-renderer", result["checks"]["results"])
             self.assertIn("generic-markdown-renderer", result["checks"]["not_run"])
 
@@ -142,6 +146,28 @@ class SiteCompatibilityClassifierTests(unittest.TestCase):
             (bundle / "bundle.json").write_bytes(canonical(manifest))
             result = classify(bundle, support_path=self._support(root))
             self.assertEqual(result["classification"], "INVALID_INPUT")
+            self.assertEqual(result["checks"]["results"]["bundle-integrity"], "failed")
+            self.assertNotIn("bundle-integrity", result["checks"]["not_run"])
+
+    def test_inventory_mismatch_marks_bundle_integrity_failed(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            bundle = self._v4(root)
+            documents = json.loads((bundle / "documents.json").read_text(encoding="utf-8"))
+            documents.append({"publication": "site", "document": "unexpected", "destination": "unexpected.md", "source": "site/unexpected.md", "slot": True})
+            (bundle / "documents.json").write_bytes(canonical(documents))
+            result = classify(bundle, support_path=self._support(root))
+            self.assertEqual(result["classification"], "INVALID_INPUT")
+            self.assertEqual(result["checks"]["results"]["bundle-integrity"], "failed")
+
+    def test_malformed_support_contract_leaves_bundle_integrity_not_run(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            support = self._support(root, supported_features="not-a-list")
+            result = classify(self._v4(root), support_path=support)
+            self.assertEqual(result["classification"], "INVALID_INPUT")
+            self.assertNotIn("bundle-integrity", result["checks"]["results"])
+            self.assertIn("bundle-integrity", result["checks"]["not_run"])
 
     def test_requirement_for_a_provider_outside_the_bundle_is_invalid(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -160,6 +186,8 @@ class SiteCompatibilityClassifierTests(unittest.TestCase):
             result = classify(self._v4(root), support_path=path)
             self.assertEqual(result["classification"], "UNKNOWN")
             self.assertEqual(result["reason_codes"], ["UNKNOWN_CONTRACT_VERSION_OR_PROTOCOL"])
+            self.assertNotIn("bundle-integrity", result["checks"]["results"])
+            self.assertIn("bundle-integrity", result["checks"]["not_run"])
 
 
 if __name__ == "__main__":

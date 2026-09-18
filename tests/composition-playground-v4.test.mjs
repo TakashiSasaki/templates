@@ -28,7 +28,11 @@ test("Composition Playground accepts the exact v4 three-provider provenance proj
   const result = playground.validateBuildProvenance(buildV4Provenance());
   assert.equal(result.providerRevision, "b".repeat(40));
   assert.equal(result.policyRevision, "d".repeat(40));
-  assert.equal(result.raw.integration.providers.modeling, "a".repeat(40));
+  assert.deepEqual(result.providerRevisions, {
+    modeling: "a".repeat(40),
+    composition: "b".repeat(40),
+    policy: "d".repeat(40),
+  });
 });
 
 test("Composition Playground rejects a v4 provenance projection without Modeling", () => {
@@ -40,3 +44,21 @@ test("Composition Playground rejects a v4 provenance projection without Modeling
   );
 });
 
+test("Composition Playground validates every v4 provider revision", () => {
+  const invalids = [
+    ["malformed Modeling", (value) => { value.integration.providers.modeling = "short"; }],
+    ["malformed Composition", (value) => { value.integration.providers.composition = "B".repeat(40); }],
+    ["malformed Policy", (value) => { value.integration.providers.policy = "D".repeat(40); }],
+    ["extra provider", (value) => { value.integration.providers.other = "e".repeat(40); }],
+    ["missing provider", (value) => { delete value.integration.providers.policy; }],
+  ];
+  for (const [label, mutate] of invalids) {
+    const value = buildV4Provenance();
+    mutate(value);
+    assert.throws(
+      () => playground.validateBuildProvenance(value),
+      (error) => error.code === "MALFORMED_PROVENANCE",
+      label,
+    );
+  }
+});

@@ -21,6 +21,36 @@ if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from site_renderer.bundle import load_lock, validate_locked
+from scripts.classify_site_compatibility import _format_checks
+
+
+QUALIFICATION_CHECKS = (
+    "bundle-integrity",
+    "generic-markdown-renderer",
+    "pages-artifact-provenance",
+)
+
+
+def _compatibility_check_states(report: dict[str, Any]) -> dict[str, str]:
+    """Recover the classifier's explicit check states without inference."""
+
+    checks = report.get("checks")
+    if not isinstance(checks, dict):
+        return {name: "not-run" for name in QUALIFICATION_CHECKS}
+    required = checks.get("required")
+    results = checks.get("results")
+    not_run = checks.get("not_run")
+    if (not isinstance(required, list) or not all(isinstance(name, str) for name in required)
+            or not isinstance(results, dict) or not isinstance(not_run, list)):
+        return {name: "not-run" for name in QUALIFICATION_CHECKS}
+    states = {name: "not-run" for name in required}
+    for name, state in results.items():
+        if name in states and state in {"passed", "failed"}:
+            states[name] = state
+    for name in not_run:
+        if name in states:
+            states[name] = "not-run"
+    return states
 
 
 def _candidate_lock_needs_commit(candidate_site: Path, candidate_lock: Path) -> bool:
@@ -66,7 +96,7 @@ def _report(lock: dict[str, Any], *, trusted: dict[str, str | None], classificat
         "inputs": inputs,
         "trusted": trusted,
         "requirements": requirements or {"closure": [], "required": ["bundle-integrity", "generic-markdown-renderer", "pages-artifact-provenance"], "supported": ["bundle-integrity", "generic-markdown-renderer", "pages-artifact-provenance"], "missing": [], "unsupported": [], "fallbacks": {}},
-        "checks": {"required": list(checks), "results": checks, "not_run": [name for name, result in checks.items() if result != "passed"]},
+        "checks": _format_checks(checks),
         "evidence_refs": evidence,
         "allowed_mutations": [],
         "next_action": next_action,
@@ -78,11 +108,7 @@ def qualify(site_root: Path, bundle: Path, candidate_lock: Path, *, trusted: dic
     lock = load_lock(candidate_lock)
     original_site_revision = subprocess.check_output(["git", "-C", str(site_root), "rev-parse", "HEAD"], text=True).strip()
     candidate_lock_bytes = candidate_lock.read_bytes()
-    checks = {
-        "bundle-integrity": "passed",
-        "generic-markdown-renderer": "not-run",
-        "pages-artifact-provenance": "not-run",
-    }
+    checks = {name: "not-run" for name in QUALIFICATION_CHECKS}
     with tempfile.TemporaryDirectory(prefix="site-candidate-") as temporary:
         candidate_site = candidate_root or (Path(temporary) / "site")
         if candidate_root is not None and (candidate_site.exists() or candidate_site.is_symlink()):
@@ -112,27 +138,55 @@ def qualify(site_root: Path, bundle: Path, candidate_lock: Path, *, trusted: dic
                 trusted=trusted,
                 classification=compatibility["classification"],
                 reasons=compatibility["reason_codes"],
-                checks={"bundle-integrity": "passed"},
+                checks=_compatibility_check_states(compatibility),
                 evidence=evidence + [f"site-candidate://{candidate_revision}"],
                 site_revision=candidate_revision,
                 site_base_revision=original_site_revision,
                 requirements=compatibility["requirements"],
             )
-        subprocess.run([
-            sys.executable, str(candidate_site / "scripts/render_publication_bundle.py"),
-            "--bundle", str(bundle), "--bundle-identity", lock["bundle_identity"],
-            "--site-root", str(candidate_site), "--output", str(build),
-            "--public-url", "https://templates.moukaeritai.work/",
-        ], check=True)
+        checks = _compatibility_check_states(compatibility)
+        try:
+            subprocess.run([
+                sys.executable, str(candidate_site / "scripts/render_publication_bundle.py"),
+                "--bundle", str(bundle), "--bundle-identity", lock["bundle_identity"],
+                "--site-root", str(candidate_site), "--output", str(build),
+                "--public-url", "https://templates.moukaeritai.work/",
+            ], check=True)
+        except Exception as exc:
+            checks["generic-markdown-renderer"] = "failed"
+            return _report(
+                lock,
+                trusted=trusted,
+                classification="QUALIFICATION_FAILED",
+                reasons=["SITE_RENDERER_FAILED"],
+                checks=checks,
+                evidence=evidence + [f"site-candidate://{candidate_revision}", type(exc).__name__],
+                site_revision=candidate_revision,
+                site_base_revision=original_site_revision,
+                requirements=compatibility["requirements"],
+            )
         checks["generic-markdown-renderer"] = "passed"
         from scripts.check_audience_artifact import check_artifact
         from scripts.check_bundle_reader import check as check_reader
         from scripts.check_site_artifact import check as check_artifact_contract
-        check_artifact(build / "site", bundle, candidate_site / "integration-source.json")
-        check_reader(build / "site", bundle, lock)
-        check_artifact_contract(build / "site", bundle, lock)
+        try:
+            check_artifact(build / "site", bundle, candidate_site / "integration-source.json")
+            check_reader(build / "site", bundle, lock)
+            check_artifact_contract(build / "site", bundle, lock)
+        except Exception as exc:
+            checks["pages-artifact-provenance"] = "failed"
+            return _report(
+                lock,
+                trusted=trusted,
+                classification="QUALIFICATION_FAILED",
+                reasons=["SITE_ARTIFACT_PROVENANCE_FAILED"],
+                checks=checks,
+                evidence=evidence + [f"site-candidate://{candidate_revision}", type(exc).__name__],
+                site_revision=candidate_revision,
+                site_base_revision=original_site_revision,
+                requirements=compatibility["requirements"],
+            )
         checks["pages-artifact-provenance"] = "passed"
-        checks["site-capability-preflight"] = "passed"
         classification = "NO_CHANGE" if not lock_changed else "NOT_ELIGIBLE"
         reasons = ["ALREADY_SELECTED"] if not lock_changed else ["AUTHORIZATION_NOT_GRANTED"]
         result = _report(lock, trusted=trusted, classification=classification, reasons=reasons, checks=checks, evidence=evidence + [f"site-candidate://{candidate_revision}"], site_revision=candidate_revision, site_base_revision=original_site_revision, requirements=compatibility["requirements"])
@@ -158,7 +212,7 @@ def main() -> int:
     try:
         report = qualify(args.site_root, args.bundle, args.candidate_lock, trusted=trusted, evidence=args.evidence_ref, candidate_root=args.candidate_root)
     except Exception as exc:
-        report = _report(load_lock(args.candidate_lock), trusted=trusted, classification="QUALIFICATION_FAILED", reasons=["SITE_QUALIFICATION_FAILED"], checks={"bundle-integrity": "passed", "generic-markdown-renderer": "failed", "pages-artifact-provenance": "not-run"}, evidence=args.evidence_ref + [type(exc).__name__], site_revision=None)
+        report = _report(load_lock(args.candidate_lock), trusted=trusted, classification="QUALIFICATION_FAILED", reasons=["SITE_QUALIFICATION_FAILED"], checks={name: "not-run" for name in QUALIFICATION_CHECKS}, evidence=args.evidence_ref + [type(exc).__name__], site_revision=None)
     args.output.write_text(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(report["classification"])
     return 0 if report["classification"] == "NOT_ELIGIBLE" else 1

@@ -24,10 +24,31 @@ CLASSIFICATIONS = {
     "INFRASTRUCTURE_FAILURE", "NOT_ELIGIBLE", "SUPERSEDED", "NO_CHANGE",
 }
 GENERIC_DOCUMENT = "publication.generic-document.v1"
+CHECK_STATES = frozenset({"passed", "failed", "not-run"})
+DEFAULT_CHECKS = (
+    "bundle-integrity",
+    "generic-markdown-renderer",
+    "pages-artifact-provenance",
+)
 
 
 class UnknownCompatibility(ValueError):
     """The trusted classifier does not implement the supplied major contract."""
+
+
+def _format_checks(states: dict[str, str]) -> dict[str, Any]:
+    """Encode check state without turning a failed check into not-run."""
+
+    if any(state not in CHECK_STATES for state in states.values()):
+        raise ValueError("invalid qualification check state")
+    return {
+        "required": list(states),
+        "results": {
+            name: state for name, state in states.items()
+            if state in {"passed", "failed"}
+        },
+        "not_run": [name for name, state in states.items() if state == "not-run"],
+    }
 
 
 def _validate_support(support: Any) -> None:
@@ -114,6 +135,7 @@ def _report(
     *,
     trusted: dict[str, str | None] | None = None,
     site_revision: str | None = None,
+    checks: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     identity = bundle.get("bundle_identity") or bundle.get("identity")
     producer = bundle.get("producer") if isinstance(bundle.get("producer"), dict) else {}
@@ -137,7 +159,7 @@ def _report(
         "inputs": {key: value for key, value in inputs.items() if isinstance(value, str)},
         "trusted": trusted or {"policy_revision": None, "controller_revision": None},
         "requirements": {"closure": [], "required": [], "supported": [], "missing": [], "unsupported": [], "fallbacks": {}},
-        "checks": {"required": [], "results": {}, "not_run": []},
+        "checks": _format_checks(checks or {}),
         "evidence_refs": [],
         "allowed_mutations": [],
         "next_action": "stop",
@@ -157,10 +179,12 @@ def classify(
     site_revision: str | None = None,
 ) -> dict[str, Any]:
     payload = {"bundle_identity": "", "trusted": trusted}
-    report = _report(payload, trusted=trusted, site_revision=site_revision)
+    check_states = {name: "not-run" for name in DEFAULT_CHECKS}
+    report = _report(payload, trusted=trusted, site_revision=site_revision, checks=check_states)
     try:
         support = read_json(support_path)
         _validate_support(support)
+        check_states = {name: "not-run" for name in support["required_runtime"]}
         manifest = read_json(regular(bundle_root, "bundle.json"))
         if not isinstance(manifest, dict):
             raise BundleError("Bundle manifest must be an object")
@@ -178,10 +202,19 @@ def classify(
             },
             trusted=trusted,
             site_revision=site_revision,
+            checks=check_states,
         )
         if schema_version not in {3, 4}:
             raise UnknownCompatibility("unsupported Bundle schema major version")
-        manifest = validate(bundle_root)
+        try:
+            manifest = validate(bundle_root)
+        except Exception:
+            if "bundle-integrity" in check_states:
+                check_states["bundle-integrity"] = "failed"
+            report["checks"] = _format_checks(check_states)
+            raise
+        if "bundle-integrity" in check_states:
+            check_states["bundle-integrity"] = "passed"
         closure, required, missing, unsupported, fallbacks = _evaluate_requirements(manifest, support)
         report["requirements"]["closure"] = closure
         report["requirements"]["required"] = required
@@ -189,14 +222,7 @@ def classify(
         report["requirements"]["missing"] = missing
         report["requirements"]["unsupported"] = unsupported
         report["requirements"]["fallbacks"] = fallbacks
-        report["checks"]["required"] = list(support["required_runtime"])
-        report["checks"]["results"] = {
-            "bundle-integrity": "passed"
-        } if "bundle-integrity" in report["checks"]["required"] else {}
-        report["checks"]["not_run"] = [
-            check for check in report["checks"]["required"]
-            if check not in report["checks"]["results"]
-        ]
+        report["checks"] = _format_checks(check_states)
         if missing or unsupported:
             report["classification"] = "ADAPTATION_REQUIRED"
             report["affected_authorities"] = ["site"]
@@ -208,6 +234,7 @@ def classify(
             report["next_action"] = "run renderer and acceptance qualification"
         return report
     except UnknownCompatibility as exc:
+        report["checks"] = _format_checks(check_states)
         report["classification"] = "UNKNOWN"
         report["reason_codes"] = ["UNKNOWN_CONTRACT_VERSION_OR_PROTOCOL"]
         report["affected_authorities"] = ["site"]
@@ -215,6 +242,7 @@ def classify(
         report["evidence_refs"] = [str(exc)]
         return report
     except (OSError, UnicodeError, ValueError, KeyError, TypeError) as exc:
+        report["checks"] = _format_checks(check_states)
         report["classification"] = "INVALID_INPUT"
         report["reason_codes"] = ["MALFORMED_BUNDLE_OR_SUPPORT"]
         report["affected_authorities"] = ["site"]
@@ -222,6 +250,7 @@ def classify(
         report["evidence_refs"] = [str(exc)]
         return report
     except Exception as exc:
+        report["checks"] = _format_checks(check_states)
         report["classification"] = "UNKNOWN"
         report["reason_codes"] = ["UNEXPECTED_CLASSIFIER_ERROR", type(exc).__name__]
         report["affected_authorities"] = ["site"]

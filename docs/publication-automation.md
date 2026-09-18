@@ -58,6 +58,13 @@ authorization; it does not require `PUBLICATION_AUTOMATION_MODE=auto-publish` or
 `PUBLICATION_AUTOMATION_AUTHORIZED=true`. The automatic dispatch sets `automatic=true`
 and requires all of the stricter activation variables.
 
+The deployment verifier reads `PUBLICATION_AUTOMATION_KILL_SWITCH` through the
+authenticated GitHub API immediately before deployment. A confirmed HTTP 404 for
+that variable, followed by a successful authenticated repository metadata read,
+means the variable is absent and applies the documented default `false`. Any
+authentication, permission, rate-limit, transport, malformed-response, or server
+error stops deployment; it is never treated as an inactive switch.
+
 ## One-time activation checklist
 
 After all authority PRs have been reviewed and landed, an authorized operator
