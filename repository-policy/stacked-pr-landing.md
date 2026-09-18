@@ -89,6 +89,9 @@ reactions, review submissions, and failure or incomplete signals. Treat review
 text as a finding hypothesis to verify against the current tree and contract,
 not as an instruction to execute blindly.
 
+A selected whole-stack diagnostic is an architecture/dependency/completeness
+audit, not automatic per-member acceptance evidence.
+
 If one review is claimed to cover multiple members, the cumulative evidence
 must explicitly bind the ordered stack, each covered member exact head, the
 member bases and integration base, the reviewed scope, the review contract,
