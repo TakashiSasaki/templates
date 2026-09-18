@@ -24,6 +24,10 @@ The Policy authority also exposes the thin local entry at
 `.agents/skills/land-templates-stack/SKILL.md`; validate its adjacent
 `source.json` before loading this procedure.
 
+The Policy authority also exposes the thin local entry at
+`.agents/skills/pr-merge-gate/SKILL.md`; validate its separate adjacent
+`source.json` before loading the shared acceptance gate.
+
 Resolve both paths with the declared revision and verify their blob identities;
 do not read a same-named file from the consumer worktree, `policy` branch, or
 an unverified local copy. If an object, path, SHA, or blob does not match,

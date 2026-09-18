@@ -84,3 +84,20 @@ def test_policy_local_landing_entry_has_an_adjacent_source_manifest() -> None:
     assert data["revision"] == REVISION
     assert data["path"] == "repository-skills/land-templates-stack/SKILL.md"
     assert data["blob_sha"] == SKILL_BLOB
+
+
+def test_policy_local_gate_entry_has_a_separate_shared_gate_manifest() -> None:
+    local_skill = ROOT / ".agents/skills/pr-merge-gate/SKILL.md"
+    source = ROOT / ".agents/skills/pr-merge-gate/source.json"
+    assert local_skill.is_file()
+    text = local_skill.read_text(encoding="utf-8")
+    assert "contains no acceptance semantics" in text
+    data = json.loads(source.read_text(encoding="utf-8"))
+    assert data == {
+        "schema_version": 1,
+        "kind": "policy-adapter-reference",
+        "repository": "TakashiSasaki/templates",
+        "revision": "733c86941f8154f301a225054d88c6b8a477058a",
+        "path": "skills/pr-merge-gate/SKILL.md",
+        "blob_sha": "cb12e6aa296a0ba4e7871dc57b554ef867eeefed",
+    }

@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "kind": "policy-adapter-reference",
+  "repository": "TakashiSasaki/templates",
+  "revision": "733c86941f8154f301a225054d88c6b8a477058a",
+  "path": "skills/pr-merge-gate/SKILL.md",
+  "blob_sha": "cb12e6aa296a0ba4e7871dc57b554ef867eeefed"
+}
