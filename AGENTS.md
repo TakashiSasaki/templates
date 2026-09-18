@@ -15,9 +15,10 @@ These instructions are for maintaining the `composition` authority in
 same-authority stack, load `.agents/skills/land-templates-stack/SKILL.md` and
 verify its adjacent immutable `source.json` before reading the canonical
 landing procedure. Its source is
-`TakashiSasaki/templates@a878da560c5286634b21671b54793e26ed8167b2`,
+`TakashiSasaki/templates@9c2c538d5ee0b866379db40e5c24b29d60e155ba`,
 `repository-skills/land-templates-stack/SKILL.md`, blob
-`b433bdf781eb1fd0f32a525bfd68bac2563316d7`. The maintenance rule is resolved
+`06efa38681e374636bcabcbcb984be5ec43b47ee`. Its rule and review-scope planner
+are resolved
 from that same snapshot, not from this worktree or a mutable branch. Keep
 Composition-specific acceptance separate from the shared gate. A completed
 CI/review path remains distinct from human merge authorization; do not merge,
@@ -36,3 +37,22 @@ This routing discipline is not an additional acceptance checklist. Optional diag
 ## Authority boundary
 
 `composition` owns Composition semantics, reusable capability/artifact/lifecycle contracts, recipes, schemas, deterministic Composer behavior, validation, examples, and its own release/distribution machinery. Repository-local Agent Skills orchestrate maintenance work; they must not become a second semantic authority for product contracts.
+
+## Adaptive review scope
+
+For a maintenance change, load the immutable landing Skill and its declared
+review-scope planner before requesting independent review. The planner chooses
+scope from the objective, exact stack bindings, affected invariants, existing
+coverage, and request state; it is not a semantic validator or merge gate.
+
+Composition's first checks are the current phase-zero/preflight, schema and
+catalog/recipe validation, relevant negative tests, deterministic projection,
+and transaction/ownership-boundary checks. A bounded component-local change
+can use an independent exact-head delta review covering its source and derived
+projection. Resolver/planner semantics, role/schema compatibility, dependency
+closure, managed/seed ownership, update/rollback atomicity, or a shared export
+contract require the related Composition stack; unknown impact is not a waiver.
+Generated-output volume does not by itself enlarge scope, and a fixed Bundle or
+provider change is not reviewed here. Reuse prior evidence only when its
+explicit candidate, purpose, member, invariant, and completion bindings still
+cover the selected scope; otherwise request the missing independent coverage.

@@ -8,14 +8,16 @@ description: Load the immutable repository-maintainer landing procedure for a si
 This is a thin Composition-local reference shim. It does not reproduce landing
 rules, CI/review acceptance, Composer semantics, or publication policy.
 
-Read the adjacent `source.json`, require
+Read the adjacent version-2 `source.json`, require
 `kind: repository-maintainer-skill-reference`, a full lowercase commit SHA,
-the expected repository/path, and the declared blob SHA. Prove the canonical
-Skill blob at the exact revision before reading it. The Skill's rule must be
-loaded from that same snapshot as
+the expected repository/path, the declared blob SHA, and the explicit
+rule/planner closure. Prove every declared object at the exact revision before
+reading it. The Skill's rule and review-scope planner must be loaded from that
+same snapshot as
 `repository-policy/stacked-pr-landing.md`; never substitute a Composition
 worktree file, mutable `policy` branch, latest ref, or an unverified copy.
-Missing, malformed, unavailable, or mismatched source identity is blocked.
+Missing, malformed, unavailable, or mismatched source identity or closure is
+blocked.
 
 At the pinned snapshot, load the canonical landing Skill and then the separate
 local `.agents/skills/pr-merge-gate/SKILL.md` reference. The landing Skill
