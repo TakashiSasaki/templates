@@ -16,6 +16,8 @@ repository, objective, purpose, candidate, explicit contract and material inputs
 Active records additionally require requested_scope; completed records instead
 prove reviewed_scope dominance and actual coverage. Output exposes the canonical
 binding to persist alongside the provider locator, without certifying its truth.
+For cumulative merge acceptance, integration_base_tree_sha explicitly identifies
+the tree of effective_base_sha; the adapter must obtain that identity from Git.
 Incomplete discovery or inconsistent active metadata stops acquisition; it is not
 an observed empty history and cannot justify a new external request.
 """
@@ -178,6 +180,10 @@ def _candidate_binding(candidate: dict[str, Any]) -> dict[str, Any]:
     }
     if binding["repository"] != REPOSITORY:
         raise RoutingInputError("candidate.repository is not the templates repository")
+    if "integration_base_tree_sha" in candidate:
+        binding["integration_base_tree_sha"] = _require_sha(
+            candidate["integration_base_tree_sha"], "candidate.integration_base_tree_sha"
+        )
     authority_members = [
         member for member in members if member["authority"] == binding["authority"]
     ]
@@ -354,6 +360,12 @@ def _review_covers(
         return False
     if not _scope_dominates(review.get("reviewed_scope"), scope):
         return False
+    if (
+        purpose == "merge_acceptance"
+        and (len(scope["members"]) > 1 or len(review["reviewed_scope"]["members"]) > 1)
+        and "integration_base_tree_sha" not in candidate_binding
+    ):
+        return False
     if review.get("independent") is not True:
         return False
     if review.get("metadata_complete") is not True:
@@ -390,8 +402,14 @@ def _review_covers(
     purposes = _string_list(coverage.get("purposes", [review.get("purpose")]))
     members = _string_list(coverage.get("members", []))
     invariants = _string_list(coverage.get("invariants", []))
-    limitations = _string_list(coverage.get("limitations", []))
+    limitations = _string_list(coverage.get("limitations"))
     if purposes is None or members is None or invariants is None or limitations is None:
+        return False
+    if (
+        purpose == "merge_acceptance"
+        and len(members) > 1
+        and "integration_base_tree_sha" not in candidate_binding
+    ):
         return False
     if purpose not in purposes:
         return False
@@ -476,6 +494,12 @@ def plan(packet: dict[str, Any]) -> dict[str, Any]:
     binding_key = _binding_key(packet, binding, input_binding)
     key = _request_key(packet, binding, scope, input_binding)
     missing = [*_validate_preflight(packet), *_discovery_missing(packet)]
+    if (
+        purpose == "merge_acceptance"
+        and len(scope["members"]) > 1
+        and "integration_base_tree_sha" not in binding
+    ):
+        missing.append("cumulative_integration_base_tree_missing")
 
     reviews = _require_list(packet.get("reviews", []), "reviews")
     requests = _require_list(packet.get("requests", []), "requests")

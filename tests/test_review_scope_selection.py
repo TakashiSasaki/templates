@@ -31,6 +31,7 @@ def _packet(**overrides: object) -> dict[str, object]:
             "authority": "policy",
             "base_sha": _sha("a"),
             "effective_base_sha": _sha("a"),
+            "integration_base_tree_sha": _sha("e"),
             "head_sha": _sha("b"),
             "members": [
                 {
@@ -74,7 +75,7 @@ def _packet(**overrides: object) -> dict[str, object]:
 def _binding(packet: dict[str, object]) -> dict[str, object]:
     candidate = packet["candidate"]
     assert isinstance(candidate, dict)
-    return {
+    binding = {
         "repository": candidate["repository"],
         "authority": candidate["authority"],
         "base_sha": candidate["base_sha"],
@@ -82,6 +83,9 @@ def _binding(packet: dict[str, object]) -> dict[str, object]:
         "head_sha": candidate["head_sha"],
         "members": candidate["members"],
     }
+    if "integration_base_tree_sha" in candidate:
+        binding["integration_base_tree_sha"] = candidate["integration_base_tree_sha"]
+    return binding
 
 
 def _key(packet: dict[str, object]) -> str:
@@ -882,3 +886,46 @@ def test_malformed_status_reports_controlled_input_error(field: str, status: obj
 def test_packet_schema_requires_integer_version(schema: object) -> None:
     with pytest.raises(planner.RoutingInputError, match="schema"):
         planner.plan(_packet(schema_version=schema))
+
+
+def test_cumulative_acceptance_requires_explicit_integration_base_tree() -> None:
+    packet = _packet(purpose="merge_acceptance")
+    packet["change"]["affected_members"] = []
+    del packet["candidate"]["integration_base_tree_sha"]
+    result = planner.plan(packet)
+    assert result["action"] == planner.ACTION_MISSING
+    assert "cumulative_integration_base_tree_missing" in result["missing_confirmation"]
+    packet["reviews"] = [_complete_review(packet)]
+    assert planner.plan(packet)["action"] == planner.ACTION_MISSING
+    packet["candidate"]["integration_base_tree_sha"] = _sha("e")
+    packet["reviews"] = [_complete_review(packet)]
+    assert planner.plan(packet)["action"] == planner.ACTION_REUSE
+
+
+def test_narrow_request_cannot_reuse_tree_unbound_cumulative_result() -> None:
+    packet = _packet(purpose="merge_acceptance")
+    del packet["candidate"]["integration_base_tree_sha"]
+    record = _complete_review(packet)
+    record["reviewed_scope"]["members"] = ["policy-p1", "composition-c"]
+    record["coverage"]["members"] = ["policy-p1", "composition-c"]
+    packet["reviews"] = [record]
+    assert planner.plan(packet)["action"] == planner.ACTION_DELTA
+
+
+def test_changed_integration_tree_invalidates_record_binding() -> None:
+    packet = _packet(purpose="merge_acceptance")
+    packet["change"]["affected_members"] = []
+    record = _complete_review(packet)
+    packet["candidate"]["integration_base_tree_sha"] = _sha("f")
+    # A misassociated current key does not make the old tree current.
+    record["key"] = _key(packet)
+    packet["reviews"] = [record]
+    assert planner.plan(packet)["action"] == planner.ACTION_DELTA
+
+
+def test_completed_coverage_requires_explicit_limitations() -> None:
+    packet = _packet()
+    record = _complete_review(packet)
+    del record["coverage"]["limitations"]
+    packet["reviews"] = [record]
+    assert planner.plan(packet)["action"] == planner.ACTION_DELTA
