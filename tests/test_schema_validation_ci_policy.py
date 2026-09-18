@@ -138,7 +138,7 @@ class SchemaValidationCIPolicyTests(unittest.TestCase):
                 self.assertIn(checkout_ref, _job_block(self.workflow, job_name))
 
     def test_integration_protocol_checkout_is_limited_to_core_jobs_that_need_it(self) -> None:
-        integration_protocol_ref = "ref: a30699cf7dc56bf3ef7a1b6fd8f6ffd45cdd426d"
+        integration_protocol_ref = "ref: 9430a7dc124bbcfe66847c04e584bd54bed29ad3"
         for job_name in ("primary", "parallel"):
             with self.subTest(job=job_name):
                 job = _job_block(self.workflow, job_name)

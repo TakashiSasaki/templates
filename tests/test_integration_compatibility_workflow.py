@@ -3,7 +3,7 @@ from pathlib import Path
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-PIN = "a30699cf7dc56bf3ef7a1b6fd8f6ffd45cdd426d"
+PIN = "9430a7dc124bbcfe66847c04e584bd54bed29ad3"
 
 class IntegrationCompatibilityTests(unittest.TestCase):
     def test_reusable_contract_and_producer_are_the_same_immutable_revision(self):
@@ -18,7 +18,14 @@ class IntegrationCompatibilityTests(unittest.TestCase):
         self.assertIn("!github.event.pull_request.draft", text)
         self.assertIn("branches: [composition]", text)
         self.assertIn("actions: read", text)
-        self.assertNotRegex(text, r"(?m)^\s*(?:pages|id-token|contents): write")
+        self.assertNotRegex(text, r"(?m)^\s*(?:pages|id-token): write")
+        self.assertEqual(text.count("      contents: write"), 1)
+        notify = text.split("  notify-integration:", 1)[1]
+        self.assertIn("github.event_name == 'push'", notify)
+        self.assertIn("github.ref == 'refs/heads/composition'", notify)
+        self.assertIn("publication.provider-qualified", notify)
+        self.assertIn("client_payload[provider_revision]", notify)
+        self.assertNotIn("client_payload[producer_ref]", notify)
         self.assertNotIn("build-pages", text)
         self.assertNotIn("site_ref:", text)
 

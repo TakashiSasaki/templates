@@ -2,7 +2,7 @@
 
 The `composition` branch owns one provider publication boundary for the reusable composition system. It replaces the former assumption that Skill and Webapp documentation must be published from independent template authorities. Agent Skill, Website, and Web application semantics now live as distinct artifact responsibilities inside one Composition provider, with shared Web semantics owned once by `foundation.web`.
 
-The generic schema-v3 publication protocol is Integration-owned. Composition owns the declarations in its catalog and the provider-specific semantics layered on top of that shared protocol. Composition CI consumes the Integration protocol from reviewed full commit SHA `a30699cf7dc56bf3ef7a1b6fd8f6ffd45cdd426d`; it does not maintain a second generic parser or follow the mutable `integration` branch.
+The generic schema-v3 publication protocol is Integration-owned. Composition owns the declarations in its catalog and the provider-specific semantics layered on top of that shared protocol. Composition CI consumes the Integration protocol from reviewed full commit SHA `9430a7dc124bbcfe66847c04e584bd54bed29ad3`; it does not maintain a second generic parser or follow the mutable `integration` branch.
 
 This is a development/publication dependency only. The Composer runtime, managed-repository lifecycle, lock/transaction machinery, recipes, and consumer validators do not import or invoke the Integration publication protocol.
 
@@ -96,7 +96,7 @@ The glossary file is encoded as strict JSON, which is a valid YAML 1.2 subset. T
 
 ## Local validation
 
-The reviewed shared protocol is not copied into Composition. To reproduce CI, obtain `integration/publication_contract.py` from Integration commit `a30699cf7dc56bf3ef7a1b6fd8f6ffd45cdd426d` in a separate checkout and point Composition at that checkout. On a fresh Composition checkout, materialize the provider-owned generated publication assets before running either publication validator:
+The reviewed shared protocol is not copied into Composition. To reproduce CI, obtain `integration/publication_contract.py` from Integration commit `9430a7dc124bbcfe66847c04e584bd54bed29ad3` in a separate checkout and point Composition at that checkout. On a fresh Composition checkout, materialize the provider-owned generated publication assets before running either publication validator:
 
 ```sh
 export INTEGRATION_PUBLICATION_PROTOCOL_ROOT=/path/to/reviewed-integration-protocol-checkout
@@ -116,7 +116,7 @@ Composition-specific validation remains fail-closed for undeclared reader docume
 Site PR #270 completed the publication cutover by locking and consuming an exact reviewed Composition revision. After Integration bootstrap, subsequent Composition publication changes require explicit Integration promotion. Site remains on its historical publication inputs until separately authorized adoption.
 
 
-Provider candidate compatibility uses reviewed Integration `a30699cf7dc56bf3ef7a1b6fd8f6ffd45cdd426d`. The reusable
+Provider candidate compatibility uses reviewed Integration `9430a7dc124bbcfe66847c04e584bd54bed29ad3`. The reusable
 Integration qualification workflow selects its reviewed companion provider and
 qualifies the exact candidate through deterministic Publication Bundle generation.
 A successful candidate is compatibility evidence only; Integration promotion is an
