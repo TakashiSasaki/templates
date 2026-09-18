@@ -28,6 +28,7 @@ def test_foreign_snapshot_python_is_not_policy_lint_input() -> None:
     assert topology_validator not in owned
     assert (ROOT / "src" / "agent_policy" / "topology.py").resolve() in owned
     assert SCRIPT.resolve() in owned
+    assert (ROOT / "repository-skills/land-templates-stack/scripts/plan_review_scope.py") in owned
 
 
 def test_every_foreign_python_destination_is_classified_by_manifest() -> None:

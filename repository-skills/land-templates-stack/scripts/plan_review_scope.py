@@ -17,7 +17,6 @@ import sys
 from pathlib import Path
 from typing import Any
 
-
 SCHEMA_VERSION = 2
 REPOSITORY = "TakashiSasaki/templates"
 FULL_SHA_LENGTH = 40
@@ -127,9 +126,13 @@ def _validate_members(candidate: dict[str, Any]) -> list[dict[str, Any]]:
     if not members:
         raise RoutingInputError("candidate.members must not be empty")
     result: list[dict[str, Any]] = []
+    seen_ids: set[str] = set()
     for index, raw in enumerate(members):
         member = _require_object(raw, f"candidate.members[{index}]")
         _require_string(member.get("id"), f"candidate.members[{index}].id")
+        if member["id"] in seen_ids:
+            raise RoutingInputError("candidate member IDs must be unique")
+        seen_ids.add(member["id"])
         _require_string(member.get("authority"), f"candidate.members[{index}].authority")
         _require_sha(member.get("base_sha"), f"candidate.members[{index}].base_sha")
         _require_sha(member.get("head_sha"), f"candidate.members[{index}].head_sha")
@@ -267,6 +270,42 @@ def _request_key(
     return _digest(material)
 
 
+def _scope_dominates(prior: Any, current: dict[str, Any]) -> bool:
+    """Require explicit semantic scope, in addition to actual result coverage."""
+    if not isinstance(prior, dict):
+        return False
+    if not isinstance(prior.get("kind"), str) or prior["kind"] not in {"delta", "whole-stack"}:
+        return False
+    if not isinstance(prior.get("impact"), str) or prior["impact"] not in IMPACTS:
+        return False
+    for flag in ("contract_changed", "trust_boundary_changed", "topology_changed"):
+        if type(prior.get(flag)) is not bool:
+            return False
+        if current[flag] and not prior[flag]:
+            return False
+    if current["kind"] == "whole-stack" and prior["kind"] != "whole-stack":
+        return False
+    # Unknown and unbounded impact are distinct claims; neither proves the other.
+    if current["impact"] != "bounded" and prior["impact"] != current["impact"]:
+        return False
+    if prior["kind"] == "delta" and (
+        prior["impact"] != "bounded"
+        or any(prior[flag] for flag in (
+            "contract_changed", "trust_boundary_changed", "topology_changed"
+        ))
+    ):
+        return False
+    for field in ("members", "invariants"):
+        values = prior.get(field)
+        if not isinstance(values, list) or not values:
+            return False
+        if any(not isinstance(value, str) or not value.strip() for value in values):
+            return False
+        if set(current[field]) - set(values):
+            return False
+    return True
+
+
 def _review_covers(
     review: dict[str, Any],
     *,
@@ -282,6 +321,8 @@ def _review_covers(
     same_scope_request = review.get("key") == key
     broader_scope_result = review.get("binding_key") == binding_key
     if not same_scope_request and not broader_scope_result:
+        return False
+    if not _scope_dominates(review.get("reviewed_scope"), scope):
         return False
     if review.get("independent") is not True:
         return False
