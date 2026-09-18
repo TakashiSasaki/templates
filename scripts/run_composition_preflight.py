@@ -16,6 +16,7 @@ from typing import Sequence
 ROOT = Path(__file__).resolve().parents[1]
 PYTHON = Path(sys.executable)
 FOCUSED_TESTS = (
+    "tests/test_maintainer_entrypoint.py",
     "tests/test_composition_schemas.py",
     "tests/test_topology_role.py",
     "tests/test_workspace_role.py",
