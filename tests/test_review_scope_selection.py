@@ -25,6 +25,7 @@ def _packet(**overrides: object) -> dict[str, object]:
         "schema_version": 2,
         "objective": "adaptive review routing",
         "purpose": "whole_stack_diagnostic",
+        "contract": {"revision": "review-contract-1"},
         "candidate": {
             "repository": "TakashiSasaki/templates",
             "authority": "policy",
@@ -133,6 +134,7 @@ def test_each_authority_routes_bounded_expanded_and_reusable_scope(
         {
             "key": bounded["request_key"],
             "status": "completed",
+            **_record_binding(packet),
             "purpose": packet["purpose"],
             "reviewed_scope": planner.plan(packet)["selected_scope"],
             "candidate_binding": binding,
@@ -244,11 +246,21 @@ def test_shared_or_unknown_impact_expands_related_stack(change: dict[str, object
     assert result["selected_scope"]["members"] == ["policy-p1", "composition-c"]
 
 
+def _record_binding(packet):
+    binding = planner._request_binding(packet, _binding(packet), packet["input_binding"])
+    return {
+        "request_binding": copy.deepcopy(binding),
+        "request_binding_digest": planner._digest(binding),
+    }
+
+
 def _active_request(packet, key, status, **locator):
     binding = _binding(packet)
     return {
         "key": key,
         "status": status,
+        **_record_binding(packet),
+        "requested_scope": planner.plan(packet)["selected_scope"],
         **locator,
         "candidate_binding": binding,
         "candidate_binding_digest": planner._digest(binding),
@@ -287,6 +299,7 @@ def test_explicit_coverage_reuses_completed_independent_result() -> None:
         {
             "key": initial["request_key"],
             "status": "completed",
+            **_record_binding(packet),
             "purpose": "whole_stack_diagnostic",
             "reviewed_scope": planner.plan(packet)["selected_scope"],
             "candidate_binding": binding,
@@ -333,6 +346,7 @@ def test_broader_completed_coverage_reuses_for_narrower_scope() -> None:
             "key": broad_result["request_key"],
             "binding_key": broad_result["binding_key"],
             "status": "completed",
+            **_record_binding(packet),
             "purpose": "merge_acceptance",
             "reviewed_scope": broad_result["selected_scope"],
             "candidate_binding": binding,
@@ -434,6 +448,7 @@ def test_completed_review_with_stale_candidate_binding_is_not_reused() -> None:
         {
             "key": initial["request_key"],
             "status": "completed",
+            **_record_binding(packet),
             "purpose": packet["purpose"],
             "candidate_binding": stale_binding,
             "candidate_binding_digest": planner._digest(stale_binding),
@@ -469,6 +484,7 @@ def test_completed_review_with_changed_input_binding_is_not_reused() -> None:
         {
             "key": initial["request_key"],
             "status": "completed",
+            **_record_binding(packet),
             "purpose": packet["purpose"],
             "candidate_binding": _binding(packet),
             "candidate_binding_digest": planner._digest(_binding(packet)),
@@ -504,6 +520,7 @@ def test_completed_review_with_json_type_distinct_input_is_not_reused() -> None:
         {
             "key": initial["request_key"],
             "status": "completed",
+            **_record_binding(packet),
             "purpose": packet["purpose"],
             "candidate_binding": _binding(packet),
             "candidate_binding_digest": planner._digest(_binding(packet)),
@@ -533,6 +550,7 @@ def test_same_head_new_contract_evidence_allows_additional_related_scope() -> No
         {
             "key": previous["request_key"],
             "status": "completed",
+            **_record_binding(packet),
             "independent": True,
             "metadata_complete": True,
             "pagination_complete": True,
@@ -642,6 +660,7 @@ def test_malformed_coverage_lists_are_not_reused(field: str) -> None:
         {
             "key": initial["request_key"],
             "status": "completed",
+            **_record_binding(packet),
             "purpose": packet["purpose"],
             "reviewed_scope": planner.plan(packet)["selected_scope"],
             "candidate_binding": binding,
@@ -744,3 +763,122 @@ def test_active_request_requires_actionable_provider_locator(locator: dict) -> N
     packet = _packet()
     packet["requests"] = [_active_request(packet, _key(packet), "submission_unknown", **locator)]
     assert planner.plan(packet)["action"] == planner.ACTION_MISSING
+
+
+def _complete_review(packet):
+    initial = planner.plan(packet)
+    binding = _binding(packet)
+    return {
+        "key": initial["request_key"],
+        "binding_key": initial["binding_key"],
+        "status": "completed",
+        **_record_binding(packet),
+        "candidate_binding": binding,
+        "candidate_binding_digest": planner._digest(binding),
+        "input_binding": packet["input_binding"],
+        "input_binding_digest": planner._digest(packet["input_binding"]),
+        "reviewed_scope": initial["selected_scope"],
+        "independent": True,
+        "metadata_complete": True,
+        "pagination_complete": True,
+        "coverage": {
+            "purposes": [packet["purpose"]],
+            "members": initial["selected_scope"]["members"],
+            "invariants": initial["selected_scope"]["invariants"],
+            "limitations": [],
+        },
+        "locator": "provider-result",
+    }
+
+
+@pytest.mark.parametrize("state", ["in_progress", "submission_unknown", "completed"])
+@pytest.mark.parametrize(
+    "field", ["repository", "objective", "purpose", "contract", "candidate", "input_binding"]
+)
+def test_full_recorded_request_binding_rejects_misassociated_key(state: str, field: str) -> None:
+    packet = _packet()
+    record = (
+        _complete_review(packet)
+        if state == "completed"
+        else _active_request(packet, _key(packet), state, handle="request")
+    )
+    record["request_binding"][field] = {"different": True}
+    record["request_binding_digest"] = planner._digest(record["request_binding"])
+    packet["reviews" if state == "completed" else "requests"] = [record]
+    result = planner.plan(packet)
+    assert result["action"] == (
+        planner.ACTION_DELTA if state == "completed" else planner.ACTION_MISSING
+    )
+    assert not result["reusable_evidence"]
+
+
+@pytest.mark.parametrize("state", ["in_progress", "completed"])
+@pytest.mark.parametrize("value", [None, {}, {"contract": float("nan")}])
+def test_missing_or_malformed_complete_record_binding_is_not_evidence(
+    state: str, value: object
+) -> None:
+    packet = _packet()
+    record = (
+        _complete_review(packet)
+        if state == "completed"
+        else _active_request(packet, _key(packet), state, handle="request")
+    )
+    record["request_binding"] = value
+    packet["reviews" if state == "completed" else "requests"] = [record]
+    assert planner.plan(packet)["action"] not in {planner.ACTION_RECONCILE, planner.ACTION_REUSE}
+
+
+@pytest.mark.parametrize("field", ["objective", "purpose", "contract"])
+def test_contradictory_flat_request_metadata_does_not_override_full_binding(field: str) -> None:
+    packet = _packet()
+    record = _active_request(packet, _key(packet), "in_progress", handle="request")
+    record[field] = {"revision": "old"}
+    packet["requests"] = [record]
+    assert planner.plan(packet)["action"] == planner.ACTION_MISSING
+
+
+@pytest.mark.parametrize("scope", [None, {}, {"kind": "delta"}])
+def test_active_record_requires_full_requested_scope(scope: object) -> None:
+    packet = _packet()
+    record = _active_request(packet, _key(packet), "in_progress", handle="request")
+    record["requested_scope"] = scope
+    packet["requests"] = [record]
+    assert planner.plan(packet)["action"] == planner.ACTION_MISSING
+
+
+@pytest.mark.parametrize("field", ["candidate_binding", "input_binding"])
+def test_nonfinite_completed_binding_is_rejected_without_digest_exception(field: str) -> None:
+    packet = _packet()
+    record = _complete_review(packet)
+    record[field] = {"invalid": float("nan")}
+    packet["reviews"] = [record]
+    assert planner.plan(packet)["action"] == planner.ACTION_DELTA
+
+
+@pytest.mark.parametrize("field,value", [("head_sha", "c" * 40), ("authority", "absent")])
+def test_top_level_candidate_matches_its_ordered_authority_tip(field: str, value: str) -> None:
+    packet = _packet()
+    packet["candidate"][field] = value
+    with pytest.raises(planner.RoutingInputError, match="ordered tip"):
+        planner.plan(packet)
+
+
+@pytest.mark.parametrize("contract", [None, {}, []])
+def test_current_review_contract_is_explicit(contract: object) -> None:
+    with pytest.raises(planner.RoutingInputError, match="contract"):
+        planner.plan(_packet(contract=contract))
+
+
+@pytest.mark.parametrize("field", ["preflight", "reviews", "requests"])
+@pytest.mark.parametrize("status", [None, [], {}])
+def test_malformed_status_reports_controlled_input_error(field: str, status: object) -> None:
+    packet = _packet()
+    packet[field] = {"status": status} if field == "preflight" else [{"status": status}]
+    with pytest.raises(planner.RoutingInputError, match="status"):
+        planner.plan(packet)
+
+
+@pytest.mark.parametrize("schema", [True, 2.0, "2"])
+def test_packet_schema_requires_integer_version(schema: object) -> None:
+    with pytest.raises(planner.RoutingInputError, match="schema"):
+        planner.plan(_packet(schema_version=schema))

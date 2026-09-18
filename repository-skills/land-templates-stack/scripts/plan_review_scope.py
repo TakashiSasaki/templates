@@ -11,6 +11,11 @@ discovery.reviews_complete booleans after provider pagination and surface discov
 Every EXPANSION_FLAGS field is required, including cross-member interaction.
 Active request records bind candidate_binding/input_binding and their canonical
 digests as well as the request key, status and actionable provider handle/locator.
+Both active and completed records require request_binding and its digest, covering
+repository, objective, purpose, candidate, explicit contract and material inputs.
+Active records additionally require requested_scope; completed records instead
+prove reviewed_scope dominance and actual coverage. Output exposes the canonical
+binding to persist alongside the provider locator, without certifying its truth.
 Incomplete discovery or inconsistent active metadata stops acquisition; it is not
 an observed empty history and cannot justify a new external request.
 """
@@ -173,6 +178,11 @@ def _candidate_binding(candidate: dict[str, Any]) -> dict[str, Any]:
     }
     if binding["repository"] != REPOSITORY:
         raise RoutingInputError("candidate.repository is not the templates repository")
+    authority_members = [
+        member for member in members if member["authority"] == binding["authority"]
+    ]
+    if not authority_members or authority_members[-1]["head_sha"] != binding["head_sha"]:
+        raise RoutingInputError("candidate head must match its authority's ordered tip member")
     return binding
 
 
@@ -240,7 +250,9 @@ def _request_binding(
 ) -> dict[str, Any]:
     purpose = _require_string(packet.get("purpose"), "purpose")
     objective = _require_string(packet.get("objective"), "objective")
-    contract = packet.get("contract", {})
+    contract = _require_object(packet.get("contract"), "contract")
+    if not contract:
+        raise RoutingInputError("contract must explicitly identify the review contract")
     _validate_json_data(contract, "contract")
     return {
         "repository": binding["repository"],
@@ -304,6 +316,23 @@ def _scope_dominates(prior: Any, current: dict[str, Any]) -> bool:
     return True
 
 
+def _record_request_binding_matches(record: dict[str, Any], current: dict[str, Any]) -> bool:
+    recorded = record.get("request_binding")
+    if not isinstance(recorded, dict) or not _is_json_data(recorded):
+        return False
+    digest = _digest(recorded)
+    if record.get("request_binding_digest") != digest or digest != _digest(current):
+        return False
+    # Reject contradictory legacy mirror metadata rather than silently choosing
+    # the convenient copy. The nested binding is the complete canonical material.
+    for field in ("repository", "objective", "purpose", "contract"):
+        if field in record and (
+            not _is_json_data(record[field]) or _digest(record[field]) != _digest(current[field])
+        ):
+            return False
+    return True
+
+
 def _review_covers(
     review: dict[str, Any],
     *,
@@ -313,12 +342,15 @@ def _review_covers(
     scope: dict[str, Any],
     candidate_binding: dict[str, Any],
     input_binding: dict[str, Any],
+    request_binding: dict[str, Any],
 ) -> bool:
     if review.get("status") != "completed":
         return False
     same_scope_request = review.get("key") == key
     broader_scope_result = review.get("binding_key") == binding_key
     if not same_scope_request and not broader_scope_result:
+        return False
+    if not _record_request_binding_matches(review, request_binding):
         return False
     if not _scope_dominates(review.get("reviewed_scope"), scope):
         return False
@@ -331,6 +363,7 @@ def _review_covers(
     binding = review.get("candidate_binding")
     if (
         not isinstance(binding, dict)
+        or not _is_json_data(binding)
         or review.get("candidate_binding_digest") != _digest(binding)
         or review.get("candidate_binding_digest") != _digest(candidate_binding)
     ):
@@ -338,6 +371,7 @@ def _review_covers(
     review_input_binding = review.get("input_binding")
     if (
         not isinstance(review_input_binding, dict)
+        or not _is_json_data(review_input_binding)
         or review.get("input_binding_digest") != _digest(review_input_binding)
         or review.get("input_binding_digest") != _digest(input_binding)
     ):
@@ -377,7 +411,7 @@ def _validate_preflight(packet: dict[str, Any]) -> list[str]:
     preflight = _require_object(raw_preflight, "preflight")
     if "status" not in preflight:
         return ["preflight_status_missing"]
-    status = preflight["status"]
+    status = _require_string(preflight["status"], "preflight.status")
     if status not in {"ready", "unknown", "failed"}:
         raise RoutingInputError("preflight.status must be ready, unknown, or failed")
     missing = preflight.get("missing", [])
@@ -400,8 +434,22 @@ def _discovery_missing(packet: dict[str, Any]) -> list[str]:
 
 
 def _active_request_matches(
-    item: dict[str, Any], binding: dict[str, Any], inputs: dict[str, Any]
+    item: dict[str, Any],
+    binding: dict[str, Any],
+    inputs: dict[str, Any],
+    request_binding: dict[str, Any],
+    scope: dict[str, Any],
+    key: str,
 ) -> bool:
+    if not _record_request_binding_matches(item, request_binding):
+        return False
+    requested_scope = item.get("requested_scope")
+    if not isinstance(requested_scope, dict) or not _is_json_data(requested_scope):
+        return False
+    if _digest(requested_scope) != _digest(scope):
+        return False
+    if _digest({**item["request_binding"], "scope": requested_scope}) != key:
+        return False
     for field, current in (("candidate_binding", binding), ("input_binding", inputs)):
         value = item.get(field)
         if not isinstance(value, dict) or not _is_json_data(value):
@@ -412,7 +460,7 @@ def _active_request_matches(
 
 
 def plan(packet: dict[str, Any]) -> dict[str, Any]:
-    if packet.get("schema_version") != SCHEMA_VERSION:
+    if type(packet.get("schema_version")) is not int or packet["schema_version"] != SCHEMA_VERSION:
         raise RoutingInputError("unsupported review-routing packet schema")
     purpose = _require_string(packet.get("purpose"), "purpose")
     if purpose not in PURPOSES:
@@ -424,6 +472,7 @@ def plan(packet: dict[str, Any]) -> dict[str, Any]:
     input_binding = _input_binding(packet)
     change = _require_object(packet.get("change"), "change")
     scope, reasons = _change_scope(change, candidate["members"])
+    request_binding = _request_binding(packet, binding, input_binding)
     binding_key = _binding_key(packet, binding, input_binding)
     key = _request_key(packet, binding, scope, input_binding)
     missing = [*_validate_preflight(packet), *_discovery_missing(packet)]
@@ -432,12 +481,12 @@ def plan(packet: dict[str, Any]) -> dict[str, Any]:
     requests = _require_list(packet.get("requests", []), "requests")
     for index, item in enumerate(reviews):
         _require_object(item, f"reviews[{index}]")
-        status = item.get("status")
+        status = _require_string(item.get("status"), f"reviews[{index}].status")
         if status not in RESULT_STATES:
             raise RoutingInputError(f"reviews[{index}].status is invalid")
     for index, item in enumerate(requests):
         _require_object(item, f"requests[{index}]")
-        status = item.get("status")
+        status = _require_string(item.get("status"), f"requests[{index}].status")
         if status not in RESULT_STATES:
             raise RoutingInputError(f"requests[{index}].status is invalid")
 
@@ -445,6 +494,8 @@ def plan(packet: dict[str, Any]) -> dict[str, Any]:
         "schema_version": SCHEMA_VERSION,
         "binding_key": binding_key,
         "request_key": key,
+        "request_binding": request_binding,
+        "request_binding_digest": _digest(request_binding),
         "input_binding_digest": _digest(input_binding),
         "selected_scope": scope,
         "reusable_evidence": [],
@@ -468,9 +519,9 @@ def plan(packet: dict[str, Any]) -> dict[str, Any]:
             "submission_unknown",
         }:
             locator = item.get("handle") or item.get("locator")
-            if not _active_request_matches(item, binding, input_binding) or not (
-                isinstance(locator, str) and locator.strip()
-            ):
+            if not _active_request_matches(
+                item, binding, input_binding, request_binding, scope, key
+            ) or not (isinstance(locator, str) and locator.strip()):
                 return {
                     **base_result,
                     "action": ACTION_MISSING,
@@ -496,6 +547,7 @@ def plan(packet: dict[str, Any]) -> dict[str, Any]:
             scope=scope,
             candidate_binding=binding,
             input_binding=input_binding,
+            request_binding=request_binding,
         ):
             return {
                 **base_result,
