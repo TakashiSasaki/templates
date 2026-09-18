@@ -1,10 +1,13 @@
 import json
 from pathlib import Path
-import re
 import unittest
 
 
 ROOT = Path(__file__).resolve().parents[1]
+CANONICAL_REVISION = "a878da560c5286634b21671b54793e26ed8167b2"
+CANONICAL_SKILL_BLOB = "b433bdf781eb1fd0f32a525bfd68bac2563316d7"
+SHARED_GATE_REVISION = "733c86941f8154f301a225054d88c6b8a477058a"
+SHARED_GATE_BLOB = "cb12e6aa296a0ba4e7871dc57b554ef867eeefed"
 
 
 class MaintainerEntrypointTests(unittest.TestCase):
@@ -64,13 +67,18 @@ class MaintainerEntrypointTests(unittest.TestCase):
             )
         )
         self.assertEqual(source["kind"], "repository-maintainer-skill-reference")
-        self.assertEqual(source["revision"], "a878da560c5286634b21671b54793e26ed8167b2")
-        self.assertTrue(re.fullmatch(r"[0-9a-f]{40}", source["blob_sha"]))
+        self.assertEqual(source["repository"], "TakashiSasaki/templates")
+        self.assertEqual(source["revision"], CANONICAL_REVISION)
+        self.assertEqual(source["blob_sha"], CANONICAL_SKILL_BLOB)
         self.assertEqual(source["path"], "repository-skills/land-templates-stack/SKILL.md")
         gate = json.loads(
             (ROOT / ".agents/skills/pr-merge-gate/source.json").read_text(encoding="utf-8")
         )
-        self.assertEqual(gate["revision"], "733c86941f8154f301a225054d88c6b8a477058a")
+        self.assertEqual(gate["kind"], "policy-adapter-reference")
+        self.assertEqual(gate["repository"], "TakashiSasaki/templates")
+        self.assertEqual(gate["revision"], SHARED_GATE_REVISION)
+        self.assertEqual(gate["path"], "skills/pr-merge-gate/SKILL.md")
+        self.assertEqual(gate["blob_sha"], SHARED_GATE_BLOB)
         landing = (ROOT / ".agents/skills/land-templates-stack/SKILL.md").read_text(
             encoding="utf-8"
         )
