@@ -53,11 +53,11 @@ the procedure. All five authority routes resolve the same immutable canonical
 snapshot:
 
 - repository: `TakashiSasaki/templates`;
-- revision: `5af977020fca701bcf6b7fb7ce12ca077b2d7220`;
+- revision: `a878da560c5286634b21671b54793e26ed8167b2`;
 - rule: `repository-policy/stacked-pr-landing.md`, blob
   `9dd1c5498dd9b37ef91afd65ad400fbdee13ee29`;
 - landing Skill: `repository-skills/land-templates-stack/SKILL.md`, blob
-  `902b6e543d467b47b2b91819bfab5574a85456c7`.
+  `b433bdf781eb1fd0f32a525bfd68bac2563316d7`.
 
 The local shim must resolve the rule from that snapshot, not from a consumer
 worktree, mutable `policy` branch, latest ref, or unverified copy. Source
