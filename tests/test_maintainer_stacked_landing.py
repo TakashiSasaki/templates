@@ -313,6 +313,15 @@ def test_source_boundary_rejects_missing_or_tampered_closure() -> None:
         raise AssertionError("tampered source closure was accepted")
 
 
+def test_source_boundary_rejects_legacy_schema_one() -> None:
+    try:
+        verify_source_reference({"schema_version": 1}, repo=ROOT)
+    except SourceReferenceError as exc:
+        assert "schema version 2" in str(exc)
+    else:
+        raise AssertionError("legacy source schema was accepted")
+
+
 def test_canonical_source_object_is_resolvable_from_the_current_snapshot() -> None:
     revision = _git("rev-parse", "HEAD")
     assert FULL_SHA.fullmatch(revision)
