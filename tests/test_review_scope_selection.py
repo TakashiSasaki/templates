@@ -31,6 +31,7 @@ def _packet(**overrides: object) -> dict[str, object]:
             "authority": "policy",
             "base_sha": _sha("a"),
             "effective_base_sha": _sha("a"),
+            "integration_base_tree_sha": _sha("e"),
             "head_sha": _sha("b"),
             "members": [
                 {
@@ -74,7 +75,7 @@ def _packet(**overrides: object) -> dict[str, object]:
 def _binding(packet: dict[str, object]) -> dict[str, object]:
     candidate = packet["candidate"]
     assert isinstance(candidate, dict)
-    return {
+    binding = {
         "repository": candidate["repository"],
         "authority": candidate["authority"],
         "base_sha": candidate["base_sha"],
@@ -82,6 +83,9 @@ def _binding(packet: dict[str, object]) -> dict[str, object]:
         "head_sha": candidate["head_sha"],
         "members": candidate["members"],
     }
+    if "integration_base_tree_sha" in candidate:
+        binding["integration_base_tree_sha"] = candidate["integration_base_tree_sha"]
+    return binding
 
 
 def _key(packet: dict[str, object]) -> str:
@@ -256,11 +260,14 @@ def _record_binding(packet):
 
 def _active_request(packet, key, status, **locator):
     binding = _binding(packet)
+    scope = planner.plan(packet)["selected_scope"]
+    packet["discovery"]["latest_request_cycle"] = "cycle-1"
     return {
         "key": key,
+        "cycle_id": "cycle-1",
         "status": status,
         **_record_binding(packet),
-        "requested_scope": planner.plan(packet)["selected_scope"],
+        "requested_scope": scope,
         **locator,
         "candidate_binding": binding,
         "candidate_binding_digest": planner._digest(binding),
@@ -791,6 +798,111 @@ def _complete_review(packet):
     }
 
 
+@pytest.mark.parametrize("value", [True, 1, "true", None])
+def test_acceptance_cannot_be_acquired_as_early_diagnostic(value):
+    packet = _packet(purpose="merge_acceptance", options={"early_diagnostic": value})
+    with pytest.raises(planner.RoutingInputError):
+        planner.plan(packet)
+
+
+@pytest.mark.parametrize("locator", [None, "", " ", 42])
+def test_requestless_reuse_requires_result_source(locator):
+    packet = _packet()
+    review = _complete_review(packet)
+    review["locator"] = locator
+    packet["reviews"] = [review]
+    assert planner.plan(packet)["action"] != planner.ACTION_REUSE
+
+
+@pytest.mark.parametrize("status", ["failed", "partial", "applicability_unknown", "stale"])
+def test_latest_unresolved_cycle_prevents_old_completed_reuse(status):
+    packet = _packet()
+    review = _complete_review(packet)
+    review["cycle_id"] = "old"
+    request = _active_request(packet, _key(packet), status, handle="latest-request")
+    packet["requests"] = [request]
+    packet["reviews"] = [review]
+    assert planner.plan(packet)["action"] == planner.ACTION_MISSING
+
+
+def test_explicit_latest_completed_cycle_can_supersede_failed_history():
+    packet = _packet()
+    review = _complete_review(packet)
+    review["cycle_id"] = "cycle-1"
+    request = _active_request(packet, _key(packet), "completed", handle="latest-request")
+    old = {**request, "cycle_id": "old", "status": "failed"}
+    packet["requests"] = [request, old]
+    packet["reviews"] = [review]
+    assert planner.plan(packet)["action"] == planner.ACTION_REUSE
+    review["cycle_id"] = "old"
+    assert planner.plan(packet)["action"] == planner.ACTION_MISSING
+
+
+@pytest.mark.parametrize("latest", [None, "", "unknown", 1, []])
+def test_unknown_latest_cycle_cannot_reuse_or_resubmit(latest):
+    packet = _packet()
+    review = _complete_review(packet)
+    request = _active_request(packet, _key(packet), "completed", handle="request")
+    packet["requests"] = [request]
+    packet["reviews"] = [review]
+    packet["discovery"]["latest_request_cycle"] = latest
+    assert planner.plan(packet)["action"] == planner.ACTION_MISSING
+
+
+def test_duplicate_cycle_identity_is_ambiguous():
+    packet = _packet()
+    request = _active_request(packet, _key(packet), "in_progress", handle="request")
+    packet["requests"] = [request, copy.deepcopy(request)]
+    assert planner.plan(packet)["action"] == planner.ACTION_MISSING
+
+
+@pytest.mark.parametrize(
+    "status",
+    [
+        "failed",
+        "partial",
+        "stale",
+        "applicability_unknown",
+        "submission_unknown",
+        "in_progress",
+        "completed",
+    ],
+)
+def test_broader_request_participates_in_latest_cycle_selection(status):
+    packet = _packet()
+    review = _complete_review(packet)
+    broad = copy.deepcopy(packet)
+    broad["change"]["trust_boundary_changed"] = True
+    request = _active_request(broad, _key(broad), status, handle="broad-request")
+    assert request["key"] != _key(packet)
+    packet["requests"] = [request]
+    packet["reviews"] = [review]
+    assert planner.plan(packet)["action"] == planner.ACTION_MISSING
+    packet["discovery"]["latest_request_cycle"] = "cycle-1"
+    expected = (
+        planner.ACTION_RECONCILE
+        if status in {"in_progress", "submission_unknown"}
+        else planner.ACTION_MISSING
+    )
+    assert planner.plan(packet)["action"] == expected
+    if status == "completed":
+        result = _complete_review(broad)
+        result["cycle_id"] = "cycle-1"
+        packet["reviews"].append(result)
+        assert planner.plan(packet)["action"] == planner.ACTION_REUSE
+
+
+def test_narrower_request_does_not_supersede_broader_coverage():
+    narrow = _packet()
+    request = _active_request(narrow, _key(narrow), "failed", handle="narrow")
+    broad = _packet()
+    broad["change"]["trust_boundary_changed"] = True
+    review = _complete_review(broad)
+    broad["reviews"] = [review]
+    broad["requests"] = [request]
+    assert planner.plan(broad)["action"] == planner.ACTION_REUSE
+
+
 @pytest.mark.parametrize("state", ["in_progress", "submission_unknown", "completed"])
 @pytest.mark.parametrize(
     "field", ["repository", "objective", "purpose", "contract", "candidate", "input_binding"]
@@ -882,3 +994,46 @@ def test_malformed_status_reports_controlled_input_error(field: str, status: obj
 def test_packet_schema_requires_integer_version(schema: object) -> None:
     with pytest.raises(planner.RoutingInputError, match="schema"):
         planner.plan(_packet(schema_version=schema))
+
+
+def test_cumulative_acceptance_requires_explicit_integration_base_tree() -> None:
+    packet = _packet(purpose="merge_acceptance")
+    packet["change"]["affected_members"] = []
+    del packet["candidate"]["integration_base_tree_sha"]
+    result = planner.plan(packet)
+    assert result["action"] == planner.ACTION_MISSING
+    assert "cumulative_integration_base_tree_missing" in result["missing_confirmation"]
+    packet["reviews"] = [_complete_review(packet)]
+    assert planner.plan(packet)["action"] == planner.ACTION_MISSING
+    packet["candidate"]["integration_base_tree_sha"] = _sha("e")
+    packet["reviews"] = [_complete_review(packet)]
+    assert planner.plan(packet)["action"] == planner.ACTION_REUSE
+
+
+def test_narrow_request_cannot_reuse_tree_unbound_cumulative_result() -> None:
+    packet = _packet(purpose="merge_acceptance")
+    del packet["candidate"]["integration_base_tree_sha"]
+    record = _complete_review(packet)
+    record["reviewed_scope"]["members"] = ["policy-p1", "composition-c"]
+    record["coverage"]["members"] = ["policy-p1", "composition-c"]
+    packet["reviews"] = [record]
+    assert planner.plan(packet)["action"] == planner.ACTION_DELTA
+
+
+def test_changed_integration_tree_invalidates_record_binding() -> None:
+    packet = _packet(purpose="merge_acceptance")
+    packet["change"]["affected_members"] = []
+    record = _complete_review(packet)
+    packet["candidate"]["integration_base_tree_sha"] = _sha("f")
+    # A misassociated current key does not make the old tree current.
+    record["key"] = _key(packet)
+    packet["reviews"] = [record]
+    assert planner.plan(packet)["action"] == planner.ACTION_DELTA
+
+
+def test_completed_coverage_requires_explicit_limitations() -> None:
+    packet = _packet()
+    record = _complete_review(packet)
+    del record["coverage"]["limitations"]
+    packet["reviews"] = [record]
+    assert planner.plan(packet)["action"] == planner.ACTION_DELTA

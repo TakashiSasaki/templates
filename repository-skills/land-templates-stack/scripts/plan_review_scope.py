@@ -16,8 +16,18 @@ repository, objective, purpose, candidate, explicit contract and material inputs
 Active records additionally require requested_scope; completed records instead
 prove reviewed_scope dominance and actual coverage. Output exposes the canonical
 binding to persist alongside the provider locator, without certifying its truth.
+For cumulative merge acceptance, integration_base_tree_sha explicitly identifies
+the tree of effective_base_sha; the adapter must obtain that identity from Git.
 Incomplete discovery or inconsistent active metadata stops acquisition; it is not
 an observed empty history and cannot justify a new external request.
+For applicable request history (including scope-dominating broader requests),
+unique provider cycle_id values and the explicitly
+reconciled discovery.latest_request_cycle identify the latest applicable cycle;
+array order and timestamps are not inferred. Only that cycle's completed result
+can be reused. Failed/partial/unknown cycles require disposition, not fallback to
+an older clean result. Every reusable result has an actionable source locator,
+including independently discovered results without a local request record.
+Early diagnostics cannot be requested under the merge_acceptance purpose.
 """
 
 from __future__ import annotations
@@ -178,6 +188,10 @@ def _candidate_binding(candidate: dict[str, Any]) -> dict[str, Any]:
     }
     if binding["repository"] != REPOSITORY:
         raise RoutingInputError("candidate.repository is not the templates repository")
+    if "integration_base_tree_sha" in candidate:
+        binding["integration_base_tree_sha"] = _require_sha(
+            candidate["integration_base_tree_sha"], "candidate.integration_base_tree_sha"
+        )
     authority_members = [
         member for member in members if member["authority"] == binding["authority"]
     ]
@@ -354,6 +368,12 @@ def _review_covers(
         return False
     if not _scope_dominates(review.get("reviewed_scope"), scope):
         return False
+    if (
+        purpose == "merge_acceptance"
+        and (len(scope["members"]) > 1 or len(review["reviewed_scope"]["members"]) > 1)
+        and "integration_base_tree_sha" not in candidate_binding
+    ):
+        return False
     if review.get("independent") is not True:
         return False
     if review.get("metadata_complete") is not True:
@@ -390,8 +410,14 @@ def _review_covers(
     purposes = _string_list(coverage.get("purposes", [review.get("purpose")]))
     members = _string_list(coverage.get("members", []))
     invariants = _string_list(coverage.get("invariants", []))
-    limitations = _string_list(coverage.get("limitations", []))
+    limitations = _string_list(coverage.get("limitations"))
     if purposes is None or members is None or invariants is None or limitations is None:
+        return False
+    if (
+        purpose == "merge_acceptance"
+        and len(members) > 1
+        and "integration_base_tree_sha" not in candidate_binding
+    ):
         return False
     if purpose not in purposes:
         return False
@@ -446,9 +472,9 @@ def _active_request_matches(
     requested_scope = item.get("requested_scope")
     if not isinstance(requested_scope, dict) or not _is_json_data(requested_scope):
         return False
-    if _digest(requested_scope) != _digest(scope):
+    if not _scope_dominates(requested_scope, scope):
         return False
-    if _digest({**item["request_binding"], "scope": requested_scope}) != key:
+    if _digest({**item["request_binding"], "scope": requested_scope}) != item.get("key"):
         return False
     for field, current in (("candidate_binding", binding), ("input_binding", inputs)):
         value = item.get(field)
@@ -466,6 +492,12 @@ def plan(packet: dict[str, Any]) -> dict[str, Any]:
     if purpose not in PURPOSES:
         raise RoutingInputError(f"purpose must be one of {sorted(PURPOSES)}")
     _require_string(packet.get("objective"), "objective")
+    options = _require_object(packet.get("options", {}), "options")
+    early = options.get("early_diagnostic", False)
+    if type(early) is not bool:
+        raise RoutingInputError("options.early_diagnostic must be a boolean")
+    if early and purpose == "merge_acceptance":
+        raise RoutingInputError("early diagnostic cannot use merge_acceptance purpose")
 
     candidate = _require_object(packet.get("candidate"), "candidate")
     binding = _candidate_binding(candidate)
@@ -476,6 +508,12 @@ def plan(packet: dict[str, Any]) -> dict[str, Any]:
     binding_key = _binding_key(packet, binding, input_binding)
     key = _request_key(packet, binding, scope, input_binding)
     missing = [*_validate_preflight(packet), *_discovery_missing(packet)]
+    if (
+        purpose == "merge_acceptance"
+        and len(scope["members"]) > 1
+        and "integration_base_tree_sha" not in binding
+    ):
+        missing.append("cumulative_integration_base_tree_missing")
 
     reviews = _require_list(packet.get("reviews", []), "reviews")
     requests = _require_list(packet.get("requests", []), "requests")
@@ -513,23 +551,58 @@ def plan(packet: dict[str, Any]) -> dict[str, Any]:
             "unknowns": list(missing),
         }
 
+    matching = []
     for item in requests:
-        if item.get("key") == key and item.get("status") in {
+        if item["status"] == "not_requested":
+            continue
+        same_binding = item.get("binding_key") == binding_key or _record_request_binding_matches(
+            item, request_binding
+        )
+        prior_scope = item.get("requested_scope")
+        # Unknown scope in the same binding lineage must be reconciled, not
+        # silently discarded. Valid narrower/disjoint requests cannot supply
+        # this scope and therefore do not supersede its evidence.
+        scope_unknown = not isinstance(prior_scope, dict) or not _is_json_data(prior_scope)
+        if not scope_unknown:
+            scope_unknown = not _scope_dominates(prior_scope, prior_scope)
+        if item.get("key") == key or (
+            same_binding and (scope_unknown or _scope_dominates(prior_scope, scope))
+        ):
+            matching.append(item)
+    latest = packet["discovery"].get("latest_request_cycle")
+    cycle_ids = [item.get("cycle_id") for item in matching]
+    if matching or latest is not None:
+        if (
+            not isinstance(latest, str)
+            or not latest.strip()
+            or any(not isinstance(c, str) or not c.strip() for c in cycle_ids)
+            or len(set(cycle_ids)) != len(cycle_ids)
+            or latest not in cycle_ids
+        ):
+            return {
+                **base_result,
+                "action": ACTION_MISSING,
+                "reason": ["latest_request_cycle_unknown"],
+                "missing_confirmation": ["explicit_latest_applicable_provider_cycle"],
+            }
+        matching = [item for item in matching if item["cycle_id"] == latest]
+
+    for item in matching:
+        locator = item.get("handle") or item.get("locator")
+        if not _active_request_matches(
+            item, binding, input_binding, request_binding, scope, key
+        ) or not (isinstance(locator, str) and locator.strip()):
+            return {
+                **base_result,
+                "action": ACTION_MISSING,
+                "reason": ["active_request_binding_or_locator_unknown"],
+                "request_state": item["status"],
+                "missing_confirmation": ["current_provider_request_binding_and_locator"],
+            }
+        if item.get("status") in {
             "in_progress",
             "submission_unknown",
         }:
-            locator = item.get("handle") or item.get("locator")
-            if not _active_request_matches(
-                item, binding, input_binding, request_binding, scope, key
-            ) or not (isinstance(locator, str) and locator.strip()):
-                return {
-                    **base_result,
-                    "action": ACTION_MISSING,
-                    "reason": ["active_request_binding_or_locator_unknown"],
-                    "request_state": item["status"],
-                    "missing_confirmation": ["current_provider_request_binding_and_locator"],
-                    "unknowns": ["reconcile_inconsistent_provider_metadata_before_resubmission"],
-                }
             return {
                 **base_result,
                 "action": ACTION_RECONCILE,
@@ -537,8 +610,20 @@ def plan(packet: dict[str, Any]) -> dict[str, Any]:
                 "request_state": item["status"],
                 "reusable_evidence": [locator],
             }
+        if item["status"] != "completed":
+            return {
+                **base_result,
+                "action": ACTION_MISSING,
+                "request_state": item["status"],
+                "reason": ["latest_request_cycle_unresolved"],
+                "missing_confirmation": ["disposition_latest_provider_cycle"],
+            }
 
     for item in reviews:
+        if matching and item.get("cycle_id") != latest:
+            continue
+        if not isinstance(item.get("locator"), str) or not item["locator"].strip():
+            continue
         if _review_covers(
             item,
             key=key,
@@ -554,11 +639,18 @@ def plan(packet: dict[str, Any]) -> dict[str, Any]:
                 "action": ACTION_REUSE,
                 "reason": ["explicit_coverage_satisfies_scope"],
                 "request_state": "completed",
-                "reusable_evidence": [item.get("locator") or key],
+                "reusable_evidence": [item["locator"]],
             }
 
-    options = _require_object(packet.get("options", {}), "options")
-    if options.get("early_diagnostic") is True:
+    if matching:
+        return {
+            **base_result,
+            "action": ACTION_MISSING,
+            "request_state": "completed",
+            "reason": ["latest_cycle_result_not_applicable"],
+            "missing_confirmation": ["locate_and_verify_latest_cycle_result"],
+        }
+    if early:
         return {
             **base_result,
             "action": ACTION_EARLY,
