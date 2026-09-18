@@ -404,7 +404,9 @@ def test_completed_review_with_json_type_distinct_input_is_not_reused() -> None:
     assert result["action"] == planner.ACTION_DELTA
 
 
-@pytest.mark.parametrize("field", ["contract_changed", "trust_boundary_changed", "topology_changed"])
+@pytest.mark.parametrize(
+    "field", ["contract_changed", "trust_boundary_changed", "topology_changed"]
+)
 @pytest.mark.parametrize("value", [1, "true", None])
 def test_non_boolean_scope_flag_fails_closed(field: str, value: object) -> None:
     change = _packet()["change"]
