@@ -17,6 +17,25 @@ Adoption does not authorize deployment. Deployment requires a separate explicit 
 
 Make explicit Site adoption reproducible without selecting provider revisions.
 
+## Automatic controller boundary
+
+This skill covers a human's explicit Site-adoption instruction. It does not
+authorize changing `PUBLICATION_AUTOMATION_MODE` or any other repository
+variable, secret, App credential, protection rule, Pages environment, dispatch,
+rerun, or deployment. The pre-authorized automatic path is owned by the current
+controller workflows: after external activation, exact trusted receipts and
+policy/controller pins, positive qualification, a clear kill switch, and the
+required protected branch conditions, the controller may prepare only an
+allowlisted Site lock PR. It is a deterministic lock updater, not an LLM that
+generates Site code and not a mechanism for merging authority histories.
+
+Use [the publication automation handoff](../../../docs/publication-automation.md)
+and the current workflow files for a read-only diagnosis of an automatic event.
+Do not expand an Integration-promoted notification into Site editing or Pages
+deployment from this skill. Requested auto-merge, CI, required review, merge, and
+deployment are separate states. A normal Site UI PR and a manual
+`workflow_dispatch` use their own explicit acceptance/deployment paths.
+
 ## Use when
 
 The human explicitly requests Site adoption of a reviewed Integration release.

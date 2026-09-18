@@ -3,7 +3,12 @@
   "schema_version": 6,
   "repository": "TakashiSasaki/templates",
   "canonical_url": "https://templates.moukaeritai.work/agent.json",
-  "purpose": "Discover independent authorities and exact publication provenance",
+  "purpose": "Discover independent authorities, maintainer entry points, and exact publication provenance",
+  "publication_state": {
+    "capability_source": "Integration authority contract and producer",
+    "selected_input": "integration-source.json",
+    "deployed_evidence": "immutable Site revision, Bundle identity, and Pages artifact provenance"
+  },
   "integration_source": {
     "lock": "integration-source.json"
   },
@@ -23,7 +28,10 @@
     },
     "integration": {
       "role": "cross-authority-publication-integration",
-      "contract": "Integrated Publication Bundle v3",
+      "contract": "Integrated Publication Bundle v4",
+      "historical_compatibility": [
+        "Integrated Publication Bundle v3"
+      ],
       "provider_selection_owner": true
     },
     "site": {

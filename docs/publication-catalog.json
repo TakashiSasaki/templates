@@ -56,6 +56,18 @@
       "home": false
     },
     {
+      "id": "site-maintainer-onboarding",
+      "source": "docs/maintainer-onboarding.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "publication-automation",
+      "source": "docs/publication-automation.md",
+      "optional": false,
+      "home": false
+    },
+    {
       "id": "authority-model",
       "source": "docs/authority-model.md",
       "optional": false,
