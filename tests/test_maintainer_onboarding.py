@@ -59,6 +59,11 @@ class MaintainerOnboardingTests(unittest.TestCase):
             "actually deployed",
             "unknown",
             "does not mean deployed",
+            "Landing route for maintenance pull requests",
+            ".agents/skills/land-templates-stack/SKILL.md",
+            CANONICAL_REVISION,
+            "9dd1c5498dd9b37ef91afd65ad400fbdee13ee29",
+            CANONICAL_SKILL_BLOB,
         ):
             with self.subTest(required=required):
                 self.assertIn(required, self.guide_flat)

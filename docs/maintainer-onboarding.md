@@ -44,6 +44,29 @@ with the read-only remote snapshot before relying on the Site adapter or any
 default-branch workflow. The default branch is a dispatch routing fact, not an
 authority merge relationship.
 
+## Landing route for maintenance pull requests
+
+After selecting the owning authority, use that checkout's
+`.agents/skills/land-templates-stack/SKILL.md` for both a single maintenance PR
+and a same-authority stack. Verify its adjacent `source.json` before reading
+the procedure. All five authority routes resolve the same immutable canonical
+snapshot:
+
+- repository: `TakashiSasaki/templates`;
+- revision: `a878da560c5286634b21671b54793e26ed8167b2`;
+- rule: `repository-policy/stacked-pr-landing.md`, blob
+  `9dd1c5498dd9b37ef91afd65ad400fbdee13ee29`;
+- landing Skill: `repository-skills/land-templates-stack/SKILL.md`, blob
+  `b433bdf781eb1fd0f32a525bfd68bac2563316d7`.
+
+The local shim must resolve the rule from that snapshot, not from a consumer
+worktree, mutable `policy` branch, latest ref, or unverified copy. Source
+failure is blocked. The separate shared PR gate remains pinned to
+`TakashiSasaki/templates@733c86941f8154f301a225054d88c6b8a477058a` and is
+loaded through the authority-local `pr-merge-gate` route. Site acceptance,
+review, merge authorization, publication, and deployment remain distinct
+states; this onboarding guide does not authorize any of them.
+
 ## Choose the owner and first reading
 
 | Task | Semantic owner and discovery branch | Read first | Editable source and local proof | Normal stop boundary |
