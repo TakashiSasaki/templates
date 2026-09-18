@@ -155,6 +155,7 @@ def test_source_fixtures_use_the_immutable_reference_boundary() -> None:
     revision = _git("rev-parse", "HEAD")
     skill_blob = _git("rev-parse", f"{revision}:{CANONICAL_SKILL_PATH}")
     rule_blob = _git("rev-parse", f"{revision}:{CANONICAL_RULE_PATH}")
+    planner_blob = _git("rev-parse", f"{revision}:{CANONICAL_PLANNER_PATH}")
     source = {
         "schema_version": 2,
         "kind": "repository-maintainer-skill-reference",
@@ -199,6 +200,7 @@ def test_source_fixtures_use_the_immutable_reference_boundary() -> None:
                         repo=ROOT,
                         expected_skill_blob=skill_blob,
                         expected_rule_blob=rule_blob,
+                        expected_planner_blob=planner_blob,
                     )
                 except SourceReferenceError:
                     continue
@@ -209,6 +211,7 @@ def test_source_fixtures_use_the_immutable_reference_boundary() -> None:
                 repo=ROOT,
                 expected_skill_blob=skill_blob,
                 expected_rule_blob=rule_blob,
+                expected_planner_blob=planner_blob,
             )
             assert case["decision"] == "read-pinned-snapshot"
             assert verified.skill_blob == skill_blob
@@ -250,6 +253,35 @@ def test_source_boundary_rejects_tags_and_ignores_replacement_refs() -> None:
             ],
         }
 
+        planner_path.write_text("alternate planner\n", encoding="utf-8")
+        _git("commit", "-q", "-am", "alternate planner", cwd=repo)
+        alternate_revision = _git("rev-parse", "HEAD", cwd=repo)
+        alternate_source = dict(source)
+        alternate_source["revision"] = alternate_revision
+        alternate_source["closure"] = [
+            {"path": CANONICAL_RULE_PATH, "blob_sha": rule_blob},
+            {
+                "path": CANONICAL_PLANNER_PATH,
+                "blob_sha": _git(
+                    "rev-parse",
+                    f"{alternate_revision}:{CANONICAL_PLANNER_PATH}",
+                    cwd=repo,
+                ),
+            },
+        ]
+        try:
+            verify_source_reference(
+                alternate_source,
+                repo=repo,
+                expected_skill_blob=skill_blob,
+                expected_rule_blob=rule_blob,
+                expected_planner_blob=planner_blob,
+            )
+        except SourceReferenceError as exc:
+            assert "planner blob" in str(exc)
+        else:
+            raise AssertionError("unadopted planner blob was accepted")
+
         _git("tag", "-a", "canonical-tag", "-m", "tag", revision, cwd=repo)
         tag_revision = _git("rev-parse", "refs/tags/canonical-tag", cwd=repo)
         source["revision"] = tag_revision
@@ -259,6 +291,7 @@ def test_source_boundary_rejects_tags_and_ignores_replacement_refs() -> None:
                 repo=repo,
                 expected_skill_blob=skill_blob,
                 expected_rule_blob=rule_blob,
+                expected_planner_blob=planner_blob,
             )
         except SourceReferenceError:
             pass
@@ -277,6 +310,7 @@ def test_source_boundary_rejects_tags_and_ignores_replacement_refs() -> None:
             repo=repo,
             expected_skill_blob=skill_blob,
             expected_rule_blob=rule_blob,
+            expected_planner_blob=planner_blob,
         )
         assert verified.skill == b"canonical skill\n"
         assert verified.rule == b"canonical rule\n"
@@ -286,6 +320,7 @@ def test_source_boundary_rejects_missing_or_tampered_closure() -> None:
     revision = _git("rev-parse", "HEAD")
     skill_blob = _git("rev-parse", f"{revision}:{CANONICAL_SKILL_PATH}")
     rule_blob = _git("rev-parse", f"{revision}:{CANONICAL_RULE_PATH}")
+    planner_blob = _git("rev-parse", f"{revision}:{CANONICAL_PLANNER_PATH}")
     source = {
         "schema_version": 2,
         "kind": "repository-maintainer-skill-reference",
@@ -296,7 +331,7 @@ def test_source_boundary_rejects_missing_or_tampered_closure() -> None:
         "closure": [{"path": CANONICAL_RULE_PATH, "blob_sha": rule_blob}],
     }
     try:
-        verify_source_reference(source, repo=ROOT)
+        verify_source_reference(source, repo=ROOT, expected_planner_blob=planner_blob)
     except SourceReferenceError as exc:
         assert "closure" in str(exc)
     else:
@@ -306,7 +341,7 @@ def test_source_boundary_rejects_missing_or_tampered_closure() -> None:
         {"path": CANONICAL_PLANNER_PATH, "blob_sha": "0" * 40}
     )
     try:
-        verify_source_reference(source, repo=ROOT)
+        verify_source_reference(source, repo=ROOT, expected_planner_blob=planner_blob)
     except SourceReferenceError as exc:
         assert "closure blob" in str(exc)
     else:
