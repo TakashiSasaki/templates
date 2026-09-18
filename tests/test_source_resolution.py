@@ -34,7 +34,7 @@ class SourceResolutionTests(unittest.TestCase):
             lock["publications"],
             {
                 "modeling": {"revision": "ad4108fb16bb1b296911fa4377856d510bce9f7b"},
-                "composition": {"revision": "3bc935ac572eb756c91f33c2ff02e4f1678db9b6"},
+                "composition": {"revision": "27a1a13b182ba5ac91ccdec38d73facf712133ba"},
                 "policy": {"revision": "e8f75acade81411a3837ebb67bb5219e5c51eb1c"},
             },
         )
