@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 import re
+import subprocess
 import unittest
 import jsonschema
 
@@ -93,6 +94,8 @@ class MaintainerOnboardingTests(unittest.TestCase):
             "PUBLISHING.md",
             "policy/project.md",
             ".agents/skills/site-publication-cutover/SKILL.md",
+            ".agents/skills/land-templates-stack/SKILL.md",
+            ".agents/skills/land-templates-stack/source.json",
         ):
             with self.subTest(path=path):
                 self.assertTrue((ROOT / path).is_file())
@@ -102,6 +105,9 @@ class MaintainerOnboardingTests(unittest.TestCase):
         for required in ("docs/maintainer-onboarding.md", "docs/publication-automation.md"):
             with self.subTest(required=required):
                 self.assertIn(required, (ROOT / "AGENTS.md").read_text(encoding="utf-8"))
+        agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertIn(".agents/skills/land-templates-stack/SKILL.md", agents)
+        self.assertIn("5af977020fca701bcf6b7fb7ce12ca077b2d7220", agents)
         catalog = json.loads((ROOT / "docs/publication-catalog.json").read_text(encoding="utf-8"))
         catalog_sources = {entry["source"] for entry in catalog["documents"]}
         self.assertIn("docs/maintainer-onboarding.md", catalog_sources)
@@ -132,6 +138,31 @@ class MaintainerOnboardingTests(unittest.TestCase):
         self.assertEqual(entrypoint["branch"], "site")
         self.assertEqual(entrypoint["path"], "docs/maintainer-onboarding.md")
         self.assertTrue((ROOT / entrypoint["path"]).is_file())
+
+    def test_site_maintainer_landing_source_is_immutable_and_separate(self):
+        source = json.loads(
+            (ROOT / ".agents/skills/land-templates-stack/source.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        self.assertEqual(source["kind"], "repository-maintainer-skill-reference")
+        self.assertRegex(source["revision"], r"^[0-9a-f]{40}$")
+        self.assertRegex(source["blob_sha"], r"^[0-9a-f]{40}$")
+        self.assertEqual(source["revision"], "5af977020fca701bcf6b7fb7ce12ca077b2d7220")
+        self.assertEqual(
+            subprocess.check_output(
+                ["git", "rev-parse", f"{source['revision']}:{source['path']}"],
+                cwd=ROOT,
+                text=True,
+            ).strip(),
+            source["blob_sha"],
+        )
+        skill = (ROOT / ".agents/skills/land-templates-stack/SKILL.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("same immutable snapshot", skill)
+        self.assertIn("does not authorize", skill)
+        self.assertNotIn("CI_DISCOVERY_MIN_OBSERVATION_MINUTES", skill)
 
     def test_clean_room_route_matrix_has_required_columns_and_all_scenarios(self):
         lines = self.guide.splitlines()
