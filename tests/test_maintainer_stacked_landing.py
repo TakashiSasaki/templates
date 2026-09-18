@@ -23,6 +23,16 @@ def _git(*args: str, cwd: Path = ROOT, check: bool = True) -> str:
     return result.stdout.strip()
 
 
+def _git_result(*args: str, cwd: Path = ROOT) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["git", *args],
+        cwd=cwd,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+
 def _read(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
@@ -58,6 +68,49 @@ def test_fixture_covers_required_negative_and_transition_cases() -> None:
         "resume-idempotence",
     } <= ids
     assert all(case["condition"] and case["expected"] for case in data["cases"])
+    assert all(case["facts"] and case["decision"] for case in data["cases"])
+    assert all(_evaluate_fixture(case["facts"]) == case["decision"] for case in data["cases"])
+
+
+def _evaluate_fixture(facts: dict) -> str:
+    """Execute the document-only decision fixtures without mutating GitHub."""
+
+    source = facts.get("source")
+    if source is not None:
+        required = ("revision_valid", "path_present", "blob_matches", "object_present")
+        if not all(source.get(key) is True for key in required):
+            return "blocked"
+        return "read-pinned-snapshot"
+
+    if "landing_skill_invokes_shared_gate" in facts:
+        if facts["landing_skill_invokes_shared_gate"] and not facts["shared_gate_calls_landing"] and not facts["shim_calls_landing"]:
+            return "continue"
+        return "blocked"
+
+    if "lower_ready" in facts:
+        if facts["lower_ready"] and facts["merge_method"] == "merge" and not facts["head_rewritten"]:
+            return "land-bottom-up"
+        return "blocked"
+
+    if "base_changed" in facts:
+        return "reevaluate-affected-evidence" if facts["base_changed"] else "reuse-bound-evidence"
+
+    if "runtime_lower" in facts:
+        return "retain-runtime-coverage" if all(
+            facts.get(key) is True
+            for key in ("runtime_lower", "docs_upper", "intermediate_run_cancelled", "final_runtime_coverage")
+        ) else "blocked"
+
+    if "tip_green" in facts:
+        return "blocked" if facts["tip_green"] and not facts["lower_accepted"] else "continue"
+
+    if "authorization" in facts:
+        return "human-handoff" if facts["implementation_complete"] and facts["validation_complete"] and not facts["authorization"] else "continue"
+
+    if "resumed" in facts:
+        return "refresh-without-duplicate" if facts["resumed"] and facts["live_refresh"] and not facts["duplicate_action"] else "blocked"
+
+    raise AssertionError(f"unclassified fixture facts: {facts}")
 
 
 def test_canonical_source_object_is_resolvable_from_the_current_snapshot() -> None:
@@ -140,7 +193,8 @@ def test_local_temporary_git_history_preserves_bottom_up_merge_and_upper_head() 
         _git("switch", "-q", "authority", cwd=repo)
         _git("merge", "--no-ff", "--no-edit", "bottom", cwd=repo)
         assert _git("rev-parse", "upper", cwd=repo) == upper_head
-        assert _git("merge-base", "--is-ancestor", bottom_head, "HEAD", cwd=repo, check=False) == ""
+        ancestry = _git_result("merge-base", "--is-ancestor", bottom_head, "HEAD", cwd=repo)
+        assert ancestry.returncode == 0, ancestry.stderr
 
 
 def test_shared_profile_does_not_receive_repository_specific_rule() -> None:
