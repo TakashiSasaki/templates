@@ -318,6 +318,8 @@ jobs:
         run: python3 -m pip install --requirement requirements.txt
       - name: Validate core entrypoint dependency boundary
         run: python3 scripts/check_python_dependencies.py . --environment core
+      - name: Verify immutable maintainer source snapshot
+        run: python3 scripts/verify_maintainer_source.py --remote
       - name: Run core unit and contract validation
         run: python3 scripts/run_core_tests.py --verbose
   validate:

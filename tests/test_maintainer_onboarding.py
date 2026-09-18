@@ -4,8 +4,23 @@ import re
 import unittest
 import jsonschema
 
+from scripts.verify_maintainer_source import (
+    CANONICAL_REVISION,
+    CANONICAL_RULE_BLOB,
+    CANONICAL_RULE_PATH,
+    CANONICAL_SKILL_BLOB,
+    CANONICAL_SKILL_PATH,
+    git_blob_sha,
+    verify_source_reference,
+)
+
 
 ROOT = Path(__file__).resolve().parents[1]
+CANONICAL_REVISION = "a878da560c5286634b21671b54793e26ed8167b2"
+CANONICAL_SKILL_PATH = "repository-skills/land-templates-stack/SKILL.md"
+CANONICAL_SKILL_BLOB = "b433bdf781eb1fd0f32a525bfd68bac2563316d7"
+CANONICAL_RULE_PATH = "repository-policy/stacked-pr-landing.md"
+CANONICAL_RULE_BLOB = "9dd1c5498dd9b37ef91afd65ad400fbdee13ee29"
 
 
 class MaintainerOnboardingTests(unittest.TestCase):
@@ -93,6 +108,8 @@ class MaintainerOnboardingTests(unittest.TestCase):
             "PUBLISHING.md",
             "policy/project.md",
             ".agents/skills/site-publication-cutover/SKILL.md",
+            ".agents/skills/land-templates-stack/SKILL.md",
+            ".agents/skills/land-templates-stack/source.json",
         ):
             with self.subTest(path=path):
                 self.assertTrue((ROOT / path).is_file())
@@ -102,6 +119,9 @@ class MaintainerOnboardingTests(unittest.TestCase):
         for required in ("docs/maintainer-onboarding.md", "docs/publication-automation.md"):
             with self.subTest(required=required):
                 self.assertIn(required, (ROOT / "AGENTS.md").read_text(encoding="utf-8"))
+        agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertIn(".agents/skills/land-templates-stack/SKILL.md", agents)
+        self.assertIn(CANONICAL_REVISION, agents)
         catalog = json.loads((ROOT / "docs/publication-catalog.json").read_text(encoding="utf-8"))
         catalog_sources = {entry["source"] for entry in catalog["documents"]}
         self.assertIn("docs/maintainer-onboarding.md", catalog_sources)
@@ -132,6 +152,77 @@ class MaintainerOnboardingTests(unittest.TestCase):
         self.assertEqual(entrypoint["branch"], "site")
         self.assertEqual(entrypoint["path"], "docs/maintainer-onboarding.md")
         self.assertTrue((ROOT / entrypoint["path"]).is_file())
+
+    def test_site_maintainer_landing_source_is_immutable_and_separate(self):
+        source = json.loads(
+            (ROOT / ".agents/skills/land-templates-stack/source.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        self.assertEqual(source["kind"], "repository-maintainer-skill-reference")
+        self.assertRegex(source["revision"], r"^[0-9a-f]{40}$")
+        self.assertRegex(source["blob_sha"], r"^[0-9a-f]{40}$")
+        self.assertEqual(source["revision"], CANONICAL_REVISION)
+        self.assertEqual(source["repository"], "TakashiSasaki/templates")
+        self.assertEqual(source["path"], CANONICAL_SKILL_PATH)
+        skill = (ROOT / ".agents/skills/land-templates-stack/SKILL.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("same immutable snapshot", skill)
+        self.assertIn("does not authorize", skill)
+        self.assertNotIn("CI_DISCOVERY_MIN_OBSERVATION_MINUTES", skill)
+
+    def test_source_reference_rejects_invalid_and_mismatched_fixtures(self):
+        skill = b"canonical landing skill fixture"
+        rule = b"canonical maintenance rule fixture"
+        source = {
+            "schema_version": 1,
+            "kind": "repository-maintainer-skill-reference",
+            "repository": "TakashiSasaki/templates",
+            "revision": "a" * 40,
+            "path": CANONICAL_SKILL_PATH,
+            "blob_sha": git_blob_sha(skill),
+        }
+        files = {
+            (source["repository"], source["revision"], CANONICAL_SKILL_PATH): skill,
+            (source["repository"], source["revision"], CANONICAL_RULE_PATH): rule,
+        }
+
+        def fixture_fetch(repository, revision, path):
+            return files[(repository, revision, path)]
+
+        fixture_rule_blob = git_blob_sha(rule)
+        verified = verify_source_reference(
+            source, fixture_fetch, expected_rule_blob=fixture_rule_blob
+        )
+        self.assertEqual(verified["skill_blob"], source["blob_sha"])
+        self.assertEqual(verified["rule_blob"], fixture_rule_blob)
+
+        malformed = dict(source, revision="policy")
+        with self.assertRaisesRegex(ValueError, "immutable full SHA"):
+            verify_source_reference(malformed, fixture_fetch, expected_rule_blob=fixture_rule_blob)
+
+        mismatch = dict(source, blob_sha="b" * 40)
+        with self.assertRaisesRegex(ValueError, "Skill blob mismatch"):
+            verify_source_reference(mismatch, fixture_fetch, expected_rule_blob=fixture_rule_blob)
+
+        missing_path = dict(source, path="repository-policy/missing.md")
+        with self.assertRaisesRegex(ValueError, "canonical Skill path"):
+            verify_source_reference(
+                missing_path, fixture_fetch, expected_rule_blob=fixture_rule_blob
+            )
+
+        files.pop((source["repository"], source["revision"], CANONICAL_RULE_PATH))
+        with self.assertRaises(KeyError):
+            verify_source_reference(
+                source, fixture_fetch, expected_rule_blob=fixture_rule_blob
+            )
+
+        files[(source["repository"], source["revision"], CANONICAL_RULE_PATH)] = b"tampered"
+        with self.assertRaisesRegex(ValueError, "rule blob mismatch"):
+            verify_source_reference(
+                source, fixture_fetch, expected_rule_blob=fixture_rule_blob
+            )
 
     def test_clean_room_route_matrix_has_required_columns_and_all_scenarios(self):
         lines = self.guide.splitlines()

@@ -503,12 +503,21 @@ When working on the `site` authority, load the smallest matching skill from `.ag
 - Provider publication or cross-authority staging change: work in the independent Integration authority. It does not authorize Site adoption.
 - Explicit adoption of a reviewed Integration release: `.agents/skills/site-publication-cutover/SKILL.md`
 - Site-specific pull-request scope, exact-head CI, browser/publication acceptance, and base-drift preparation: `.agents/skills/site-pr-exact-head-acceptance/SKILL.md`
+- Repository-maintainer single-PR or stacked-PR landing: `.agents/skills/land-templates-stack/SKILL.md` (verify its immutable `source.json` before loading the canonical procedure)
 - Final merge authorization for every Site pull request: `.agents/skills/pr-merge-gate/SKILL.md`
 - Site browser/PWA/mobile/search regression failure triage: `.agents/skills/site-browser-regression-triage/SKILL.md`
 
 If more than one skill applies, use only the minimal set needed and follow them in dependency order. A normal Site PR completion path is task-specific work -> `site-pr-exact-head-acceptance` -> `pr-merge-gate`. A normal publication cutover uses `site-publication-cutover` first, then Site acceptance, then the merge gate. Provider candidate compatibility and publication staging terminate in Integration. Site adoption requires a separate explicit instruction. A browser failure encountered during Site acceptance may temporarily use `site-browser-regression-triage`, then return to Site acceptance after the repair creates a new head.
 
 `site-pr-exact-head-acceptance` establishes Site-specific acceptance evidence but never authorizes merge. Before declaring a Site PR merge-ready, merging it, or completing a task whose final action is a merge, load `pr-merge-gate`. Green CI and `reviews = 0` must never be interpreted as a clean review state.
+
+The repository-maintainer landing procedure is pinned to
+`TakashiSasaki/templates@a878da560c5286634b21671b54793e26ed8167b2`,
+`repository-skills/land-templates-stack/SKILL.md`, blob
+`b433bdf781eb1fd0f32a525bfd68bac2563316d7`. It resolves
+`repository-policy/stacked-pr-landing.md` from that same immutable snapshot,
+not from the Site worktree or a mutable branch. Keep this route separate from
+Site adoption and Pages deployment; it does not authorize merge or auto-merge.
 
 ## Loading discipline
 
