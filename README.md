@@ -22,6 +22,33 @@ Normal consumers use the installable `skills/composition/` runner and do **not**
 
 The named runtime cache is intentionally persistent for performance, but normal source acquisition is disposable: a templates checkout is not consumer state and is not retained under the runner cache. Managed `update` / `upgrade` verifies old-to-new revision ancestry with GitHub's compare API when running from an archive snapshot and fails closed when ancestry cannot be established.
 
+## Maintain the Composition authority in `templates`
+
+This is the authority-maintainer route, not the consumer's `Using Composition`
+guide. The repository-wide maintainer map and publication-chain overview live in
+the Site authority's [templates maintainer onboarding guide](https://github.com/TakashiSasaki/templates/blob/site/docs/maintainer-onboarding.md).
+When working here, verify the checked-out branch is `composition`, record the
+current full `HEAD` and dirty/untracked state, then read [AGENTS.md](AGENTS.md),
+the maintainer references below, and the applicable component/recipe contract.
+
+Edit semantic source under `components/`, `recipes/`, schemas, and the Composer
+implementation. Treat `generated/` and materialized contract/manifest outputs as
+generated projections: use the repository's Composer and preflight path to
+recreate them, and do not hand-edit an output to make a check pass. The normal
+cheap construction check is `python3 scripts/run_composition_preflight.py fast`.
+For a committed frontier, use the documented `full` profile with the exact
+Integration publication protocol checkout when that boundary is affected; a
+passing fast check is not a release, provider adoption, or Site deployment.
+
+Composition's local source and validation evidence stop at Composition's
+contract. Provider publication and Bundle selection belong to Integration, while
+Site adoption and Pages deployment belong to Site. Use branch names for discovery,
+full immutable SHAs for evidence, and explicit remote authority/path references or
+separate checkouts for cross-authority inputs. Keep stacked PRs within Composition;
+record cross-authority dependencies in the existing Policy Work ledger without
+merging, rebasing, or cherry-picking authority histories. On resumption, restore
+the live PR/head/run/artifact/review facts before creating a new PR or review.
+
 For exact CLI options, inspect states, plan fields, ownership semantics, recovery rules, diagnostic codes, and exit behavior, use the [Composer reference](docs/reference/composer.md).
 
 For architecture, provider-specific documentation, and machine-readable authority guides, use the [Composition documentation index](docs/index.md).
