@@ -856,6 +856,53 @@ def test_duplicate_cycle_identity_is_ambiguous():
     assert planner.plan(packet)["action"] == planner.ACTION_MISSING
 
 
+@pytest.mark.parametrize(
+    "status",
+    [
+        "failed",
+        "partial",
+        "stale",
+        "applicability_unknown",
+        "submission_unknown",
+        "in_progress",
+        "completed",
+    ],
+)
+def test_broader_request_participates_in_latest_cycle_selection(status):
+    packet = _packet()
+    review = _complete_review(packet)
+    broad = copy.deepcopy(packet)
+    broad["change"]["trust_boundary_changed"] = True
+    request = _active_request(broad, _key(broad), status, handle="broad-request")
+    assert request["key"] != _key(packet)
+    packet["requests"] = [request]
+    packet["reviews"] = [review]
+    assert planner.plan(packet)["action"] == planner.ACTION_MISSING
+    packet["discovery"]["latest_request_cycle"] = "cycle-1"
+    expected = (
+        planner.ACTION_RECONCILE
+        if status in {"in_progress", "submission_unknown"}
+        else planner.ACTION_MISSING
+    )
+    assert planner.plan(packet)["action"] == expected
+    if status == "completed":
+        result = _complete_review(broad)
+        result["cycle_id"] = "cycle-1"
+        packet["reviews"].append(result)
+        assert planner.plan(packet)["action"] == planner.ACTION_REUSE
+
+
+def test_narrower_request_does_not_supersede_broader_coverage():
+    narrow = _packet()
+    request = _active_request(narrow, _key(narrow), "failed", handle="narrow")
+    broad = _packet()
+    broad["change"]["trust_boundary_changed"] = True
+    review = _complete_review(broad)
+    broad["reviews"] = [review]
+    broad["requests"] = [request]
+    assert planner.plan(broad)["action"] == planner.ACTION_REUSE
+
+
 @pytest.mark.parametrize("state", ["in_progress", "submission_unknown", "completed"])
 @pytest.mark.parametrize(
     "field", ["repository", "objective", "purpose", "contract", "candidate", "input_binding"]

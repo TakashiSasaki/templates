@@ -20,7 +20,8 @@ For cumulative merge acceptance, integration_base_tree_sha explicitly identifies
 the tree of effective_base_sha; the adapter must obtain that identity from Git.
 Incomplete discovery or inconsistent active metadata stops acquisition; it is not
 an observed empty history and cannot justify a new external request.
-For matching request history, unique provider cycle_id values and the explicitly
+For applicable request history (including scope-dominating broader requests),
+unique provider cycle_id values and the explicitly
 reconciled discovery.latest_request_cycle identify the latest applicable cycle;
 array order and timestamps are not inferred. Only that cycle's completed result
 can be reused. Failed/partial/unknown cycles require disposition, not fallback to
@@ -471,9 +472,9 @@ def _active_request_matches(
     requested_scope = item.get("requested_scope")
     if not isinstance(requested_scope, dict) or not _is_json_data(requested_scope):
         return False
-    if _digest(requested_scope) != _digest(scope):
+    if not _scope_dominates(requested_scope, scope):
         return False
-    if _digest({**item["request_binding"], "scope": requested_scope}) != key:
+    if _digest({**item["request_binding"], "scope": requested_scope}) != item.get("key"):
         return False
     for field, current in (("candidate_binding", binding), ("input_binding", inputs)):
         value = item.get(field)
@@ -550,9 +551,24 @@ def plan(packet: dict[str, Any]) -> dict[str, Any]:
             "unknowns": list(missing),
         }
 
-    matching = [
-        item for item in requests if item.get("key") == key and item["status"] != "not_requested"
-    ]
+    matching = []
+    for item in requests:
+        if item["status"] == "not_requested":
+            continue
+        same_binding = item.get("binding_key") == binding_key or _record_request_binding_matches(
+            item, request_binding
+        )
+        prior_scope = item.get("requested_scope")
+        # Unknown scope in the same binding lineage must be reconciled, not
+        # silently discarded. Valid narrower/disjoint requests cannot supply
+        # this scope and therefore do not supersede its evidence.
+        scope_unknown = not isinstance(prior_scope, dict) or not _is_json_data(prior_scope)
+        if not scope_unknown:
+            scope_unknown = not _scope_dominates(prior_scope, prior_scope)
+        if item.get("key") == key or (
+            same_binding and (scope_unknown or _scope_dominates(prior_scope, scope))
+        ):
+            matching.append(item)
     latest = packet["discovery"].get("latest_request_cycle")
     cycle_ids = [item.get("cycle_id") for item in matching]
     if matching or latest is not None:
