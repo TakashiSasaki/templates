@@ -8,7 +8,7 @@ import tempfile
 import unittest
 
 from scripts.resolve_publication_sources import (
-    PUBLICATION_NAMES,
+    ALL_PUBLICATION_NAMES,
     SourceLockError,
     parse_overrides,
     resolve_candidate_sources,
@@ -24,8 +24,20 @@ LOCK = ROOT / "publication-sources.json"
 class SourceResolutionTests(unittest.TestCase):
     def test_reviewed_lock_accepts_exact_full_sha_values(self) -> None:
         resolved = resolve_sources(LOCK, {})
-        self.assertEqual(tuple(resolved), PUBLICATION_NAMES)
+        self.assertEqual(tuple(resolved), ALL_PUBLICATION_NAMES)
         self.assertTrue(all(len(value) == 40 for value in resolved.values()))
+
+    def test_committed_cutover_uses_the_three_provider_tuple(self) -> None:
+        lock = json.loads(LOCK.read_text(encoding="utf-8"))
+        self.assertEqual(lock["schema_version"], 2)
+        self.assertEqual(
+            lock["publications"],
+            {
+                "modeling": {"revision": "ad4108fb16bb1b296911fa4377856d510bce9f7b"},
+                "composition": {"revision": "27a1a13b182ba5ac91ccdec38d73facf712133ba"},
+                "policy": {"revision": "e8f75acade81411a3837ebb67bb5219e5c51eb1c"},
+            },
+        )
 
     def test_branch_and_abbreviated_override_refs_are_rejected(self) -> None:
         for ref in ("composition", "a" * 39):
@@ -56,7 +68,7 @@ class SourceResolutionTests(unittest.TestCase):
         write_outputs(output, resolved)
         self.assertEqual(
             output.getvalue(),
-            f"composition={override}\npolicy={resolved['policy']}\n",
+            f"modeling={resolved['modeling']}\ncomposition={override}\npolicy={resolved['policy']}\n",
         )
 
     def test_failed_cli_resolution_does_not_create_output(self) -> None:

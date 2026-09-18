@@ -46,7 +46,7 @@ to retain the same adopted Integration input.
 
 Install the locked minimal dependency closure in an isolated environment and run pip
 check. Materialize provider-owned declared outputs with
-`scripts/materialize_publication_assets.py --publication composition=ROOT --publication policy=ROOT`.
+`scripts/materialize_publication_assets.py --publication modeling=ROOT --publication composition=ROOT --publication policy=ROOT`.
 Then run:
 
 ```
@@ -55,6 +55,7 @@ python scripts/qualify_integration.py \
   --integration-root ROOT --producer-revision FULL_SHA \
   --composition-root COMPOSITION_ROOT --composition-revision FULL_SHA \
   --policy-root POLICY_ROOT --policy-revision FULL_SHA \
+  --modeling-root MODELING_ROOT --modeling-revision FULL_SHA \
   --output OUTPUT_OUTSIDE_SOURCE_CHECKOUTS
 ```
 
@@ -95,12 +96,15 @@ report-only, even when the artifact and all qualification checks are valid.
 Changing a provider revision does not change the execution Policy pin, and
 publishing Policy documentation does not update that pin.
 
-The current output contract is Bundle v3 for the committed Composition + Policy tuple and
-Bundle v4 for the explicit Modeling + Composition + Policy tuple. Structurally valid stale
-reader derivatives remain available with exact provider-owned reviewed/current canonical
-evidence, while provider repository source/tree payloads are no longer transported for
-Site browsing. The P5/P7 releases used v1 current-only publication and P8 used v2. These
-versioned changes do not update Site, provider translation prose, or synchronization
-hashes by implication. Site adoption and warning presentation remain a separate gate;
-after activation the controller may perform only the pre-authorized mechanical lock
-mutation, never a semantic approval.
+The committed production lock is schema 2 and names the exact Modeling, Composition and
+Policy revisions that carry the declaration contract. It produces Bundle v4, including
+Integration's normalized requirement closure. Bundle v3 remains available only for
+historical Site compatibility and explicit regression fixtures; new production
+publication does not silently fall back to the old two-provider lock. Structurally valid
+stale reader derivatives remain available with exact provider-owned reviewed/current
+canonical evidence, while provider repository source/tree payloads are no longer
+transported for Site browsing. The P5/P7 releases used v1 current-only publication and
+P8 used v2. These versioned changes do not update Site, provider translation prose, or
+synchronization hashes by implication. Site adoption and warning presentation remain a
+separate gate; after activation the controller may perform only the pre-authorized
+mechanical lock mutation, never a semantic approval.

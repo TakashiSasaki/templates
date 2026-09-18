@@ -16,7 +16,8 @@ class BootstrapTests(unittest.TestCase):
         for revision in (proof['source_site_revision'],*proof['reviewed_providers'].values()):self.assertRegex(revision,r'\A[0-9a-f]{40}\Z')
         reference=json.loads((ROOT/'bootstrap/site-bundle-reference.json').read_text())
         self.assertEqual(proof['reviewed_providers'],reference['providers'])
-        self.assertEqual(set(lock['publications']),{'composition','policy'})
+        self.assertEqual(lock['schema_version'], 2)
+        self.assertEqual(set(lock['publications']),{'modeling','composition','policy'})
         for provider in lock['publications'].values():
             self.assertEqual(set(provider),{'revision'})
             self.assertRegex(provider['revision'],r'\A[0-9a-f]{40}\Z')

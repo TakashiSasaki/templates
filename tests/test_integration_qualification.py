@@ -9,7 +9,7 @@ import unittest
 from unittest.mock import patch
 import yaml
 from integration.qualification import qualify
-from publication_bundle.contract import BundleError
+from publication_bundle.contract import BundleError, canonical, digest
 from scripts.build_qualification_report import build_payload
 from tests.test_publication_bundle import fixture,finish,PRODUCER,PROVIDERS
 
@@ -26,6 +26,8 @@ class IntegrationQualificationTests(unittest.TestCase):
                 'schema_version': 4,
                 'identity': 'b' * 64,
                 'content_digest': 'c' * 64,
+                'requirements': [],
+                'requirements_digest': digest(canonical([])),
             }))
             (bundle / 'provenance.json').write_text(json.dumps({
                 'providers': {

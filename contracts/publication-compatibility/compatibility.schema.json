@@ -36,7 +36,9 @@
         "media_type": {"type": "string", "minLength": 1},
         "identity_basis": {"type": "string", "minLength": 1},
         "feature": {"$ref": "#/$defs/feature"},
-        "rights": {"type": "string", "enum": ["allowlisted", "reference-only", "not-assessed"]}
+        "rights": {"type": "string", "enum": ["allowlisted", "reference-only", "not-assessed"]},
+        "subject_ownership": {"type": "string", "enum": ["external-as-recorded", "local"]},
+        "redistribution": {"type": "string", "enum": ["local-record-metadata", "allowlisted-payload", "reference-only", "not-assessed"]}
       }
     },
     "requirement": {

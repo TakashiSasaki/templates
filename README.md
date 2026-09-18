@@ -1,6 +1,6 @@
 # Integration authority
 
-Integration selects exact reviewed Composition and Policy revisions and produces a
+Integration selects exact reviewed Modeling, Composition, and Policy revisions and produces a
 versioned deterministic Integrated Publication Bundle. Provider semantics and source
 translations remain owned by their providers. Site owns rendering, browser/PWA runtime,
 Pages packaging and explicit deployment.
@@ -21,10 +21,12 @@ hub-and-orphan topology.
 
 The landed I1–I3 stack established contracts, mappings, locks, provenance, the independent
 producer, public read-model contract, deterministic qualification and immutable transport.
-The current Bundle v3 contract carries semantic publication/navigation projections for the
-committed Composition + Policy tuple; Bundle v4 is the explicit Modeling + Composition +
-Policy extension. Both carry exact provenance, not provider repository source corpora for
-a Site-owned browser. Shadow is the initial release mode. After one-time activation,
+The committed publication lock is the explicit schema-2 Modeling + Composition + Policy
+tuple and produces Bundle v4. Bundle v3 remains a reader contract only for historical
+Site releases and compatibility fixtures; new production publication does not fall back
+to the former two-provider lock. Both carry exact provenance, and v4 also carries the
+Integration-normalized requirement closure, not provider repository source corpora for a
+Site-owned browser. Shadow is the initial release mode. After one-time activation,
 pre-authorized exact candidates may be mechanically promoted subject to qualification,
 freshness, branch protection, and the separate Site gate. Nothing here deploys Pages or
 follows mutable provider heads.
