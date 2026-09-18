@@ -4,12 +4,12 @@ import unittest
 
 
 ROOT = Path(__file__).resolve().parents[1]
-CANONICAL_REVISION = "b586d3caab11df3b7a396b202c2127d1f3453cfa"
+CANONICAL_REVISION = "fff57bfbb5f45d8608aa10c34519be7a0254f1d3"
 CANONICAL_SKILL_BLOB = "06efa38681e374636bcabcbcb984be5ec43b47ee"
 RULE_BLOB = "9761cdbcd21b0e8ba2f3eb2ffb306725a82f5eef"
 PLANNER_BLOB = "3868d5d68c0670e138e3480c641a1edc3de6b1c0"
 SHARED_GATE_REVISION = CANONICAL_REVISION
-SHARED_GATE_BLOB = "7f25b1ab4ec5e36a2c0c7680bcf0d54beb02eb5e"
+SHARED_GATE_BLOB = "2d56c20bafec53e7387a4c6a3acd52998b7330a5"
 
 
 class MaintainerEntrypointTests(unittest.TestCase):
