@@ -18,9 +18,9 @@ from scripts.verify_maintainer_source import (
 
 
 ROOT = Path(__file__).resolve().parents[1]
-CANONICAL_REVISION = "4e871785052e909deb6d2f9382674859461b2767"
+CANONICAL_REVISION = "2a8ea9f26ec9cad2130f71fad6c86801c4c736b0"
 CANONICAL_SKILL_PATH = "repository-skills/land-templates-stack/SKILL.md"
-CANONICAL_SKILL_BLOB = "e16c969544f5f045b44751514f75288426e0134d"
+CANONICAL_SKILL_BLOB = "06efa38681e374636bcabcbcb984be5ec43b47ee"
 CANONICAL_RULE_PATH = "repository-policy/stacked-pr-landing.md"
 CANONICAL_RULE_BLOB = "bf259a70a0fe1b1e2b04a293e49c353d6de70255"
 CANONICAL_PLANNER_PATH = "repository-skills/land-templates-stack/scripts/plan_review_scope.py"

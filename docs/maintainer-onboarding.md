@@ -53,18 +53,18 @@ the procedure. All five authority routes resolve the same immutable canonical
 snapshot:
 
 - repository: `TakashiSasaki/templates`;
-- revision: `4e871785052e909deb6d2f9382674859461b2767`;
+- revision: `2a8ea9f26ec9cad2130f71fad6c86801c4c736b0`;
 - rule: `repository-policy/stacked-pr-landing.md`, blob
   `bf259a70a0fe1b1e2b04a293e49c353d6de70255`;
 - landing Skill: `repository-skills/land-templates-stack/SKILL.md`, blob
-  `e16c969544f5f045b44751514f75288426e0134d`;
+  `06efa38681e374636bcabcbcb984be5ec43b47ee`;
 - review-scope planner: `repository-skills/land-templates-stack/scripts/plan_review_scope.py`, blob
   `3868d5d68c0670e138e3480c641a1edc3de6b1c0`.
 
 The local shim must resolve the rule and planner from that snapshot, not from a consumer
 worktree, mutable `policy` branch, latest ref, or unverified copy. Source
 failure is blocked. The separate shared PR gate remains pinned to
-`TakashiSasaki/templates@4e871785052e909deb6d2f9382674859461b2767` and is
+`TakashiSasaki/templates@2a8ea9f26ec9cad2130f71fad6c86801c4c736b0` and is
 loaded through the authority-local `pr-merge-gate` route. Site acceptance,
 review, merge authorization, publication, and deployment remain distinct
 states; this onboarding guide does not authorize any of them.
@@ -105,7 +105,7 @@ Edit the source that owns the meaning and regenerate its projections:
 
 The Site `AGENTS.md` is generated from Site's `.agent-policy.yml`,
 `policy/project.md`, and selected toolchain revision
-`4e871785052e909deb6d2f9382674859461b2767`; update the source and run that
+`2a8ea9f26ec9cad2130f71fad6c86801c4c736b0`; update the source and run that
 exact generator. Do not replace it with an unreviewed Policy checkout. The
 Policy authority's own generated outputs follow its separate pinned toolchain
 `33a7ab809225c2a8b8dd2598ef04d0a39cf076a7`. A toolchain adoption pin and a
