@@ -83,12 +83,20 @@ def _evaluate_fixture(facts: dict) -> str:
         return "read-pinned-snapshot"
 
     if "landing_skill_invokes_shared_gate" in facts:
-        if facts["landing_skill_invokes_shared_gate"] and not facts["shared_gate_calls_landing"] and not facts["shim_calls_landing"]:
+        if (
+            facts["landing_skill_invokes_shared_gate"]
+            and not facts["shared_gate_calls_landing"]
+            and not facts["shim_calls_landing"]
+        ):
             return "continue"
         return "blocked"
 
     if "lower_ready" in facts:
-        if facts["lower_ready"] and facts["merge_method"] == "merge" and not facts["head_rewritten"]:
+        if (
+            facts["lower_ready"]
+            and facts["merge_method"] == "merge"
+            and not facts["head_rewritten"]
+        ):
             return "land-bottom-up"
         return "blocked"
 
@@ -98,17 +106,34 @@ def _evaluate_fixture(facts: dict) -> str:
     if "runtime_lower" in facts:
         return "retain-runtime-coverage" if all(
             facts.get(key) is True
-            for key in ("runtime_lower", "docs_upper", "intermediate_run_cancelled", "final_runtime_coverage")
+            for key in (
+                "runtime_lower",
+                "docs_upper",
+                "intermediate_run_cancelled",
+                "final_runtime_coverage",
+            )
         ) else "blocked"
 
     if "tip_green" in facts:
         return "blocked" if facts["tip_green"] and not facts["lower_accepted"] else "continue"
 
     if "authorization" in facts:
-        return "human-handoff" if facts["implementation_complete"] and facts["validation_complete"] and not facts["authorization"] else "continue"
+        return (
+            "human-handoff"
+            if facts["implementation_complete"]
+            and facts["validation_complete"]
+            and not facts["authorization"]
+            else "continue"
+        )
 
     if "resumed" in facts:
-        return "refresh-without-duplicate" if facts["resumed"] and facts["live_refresh"] and not facts["duplicate_action"] else "blocked"
+        return (
+            "refresh-without-duplicate"
+            if facts["resumed"]
+            and facts["live_refresh"]
+            and not facts["duplicate_action"]
+            else "blocked"
+        )
 
     raise AssertionError(f"unclassified fixture facts: {facts}")
 
