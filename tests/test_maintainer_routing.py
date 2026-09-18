@@ -12,10 +12,11 @@ ROUTING = ROOT / "repository-policy" / "maintainer-merge-routing.md"
 CONFIG = ROOT / ".agent-policy.yml"
 AGENTS = ROOT / "AGENTS.md"
 REVIEW = ROOT / ".review-authority" / "review-policy.md"
-REVISION = "94eb84397d913f2ebb0e2c79d0b841ae580fbc31"
+REVISION = "7b0399d122973f02209862d5531bde56f164a9e2"
 RULE_BLOB = "9761cdbcd21b0e8ba2f3eb2ffb306725a82f5eef"
 SKILL_BLOB = "06efa38681e374636bcabcbcb984be5ec43b47ee"
-PLANNER_BLOB = "3868d5d68c0670e138e3480c641a1edc3de6b1c0"
+PLANNER_BLOB = "195134289306cfce8641ab86e372d0d972cfa001"
+GATE_REVISION = "94eb84397d913f2ebb0e2c79d0b841ae580fbc31"
 FULL_SHA = re.compile(r"[0-9a-f]{40}")
 
 
@@ -124,7 +125,7 @@ def test_policy_local_gate_entry_has_a_separate_shared_gate_manifest() -> None:
         "schema_version": 1,
         "kind": "policy-adapter-reference",
         "repository": "TakashiSasaki/templates",
-        "revision": REVISION,
+            "revision": GATE_REVISION,
         "path": "skills/pr-merge-gate/SKILL.md",
         "blob_sha": "2ef890673600f0f4c30b53cef7c19a78d34cf5bc",
     }
