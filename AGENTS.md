@@ -6,6 +6,20 @@ These are canonical, handwritten, English branch-local instructions. Read AUTHOR
 
 For resource registration or revision, read `.agents/skills/register-information-model/SKILL.md` and `docs/intake.md`. These apply this authority's contract without acquiring another authority's decision rights.
 
+## Templates maintainer landing route
+
+For maintenance of the `modeling` authority, load
+`.agents/skills/land-templates-stack/SKILL.md` for a single PR or
+same-authority stack and verify its adjacent immutable `source.json`. It pins
+`TakashiSasaki/templates@5af977020fca701bcf6b7fb7ce12ca077b2d7220`,
+`repository-skills/land-templates-stack/SKILL.md`, blob
+`902b6e543d467b47b2b91819bfab5574a85456c7`; the rule is resolved from that
+same snapshot, never from a mutable branch or local fallback. Then load
+`.agents/skills/pr-merge-gate/SKILL.md` for the separate shared acceptance
+gate. Modeling qualification and review evidence do not authorize merge,
+Integration/Site adoption, or deployment; this task does not merge or enable
+auto-merge.
+
 Install the pinned tooling with `python -m pip install -r requirements-dev.txt`. After source edits, run `python tools/catalog.py generate` and then **`python tools/qualify.py`**. The latter is the canonical local/CI entrypoint: it checks generated freshness and executes the discovered tests, rejecting an empty test run. Dependency installation may use the network; catalog qualification must not retrieve upstream definitions.
 
 The initial administrative profile deliberately has narrower capabilities than the conceptual authority domain. Read its documented limits before adding an unsupported language, identifier, snapshot, relationship scope, or adoption state. Extend the contract and tests rather than misrepresenting the resource to pass validation.
