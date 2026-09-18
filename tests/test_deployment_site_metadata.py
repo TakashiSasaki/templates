@@ -176,7 +176,7 @@ class DeploymentWorkflowWiringTests(unittest.TestCase):
             "${{ needs.deployment_metadata.outputs.deployment_timestamp }}",
             deploy_workflow,
         )
-        self.assertIn("actions/configure-pages@v6", deploy_workflow)
+        self.assertIn("actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d", deploy_workflow)
         self.assertIn("id: pages", deploy_workflow)
         self.assertIn("${{ steps.pages.outputs.base_url }}", deploy_workflow)
         self.assertIn("${{ steps.pages.outputs.host }}", deploy_workflow)
@@ -186,7 +186,7 @@ class DeploymentWorkflowWiringTests(unittest.TestCase):
         self.assertIn('test "$ACTUAL_BASE_URL" = "$expected_base_url"', deploy_workflow)
         self.assertIn('test "$ACTUAL_HOST" = "$expected_host"', deploy_workflow)
         self.assertIn('test -z "$ACTUAL_BASE_PATH"', deploy_workflow)
-        self.assertIn("actions/deploy-pages@v5", deploy_workflow)
+        self.assertIn("actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346", deploy_workflow)
         self.assertIn(f'site_url = "{CANONICAL_URL}"', template)
 
         metadata = deploy_workflow.index("  deployment_metadata:")

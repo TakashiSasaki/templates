@@ -52,8 +52,10 @@ are outside Bundle identity and are qualified as Site artifact inputs.
 ## Release boundary
 
 Provider work and Integration releases do not run Site Chromium, mobile or PWA suites.
-Site-only fixes can qualify against an unchanged Bundle. Explicit manual deployment
-runs the full Site DAG against its timestamped artifact and deploys only after success.
+Site-only fixes can qualify against an unchanged Bundle. While the repository remains in
+Shadow, deployment is manually dispatched; after one explicit activation, the guarded
+auto-publish route runs the full Site DAG against its timestamped artifact and deploys
+only after success.
 The full qualification aggregator verifies the eleven actual required DAG jobs rather
 than treating a workflow shell or skipped job as acceptance. Browser acceptance is
 provided by the applicable Playwright workflows; there is no empty Python browser

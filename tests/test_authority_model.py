@@ -16,7 +16,7 @@ def normalized_prose(text: str) -> str:
 class AuthorityModelTests(unittest.TestCase):
     def test_site_role_and_provider_independence_are_consistent(self):
         model=normalized_prose(AUTHORITY_MODEL.read_text())
-        for authority in ('Composition','Policy','Integration','Site'):
+        for authority in ('Modeling','Composition','Policy','Integration','Site'):
             self.assertIn('| '+authority+' |',AUTHORITY_MODEL.read_text())
         self.assertIn('Reviewed provider selection',model)
         self.assertIn('Presentation, browser runtime',model)
@@ -53,7 +53,7 @@ class AuthorityModelTests(unittest.TestCase):
 
     def test_machine_discovery_reaches_authority_model_directly(self):
         agent=json.loads((ROOT/'agent.json').read_text())
-        self.assertEqual(set(agent['authorities']),{'composition','policy','integration','site'})
+        self.assertEqual(set(agent['authorities']),{'modeling','composition','policy','integration','site'})
         self.assertEqual(agent['authorities']['site']['role'],'presentation-runtime-deployment')
         self.assertEqual(agent['integration_contracts']['authority_model']['owner'],'integration')
         self.assertEqual(agent['integration_contracts']['authority_model']['canonical_repository_path'],'authority.json')

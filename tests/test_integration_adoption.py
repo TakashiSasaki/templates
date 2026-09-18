@@ -45,6 +45,123 @@ class AdoptionTests(unittest.TestCase):
   with self.assertRaises(BundleError):validate_locked(self.root,self.lock)
  def test_missing_artifact_evidence_allows_explicit_regeneration(self):
   with patch('site_renderer.acquire.paginated',return_value=[]):self.assertIsNone(locate(self.lock))
+ def test_base_receipt_shape_is_verified_before_consumption(self):
+  from site_renderer.acquire import verify_receipt
+  from unittest.mock import patch
+  identity=self.lock['bundle_identity'];digest='sha256:'+'d'*64
+  value={'repository':'TakashiSasaki/templates','producer':self.lock['revision'],'identity':identity,
+         'run_id':2,'attempt':2,'workflow_head':'a'*40,'artifact_id':1,
+         'archive_digest':digest,'artifact_name':f'publication-bundle-{identity}-2-integration'}
+  metadata={'id':1,'expired':False,'digest':digest,'name':value['artifact_name'],
+            'workflow_run':{'id':2,'head_sha':'a'*40}}
+  run={'id':2,'run_attempt':2,'head_sha':'a'*40,
+       'head_repository':{'full_name':'TakashiSasaki/templates'},
+       'name':'Validate Integration authority','event':'workflow_dispatch',
+       'path':'.github/workflows/validate-integration.yml','status':'completed','conclusion':'success'}
+  with patch('site_renderer.acquire.api',side_effect=[metadata,run]), \
+       patch('site_renderer.acquire.paginated',return_value=[]), \
+       patch('site_renderer.acquire.binding') as bound:
+   self.assertEqual(verify_receipt(self.lock,value),'repos/TakashiSasaki/templates/actions')
+   bound.assert_called_once()
+ def test_committed_release_pull_request_event_is_explicitly_supported(self):
+  from site_renderer.acquire import verify_receipt
+  identity=self.lock['bundle_identity'];digest='sha256:'+'e'*64
+  value={'repository':'TakashiSasaki/templates','producer':self.lock['revision'],'identity':identity,
+         'run_id':3,'attempt':1,'workflow_head':'b'*40,'artifact_id':2,
+         'archive_digest':digest,'artifact_name':f'publication-bundle-{identity}-1-integration'}
+  metadata={'id':2,'expired':False,'digest':digest,'name':value['artifact_name'],
+            'workflow_run':{'id':3,'head_sha':'b'*40}}
+  run={'id':3,'run_attempt':1,'head_sha':'b'*40,
+       'head_repository':{'full_name':'TakashiSasaki/templates'},
+       'name':'Validate Integration authority','event':'pull_request',
+       'path':'.github/workflows/validate-integration.yml','status':'completed','conclusion':'success'}
+  with patch('site_renderer.acquire.api',side_effect=[metadata,run]), \
+       patch('site_renderer.acquire.paginated',return_value=[]), \
+       patch('site_renderer.acquire.binding') as bound:
+   self.assertEqual(verify_receipt(self.lock,value),'repos/TakashiSasaki/templates/actions')
+   bound.assert_called_once()
+ def test_unapproved_workflow_identity_is_rejected(self):
+  from ci_artifacts.transport import ArtifactError
+  from site_renderer.acquire import verify_receipt
+  identity=self.lock['bundle_identity'];digest='sha256:'+'f'*64
+  value={'repository':'TakashiSasaki/templates','producer':self.lock['revision'],'identity':identity,
+         'run_id':4,'attempt':1,'workflow_head':'c'*40,'artifact_id':3,
+         'archive_digest':digest,'artifact_name':f'publication-bundle-{identity}-1-integration'}
+  metadata={'id':3,'expired':False,'digest':digest,'name':value['artifact_name'],
+            'workflow_run':{'id':4,'head_sha':'c'*40}}
+  run={'id':4,'run_attempt':1,'head_sha':'c'*40,
+       'head_repository':{'full_name':'TakashiSasaki/templates'},
+       'name':'Untrusted workflow','event':'workflow_dispatch',
+       'path':'.github/workflows/validate-integration.yml','status':'completed','conclusion':'success'}
+  with patch('site_renderer.acquire.api',side_effect=[metadata,run]), \
+       patch('site_renderer.acquire.paginated',return_value=[]):
+   with self.assertRaisesRegex(ArtifactError,'unapproved workflow identity'):
+    verify_receipt(self.lock,value)
+ def test_active_site_adoption_caller_may_consume_completed_nested_job(self):
+  from ci_artifacts.transport import ArtifactError
+  from site_renderer.acquire import verify_receipt
+  identity=self.lock['bundle_identity'];digest='sha256:'+'a'*64
+  value={'repository':'TakashiSasaki/templates','producer':self.lock['revision'],'identity':identity,
+         'run_id':5,'attempt':1,'workflow_head':'d'*40,'artifact_id':4,
+         'archive_digest':digest,'artifact_name':f'publication-bundle-{identity}-1-site-adoption'}
+  metadata={'id':4,'expired':False,'digest':digest,'name':value['artifact_name'],
+            'workflow_run':{'id':5,'head_sha':'d'*40},'created_at':'2026-09-16T12:00:03Z'}
+  run={'id':5,'run_attempt':1,'head_sha':'d'*40,
+       'head_repository':{'full_name':'TakashiSasaki/templates'},
+       'name':'Build documentation artifact','event':'pull_request',
+       'path':'.github/workflows/build-pages.yml','status':'in_progress','conclusion':None,
+       'started_at':'2026-09-16T12:00:00Z'}
+  job={'name':'build / regenerate / Qualify Integration candidate (site-adoption)',
+       'run_attempt':1,'status':'completed','conclusion':'success',
+       'started_at':'2026-09-16T12:00:00Z','completed_at':'2026-09-16T12:00:10Z'}
+  with patch('site_renderer.acquire.api',side_effect=[metadata,run]), \
+       patch('site_renderer.acquire.paginated',return_value=[job]), \
+       patch.dict('os.environ',{'GITHUB_ACTIONS':'true','GITHUB_RUN_ID':'5'},clear=False):
+   self.assertEqual(verify_receipt(self.lock,value),'repos/TakashiSasaki/templates/actions')
+ def test_active_site_adoption_caller_may_consume_when_github_reports_parent_queued(self):
+  from site_renderer.acquire import verify_receipt
+  identity=self.lock['bundle_identity'];digest='sha256:'+'c'*64
+  value={'repository':'TakashiSasaki/templates','producer':self.lock['revision'],'identity':identity,
+         'run_id':8,'attempt':1,'workflow_head':'f'*40,'artifact_id':6,
+         'archive_digest':digest,'artifact_name':f'publication-bundle-{identity}-1-site-adoption'}
+  metadata={'id':6,'expired':False,'digest':digest,'name':value['artifact_name'],
+            'workflow_run':{'id':8,'head_sha':'f'*40},'created_at':'2026-09-16T12:00:03Z'}
+  run={'id':8,'run_attempt':1,'head_sha':'f'*40,
+       'head_repository':{'full_name':'TakashiSasaki/templates'},
+       'name':'Build documentation artifact','event':'pull_request',
+       'path':'.github/workflows/build-pages.yml','status':'queued','conclusion':None,
+       'started_at':'2026-09-16T12:00:00Z'}
+  job={'name':'build / regenerate / Qualify Integration candidate (site-adoption)',
+       'run_attempt':1,'status':'completed','conclusion':'success',
+       'started_at':'2026-09-16T12:00:00Z','completed_at':'2026-09-16T12:00:10Z'}
+  with patch('site_renderer.acquire.api',side_effect=[metadata,run]), \
+       patch('site_renderer.acquire.paginated',return_value=[job]), \
+       patch.dict('os.environ',{'GITHUB_ACTIONS':'true','GITHUB_RUN_ID':'8'},clear=False):
+   self.assertEqual(verify_receipt(self.lock,value),'repos/TakashiSasaki/templates/actions')
+ def test_active_site_adoption_caller_requires_the_current_actions_run(self):
+  from ci_artifacts.transport import ArtifactError
+  from site_renderer.acquire import verify_receipt
+  identity=self.lock['bundle_identity'];digest='sha256:'+'b'*64
+  value={'repository':'TakashiSasaki/templates','producer':self.lock['revision'],'identity':identity,
+         'run_id':6,'attempt':1,'workflow_head':'e'*40,'artifact_id':5,
+         'archive_digest':digest,'artifact_name':f'publication-bundle-{identity}-1-site-adoption'}
+  metadata={'id':5,'expired':False,'digest':digest,'name':value['artifact_name'],
+            'workflow_run':{'id':6,'head_sha':'e'*40},'created_at':'2026-09-16T12:00:03Z'}
+  run={'id':6,'run_attempt':1,'head_sha':'e'*40,
+       'head_repository':{'full_name':'TakashiSasaki/templates'},
+       'name':'Build documentation artifact','event':'pull_request',
+       'path':'.github/workflows/build-pages.yml','status':'in_progress','conclusion':None,
+       'started_at':'2026-09-16T12:00:00Z'}
+  job={'name':'build / regenerate / Qualify Integration candidate (site-adoption)',
+       'run_attempt':1,'status':'completed','conclusion':'success',
+       'started_at':'2026-09-16T12:00:00Z','completed_at':'2026-09-16T12:00:10Z'}
+  with patch('site_renderer.acquire.api',side_effect=[metadata,run]), \
+       patch('site_renderer.acquire.paginated',return_value=[job]), \
+       patch.dict('os.environ',{'GITHUB_ACTIONS':'true','GITHUB_RUN_ID':'7'},clear=False):
+   with self.assertRaisesRegex(ArtifactError,'workflow run was not successful'):
+    verify_receipt(self.lock,value)
+ def test_trusted_deployment_lane_never_falls_back_to_regeneration(self):
+  with patch('site_renderer.acquire.paginated',return_value=[]):self.assertIsNone(locate(self.lock,require_trusted_release=True))
  def test_misbound_artifact_evidence_cannot_fall_back_to_regeneration(self):
   from ci_artifacts.transport import ArtifactError
   with patch('site_renderer.acquire.paginated',return_value=[{'id':1,'head_sha':'f'*40,'conclusion':'success'}]),self.assertRaises(ArtifactError):locate(self.lock)

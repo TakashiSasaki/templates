@@ -20,7 +20,7 @@ jobs:
 
     steps:
       - name: Collect recent workflow timings
-        uses: actions/github-script@v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           RUNS_PER_WORKFLOW: ${{ inputs.runs_per_workflow }}
         with:
@@ -351,7 +351,7 @@ jobs:
               .write();
 
       - name: Upload machine-readable timing report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: ci-performance-report-${{ github.run_id }}
           path: ci-performance-report.json

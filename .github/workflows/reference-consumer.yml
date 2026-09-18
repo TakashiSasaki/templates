@@ -23,6 +23,9 @@ on:
       cross_authority_required:
         type: string
         required: true
+      site_revision:
+        type: string
+        default: ''
 permissions:
   contents: read
   actions: read
@@ -34,7 +37,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ inputs.site_revision || github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - run: python3 -m pip install --requirement requirements-visual.txt
       - name: Validate visual entrypoint dependency boundary

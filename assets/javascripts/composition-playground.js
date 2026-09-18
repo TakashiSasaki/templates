@@ -529,23 +529,30 @@
       throw new ProjectionError("MALFORMED_PROVENANCE", "Site build provenance identity is invalid");
     }
     const bundle = raw.integration;
-    if (!isObject(bundle) || bundle.schema_version !== 3 || !isObject(bundle.producer) || bundle.producer.authority !== "integration" || !FULL_SHA.test(bundle.producer.revision || "") || !/^[0-9a-f]{64}$/.test(bundle.identity || "") || !/^[0-9a-f]{64}$/.test(bundle.content_digest || "") || !isObject(bundle.providers)) {
+    if (!isObject(bundle) || ![3, 4].includes(bundle.schema_version) || !isObject(bundle.producer) || bundle.producer.authority !== "integration" || !FULL_SHA.test(bundle.producer.revision || "") || !/^[0-9a-f]{64}$/.test(bundle.identity || "") || !/^[0-9a-f]{64}$/.test(bundle.content_digest || "") || !isObject(bundle.providers)) {
       throw new ProjectionError("MALFORMED_PROVENANCE", "Site Integration Bundle provenance is invalid");
     }
     const providerKeys = Object.keys(raw.integration.providers);
-    if (providerKeys.length !== 2 || !providerKeys.includes("composition") || !providerKeys.includes("policy")) {
-      throw new ProjectionError("MALFORMED_PROVENANCE", "Site build provenance provider set must be exactly composition and policy");
+    const expectedProviderKeys = bundle.schema_version === 4
+      ? ["modeling", "composition", "policy"]
+      : ["composition", "policy"];
+    if (providerKeys.length !== expectedProviderKeys.length || expectedProviderKeys.some((key) => !providerKeys.includes(key))) {
+      throw new ProjectionError("MALFORMED_PROVENANCE", "Site build provenance provider set is not valid for the Bundle schema");
     }
-    const providerRevision = raw.integration.providers.composition;
-    const policyRevision = raw.integration.providers.policy;
-    if (!FULL_SHA.test(providerRevision || "") || !FULL_SHA.test(policyRevision || "")) {
+    const providerRevisions = Object.fromEntries(
+      expectedProviderKeys.map((key) => [key, raw.integration.providers[key]])
+    );
+    if (expectedProviderKeys.some((key) => !FULL_SHA.test(providerRevisions[key] || ""))) {
       throw new ProjectionError("MALFORMED_PROVENANCE", "Site build provenance provider revisions must be exact lowercase SHAs");
     }
+    const providerRevision = providerRevisions.composition;
+    const policyRevision = providerRevisions.policy;
     return Object.freeze({
       raw,
       siteRevision: raw.site_commit,
       providerRevision,
-      policyRevision
+      policyRevision,
+      providerRevisions: Object.freeze(providerRevisions)
     });
   }
 

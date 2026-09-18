@@ -17,13 +17,13 @@ class BuildPagesReusableWorkflowTests(unittest.TestCase):
 
         site_checkout = (
             "- name: Check out site implementation\n"
-            "        uses: actions/checkout@v7\n"
+            "        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7\n"
             "        with:\n"
             "          ref: ${{ inputs.site_ref }}"
         )
         workflow_checkout = (
             "- name: Check out executed build workflow definition\n"
-            "        uses: actions/checkout@v7\n"
+            "        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7\n"
             "        with:\n"
             "          ref: ${{ github.workflow_sha }}\n"
             "          path: workflow-source"
@@ -45,6 +45,7 @@ class BuildPagesReusableWorkflowTests(unittest.TestCase):
         self.assertIn('python3 site-source/scripts/resolve_site_checkout.py', text)
         self.assertIn('ref: ${{ inputs.site_ref }}', text)
         self.assertIn('--lock site-source/integration-source.json', text)
+        self.assertIn('--support site-source/contracts/site-publication-support.json', text)
         self.assertIn('scripts/render_publication_bundle.py', text)
         self.assertNotIn('composition_ref', text)
         self.assertNotIn('policy_ref', text)

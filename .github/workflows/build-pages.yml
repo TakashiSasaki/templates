@@ -22,11 +22,32 @@ on:
         required: false
         type: string
         default: ''
+      deployment_revision:
+        description: Exact Site SHA for a deployment build while retaining the full qualification DAG
+        required: false
+        type: string
+        default: ''
       deployment_timestamp:
         description: JST deployment timestamp rendered in the footer; empty for non-deploying builds
         required: false
         type: string
         default: ''
+      trusted_release_required:
+        description: Require an exact promoted Integration Bundle for this build
+        required: false
+        type: boolean
+        default: false
+    outputs:
+      artifact_id:
+        value: ${{ jobs.build.outputs.artifact_id }}
+      artifact_digest:
+        value: ${{ jobs.build.outputs.artifact_digest }}
+      build_inputs:
+        value: ${{ jobs.build.outputs.build_inputs }}
+      bundle_receipt:
+        value: ${{ jobs.build.outputs.bundle_receipt }}
+      qualification_gate:
+        value: ${{ jobs.full_qualification.result }}
 permissions:
   contents: read
   actions: read
@@ -55,11 +76,14 @@ jobs:
     with:
       core_tests_scheduled: ${{ inputs.site_ref == '' && needs.classify_browser.result == 'success' }}
       reuse_pr_build: ${{ inputs.reuse_pr_build || false }}
-      site_ref: ${{ inputs.site_ref || github.event.pull_request.head.sha || github.sha }}
+      site_ref: ${{ inputs.deployment_revision || inputs.site_ref || github.event.pull_request.head.sha || github.sha }}
       deployment_timestamp: ${{ inputs.deployment_timestamp }}
+      trusted_release_required: ${{ inputs.trusted_release_required || false }}
   classify_browser:
     name: Classify browser acceptance scope
     uses: ./.github/workflows/classify.yml
+    with:
+      candidate_ref: ${{ inputs.deployment_revision || inputs.site_ref || github.event.pull_request.head.sha || github.sha }}
     if: |-
       github.repository == 'TakashiSasaki/templates' && (github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && inputs.site_ref == '' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && (github.event.action != 'labeled' ||
        github.event.label.name == 'ci/full-qualification' ||
@@ -126,9 +150,9 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Check out proposed Site revision
         if: ${{ needs.classify_browser.outputs.browser_required == 'true' }}
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ inputs.deployment_revision || inputs.site_ref || github.event.pull_request.head.sha || github.sha }}
       - name: Verify and consume scheduled Pages artifact
         if: ${{ needs.classify_browser.outputs.browser_required == 'true' }}
         env:
@@ -260,7 +284,7 @@ jobs:
             --output build/mobile-visual/pwa-slow-convergence.json
       - name: Upload search-history evidence
         if: ${{ always() && needs.classify_browser.outputs.browser_required == 'true' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: search-history-${{ github.event.pull_request.number }}
           path: build/search-history
@@ -268,7 +292,7 @@ jobs:
           retention-days: 7
       - name: Upload mobile visual evidence
         if: ${{ always() && needs.classify_browser.outputs.browser_required == 'true' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: mobile-visual-${{ github.event.pull_request.number }}
           path: build/mobile-visual
@@ -285,9 +309,9 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Check out site candidate
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ inputs.deployment_revision || inputs.site_ref || github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 1
           persist-credentials: false
       - name: Install dependencies
@@ -349,15 +373,17 @@ jobs:
       - classify_browser
     if: ${{ inputs.site_ref == '' && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && needs.classify_browser.result == 'success' && needs.classify_browser.outputs.site_candidate == 'true' }}
     uses: ./.github/workflows/check-agent-policy.yml
+    with:
+      site_revision: ${{ inputs.deployment_revision || inputs.site_ref || github.event.pull_request.head.sha || github.sha }}
   website_contract:
     needs:
       - classify_browser
     if: ${{ inputs.site_ref == '' && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && needs.classify_browser.result == 'success' && needs.classify_browser.outputs.site_candidate == 'true' }}
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ inputs.deployment_revision || inputs.site_ref || github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - name: Validate Site-owned Website contracts
         run: python3 scripts/validate_website_contracts.py .
@@ -414,6 +440,7 @@ jobs:
       pwa_required: ${{ needs.classify_browser.outputs.pwa_required }}
       reference_consumer_required: ${{ needs.classify_browser.outputs.reference_consumer_required }}
       cross_authority_required: ${{ needs.classify_browser.outputs.cross_authority_required }}
+      site_revision: ${{ inputs.deployment_revision || inputs.site_ref || github.event.pull_request.head.sha || github.sha }}
   cross_authority:
     needs:
       - classify_browser
@@ -428,13 +455,18 @@ jobs:
       pwa_required: ${{ needs.classify_browser.outputs.pwa_required }}
       reference_consumer_required: ${{ needs.classify_browser.outputs.reference_consumer_required }}
       cross_authority_required: ${{ needs.classify_browser.outputs.cross_authority_required }}
+      site_revision: ${{ inputs.deployment_revision || inputs.site_ref || github.event.pull_request.head.sha || github.sha }}
   explainability:
     needs:
       - classify_browser
     if: ${{ inputs.site_ref == '' && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && needs.classify_browser.result == 'success' && needs.classify_browser.outputs.site_candidate == 'true' && needs.classify_browser.outputs.playground_required == 'true' }}
     uses: ./.github/workflows/site-composition-playground-explain.yml
+    with:
+      site_revision: ${{ inputs.deployment_revision || inputs.site_ref || github.event.pull_request.head.sha || github.sha }}
   playground:
     needs:
       - classify_browser
     if: ${{ inputs.site_ref == '' && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && needs.classify_browser.result == 'success' && needs.classify_browser.outputs.site_candidate == 'true' && needs.classify_browser.outputs.playground_required == 'true' }}
     uses: ./.github/workflows/site-composition-playground.yml
+    with:
+      site_revision: ${{ inputs.deployment_revision || inputs.site_ref || github.event.pull_request.head.sha || github.sha }}

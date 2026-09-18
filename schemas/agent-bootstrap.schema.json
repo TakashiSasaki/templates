@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://templates.moukaeritai.work/schemas/agent-bootstrap.schema.json",
-  "title": "Four-authority discovery projection v6",
+  "title": "Five-authority discovery projection v6",
   "type": "object",
   "required": [
     "schema_version",
@@ -21,6 +21,7 @@
     "authorities": {
       "type": "object",
       "required": [
+        "modeling",
         "composition",
         "policy",
         "integration",
@@ -28,6 +29,15 @@
       ],
       "additionalProperties": false,
       "properties": {
+        "modeling": {
+          "type": "object",
+          "required": ["role"],
+          "properties": {
+            "role": {
+              "const": "information-model-registry-and-resource-records"
+            }
+          }
+        },
         "composition": {
           "type": "object",
           "required": [

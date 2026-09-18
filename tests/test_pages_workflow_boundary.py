@@ -65,7 +65,7 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
 
         classify_workflow = (ROOT / ".github/workflows/classify.yml").read_text(encoding="utf-8")
 
-        self.assertIn("actions/upload-pages-artifact@v5", PRODUCER_WORKFLOW.read_text())
+        self.assertIn("actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9", PRODUCER_WORKFLOW.read_text())
         self.assertNotIn("needs: build", classifier_block)
         self.assertIn("name: Classify browser acceptance scope", classifier_block)
         self.assertTrue(
@@ -73,8 +73,12 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
             or "scripts/classify_site_ci.py" in classifier_block
         )
         self.assertIn(
-            "ref: ${{ github.event.pull_request.head.sha || github.sha }}",
+            "ref: ${{ inputs.candidate_ref || github.event.pull_request.head.sha || github.sha }}",
             classify_workflow,
+        )
+        self.assertIn(
+            "candidate_ref: ${{ inputs.deployment_revision || inputs.site_ref || github.event.pull_request.head.sha || github.sha }}",
+            classifier_block,
         )
         self.assertIn("fetch-depth: 0", classify_workflow)
         self.assertIn("persist-credentials: false", classify_workflow)
@@ -189,24 +193,93 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
         self.assertIn("github.repository == 'TakashiSasaki/templates'", workflow)
         self.assertIn("github.event_name == 'workflow_dispatch'", workflow)
         self.assertIn("github.ref == 'refs/heads/site'", workflow)
+        for required in (
+            "vars.PUBLICATION_AUTOMATION_MODE == 'auto-publish'",
+            "vars.PUBLICATION_AUTOMATION_AUTHORIZED == 'true'",
+            "vars.PUBLICATION_POLICY_REVISION != ''",
+            "vars.PUBLICATION_CONTROLLER_REVISION != ''",
+            "vars.PUBLICATION_AUTOMATION_KILL_SWITCH != 'true'",
+        ):
+            with self.subTest(required=required):
+                self.assertIn(required, workflow)
         self.assertNotIn("github.event.repository.default_branch", workflow)
+
+        reconcile = (ROOT / ".github/workflows/publication-reconcile.yml").read_text(encoding="utf-8")
+        self.assertIn("id: trusted_receipt", reconcile)
+        self.assertIn("MISSING_TRUSTED_INTEGRATION_RECEIPT", reconcile)
+        self.assertIn("TRUSTED_RECEIPT_AVAILABLE", reconcile)
+        self.assertIn(
+            'if [ -d publication-bundle ] && [ "$TRUSTED_RECEIPT_AVAILABLE" = true ]; then',
+            reconcile,
+        )
 
         self.assertIn("TZ=Asia/Tokyo", workflow)
         self.assertIn("deployment_timestamp:", workflow)
         self.assertIn("needs: deployment_metadata", workflow)
-        self.assertIn("needs: build", workflow)
+        self.assertIn("- build", workflow)
+        self.assertIn("artifact_gate", workflow)
+        self.assertIn('QUALIFICATION_GATE: ${{ needs.build.outputs.qualification_gate }}', workflow)
+        self.assertIn('test "$QUALIFICATION_GATE" = success', workflow)
+        self.assertIn("inputs['publication_bundle']['identity']", workflow)
+        verifier = (ROOT / "scripts/revalidate_pages_deployment.py").read_text(encoding="utf-8")
         self.assertIn("pages: write", workflow)
         self.assertIn("id-token: write", workflow)
         self.assertIn("name: github-pages", workflow)
-        self.assertIn("actions/configure-pages@v6", workflow)
-        self.assertIn("actions/deploy-pages@v5", workflow)
+        self.assertIn("actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d", workflow)
+        self.assertIn("actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346", workflow)
+        self.assertIn("artifact_name: github-pages", workflow)
+        self.assertIn("actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1", workflow)
+        self.assertIn("ref: ${{ github.workflow_sha }}", workflow)
+        self.assertIn("sparse-checkout: scripts/revalidate_pages_deployment.py", workflow)
+        self.assertIn("persist-credentials: false", workflow)
+        self.assertIn("git -C .trusted-deployment-verifier rev-parse HEAD", workflow)
+        self.assertIn("python3 .trusted-deployment-verifier/scripts/revalidate_pages_deployment.py", workflow)
+        self.assertNotIn("except subprocess.CalledProcessError", workflow)
+        self.assertNotIn("repository_variable('PUBLICATION_AUTOMATION_KILL_SWITCH', 'false')", workflow)
         self.assertIn("\n  deploy:\n", workflow)
+        self.assertIn(
+            "Revalidate publication preconditions immediately before Pages deployment",
+            workflow,
+        )
+        self.assertIn("actions/variables/{name}", verifier)
+        self.assertIn("Site branch advanced before Pages deployment", verifier)
+        self.assertLess(
+            workflow.index("Revalidate publication preconditions immediately before Pages deployment"),
+            workflow.index("Configure GitHub Pages"),
+        )
 
         metadata = workflow.index("  deployment_metadata:")
         build = workflow.index("  build:")
         deploy = workflow.index("  deploy:")
         self.assertLess(metadata, build)
         self.assertLess(build, deploy)
+
+    def test_manual_shadow_dispatch_and_automatic_dispatch_have_distinct_gates(self) -> None:
+        import yaml
+
+        workflow = yaml.safe_load(DEPLOY_WORKFLOW.read_text(encoding="utf-8"))
+        inputs = workflow[True]["workflow_dispatch"]["inputs"]
+        self.assertEqual(inputs["automatic"]["type"], "boolean")
+        self.assertFalse(inputs["automatic"]["default"])
+        text = DEPLOY_WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("inputs.automatic != true", text)
+        self.assertIn("inputs.automatic == true", text)
+        self.assertIn("trusted_release_required: ${{ inputs.automatic == true }}", text)
+        self.assertIn("Human dispatch is the authorization for the manual lane", text)
+        self.assertIn("cancel-in-progress: false", text)
+        self.assertIn("BUILD_RECEIPT: ${{ needs.build.outputs.bundle_receipt }}", text)
+        self.assertIn("the automatic build did not carry a trusted Integration receipt", (ROOT / "scripts/revalidate_pages_deployment.py").read_text(encoding="utf-8"))
+        self.assertIn("trusted receipt and final artifact selected different Bundle inputs", (ROOT / "scripts/revalidate_pages_deployment.py").read_text(encoding="utf-8"))
+        self.assertIn("-f \"automatic=true\"", (ROOT / ".github/workflows/site-publication-notify.yml").read_text(encoding="utf-8"))
+        jobs = workflow["jobs"]
+        for name, job in jobs.items():
+            permissions = job.get("permissions", {})
+            if name == "deploy":
+                self.assertEqual(permissions.get("pages"), "write")
+                self.assertEqual(permissions.get("id-token"), "write")
+            else:
+                self.assertNotIn("pages", permissions)
+                self.assertNotIn("id-token", permissions)
 
     def test_aggregate_ci_validate_gate_and_force_full_qualification(self) -> None:
         workflow = BUILD_WORKFLOW.read_text(encoding="utf-8")

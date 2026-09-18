@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "protocol": "publication-bundle",
+  "supported_features": [
+    "publication.generic-document.v1",
+    "publication.opaque-json.v1",
+    "publication.static-asset.v1"
+  ],
+  "required_runtime": [
+    "bundle-integrity",
+    "generic-markdown-renderer",
+    "pages-artifact-provenance"
+  ],
+  "fallbacks": {
+    "publication.generic-document.v1": "generic-document",
+    "publication.opaque-json.v1": "generic-document",
+    "publication.static-asset.v1": "none"
+  }
+}

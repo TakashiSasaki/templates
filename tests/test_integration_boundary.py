@@ -25,12 +25,29 @@ class BoundaryTests(unittest.TestCase):
    if 'pages: write' in text or 'actions/deploy-pages@' in text:
     self.assertEqual(path.name,'deploy-pages.yml');self.assertIn("github.ref == 'refs/heads/site'",text)
     events=yaml.safe_load(text)[True];self.assertEqual(set(events),{'workflow_dispatch'})
+ def test_default_branch_provider_event_adapter_delegates_to_exact_integration_controller(self):
+  path=ROOT/'.github/workflows/provider-publication-dispatch.yml'
+  text=path.read_text()
+  self.assertIn('repository_dispatch:',text)
+  self.assertIn('publication.provider-qualified',text)
+  self.assertIn('integration-reconcile.yml@a2b21d731e3aea09f60c6f0dc8a9280089c1a946',text)
+  self.assertIn('git/ref/heads/integration',text)
+  self.assertIn('integration_ref: ${{ steps.integration.outputs.integration_ref }}',text)
+  self.assertIn('producer_ref: ${{ needs.validate_event.outputs.integration_ref }}',text)
+  self.assertIn('controller_ref: a2b21d731e3aea09f60c6f0dc8a9280089c1a946',text)
+  self.assertIn('set(payload) != expected',text)
+  self.assertNotIn('client_payload.producer_ref',text)
+  self.assertNotIn('client_payload.controller_ref',text)
+  for forbidden in ('qualify_integration.py','render_candidate_source_lock.py','publication-sources.json','actions/deploy-pages@'):
+   self.assertNotIn(forbidden,text)
  def test_deployment_includes_complete_qualification(self):
   deploy=yaml.safe_load((ROOT/'.github/workflows/deploy-pages.yml').read_text())
-  self.assertEqual(deploy['jobs']['deploy']['needs'],'build')
+  self.assertEqual(set(deploy['jobs']['deploy']['needs']),{'build','artifact_gate','deployment_metadata'})
+  self.assertEqual(set(deploy['jobs']['artifact_gate']['needs']),{'deployment_metadata','build'})
   self.assertNotIn('site_ref',deploy['jobs']['build']['with'])
   jobs=yaml.safe_load((ROOT/'.github/workflows/build-pages.yml').read_text())['jobs']
   self.assertIn("github.event_name == 'workflow_dispatch'",jobs['full_qualification']['if'])
+  self.assertEqual(yaml.safe_load((ROOT/'.github/workflows/build-pages.yml').read_text())[True]['workflow_call']['outputs']['qualification_gate']['value'],'${{ jobs.full_qualification.result }}')
   self.assertTrue({'check','reference_consumer','cross_authority','core_tests','website_contract','policy','playground','explainability'}<=set(jobs['full_qualification']['needs']))
 
  def test_manual_chromium_leaf_is_reachable_but_fork_prs_are_rejected(self):

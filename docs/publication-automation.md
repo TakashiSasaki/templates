@@ -1,0 +1,119 @@
+# Contract-gated publication automation
+
+This document is the Site-side handoff for the three publication modes. It is
+an operational contract, not an instruction to enable automation while the
+implementation stack is under review.
+
+## Boundaries
+
+The flow is deliberately split into two gates:
+
+1. Integration qualifies one exact producer/configuration/provider tuple and
+   publishes an immutable Bundle artifact.
+2. Site validates that exact Bundle, renders it, runs the existing static and
+   browser acceptance suites, and uploads the bytes that passed the final gate.
+
+The Site consumes only the public Bundle contract. It does not check out a
+provider, read a provider catalog, or infer capability from a provider's
+self-description. `integration-source.json` is the committed consumer
+selection; its four selected identity fields are the only normal adoption
+mutation.
+
+The default `site` branch also contains a thin `repository_dispatch` adapter
+for provider qualification events. It validates the immutable provider facts,
+resolves the current `integration` authority head to one exact producer SHA,
+and forwards those facts to the pinned Integration controller; it does not
+perform Integration semantics itself. A producer-head race is handled by the
+controller's expected-base check rather than by trusting the event payload.
+
+Integration's candidate report is not a Site or adoption authorization. The
+upstream controller must provide a trusted receipt bound to the exact Bundle
+artifact, run attempt, and controller/Policy pins; missing or self-claimed
+qualification evidence stops the downstream flow.
+
+## Modes
+
+`shadow` is the repository default. Candidate discovery, structured reports,
+read-only qualification, and summaries are allowed; lock PRs and Pages writes
+are not. A successful qualification in this mode is evidence, not adoption.
+
+`adoption-only` permits a trusted controller to create or reconcile an
+idempotent Site lock PR after the Integration and Site gates pass. Pages remains
+unchanged. Branch protection and required CI still decide whether the PR may
+merge; the controller does not bypass either.
+
+`auto-publish` adds the final Pages path. The deployment job is still gated by
+the exact artifact ID/digest emitted by the producer, a successful final
+artifact gate, current Site/Integration identities, and the `github-pages`
+environment. Its build must locate the unexpired promoted Integration Bundle
+and re-verify the trusted promotion receipt; an absent or expired release does
+not trigger read-only regeneration. No timestamp or provenance file may be
+rewritten after that gate.
+
+Manual publication remains available in every non-kill-switched mode. An explicit
+`workflow_dispatch` on `site` uses `automatic=false` by default, binds the requested
+exact Site SHA, runs the same Site qualification and immutable artifact checks, and
+deploys only that artifact through `github-pages`. The manual dispatch is the human
+authorization; it does not require `PUBLICATION_AUTOMATION_MODE=auto-publish` or
+`PUBLICATION_AUTOMATION_AUTHORIZED=true`. The automatic dispatch sets `automatic=true`
+and requires all of the stricter activation variables.
+
+The deployment verifier reads `PUBLICATION_AUTOMATION_KILL_SWITCH` through the
+authenticated GitHub API immediately before deployment. A confirmed HTTP 404 for
+that variable, followed by a successful authenticated repository metadata read,
+means the variable is absent and applies the documented default `false`. Any
+authentication, permission, rate-limit, transport, malformed-response, or server
+error stops deployment; it is never treated as an inactive switch.
+
+## One-time activation checklist
+
+After all authority PRs have been reviewed and landed, an authorized operator
+must verify each item once:
+
+- Install the least-privileged GitHub App credential required by the guarded
+  controller. Store it as the repository secret `PUBLICATION_APP_TOKEN`; this
+  implementation does not create the secret.
+- Protect `integration` and `site` with the required status checks and retain
+  the required human review/merge-queue policy. Confirm that the controller
+  may request auto-merge but cannot bypass protection.
+- Configure the `github-pages` environment to permit only the intended Site
+  deployment job and verify Pages uses the `site` authority branch. The live
+  repository setting must be checked because a stale `main` Pages source is a
+  stop condition, not an implementation success.
+- Set repository variables only after the previous checks pass:
+  `PUBLICATION_AUTOMATION_MODE=adoption-only` (then later
+  `auto-publish`), `PUBLICATION_AUTOMATION_AUTHORIZED=true`,
+  `PUBLICATION_POLICY_REVISION=<active full SHA>`, and
+  `PUBLICATION_CONTROLLER_REVISION=<trusted full SHA>`.
+- Leave `PUBLICATION_AUTOMATION_KILL_SWITCH=false` and record the activation
+  operator, time, exact heads, and checked settings in the PR/issue ledger.
+
+The implementation PRs do not set these secrets, variables, protections, or
+environment rules and therefore do not claim that unattended operation is
+enabled.
+
+## Inspect, stop, and recover
+
+In Shadow, inspect the qualification report, exact provider tuple, Bundle
+identity/content digest, controller/policy identities, and `next_action` in the
+Actions summary. A missing, skipped, cancelled, stale, or unknown report is a
+stop—not a successful empty result.
+
+To stop new work, set the kill switch to `true`. The switch prevents new
+adoption and deployment and leaves the last successful Pages release intact.
+It is not a rollback.
+
+For recovery, first verify the actual GitHub branch, PR, run attempt, artifact,
+and deployment state. Then select a previously qualified immutable lock and
+artifact, run the guarded updater with its expected-current digest, and obtain
+the required review/merge. Do not regenerate a corrupt or stale artifact merely
+to make its digest appear current. A consumer adaptation is a new Site commit;
+the stopped input must be requalified against that new consumer identity.
+
+## Evidence applicability
+
+Evidence binds the Integration producer SHA, every provider SHA, Bundle schema,
+Bundle identity/content digest, Site SHA, qualification suite/environment,
+workflow run/attempt, and artifact ID/digest. A candidate result made with a
+different producer or merged Site SHA is not silently reused. Content equality
+alone is not a `NO_CHANGE`; identity equality is the no-op criterion.

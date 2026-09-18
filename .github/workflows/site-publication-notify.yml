@@ -1,0 +1,31 @@
+name: Start guarded Pages publication after Site adoption
+on:
+  pull_request:
+    types: [closed]
+    branches: [site]
+permissions:
+  contents: read
+jobs:
+  dispatch-pages:
+    if: >-
+      github.repository == 'TakashiSasaki/templates' &&
+      github.event.pull_request.merged == true &&
+      startsWith(github.event.pull_request.head.ref, 'automation/site-publication-') &&
+      github.event.pull_request.base.ref == 'site' &&
+      vars.PUBLICATION_AUTOMATION_MODE == 'auto-publish' &&
+      vars.PUBLICATION_AUTOMATION_AUTHORIZED == 'true' &&
+      vars.PUBLICATION_POLICY_REVISION != '' &&
+      vars.PUBLICATION_CONTROLLER_REVISION != '' &&
+      vars.PUBLICATION_AUTOMATION_KILL_SWITCH != 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Dispatch the explicit Pages workflow on the merged Site head
+        env:
+          GH_TOKEN: ${{ secrets.PUBLICATION_APP_TOKEN }}
+          SITE_REVISION: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
+        run: |
+          test -n "$GH_TOKEN"
+          test "$SITE_REVISION" = "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/site" --jq '.object.sha')"
+          gh workflow run deploy-pages.yml --repo "$GITHUB_REPOSITORY" --ref site \
+            -f "site_revision=$SITE_REVISION" \
+            -f "automatic=true"

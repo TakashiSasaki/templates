@@ -1,3 +1,4 @@
 playwright==1.61.0
 Pygments==2.20.0
 PyYAML==6.0.3
+idna==3.18
