@@ -1,82 +1,26 @@
-import hashlib
 import json
-import os
 from pathlib import Path
 import re
-import subprocess
 import unittest
 import jsonschema
-from urllib.parse import quote
-from urllib.request import Request, urlopen
+
+from scripts.verify_maintainer_source import (
+    CANONICAL_REVISION,
+    CANONICAL_RULE_BLOB,
+    CANONICAL_RULE_PATH,
+    CANONICAL_SKILL_BLOB,
+    CANONICAL_SKILL_PATH,
+    git_blob_sha,
+    verify_source_reference,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
-CANONICAL_REVISION = "5af977020fca701bcf6b7fb7ce12ca077b2d7220"
+CANONICAL_REVISION = "a878da560c5286634b21671b54793e26ed8167b2"
 CANONICAL_SKILL_PATH = "repository-skills/land-templates-stack/SKILL.md"
-CANONICAL_SKILL_BLOB = "902b6e543d467b47b2b91819bfab5574a85456c7"
+CANONICAL_SKILL_BLOB = "b433bdf781eb1fd0f32a525bfd68bac2563316d7"
 CANONICAL_RULE_PATH = "repository-policy/stacked-pr-landing.md"
 CANONICAL_RULE_BLOB = "9dd1c5498dd9b37ef91afd65ad400fbdee13ee29"
-
-
-def _git_blob_sha(payload: bytes) -> str:
-    header = f"blob {len(payload)}\0".encode("ascii")
-    return hashlib.sha1(header + payload).hexdigest()
-
-
-def _fetch_exact_source_file(repository: str, revision: str, path: str) -> bytes:
-    """Read an exact source object without falling back to a mutable ref."""
-
-    try:
-        return subprocess.check_output(
-            ["git", "show", f"{revision}:{path}"],
-            cwd=ROOT,
-        )
-    except subprocess.CalledProcessError as git_error:
-        if os.environ.get("CI", "").lower() not in {"1", "true", "yes"}:
-            raise AssertionError(
-                "immutable source object is unavailable locally; network retrieval is CI-only"
-            ) from git_error
-        url = (
-            f"https://raw.githubusercontent.com/{repository}/"
-            f"{quote(revision, safe='')}/{quote(path, safe='/')}"
-        )
-        request = Request(url, headers={"User-Agent": "templates-maintainer-source-test"})
-        with urlopen(request, timeout=15) as response:
-            return response.read()
-
-
-def _verify_source_reference(
-    source: dict,
-    fetch_file,
-    *,
-    expected_rule_blob: str = CANONICAL_RULE_BLOB,
-) -> dict[str, str]:
-    if source.get("schema_version") != 1:
-        raise ValueError("unsupported source reference schema")
-    if source.get("kind") != "repository-maintainer-skill-reference":
-        raise ValueError("unsupported source reference kind")
-    repository = source.get("repository")
-    revision = source.get("revision")
-    path = source.get("path")
-    blob = source.get("blob_sha")
-    if repository != "TakashiSasaki/templates":
-        raise ValueError("unexpected source repository")
-    if not isinstance(revision, str) or not re.fullmatch(r"[0-9a-f]{40}", revision):
-        raise ValueError("source revision must be an immutable full SHA")
-    if path != CANONICAL_SKILL_PATH:
-        raise ValueError("unexpected canonical Skill path")
-    if not isinstance(blob, str) or not re.fullmatch(r"[0-9a-f]{40}", blob):
-        raise ValueError("source blob must be a full Git blob SHA")
-
-    skill = fetch_file(repository, revision, path)
-    observed_skill = _git_blob_sha(skill)
-    if observed_skill != blob:
-        raise ValueError(f"canonical Skill blob mismatch: {observed_skill}")
-    rule = fetch_file(repository, revision, CANONICAL_RULE_PATH)
-    observed_rule = _git_blob_sha(rule)
-    if observed_rule != expected_rule_blob:
-        raise ValueError(f"canonical rule blob mismatch: {observed_rule}")
-    return {"skill_blob": observed_skill, "rule_blob": observed_rule}
 
 
 class MaintainerOnboardingTests(unittest.TestCase):
@@ -182,7 +126,7 @@ class MaintainerOnboardingTests(unittest.TestCase):
                 self.assertIn(required, (ROOT / "AGENTS.md").read_text(encoding="utf-8"))
         agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
         self.assertIn(".agents/skills/land-templates-stack/SKILL.md", agents)
-        self.assertIn("5af977020fca701bcf6b7fb7ce12ca077b2d7220", agents)
+        self.assertIn(CANONICAL_REVISION, agents)
         catalog = json.loads((ROOT / "docs/publication-catalog.json").read_text(encoding="utf-8"))
         catalog_sources = {entry["source"] for entry in catalog["documents"]}
         self.assertIn("docs/maintainer-onboarding.md", catalog_sources)
@@ -226,9 +170,6 @@ class MaintainerOnboardingTests(unittest.TestCase):
         self.assertEqual(source["revision"], CANONICAL_REVISION)
         self.assertEqual(source["repository"], "TakashiSasaki/templates")
         self.assertEqual(source["path"], CANONICAL_SKILL_PATH)
-        verified = _verify_source_reference(source, _fetch_exact_source_file)
-        self.assertEqual(verified["skill_blob"], CANONICAL_SKILL_BLOB)
-        self.assertEqual(verified["rule_blob"], CANONICAL_RULE_BLOB)
         skill = (ROOT / ".agents/skills/land-templates-stack/SKILL.md").read_text(
             encoding="utf-8"
         )
@@ -245,7 +186,7 @@ class MaintainerOnboardingTests(unittest.TestCase):
             "repository": "TakashiSasaki/templates",
             "revision": "a" * 40,
             "path": CANONICAL_SKILL_PATH,
-            "blob_sha": _git_blob_sha(skill),
+            "blob_sha": git_blob_sha(skill),
         }
         files = {
             (source["repository"], source["revision"], CANONICAL_SKILL_PATH): skill,
@@ -255,8 +196,8 @@ class MaintainerOnboardingTests(unittest.TestCase):
         def fixture_fetch(repository, revision, path):
             return files[(repository, revision, path)]
 
-        fixture_rule_blob = _git_blob_sha(rule)
-        verified = _verify_source_reference(
+        fixture_rule_blob = git_blob_sha(rule)
+        verified = verify_source_reference(
             source, fixture_fetch, expected_rule_blob=fixture_rule_blob
         )
         self.assertEqual(verified["skill_blob"], source["blob_sha"])
@@ -264,27 +205,27 @@ class MaintainerOnboardingTests(unittest.TestCase):
 
         malformed = dict(source, revision="policy")
         with self.assertRaisesRegex(ValueError, "immutable full SHA"):
-            _verify_source_reference(malformed, fixture_fetch, expected_rule_blob=fixture_rule_blob)
+            verify_source_reference(malformed, fixture_fetch, expected_rule_blob=fixture_rule_blob)
 
         mismatch = dict(source, blob_sha="b" * 40)
         with self.assertRaisesRegex(ValueError, "Skill blob mismatch"):
-            _verify_source_reference(mismatch, fixture_fetch, expected_rule_blob=fixture_rule_blob)
+            verify_source_reference(mismatch, fixture_fetch, expected_rule_blob=fixture_rule_blob)
 
         missing_path = dict(source, path="repository-policy/missing.md")
         with self.assertRaisesRegex(ValueError, "canonical Skill path"):
-            _verify_source_reference(
+            verify_source_reference(
                 missing_path, fixture_fetch, expected_rule_blob=fixture_rule_blob
             )
 
         files.pop((source["repository"], source["revision"], CANONICAL_RULE_PATH))
         with self.assertRaises(KeyError):
-            _verify_source_reference(
+            verify_source_reference(
                 source, fixture_fetch, expected_rule_blob=fixture_rule_blob
             )
 
         files[(source["repository"], source["revision"], CANONICAL_RULE_PATH)] = b"tampered"
         with self.assertRaisesRegex(ValueError, "rule blob mismatch"):
-            _verify_source_reference(
+            verify_source_reference(
                 source, fixture_fetch, expected_rule_blob=fixture_rule_blob
             )
 

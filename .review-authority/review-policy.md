@@ -512,9 +512,9 @@ If more than one skill applies, use only the minimal set needed and follow them 
 `site-pr-exact-head-acceptance` establishes Site-specific acceptance evidence but never authorizes merge. Before declaring a Site PR merge-ready, merging it, or completing a task whose final action is a merge, load `pr-merge-gate`. Green CI and `reviews = 0` must never be interpreted as a clean review state.
 
 The repository-maintainer landing procedure is pinned to
-`TakashiSasaki/templates@5af977020fca701bcf6b7fb7ce12ca077b2d7220`,
+`TakashiSasaki/templates@a878da560c5286634b21671b54793e26ed8167b2`,
 `repository-skills/land-templates-stack/SKILL.md`, blob
-`902b6e543d467b47b2b91819bfab5574a85456c7`. It resolves
+`b433bdf781eb1fd0f32a525bfd68bac2563316d7`. It resolves
 `repository-policy/stacked-pr-landing.md` from that same immutable snapshot,
 not from the Site worktree or a mutable branch. Keep this route separate from
 Site adoption and Pages deployment; it does not authorize merge or auto-merge.
