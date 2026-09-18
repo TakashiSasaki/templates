@@ -19,7 +19,7 @@ partial or failed result, incomplete pagination, missing metadata, or unknown
 applicability is not completed coverage.
 
 Do not acquire the same objective, purpose, candidate, scope, contract, and input
-binding twice. If an equivalent request is in progress or its submission result is
+binding twice. In other words, the duplicate key is the same objective, purpose, candidate, scope, contract, and input binding. If an equivalent request is in progress or its submission result is
 unknown, reconcile the provider state and existing handle before considering a new
 request. A request key is a comparison aid, not a provider idempotency guarantee;
 when action ownership or serialized submission cannot be established, preserve the
