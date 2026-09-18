@@ -4,6 +4,34 @@ This independent-root branch owns reusable information models explicitly accepte
 
 Read [AUTHORITY.md](AUTHORITY.md) and [AGENTS.md](AGENTS.md) before changing this branch.
 
+## Maintain this authority in `templates`
+
+This section is for maintainers of the `modeling` authority itself. It is not the
+consumer-facing discovery or adoption path. The repository-level maintainer map,
+including the other four authorities and the publication boundary, is maintained
+by the Site authority in the [templates maintainer onboarding guide](https://github.com/TakashiSasaki/templates/blob/site/docs/maintainer-onboarding.md).
+
+For a Modeling task, confirm that the checked-out branch is `modeling`, record the
+current full `HEAD` SHA and dirty/untracked state, and read [AUTHORITY.md](AUTHORITY.md),
+[AGENTS.md](AGENTS.md), [the intake procedure](docs/intake.md), and the
+[registration skill](.agents/skills/register-information-model/SKILL.md). Use the
+skill only for record registration or revision. Source records in `records/` are
+editable; `CATALOG.md`, `catalog.json`, and `docs/resources/` are generated
+projections and must be regenerated with `python3 tools/catalog.py generate`.
+
+The local completion path is `python3 tools/qualify.py` after generation. This
+proves Modeling's record and catalog contract; it does not register an Integration
+release, create a Site adoption, or deploy Pages. Use the `modeling` branch name to
+find this entry point, but bind CI, review, and any downstream publication evidence
+to an immutable full SHA. References to another authority are remote, authority-
+qualified references or separate checkouts, never relative paths that pretend all
+branches share one filesystem.
+
+Record the scope, validation result, PR/Issue checkpoint, and next safe action in
+the existing Policy Work ledger. On resumption, re-check the live branch, exact
+head, PR dependencies, and prior evidence before creating anything; do not merge,
+rebase, cherry-pick, or infer downstream adoption from a passing local check.
+
 ## Contents
 
 [Browse the discovery catalog](CATALOG.md), or consume the generated [JSON index](catalog.json). The initial collection contains 30 externally governed resources and the separately described local resource-record schema. Individual source records are in `records/`; the [initial collection](collections/initial-standards.json) is for discovery, not normative adoption.
