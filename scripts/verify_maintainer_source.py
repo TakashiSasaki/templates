@@ -20,13 +20,13 @@ from urllib.request import Request, urlopen
 
 
 ROOT = Path(__file__).resolve().parents[1]
-CANONICAL_REVISION = "5e04fea0690a0c7a863073b094e0fed206ce8e7e"
+CANONICAL_REVISION = "9c4884646f5db14bc7d700f1395843a89b05a539"
 CANONICAL_SKILL_PATH = "repository-skills/land-templates-stack/SKILL.md"
 CANONICAL_SKILL_BLOB = "06efa38681e374636bcabcbcb984be5ec43b47ee"
 CANONICAL_RULE_PATH = "repository-policy/stacked-pr-landing.md"
 CANONICAL_RULE_BLOB = "9761cdbcd21b0e8ba2f3eb2ffb306725a82f5eef"
 CANONICAL_PLANNER_PATH = "repository-skills/land-templates-stack/scripts/plan_review_scope.py"
-CANONICAL_PLANNER_BLOB = "3d11637564ab31f9632fafd65764f888dc755ade"
+CANONICAL_PLANNER_BLOB = "fe516de70905d461629b7b6bc2cb0cb856e8782d"
 FULL_SHA = re.compile(r"[0-9a-f]{40}")
 
 
