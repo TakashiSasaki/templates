@@ -1,3 +1,5 @@
+import json
+import re
 from pathlib import Path
 import unittest
 
@@ -33,6 +35,25 @@ class MaintainerEntrypointTests(unittest.TestCase):
         ):
             with self.subTest(relative=relative):
                 self.assertTrue((ROOT / relative).exists())
+
+    def test_maintainer_landing_route_uses_the_frozen_policy_snapshot(self):
+        source_path = ROOT / ".agents/skills/land-templates-stack/source.json"
+        source = json.loads(source_path.read_text(encoding="utf-8"))
+        self.assertEqual(source["schema_version"], 1)
+        self.assertEqual(source["kind"], "repository-maintainer-skill-reference")
+        self.assertEqual(source["repository"], "TakashiSasaki/templates")
+        self.assertEqual(source["revision"], "a878da560c5286634b21671b54793e26ed8167b2")
+        self.assertEqual(source["path"], "repository-skills/land-templates-stack/SKILL.md")
+        self.assertTrue(re.fullmatch(r"[0-9a-f]{40}", source["revision"]))
+        self.assertTrue(re.fullmatch(r"[0-9a-f]{40}", source["blob_sha"]))
+        # Authority histories are intentionally independent.  The consumer
+        # checkout need not contain the Policy commit object; the immutable
+        # source verifier retrieves or uses that exact snapshot separately.
+        skill = (ROOT / ".agents/skills/land-templates-stack/SKILL.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("does not reproduce landing", skill)
+        self.assertIn("human-controlled boundary", skill)
 
 
 if __name__ == "__main__":

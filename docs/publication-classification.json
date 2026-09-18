@@ -6,6 +6,10 @@
       "reason": "Repository-local agent merge gate workflow instructions are operational maintenance guidance outside the reader-facing Composition publication catalog."
     },
     {
+      "source": ".agents/skills/land-templates-stack/SKILL.md",
+      "reason": "Repository-local maintainer landing instructions are operational maintenance guidance outside the reader-facing Composition publication catalog."
+    },
+    {
       "source": "AGENTS.md",
       "reason": "Repository root agent routing instructions are operational maintenance guidance outside the reader-facing Composition publication catalog."
     },
