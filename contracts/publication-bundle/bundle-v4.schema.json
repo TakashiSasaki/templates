@@ -9,6 +9,8 @@
     "producer",
     "providers",
     "configuration_digest",
+    "requirements",
+    "requirements_digest",
     "files",
     "content_digest",
     "identity"
@@ -20,7 +22,7 @@
       "additionalProperties": false,
       "required": ["authority", "revision"],
       "properties": {
-        "authority": {"enum": ["site-internal-integration", "integration"]},
+        "authority": {"const": "integration"},
         "revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"}
       }
     },
@@ -35,6 +37,22 @@
       }
     },
     "configuration_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "requirements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["provider", "feature", "required", "fallback"],
+        "properties": {
+          "provider": {"enum": ["modeling", "composition", "policy"]},
+          "feature": {"type": "string", "pattern": "^[a-z0-9]+(?:[.-][a-z0-9]+)*\\.v[0-9]+$"},
+          "required": {"type": "boolean"},
+          "fallback": {"enum": ["none", "generic-document", "ignore"]}
+        }
+      },
+      "uniqueItems": true
+    },
+    "requirements_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
     "content_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
     "identity": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
     "files": {

@@ -30,7 +30,14 @@ class BoundaryTests(unittest.TestCase):
   text=path.read_text()
   self.assertIn('repository_dispatch:',text)
   self.assertIn('publication.provider-qualified',text)
-  self.assertIn('integration-reconcile.yml@c3e696b5076d82cc0e098fd7c3e2bc0fabf6ff64',text)
+  self.assertIn('integration-reconcile.yml@a2b21d731e3aea09f60c6f0dc8a9280089c1a946',text)
+  self.assertIn('git/ref/heads/integration',text)
+  self.assertIn('integration_ref: ${{ steps.integration.outputs.integration_ref }}',text)
+  self.assertIn('producer_ref: ${{ needs.validate_event.outputs.integration_ref }}',text)
+  self.assertIn('controller_ref: a2b21d731e3aea09f60c6f0dc8a9280089c1a946',text)
+  self.assertIn('set(payload) != expected',text)
+  self.assertNotIn('client_payload.producer_ref',text)
+  self.assertNotIn('client_payload.controller_ref',text)
   for forbidden in ('qualify_integration.py','render_candidate_source_lock.py','publication-sources.json','actions/deploy-pages@'):
    self.assertNotIn(forbidden,text)
  def test_deployment_includes_complete_qualification(self):

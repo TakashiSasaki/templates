@@ -8,8 +8,8 @@ translation availability, glossary, guided graphs and exact provenance. Site
 selects only an exact reviewed Integration release through
 `integration-source.json`.
 
-The Integration selection therefore covers Composition and Policy provider
-revisions explicitly; it does not grant Site direct access to either provider.
+The Integration selection therefore covers Modeling, Composition, and Policy
+provider revisions explicitly; it does not grant Site direct access to any provider.
 
 The lock binds the Integration commit, Bundle schema, identity and content digest.
 There is no active `publication-sources.json` in Site. Provider candidate work
@@ -21,11 +21,13 @@ the downstream gates and automation mode explicitly authorize the next boundary.
 The canonical `site-producer.yml` locates the selected qualified Integration artifact.
 The existing transport verifies run/head, workflow attempt, artifact creation
 window, archive digest, safe extraction, Bundle identity and internal provenance.
-The final Pages deployment lane requires an unexpired promoted Bundle and a
-trusted promotion receipt; absent or expired release evidence stops the lane and
-never falls back to read-only regeneration. Corrupt or misbound evidence fails
-closed. Non-deployment qualification may still use the explicitly pinned
-read-only regeneration lane.
+The automatic Pages deployment lane requires an unexpired promoted Bundle and a
+trusted promotion receipt; absent or expired release evidence stops that lane and
+never falls back to read-only regeneration. An explicit human dispatch is a
+separate authorization path: it may use the explicitly pinned Integration
+qualification workflow to produce the exact current-lock Bundle in read-only
+mode, then applies the same Site qualification, provenance, artifact, freshness,
+and deploy-time gates. Corrupt or misbound evidence fails closed.
 
 `render_publication_bundle.py` receives the Bundle and Site source only. It renders
 provider documents, read models and translations already qualified upstream.
@@ -58,6 +60,14 @@ Compatibility is never authorization. Every mode requires exact input identities
 trusted policy/controller identity, positive qualification results, freshness and
 an allowlisted expected patch. The controller stops on unknown, invalid,
 unsupported, stale, failed, or unauthorized results.
+
+`deploy-pages.yml` retains a separate human-authorized path: an explicit
+`workflow_dispatch` with `automatic=false` (the default) runs the same exact Site
+qualification, artifact, provenance, and deploy-time freshness gates while Shadow
+remains active. It still honors the repository-wide kill switch. The automatic path
+must set `automatic=true` and additionally satisfy `auto-publish`, authorization, and
+the active exact Policy/controller pins; a controller event cannot use the manual
+authorization path.
 
 The initial repository configuration is `shadow`; it does not mutate locks or
 publish. After review and landing, one explicit activation may select the next
@@ -92,6 +102,7 @@ Integration's Publication catalogs are explicit allowlists. Branch-wide copies a
 unrestricted glob-based publication are prohibited. Adding a file to a provider branch does not publish it.
 Generated destinations are stable public paths in the Bundle contract.
 The Site, Composition, and Policy source browsers display bounded build-time views.
+Composition and Policy source views remain bounded and do not transfer semantic ownership.
 Symlinks and gitlinks are never followed. Source content is escaped and sandboxed,
 not executed as application HTML. The Bundle bounds provider content before Site
 receives it. Site source/provenance links outside those browser views identify
@@ -100,6 +111,8 @@ exact full commit revisions.
 ## External deployment gate
 
 The `github-pages` environment custom deployment branch policy must allow exactly the `site` branch.
-The obsolete `main` authorization has been removed. Do not broaden the environment to all branches.
+The obsolete `main` authorization has been removed from the intended contract. The live setting must
+still be rechecked before activation, and an obsolete `main` authorization or an unset Pages workflow
+source is a stop condition. Do not broaden the environment to all branches.
 `https://templates.moukaeritai.work/` is the configured Pages base URL and HTTPS enforcement is enabled.
-These settings were verified during the final architecture audit; recheck before release.
+These settings are activation prerequisites, not claims made by this implementation PR.

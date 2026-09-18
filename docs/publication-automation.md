@@ -20,8 +20,11 @@ selection; its four selected identity fields are the only normal adoption
 mutation.
 
 The default `site` branch also contains a thin `repository_dispatch` adapter
-for provider qualification events. It forwards exact revisions to the pinned
-Integration controller; it does not perform Integration semantics itself.
+for provider qualification events. It validates the immutable provider facts,
+resolves the current `integration` authority head to one exact producer SHA,
+and forwards those facts to the pinned Integration controller; it does not
+perform Integration semantics itself. A producer-head race is handled by the
+controller's expected-base check rather than by trusting the event payload.
 
 Integration's candidate report is not a Site or adoption authorization. The
 upstream controller must provide a trusted receipt bound to the exact Bundle
@@ -46,6 +49,21 @@ environment. Its build must locate the unexpired promoted Integration Bundle
 and re-verify the trusted promotion receipt; an absent or expired release does
 not trigger read-only regeneration. No timestamp or provenance file may be
 rewritten after that gate.
+
+Manual publication remains available in every non-kill-switched mode. An explicit
+`workflow_dispatch` on `site` uses `automatic=false` by default, binds the requested
+exact Site SHA, runs the same Site qualification and immutable artifact checks, and
+deploys only that artifact through `github-pages`. The manual dispatch is the human
+authorization; it does not require `PUBLICATION_AUTOMATION_MODE=auto-publish` or
+`PUBLICATION_AUTOMATION_AUTHORIZED=true`. The automatic dispatch sets `automatic=true`
+and requires all of the stricter activation variables.
+
+The deployment verifier reads `PUBLICATION_AUTOMATION_KILL_SWITCH` through the
+authenticated GitHub API immediately before deployment. A confirmed HTTP 404 for
+that variable, followed by a successful authenticated repository metadata read,
+means the variable is absent and applies the documented default `false`. Any
+authentication, permission, rate-limit, transport, malformed-response, or server
+error stops deployment; it is never treated as an inactive switch.
 
 ## One-time activation checklist
 

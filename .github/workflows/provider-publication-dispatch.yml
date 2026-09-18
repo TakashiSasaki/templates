@@ -15,15 +15,85 @@ permissions:
   pull-requests: read
 
 jobs:
-  integration_controller:
+  validate_event:
+    name: Validate provider notification facts
     if: github.repository == 'TakashiSasaki/templates'
-    uses: TakashiSasaki/templates/.github/workflows/integration-reconcile.yml@c3e696b5076d82cc0e098fd7c3e2bc0fabf6ff64
+    runs-on: ubuntu-24.04
+    outputs:
+      modeling_ref: ${{ steps.payload.outputs.modeling_ref }}
+      composition_ref: ${{ steps.payload.outputs.composition_ref }}
+      policy_ref: ${{ steps.payload.outputs.policy_ref }}
+      integration_ref: ${{ steps.integration.outputs.integration_ref }}
+    steps:
+      - name: Validate immutable provider event payload
+        id: payload
+        env:
+          PAYLOAD: ${{ toJSON(github.event.client_payload) }}
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          import os
+          import re
+
+          payload = json.loads(os.environ["PAYLOAD"])
+          expected = {
+              "provider", "provider_revision", "provider_qualification_run_id",
+              "provider_qualification_attempt", "qualification_workflow_head",
+              "qualification_workflow_name", "qualification_workflow_event",
+              "qualification_workflow_path",
+          }
+          if not isinstance(payload, dict) or set(payload) != expected:
+              raise SystemExit("provider notification contains unsupported or missing fields")
+          provider = payload["provider"]
+          revisions = (payload["provider_revision"], payload["qualification_workflow_head"])
+          if provider not in {"modeling", "composition", "policy"}:
+              raise SystemExit("provider notification names an unregistered provider")
+          if any(not isinstance(value, str) or re.fullmatch(r"[0-9a-f]{40}", value) is None for value in revisions):
+              raise SystemExit("provider notification revisions must be full lowercase SHAs")
+          for field in ("provider_qualification_run_id", "provider_qualification_attempt"):
+              if re.fullmatch(r"[1-9][0-9]*", str(payload[field])) is None:
+                  raise SystemExit(f"{field} must be a positive decimal identity")
+          workflow = {
+              "modeling": ("Modeling qualification", ".github/workflows/modeling-ci.yml"),
+              "composition": ("Composition Integration compatibility", ".github/workflows/reference-consumer-publication.yml"),
+              "policy": ("Policy Integration compatibility", ".github/workflows/integration-compatibility.yml"),
+          }[provider]
+          if (payload["qualification_workflow_name"], payload["qualification_workflow_path"], payload["qualification_workflow_event"]) != (*workflow, "push"):
+              raise SystemExit("provider notification is not from the expected provider push qualification")
+          print(f"{provider}_ref={payload['provider_revision']}")
+          PY
+          echo 'Provider event facts validated; Integration owns the next qualification and authorization decision.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Resolve the current Integration producer to one exact revision
+        id: integration
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          revision=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/integration" --jq '.object.sha')
+          python3 - "$revision" <<'PY'
+          import re
+          import sys
+          if re.fullmatch(r"[0-9a-f]{40}", sys.argv[1]) is None:
+              raise SystemExit("Integration branch did not resolve to an immutable commit SHA")
+          PY
+          echo "integration_ref=$revision" >> "$GITHUB_OUTPUT"
+          echo "Resolved the Integration authority head to an exact producer revision; later base movement will be classified as stale." >> "$GITHUB_STEP_SUMMARY"
+
+  integration_controller:
+    needs: validate_event
+    if: needs.validate_event.result == 'success'
+    uses: TakashiSasaki/templates/.github/workflows/integration-reconcile.yml@a2b21d731e3aea09f60c6f0dc8a9280089c1a946
     with:
-      producer_ref: ${{ github.event.client_payload.producer_ref }}
-      composition_ref: ${{ github.event.client_payload.composition_ref || '' }}
-      policy_ref: ${{ github.event.client_payload.policy_ref || '' }}
-      modeling_ref: ${{ github.event.client_payload.modeling_ref || '' }}
-      controller_ref: c3e696b5076d82cc0e098fd7c3e2bc0fabf6ff64
+      # The event only identifies the provider candidate.  The trusted
+      # producer is resolved to one exact Integration authority revision
+      # above.  The controller remains pinned here, never selected by
+      # client_payload.  Updating the controller pin is an Integration-owned
+      # change; advancing the producer branch is handled by the exact-head
+      # stale-base check in the trusted controller.
+      producer_ref: ${{ needs.validate_event.outputs.integration_ref }}
+      composition_ref: ${{ needs.validate_event.outputs.composition_ref || '' }}
+      policy_ref: ${{ needs.validate_event.outputs.policy_ref || '' }}
+      modeling_ref: ${{ needs.validate_event.outputs.modeling_ref || '' }}
+      controller_ref: a2b21d731e3aea09f60c6f0dc8a9280089c1a946
     secrets: inherit
     permissions:
       contents: write

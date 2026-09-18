@@ -1,13 +1,29 @@
 from __future__ import annotations
 
+import json
+from pathlib import Path
+import subprocess
+import tempfile
 import unittest
+from unittest.mock import patch
 
-from scripts.qualify_site_candidate import _candidate_lock_needs_commit, _report
+from scripts.qualify_site_candidate import (
+    _candidate_lock_needs_commit,
+    _compatibility_check_states,
+    _report,
+    qualify,
+)
+from tests.bundle_consumer_fixture import fixture, finish
+
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 class SiteCandidateQualificationTests(unittest.TestCase):
     def setUp(self) -> None:
         self.lock = {
+            "schema_version": 1,
+            "repository": "TakashiSasaki/templates",
             "revision": "a" * 40,
             "bundle_schema": 4,
             "bundle_identity": "b" * 64,
@@ -77,6 +93,65 @@ class SiteCandidateQualificationTests(unittest.TestCase):
         )
         self.assertEqual(result["next_action"], "no Site lock mutation is required")
         self.assertEqual(result["affected_authorities"], [])
+
+    def test_failed_and_not_run_checks_are_reported_truthfully(self) -> None:
+        result = _report(
+            self.lock,
+            trusted=self.trusted,
+            classification="QUALIFICATION_FAILED",
+            reasons=["SITE_ARTIFACT_PROVENANCE_FAILED"],
+            checks={
+                "bundle-integrity": "passed",
+                "generic-markdown-renderer": "passed",
+                "pages-artifact-provenance": "failed",
+            },
+            evidence=["test://qualification"],
+        )
+        self.assertEqual(result["checks"]["results"]["pages-artifact-provenance"], "failed")
+        self.assertNotIn("pages-artifact-provenance", result["checks"]["not_run"])
+
+        compatibility = {
+            "checks": {
+                "required": ["bundle-integrity", "generic-markdown-renderer", "pages-artifact-provenance"],
+                "results": {"bundle-integrity": "failed"},
+                "not_run": ["generic-markdown-renderer", "pages-artifact-provenance"],
+            }
+        }
+        self.assertEqual(
+            _compatibility_check_states(compatibility),
+            {
+                "bundle-integrity": "failed",
+                "generic-markdown-renderer": "not-run",
+                "pages-artifact-provenance": "not-run",
+            },
+        )
+
+    def test_renderer_failure_after_compatibility_success_is_qualification_failed(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            bundle = fixture(root / "bundle")
+            finish(bundle)
+            candidate_lock = root / "candidate-lock.json"
+            candidate_lock.write_text(json.dumps(self.lock), encoding="utf-8")
+            real_run = subprocess.run
+
+            def fail_renderer(command, *args, **kwargs):
+                if any("render_publication_bundle.py" in str(value) for value in command):
+                    raise subprocess.CalledProcessError(1, command)
+                return real_run(command, *args, **kwargs)
+
+            with patch("scripts.qualify_site_candidate.subprocess.run", side_effect=fail_renderer):
+                result = qualify(
+                    ROOT,
+                    bundle,
+                    candidate_lock,
+                    trusted=self.trusted,
+                    evidence=["test://renderer"],
+                )
+            self.assertEqual(result["classification"], "QUALIFICATION_FAILED")
+            self.assertEqual(result["checks"]["results"]["bundle-integrity"], "passed")
+            self.assertEqual(result["checks"]["results"]["generic-markdown-renderer"], "failed")
+            self.assertIn("pages-artifact-provenance", result["checks"]["not_run"])
 
 
 if __name__ == "__main__":

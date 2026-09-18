@@ -1,7 +1,7 @@
 # Site consumer of Integrated Publication Bundle v3/v4
 
 The independent Integration authority owns the producer, provider semantics
-validation, and canonical [Bundle contract](https://github.com/TakashiSasaki/templates/blob/fd978a01fb934187500655481b6f744db7eacbf9/contracts/publication-bundle/README.md).
+validation, and canonical [Bundle contract](https://github.com/TakashiSasaki/templates/blob/a2b21d731e3aea09f60c6f0dc8a9280089c1a946/contracts/publication-bundle/README.md).
 Site selects that exact reviewed release in `integration-source.json`. The lock
 binds producer revision, schema, Bundle identity and content digest. It contains
 no independently selected Composition or Policy revision.
@@ -35,8 +35,11 @@ the latter unchanged. Integration adoption changes the explicit lock; a moving
 Integration branch never changes a Site build. Pages deployment remains a
 separate explicit Site operation.
 
-Bundle v3 remains the committed two-provider baseline. Bundle v4 is the bounded
-three-provider tuple (modeling, composition, policy); Modeling records, catalog
-documentation and schemas are consumed only through the Bundle. The
-generic-document feature is a presentation fallback, not automatic adoption of
-a new Site semantic contract.
+Bundle v3 remains a historical reader contract and regression fixture. The
+committed Site selection cuts over to Bundle v4, the bounded three-provider tuple
+(modeling, composition, policy). v4 carries Integration's normalized,
+provider-bound requirements closure and digest; Site compares that closure with
+this support contract and never reads raw provider declarations. Modeling records,
+catalog documentation and schemas are consumed only through the Bundle. The
+generic-document feature is a presentation fallback only when both sides declare
+that fallback; it is not automatic adoption of a new Site semantic contract.

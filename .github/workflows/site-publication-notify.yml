@@ -27,4 +27,5 @@ jobs:
           test -n "$GH_TOKEN"
           test "$SITE_REVISION" = "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/site" --jq '.object.sha')"
           gh workflow run deploy-pages.yml --repo "$GITHUB_REPOSITORY" --ref site \
-            -f "site_revision=$SITE_REVISION"
+            -f "site_revision=$SITE_REVISION" \
+            -f "automatic=true"
