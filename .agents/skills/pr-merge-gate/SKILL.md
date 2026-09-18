@@ -1,0 +1,16 @@
+---
+name: pr-merge-gate
+description: Load the exact immutable Policy-owned pull-request merge-gate adapter for Modeling maintenance.
+---
+
+# Pull Request Merge Gate
+
+This thin Modeling-local shim is only a reference to the shared Policy-owned
+gate. Verify the adjacent `source.json`, fetch the exact revision/path, and
+compare the observed blob before loading it. Missing or mismatched source is
+blocked; a mutable `policy` branch or local copy is not a fallback.
+
+Use the gate after Modeling-specific record, catalog, generation, and
+qualification evidence is complete. CI and review remain separate evidence
+layers, and review or green CI does not authorize merge. This shim does not
+restate shared semantics or authorize Integration/Site adoption or deployment.

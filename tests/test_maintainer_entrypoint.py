@@ -1,4 +1,6 @@
+import json
 from pathlib import Path
+import re
 import unittest
 
 
@@ -35,6 +37,27 @@ class MaintainerEntrypointTests(unittest.TestCase):
         self.assertIn("## Read before editing", skill)
         self.assertIn("## Validate before requesting CI", skill)
         self.assertIn("Do not merge or enable Integration/Site adoption without authorization", skill)
+
+    def test_maintainer_landing_route_preserves_modeling_boundaries(self):
+        source = json.loads(
+            (ROOT / ".agents/skills/land-templates-stack/source.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        self.assertEqual(source["kind"], "repository-maintainer-skill-reference")
+        self.assertEqual(source["repository"], "TakashiSasaki/templates")
+        self.assertEqual(source["revision"], "a878da560c5286634b21671b54793e26ed8167b2")
+        self.assertEqual(source["path"], "repository-skills/land-templates-stack/SKILL.md")
+        self.assertTrue(re.fullmatch(r"[0-9a-f]{40}", source["blob_sha"]))
+        # Modeling and Policy have independent histories.  Source retrieval
+        # must verify this exact identity without requiring the Policy object
+        # to be reachable from the Modeling checkout.
+        landing = (ROOT / ".agents/skills/land-templates-stack/SKILL.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("does not authorize", landing)
+        self.assertIn("same immutable", landing)
+        self.assertNotIn("CI_DISCOVERY_MIN_OBSERVATION_MINUTES", landing)
 
 
 if __name__ == "__main__":
