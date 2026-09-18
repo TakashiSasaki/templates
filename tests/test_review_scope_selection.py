@@ -98,7 +98,7 @@ def test_each_authority_routes_bounded_expanded_and_reusable_scope(
     authority: str, invariant: str
 ) -> None:
     member_id = f"{authority}-maintenance"
-    packet = _packet(purpose=f"{authority}_maintenance")
+    packet = _packet(purpose="fix_verification")
     candidate = packet["candidate"]
     assert isinstance(candidate, dict)
     candidate["authority"] = authority

@@ -33,7 +33,7 @@ outputs:
   .agents/skills/orchestrate-repository-change/references/human-handoff.md:
     sha256: c0cfa1caea7092e47a165d2f48da0dcfce873a259d79e633660e306ea919e62c
   .agents/skills/orchestrate-repository-change/references/pr-workflow-selection.md:
-    sha256: 9d729a44b1916c79c94bfdbb4153e651e3aaf01ad4ef4a48a37a0e8fb523d487
+    sha256: be3581ad7264be059604138c0ef2387f1fa9fb20c36b0b73b88bf9fb2e31631d
   .agents/skills/orchestrate-repository-change/references/repository-topology-discovery.md:
     sha256: 00e5be71c2d869c40b6c88aa84e77cf8e035ae95a50d9fbfceab3a36c5ded433
   .agents/skills/orchestrate-repository-change/references/repository-tracked-work-ledger.md:
@@ -79,4 +79,4 @@ outputs:
   .review-authority/review-policy.md:
     sha256: 6371abb09b7e4d128c6a9552ce3963cad6d487df4e6b0b059a0433c0cf503d5c
   AGENTS.md:
-    sha256: 1d44b5321e9758a17446ef843b40c8be292976549ba64b897d1f6edb32d4bf84
+    sha256: 0ece76c3cb10c2dcc1ad2be01bf44659d96ca1c51b1c852a25ea21a77d172b88
