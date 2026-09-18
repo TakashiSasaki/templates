@@ -1,3 +1,4 @@
+import hashlib
 import json
 from pathlib import Path
 import re
@@ -8,6 +9,8 @@ from scripts.verify_maintainer_source import (
     CANONICAL_REVISION,
     CANONICAL_RULE_BLOB,
     CANONICAL_RULE_PATH,
+    CANONICAL_PLANNER_BLOB,
+    CANONICAL_PLANNER_PATH,
     CANONICAL_SKILL_BLOB,
     CANONICAL_SKILL_PATH,
     git_blob_sha,
@@ -16,11 +19,14 @@ from scripts.verify_maintainer_source import (
 
 
 ROOT = Path(__file__).resolve().parents[1]
-CANONICAL_REVISION = "a878da560c5286634b21671b54793e26ed8167b2"
+CANONICAL_REVISION = "9c2c538d5ee0b866379db40e5c24b29d60e155ba"
+GENERATION_TOOLCHAIN_REVISION = "671014164461a709e193d83e87d375ac12a34d56"
 CANONICAL_SKILL_PATH = "repository-skills/land-templates-stack/SKILL.md"
-CANONICAL_SKILL_BLOB = "b433bdf781eb1fd0f32a525bfd68bac2563316d7"
+CANONICAL_SKILL_BLOB = "06efa38681e374636bcabcbcb984be5ec43b47ee"
 CANONICAL_RULE_PATH = "repository-policy/stacked-pr-landing.md"
-CANONICAL_RULE_BLOB = "9dd1c5498dd9b37ef91afd65ad400fbdee13ee29"
+CANONICAL_RULE_BLOB = "9761cdbcd21b0e8ba2f3eb2ffb306725a82f5eef"
+CANONICAL_PLANNER_PATH = "repository-skills/land-templates-stack/scripts/plan_review_scope.py"
+CANONICAL_PLANNER_BLOB = "16c0907a19e3f8d339fe81e29f7b204e791fc781"
 
 
 class MaintainerOnboardingTests(unittest.TestCase):
@@ -62,8 +68,10 @@ class MaintainerOnboardingTests(unittest.TestCase):
             "Landing route for maintenance pull requests",
             ".agents/skills/land-templates-stack/SKILL.md",
             CANONICAL_REVISION,
-            "9dd1c5498dd9b37ef91afd65ad400fbdee13ee29",
+            CANONICAL_RULE_BLOB,
             CANONICAL_SKILL_BLOB,
+            CANONICAL_PLANNER_PATH,
+            CANONICAL_PLANNER_BLOB,
         ):
             with self.subTest(required=required):
                 self.assertIn(required, self.guide_flat)
@@ -165,11 +173,19 @@ class MaintainerOnboardingTests(unittest.TestCase):
             )
         )
         self.assertEqual(source["kind"], "repository-maintainer-skill-reference")
+        self.assertEqual(source["schema_version"], 2)
         self.assertRegex(source["revision"], r"^[0-9a-f]{40}$")
         self.assertRegex(source["blob_sha"], r"^[0-9a-f]{40}$")
         self.assertEqual(source["revision"], CANONICAL_REVISION)
         self.assertEqual(source["repository"], "TakashiSasaki/templates")
         self.assertEqual(source["path"], CANONICAL_SKILL_PATH)
+        self.assertEqual(
+            source["closure"],
+            [
+                {"path": CANONICAL_RULE_PATH, "blob_sha": CANONICAL_RULE_BLOB},
+                {"path": CANONICAL_PLANNER_PATH, "blob_sha": CANONICAL_PLANNER_BLOB},
+            ],
+        )
         skill = (ROOT / ".agents/skills/land-templates-stack/SKILL.md").read_text(
             encoding="utf-8"
         )
@@ -177,20 +193,76 @@ class MaintainerOnboardingTests(unittest.TestCase):
         self.assertIn("does not authorize", skill)
         self.assertNotIn("CI_DISCOVERY_MIN_OBSERVATION_MINUTES", skill)
 
+        project = (ROOT / "policy/project.md").read_text(encoding="utf-8")
+        for required in (
+            "Adaptive Site review scope",
+            "source-ready preflight",
+            "fixed Bundle",
+            "browser/PWA/cache lifecycle",
+            "Independent review remains required",
+        ):
+            with self.subTest(required=required):
+                self.assertIn(required, project)
+
+    def test_finalized_adoption_inventory_matches_policy_projection(self):
+        adoption = json.loads(
+            (ROOT / ".agent-policy/adoption.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(
+            adoption["toolchain"],
+            {
+                "repository": "TakashiSasaki/templates",
+                "revision": GENERATION_TOOLCHAIN_REVISION,
+            },
+        )
+        agents_entry = next(
+            entry for entry in adoption["sources"] if entry["path"] == "AGENTS.md"
+        )
+        self.assertTrue(agents_entry["generated"])
+        self.assertEqual(
+            agents_entry["sha256"],
+            hashlib.sha256((ROOT / "AGENTS.md").read_bytes()).hexdigest(),
+        )
+        self.assertTrue(adoption["sources"])
+        for entry in adoption["sources"]:
+            with self.subTest(source=entry["path"]):
+                path = ROOT / entry["path"]
+                self.assertTrue(path.is_file())
+                self.assertEqual(entry["sha256"], hashlib.sha256(path.read_bytes()).hexdigest())
+                self.assertIs(type(entry["generated"]), bool)
+                self.assertEqual(entry["generated"], entry["path"] == "AGENTS.md")
+
+    def test_coexistence_languages_separate_maintenance_and_generation(self):
+        for relative in (
+            "docs/policy-composition-coexistence.md",
+            "translations/ja/docs/policy-composition-coexistence.md",
+        ):
+            text = (ROOT / relative).read_text(encoding="utf-8")
+            self.assertIn(f"| Policy maintenance procedure | `{CANONICAL_REVISION}` |", text)
+            self.assertIn(
+                f"| Policy generation toolchain | `{GENERATION_TOOLCHAIN_REVISION}` |", text
+            )
+            self.assertNotIn("| Policy consumer |", text)
+
     def test_source_reference_rejects_invalid_and_mismatched_fixtures(self):
         skill = b"canonical landing skill fixture"
         rule = b"canonical maintenance rule fixture"
         source = {
-            "schema_version": 1,
+            "schema_version": 2,
             "kind": "repository-maintainer-skill-reference",
             "repository": "TakashiSasaki/templates",
             "revision": "a" * 40,
             "path": CANONICAL_SKILL_PATH,
             "blob_sha": git_blob_sha(skill),
+            "closure": [
+                {"path": CANONICAL_RULE_PATH, "blob_sha": git_blob_sha(rule)},
+                {"path": CANONICAL_PLANNER_PATH, "blob_sha": git_blob_sha(b"planner")},
+            ],
         }
         files = {
             (source["repository"], source["revision"], CANONICAL_SKILL_PATH): skill,
             (source["repository"], source["revision"], CANONICAL_RULE_PATH): rule,
+            (source["repository"], source["revision"], CANONICAL_PLANNER_PATH): b"planner",
         }
 
         def fixture_fetch(repository, revision, path):
@@ -198,10 +270,14 @@ class MaintainerOnboardingTests(unittest.TestCase):
 
         fixture_rule_blob = git_blob_sha(rule)
         verified = verify_source_reference(
-            source, fixture_fetch, expected_rule_blob=fixture_rule_blob
+            source,
+            fixture_fetch,
+            expected_rule_blob=fixture_rule_blob,
+            expected_planner_blob=git_blob_sha(b"planner"),
         )
         self.assertEqual(verified["skill_blob"], source["blob_sha"])
         self.assertEqual(verified["rule_blob"], fixture_rule_blob)
+        self.assertEqual(verified["planner_blob"], git_blob_sha(b"planner"))
 
         malformed = dict(source, revision="policy")
         with self.assertRaisesRegex(ValueError, "immutable full SHA"):
@@ -226,7 +302,20 @@ class MaintainerOnboardingTests(unittest.TestCase):
         files[(source["repository"], source["revision"], CANONICAL_RULE_PATH)] = b"tampered"
         with self.assertRaisesRegex(ValueError, "rule blob mismatch"):
             verify_source_reference(
-                source, fixture_fetch, expected_rule_blob=fixture_rule_blob
+                source,
+                fixture_fetch,
+                expected_rule_blob=fixture_rule_blob,
+                expected_planner_blob=git_blob_sha(b"planner"),
+            )
+
+        files[(source["repository"], source["revision"], CANONICAL_RULE_PATH)] = rule
+        files.pop((source["repository"], source["revision"], CANONICAL_PLANNER_PATH))
+        with self.assertRaises(KeyError):
+            verify_source_reference(
+                source,
+                fixture_fetch,
+                expected_rule_blob=fixture_rule_blob,
+                expected_planner_blob=git_blob_sha(b"planner"),
             )
 
     def test_clean_room_route_matrix_has_required_columns_and_all_scenarios(self):

@@ -53,16 +53,18 @@ the procedure. All five authority routes resolve the same immutable canonical
 snapshot:
 
 - repository: `TakashiSasaki/templates`;
-- revision: `a878da560c5286634b21671b54793e26ed8167b2`;
+- revision: `9c2c538d5ee0b866379db40e5c24b29d60e155ba`;
 - rule: `repository-policy/stacked-pr-landing.md`, blob
-  `9dd1c5498dd9b37ef91afd65ad400fbdee13ee29`;
+  `9761cdbcd21b0e8ba2f3eb2ffb306725a82f5eef`;
 - landing Skill: `repository-skills/land-templates-stack/SKILL.md`, blob
-  `b433bdf781eb1fd0f32a525bfd68bac2563316d7`.
+  `06efa38681e374636bcabcbcb984be5ec43b47ee`;
+- review-scope planner: `repository-skills/land-templates-stack/scripts/plan_review_scope.py`, blob
+  `16c0907a19e3f8d339fe81e29f7b204e791fc781`.
 
-The local shim must resolve the rule from that snapshot, not from a consumer
+The local shim must resolve the rule and planner from that snapshot, not from a consumer
 worktree, mutable `policy` branch, latest ref, or unverified copy. Source
 failure is blocked. The separate shared PR gate remains pinned to
-`TakashiSasaki/templates@733c86941f8154f301a225054d88c6b8a477058a` and is
+`TakashiSasaki/templates@412c525478d23ca889a649daf51b6261f6746ef3` and is
 loaded through the authority-local `pr-merge-gate` route. Site acceptance,
 review, merge authorization, publication, and deployment remain distinct
 states; this onboarding guide does not authorize any of them.
@@ -103,7 +105,7 @@ Edit the source that owns the meaning and regenerate its projections:
 
 The Site `AGENTS.md` is generated from Site's `.agent-policy.yml`,
 `policy/project.md`, and selected toolchain revision
-`733c86941f8154f301a225054d88c6b8a477058a7`; update the source and run that
+`671014164461a709e193d83e87d375ac12a34d56`; update the source and run that
 exact generator. Do not replace it with an unreviewed Policy checkout. The
 Policy authority's own generated outputs follow its separate pinned toolchain
 `33a7ab809225c2a8b8dd2598ef04d0a39cf076a7`. A toolchain adoption pin and a
@@ -125,6 +127,13 @@ diagnostics are not new merge gates. Review findings, exact-head acceptance,
 required checks, branch protection, merge, and deployment are separate states.
 Under human-handoff, do not merge or enable auto-merge; report pending CI/review
 as pending.
+
+Use the pinned review-scope planner after the Site source-ready and
+authority-owned checks. A fixed Bundle with a bounded presentation change may
+use an exact-head delta review; renderer meaning, Bundle protocol, PWA/cache,
+trust boundary, Integration adoption, or final-artifact/deployment binding
+changes expand the related Site scope. Reuse only explicit complete coverage,
+and keep independent review separate from local tests and generated receipts.
 
 ## PR topology and handoff
 

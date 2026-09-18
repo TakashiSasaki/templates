@@ -20,11 +20,13 @@ from urllib.request import Request, urlopen
 
 
 ROOT = Path(__file__).resolve().parents[1]
-CANONICAL_REVISION = "a878da560c5286634b21671b54793e26ed8167b2"
+CANONICAL_REVISION = "9c2c538d5ee0b866379db40e5c24b29d60e155ba"
 CANONICAL_SKILL_PATH = "repository-skills/land-templates-stack/SKILL.md"
-CANONICAL_SKILL_BLOB = "b433bdf781eb1fd0f32a525bfd68bac2563316d7"
+CANONICAL_SKILL_BLOB = "06efa38681e374636bcabcbcb984be5ec43b47ee"
 CANONICAL_RULE_PATH = "repository-policy/stacked-pr-landing.md"
-CANONICAL_RULE_BLOB = "9dd1c5498dd9b37ef91afd65ad400fbdee13ee29"
+CANONICAL_RULE_BLOB = "9761cdbcd21b0e8ba2f3eb2ffb306725a82f5eef"
+CANONICAL_PLANNER_PATH = "repository-skills/land-templates-stack/scripts/plan_review_scope.py"
+CANONICAL_PLANNER_BLOB = "16c0907a19e3f8d339fe81e29f7b204e791fc781"
 FULL_SHA = re.compile(r"[0-9a-f]{40}")
 
 
@@ -40,10 +42,11 @@ def verify_source_reference(
     expected_revision: str | None = None,
     expected_skill_blob: str | None = None,
     expected_rule_blob: str | None = None,
+    expected_planner_blob: str | None = None,
 ) -> dict[str, str]:
-    """Validate metadata and both immutable source objects."""
+    """Validate metadata and the immutable Skill/rule/planner closure."""
 
-    if source.get("schema_version") != 1:
+    if source.get("schema_version") != 2:
         raise ValueError("unsupported source reference schema")
     if source.get("kind") != "repository-maintainer-skill-reference":
         raise ValueError("unsupported source reference kind")
@@ -59,6 +62,29 @@ def verify_source_reference(
         raise ValueError("unexpected canonical Skill path")
     if not isinstance(blob, str) or FULL_SHA.fullmatch(blob) is None:
         raise ValueError("source blob must be a full Git blob SHA")
+    closure = source.get("closure")
+    if not isinstance(closure, list) or len(closure) != 2:
+        raise ValueError("source closure must declare the canonical rule and planner")
+    closure_blobs: dict[str, str] = {}
+    for item in closure:
+        if not isinstance(item, dict):
+            raise ValueError("source closure must declare the canonical rule and planner")
+        closure_path = item.get("path")
+        closure_blob = item.get("blob_sha")
+        if (
+            not isinstance(closure_path, str)
+            or closure_path in closure_blobs
+            or not isinstance(closure_blob, str)
+            or FULL_SHA.fullmatch(closure_blob) is None
+        ):
+            raise ValueError("source closure must declare the canonical rule and planner")
+        closure_blobs[closure_path] = closure_blob
+    if set(closure_blobs) != {CANONICAL_RULE_PATH, CANONICAL_PLANNER_PATH}:
+        raise ValueError("source closure must declare the canonical rule and planner")
+    if expected_rule_blob is not None and closure_blobs[CANONICAL_RULE_PATH] != expected_rule_blob:
+        raise ValueError("unexpected canonical rule blob")
+    if expected_planner_blob is not None and closure_blobs[CANONICAL_PLANNER_PATH] != expected_planner_blob:
+        raise ValueError("unexpected canonical planner blob")
     for name, actual, expected in (
         ("revision", revision, expected_revision),
         ("Skill blob", blob, expected_skill_blob),
@@ -75,9 +101,21 @@ def verify_source_reference(
 
     rule = fetch_file(repository, revision, CANONICAL_RULE_PATH)
     observed_rule = git_blob_sha(rule)
+    if observed_rule != closure_blobs[CANONICAL_RULE_PATH]:
+        raise ValueError(f"canonical rule blob mismatch: {observed_rule}")
     if expected_rule_blob is not None and observed_rule != expected_rule_blob:
         raise ValueError(f"canonical rule blob mismatch: {observed_rule}")
-    return {"skill_blob": observed_skill, "rule_blob": observed_rule}
+    planner = fetch_file(repository, revision, CANONICAL_PLANNER_PATH)
+    observed_planner = git_blob_sha(planner)
+    if observed_planner != closure_blobs[CANONICAL_PLANNER_PATH]:
+        raise ValueError(f"canonical planner blob mismatch: {observed_planner}")
+    if expected_planner_blob is not None and observed_planner != expected_planner_blob:
+        raise ValueError(f"canonical planner blob mismatch: {observed_planner}")
+    return {
+        "skill_blob": observed_skill,
+        "rule_blob": observed_rule,
+        "planner_blob": observed_planner,
+    }
 
 
 def fetch_local_file(repository: str, revision: str, path: str) -> bytes:
@@ -123,6 +161,7 @@ def main(argv: list[str] | None = None) -> int:
         expected_revision=CANONICAL_REVISION,
         expected_skill_blob=CANONICAL_SKILL_BLOB,
         expected_rule_blob=CANONICAL_RULE_BLOB,
+        expected_planner_blob=CANONICAL_PLANNER_BLOB,
     )
     print(json.dumps({"revision": source["revision"], **result}, sort_keys=True))
     return 0
