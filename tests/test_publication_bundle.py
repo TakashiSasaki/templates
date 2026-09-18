@@ -9,6 +9,11 @@ from publication_bundle.paths import audience_routes
 
 PRODUCER={'authority':'integration','revision':'a'*40}
 PROVIDERS={'composition':'b'*40,'policy':'c'*40}
+PROVIDERS_V4={'modeling':'d'*40,'composition':'b'*40,'policy':'c'*40}
+REQUIREMENTS_V4=[
+    {'provider':provider,'feature':'publication.generic-document.v1','required':True,'fallback':'generic-document'}
+    for provider in ('modeling','composition','policy')
+]
 
 
 def fixture(root):
@@ -54,6 +59,34 @@ def finish(root, expected_publication_paths=None):
             if expected_publication_paths is None
             else expected_publication_paths
         ),
+    )
+
+
+def v4_fixture(root):
+    root = fixture(root)
+    provenance = json.loads((root / 'provenance.json').read_text())
+    provenance['providers'] = PROVIDERS_V4
+    (root / 'provenance.json').write_bytes(canonical(provenance))
+    graph = json.loads((root / 'guided-navigation.json').read_text())
+    templates = {item['name']: item for item in graph['providers']}
+    template = graph['providers'][0]
+    graph['providers'] = [
+        {**templates.get(provider, template), 'name': provider, 'revision': revision}
+        for provider, revision in PROVIDERS_V4.items()
+    ]
+    (root / 'guided-navigation.json').write_bytes(canonical(graph))
+    return root
+
+
+def finish_v4(root):
+    return seal(
+        root,
+        producer=PRODUCER,
+        providers=PROVIDERS_V4,
+        configuration_digest='d' * 64,
+        expected_publication_paths=declared_publication_paths(root),
+        schema_version=4,
+        requirements=REQUIREMENTS_V4,
     )
 
 
@@ -108,6 +141,29 @@ class BundleTests(unittest.TestCase):
         a=fixture(self.base/'a');b=fixture(self.base/'b')
         (b/'publication/intro.md').write_text('# Changed\n')
         self.assertNotEqual(finish(a)['identity'],finish(b)['identity'])
+
+    def test_v4_carries_provider_bound_requirement_closure(self):
+        root = v4_fixture(self.base / 'v4')
+        data = finish_v4(root)
+        self.assertEqual(data['schema_version'], 4)
+        self.assertEqual(data['requirements'], REQUIREMENTS_V4)
+        self.assertEqual(data['requirements_digest'], digest(canonical(REQUIREMENTS_V4)))
+        self.assertEqual(validate(root)['identity'], data['identity'])
+
+    def test_v4_requirement_identity_or_provider_binding_fails_closed(self):
+        for mutation in ('digest', 'provider'):
+            with self.subTest(mutation=mutation):
+                root = v4_fixture(self.base / mutation)
+                finish_v4(root)
+                data = json.loads((root / 'bundle.json').read_text())
+                if mutation == 'digest':
+                    data['requirements_digest'] = 'e' * 64
+                else:
+                    data['requirements'][0]['provider'] = 'not-in-tuple'
+                    data['requirements_digest'] = digest(canonical(data['requirements']))
+                (root / 'bundle.json').write_bytes(canonical(data))
+                with self.assertRaises(BundleError):
+                    validate(root)
 
     def test_payload_corruption_and_unlisted_files_fail(self):
         for mutation in ('modify','add','remove'):

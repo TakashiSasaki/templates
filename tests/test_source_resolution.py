@@ -8,9 +8,10 @@ import tempfile
 import unittest
 
 from scripts.resolve_publication_sources import (
-    PUBLICATION_NAMES,
+    ALL_PUBLICATION_NAMES,
     SourceLockError,
     parse_overrides,
+    resolve_candidate_sources,
     resolve_sources,
     write_outputs,
 )
@@ -23,8 +24,20 @@ LOCK = ROOT / "publication-sources.json"
 class SourceResolutionTests(unittest.TestCase):
     def test_reviewed_lock_accepts_exact_full_sha_values(self) -> None:
         resolved = resolve_sources(LOCK, {})
-        self.assertEqual(tuple(resolved), PUBLICATION_NAMES)
+        self.assertEqual(tuple(resolved), ALL_PUBLICATION_NAMES)
         self.assertTrue(all(len(value) == 40 for value in resolved.values()))
+
+    def test_committed_cutover_uses_the_three_provider_tuple(self) -> None:
+        lock = json.loads(LOCK.read_text(encoding="utf-8"))
+        self.assertEqual(lock["schema_version"], 2)
+        self.assertEqual(
+            lock["publications"],
+            {
+                "modeling": {"revision": "ad4108fb16bb1b296911fa4377856d510bce9f7b"},
+                "composition": {"revision": "27a1a13b182ba5ac91ccdec38d73facf712133ba"},
+                "policy": {"revision": "e8f75acade81411a3837ebb67bb5219e5c51eb1c"},
+            },
+        )
 
     def test_branch_and_abbreviated_override_refs_are_rejected(self) -> None:
         for ref in ("composition", "a" * 39):
@@ -55,7 +68,7 @@ class SourceResolutionTests(unittest.TestCase):
         write_outputs(output, resolved)
         self.assertEqual(
             output.getvalue(),
-            f"composition={override}\npolicy={resolved['policy']}\n",
+            f"modeling={resolved['modeling']}\ncomposition={override}\npolicy={resolved['policy']}\n",
         )
 
     def test_failed_cli_resolution_does_not_create_output(self) -> None:
@@ -79,6 +92,35 @@ class SourceResolutionTests(unittest.TestCase):
             )
             self.assertNotEqual(result.returncode, 0)
             self.assertFalse(output.exists())
+
+    def test_modeling_requires_an_explicit_candidate_override(self) -> None:
+        with self.assertRaisesRegex(SourceLockError, "explicit full SHA"):
+            resolve_candidate_sources(LOCK, {}, required_new_providers=("modeling",))
+        resolved = resolve_candidate_sources(
+            LOCK,
+            {"modeling": "a" * 40},
+            required_new_providers=("modeling",),
+        )
+        self.assertEqual(tuple(resolved), ("modeling", "composition", "policy"))
+
+    def test_schema_two_lock_can_be_read_after_explicit_modeling_adoption(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "lock.json"
+            path.write_bytes(
+                json.dumps({
+                    "schema_version": 2,
+                    "repository": "TakashiSasaki/templates",
+                    "publications": {
+                        "modeling": {"revision": "a" * 40},
+                        "composition": {"revision": "b" * 40},
+                        "policy": {"revision": "c" * 40},
+                    },
+                }).encode()
+            )
+            self.assertEqual(
+                resolve_sources(path, {}),
+                {"modeling": "a" * 40, "composition": "b" * 40, "policy": "c" * 40},
+            )
 
 
 if __name__ == "__main__":

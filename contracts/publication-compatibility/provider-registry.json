@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "repository": "TakashiSasaki/templates",
+  "providers": {
+    "modeling": {"authority_branch": "modeling", "publication_capabilities": "docs/publication-capabilities.json"},
+    "composition": {"authority_branch": "composition", "publication_capabilities": "docs/publication-capabilities.json"},
+    "policy": {"authority_branch": "policy", "publication_capabilities": "docs/publication-capabilities.json"}
+  }
+}

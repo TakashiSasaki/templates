@@ -11,11 +11,20 @@ from publication_bundle.contract import validate
 
 
 def binding(metadata, run, jobs, *, artifact_id, archive_digest, run_id, attempt,
-            producer, workflow_head, repository, identity, artifact_name):
+            producer, workflow_head, repository, identity, artifact_name,
+            workflow_name=None, workflow_event=None, workflow_path=None):
     if (run.get('id') != run_id or run.get('run_attempt') != attempt
             or run.get('head_sha') != workflow_head
             or run.get('head_repository',{}).get('full_name') != repository):
         raise ArtifactError('Bundle workflow run/head/attempt binding mismatch')
+    if workflow_name is not None and run.get('name') != workflow_name:
+        raise ArtifactError('Bundle workflow identity mismatch')
+    if workflow_event is not None and run.get('event') != workflow_event:
+        raise ArtifactError('Bundle workflow event mismatch')
+    if workflow_path is not None and run.get('path') != workflow_path:
+        raise ArtifactError('Bundle workflow path mismatch')
+    if run.get('status') != 'completed' or run.get('conclusion') != 'success':
+        raise ArtifactError('Bundle workflow run was not successful')
     if (metadata.get('id') != artifact_id or metadata.get('expired') is not False
             or metadata.get('digest') != archive_digest
             or metadata.get('workflow_run',{}).get('id') != run_id
@@ -68,17 +77,7 @@ def api(path):
     return json.loads(subprocess.check_output(['gh','api',path],text=True))
 
 
-def main():
-    p=argparse.ArgumentParser(description=__doc__)
-    sub=p.add_subparsers(dest='command',required=True)
-    a=sub.add_parser('pack');a.add_argument('--bundle',type=Path,required=True);a.add_argument('--output',type=Path,required=True)
-    a=sub.add_parser('consume')
-    for field in ('repository','archive-digest','bundle-identity','producer','workflow-head','composition','policy','artifact-name'):a.add_argument('--'+field,required=True)
-    for field in ('artifact-id','run-id','attempt'):a.add_argument('--'+field,type=int,required=True)
-    a.add_argument('--output',type=Path,required=True)
-    args=p.parse_args()
-    if args.command=='pack':pack(args.bundle,args.output);return
-    if not re.fullmatch(r'[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+',args.repository):p.error('invalid repository')
+def consume(args):
     prefix=f'repos/{args.repository}/actions'
     metadata=api(f'{prefix}/artifacts/{args.artifact_id}')
     run=api(f'{prefix}/runs/{args.run_id}/attempts/{args.attempt}')
@@ -88,12 +87,36 @@ def main():
         jobs+=batch
         if len(batch)<100:break
     else:raise ArtifactError('Bundle job pagination limit exceeded')
-    binding(metadata,run,jobs,artifact_id=args.artifact_id,archive_digest=args.archive_digest,run_id=args.run_id,attempt=args.attempt,producer=args.producer,workflow_head=args.workflow_head,repository=args.repository,identity=args.bundle_identity,artifact_name=args.artifact_name)
+    binding(metadata,run,jobs,artifact_id=args.artifact_id,archive_digest=args.archive_digest,run_id=args.run_id,attempt=args.attempt,producer=args.producer,workflow_head=args.workflow_head,repository=args.repository,identity=args.bundle_identity,artifact_name=args.artifact_name,workflow_name=args.workflow_name,workflow_event=args.workflow_event,workflow_path=args.workflow_path)
+    providers={'composition':args.composition,'policy':args.policy}
+    if args.modeling:
+        providers={'modeling':args.modeling,**providers}
+    # Keep the downloaded archive alive until verified_tar has checked and
+    # extracted it.  Returning from the TemporaryDirectory context first used
+    # to delete bundle.zip before extract() opened it.
     with tempfile.TemporaryDirectory() as tmp:
         archive=Path(tmp)/'bundle.zip'
         with archive.open('wb') as output:
             subprocess.run(['gh','api',f'{prefix}/artifacts/{args.artifact_id}/zip'],stdout=output,check=True)
-        extract(archive,args.output,archive_digest=args.archive_digest,identity=args.bundle_identity,producer=args.producer,providers={'composition':args.composition,'policy':args.policy})
+        return extract(archive,args.output,archive_digest=args.archive_digest,identity=args.bundle_identity,producer=args.producer,providers=providers)
+
+
+def main():
+    p=argparse.ArgumentParser(description=__doc__)
+    sub=p.add_subparsers(dest='command',required=True)
+    a=sub.add_parser('pack');a.add_argument('--bundle',type=Path,required=True);a.add_argument('--output',type=Path,required=True)
+    a=sub.add_parser('consume')
+    for field in ('repository','archive-digest','bundle-identity','producer','workflow-head','composition','policy','artifact-name'):a.add_argument('--'+field,required=True)
+    a.add_argument('--modeling')
+    a.add_argument('--workflow-name')
+    a.add_argument('--workflow-event')
+    a.add_argument('--workflow-path')
+    for field in ('artifact-id','run-id','attempt'):a.add_argument('--'+field,type=int,required=True)
+    a.add_argument('--output',type=Path,required=True)
+    args=p.parse_args()
+    if args.command=='pack':pack(args.bundle,args.output);return
+    if not re.fullmatch(r'[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+',args.repository):p.error('invalid repository')
+    consume(args)
 
 
 if __name__=='__main__':main()

@@ -1,12 +1,15 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "repository": "TakashiSasaki/templates",
   "publications": {
+    "modeling": {
+      "revision": "ad4108fb16bb1b296911fa4377856d510bce9f7b"
+    },
     "composition": {
-      "revision": "c4a0c1085e80cec151aeed0eab653876d66c6896"
+      "revision": "27a1a13b182ba5ac91ccdec38d73facf712133ba"
     },
     "policy": {
-      "revision": "e8ee2bd1a4fad3dfbf60c25c8cb1de9b64b8b2ab"
+      "revision": "e8f75acade81411a3837ebb67bb5219e5c51eb1c"
     }
   }
 }

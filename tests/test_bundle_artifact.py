@@ -7,7 +7,9 @@ import tarfile
 import tempfile
 import unittest
 import zipfile
-from ci_artifacts.publication_bundle import pack, extract, binding
+from argparse import Namespace
+from unittest.mock import patch
+from ci_artifacts.publication_bundle import pack, extract, binding, consume
 from ci_artifacts.transport import ArtifactError
 from publication_bundle.contract import BundleError
 from tests.test_publication_bundle import fixture, finish, PRODUCER, PROVIDERS
@@ -57,7 +59,7 @@ class BundleArtifactTests(unittest.TestCase):
     def test_attempt_window_and_all_identity_bindings(self):
         name='publication-bundle-'+self.manifest['identity']+'-2-integration'
         metadata={'id':1,'expired':False,'digest':'sha256:'+'d'*64,'name':name,'workflow_run':{'id':2,'head_sha':'a'*40},'created_at':'2026-09-16T12:00:03Z'}
-        run={'id':2,'run_attempt':2,'head_sha':'a'*40,'head_repository':{'full_name':'TakashiSasaki/templates'}}
+        run={'id':2,'run_attempt':2,'head_sha':'a'*40,'head_repository':{'full_name':'TakashiSasaki/templates'},'status':'completed','conclusion':'success'}
         job={'name':'build / integration / Qualify Integration candidate (integration)','run_attempt':2,'status':'completed','conclusion':'success','started_at':'2026-09-16T12:00:00Z','completed_at':'2026-09-16T12:00:10Z'}
         expected=dict(artifact_id=1,archive_digest=metadata['digest'],run_id=2,attempt=2,producer='a'*40,workflow_head='a'*40,repository='TakashiSasaki/templates',identity=self.manifest['identity'],artifact_name=name)
         binding(metadata,run,[job,{**job,'name':'freshness / Qualify Integration candidate (freshness)'}],**expected)
@@ -65,3 +67,54 @@ class BundleArtifactTests(unittest.TestCase):
             data=copy.deepcopy({'metadata':metadata,'run':run,'job':job});data[target][key]=value
             with self.subTest(target=target,key=key),self.assertRaises(ArtifactError):binding(data['metadata'],data['run'],[data['job']],**expected)
         with self.assertRaises(ArtifactError):binding(metadata,run,[job,job],**expected)
+
+    def test_remote_consume_keeps_download_alive_for_verified_extraction(self):
+        archive, digest = self.archive()
+        artifact_name = 'publication-bundle-' + self.manifest['identity'] + '-1-candidate'
+        metadata = {
+            'id': 7,
+            'expired': False,
+            'digest': digest,
+            'name': artifact_name,
+            'workflow_run': {'id': 8, 'head_sha': 'a' * 40},
+            'created_at': '2026-09-16T12:00:03Z',
+        }
+        run = {
+            'id': 8,
+            'run_attempt': 1,
+            'head_sha': 'a' * 40,
+            'head_repository': {'full_name': 'TakashiSasaki/templates'},
+            'name': 'Qualify Integration candidate',
+            'event': 'workflow_dispatch',
+            'path': '.github/workflows/integration-qualification.yml',
+            'status': 'completed',
+            'conclusion': 'success',
+        }
+        job = {
+            'name': 'Qualify Integration candidate (candidate)',
+            'run_attempt': 1,
+            'status': 'completed',
+            'conclusion': 'success',
+            'started_at': '2026-09-16T12:00:00Z',
+            'completed_at': '2026-09-16T12:00:10Z',
+        }
+        args = Namespace(
+            repository='TakashiSasaki/templates', artifact_id=7,
+            archive_digest=digest, bundle_identity=self.manifest['identity'],
+            producer=PRODUCER['revision'], workflow_head='a' * 40,
+            artifact_name=artifact_name, run_id=8, attempt=1,
+            composition=PROVIDERS['composition'], policy=PROVIDERS['policy'],
+            modeling=None, workflow_name='Qualify Integration candidate',
+            workflow_event='workflow_dispatch',
+            workflow_path='.github/workflows/integration-qualification.yml',
+            output=self.root / 'remote-out',
+        )
+
+        def download(_command, *, stdout, check):
+            stdout.write(archive.read_bytes())
+
+        with patch('ci_artifacts.publication_bundle.api', side_effect=[metadata, run, {'jobs': [job]}]), \
+                patch('ci_artifacts.publication_bundle.subprocess.run', side_effect=download):
+            result = consume(args)
+        self.assertEqual(result, self.manifest)
+        self.assertEqual((args.output / 'bundle.json').read_bytes(), (self.bundle / 'bundle.json').read_bytes())

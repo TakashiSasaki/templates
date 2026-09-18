@@ -542,9 +542,9 @@ def glossary_source_from_catalog(root: Path) -> PurePosixPath | None:
         raise GlossaryError("publication catalog must be an object")
 
     version = data.get("schema_version")
-    if type(version) is not int or version != 3:
+    if type(version) is not int or version not in {3, 4}:
         raise GlossaryError(
-            "publication catalog schema_version must be integer 3"
+            "publication catalog schema_version must be integer 3 or 4"
         )
 
     allowed = {"schema_version", "documents", "assets", "glossary"}

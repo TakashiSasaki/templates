@@ -15,9 +15,9 @@ It may represent or validate provider declarations, but may not redefine their s
 Site owns presentation and browser runtime, including source browser/search/glossary UI,
 accessibility, PWA and deployed-document freshness, artifact packaging and deployment.
 Integration does not import those implementations. Site adoption of an exact reviewed
-Integration release is a separate, explicit human action. Site completed that cutover
-in #901 and renders stale translation warnings through #902. Integration advancement
-still does not advance Site selection or authorize deployment.
+Integration release is a separate Site-owned gate: Shadow is report-only, and an activated
+controller may prepare the allowlisted lock PR without bypassing Site qualification or
+branch protection. Integration advancement still does not authorize Pages deployment.
 
 The historical P5 bootstrap used the reviewed Site provider snapshot, not provider
 HEADs. Its provenance remains immutable historical evidence. Later P7 promotion and

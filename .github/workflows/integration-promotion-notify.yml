@@ -1,0 +1,220 @@
+name: Notify Site after Integration adoption
+on:
+  pull_request:
+    types: [closed]
+    branches: [integration]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  release_qualification:
+    if: >-
+      github.repository == 'TakashiSasaki/templates' &&
+      github.event.pull_request.merged == true &&
+      startsWith(github.event.pull_request.head.ref, 'automation/publication-') &&
+      github.event.pull_request.base.ref == 'integration' &&
+      vars.PUBLICATION_POLICY_REVISION != '' &&
+      vars.PUBLICATION_CONTROLLER_REVISION != '' &&
+      vars.PUBLICATION_AUTOMATION_KILL_SWITCH != 'true'
+    uses: ./.github/workflows/integration-qualification.yml
+    with:
+      producer_ref: ${{ github.event.pull_request.merge_commit_sha }}
+      trusted_controller_revision: ${{ vars.PUBLICATION_CONTROLLER_REVISION || '' }}
+      trusted_rebuild: true
+      trusted_policy_revision: ${{ vars.PUBLICATION_POLICY_REVISION || '' }}
+      artifact_namespace: promoted
+    permissions:
+      contents: read
+      actions: read
+
+  verify_release:
+    needs: release_qualification
+    if: >-
+      github.repository == 'TakashiSasaki/templates' &&
+      needs.release_qualification.result == 'success' &&
+      vars.PUBLICATION_POLICY_REVISION != '' &&
+      vars.PUBLICATION_CONTROLLER_REVISION != '' &&
+      vars.PUBLICATION_AUTOMATION_KILL_SWITCH != 'true'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      receipt_digest: ${{ steps.receipt.outputs.digest }}
+      artifact_id: ${{ steps.receipt_upload.outputs.artifact-id }}
+      artifact_digest: sha256:${{ steps.receipt_upload.outputs.artifact-digest }}
+      artifact_name: publication-verification-${{ needs.release_qualification.outputs.bundle_identity }}-${{ needs.release_qualification.outputs.workflow_attempt }}-promoted
+    steps:
+      - name: Check out the active trusted controller
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ vars.PUBLICATION_CONTROLLER_REVISION || github.sha }}
+          path: controller-source
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Require the active controller pin
+        env:
+          CONTROLLER: ${{ vars.PUBLICATION_CONTROLLER_REVISION || '' }}
+        run: test -n "$CONTROLLER"
+      - name: Check out the exact merged Integration and provider declarations
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.release_qualification.outputs.producer_revision }}
+          path: producer-source
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.release_qualification.outputs.composition_revision }}
+          path: provider-inputs/composition
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.release_qualification.outputs.policy_revision }}
+          path: provider-inputs/policy
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        if: ${{ needs.release_qualification.outputs.modeling_revision != '' }}
+        with:
+          ref: ${{ needs.release_qualification.outputs.modeling_revision }}
+          path: provider-inputs/modeling
+          persist-credentials: false
+      - name: Download the exact candidate qualification report
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          artifact-ids: ${{ needs.release_qualification.outputs.qualification_artifact_id }}
+          path: qualification
+      - name: Consume and independently verify the exact promoted Bundle
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MODELING: ${{ needs.release_qualification.outputs.modeling_revision }}
+        run: |
+          WORKFLOW_PATH="${GITHUB_WORKFLOW_REF#*/.github/workflows/}"
+          WORKFLOW_PATH="${WORKFLOW_PATH%@*}"
+          test -n "$WORKFLOW_PATH"
+          args=(
+            consume
+            --repository "$GITHUB_REPOSITORY"
+            --artifact-id "${{ needs.release_qualification.outputs.artifact_id }}"
+            --archive-digest "${{ needs.release_qualification.outputs.artifact_digest }}"
+            --bundle-identity "${{ needs.release_qualification.outputs.bundle_identity }}"
+            --producer "${{ needs.release_qualification.outputs.producer_revision }}"
+            --workflow-head "${{ needs.release_qualification.outputs.workflow_head }}"
+            --workflow-name "${{ needs.release_qualification.outputs.workflow_name }}"
+            --workflow-event "${{ needs.release_qualification.outputs.workflow_event }}"
+            --workflow-path "$WORKFLOW_PATH"
+            --artifact-name "${{ needs.release_qualification.outputs.artifact_name }}"
+            --run-id "${{ needs.release_qualification.outputs.workflow_run_id }}"
+            --attempt "${{ needs.release_qualification.outputs.workflow_attempt }}"
+            --composition "${{ needs.release_qualification.outputs.composition_revision }}"
+            --policy "${{ needs.release_qualification.outputs.policy_revision }}"
+            --output qualification/bundle
+          )
+          if [ -n "$MODELING" ]; then args+=(--modeling "$MODELING"); fi
+          python3 controller-source/scripts/publication_bundle_artifact.py "${args[@]}"
+          cp producer-source/publication-sources.json candidate-lock.json
+          verify_args=(
+            --report qualification/compatibility-report.json
+            --bundle qualification/bundle
+            --candidate candidate-lock.json
+            --composition-root provider-inputs/composition
+            --composition-revision "${{ needs.release_qualification.outputs.composition_revision }}"
+            --policy-root provider-inputs/policy
+            --policy-revision "${{ needs.release_qualification.outputs.policy_revision }}"
+            --expected-integration-revision "${{ needs.release_qualification.outputs.producer_revision }}"
+            --expected-controller-revision "${{ vars.PUBLICATION_CONTROLLER_REVISION || '' }}"
+            --workflow-run-id "${{ needs.release_qualification.outputs.workflow_run_id }}"
+            --workflow-attempt "${{ needs.release_qualification.outputs.workflow_attempt }}"
+            --workflow-head "${{ needs.release_qualification.outputs.workflow_head }}"
+            --workflow-name "${{ needs.release_qualification.outputs.workflow_name }}"
+            --workflow-event "${{ needs.release_qualification.outputs.workflow_event }}"
+            --workflow-path "$WORKFLOW_PATH"
+            --artifact-id "${{ needs.release_qualification.outputs.artifact_id }}"
+            --artifact-digest "${{ needs.release_qualification.outputs.artifact_digest }}"
+            --artifact-name "${{ needs.release_qualification.outputs.artifact_name }}"
+            --output verified-report.json
+          )
+          if [ -n "$MODELING" ]; then
+            verify_args+=(--modeling-root provider-inputs/modeling --modeling-revision "$MODELING")
+          fi
+          if [ -n "${{ vars.PUBLICATION_POLICY_REVISION || '' }}" ]; then
+            verify_args+=(--expected-policy-revision "${{ vars.PUBLICATION_POLICY_REVISION }}")
+          fi
+          python3 controller-source/scripts/verify_qualification_report.py "${verify_args[@]}"
+      - name: Record the trusted receipt identity
+        id: receipt
+        run: echo "digest=$(sha256sum verified-report.json | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+      - name: Publish the trusted release receipt
+        id: receipt_upload
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: publication-verification-${{ needs.release_qualification.outputs.bundle_identity }}-${{ needs.release_qualification.outputs.workflow_attempt }}-promoted
+          path: verified-report.json
+          if-no-files-found: error
+          retention-days: 7
+
+  notify:
+    needs:
+      - release_qualification
+      - verify_release
+    if: >-
+      github.repository == 'TakashiSasaki/templates' &&
+      needs.release_qualification.result == 'success' &&
+      needs.verify_release.result == 'success' &&
+      github.event.pull_request.merged == true &&
+      startsWith(github.event.pull_request.head.ref, 'automation/publication-') &&
+      github.event.pull_request.base.ref == 'integration' &&
+      vars.PUBLICATION_POLICY_REVISION != '' &&
+      vars.PUBLICATION_CONTROLLER_REVISION != '' &&
+      vars.PUBLICATION_AUTOMATION_KILL_SWITCH != 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Dispatch exact merged Integration identity to Site
+        env:
+          GH_TOKEN: ${{ secrets.PUBLICATION_APP_TOKEN }}
+          PRODUCER_SHA: ${{ needs.release_qualification.outputs.producer_revision }}
+          BUNDLE_SCHEMA: ${{ needs.release_qualification.outputs.bundle_schema }}
+          BUNDLE_IDENTITY: ${{ needs.release_qualification.outputs.bundle_identity }}
+          CONTENT_DIGEST: ${{ needs.release_qualification.outputs.bundle_content_digest }}
+          ARTIFACT_ID: ${{ needs.release_qualification.outputs.artifact_id }}
+          ARTIFACT_DIGEST: ${{ needs.release_qualification.outputs.artifact_digest }}
+          ARTIFACT_NAME: ${{ needs.release_qualification.outputs.artifact_name }}
+          RUN_ID: ${{ needs.release_qualification.outputs.workflow_run_id }}
+          ATTEMPT: ${{ needs.release_qualification.outputs.workflow_attempt }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          WORKFLOW_HEAD: ${{ needs.release_qualification.outputs.workflow_head }}
+          WORKFLOW_NAME: ${{ needs.release_qualification.outputs.workflow_name }}
+          WORKFLOW_EVENT: ${{ needs.release_qualification.outputs.workflow_event }}
+          QUALIFICATION_ARTIFACT_ID: ${{ needs.release_qualification.outputs.qualification_artifact_id }}
+          QUALIFICATION_ARTIFACT_DIGEST: ${{ needs.release_qualification.outputs.qualification_artifact_digest }}
+          QUALIFICATION_ARTIFACT_NAME: ${{ needs.release_qualification.outputs.qualification_artifact_name }}
+          VERIFIED_RECEIPT_DIGEST: ${{ needs.verify_release.outputs.receipt_digest }}
+          VERIFIED_RECEIPT_ARTIFACT_ID: ${{ needs.verify_release.outputs.artifact_id }}
+          VERIFIED_RECEIPT_ARTIFACT_DIGEST: ${{ needs.verify_release.outputs.artifact_digest }}
+          VERIFIED_RECEIPT_ARTIFACT_NAME: ${{ needs.verify_release.outputs.artifact_name }}
+        run: |
+          test -n "$GH_TOKEN"
+          gh api repos/TakashiSasaki/templates/dispatches \
+            --method POST \
+            -f event_type='publication.integration-promoted' \
+            -f client_payload[boundary]='integration-to-site' \
+            -f "client_payload[integration_revision]=$PRODUCER_SHA" \
+            -f "client_payload[bundle_schema]=$BUNDLE_SCHEMA" \
+            -f "client_payload[bundle_identity]=$BUNDLE_IDENTITY" \
+            -f "client_payload[content_digest]=$CONTENT_DIGEST" \
+            -f "client_payload[artifact_id]=$ARTIFACT_ID" \
+            -f "client_payload[artifact_digest]=$ARTIFACT_DIGEST" \
+            -f "client_payload[artifact_name]=$ARTIFACT_NAME" \
+            -f "client_payload[run_id]=$RUN_ID" \
+            -f "client_payload[attempt]=$ATTEMPT" \
+            -f "client_payload[workflow_head]=$WORKFLOW_HEAD" \
+            -f "client_payload[workflow_name]=$WORKFLOW_NAME" \
+            -f "client_payload[workflow_event]=$WORKFLOW_EVENT" \
+            -f "client_payload[qualification_artifact_id]=$QUALIFICATION_ARTIFACT_ID" \
+            -f "client_payload[qualification_artifact_digest]=$QUALIFICATION_ARTIFACT_DIGEST" \
+            -f "client_payload[qualification_artifact_name]=$QUALIFICATION_ARTIFACT_NAME" \
+            -f "client_payload[verified_receipt_digest]=$VERIFIED_RECEIPT_DIGEST" \
+            -f "client_payload[verified_receipt_artifact_id]=$VERIFIED_RECEIPT_ARTIFACT_ID" \
+            -f "client_payload[verified_receipt_artifact_digest]=$VERIFIED_RECEIPT_ARTIFACT_DIGEST" \
+            -f "client_payload[verified_receipt_artifact_name]=$VERIFIED_RECEIPT_ARTIFACT_NAME" \
+            -f "client_payload[source_pr]=$PR_NUMBER"
