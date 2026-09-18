@@ -6,14 +6,30 @@ These are canonical, handwritten, English branch-local instructions. Read AUTHOR
 
 For resource registration or revision, read `.agents/skills/register-information-model/SKILL.md` and `docs/intake.md`. These apply this authority's contract without acquiring another authority's decision rights.
 
+## Adaptive review scope
+
+Use the immutable Policy landing Skill's review-scope planner after the local
+generator/qualification preflight and before an independent review request.
+Modeling owns resource records, local schemas/profiles/mappings, identifiers,
+record revisions, provenance claims, and catalog/export meaning. A small record
+update inside an unchanged contract can use an independent exact-head delta
+review covering the source claim and generated projection. Schema/profile
+meaning, mapping or identifier rules, observed-versus-verified bytes, rights or
+provenance scope, and export contracts expand to the related Modeling stack;
+external registration is not Integration/Site adoption. A valid completed
+result is reusable only when its candidate, purpose, coverage, and binding
+inputs still match. Tests, generated receipts, or cost thresholds never waive
+independent review.
+
 ## Templates maintainer landing route
 
 For maintenance of the `modeling` authority, load
 `.agents/skills/land-templates-stack/SKILL.md` for a single PR or
 same-authority stack and verify its adjacent immutable `source.json`. It pins
-`TakashiSasaki/templates@a878da560c5286634b21671b54793e26ed8167b2`,
+`TakashiSasaki/templates@4e871785052e909deb6d2f9382674859461b2767`,
 `repository-skills/land-templates-stack/SKILL.md`, blob
-`b433bdf781eb1fd0f32a525bfd68bac2563316d7`; the rule is resolved from that
+`e16c969544f5f045b44751514f75288426e0134d`; its rule and review-scope planner
+are resolved from that
 same snapshot, never from a mutable branch or local fallback. Then load
 `.agents/skills/pr-merge-gate/SKILL.md` for the separate shared acceptance
 gate. Modeling qualification and review evidence do not authorize merge,
@@ -54,5 +70,5 @@ The initial administrative profile deliberately has narrower capabilities than t
 - Prefer logically separated stacked PRs, each based on its predecessor. Do not block downstream implementation on upstream CI, review, or merge.
 - Preserve independent authority histories and leave existing authorities unchanged unless explicitly authorized.
 - Maintain operational work/resume state in PR descriptions/comments, not in a Git-tracked session transcript. GitHub remains canonical for PR/head/CI/review facts. Do not duplicate review-finding ledgers.
-- After the final stack member, request exactly one whole-stack Codex diagnostic review covering dependencies, overlap/gaps, design consistency, final behavior, test adequacy, and unrelated changes. Include the authority's root/seed changes where relevant. Do not request per-member reviews as substitutes or repeat the whole-stack request.
+- After the final stack member, prepare one logical final review packet and let the immutable Policy planner select the diagnostic scope from dependencies, overlap/gaps, design consistency, final behavior, test adequacy, and unrelated changes. Include the authority's root/seed changes where relevant. Additional independent coverage remains available when a new head, contract, binding, or material evidence gap justifies it; do not duplicate an active request or poll after handoff.
 - Unless explicitly instructed otherwise, stop after that request and hand off without waiting for review and without merging. Report PR topology, exact heads, tests, outstanding CI/review, start/end/duration, and any tool limitation.

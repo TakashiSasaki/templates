@@ -46,9 +46,23 @@ class MaintainerEntrypointTests(unittest.TestCase):
         )
         self.assertEqual(source["kind"], "repository-maintainer-skill-reference")
         self.assertEqual(source["repository"], "TakashiSasaki/templates")
-        self.assertEqual(source["revision"], "a878da560c5286634b21671b54793e26ed8167b2")
+        self.assertEqual(source["schema_version"], 2)
+        self.assertEqual(source["revision"], "4e871785052e909deb6d2f9382674859461b2767")
         self.assertEqual(source["path"], "repository-skills/land-templates-stack/SKILL.md")
         self.assertTrue(re.fullmatch(r"[0-9a-f]{40}", source["blob_sha"]))
+        self.assertEqual(
+            source["closure"],
+            [
+                {
+                    "path": "repository-policy/stacked-pr-landing.md",
+                    "blob_sha": "bf259a70a0fe1b1e2b04a293e49c353d6de70255",
+                },
+                {
+                    "path": "repository-skills/land-templates-stack/scripts/plan_review_scope.py",
+                    "blob_sha": "3868d5d68c0670e138e3480c641a1edc3de6b1c0",
+                },
+            ],
+        )
         # Modeling and Policy have independent histories.  Source retrieval
         # must verify this exact identity without requiring the Policy object
         # to be reachable from the Modeling checkout.
@@ -58,6 +72,27 @@ class MaintainerEntrypointTests(unittest.TestCase):
         self.assertIn("does not authorize", landing)
         self.assertIn("same immutable", landing)
         self.assertNotIn("CI_DISCOVERY_MIN_OBSERVATION_MINUTES", landing)
+
+    def test_modeling_review_route_separates_record_deltas_from_contract_changes(self):
+        instructions = " ".join((ROOT / "AGENTS.md").read_text(encoding="utf-8").split())
+        registration = " ".join(
+            (ROOT / ".agents/skills/register-information-model/SKILL.md")
+            .read_text(encoding="utf-8")
+            .split()
+        )
+        for required in (
+            "Adaptive review scope",
+            "independent exact-head delta review",
+            "Schema/profile meaning",
+            "observed-versus-verified bytes",
+            "external registration is not Integration/Site adoption",
+            "valid completed",
+            "independent review",
+        ):
+            with self.subTest(required=required):
+                self.assertIn(required, instructions + " " + registration)
+        self.assertNotIn("exactly one whole-stack", instructions)
+        self.assertNotIn("Do not request per-member reviews as substitutes", instructions)
 
 
 if __name__ == "__main__":
