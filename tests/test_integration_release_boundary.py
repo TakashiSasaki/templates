@@ -108,6 +108,24 @@ class ReleaseBoundaryTests(unittest.TestCase):
                 self.assertIn(required, notify)
         self.assertIn('--workflow-path "$WORKFLOW_PATH"', workflow)
 
+    def test_bundle_receipt_uses_github_workflow_path_shape(self):
+        for name, expected_count in (
+            ('integration-reconcile.yml', 2),
+            ('integration-promotion-notify.yml', 1),
+        ):
+            workflow = (ROOT / '.github/workflows' / name).read_text()
+            with self.subTest(workflow=name):
+                self.assertEqual(
+                    workflow.count(
+                        'WORKFLOW_PATH=".github/workflows/${GITHUB_WORKFLOW_REF#*/.github/workflows/}"'
+                    ),
+                    expected_count,
+                )
+                self.assertEqual(
+                    workflow.count('WORKFLOW_PATH="${GITHUB_WORKFLOW_REF#*/.github/workflows/}"'),
+                    0,
+                )
+
     def test_exact_producer_binding_rejects_mutable_and_mismatched_inputs(self):
         head=subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip()
         with tempfile.TemporaryDirectory() as tmp:

@@ -144,7 +144,7 @@ jobs:
           REPOSITORY: ${{ github.repository }}
           MODELING: ${{ needs.qualify.outputs.modeling_revision }}
         run: |
-          WORKFLOW_PATH="${GITHUB_WORKFLOW_REF#*/.github/workflows/}"
+          WORKFLOW_PATH=".github/workflows/${GITHUB_WORKFLOW_REF#*/.github/workflows/}"
           WORKFLOW_PATH="${WORKFLOW_PATH%@*}"
           test -n "$WORKFLOW_PATH"
           args=(
@@ -184,7 +184,7 @@ jobs:
           EXPECTED_CONTROLLER: ${{ vars.PUBLICATION_CONTROLLER_REVISION || inputs.controller_ref || '' }}
           MODELING: ${{ needs.qualify.outputs.modeling_revision }}
         run: |
-          WORKFLOW_PATH="${GITHUB_WORKFLOW_REF#*/.github/workflows/}"
+          WORKFLOW_PATH=".github/workflows/${GITHUB_WORKFLOW_REF#*/.github/workflows/}"
           WORKFLOW_PATH="${WORKFLOW_PATH%@*}"
           test -n "$WORKFLOW_PATH"
           args=(

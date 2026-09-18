@@ -89,7 +89,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           MODELING: ${{ needs.release_qualification.outputs.modeling_revision }}
         run: |
-          WORKFLOW_PATH="${GITHUB_WORKFLOW_REF#*/.github/workflows/}"
+          WORKFLOW_PATH=".github/workflows/${GITHUB_WORKFLOW_REF#*/.github/workflows/}"
           WORKFLOW_PATH="${WORKFLOW_PATH%@*}"
           test -n "$WORKFLOW_PATH"
           args=(
