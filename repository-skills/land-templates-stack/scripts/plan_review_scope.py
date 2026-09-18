@@ -296,8 +296,13 @@ def _review_covers(
 
 
 def _validate_preflight(packet: dict[str, Any]) -> list[str]:
-    preflight = _require_object(packet.get("preflight", {}), "preflight")
-    status = preflight.get("status", "ready")
+    raw_preflight = packet.get("preflight")
+    if raw_preflight is None:
+        return ["preflight_missing"]
+    preflight = _require_object(raw_preflight, "preflight")
+    if "status" not in preflight:
+        return ["preflight_status_missing"]
+    status = preflight["status"]
     if status not in {"ready", "unknown", "failed"}:
         raise RoutingInputError("preflight.status must be ready, unknown, or failed")
     missing = preflight.get("missing", [])

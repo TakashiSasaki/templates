@@ -280,6 +280,23 @@ def test_missing_or_unknown_preflight_stops_before_review_acquisition() -> None:
     assert "ordered-members" in result["unknowns"]
 
 
+def test_omitted_preflight_or_status_stops_before_review_acquisition() -> None:
+    for preflight, expected in (
+        (None, "preflight_missing"),
+        ({"missing": []}, "preflight_status_missing"),
+    ):
+        packet = _packet()
+        if preflight is None:
+            packet.pop("preflight")
+        else:
+            packet["preflight"] = preflight
+
+        result = planner.plan(packet)
+
+        assert result["action"] == planner.ACTION_MISSING
+        assert expected in result["unknowns"]
+
+
 def test_early_diagnostic_requires_explicit_selection() -> None:
     packet = _packet(options={"early_diagnostic": True})
 
