@@ -198,9 +198,9 @@ Website 製品は `website` recipe と `capability.pwa` を、保守作業は Po
 | 関係 | 不変 revision | 意味 |
 | --- | --- | --- |
 | Composition consumer | `a739b3823660e3db742ff0e1e159d279126cba7c` | Website 契約と material の所有関係 |
-| Policy consumer | `9c4884646f5db14bc7d700f1395843a89b05a539` | 保守規範と生成された agent 指示 |
-| Composition publication | `8c6c1884fa97f3ef1ec6c1aa7deba4ad38c9f4ff` | 読者に公開する provider の内容 |
-| Policy publication | `6023af1b6aed4a22407d9ca43106cd66cfee9fb6` | 読者に公開する provider の内容 |
+| Policy maintenance procedure | `b196357a58a711b1dedc27b0e7f39ed947dc0e99` | 保守用 landing Skill・規則・review scope planner |
+| Policy generation toolchain | `671014164461a709e193d83e87d375ac12a34d56` | AGENTS.md・reviewer 指示・Policy lock の生成 |
+| Publication input | `integration-source.json` | レビュー済み Integration release と Bundle。provider の identity は Bundle が指定する |
 
 既知の provider revision N が後続の consumer revision N+1 を規定します。
 これは時間順序を持つ bootstrap であり、実行時の循環依存ではありません。

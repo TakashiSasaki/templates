@@ -23,27 +23,27 @@
     {
       "generated": false,
       "path": ".agents/skills/pr-merge-gate/source.json",
-      "sha256": "dd14e1e73746b178a96189e807f5e761e91439933eb892aa2f471d016eb145e4"
+      "sha256": "987531b4a46dd94c636cf933375d941ed3b48fdc7e9261f142bb899e62c0a593"
     },
     {
       "generated": false,
       "path": ".agents/skills/site-browser-regression-triage/SKILL.md",
-      "sha256": "38d33cc57b76e0dc7c035299ddd5c083aa30f71ab8c78cf2c655810932dc49ce"
+      "sha256": "072b3f10a3b23078f16e13d0ef2fdf79edbe163bfb09b264ec1818250dee8424"
     },
     {
       "generated": false,
       "path": ".agents/skills/site-pr-exact-head-acceptance/SKILL.md",
-      "sha256": "01c42447882f90467341bcf36f9c079acb3fba012523c13ae25c257f2f7fa159"
+      "sha256": "a98372f7b24816ec6eb391dd0e72636964d32cf05267a94dad0322da68ecb7bf"
     },
     {
       "generated": false,
       "path": ".agents/skills/site-publication-cutover/SKILL.md",
-      "sha256": "c204997428acf98f78476dd83de7192affd7f146c7fe846a2f5766fa1e825be1"
+      "sha256": "3ee332057d553c6b0104f0b15a782fc5dde9f2628bfe99bb3182ae1ca9344692"
     },
     {
       "generated": true,
       "path": "AGENTS.md",
-      "sha256": "f5624dd92569193cb99a299c322813cf5d9d1bc231d5e21b75fd99c8df78b96a"
+      "sha256": "c432334120d36d97a13b423ae7f7058bbea84c502730650523b824efa86e3b13"
     }
   ],
   "state_path": ".agent-policy/adoption.json",

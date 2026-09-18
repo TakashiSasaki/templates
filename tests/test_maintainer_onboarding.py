@@ -19,14 +19,14 @@ from scripts.verify_maintainer_source import (
 
 
 ROOT = Path(__file__).resolve().parents[1]
-CANONICAL_REVISION = "6a0fa49fdb1deaa8e4e055050ba2c34f0eb09b59"
+CANONICAL_REVISION = "b196357a58a711b1dedc27b0e7f39ed947dc0e99"
 GENERATION_TOOLCHAIN_REVISION = "671014164461a709e193d83e87d375ac12a34d56"
 CANONICAL_SKILL_PATH = "repository-skills/land-templates-stack/SKILL.md"
 CANONICAL_SKILL_BLOB = "06efa38681e374636bcabcbcb984be5ec43b47ee"
 CANONICAL_RULE_PATH = "repository-policy/stacked-pr-landing.md"
 CANONICAL_RULE_BLOB = "9761cdbcd21b0e8ba2f3eb2ffb306725a82f5eef"
 CANONICAL_PLANNER_PATH = "repository-skills/land-templates-stack/scripts/plan_review_scope.py"
-CANONICAL_PLANNER_BLOB = "526c122f1aeaffdae94350eef85c6d116f45c4fc"
+CANONICAL_PLANNER_BLOB = "5d3859ca59a3a7d2998238522d203c600f42696b"
 
 
 class MaintainerOnboardingTests(unittest.TestCase):
@@ -223,6 +223,26 @@ class MaintainerOnboardingTests(unittest.TestCase):
             agents_entry["sha256"],
             hashlib.sha256((ROOT / "AGENTS.md").read_bytes()).hexdigest(),
         )
+        self.assertTrue(adoption["sources"])
+        for entry in adoption["sources"]:
+            with self.subTest(source=entry["path"]):
+                path = ROOT / entry["path"]
+                self.assertTrue(path.is_file())
+                self.assertEqual(entry["sha256"], hashlib.sha256(path.read_bytes()).hexdigest())
+                self.assertIs(type(entry["generated"]), bool)
+                self.assertEqual(entry["generated"], entry["path"] == "AGENTS.md")
+
+    def test_coexistence_languages_separate_maintenance_and_generation(self):
+        for relative in (
+            "docs/policy-composition-coexistence.md",
+            "translations/ja/docs/policy-composition-coexistence.md",
+        ):
+            text = (ROOT / relative).read_text(encoding="utf-8")
+            self.assertIn(f"| Policy maintenance procedure | `{CANONICAL_REVISION}` |", text)
+            self.assertIn(
+                f"| Policy generation toolchain | `{GENERATION_TOOLCHAIN_REVISION}` |", text
+            )
+            self.assertNotIn("| Policy consumer |", text)
 
     def test_source_reference_rejects_invalid_and_mismatched_fixtures(self):
         skill = b"canonical landing skill fixture"
