@@ -44,6 +44,35 @@ Repository-maintainer operating authority for this branch is declared by `.agent
 
 Policy and Composition may coexist in one consumer repository without a direct runtime dependency. Policy owns `.agent-policy.yml`, `.agent-policy.lock`, and `.agent-policy/**`; Composition owns `.template-composition/**`. The canonical cross-authority boundary, including ordinary-path ownership handoffs such as a consumer-owned `AGENTS.md`, is the Site-owned [Policy–Composition coexistence contract](https://templates.moukaeritai.work/coexistence/).
 
+## Maintain the Policy authority in `templates`
+
+This is the maintainer route for the `policy` authority itself; the adoption
+commands above are for a separate product repository. The repository-wide map and
+publication-chain entry point are maintained by Site in the [templates maintainer
+onboarding guide](https://github.com/TakashiSasaki/templates/blob/site/docs/maintainer-onboarding.md).
+Confirm the checked-out branch is `policy`, capture its full `HEAD` and dirty/
+untracked state, and read [AGENTS.md](AGENTS.md), the applicable files under
+`repository-policy/`, and the local [orchestration skill](skills/orchestrate-repository-change/SKILL.md)
+before changing policy source.
+
+The editable semantic inputs are `.agent-policy.yml` and `repository-policy/`.
+`AGENTS.md`, `.review-authority/review-policy.md`, `.agent-policy.lock`, and
+generated skills are managed projections. Re-render and check them with the exact
+repository-pinned Policy toolchain (`33a7ab809225c2a8b8dd2598ef04d0a39cf076a7`);
+never hand-edit a generated output, and do not advance toolchain or installer pins
+as part of ordinary documentation routing. The canonical maintainer validation is
+the existing `python -m pytest` plus compile/release checks described in
+`repository-policy/maintainer-validation.md`; remote CI and review remain separate
+evidence layers.
+
+Policy governs generic change, review, release, and Work-ledger semantics. It does
+not own Composition, Integration, Site, or Pages behavior. Use branch names to
+discover documents and full immutable SHAs for evidence. Keep stacked PRs inside
+the `policy` authority and record dependencies on other authority PRs in the
+existing PR/Issue ledger; do not merge, rebase, or cherry-pick authority histories.
+On resumption, restore live PR/head/CI/review facts and avoid duplicate PRs or
+reviews. A passing Policy check does not authorize provider adoption or deployment.
+
 ## Commands
 
 The public onboarding operation is adoption. The hidden `init` command is an implementation primitive used for fresh adoption and is not a separate user-facing onboarding model.
