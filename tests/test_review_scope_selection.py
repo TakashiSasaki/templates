@@ -134,6 +134,7 @@ def test_each_authority_routes_bounded_expanded_and_reusable_scope(
             "key": bounded["request_key"],
             "status": "completed",
             "purpose": packet["purpose"],
+            "reviewed_scope": planner.plan(packet)["selected_scope"],
             "candidate_binding": binding,
             "candidate_binding_digest": planner._digest(binding),
             "input_binding": packet["input_binding"],
@@ -175,6 +176,36 @@ def test_bounded_change_selects_independent_delta_scope() -> None:
     assert result["selected_scope"]["kind"] == "delta"
     assert result["selected_scope"]["members"] == ["policy-p1"]
     assert result["merge_authorization"] == "not_established"
+
+
+@pytest.mark.parametrize("flag", [
+    "contract_changed", "trust_boundary_changed", "topology_changed",
+])
+def test_prior_delta_cannot_cover_semantic_expansion(flag: str) -> None:
+    prior = planner.plan(_packet())["selected_scope"]
+    current = dict(prior, kind="whole-stack", **{flag: True})
+    assert not planner._scope_dominates(prior, current)
+    # Even a whole-stack result needs the particular expansion property.
+    assert not planner._scope_dominates(dict(prior, kind="whole-stack"), current)
+    assert planner._scope_dominates(current, prior)
+
+
+@pytest.mark.parametrize("prior", [None, {}, {"kind": []}, {"kind": "whole-stack"}])
+def test_unknown_prior_scope_fails_closed(prior: object) -> None:
+    assert not planner._scope_dominates(prior, planner.plan(_packet())["selected_scope"])
+
+
+def test_duplicate_candidate_ids_fail_closed() -> None:
+    packet = _packet()
+    packet["candidate"]["members"][1]["id"] = "policy-p1"
+    with pytest.raises(planner.RoutingInputError, match="unique"):
+        planner.plan(packet)
+
+
+def test_impact_expansion_requires_applicable_prior_scope() -> None:
+    prior = planner.plan(_packet())["selected_scope"]
+    for impact in ("unknown", "unbounded"):
+        assert not planner._scope_dominates(prior, dict(prior, kind="whole-stack", impact=impact))
 
 
 @pytest.mark.parametrize(
@@ -236,6 +267,7 @@ def test_explicit_coverage_reuses_completed_independent_result() -> None:
             "key": initial["request_key"],
             "status": "completed",
             "purpose": "whole_stack_diagnostic",
+            "reviewed_scope": planner.plan(packet)["selected_scope"],
             "candidate_binding": binding,
             "candidate_binding_digest": planner._digest(binding),
             "input_binding": packet["input_binding"],
@@ -257,6 +289,52 @@ def test_explicit_coverage_reuses_completed_independent_result() -> None:
 
     assert result["action"] == planner.ACTION_REUSE
     assert result["reusable_evidence"] == ["review-17"]
+
+
+def test_broader_completed_coverage_reuses_for_narrower_scope() -> None:
+    packet = _packet(purpose="merge_acceptance")
+    broad = _packet(
+        purpose="merge_acceptance",
+        change={
+            "impact": "bounded",
+            "invariants": ["review-scope", "shared-contract"],
+            "affected_members": ["policy-p1", "composition-c"],
+            "contract_changed": True,
+            "trust_boundary_changed": False,
+            "topology_changed": False,
+        },
+    )
+    broad_result = planner.plan(broad)
+    binding = _binding(broad)
+    packet["reviews"] = [
+        {
+            "key": broad_result["request_key"],
+            "binding_key": broad_result["binding_key"],
+            "status": "completed",
+            "purpose": "merge_acceptance",
+            "reviewed_scope": broad_result["selected_scope"],
+            "candidate_binding": binding,
+            "candidate_binding_digest": planner._digest(binding),
+            "input_binding": broad["input_binding"],
+            "input_binding_digest": planner._digest(broad["input_binding"]),
+            "independent": True,
+            "metadata_complete": True,
+            "pagination_complete": True,
+            "coverage": {
+                "purposes": ["merge_acceptance"],
+                "members": ["policy-p1", "composition-c"],
+                "invariants": ["review-scope", "shared-contract"],
+                "limitations": [],
+            },
+            "locator": "broad-review-18",
+        }
+    ]
+
+    result = planner.plan(packet)
+
+    assert result["selected_scope"]["kind"] == "delta"
+    assert result["action"] == planner.ACTION_REUSE
+    assert result["reusable_evidence"] == ["broad-review-18"]
 
 
 @pytest.mark.parametrize("status", ["partial", "failed", "applicability_unknown", "stale"])
@@ -392,7 +470,12 @@ def test_completed_review_with_changed_input_binding_is_not_reused() -> None:
 
 
 def test_completed_review_with_json_type_distinct_input_is_not_reused() -> None:
-    packet = _packet(input_binding={"provider": "codex", "flag": True})
+    packet = _packet(
+        input_binding={
+            "provider": "codex",
+            "flag": True,
+        }
+    )
     initial = planner.plan(packet)
     old_input_binding = {"provider": "codex", "flag": 1}
     packet["reviews"] = [
@@ -421,6 +504,58 @@ def test_completed_review_with_json_type_distinct_input_is_not_reused() -> None:
     assert result["action"] == planner.ACTION_DELTA
 
 
+def test_same_head_new_contract_evidence_allows_additional_related_scope() -> None:
+    packet = _packet()
+    previous = planner.plan(packet)
+    packet["reviews"] = [
+        {
+            "key": previous["request_key"],
+            "status": "completed",
+            "independent": True,
+            "metadata_complete": True,
+            "pagination_complete": True,
+        }
+    ]
+    packet["change"] = {
+        "impact": "bounded",
+        "invariants": ["review-scope", "shared-contract"],
+        "affected_members": ["policy-p1"],
+        "contract_changed": True,
+        "trust_boundary_changed": False,
+        "topology_changed": False,
+    }
+
+    result = planner.plan(packet)
+
+    assert result["action"] == planner.ACTION_STACK
+    assert result["selected_scope"]["kind"] == "whole-stack"
+    assert result["request_key"] != previous["request_key"]
+
+
+def test_multiple_prior_whole_stack_results_do_not_create_a_numeric_cap() -> None:
+    packet = _packet(
+        change={
+            "impact": "bounded",
+            "invariants": ["shared-contract"],
+            "affected_members": ["policy-p1"],
+            "contract_changed": True,
+            "trust_boundary_changed": False,
+            "topology_changed": False,
+        }
+    )
+    initial = planner.plan(packet)
+    packet["reviews"] = [
+        {"key": "old-whole-stack-1", "status": "completed"},
+        {"key": "old-whole-stack-2", "status": "completed"},
+    ]
+
+    result = planner.plan(packet)
+
+    assert result["action"] == planner.ACTION_STACK
+    assert result["selected_scope"]["kind"] == "whole-stack"
+    assert result["request_key"] == initial["request_key"]
+
+
 @pytest.mark.parametrize(
     "field", ["contract_changed", "trust_boundary_changed", "topology_changed"]
 )
@@ -434,14 +569,6 @@ def test_non_boolean_scope_flag_fails_closed(field: str, value: object) -> None:
         planner.plan(_packet(change=change))
 
 
-def test_missing_input_binding_fails_closed() -> None:
-    packet = _packet()
-    del packet["input_binding"]
-
-    with pytest.raises(planner.RoutingInputError, match="input_binding must be an object"):
-        planner.plan(packet)
-
-
 def test_invalid_candidate_binding_fails_closed() -> None:
     packet = _packet()
     candidate = packet["candidate"]
@@ -450,3 +577,54 @@ def test_invalid_candidate_binding_fails_closed() -> None:
 
     with pytest.raises(planner.RoutingInputError, match="full Git SHA"):
         planner.plan(packet)
+
+
+def test_missing_input_binding_fails_closed() -> None:
+    packet = _packet()
+    del packet["input_binding"]
+
+    with pytest.raises(planner.RoutingInputError, match="input_binding must be an object"):
+        planner.plan(packet)
+
+
+def test_empty_invariant_scope_fails_closed() -> None:
+    change = _packet()["change"]
+    assert isinstance(change, dict)
+    change["invariants"] = []
+
+    with pytest.raises(planner.RoutingInputError, match="must not be empty"):
+        planner.plan(_packet(change=change))
+
+
+@pytest.mark.parametrize("field", ["purposes", "members", "invariants", "limitations"])
+def test_malformed_coverage_lists_are_not_reused(field: str) -> None:
+    packet = _packet()
+    initial = planner.plan(packet)
+    binding = _binding(packet)
+    coverage: dict[str, object] = {
+        "purposes": [packet["purpose"]],
+        "members": ["policy-p1"],
+        "invariants": ["review-scope"],
+        "limitations": [],
+    }
+    coverage[field] = {"policy-p1": False}
+    packet["reviews"] = [
+        {
+            "key": initial["request_key"],
+            "status": "completed",
+            "purpose": packet["purpose"],
+            "reviewed_scope": planner.plan(packet)["selected_scope"],
+            "candidate_binding": binding,
+            "candidate_binding_digest": planner._digest(binding),
+            "input_binding": packet["input_binding"],
+            "input_binding_digest": planner._digest(packet["input_binding"]),
+            "independent": True,
+            "metadata_complete": True,
+            "pagination_complete": True,
+            "coverage": coverage,
+        }
+    ]
+
+    result = planner.plan(packet)
+
+    assert result["action"] == planner.ACTION_DELTA
