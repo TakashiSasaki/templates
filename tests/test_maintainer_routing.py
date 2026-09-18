@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 import subprocess
 from pathlib import Path
@@ -11,9 +12,9 @@ ROUTING = ROOT / "repository-policy" / "maintainer-merge-routing.md"
 CONFIG = ROOT / ".agent-policy.yml"
 AGENTS = ROOT / "AGENTS.md"
 REVIEW = ROOT / ".review-authority" / "review-policy.md"
-REVISION = "5af977020fca701bcf6b7fb7ce12ca077b2d7220"
+REVISION = "a878da560c5286634b21671b54793e26ed8167b2"
 RULE_BLOB = "9dd1c5498dd9b37ef91afd65ad400fbdee13ee29"
-SKILL_BLOB = "902b6e543d467b47b2b91819bfab5574a85456c7"
+SKILL_BLOB = "b433bdf781eb1fd0f32a525bfd68bac2563316d7"
 FULL_SHA = re.compile(r"[0-9a-f]{40}")
 
 
@@ -72,3 +73,14 @@ def test_pinned_objects_match_the_committed_snapshot() -> None:
         _git("rev-parse", f"{REVISION}:repository-skills/land-templates-stack/SKILL.md")
         == SKILL_BLOB
     )
+
+
+def test_policy_local_landing_entry_has_an_adjacent_source_manifest() -> None:
+    local_skill = ROOT / ".agents/skills/land-templates-stack/SKILL.md"
+    source = ROOT / ".agents/skills/land-templates-stack/source.json"
+    assert local_skill.is_file()
+    data = json.loads(source.read_text(encoding="utf-8"))
+    assert data["repository"] == "TakashiSasaki/templates"
+    assert data["revision"] == REVISION
+    assert data["path"] == "repository-skills/land-templates-stack/SKILL.md"
+    assert data["blob_sha"] == SKILL_BLOB

@@ -739,11 +739,15 @@ Read the maintenance rule and its execution procedure from the same immutable
 source snapshot before changing a maintenance PR:
 
 - repository: `TakashiSasaki/templates`;
-- revision: `5af977020fca701bcf6b7fb7ce12ca077b2d7220`;
+- revision: `a878da560c5286634b21671b54793e26ed8167b2`;
 - rule: `repository-policy/stacked-pr-landing.md`, blob
   `9dd1c5498dd9b37ef91afd65ad400fbdee13ee29`;
 - landing Skill: `repository-skills/land-templates-stack/SKILL.md`, blob
-  `902b6e543d467b47b2b91819bfab5574a85456c7`.
+  `b433bdf781eb1fd0f32a525bfd68bac2563316d7`.
+
+The Policy authority also exposes the thin local entry at
+`.agents/skills/land-templates-stack/SKILL.md`; validate its adjacent
+`source.json` before loading this procedure.
 
 Resolve both paths with the declared revision and verify their blob identities;
 do not read a same-named file from the consumer worktree, `policy` branch, or
@@ -763,7 +767,5 @@ merge, auto-merge, publish, deploy, or treat review and CI as interchangeable
 evidence without the required human authorization boundary.
 
 _Source: `repository-policy/maintainer-merge-routing.md` in this repository; rule ID: `policy-repo.maintainer-merge-routing`; severity: `mandatory`._
-
-
 
 
