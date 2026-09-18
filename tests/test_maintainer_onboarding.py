@@ -20,6 +20,7 @@ from scripts.verify_maintainer_source import (
 
 ROOT = Path(__file__).resolve().parents[1]
 CANONICAL_REVISION = "9085a0d169cc8c076fc5c05db23bb3e2d2d64955"
+GENERATION_TOOLCHAIN_REVISION = "671014164461a709e193d83e87d375ac12a34d56"
 CANONICAL_SKILL_PATH = "repository-skills/land-templates-stack/SKILL.md"
 CANONICAL_SKILL_BLOB = "06efa38681e374636bcabcbcb984be5ec43b47ee"
 CANONICAL_RULE_PATH = "repository-policy/stacked-pr-landing.md"
@@ -211,7 +212,7 @@ class MaintainerOnboardingTests(unittest.TestCase):
             adoption["toolchain"],
             {
                 "repository": "TakashiSasaki/templates",
-                "revision": CANONICAL_REVISION,
+                "revision": GENERATION_TOOLCHAIN_REVISION,
             },
         )
         agents_entry = next(
