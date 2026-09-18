@@ -15,9 +15,9 @@ These instructions are for maintaining the `composition` authority in
 same-authority stack, load `.agents/skills/land-templates-stack/SKILL.md` and
 verify its adjacent immutable `source.json` before reading the canonical
 landing procedure. Its source is
-`TakashiSasaki/templates@5af977020fca701bcf6b7fb7ce12ca077b2d7220`,
+`TakashiSasaki/templates@a878da560c5286634b21671b54793e26ed8167b2`,
 `repository-skills/land-templates-stack/SKILL.md`, blob
-`902b6e543d467b47b2b91819bfab5574a85456c7`. The maintenance rule is resolved
+`b433bdf781eb1fd0f32a525bfd68bac2563316d7`. The maintenance rule is resolved
 from that same snapshot, not from this worktree or a mutable branch. Keep
 Composition-specific acceptance separate from the shared gate. A completed
 CI/review path remains distinct from human merge authorization; do not merge,
