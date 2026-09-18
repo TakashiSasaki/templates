@@ -197,7 +197,7 @@ The consumer relationships below are independent of the selected publication Bun
 | Relationship | Immutable revision | Meaning |
 | --- | --- | --- |
 | Composition consumer | `a739b3823660e3db742ff0e1e159d279126cba7c` | Governs the Site Website contracts and material ownership |
-| Policy consumer | `769b69958d5deaf4adc1e59f856bcd8ca3e7bec5` | Governs Site maintenance and generated agent instructions |
+| Policy consumer | `671014164461a709e193d83e87d375ac12a34d56` | Governs Site maintenance and generated agent instructions |
 | Publication input | `integration-source.json` | Exact reviewed Integration release and Bundle; provider identities are supplied by that Bundle |
 
 ```mermaid

@@ -53,13 +53,13 @@ the procedure. All five authority routes resolve the same immutable canonical
 snapshot:
 
 - repository: `TakashiSasaki/templates`;
-- revision: `769b69958d5deaf4adc1e59f856bcd8ca3e7bec5`;
+- revision: `671014164461a709e193d83e87d375ac12a34d56`;
 - rule: `repository-policy/stacked-pr-landing.md`, blob
   `9761cdbcd21b0e8ba2f3eb2ffb306725a82f5eef`;
 - landing Skill: `repository-skills/land-templates-stack/SKILL.md`, blob
   `06efa38681e374636bcabcbcb984be5ec43b47ee`;
 - review-scope planner: `repository-skills/land-templates-stack/scripts/plan_review_scope.py`, blob
-  `195134289306cfce8641ab86e372d0d972cfa001`.
+  `611b4cdf992f9752bf650874499232eba8fd00db`.
 
 The local shim must resolve the rule and planner from that snapshot, not from a consumer
 worktree, mutable `policy` branch, latest ref, or unverified copy. Source
@@ -105,7 +105,7 @@ Edit the source that owns the meaning and regenerate its projections:
 
 The Site `AGENTS.md` is generated from Site's `.agent-policy.yml`,
 `policy/project.md`, and selected toolchain revision
-`769b69958d5deaf4adc1e59f856bcd8ca3e7bec5`; update the source and run that
+`671014164461a709e193d83e87d375ac12a34d56`; update the source and run that
 exact generator. Do not replace it with an unreviewed Policy checkout. The
 Policy authority's own generated outputs follow its separate pinned toolchain
 `33a7ab809225c2a8b8dd2598ef04d0a39cf076a7`. A toolchain adoption pin and a
