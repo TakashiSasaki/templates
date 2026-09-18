@@ -48,7 +48,7 @@ If more than one skill applies, use only the minimal set needed and follow them 
 `site-pr-exact-head-acceptance` establishes Site-specific acceptance evidence but never authorizes merge. Before declaring a Site PR merge-ready, merging it, or completing a task whose final action is a merge, load `pr-merge-gate`. Green CI and `reviews = 0` must never be interpreted as a clean review state.
 
 The repository-maintainer landing procedure is pinned to
-`TakashiSasaki/templates@2a8ea9f26ec9cad2130f71fad6c86801c4c736b0`,
+`TakashiSasaki/templates@4d1f9bfc4122de961be84737196e8acce39c01f9`,
 `repository-skills/land-templates-stack/SKILL.md`, blob
 `06efa38681e374636bcabcbcb984be5ec43b47ee`; its rule and review-scope planner
 are resolved
