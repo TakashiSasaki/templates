@@ -1,3 +1,4 @@
+import hashlib
 import json
 from pathlib import Path
 import re
@@ -201,6 +202,26 @@ class MaintainerOnboardingTests(unittest.TestCase):
         ):
             with self.subTest(required=required):
                 self.assertIn(required, project)
+
+    def test_finalized_adoption_inventory_matches_policy_projection(self):
+        adoption = json.loads(
+            (ROOT / ".agent-policy/adoption.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(
+            adoption["toolchain"],
+            {
+                "repository": "TakashiSasaki/templates",
+                "revision": CANONICAL_REVISION,
+            },
+        )
+        agents_entry = next(
+            entry for entry in adoption["sources"] if entry["path"] == "AGENTS.md"
+        )
+        self.assertTrue(agents_entry["generated"])
+        self.assertEqual(
+            agents_entry["sha256"],
+            hashlib.sha256((ROOT / "AGENTS.md").read_bytes()).hexdigest(),
+        )
 
     def test_source_reference_rejects_invalid_and_mismatched_fixtures(self):
         skill = b"canonical landing skill fixture"
