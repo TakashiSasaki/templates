@@ -260,11 +260,14 @@ def _record_binding(packet):
 
 def _active_request(packet, key, status, **locator):
     binding = _binding(packet)
+    scope = planner.plan(packet)["selected_scope"]
+    packet["discovery"]["latest_request_cycle"] = "cycle-1"
     return {
         "key": key,
+        "cycle_id": "cycle-1",
         "status": status,
         **_record_binding(packet),
-        "requested_scope": planner.plan(packet)["selected_scope"],
+        "requested_scope": scope,
         **locator,
         "candidate_binding": binding,
         "candidate_binding_digest": planner._digest(binding),
@@ -793,6 +796,64 @@ def _complete_review(packet):
         },
         "locator": "provider-result",
     }
+
+
+@pytest.mark.parametrize("value", [True, 1, "true", None])
+def test_acceptance_cannot_be_acquired_as_early_diagnostic(value):
+    packet = _packet(purpose="merge_acceptance", options={"early_diagnostic": value})
+    with pytest.raises(planner.RoutingInputError):
+        planner.plan(packet)
+
+
+@pytest.mark.parametrize("locator", [None, "", " ", 42])
+def test_requestless_reuse_requires_result_source(locator):
+    packet = _packet()
+    review = _complete_review(packet)
+    review["locator"] = locator
+    packet["reviews"] = [review]
+    assert planner.plan(packet)["action"] != planner.ACTION_REUSE
+
+
+@pytest.mark.parametrize("status", ["failed", "partial", "applicability_unknown", "stale"])
+def test_latest_unresolved_cycle_prevents_old_completed_reuse(status):
+    packet = _packet()
+    review = _complete_review(packet)
+    review["cycle_id"] = "old"
+    request = _active_request(packet, _key(packet), status, handle="latest-request")
+    packet["requests"] = [request]
+    packet["reviews"] = [review]
+    assert planner.plan(packet)["action"] == planner.ACTION_MISSING
+
+
+def test_explicit_latest_completed_cycle_can_supersede_failed_history():
+    packet = _packet()
+    review = _complete_review(packet)
+    review["cycle_id"] = "cycle-1"
+    request = _active_request(packet, _key(packet), "completed", handle="latest-request")
+    old = {**request, "cycle_id": "old", "status": "failed"}
+    packet["requests"] = [request, old]
+    packet["reviews"] = [review]
+    assert planner.plan(packet)["action"] == planner.ACTION_REUSE
+    review["cycle_id"] = "old"
+    assert planner.plan(packet)["action"] == planner.ACTION_MISSING
+
+
+@pytest.mark.parametrize("latest", [None, "", "unknown", 1, []])
+def test_unknown_latest_cycle_cannot_reuse_or_resubmit(latest):
+    packet = _packet()
+    review = _complete_review(packet)
+    request = _active_request(packet, _key(packet), "completed", handle="request")
+    packet["requests"] = [request]
+    packet["reviews"] = [review]
+    packet["discovery"]["latest_request_cycle"] = latest
+    assert planner.plan(packet)["action"] == planner.ACTION_MISSING
+
+
+def test_duplicate_cycle_identity_is_ambiguous():
+    packet = _packet()
+    request = _active_request(packet, _key(packet), "in_progress", handle="request")
+    packet["requests"] = [request, copy.deepcopy(request)]
+    assert planner.plan(packet)["action"] == planner.ACTION_MISSING
 
 
 @pytest.mark.parametrize("state", ["in_progress", "submission_unknown", "completed"])

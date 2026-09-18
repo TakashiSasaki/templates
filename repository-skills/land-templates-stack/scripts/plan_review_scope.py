@@ -20,6 +20,13 @@ For cumulative merge acceptance, integration_base_tree_sha explicitly identifies
 the tree of effective_base_sha; the adapter must obtain that identity from Git.
 Incomplete discovery or inconsistent active metadata stops acquisition; it is not
 an observed empty history and cannot justify a new external request.
+For matching request history, unique provider cycle_id values and the explicitly
+reconciled discovery.latest_request_cycle identify the latest applicable cycle;
+array order and timestamps are not inferred. Only that cycle's completed result
+can be reused. Failed/partial/unknown cycles require disposition, not fallback to
+an older clean result. Every reusable result has an actionable source locator,
+including independently discovered results without a local request record.
+Early diagnostics cannot be requested under the merge_acceptance purpose.
 """
 
 from __future__ import annotations
@@ -484,6 +491,12 @@ def plan(packet: dict[str, Any]) -> dict[str, Any]:
     if purpose not in PURPOSES:
         raise RoutingInputError(f"purpose must be one of {sorted(PURPOSES)}")
     _require_string(packet.get("objective"), "objective")
+    options = _require_object(packet.get("options", {}), "options")
+    early = options.get("early_diagnostic", False)
+    if type(early) is not bool:
+        raise RoutingInputError("options.early_diagnostic must be a boolean")
+    if early and purpose == "merge_acceptance":
+        raise RoutingInputError("early diagnostic cannot use merge_acceptance purpose")
 
     candidate = _require_object(packet.get("candidate"), "candidate")
     binding = _candidate_binding(candidate)
@@ -537,23 +550,43 @@ def plan(packet: dict[str, Any]) -> dict[str, Any]:
             "unknowns": list(missing),
         }
 
-    for item in requests:
-        if item.get("key") == key and item.get("status") in {
+    matching = [
+        item for item in requests if item.get("key") == key and item["status"] != "not_requested"
+    ]
+    latest = packet["discovery"].get("latest_request_cycle")
+    cycle_ids = [item.get("cycle_id") for item in matching]
+    if matching or latest is not None:
+        if (
+            not isinstance(latest, str)
+            or not latest.strip()
+            or any(not isinstance(c, str) or not c.strip() for c in cycle_ids)
+            or len(set(cycle_ids)) != len(cycle_ids)
+            or latest not in cycle_ids
+        ):
+            return {
+                **base_result,
+                "action": ACTION_MISSING,
+                "reason": ["latest_request_cycle_unknown"],
+                "missing_confirmation": ["explicit_latest_applicable_provider_cycle"],
+            }
+        matching = [item for item in matching if item["cycle_id"] == latest]
+
+    for item in matching:
+        locator = item.get("handle") or item.get("locator")
+        if not _active_request_matches(
+            item, binding, input_binding, request_binding, scope, key
+        ) or not (isinstance(locator, str) and locator.strip()):
+            return {
+                **base_result,
+                "action": ACTION_MISSING,
+                "reason": ["active_request_binding_or_locator_unknown"],
+                "request_state": item["status"],
+                "missing_confirmation": ["current_provider_request_binding_and_locator"],
+            }
+        if item.get("status") in {
             "in_progress",
             "submission_unknown",
         }:
-            locator = item.get("handle") or item.get("locator")
-            if not _active_request_matches(
-                item, binding, input_binding, request_binding, scope, key
-            ) or not (isinstance(locator, str) and locator.strip()):
-                return {
-                    **base_result,
-                    "action": ACTION_MISSING,
-                    "reason": ["active_request_binding_or_locator_unknown"],
-                    "request_state": item["status"],
-                    "missing_confirmation": ["current_provider_request_binding_and_locator"],
-                    "unknowns": ["reconcile_inconsistent_provider_metadata_before_resubmission"],
-                }
             return {
                 **base_result,
                 "action": ACTION_RECONCILE,
@@ -561,8 +594,20 @@ def plan(packet: dict[str, Any]) -> dict[str, Any]:
                 "request_state": item["status"],
                 "reusable_evidence": [locator],
             }
+        if item["status"] != "completed":
+            return {
+                **base_result,
+                "action": ACTION_MISSING,
+                "request_state": item["status"],
+                "reason": ["latest_request_cycle_unresolved"],
+                "missing_confirmation": ["disposition_latest_provider_cycle"],
+            }
 
     for item in reviews:
+        if matching and item.get("cycle_id") != latest:
+            continue
+        if not isinstance(item.get("locator"), str) or not item["locator"].strip():
+            continue
         if _review_covers(
             item,
             key=key,
@@ -578,11 +623,18 @@ def plan(packet: dict[str, Any]) -> dict[str, Any]:
                 "action": ACTION_REUSE,
                 "reason": ["explicit_coverage_satisfies_scope"],
                 "request_state": "completed",
-                "reusable_evidence": [item.get("locator") or key],
+                "reusable_evidence": [item["locator"]],
             }
 
-    options = _require_object(packet.get("options", {}), "options")
-    if options.get("early_diagnostic") is True:
+    if matching:
+        return {
+            **base_result,
+            "action": ACTION_MISSING,
+            "request_state": "completed",
+            "reason": ["latest_cycle_result_not_applicable"],
+            "missing_confirmation": ["locate_and_verify_latest_cycle_result"],
+        }
+    if early:
         return {
             **base_result,
             "action": ACTION_EARLY,
