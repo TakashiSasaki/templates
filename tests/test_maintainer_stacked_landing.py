@@ -3,7 +3,15 @@ from __future__ import annotations
 import json
 import re
 import subprocess
+import tempfile
 from pathlib import Path
+
+from scripts.verify_maintainer_source_reference import (
+    CANONICAL_RULE_PATH,
+    CANONICAL_SKILL_PATH,
+    SourceReferenceError,
+    verify_source_reference,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 RULE = ROOT / "repository-policy" / "stacked-pr-landing.md"
@@ -58,6 +66,7 @@ def test_fixture_covers_required_negative_and_transition_cases() -> None:
         "source-invalid-sha",
         "source-blob-mismatch",
         "source-missing-path",
+        "source-repository-mismatch",
         "source-closure-shadowing",
         "no-circular-invocation",
         "bottom-up-history",
@@ -69,18 +78,15 @@ def test_fixture_covers_required_negative_and_transition_cases() -> None:
     } <= ids
     assert all(case["condition"] and case["expected"] for case in data["cases"])
     assert all(case["facts"] and case["decision"] for case in data["cases"])
-    assert all(_evaluate_fixture(case["facts"]) == case["decision"] for case in data["cases"])
+    document_cases = [case for case in data["cases"] if "source" not in case["facts"]]
+    assert all(
+        _evaluate_document_fixture(case["facts"]) == case["decision"]
+        for case in document_cases
+    )
 
 
-def _evaluate_fixture(facts: dict) -> str:
-    """Execute the document-only decision fixtures without mutating GitHub."""
-
-    source = facts.get("source")
-    if source is not None:
-        required = ("revision_valid", "path_present", "blob_matches", "object_present")
-        if not all(source.get(key) is True for key in required):
-            return "blocked"
-        return "read-pinned-snapshot"
+def _evaluate_document_fixture(facts: dict) -> str:
+    """Check document-only decision fixtures without mutating GitHub."""
 
     if "landing_skill_invokes_shared_gate" in facts:
         if (
@@ -136,6 +142,62 @@ def _evaluate_fixture(facts: dict) -> str:
         )
 
     raise AssertionError(f"unclassified fixture facts: {facts}")
+
+
+def test_source_fixtures_use_the_immutable_reference_boundary() -> None:
+    data = json.loads(CASES.read_text(encoding="utf-8"))
+    revision = _git("rev-parse", "HEAD")
+    skill_blob = _git("rev-parse", f"{revision}:{CANONICAL_SKILL_PATH}")
+    rule_blob = _git("rev-parse", f"{revision}:{CANONICAL_RULE_PATH}")
+    source = {
+        "schema_version": 1,
+        "kind": "repository-maintainer-skill-reference",
+        "repository": "TakashiSasaki/templates",
+        "revision": revision,
+        "path": CANONICAL_SKILL_PATH,
+        "blob_sha": skill_blob,
+    }
+
+    with tempfile.TemporaryDirectory() as temporary:
+        consumer = Path(temporary)
+        shadow = consumer / CANONICAL_RULE_PATH
+        shadow.parent.mkdir(parents=True)
+        shadow.write_text("shadowed consumer rule\n", encoding="utf-8")
+        source_cases = [case for case in data["cases"] if "source" in case["facts"]]
+        for case in source_cases:
+            candidate = dict(source)
+            case_id = case["id"]
+            if case_id == "source-invalid-sha":
+                candidate["revision"] = "latest"
+            elif case_id == "source-blob-mismatch":
+                candidate["blob_sha"] = "0" * 40
+            elif case_id == "source-missing-path":
+                candidate["path"] = "repository-policy/missing.md"
+            elif case_id == "source-repository-mismatch":
+                candidate["repository"] = "other/repository"
+
+            if case["decision"] == "blocked":
+                try:
+                    verify_source_reference(
+                        candidate,
+                        repo=ROOT,
+                        expected_skill_blob=skill_blob,
+                        expected_rule_blob=rule_blob,
+                    )
+                except SourceReferenceError:
+                    continue
+                raise AssertionError(f"source fixture unexpectedly accepted: {case_id}")
+
+            verified = verify_source_reference(
+                candidate,
+                repo=ROOT,
+                expected_skill_blob=skill_blob,
+                expected_rule_blob=rule_blob,
+            )
+            assert case["decision"] == "read-pinned-snapshot"
+            assert verified.skill_blob == skill_blob
+            assert verified.rule_blob == rule_blob
+            assert verified.rule != shadow.read_bytes()
 
 
 def test_canonical_source_object_is_resolvable_from_the_current_snapshot() -> None:

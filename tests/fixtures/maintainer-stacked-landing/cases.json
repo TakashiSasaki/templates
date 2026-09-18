@@ -30,6 +30,13 @@
       "decision": "blocked"
     },
     {
+      "id": "source-repository-mismatch",
+      "condition": "The source manifest names a different repository.",
+      "expected": "Stop as blocked; do not read a similarly named local checkout.",
+      "facts": {"source": {"revision_valid": true, "path_present": true, "blob_matches": true, "object_present": true}, "repository_matches": false},
+      "decision": "blocked"
+    },
+    {
       "id": "source-closure-shadowing",
       "condition": "The consumer worktree contains a same-named rule with different bytes.",
       "expected": "Resolve the rule from the pinned source snapshot, never the consumer path.",
