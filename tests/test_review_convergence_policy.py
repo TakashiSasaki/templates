@@ -11,6 +11,7 @@ ADVERSARIAL_RULE = ROOT / "policy" / "core" / "adversarial-invariant-testing.md"
 REVIEW_PREFLIGHT_RULE = (
     ROOT / "policy" / "pull-request" / "review-acquisition-preflight.md"
 )
+REVIEW_SCOPE_RULE = ROOT / "policy" / "pull-request" / "review-scope-selection.md"
 SELF_HOST_CONFIG = ROOT / ".agent-policy.yml"
 
 
@@ -33,6 +34,24 @@ def test_review_convergence_rules_are_selected_by_shared_profiles() -> None:
         "policy/pull-request/review-acquisition-preflight.md"
         in pull_request["policy_files"]
     )
+    assert "policy/pull-request/review-scope-selection.md" in pull_request["policy_files"]
+
+
+def test_review_scope_selection_is_adaptive_and_not_a_numeric_cap() -> None:
+    text = _text(REVIEW_SCOPE_RULE)
+    for phrase in (
+        "whole-stack",
+        "explicit coverage",
+        "same objective, purpose, candidate, scope, contract, and input binding",
+        "shared contract",
+        "trust boundary",
+        "additional diagnostic or whole-stack review is permitted",
+        "there is no global numeric cap",
+        "not a semantic validator",
+    ):
+        assert phrase in text
+    assert "at most one whole-stack" not in text
+    assert "targeted-only" not in text
 
 
 def test_adversarial_invariant_rule_is_bounded_and_risk_triggered() -> None:

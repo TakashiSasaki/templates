@@ -25,6 +25,7 @@ FOCUSED_TESTS = (
     "tests/test_topology_change_orchestration.py",
     "tests/test_local_checkout_discovery.py",
     "tests/test_local_checkout_contract_provenance.py",
+    "tests/test_review_scope_selection.py",
 )
 
 

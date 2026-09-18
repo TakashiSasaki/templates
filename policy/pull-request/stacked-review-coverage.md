@@ -6,7 +6,7 @@ order: 955
 ---
 # Bind cumulative review evidence to an ordered pull-request stack
 
-The ordinary merge-acceptance path for a stacked pull-request member is a completed independent review bound to that member's exact current head. A whole-stack architecture, dependency, or completeness audit is useful diagnostic evidence but is not merge-acceptance evidence for lower members unless it also satisfies every cumulative binding below. Cumulative multi-member acceptance review is optional; stacked progression does not require it.
+The ordinary merge-acceptance path for a stacked pull-request member is a completed independent review bound to that member's exact current head. A whole-stack architecture, dependency, or completeness audit is useful diagnostic evidence but is not merge-acceptance evidence for lower members unless it also satisfies every cumulative binding below. Cumulative multi-member acceptance review is optional; stacked progression does not require it. Whole-stack names the members and invariants under examination; it imposes no numeric limit on diagnostic requests.
 
 When a completed review is claimed to cover multiple members of a stacked pull-request topology, acceptance evidence must bind to the integration base exact SHA and tree, the ordered stack membership, each member exact head SHA, the stack tip exact SHA, the cumulative reviewed scope, the review contract, reviewer independence, the review completion state, and material limitations.
 

@@ -192,6 +192,15 @@ def test_adapter_requires_explicit_bindings_only_for_cumulative_stack_claims() -
     ) in text
 
 
+def test_adapter_routes_diagnostic_scope_without_a_global_review_cap() -> None:
+    text = SKILL.read_text(encoding="utf-8").lower()
+    assert "adaptive scope-selection rule" in text
+    assert "additional review is permitted later" in text
+    assert "same purpose, candidate, scope, contract, and input binding" in text
+    assert "at most one whole-stack" not in text
+    assert "targeted review coverage required by the active contract" not in text
+
+
 def test_adapter_keeps_missing_evidence_fail_closed_and_handoff_separate() -> None:
     text = SKILL.read_text(encoding="utf-8").lower()
     assert "review_evidence_pending" in text

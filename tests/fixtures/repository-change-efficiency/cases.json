@@ -49,9 +49,9 @@
     },
     {
       "id": "F-human-handoff-final-audit",
-      "condition": "Implementation and required validation are complete, the known finding backlog is empty, final exact heads are stable, and the task explicitly authorizes one final whole-stack audit.",
+      "condition": "Implementation and required validation are complete, the known finding backlog is empty, final exact heads are stable, and the task explicitly authorizes a diagnostic audit with a selected current scope.",
       "expected": [
-        "Request one final diagnostic whole-stack review after exact-head required CI succeeds.",
+        "Request the one logical diagnostic review represented by the final packet after exact-head required CI succeeds.",
         "Do not treat the audit as per-member merge-acceptance evidence or merge authorization.",
         "Unless the explicit task requires the diagnostic audit to complete before handoff, do not wait for the result; do not retry review or merge, and stop at HANDOFF_READY when the completion contract permits handoff."
       ]

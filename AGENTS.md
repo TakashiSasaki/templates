@@ -185,9 +185,9 @@ _Source: `TakashiSasaki/templates@33a7ab809225c2a8b8dd2598ef04d0a39cf076a7:polic
 
 Repository-change work must distinguish implementation task completion, validation completion, independent review, review completion, merge authorization, and the merged result. Completing implementation or validation does not establish that review was requested, review was completed, or merge authorization exists. Progression controls construction ordering; completion controls the agent's stopping boundary. A progression strategy must not by itself force review acquisition or merge completion.
 
-A repository-change task may declare human-handoff as its completion boundary. Human handoff is valid completion when the agent has completed the authorized implementation and validation work, reports the independent-review state truthfully, reports merge authorization as not established, and leaves every pull request open and unmerged. When no applicable pre-existing review evidence establishes another state, report independent review as not requested or outstanding. When applicable pre-existing review evidence already establishes completed review, preserve and report that REVIEW_COMPLETE state rather than downgrading it merely because human-handoff was selected. When human-handoff is selected, the agent must not initiate a new merge-acceptance review request through reviewer assignment, provider invocation, requested-reviewer state, or any other review-request mechanism by default. An explicit task instruction may authorize one final whole-stack architecture/dependency/completeness audit after the stack is stable enough for handoff. That audit is diagnostic, is not ordinary per-member merge-acceptance evidence, does not authorize merge, does not waive future exact-head review requirements, must not create a review-retry loop, and need not complete before handoff unless explicitly required. Existing review evidence may be observed, inspected, and reported, but handoff does not acquire new acceptance evidence.
+A repository-change task may declare human-handoff as its completion boundary. Human handoff is valid completion when the agent has completed the authorized implementation and validation work, reports the independent-review state truthfully, reports merge authorization as not established, and leaves every pull request open and unmerged. When no applicable pre-existing review evidence establishes another state, report independent review as not requested or outstanding. When applicable pre-existing review evidence already establishes completed review, preserve and report that REVIEW_COMPLETE state rather than downgrading it merely because human-handoff was selected. When human-handoff is selected, the agent must not initiate a new merge-acceptance review request through reviewer assignment, provider invocation, requested-reviewer state, or any other review-request mechanism by default. An explicitly authorized diagnostic request must be selected by the adaptive review-selection rule after its candidate and coverage are established. Issue the one logical request represented by the final packet after the authorized work is stable; additional diagnostic scope remains permitted when new evidence or changed bindings makes prior coverage inapplicable. The diagnostic result is not ordinary per-member merge-acceptance evidence, does not authorize merge, does not waive future exact-head review requirements, must not create a review-retry loop, and need not complete before handoff unless explicitly required. Existing review evidence may be observed, inspected, and reported, but handoff does not acquire new acceptance evidence.
 
-Human handoff is not a review waiver, does not remove acceptance requirements for a later review or merge, and does not authorize a merge. Reports must not label a handoff review complete unless applicable pre-existing review evidence establishes that state, and must not label the handoff merge ready or merged. Use explicit state labels such as IMPLEMENTATION_COMPLETE, VALIDATION_COMPLETE, REVIEW_NOT_REQUESTED, REVIEW_PENDING, REVIEW_COMPLETE, HANDOFF_READY, MERGE_READY, and MERGED only when the corresponding state is established.
+Human handoff is not a review waiver, does not remove acceptance requirements for a later review or merge, and does not authorize a merge. Reports must not label a handoff review complete unless applicable pre-existing review evidence establishes that state, and must not label the handoff merge ready or merged. When the task explicitly requires a final diagnostic request, select its current scope and binding through the adaptive review-selection rule, issue one logical request after the authorized work is stable, and stop without waiting for its result. A later continuation may acquire additional scope when new evidence or a changed contract makes the prior result inapplicable; this is not a retry loop or a waiver. Use explicit state labels such as IMPLEMENTATION_COMPLETE, VALIDATION_COMPLETE, REVIEW_NOT_REQUESTED, REVIEW_PENDING, REVIEW_COMPLETE, HANDOFF_READY, MERGE_READY, and MERGED only when the corresponding state is established.
 
 _Source: `TakashiSasaki/templates@33a7ab809225c2a8b8dd2598ef04d0a39cf076a7:policy/core/repository-change-completion.md`; rule ID: `changes.separate-task-review-merge-state`; severity: `mandatory`._
 
@@ -381,7 +381,7 @@ _Source: `TakashiSasaki/templates@33a7ab809225c2a8b8dd2598ef04d0a39cf076a7:polic
 
 ## Bind cumulative review evidence to an ordered pull-request stack
 
-The ordinary merge-acceptance path for a stacked pull-request member is a completed independent review bound to that member's exact current head. A whole-stack architecture, dependency, or completeness audit is useful diagnostic evidence but is not merge-acceptance evidence for lower members unless it also satisfies every cumulative binding below. Cumulative multi-member acceptance review is optional; stacked progression does not require it.
+The ordinary merge-acceptance path for a stacked pull-request member is a completed independent review bound to that member's exact current head. A whole-stack architecture, dependency, or completeness audit is useful diagnostic evidence but is not merge-acceptance evidence for lower members unless it also satisfies every cumulative binding below. Cumulative multi-member acceptance review is optional; stacked progression does not require it. Whole-stack names the members and invariants under examination; it imposes no numeric limit on diagnostic requests.
 
 When a completed review is claimed to cover multiple members of a stacked pull-request topology, acceptance evidence must bind to the integration base exact SHA and tree, the ordered stack membership, each member exact head SHA, the stack tip exact SHA, the cumulative reviewed scope, the review contract, reviewer independence, the review completion state, and material limitations.
 
@@ -426,6 +426,48 @@ Target-branch movement invalidates the freshness decision itself, but it does no
 _Source: `TakashiSasaki/templates@33a7ab809225c2a8b8dd2598ef04d0a39cf076a7:policy/pull-request/target-branch-head-freshness.md`; rule ID: `pull-request.verify-target-branch-head-freshness`; severity: `mandatory`._
 
 
+## Select review scope from current bindings
+
+Select review work from the requested purpose, exact candidate bindings, explicit
+coverage, known findings, and the authority-owned impact closure. `whole-stack` is
+a scope description, not a review-count allowance and not an instruction to read
+all five authority branches for every task.
+
+Before acquiring review, establish the smallest scope that is supported by current
+evidence. Reuse an existing completed result only when its purpose, candidate
+binding, review contract, independence, completion state, and explicit coverage
+cover every required member and invariant. A missing head, unknown scope,
+partial or failed result, incomplete pagination, missing metadata, or unknown
+applicability is not completed coverage.
+
+Do not acquire the same objective, purpose, candidate, scope, contract, and input
+binding twice. If an equivalent request is in progress or its submission result is
+unknown, reconcile the provider state and existing handle before considering a new
+request. A request key is a comparison aid, not a provider idempotency guarantee;
+when action ownership or serialized submission cannot be established, preserve the
+uncertainty and hand off safely.
+
+For a bounded local change, acquire an independent exact-head review of the change
+and its affected closure when no applicable result covers it. A new head does not
+automatically require a whole-stack audit. If a shared contract, trust boundary,
+dependency topology, cross-member interaction, or unbounded/unknown impact is
+changed, expand to the related stack and record the reason. Unknown impact remains
+unknown until the required authority-owned inspection or review resolves it.
+
+Additional diagnostic or whole-stack review is permitted when important new
+evidence, an incomplete prior result, a changed contract, or newly uncovered scope
+justifies it. There is no global numeric cap and no universal rule that forces every
+post-review change into targeted-only coverage. Cost, elapsed time, line count,
+green tests, or a warning threshold may be reported but never establishes a waiver.
+
+The planner is not a semantic validator, reviewer, merge gate, or authorization
+issuer. It must use the formal authority validation and the shared
+`pr-merge-gate` for those decisions. A diagnostic result remains separate from
+independent exact-head merge-acceptance evidence.
+
+_Source: `TakashiSasaki/templates@33a7ab809225c2a8b8dd2598ef04d0a39cf076a7:policy/pull-request/review-scope-selection.md`; rule ID: `pull-request.select-review-scope-from-current-bindings`; severity: `mandatory`._
+
+
 ## Preflight revision-bound review acquisition
 
 Before intentionally requesting an independent review that is expected to cover a named pull-request head, commit, branch ref, or stacked set of revisions, refresh the live identity facts needed to construct that request and verify that every revision binding the request depends on is currently resolvable.
@@ -447,7 +489,7 @@ Apply this requirement independently of provider representation. A finding in a 
 
 Treat reviewer text as a defect hypothesis rather than authority. A finding first reported against an older head may be re-evaluated against the current proposed head; if current evidence falsifies it, record the decisive no-change disposition and the required closure evidence instead of making an appeasement edit. Do not force an unrelated suggestion into the current pull-request scope solely to clear the reacquisition gate. The review-result applicability rule governs whether historical evidence can establish completion for a current review cycle; it does not erase an earlier finding whose causal condition remains applicable.
 
-This rule governs intentional acquisition of a new merge-acceptance review cycle. It does not require delaying an urgent operational, security, or data-integrity repair in order to batch review work; does not prohibit naturally triggered CI or review-provider behavior; and does not require waiting for hypothetical future findings. When an explicit human-handoff procedure authorizes one final diagnostic whole-stack audit, perform it only after known material findings have received the validated dispositions and recorded closure evidence required above. Such a diagnostic audit remains distinct from merge-acceptance evidence and does not satisfy or waive the independent exact-head review requirements for later merge authorization. The latest request for that diagnostic purpose must not be treated as superseding an applicable merge-acceptance review cycle merely because it is newer.
+This rule governs intentional acquisition of a new review cycle. It does not require delaying an urgent operational, security, or data-integrity repair in order to batch review work; does not prohibit naturally triggered CI or review-provider behavior; and does not require waiting for hypothetical future findings. Before any explicitly authorized diagnostic or merge-acceptance request, apply the adaptive review-selection rule to the current purpose, candidate, scope, and coverage. Perform the required known-finding disposition and closure checks before invoking a reviewer. A diagnostic audit remains distinct from merge-acceptance evidence and does not satisfy or waive the independent exact-head review requirements for later merge authorization. A newer request for one purpose must not supersede an applicable result for a different purpose merely because it is newer.
 
 _Source: `TakashiSasaki/templates@33a7ab809225c2a8b8dd2598ef04d0a39cf076a7:policy/pull-request/review-reacquisition-after-disposition.md`; rule ID: `pull-request.disposition-known-findings-before-review-reacquisition`; severity: `mandatory`._
 
