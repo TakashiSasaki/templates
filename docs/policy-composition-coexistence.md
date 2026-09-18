@@ -197,13 +197,13 @@ The consumer relationships below are independent of the selected publication Bun
 | Relationship | Immutable revision | Meaning |
 | --- | --- | --- |
 | Composition consumer | `a739b3823660e3db742ff0e1e159d279126cba7c` | Governs the Site Website contracts and material ownership |
-| Policy consumer | `2bd1b6a74af736a9367f29296bd2ccac5066ae82` | Governs Site maintenance and generated agent instructions |
+| Policy consumer | `5e04fea0690a0c7a863073b094e0fed206ce8e7e` | Governs Site maintenance and generated agent instructions |
 | Publication input | `integration-source.json` | Exact reviewed Integration release and Bundle; provider identities are supplied by that Bundle |
 
 ```mermaid
 flowchart TD
   C["Composition: immutable consumer revision"] -->|"Website and PWA contracts"|S["Site product"]
-  P["Policy: immutable toolchain revision"] -->|"Maintenance rules"|M["Site maintenance"]
+  P["Policy: immutable maintenance source"] -->|"Maintenance rules"|M["Site maintenance"]
   M -->|"Changes and verifies"|S
   CP["Explicitly selected Integration Bundle"] -->|"Reader content"|S
 ```

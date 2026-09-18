@@ -53,7 +53,7 @@ the procedure. All five authority routes resolve the same immutable canonical
 snapshot:
 
 - repository: `TakashiSasaki/templates`;
-- revision: `2bd1b6a74af736a9367f29296bd2ccac5066ae82`;
+- revision: `5e04fea0690a0c7a863073b094e0fed206ce8e7e`;
 - rule: `repository-policy/stacked-pr-landing.md`, blob
   `9761cdbcd21b0e8ba2f3eb2ffb306725a82f5eef`;
 - landing Skill: `repository-skills/land-templates-stack/SKILL.md`, blob

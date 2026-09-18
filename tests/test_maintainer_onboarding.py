@@ -19,7 +19,7 @@ from scripts.verify_maintainer_source import (
 
 
 ROOT = Path(__file__).resolve().parents[1]
-CANONICAL_REVISION = "2bd1b6a74af736a9367f29296bd2ccac5066ae82"
+CANONICAL_REVISION = "5e04fea0690a0c7a863073b094e0fed206ce8e7e"
 GENERATION_TOOLCHAIN_REVISION = "671014164461a709e193d83e87d375ac12a34d56"
 CANONICAL_SKILL_PATH = "repository-skills/land-templates-stack/SKILL.md"
 CANONICAL_SKILL_BLOB = "06efa38681e374636bcabcbcb984be5ec43b47ee"
