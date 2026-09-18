@@ -15,7 +15,7 @@ These instructions are for maintaining the `composition` authority in
 same-authority stack, load `.agents/skills/land-templates-stack/SKILL.md` and
 verify its adjacent immutable `source.json` before reading the canonical
 landing procedure. Its source is
-`TakashiSasaki/templates@2bd1b6a74af736a9367f29296bd2ccac5066ae82`,
+`TakashiSasaki/templates@5e04fea0690a0c7a863073b094e0fed206ce8e7e`,
 `repository-skills/land-templates-stack/SKILL.md`, blob
 `06efa38681e374636bcabcbcb984be5ec43b47ee`. Its rule and review-scope planner
 are resolved
