@@ -16,6 +16,7 @@ PYTHON_ROOTS = (
     ROOT / "src",
     ROOT / "tests",
     ROOT / "scripts",
+    ROOT / "repository-skills",
     ROOT / "skills" / "agent-policy" / "scripts",
 )
 
@@ -83,6 +84,7 @@ def policy_owned_python_paths(root: Path = ROOT) -> tuple[Path, ...]:
         root / "src",
         root / "tests",
         root / "scripts",
+        root / "repository-skills",
         root / "skills" / "agent-policy" / "scripts",
     )
     return tuple(
@@ -103,6 +105,7 @@ def check_compile() -> None:
         "-q",
         "src",
         "scripts",
+        "repository-skills",
         "skills/agent-policy/scripts",
     )
 
