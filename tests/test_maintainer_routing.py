@@ -12,7 +12,7 @@ ROUTING = ROOT / "repository-policy" / "maintainer-merge-routing.md"
 CONFIG = ROOT / ".agent-policy.yml"
 AGENTS = ROOT / "AGENTS.md"
 REVIEW = ROOT / ".review-authority" / "review-policy.md"
-REVISION = "88ded1db6b35411d7be39c2c75496dd103b0b0f6"
+REVISION = "61c34b33b69d32e79e1242e2666c2837f3d04bb8"
 RULE_BLOB = "9761cdbcd21b0e8ba2f3eb2ffb306725a82f5eef"
 SKILL_BLOB = "06efa38681e374636bcabcbcb984be5ec43b47ee"
 PLANNER_BLOB = "3868d5d68c0670e138e3480c641a1edc3de6b1c0"
@@ -49,7 +49,7 @@ def test_routing_declares_immutable_rule_and_skill_bindings() -> None:
         "repository-skills/land-templates-stack/scripts/plan_review_scope.py",
         PLANNER_BLOB,
         REVISION,
-        "7f25b1ab4ec5e36a2c0c7680bcf0d54beb02eb5e",
+        "2d56c20bafec53e7387a4c6a3acd52998b7330a5",
         "33a7ab809225c2a8b8dd2598ef04d0a39cf076a7",
         "stop as blocked",
         "single PR",
@@ -126,5 +126,5 @@ def test_policy_local_gate_entry_has_a_separate_shared_gate_manifest() -> None:
         "repository": "TakashiSasaki/templates",
         "revision": REVISION,
         "path": "skills/pr-merge-gate/SKILL.md",
-        "blob_sha": "7f25b1ab4ec5e36a2c0c7680bcf0d54beb02eb5e",
+        "blob_sha": "2d56c20bafec53e7387a4c6a3acd52998b7330a5",
     }

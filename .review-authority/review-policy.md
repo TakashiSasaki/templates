@@ -582,7 +582,7 @@ Read the maintenance rule and its execution procedure from the same immutable
 source snapshot before changing a maintenance PR:
 
 - repository: `TakashiSasaki/templates`;
-- revision: `88ded1db6b35411d7be39c2c75496dd103b0b0f6`;
+- revision: `61c34b33b69d32e79e1242e2666c2837f3d04bb8`;
 - rule: `repository-policy/stacked-pr-landing.md`, blob
   `9761cdbcd21b0e8ba2f3eb2ffb306725a82f5eef`;
 - landing Skill: `repository-skills/land-templates-stack/SKILL.md`, blob
@@ -605,9 +605,9 @@ stop as blocked.
 
 The shared individual-PR acceptance gate is a separate immutable source,
 even when stored in the same candidate commit:
-`TakashiSasaki/templates@88ded1db6b35411d7be39c2c75496dd103b0b0f6`,
+`TakashiSasaki/templates@61c34b33b69d32e79e1242e2666c2837f3d04bb8`,
 `skills/pr-merge-gate/SKILL.md`, blob
-`7f25b1ab4ec5e36a2c0c7680bcf0d54beb02eb5e`. The Policy generation toolchain
+`2d56c20bafec53e7387a4c6a3acd52998b7330a5`. The Policy generation toolchain
 pin remains separate at
 `TakashiSasaki/templates@33a7ab809225c2a8b8dd2598ef04d0a39cf076a7`.
 
