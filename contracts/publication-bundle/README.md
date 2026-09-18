@@ -1,7 +1,7 @@
 # Site consumer of Integrated Publication Bundle v3/v4
 
 The independent Integration authority owns the producer, provider semantics
-validation, and canonical [Bundle contract](https://github.com/TakashiSasaki/templates/blob/b38adf7b042eba08b2b849f753acb5ed3ea40fd1/contracts/publication-bundle/README.md).
+validation, and canonical [Bundle contract](https://github.com/TakashiSasaki/templates/blob/a2b21d731e3aea09f60c6f0dc8a9280089c1a946/contracts/publication-bundle/README.md).
 Site selects that exact reviewed release in `integration-source.json`. The lock
 binds producer revision, schema, Bundle identity and content digest. It contains
 no independently selected Composition or Policy revision.

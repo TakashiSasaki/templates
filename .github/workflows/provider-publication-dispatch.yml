@@ -66,16 +66,16 @@ jobs:
   integration_controller:
     needs: validate_event
     if: needs.validate_event.result == 'success'
-    uses: TakashiSasaki/templates/.github/workflows/integration-reconcile.yml@b38adf7b042eba08b2b849f753acb5ed3ea40fd1
+    uses: TakashiSasaki/templates/.github/workflows/integration-reconcile.yml@a2b21d731e3aea09f60c6f0dc8a9280089c1a946
     with:
       # The event only identifies the provider candidate.  The trusted
       # controller and producer revision are pinned here, never selected by
       # client_payload.  Updating this pin is an Integration-owned change.
-      producer_ref: b38adf7b042eba08b2b849f753acb5ed3ea40fd1
+      producer_ref: a2b21d731e3aea09f60c6f0dc8a9280089c1a946
       composition_ref: ${{ needs.validate_event.outputs.composition_ref || '' }}
       policy_ref: ${{ needs.validate_event.outputs.policy_ref || '' }}
       modeling_ref: ${{ needs.validate_event.outputs.modeling_ref || '' }}
-      controller_ref: b38adf7b042eba08b2b849f753acb5ed3ea40fd1
+      controller_ref: a2b21d731e3aea09f60c6f0dc8a9280089c1a946
     secrets: inherit
     permissions:
       contents: write

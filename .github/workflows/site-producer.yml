@@ -74,7 +74,7 @@ jobs:
   regenerate:
     needs: selection
     if: ${{ needs.selection.outputs.available == 'false' && inputs.trusted_release_required != true }}
-    uses: TakashiSasaki/templates/.github/workflows/integration-qualification.yml@b38adf7b042eba08b2b849f753acb5ed3ea40fd1
+    uses: TakashiSasaki/templates/.github/workflows/integration-qualification.yml@a2b21d731e3aea09f60c6f0dc8a9280089c1a946
     with:
       producer_ref: ${{ needs.selection.outputs.integration_revision }}
       artifact_namespace: site-adoption
