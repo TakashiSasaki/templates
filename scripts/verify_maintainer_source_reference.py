@@ -16,6 +16,10 @@ from pathlib import Path
 EXPECTED_REPOSITORY = "TakashiSasaki/templates"
 CANONICAL_SKILL_PATH = "repository-skills/land-templates-stack/SKILL.md"
 CANONICAL_RULE_PATH = "repository-policy/stacked-pr-landing.md"
+CANONICAL_PLANNER_PATH = (
+    "repository-skills/land-templates-stack/scripts/plan_review_scope.py"
+)
+SOURCE_CLOSURE_PATHS = (CANONICAL_RULE_PATH, CANONICAL_PLANNER_PATH)
 FULL_SHA = re.compile(r"[0-9a-f]{40}")
 
 
@@ -30,6 +34,7 @@ class VerifiedSource:
     rule: bytes
     skill_blob: str
     rule_blob: str
+    closure: dict[str, bytes]
 
 
 def git_blob_sha(payload: bytes) -> str:
@@ -79,11 +84,20 @@ def verify_source_reference(
     repo: Path,
     expected_skill_blob: str | None = None,
     expected_rule_blob: str | None = None,
+    expected_planner_blob: str | None = None,
 ) -> VerifiedSource:
     """Resolve both canonical files through one exact immutable revision."""
 
-    if source.get("schema_version") != 1:
-        raise SourceReferenceError("unsupported source reference schema")
+    schema_version = source.get("schema_version")
+    if type(schema_version) is not int or schema_version != 2:
+        raise SourceReferenceError("source reference must use schema version 2")
+    if (
+        not isinstance(expected_planner_blob, str)
+        or FULL_SHA.fullmatch(expected_planner_blob) is None
+    ):
+        raise SourceReferenceError(
+            "an expected planner blob is required for the adopted source"
+        )
     if source.get("kind") != "repository-maintainer-skill-reference":
         raise SourceReferenceError("unsupported source reference kind")
     if source.get("repository") != EXPECTED_REPOSITORY:
@@ -109,4 +123,30 @@ def verify_source_reference(
         raise SourceReferenceError("Skill blob does not match the adopted pin")
     if expected_rule_blob is not None and rule_blob != expected_rule_blob:
         raise SourceReferenceError("rule blob does not match the adopted pin")
-    return VerifiedSource(revision, skill, rule, skill_blob, rule_blob)
+    closure: dict[str, bytes] = {CANONICAL_RULE_PATH: rule}
+    declared_closure = source.get("closure")
+    if not isinstance(declared_closure, list):
+        raise SourceReferenceError("schema version 2 requires an explicit source closure")
+    entries: dict[str, str] = {}
+    for item in declared_closure:
+        if not isinstance(item, dict):
+            raise SourceReferenceError("source closure entries must be objects")
+        path = item.get("path")
+        blob = item.get("blob_sha")
+        if not isinstance(path, str) or path not in SOURCE_CLOSURE_PATHS:
+            raise SourceReferenceError("source closure contains an unexpected path")
+        if not isinstance(blob, str) or FULL_SHA.fullmatch(blob) is None:
+            raise SourceReferenceError("source closure blob must be a full lowercase SHA")
+        if path in entries:
+            raise SourceReferenceError("source closure contains a duplicate path")
+        entries[path] = blob
+    if set(entries) != set(SOURCE_CLOSURE_PATHS):
+        raise SourceReferenceError("source closure is incomplete")
+    for path, expected_blob in entries.items():
+        actual_blob, payload = _require_blob(repo, revision, path)
+        if actual_blob != expected_blob:
+            raise SourceReferenceError(f"declared closure blob does not match: {path}")
+        closure[path] = payload
+    if entries[CANONICAL_PLANNER_PATH] != expected_planner_blob:
+        raise SourceReferenceError("planner blob does not match the adopted pin")
+    return VerifiedSource(revision, skill, rule, skill_blob, rule_blob, closure)

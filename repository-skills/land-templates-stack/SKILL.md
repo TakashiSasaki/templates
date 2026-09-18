@@ -14,21 +14,25 @@ authorities and does not copy their acceptance semantics.
 
 ## 1. Resolve the immutable sources before reading instructions
 
-Every consumer entry point must provide a `source.json` for this Skill and a
-separate `source.json` for `pr-merge-gate`. Validate each reference before
-using the referenced text:
+Every consumer entry point must provide a version-2 `source.json` for this
+Skill and a separate `source.json` for `pr-merge-gate`. Validate each
+reference before using the referenced text:
 
-1. require the existing source-reference schema and a full, lowercase 40-hex
-   Git commit SHA;
+1. require the source-reference schema, a full lowercase 40-hex Git commit
+   SHA, and an explicit immutable closure list;
 2. require repository `TakashiSasaki/templates`, the expected canonical path,
    and the declared blob SHA;
-3. prove that the commit object, canonical Skill path, and blob exist and that
-   `git rev-parse <revision>:<path>` equals the declared blob SHA;
-4. read the maintenance rule explicitly from the same immutable snapshot as
+3. prove that the commit object, canonical Skill path, and every declared
+   closure path/blob exist and that `git rev-parse <revision>:<path>` equals
+   each declared blob SHA;
+4. read the maintenance rule and the review-routing planner explicitly from
+   the same immutable snapshot as
    this Skill, for example
-   `git show <revision>:repository-policy/stacked-pr-landing.md`, rather than
-   resolving a relative path in the consumer worktree; and
-5. stop as blocked on an invalid SHA, missing object or path, blob mismatch,
+   `git show <revision>:repository-policy/stacked-pr-landing.md` and
+   `git show <revision>:repository-skills/land-templates-stack/scripts/plan_review_scope.py`,
+   rather than resolving a relative path in the consumer worktree; and
+5. stop as blocked on an invalid SHA, missing object or path, closure/blob
+   mismatch,
    repository mismatch, or mutable fallback such as `latest`, a branch, or an
    unverified local copy.
 
@@ -43,6 +47,19 @@ snapshot. The source reference must resolve the rule through that snapshot,
 not through a consumer's same-named `repository-policy/` file. This prevents
 a downstream checkout from shadowing the canonical rule and keeps the source
 closure explicit.
+
+The planner is the canonical **adaptive scope selection** guard and an
+ephemeral, read-only pre-request guard. Build its JSON packet
+from the live PR topology, exact bindings, authority-owned impact facts, local
+and remote evidence, known finding references, and actual request state. Invoke
+the planner from the verified immutable snapshot before any external review
+request. Follow its selected action: reuse explicit coverage, reconcile an
+in-flight or submission-unknown request, run an explicitly selected early
+diagnostic, request independent delta coverage, request the related stack, or
+stop to acquire missing facts or hand off. The planner never sends a request,
+interprets semantic test results, or authorizes a merge. Use the existing Work
+ledger action-ownership/CAS procedure when an adopted backend provides it; do
+not invent an idempotency guarantee or a lock service.
 
 ## 2. Establish the live stack snapshot
 
@@ -90,7 +107,7 @@ valid. Reacquire the affected item when its base, workflow, lock, environment,
 input, provider revision, or required-check condition changes; do not rerun an
 unaffected full suite just for freshness.
 
-If a single whole-stack review is used as cumulative evidence, explicitly bind
+If a whole-stack review is used as cumulative evidence, explicitly bind
 the ordered membership, every covered member exact head, bases and integration
 base, cumulative scope, review contract, reviewer independence, and completion
 state. A tip-only approval or audit does not accept lower members. Where that
@@ -134,13 +151,15 @@ Perform required final authority-tip qualification without turning redundant
 full runs into a permanent gate. Record individual member acceptance and any
 explicit cumulative coverage separately.
 
-After the complete stable stack has the required CI, request at most one
-whole-stack diagnostic review for architecture, dependencies, overlap/gaps,
+After the complete stable stack has the required CI, use the planner to select
+the diagnostic scope for architecture, dependencies, overlap/gaps,
 completeness, final behavior, and test sufficiency when the task authorizes
-that review. It is not automatically per-member merge evidence. Do not start
-a repeated whole-stack review loop. If a change follows the review, obtain
-only the targeted review coverage required by the active contract and refresh
-the bindings affected by the new head.
+that review. A whole-stack scope is not automatically per-member merge
+evidence. Do not duplicate an equivalent request. If important new evidence,
+a changed contract, or an unbounded/unknown impact changes the required scope,
+the planner may select another related-stack review; a local head change may
+instead select independent delta coverage. After the task's final logical
+request is submitted, stop and hand off without polling.
 
 ## 6. Stop, resume, and hand off
 

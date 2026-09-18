@@ -7,6 +7,7 @@ import tempfile
 from pathlib import Path
 
 from scripts.verify_maintainer_source_reference import (
+    CANONICAL_PLANNER_PATH,
     CANONICAL_RULE_PATH,
     CANONICAL_SKILL_PATH,
     SourceReferenceError,
@@ -55,6 +56,11 @@ def test_canonical_rule_and_skill_are_present_and_separated() -> None:
     assert "skills/pr-merge-gate/SKILL.md" in skill
     assert "does not copy their acceptance semantics" in skill
     assert "does not authorize a merge" in skill
+    assert "version-2" in skill
+    assert "scripts/plan_review_scope.py" in skill
+    assert "adaptive scope selection" in skill
+    assert "at most one" not in skill
+    assert "targeted review coverage required" not in skill
 
 
 def test_fixture_covers_required_negative_and_transition_cases() -> None:
@@ -149,13 +155,24 @@ def test_source_fixtures_use_the_immutable_reference_boundary() -> None:
     revision = _git("rev-parse", "HEAD")
     skill_blob = _git("rev-parse", f"{revision}:{CANONICAL_SKILL_PATH}")
     rule_blob = _git("rev-parse", f"{revision}:{CANONICAL_RULE_PATH}")
+    planner_blob = _git("rev-parse", f"{revision}:{CANONICAL_PLANNER_PATH}")
     source = {
-        "schema_version": 1,
+        "schema_version": 2,
         "kind": "repository-maintainer-skill-reference",
         "repository": "TakashiSasaki/templates",
         "revision": revision,
         "path": CANONICAL_SKILL_PATH,
         "blob_sha": skill_blob,
+        "closure": [
+            {
+                "path": CANONICAL_RULE_PATH,
+                "blob_sha": rule_blob,
+            },
+            {
+                "path": CANONICAL_PLANNER_PATH,
+                "blob_sha": _git("rev-parse", f"{revision}:{CANONICAL_PLANNER_PATH}"),
+            },
+        ],
     }
 
     with tempfile.TemporaryDirectory() as temporary:
@@ -183,6 +200,7 @@ def test_source_fixtures_use_the_immutable_reference_boundary() -> None:
                         repo=ROOT,
                         expected_skill_blob=skill_blob,
                         expected_rule_blob=rule_blob,
+                        expected_planner_blob=planner_blob,
                     )
                 except SourceReferenceError:
                     continue
@@ -193,6 +211,7 @@ def test_source_fixtures_use_the_immutable_reference_boundary() -> None:
                 repo=ROOT,
                 expected_skill_blob=skill_blob,
                 expected_rule_blob=rule_blob,
+                expected_planner_blob=planner_blob,
             )
             assert case["decision"] == "read-pinned-snapshot"
             assert verified.skill_blob == skill_blob
@@ -208,23 +227,60 @@ def test_source_boundary_rejects_tags_and_ignores_replacement_refs() -> None:
         _git("config", "user.email", "fixture@example.invalid", cwd=repo)
         skill = repo / CANONICAL_SKILL_PATH
         rule = repo / CANONICAL_RULE_PATH
+        planner_path = repo / CANONICAL_PLANNER_PATH
         skill.parent.mkdir(parents=True)
         rule.parent.mkdir(parents=True)
+        planner_path.parent.mkdir(parents=True)
         skill.write_text("canonical skill\n", encoding="utf-8")
         rule.write_text("canonical rule\n", encoding="utf-8")
-        _git("add", CANONICAL_SKILL_PATH, CANONICAL_RULE_PATH, cwd=repo)
+        planner_path.write_text("canonical planner\n", encoding="utf-8")
+        _git("add", CANONICAL_SKILL_PATH, CANONICAL_RULE_PATH, CANONICAL_PLANNER_PATH, cwd=repo)
         _git("commit", "-q", "-m", "canonical", cwd=repo)
         revision = _git("rev-parse", "HEAD", cwd=repo)
         skill_blob = _git("rev-parse", f"{revision}:{CANONICAL_SKILL_PATH}", cwd=repo)
         rule_blob = _git("rev-parse", f"{revision}:{CANONICAL_RULE_PATH}", cwd=repo)
+        planner_blob = _git("rev-parse", f"{revision}:{CANONICAL_PLANNER_PATH}", cwd=repo)
         source = {
-            "schema_version": 1,
+            "schema_version": 2,
             "kind": "repository-maintainer-skill-reference",
             "repository": "TakashiSasaki/templates",
             "revision": revision,
             "path": CANONICAL_SKILL_PATH,
             "blob_sha": skill_blob,
+            "closure": [
+                {"path": CANONICAL_RULE_PATH, "blob_sha": rule_blob},
+                {"path": CANONICAL_PLANNER_PATH, "blob_sha": planner_blob},
+            ],
         }
+
+        planner_path.write_text("alternate planner\n", encoding="utf-8")
+        _git("commit", "-q", "-am", "alternate planner", cwd=repo)
+        alternate_revision = _git("rev-parse", "HEAD", cwd=repo)
+        alternate_source = dict(source)
+        alternate_source["revision"] = alternate_revision
+        alternate_source["closure"] = [
+            {"path": CANONICAL_RULE_PATH, "blob_sha": rule_blob},
+            {
+                "path": CANONICAL_PLANNER_PATH,
+                "blob_sha": _git(
+                    "rev-parse",
+                    f"{alternate_revision}:{CANONICAL_PLANNER_PATH}",
+                    cwd=repo,
+                ),
+            },
+        ]
+        try:
+            verify_source_reference(
+                alternate_source,
+                repo=repo,
+                expected_skill_blob=skill_blob,
+                expected_rule_blob=rule_blob,
+                expected_planner_blob=planner_blob,
+            )
+        except SourceReferenceError as exc:
+            assert "planner blob" in str(exc)
+        else:
+            raise AssertionError("unadopted planner blob was accepted")
 
         _git("tag", "-a", "canonical-tag", "-m", "tag", revision, cwd=repo)
         tag_revision = _git("rev-parse", "refs/tags/canonical-tag", cwd=repo)
@@ -235,6 +291,7 @@ def test_source_boundary_rejects_tags_and_ignores_replacement_refs() -> None:
                 repo=repo,
                 expected_skill_blob=skill_blob,
                 expected_rule_blob=rule_blob,
+                expected_planner_blob=planner_blob,
             )
         except SourceReferenceError:
             pass
@@ -244,6 +301,7 @@ def test_source_boundary_rejects_tags_and_ignores_replacement_refs() -> None:
         source["revision"] = revision
         skill.write_text("replacement skill\n", encoding="utf-8")
         rule.write_text("replacement rule\n", encoding="utf-8")
+        planner_path.write_text("replacement planner\n", encoding="utf-8")
         _git("commit", "-q", "-am", "replacement", cwd=repo)
         replacement = _git("rev-parse", "HEAD", cwd=repo)
         _git("replace", revision, replacement, cwd=repo)
@@ -252,9 +310,51 @@ def test_source_boundary_rejects_tags_and_ignores_replacement_refs() -> None:
             repo=repo,
             expected_skill_blob=skill_blob,
             expected_rule_blob=rule_blob,
+            expected_planner_blob=planner_blob,
         )
         assert verified.skill == b"canonical skill\n"
         assert verified.rule == b"canonical rule\n"
+
+
+def test_source_boundary_rejects_missing_or_tampered_closure() -> None:
+    revision = _git("rev-parse", "HEAD")
+    skill_blob = _git("rev-parse", f"{revision}:{CANONICAL_SKILL_PATH}")
+    rule_blob = _git("rev-parse", f"{revision}:{CANONICAL_RULE_PATH}")
+    planner_blob = _git("rev-parse", f"{revision}:{CANONICAL_PLANNER_PATH}")
+    source = {
+        "schema_version": 2,
+        "kind": "repository-maintainer-skill-reference",
+        "repository": "TakashiSasaki/templates",
+        "revision": revision,
+        "path": CANONICAL_SKILL_PATH,
+        "blob_sha": skill_blob,
+        "closure": [{"path": CANONICAL_RULE_PATH, "blob_sha": rule_blob}],
+    }
+    try:
+        verify_source_reference(source, repo=ROOT, expected_planner_blob=planner_blob)
+    except SourceReferenceError as exc:
+        assert "closure" in str(exc)
+    else:
+        raise AssertionError("incomplete source closure was accepted")
+
+    source["closure"].append(
+        {"path": CANONICAL_PLANNER_PATH, "blob_sha": "0" * 40}
+    )
+    try:
+        verify_source_reference(source, repo=ROOT, expected_planner_blob=planner_blob)
+    except SourceReferenceError as exc:
+        assert "closure blob" in str(exc)
+    else:
+        raise AssertionError("tampered source closure was accepted")
+
+
+def test_source_boundary_rejects_legacy_schema_one() -> None:
+    try:
+        verify_source_reference({"schema_version": 1}, repo=ROOT)
+    except SourceReferenceError as exc:
+        assert "schema version 2" in str(exc)
+    else:
+        raise AssertionError("legacy source schema was accepted")
 
 
 def test_canonical_source_object_is_resolvable_from_the_current_snapshot() -> None:
@@ -263,6 +363,7 @@ def test_canonical_source_object_is_resolvable_from_the_current_snapshot() -> No
     for path in (
         "repository-policy/stacked-pr-landing.md",
         "repository-skills/land-templates-stack/SKILL.md",
+        "repository-skills/land-templates-stack/scripts/plan_review_scope.py",
     ):
         object_id = _git("rev-parse", f"{revision}:{path}")
         assert FULL_SHA.fullmatch(object_id)

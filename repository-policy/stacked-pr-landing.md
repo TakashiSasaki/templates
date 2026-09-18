@@ -69,6 +69,17 @@ evidence as separate evidence layers. The local landing procedure orchestrates
 the members; it does not reimplement the acceptance semantics of the shared
 gate.
 
+Before acquiring diagnostic or acceptance review, invoke the immutable
+maintenance planner from the verified landing-source closure. Supply the
+purpose, exact candidate and ordered-member bindings, authority-owned change
+classification and invariants, existing review coverage, CI and finding
+references, and actual request state. The planner only selects the next safe
+review action; it does not validate authority semantics, submit a provider
+request, or authorize a merge. Treat `whole-stack` as the selected member and
+invariant scope, not as a review-count rule. Preserve unknown impact and stop
+for missing bindings instead of treating tests, cost, or line count as a
+review waiver.
+
 For every reused or newly acquired result, identify the inputs and scope that
 bind it: exact head or merge result, effective base, changed tree, workflow
 definition, dependency lock, execution environment, generated input,
@@ -165,7 +176,10 @@ The final authority tip needs the qualification required by the shared gate,
 but final success cannot retroactively accept an invalid lower prefix. Record
 which member conditions were individually satisfied and which cumulative
 coverage was established. Keep provider landing, later authority adoption,
-publication, and deployment for their own explicit boundaries.
+publication, and deployment for their own explicit boundaries. When the task
+requires an immediate final review request, persist the pre-request checkpoint,
+submit only the planner-selected logical request, and hand off without waiting
+for the result.
 
 This procedure is read and applied for readiness only unless a human has
 explicitly authorized the corresponding landing operation. The repository
