@@ -24,7 +24,10 @@ env:
 
 concurrency:
   group: documentation-deployment
-  cancel-in-progress: true
+  # Let an in-flight deployment finish before the newest request proceeds.
+  # Cancelling an action while it is talking to Pages does not provide an
+  # atomic external rollback guarantee.
+  cancel-in-progress: false
 
 jobs:
   deployment_metadata:
@@ -102,7 +105,10 @@ jobs:
     with:
       deployment_timestamp: ${{ needs.deployment_metadata.outputs.deployment_timestamp }}
       deployment_revision: ${{ needs.deployment_metadata.outputs.site_revision }}
-      trusted_release_required: true
+      # Human dispatch is the authorization for the manual lane.  It still
+      # consumes an exact lock and a read-only qualified Bundle, while the
+      # automatic lane additionally requires the trusted promoted receipt.
+      trusted_release_required: ${{ inputs.automatic == true }}
     permissions:
       contents: read
       actions: read
@@ -242,13 +248,19 @@ jobs:
               raise SystemExit('publication kill switch is enabled before Pages deployment')
 
           receipt = json.loads(os.environ['BUILD_RECEIPT'])
+          required_receipt = {
+              'repository', 'producer', 'identity', 'run_id', 'attempt',
+              'workflow_head', 'artifact_id', 'archive_digest', 'artifact_name',
+          }
+          if not isinstance(receipt, dict) or not required_receipt <= set(receipt):
+              raise SystemExit('the qualified build did not carry a complete Integration receipt')
           trusted = receipt.get('trusted_receipt')
-          if not isinstance(trusted, dict):
-              raise SystemExit('the qualified build did not carry a trusted Integration receipt')
-          for field in ('policy_revision', 'controller_revision'):
-              if not re.fullmatch(r'[0-9a-f]{40}', trusted.get(field, '')):
-                  raise SystemExit(f'trusted receipt {field} is not an exact SHA')
           if os.environ['AUTOMATIC'].lower() == 'true':
+              if not isinstance(trusted, dict):
+                  raise SystemExit('the automatic build did not carry a trusted Integration receipt')
+              for field in ('policy_revision', 'controller_revision'):
+                  if not re.fullmatch(r'[0-9a-f]{40}', trusted.get(field, '')):
+                      raise SystemExit(f'trusted receipt {field} is not an exact SHA')
               current = {
                   'mode': repository_variable('PUBLICATION_AUTOMATION_MODE'),
                   'authorized': repository_variable('PUBLICATION_AUTOMATION_AUTHORIZED'),
@@ -292,7 +304,8 @@ jobs:
               raise SystemExit('Pages artifact is missing the selected Bundle identity')
           if (receipt.get('producer') != bundle.get('producer', {}).get('revision')
                   or receipt.get('identity') != bundle.get('identity')
-                  or trusted.get('bundle_content_digest') != bundle.get('content_digest')):
+                  or (os.environ['AUTOMATIC'].lower() == 'true'
+                      and trusted.get('bundle_content_digest') != bundle.get('content_digest'))):
               raise SystemExit('trusted receipt and final artifact selected different Bundle inputs')
           print(json.dumps({
               'artifact_id': artifact['id'],

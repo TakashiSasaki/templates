@@ -21,11 +21,13 @@ the downstream gates and automation mode explicitly authorize the next boundary.
 The canonical `site-producer.yml` locates the selected qualified Integration artifact.
 The existing transport verifies run/head, workflow attempt, artifact creation
 window, archive digest, safe extraction, Bundle identity and internal provenance.
-The final Pages deployment lane requires an unexpired promoted Bundle and a
-trusted promotion receipt; absent or expired release evidence stops the lane and
-never falls back to read-only regeneration. Corrupt or misbound evidence fails
-closed. Non-deployment qualification may still use the explicitly pinned
-read-only regeneration lane.
+The automatic Pages deployment lane requires an unexpired promoted Bundle and a
+trusted promotion receipt; absent or expired release evidence stops that lane and
+never falls back to read-only regeneration. An explicit human dispatch is a
+separate authorization path: it may use the explicitly pinned Integration
+qualification workflow to produce the exact current-lock Bundle in read-only
+mode, then applies the same Site qualification, provenance, artifact, freshness,
+and deploy-time gates. Corrupt or misbound evidence fails closed.
 
 `render_publication_bundle.py` receives the Bundle and Site source only. It renders
 provider documents, read models and translations already qualified upstream.
