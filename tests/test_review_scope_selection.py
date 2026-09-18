@@ -374,6 +374,41 @@ def test_completed_review_with_changed_input_binding_is_not_reused() -> None:
     assert result["action"] == planner.ACTION_DELTA
 
 
+def test_completed_review_with_json_type_distinct_input_is_not_reused() -> None:
+    packet = _packet(
+        input_binding={
+            "provider": "codex",
+            "flag": True,
+        }
+    )
+    initial = planner.plan(packet)
+    old_input_binding = {"provider": "codex", "flag": 1}
+    packet["reviews"] = [
+        {
+            "key": initial["request_key"],
+            "status": "completed",
+            "purpose": packet["purpose"],
+            "candidate_binding": _binding(packet),
+            "candidate_binding_digest": planner._digest(_binding(packet)),
+            "input_binding": old_input_binding,
+            "input_binding_digest": planner._digest(old_input_binding),
+            "independent": True,
+            "metadata_complete": True,
+            "pagination_complete": True,
+            "coverage": {
+                "purposes": [packet["purpose"]],
+                "members": ["policy-p1"],
+                "invariants": ["review-scope"],
+                "limitations": [],
+            },
+        }
+    ]
+
+    result = planner.plan(packet)
+
+    assert result["action"] == planner.ACTION_DELTA
+
+
 def test_same_head_new_contract_evidence_allows_additional_related_scope() -> None:
     packet = _packet()
     previous = planner.plan(packet)

@@ -252,15 +252,15 @@ def _review_covers(
     binding = review.get("candidate_binding")
     if (
         not isinstance(binding, dict)
-        or binding != candidate_binding
         or review.get("candidate_binding_digest") != _digest(binding)
+        or review.get("candidate_binding_digest") != _digest(candidate_binding)
     ):
         return False
     review_input_binding = review.get("input_binding")
     if (
         not isinstance(review_input_binding, dict)
-        or review_input_binding != input_binding
         or review.get("input_binding_digest") != _digest(review_input_binding)
+        or review.get("input_binding_digest") != _digest(input_binding)
     ):
         return False
     coverage = review.get("coverage")
