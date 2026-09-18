@@ -4,6 +4,11 @@
   "repository": "TakashiSasaki/templates",
   "canonical_url": "https://templates.moukaeritai.work/agent.json",
   "purpose": "Discover independent authorities, maintainer entry points, and exact publication provenance",
+  "maintainer_entrypoint": {
+    "repository": "TakashiSasaki/templates",
+    "branch": "site",
+    "path": "docs/maintainer-onboarding.md"
+  },
   "publication_state": {
     "capability_source": "Integration authority contract and producer",
     "selected_input": "integration-source.json",

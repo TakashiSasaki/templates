@@ -6,6 +6,7 @@
   "required": [
     "schema_version",
     "repository",
+    "maintainer_entrypoint",
     "publication_state",
     "authorities",
     "integration_source",
@@ -18,6 +19,26 @@
     },
     "repository": {
       "const": "TakashiSasaki/templates"
+    },
+    "maintainer_entrypoint": {
+      "type": "object",
+      "required": [
+        "repository",
+        "branch",
+        "path"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "repository": {
+          "const": "TakashiSasaki/templates"
+        },
+        "branch": {
+          "const": "site"
+        },
+        "path": {
+          "const": "docs/maintainer-onboarding.md"
+        }
+      }
     },
     "publication_state": {
       "type": "object",

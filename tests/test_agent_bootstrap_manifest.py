@@ -12,6 +12,11 @@ ROOT=Path(__file__).resolve().parents[1]
 class AgentBootstrapManifestTests(unittest.TestCase):
     def setUp(self):
         self.template=json.loads((ROOT/'agent.json').read_text())
+        self.maintainer_entrypoint={
+            'repository':'TakashiSasaki/templates',
+            'branch':'site',
+            'path':'docs/maintainer-onboarding.md',
+        }
         self.bundle={'schema_version':3,'identity':'a'*64,'content_digest':'b'*64,'producer':{'authority':'integration','revision':'c'*40},'providers':{'composition':'d'*40,'policy':'e'*40}}
 
     def v4_bundle(self):
@@ -28,6 +33,21 @@ class AgentBootstrapManifestTests(unittest.TestCase):
         schema=json.loads((ROOT/'schemas/agent-bootstrap.schema.json').read_text())
         jsonschema.validate(self.template,schema)
         jsonschema.validate(project(self.template,self.bundle),schema)
+
+    def test_maintainer_entrypoint_is_stable_and_survives_projection(self):
+        schema=json.loads((ROOT/'schemas/agent-bootstrap.schema.json').read_text())
+        self.assertEqual(self.template['maintainer_entrypoint'],self.maintainer_entrypoint)
+        for bundle in (self.bundle,self.v4_bundle()):
+            result=project(self.template,bundle)
+            jsonschema.validate(result,schema)
+            self.assertEqual(result['maintainer_entrypoint'],self.maintainer_entrypoint)
+
+    def test_maintainer_entrypoint_is_required_by_schema(self):
+        schema=json.loads((ROOT/'schemas/agent-bootstrap.schema.json').read_text())
+        invalid=copy.deepcopy(self.template)
+        del invalid['maintainer_entrypoint']
+        with self.assertRaises(jsonschema.ValidationError):
+            jsonschema.validate(invalid,schema)
     def test_exact_provider_facts_come_only_from_bundle(self):
         result=project(self.template,self.bundle)
         self.assertEqual(result['integration_source'],self.bundle)
