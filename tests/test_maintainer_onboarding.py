@@ -19,14 +19,14 @@ from scripts.verify_maintainer_source import (
 
 
 ROOT = Path(__file__).resolve().parents[1]
-CANONICAL_REVISION = "9c4884646f5db14bc7d700f1395843a89b05a539"
+CANONICAL_REVISION = "6a0fa49fdb1deaa8e4e055050ba2c34f0eb09b59"
 GENERATION_TOOLCHAIN_REVISION = "671014164461a709e193d83e87d375ac12a34d56"
 CANONICAL_SKILL_PATH = "repository-skills/land-templates-stack/SKILL.md"
 CANONICAL_SKILL_BLOB = "06efa38681e374636bcabcbcb984be5ec43b47ee"
 CANONICAL_RULE_PATH = "repository-policy/stacked-pr-landing.md"
 CANONICAL_RULE_BLOB = "9761cdbcd21b0e8ba2f3eb2ffb306725a82f5eef"
 CANONICAL_PLANNER_PATH = "repository-skills/land-templates-stack/scripts/plan_review_scope.py"
-CANONICAL_PLANNER_BLOB = "fe516de70905d461629b7b6bc2cb0cb856e8782d"
+CANONICAL_PLANNER_BLOB = "526c122f1aeaffdae94350eef85c6d116f45c4fc"
 
 
 class MaintainerOnboardingTests(unittest.TestCase):
