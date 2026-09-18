@@ -1,5 +1,7 @@
 import json
 from pathlib import Path
+import re
+import subprocess
 import unittest
 
 
@@ -55,6 +57,32 @@ class MaintainerEntrypointTests(unittest.TestCase):
             adoption["live_state"],
             "external-repository-variables-credentials-protection-rules",
         )
+
+    def test_maintainer_landing_and_gate_routes_are_immutable_and_separate(self):
+        source = json.loads(
+            (ROOT / ".agents/skills/land-templates-stack/source.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        self.assertEqual(source["kind"], "repository-maintainer-skill-reference")
+        self.assertEqual(source["revision"], "5af977020fca701bcf6b7fb7ce12ca077b2d7220")
+        self.assertTrue(re.fullmatch(r"[0-9a-f]{40}", source["blob_sha"]))
+        observed = subprocess.check_output(
+            ["git", "rev-parse", f"{source['revision']}:{source['path']}"],
+            cwd=ROOT,
+            text=True,
+        ).strip()
+        self.assertEqual(observed, source["blob_sha"])
+        gate = json.loads(
+            (ROOT / ".agents/skills/pr-merge-gate/source.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(gate["revision"], "733c86941f8154f301a225054d88c6b8a477058a")
+        landing = (ROOT / ".agents/skills/land-templates-stack/SKILL.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("same immutable snapshot", landing)
+        self.assertIn("authorize merge", landing)
+        self.assertNotIn("CI_DISCOVERY_MIN_OBSERVATION_MINUTES", landing)
 
 
 if __name__ == "__main__":
