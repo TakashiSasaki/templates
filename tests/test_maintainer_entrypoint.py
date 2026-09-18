@@ -1,3 +1,6 @@
+import json
+import re
+import subprocess
 from pathlib import Path
 import unittest
 
@@ -33,6 +36,28 @@ class MaintainerEntrypointTests(unittest.TestCase):
         ):
             with self.subTest(relative=relative):
                 self.assertTrue((ROOT / relative).exists())
+
+    def test_maintainer_landing_route_uses_the_frozen_policy_snapshot(self):
+        source_path = ROOT / ".agents/skills/land-templates-stack/source.json"
+        source = json.loads(source_path.read_text(encoding="utf-8"))
+        self.assertEqual(source["schema_version"], 1)
+        self.assertEqual(source["kind"], "repository-maintainer-skill-reference")
+        self.assertEqual(source["repository"], "TakashiSasaki/templates")
+        self.assertEqual(source["revision"], "5af977020fca701bcf6b7fb7ce12ca077b2d7220")
+        self.assertEqual(source["path"], "repository-skills/land-templates-stack/SKILL.md")
+        self.assertTrue(re.fullmatch(r"[0-9a-f]{40}", source["revision"]))
+        self.assertTrue(re.fullmatch(r"[0-9a-f]{40}", source["blob_sha"]))
+        observed = subprocess.check_output(
+            ["git", "rev-parse", f"{source['revision']}:{source['path']}"],
+            cwd=ROOT,
+            text=True,
+        ).strip()
+        self.assertEqual(observed, source["blob_sha"])
+        skill = (ROOT / ".agents/skills/land-templates-stack/SKILL.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("does not reproduce landing", skill)
+        self.assertIn("human-controlled boundary", skill)
 
 
 if __name__ == "__main__":
