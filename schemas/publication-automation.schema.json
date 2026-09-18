@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:templates:publication-automation:1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "mode", "kill_switch", "boundaries", "allowed_mutations", "self_update"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "mode": {"enum": ["shadow", "adoption-only", "auto-publish"]},
+    "kill_switch": {"type": "boolean"},
+    "boundaries": {"type": "array", "items": {"enum": ["provider-to-integration", "integration-to-site", "site-to-pages"]}},
+    "allowed_mutations": {"type": "array", "items": {"type": "string"}},
+    "self_update": {"const": false}
+  }
+}
