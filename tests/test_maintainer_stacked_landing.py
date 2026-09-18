@@ -7,8 +7,8 @@ import tempfile
 from pathlib import Path
 
 from scripts.verify_maintainer_source_reference import (
-    CANONICAL_RULE_PATH,
     CANONICAL_PLANNER_PATH,
+    CANONICAL_RULE_PATH,
     CANONICAL_SKILL_PATH,
     SourceReferenceError,
     verify_source_reference,
@@ -286,7 +286,6 @@ def test_source_boundary_rejects_missing_or_tampered_closure() -> None:
     revision = _git("rev-parse", "HEAD")
     skill_blob = _git("rev-parse", f"{revision}:{CANONICAL_SKILL_PATH}")
     rule_blob = _git("rev-parse", f"{revision}:{CANONICAL_RULE_PATH}")
-    planner_blob = _git("rev-parse", f"{revision}:{CANONICAL_PLANNER_PATH}")
     source = {
         "schema_version": 2,
         "kind": "repository-maintainer-skill-reference",
