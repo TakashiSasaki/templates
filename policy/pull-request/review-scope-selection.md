@@ -19,7 +19,7 @@ partial or failed result, incomplete pagination, missing metadata, or unknown
 applicability is not completed coverage.
 
 Do not acquire the same objective, purpose, candidate, scope, contract, and input
-binding twice. If an equivalent request is in progress or its submission result is
+binding twice. In other words, the duplicate key is the same objective, purpose, candidate, scope, contract, and input binding. If an equivalent request is in progress or its submission result is
 unknown, reconcile the provider state and existing handle before considering a new
 request. A request key is a comparison aid, not a provider idempotency guarantee;
 when action ownership or serialized submission cannot be established, preserve the
@@ -35,7 +35,7 @@ unknown until the required authority-owned inspection or review resolves it.
 Additional diagnostic or whole-stack review is permitted when important new
 evidence, an incomplete prior result, a changed contract, or newly uncovered scope
 justifies it. There is no global numeric cap and no universal rule that forces every
-post-review change into targeted-only coverage. Cost, elapsed time, line count,
+post-review change into targeted scope alone. Cost, elapsed time, line count,
 green tests, or a warning threshold may be reported but never establishes a waiver.
 
 The planner is not a semantic validator, reviewer, merge gate, or authorization

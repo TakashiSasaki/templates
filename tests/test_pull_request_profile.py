@@ -15,6 +15,7 @@ EXPECTED = [
     "pull-request.require-explicit-stacked-review-coverage",
     "pull-request.defer-revision-bound-qualification-until-required",
     "pull-request.verify-target-branch-head-freshness",
+    "pull-request.select-review-scope-from-current-bindings",
     "pull-request.preflight-review-acquisition",
     "pull-request.disposition-known-findings-before-review-reacquisition",
     "pull-request.discover-review-results-across-applicable-surfaces",

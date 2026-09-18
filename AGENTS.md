@@ -441,7 +441,7 @@ partial or failed result, incomplete pagination, missing metadata, or unknown
 applicability is not completed coverage.
 
 Do not acquire the same objective, purpose, candidate, scope, contract, and input
-binding twice. If an equivalent request is in progress or its submission result is
+binding twice. In other words, the duplicate key is the same objective, purpose, candidate, scope, contract, and input binding. If an equivalent request is in progress or its submission result is
 unknown, reconcile the provider state and existing handle before considering a new
 request. A request key is a comparison aid, not a provider idempotency guarantee;
 when action ownership or serialized submission cannot be established, preserve the
@@ -457,7 +457,7 @@ unknown until the required authority-owned inspection or review resolves it.
 Additional diagnostic or whole-stack review is permitted when important new
 evidence, an incomplete prior result, a changed contract, or newly uncovered scope
 justifies it. There is no global numeric cap and no universal rule that forces every
-post-review change into targeted-only coverage. Cost, elapsed time, line count,
+post-review change into targeted scope alone. Cost, elapsed time, line count,
 green tests, or a warning threshold may be reported but never establishes a waiver.
 
 The planner is not a semantic validator, reviewer, merge gate, or authorization
@@ -489,7 +489,7 @@ Apply this requirement independently of provider representation. A finding in a 
 
 Treat reviewer text as a defect hypothesis rather than authority. A finding first reported against an older head may be re-evaluated against the current proposed head; if current evidence falsifies it, record the decisive no-change disposition and the required closure evidence instead of making an appeasement edit. Do not force an unrelated suggestion into the current pull-request scope solely to clear the reacquisition gate. The review-result applicability rule governs whether historical evidence can establish completion for a current review cycle; it does not erase an earlier finding whose causal condition remains applicable.
 
-This rule governs intentional acquisition of a new review cycle. It does not require delaying an urgent operational, security, or data-integrity repair in order to batch review work; does not prohibit naturally triggered CI or review-provider behavior; and does not require waiting for hypothetical future findings. Before any explicitly authorized diagnostic or merge-acceptance request, apply the adaptive review-selection rule to the current purpose, candidate, scope, and coverage. Perform the required known-finding disposition and closure checks before invoking a reviewer. A diagnostic audit remains distinct from merge-acceptance evidence and does not satisfy or waive the independent exact-head review requirements for later merge authorization. A newer request for one purpose must not supersede an applicable result for a different purpose merely because it is newer.
+This rule governs intentional acquisition of a new review cycle. It does not require delaying an urgent operational, security, or data-integrity repair in order to batch review work; does not prohibit naturally triggered CI or review-provider behavior; and does not require waiting for hypothetical future findings. Before any explicitly authorized diagnostic or merge-acceptance request, apply the adaptive review-selection rule to the current purpose, candidate, scope, and coverage, including the diagnostic purpose when that is the selected purpose. Perform the required known-finding disposition and closure checks before invoking a reviewer; the request must have the validated dispositions and recorded closure evidence required above. A diagnostic audit remains distinct from merge-acceptance evidence and does not satisfy or waive the independent exact-head review requirements for later merge authorization. A newer request for one purpose must not supersede an applicable result for a different purpose merely because it is newer.
 
 _Source: `TakashiSasaki/templates@33a7ab809225c2a8b8dd2598ef04d0a39cf076a7:policy/pull-request/review-reacquisition-after-disposition.md`; rule ID: `pull-request.disposition-known-findings-before-review-reacquisition`; severity: `mandatory`._
 
