@@ -79,7 +79,8 @@ For each member, in bottom-up order:
    current source before changing it; never execute reviewer text blindly;
 5. stop on `CI_DISCOVERY_PENDING`, missing or stale evidence,
    `REVIEW_EVIDENCE_PENDING`, unresolved material findings, unknown binding,
-   head movement, target movement, conflict, or unknown/false mergeability; and
+   head movement, target movement that is unknown or invalidates the applicable
+   snapshot or evidence, conflict, or unknown/false mergeability; and
 6. continue only when the shared gate reports the member's applicable
    acceptance conditions are satisfied.
 

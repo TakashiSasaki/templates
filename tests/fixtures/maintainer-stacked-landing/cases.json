@@ -4,62 +4,93 @@
     {
       "id": "source-normal",
       "condition": "The declared repository, full revision, canonical path, and blob match an available Git object.",
-      "expected": "Read the canonical rule from the same immutable snapshot."
+      "expected": "Read the canonical rule from the same immutable snapshot.",
+      "facts": {"source": {"revision_valid": true, "path_present": true, "blob_matches": true, "object_present": true}},
+      "decision": "read-pinned-snapshot"
     },
     {
       "id": "source-invalid-sha",
       "condition": "The source revision is abbreviated, malformed, or not a commit object.",
-      "expected": "Stop as blocked; do not use a branch, latest, or local fallback."
+      "expected": "Stop as blocked; do not use a branch, latest, or local fallback.",
+      "facts": {"source": {"revision_valid": false, "path_present": true, "blob_matches": true, "object_present": false}},
+      "decision": "blocked"
     },
     {
       "id": "source-blob-mismatch",
       "condition": "The declared blob identity differs from the blob at revision:path.",
-      "expected": "Stop as blocked."
+      "expected": "Stop as blocked.",
+      "facts": {"source": {"revision_valid": true, "path_present": true, "blob_matches": false, "object_present": true}},
+      "decision": "blocked"
     },
     {
       "id": "source-missing-path",
       "condition": "The immutable commit does not contain the canonical path.",
-      "expected": "Stop as blocked."
+      "expected": "Stop as blocked.",
+      "facts": {"source": {"revision_valid": true, "path_present": false, "blob_matches": false, "object_present": true}},
+      "decision": "blocked"
+    },
+    {
+      "id": "source-repository-mismatch",
+      "condition": "The source manifest names a different repository.",
+      "expected": "Stop as blocked; do not read a similarly named local checkout.",
+      "facts": {"source": {"revision_valid": true, "path_present": true, "blob_matches": true, "object_present": true}, "repository_matches": false},
+      "decision": "blocked"
     },
     {
       "id": "source-closure-shadowing",
       "condition": "The consumer worktree contains a same-named rule with different bytes.",
-      "expected": "Resolve the rule from the pinned source snapshot, never the consumer path."
+      "expected": "Resolve the rule from the pinned source snapshot, never the consumer path.",
+      "facts": {"source": {"revision_valid": true, "path_present": true, "blob_matches": true, "object_present": true}, "consumer_shadowed": true},
+      "decision": "read-pinned-snapshot"
     },
     {
       "id": "no-circular-invocation",
       "condition": "The landing shim, landing Skill, and shared gate are all loaded.",
-      "expected": "The landing Skill invokes only the shared gate and never itself or the shim."
+      "expected": "The landing Skill invokes only the shared gate and never itself or the shim.",
+      "facts": {"landing_skill_invokes_shared_gate": true, "shared_gate_calls_landing": false, "shim_calls_landing": false},
+      "decision": "continue"
     },
     {
       "id": "bottom-up-history",
       "condition": "A lower PR and a dependent upper PR are ready in one authority.",
-      "expected": "Use merge commits bottom-up and preserve the upper head while retargeting its base."
+      "expected": "Use merge commits bottom-up and preserve the upper head while retargeting its base.",
+      "facts": {"lower_ready": true, "merge_method": "merge", "head_rewritten": false},
+      "decision": "land-bottom-up"
     },
     {
       "id": "evidence-binding-change",
       "condition": "The head/tree is unchanged but the effective base or workflow changes.",
-      "expected": "Re-evaluate affected evidence; do not assume all evidence is reusable."
+      "expected": "Re-evaluate affected evidence; do not assume all evidence is reusable.",
+      "facts": {"head_unchanged": true, "base_changed": true},
+      "decision": "reevaluate-affected-evidence"
     },
     {
       "id": "runtime-docs-cumulative",
       "condition": "A runtime-changing lower member is followed by a docs-only member and an intermediate run is cancelled.",
-      "expected": "Retain runtime coverage in the cumulative final qualification."
+      "expected": "Retain runtime coverage in the cumulative final qualification.",
+      "facts": {"runtime_lower": true, "docs_upper": true, "intermediate_run_cancelled": true, "final_runtime_coverage": true},
+      "decision": "retain-runtime-coverage"
     },
     {
       "id": "tip-not-prefix",
       "condition": "The final tip is green while a lower prefix was not accepted.",
-      "expected": "Do not accept the lower member from the tip result."
+      "expected": "Do not accept the lower member from the tip result.",
+      "facts": {"tip_green": true, "lower_accepted": false},
+      "decision": "blocked"
     },
     {
       "id": "human-handoff",
       "condition": "Implementation and validation finish without merge authorization.",
-      "expected": "Hand off without merge, auto-merge, or review evidence substitution."
+      "expected": "Hand off without merge, auto-merge, or review evidence substitution.",
+      "facts": {"implementation_complete": true, "validation_complete": true, "authorization": false},
+      "decision": "human-handoff"
     },
     {
       "id": "resume-idempotence",
       "condition": "Execution resumes after a member landing or review request may already have succeeded.",
-      "expected": "Refresh live state and do not duplicate the external action."
+      "expected": "Refresh live state and do not duplicate the external action.",
+      "facts": {"resumed": true, "live_refresh": true, "duplicate_action": false},
+      "decision": "refresh-without-duplicate"
     }
   ]
 }

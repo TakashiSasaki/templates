@@ -3,7 +3,15 @@ from __future__ import annotations
 import json
 import re
 import subprocess
+import tempfile
 from pathlib import Path
+
+from scripts.verify_maintainer_source_reference import (
+    CANONICAL_RULE_PATH,
+    CANONICAL_SKILL_PATH,
+    SourceReferenceError,
+    verify_source_reference,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 RULE = ROOT / "repository-policy" / "stacked-pr-landing.md"
@@ -21,6 +29,16 @@ def _git(*args: str, cwd: Path = ROOT, check: bool = True) -> str:
         text=True,
     )
     return result.stdout.strip()
+
+
+def _git_result(*args: str, cwd: Path = ROOT) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["git", *args],
+        cwd=cwd,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
 
 
 def _read(path: Path) -> str:
@@ -48,6 +66,7 @@ def test_fixture_covers_required_negative_and_transition_cases() -> None:
         "source-invalid-sha",
         "source-blob-mismatch",
         "source-missing-path",
+        "source-repository-mismatch",
         "source-closure-shadowing",
         "no-circular-invocation",
         "bottom-up-history",
@@ -58,6 +77,184 @@ def test_fixture_covers_required_negative_and_transition_cases() -> None:
         "resume-idempotence",
     } <= ids
     assert all(case["condition"] and case["expected"] for case in data["cases"])
+    assert all(case["facts"] and case["decision"] for case in data["cases"])
+    document_cases = [case for case in data["cases"] if "source" not in case["facts"]]
+    assert all(
+        _evaluate_document_fixture(case["facts"]) == case["decision"]
+        for case in document_cases
+    )
+
+
+def _evaluate_document_fixture(facts: dict) -> str:
+    """Check document-only decision fixtures without mutating GitHub."""
+
+    if "landing_skill_invokes_shared_gate" in facts:
+        if (
+            facts["landing_skill_invokes_shared_gate"]
+            and not facts["shared_gate_calls_landing"]
+            and not facts["shim_calls_landing"]
+        ):
+            return "continue"
+        return "blocked"
+
+    if "lower_ready" in facts:
+        if (
+            facts["lower_ready"]
+            and facts["merge_method"] == "merge"
+            and not facts["head_rewritten"]
+        ):
+            return "land-bottom-up"
+        return "blocked"
+
+    if "base_changed" in facts:
+        return "reevaluate-affected-evidence" if facts["base_changed"] else "reuse-bound-evidence"
+
+    if "runtime_lower" in facts:
+        return "retain-runtime-coverage" if all(
+            facts.get(key) is True
+            for key in (
+                "runtime_lower",
+                "docs_upper",
+                "intermediate_run_cancelled",
+                "final_runtime_coverage",
+            )
+        ) else "blocked"
+
+    if "tip_green" in facts:
+        return "blocked" if facts["tip_green"] and not facts["lower_accepted"] else "continue"
+
+    if "authorization" in facts:
+        return (
+            "human-handoff"
+            if facts["implementation_complete"]
+            and facts["validation_complete"]
+            and not facts["authorization"]
+            else "continue"
+        )
+
+    if "resumed" in facts:
+        return (
+            "refresh-without-duplicate"
+            if facts["resumed"]
+            and facts["live_refresh"]
+            and not facts["duplicate_action"]
+            else "blocked"
+        )
+
+    raise AssertionError(f"unclassified fixture facts: {facts}")
+
+
+def test_source_fixtures_use_the_immutable_reference_boundary() -> None:
+    data = json.loads(CASES.read_text(encoding="utf-8"))
+    revision = _git("rev-parse", "HEAD")
+    skill_blob = _git("rev-parse", f"{revision}:{CANONICAL_SKILL_PATH}")
+    rule_blob = _git("rev-parse", f"{revision}:{CANONICAL_RULE_PATH}")
+    source = {
+        "schema_version": 1,
+        "kind": "repository-maintainer-skill-reference",
+        "repository": "TakashiSasaki/templates",
+        "revision": revision,
+        "path": CANONICAL_SKILL_PATH,
+        "blob_sha": skill_blob,
+    }
+
+    with tempfile.TemporaryDirectory() as temporary:
+        consumer = Path(temporary)
+        shadow = consumer / CANONICAL_RULE_PATH
+        shadow.parent.mkdir(parents=True)
+        shadow.write_text("shadowed consumer rule\n", encoding="utf-8")
+        source_cases = [case for case in data["cases"] if "source" in case["facts"]]
+        for case in source_cases:
+            candidate = dict(source)
+            case_id = case["id"]
+            if case_id == "source-invalid-sha":
+                candidate["revision"] = "latest"
+            elif case_id == "source-blob-mismatch":
+                candidate["blob_sha"] = "0" * 40
+            elif case_id == "source-missing-path":
+                candidate["path"] = "repository-policy/missing.md"
+            elif case_id == "source-repository-mismatch":
+                candidate["repository"] = "other/repository"
+
+            if case["decision"] == "blocked":
+                try:
+                    verify_source_reference(
+                        candidate,
+                        repo=ROOT,
+                        expected_skill_blob=skill_blob,
+                        expected_rule_blob=rule_blob,
+                    )
+                except SourceReferenceError:
+                    continue
+                raise AssertionError(f"source fixture unexpectedly accepted: {case_id}")
+
+            verified = verify_source_reference(
+                candidate,
+                repo=ROOT,
+                expected_skill_blob=skill_blob,
+                expected_rule_blob=rule_blob,
+            )
+            assert case["decision"] == "read-pinned-snapshot"
+            assert verified.skill_blob == skill_blob
+            assert verified.rule_blob == rule_blob
+            assert verified.rule != shadow.read_bytes()
+
+
+def test_source_boundary_rejects_tags_and_ignores_replacement_refs() -> None:
+    with tempfile.TemporaryDirectory() as temporary:
+        repo = Path(temporary)
+        _git("init", "-q", cwd=repo)
+        _git("config", "user.name", "fixture", cwd=repo)
+        _git("config", "user.email", "fixture@example.invalid", cwd=repo)
+        skill = repo / CANONICAL_SKILL_PATH
+        rule = repo / CANONICAL_RULE_PATH
+        skill.parent.mkdir(parents=True)
+        rule.parent.mkdir(parents=True)
+        skill.write_text("canonical skill\n", encoding="utf-8")
+        rule.write_text("canonical rule\n", encoding="utf-8")
+        _git("add", CANONICAL_SKILL_PATH, CANONICAL_RULE_PATH, cwd=repo)
+        _git("commit", "-q", "-m", "canonical", cwd=repo)
+        revision = _git("rev-parse", "HEAD", cwd=repo)
+        skill_blob = _git("rev-parse", f"{revision}:{CANONICAL_SKILL_PATH}", cwd=repo)
+        rule_blob = _git("rev-parse", f"{revision}:{CANONICAL_RULE_PATH}", cwd=repo)
+        source = {
+            "schema_version": 1,
+            "kind": "repository-maintainer-skill-reference",
+            "repository": "TakashiSasaki/templates",
+            "revision": revision,
+            "path": CANONICAL_SKILL_PATH,
+            "blob_sha": skill_blob,
+        }
+
+        _git("tag", "-a", "canonical-tag", "-m", "tag", revision, cwd=repo)
+        tag_revision = _git("rev-parse", "refs/tags/canonical-tag", cwd=repo)
+        source["revision"] = tag_revision
+        try:
+            verify_source_reference(
+                source,
+                repo=repo,
+                expected_skill_blob=skill_blob,
+                expected_rule_blob=rule_blob,
+            )
+        except SourceReferenceError:
+            pass
+        else:
+            raise AssertionError("annotated tag object was accepted as a commit")
+
+        source["revision"] = revision
+        skill.write_text("replacement skill\n", encoding="utf-8")
+        rule.write_text("replacement rule\n", encoding="utf-8")
+        _git("commit", "-q", "-am", "replacement", cwd=repo)
+        replacement = _git("rev-parse", "HEAD", cwd=repo)
+        _git("replace", revision, replacement, cwd=repo)
+        verified = verify_source_reference(
+            source,
+            repo=repo,
+            expected_skill_blob=skill_blob,
+            expected_rule_blob=rule_blob,
+        )
+        assert verified.skill == b"canonical skill\n"
+        assert verified.rule == b"canonical rule\n"
 
 
 def test_canonical_source_object_is_resolvable_from_the_current_snapshot() -> None:
@@ -140,7 +337,8 @@ def test_local_temporary_git_history_preserves_bottom_up_merge_and_upper_head() 
         _git("switch", "-q", "authority", cwd=repo)
         _git("merge", "--no-ff", "--no-edit", "bottom", cwd=repo)
         assert _git("rev-parse", "upper", cwd=repo) == upper_head
-        assert _git("merge-base", "--is-ancestor", bottom_head, "HEAD", cwd=repo, check=False) == ""
+        ancestry = _git_result("merge-base", "--is-ancestor", bottom_head, "HEAD", cwd=repo)
+        assert ancestry.returncode == 0, ancestry.stderr
 
 
 def test_shared_profile_does_not_receive_repository_specific_rule() -> None:
