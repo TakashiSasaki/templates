@@ -781,13 +781,13 @@ Read the maintenance rule and its execution procedure from the same immutable
 source snapshot before changing a maintenance PR:
 
 - repository: `TakashiSasaki/templates`;
-- revision: `dae705fcf7113f9bc94083c2f4edf680013e2886`;
+- revision: `45f91f8ebce26706e3ba3bb03a770c3881b9d501`;
 - rule: `repository-policy/stacked-pr-landing.md`, blob
   `9761cdbcd21b0e8ba2f3eb2ffb306725a82f5eef`;
 - landing Skill: `repository-skills/land-templates-stack/SKILL.md`, blob
   `06efa38681e374636bcabcbcb984be5ec43b47ee`;
 - review scope planner: `repository-skills/land-templates-stack/scripts/plan_review_scope.py`, blob
-  `fe516de70905d461629b7b6bc2cb0cb856e8782d`.
+  `526c122f1aeaffdae94350eef85c6d116f45c4fc`.
 
 The Policy authority also exposes the thin local entry at
 `.agents/skills/land-templates-stack/SKILL.md`; validate its adjacent
