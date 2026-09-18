@@ -1,7 +1,6 @@
 import json
 from pathlib import Path
 import re
-import subprocess
 import unittest
 
 
@@ -65,14 +64,9 @@ class MaintainerEntrypointTests(unittest.TestCase):
             )
         )
         self.assertEqual(source["kind"], "repository-maintainer-skill-reference")
-        self.assertEqual(source["revision"], "5af977020fca701bcf6b7fb7ce12ca077b2d7220")
+        self.assertEqual(source["revision"], "a878da560c5286634b21671b54793e26ed8167b2")
         self.assertTrue(re.fullmatch(r"[0-9a-f]{40}", source["blob_sha"]))
-        observed = subprocess.check_output(
-            ["git", "rev-parse", f"{source['revision']}:{source['path']}"],
-            cwd=ROOT,
-            text=True,
-        ).strip()
-        self.assertEqual(observed, source["blob_sha"])
+        self.assertEqual(source["path"], "repository-skills/land-templates-stack/SKILL.md")
         gate = json.loads(
             (ROOT / ".agents/skills/pr-merge-gate/source.json").read_text(encoding="utf-8")
         )

@@ -37,9 +37,9 @@ For maintenance of the `integration` authority itself, load
 `.agents/skills/land-templates-stack/SKILL.md` for a single PR or
 same-authority stack, then use `.agents/skills/pr-merge-gate/SKILL.md` for the
 shared acceptance gate. The landing source is pinned to
-`TakashiSasaki/templates@5af977020fca701bcf6b7fb7ce12ca077b2d7220`,
+`TakashiSasaki/templates@a878da560c5286634b21671b54793e26ed8167b2`,
 `repository-skills/land-templates-stack/SKILL.md`, blob
-`902b6e543d467b47b2b91819bfab5574a85456c7`; verify its adjacent
+`b433bdf781eb1fd0f32a525bfd68bac2563316d7`; verify its adjacent
 `source.json` and resolve the rule from that same snapshot. Never use a mutable
 branch or local fallback. Integration provider/Bundle evidence, CI, review,
 publication, Site adoption, deployment, and human merge authorization remain
