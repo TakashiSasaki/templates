@@ -22,7 +22,7 @@ The initial records are plain JSON administrative records. Their use of familiar
 
 `records/ndc.json` and `docs/resources/ndc.md` are canonical Japanese. Their source evidence distinguishes a printed edition, the MRDF10 machine-readable offering, and the NDC 8/9 Linked Data work. Do not rewrite these descriptions into English merely because the branch's governance documentation is English. A future translation must be labeled non-canonical and must not replace the Japanese source.
 
-`records/resource-record.json` describes a genuinely local administrative schema. Its local artifact digest must match `schemas/resource-record-0.1.schema.json`. Modifying that schema requires updating its record's artifact digest and evaluating the schema/profile revision. This does not turn the registered external resources into locally owned definitions.
+`records/resource-record.json` describes a genuinely local administrative schema. Its local artifact digest must match `schemas/resource-record-0.1.schema.json`. Modifying that schema requires updating its record's artifact digest and evaluating the schema/profile revision. This does not turn the registered external resources into locally owned definitions. In the publication declaration, the external subject ownership and the permission to redistribute the local record metadata are separate fields; no external distribution bytes are in the export.
 
 ## Minimal safe edit
 

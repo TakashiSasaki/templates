@@ -309,6 +309,19 @@ class CatalogTests(unittest.TestCase):
         self.assertNotIn("windows", text.lower())
         self.assertIn("github.event.pull_request.head.sha", text)
 
+    def test_provider_notification_is_post_qualification_push_only(self):
+        text = (self.root / ".github/workflows/modeling-ci.yml").read_text()
+        notify = text.split("  notify-integration:", 1)[1]
+        self.assertIn("needs: qualify", notify)
+        self.assertIn("github.event_name == 'push'", notify)
+        self.assertIn("github.ref == 'refs/heads/modeling'", notify)
+        self.assertIn("needs.qualify.result == 'success'", notify)
+        self.assertIn("publication.provider-qualified", notify)
+        self.assertIn("client_payload[provider_revision]", notify)
+        self.assertNotIn("client_payload[producer_ref]", notify)
+        self.assertIn("contents: write", notify)
+        self.assertNotIn("pages: write", notify)
+
     def test_cli_failure_exit(self):
         self.mutate("records/dcat.json", lambda r: r.update(ownership="invented"))
         result = subprocess.run([sys.executable, str(ROOT / "tools/catalog.py"), "check", "--root", str(self.root)], capture_output=True, text=True)
