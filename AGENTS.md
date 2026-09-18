@@ -30,3 +30,17 @@ Integration release promotion requires explicit task authorization and guarded
 exact-head acceptance. Request one cumulative review per logical stack; after
 remediation, reacquire only targeted evidence whose bindings changed. The historical
 P5 bootstrap handoff does not authorize Site adoption, cutover or deployment.
+
+## Templates maintainer landing route
+
+For maintenance of the `integration` authority itself, load
+`.agents/skills/land-templates-stack/SKILL.md` for a single PR or
+same-authority stack, then use `.agents/skills/pr-merge-gate/SKILL.md` for the
+shared acceptance gate. The landing source is pinned to
+`TakashiSasaki/templates@a878da560c5286634b21671b54793e26ed8167b2`,
+`repository-skills/land-templates-stack/SKILL.md`, blob
+`b433bdf781eb1fd0f32a525bfd68bac2563316d7`; verify its adjacent
+`source.json` and resolve the rule from that same snapshot. Never use a mutable
+branch or local fallback. Integration provider/Bundle evidence, CI, review,
+publication, Site adoption, deployment, and human merge authorization remain
+separate; this task does not merge or enable auto-merge.
