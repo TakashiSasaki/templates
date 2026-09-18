@@ -11,9 +11,9 @@ For resource registration or revision, read `.agents/skills/register-information
 For maintenance of the `modeling` authority, load
 `.agents/skills/land-templates-stack/SKILL.md` for a single PR or
 same-authority stack and verify its adjacent immutable `source.json`. It pins
-`TakashiSasaki/templates@5af977020fca701bcf6b7fb7ce12ca077b2d7220`,
+`TakashiSasaki/templates@a878da560c5286634b21671b54793e26ed8167b2`,
 `repository-skills/land-templates-stack/SKILL.md`, blob
-`902b6e543d467b47b2b91819bfab5574a85456c7`; the rule is resolved from that
+`b433bdf781eb1fd0f32a525bfd68bac2563316d7`; the rule is resolved from that
 same snapshot, never from a mutable branch or local fallback. Then load
 `.agents/skills/pr-merge-gate/SKILL.md` for the separate shared acceptance
 gate. Modeling qualification and review evidence do not authorize merge,
