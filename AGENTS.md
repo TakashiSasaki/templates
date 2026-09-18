@@ -16,6 +16,11 @@ here. Qualification must run with this checkout plus exact provider checkouts on
 Do not advance publication-sources.json without explicit provider adoption intent.
 Do not edit provider translation content or synchronization metadata.
 
+For Integration maintenance, read [README.md](README.md), [AUTHORITY.md](AUTHORITY.md),
+[RELEASE.md](RELEASE.md), and `.agents/skills/integration-publication-maintenance/SKILL.md`.
+Use that thin routing skill for provider-selection, Bundle, and publication-chain
+diagnostics; Site adoption still requires the Site-owned instruction and gate.
+
 Run `python -m unittest discover -s tests -v` after dependency installation. Producer
 qualification must generate twice from identical exact inputs. Review artifact transport
 binding separately from deterministic content identity. Build outputs live outside all

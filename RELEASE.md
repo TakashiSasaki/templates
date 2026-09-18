@@ -42,6 +42,27 @@ PR for the exact Integration release, subject to Site qualification and branch p
 Integration releases can occur without Site releases; Site-only runtime fixes must be able
 to retain the same adopted Integration input.
 
+## Maintainer routing and operational handoff
+
+Start from [README.md](README.md), [AUTHORITY.md](AUTHORITY.md), and the
+[Integration publication maintenance skill](.agents/skills/integration-publication-maintenance/SKILL.md).
+The connected Site-side event/PR/deployment sequence is documented in the
+[publication automation handoff](https://github.com/TakashiSasaki/templates/blob/site/docs/publication-automation.md);
+that document is a projection of these contracts and the current workflow code,
+not a second Integration authority.
+
+The current capability is Bundle v4 with a historical v3 reader/fixture contract.
+The selected provider tuple is the committed `publication-sources.json`; a
+deployed Site input is a separate Site `integration-source.json` lock and Pages
+artifact. Never infer either selected or deployed state from this branch's
+capability or from a `publication.integration-promoted` notification. A mode
+change is not a replay of a previous candidate: re-check the latest base, exact
+candidate, existing automation PR, run attempt, receipt/artifact expiry, and
+external authorization before any future authorized operation.
+A new Integration release alone is not Site-adoption authorization; the guarded
+Site controller path is separately activated and still requires its own receipt,
+qualification, protected review/merge, and deployment boundary.
+
 ## Local qualification
 
 Install the locked minimal dependency closure in an isolated environment and run pip
@@ -60,7 +81,7 @@ python scripts/qualify_integration.py \
 ```
 
 Historical P5 bootstrap equivalence remains documented in the archived bootstrap
-evidence, but it is not part of the current Bundle-v3 qualification workflow. The
+evidence, but it is not part of the current Bundle-v4 qualification workflow. The
 browser/source-corpus payload was intentionally removed from the public contract, so
 future candidates are qualified against the current producer and exact provider inputs.
 

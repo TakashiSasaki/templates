@@ -36,6 +36,36 @@ follows mutable provider heads.
 presentation bytes. Those names are compatibility vocabulary, not Site implementation
 inputs. Provider lock identities are independent of coding-agent/toolchain adoption pins.
 
+## Maintain the Integration authority in `templates`
+
+This is the maintainer route for Integration, not a Site-adoption command. The
+repository-wide task map and the connected publication runbook are in Site's
+[templates maintainer onboarding guide](https://github.com/TakashiSasaki/templates/blob/site/docs/maintainer-onboarding.md)
+and [publication automation handoff](https://github.com/TakashiSasaki/templates/blob/site/docs/publication-automation.md).
+Confirm the checked-out branch is `integration`, capture its full `HEAD` and
+dirty/untracked state, then read [AUTHORITY.md](AUTHORITY.md), [RELEASE.md](RELEASE.md),
+the local [maintenance skill](.agents/skills/integration-publication-maintenance/SKILL.md),
+and the active workflow definitions.
+
+The editable publication source is `publication-sources.json`, together with
+Integration's contracts and producer implementation. Bundle artifacts, receipts,
+reports, and candidate locks are generated or workflow outputs; update their
+source and pinned renderer/controller path rather than hand-editing evidence. The
+cheap local route is `python3 scripts/run_integration_preflight.py fast --expected-head
+"$(git rev-parse HEAD)"`; a committed frontier uses `ready`, and provider-backed
+qualification uses `providers` with exact full-SHA checkouts. These checks establish
+Integration evidence only. They do not authorize Site adoption, Pages deployment,
+or changes to repository variables, credentials, protection rules, or kill switches.
+
+Use branch names to discover a candidate and exact full SHAs for qualification,
+review, receipts, and publication. Keep stacked PRs within Integration. A
+dependency on Modeling, Composition, Policy, or Site is recorded in the existing
+PR/Issue Work ledger and PR body; it is not represented by merging, rebasing, or
+cherry-picking another authority's history. On resumption, reconcile the live
+candidate, PR, run attempt, artifact/receipt, review, and external authorization
+state before taking a next safe action. A notification is a candidate event, not
+proof of adoption or deployment.
+
 ## Local validation
 
 Run `python3 scripts/run_integration_preflight.py fast --expected-head "$(git rev-parse HEAD)"`

@@ -6,11 +6,20 @@
     "composition",
     "policy"
   ],
-  "output_contract": "Integrated Publication Bundle v3",
-  "site_upstream": "explicitly selected exact reviewed Integration release and Integrated Publication Bundle; Site no longer selects provider publication revisions",
+  "output_contract": "Integrated Publication Bundle v4",
+  "historical_output_contracts": [
+    "Integrated Publication Bundle v3"
+  ],
+  "site_upstream": "Site selects an explicitly reviewed exact Integration release and Integrated Publication Bundle; a new Integration release alone is not Site-adoption authorization; after separately activated external authorization and a trusted promotion receipt, the guarded Site controller may prepare only an allowlisted Site lock PR",
   "promotion": "explicit reviewed Integration PR and exact-input qualification",
-  "site_adoption": "separate explicit human instruction",
+  "site_adoption": "Site-owned boundary: explicit human instruction or a separately activated pre-authorized controller path; never implied by an Integration release",
   "deployment_authority": "site",
   "automatic_provider_following": false,
-  "automatic_site_adoption": false
+  "automatic_site_adoption": {
+    "capability": "guarded-preauthorized-controller-path",
+    "default_mode": "shadow",
+    "authorization_required": true,
+    "selection_owner": "site",
+    "live_state": "external-repository-variables-credentials-protection-rules"
+  }
 }
