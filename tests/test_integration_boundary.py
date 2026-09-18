@@ -30,16 +30,23 @@ class BoundaryTests(unittest.TestCase):
   text=path.read_text()
   self.assertIn('repository_dispatch:',text)
   self.assertIn('publication.provider-qualified',text)
-  self.assertIn('integration-reconcile.yml@a2b21d731e3aea09f60c6f0dc8a9280089c1a946',text)
+  self.assertIn('integration-reconcile.yml@a92006b95ef67abaa52d59e7a583c1f59656e7a7',text)
   self.assertIn('git/ref/heads/integration',text)
   self.assertIn('integration_ref: ${{ steps.integration.outputs.integration_ref }}',text)
   self.assertIn('producer_ref: ${{ needs.validate_event.outputs.integration_ref }}',text)
-  self.assertIn('controller_ref: a2b21d731e3aea09f60c6f0dc8a9280089c1a946',text)
+  self.assertIn('controller_ref: a92006b95ef67abaa52d59e7a583c1f59656e7a7',text)
   self.assertIn('set(payload) != expected',text)
   self.assertNotIn('client_payload.producer_ref',text)
   self.assertNotIn('client_payload.controller_ref',text)
   for forbidden in ('qualify_integration.py','render_candidate_source_lock.py','publication-sources.json','actions/deploy-pages@'):
    self.assertNotIn(forbidden,text)
+
+ def test_site_producer_uses_the_current_integration_controller_pin(self):
+  text=(ROOT/'.github/workflows/site-producer.yml').read_text()
+  self.assertIn(
+   'integration-qualification.yml@a92006b95ef67abaa52d59e7a583c1f59656e7a7',
+   text,
+  )
  def test_deployment_includes_complete_qualification(self):
   deploy=yaml.safe_load((ROOT/'.github/workflows/deploy-pages.yml').read_text())
   self.assertEqual(set(deploy['jobs']['deploy']['needs']),{'build','artifact_gate','deployment_metadata'})
