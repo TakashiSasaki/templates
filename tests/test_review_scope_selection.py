@@ -211,6 +211,58 @@ def test_request_key_is_not_head_only() -> None:
     assert _key(packet) != _key(changed)
 
 
+def test_same_head_new_contract_evidence_allows_additional_related_scope() -> None:
+    packet = _packet()
+    previous = planner.plan(packet)
+    packet["reviews"] = [
+        {
+            "key": previous["request_key"],
+            "status": "completed",
+            "independent": True,
+            "metadata_complete": True,
+            "pagination_complete": True,
+        }
+    ]
+    packet["change"] = {
+        "impact": "bounded",
+        "invariants": ["review-scope", "shared-contract"],
+        "affected_members": ["policy-p1"],
+        "contract_changed": True,
+        "trust_boundary_changed": False,
+        "topology_changed": False,
+    }
+
+    result = planner.plan(packet)
+
+    assert result["action"] == planner.ACTION_STACK
+    assert result["selected_scope"]["kind"] == "whole-stack"
+    assert result["request_key"] != previous["request_key"]
+
+
+def test_multiple_prior_whole_stack_results_do_not_create_a_numeric_cap() -> None:
+    packet = _packet(
+        change={
+            "impact": "bounded",
+            "invariants": ["shared-contract"],
+            "affected_members": ["policy-p1"],
+            "contract_changed": True,
+            "trust_boundary_changed": False,
+            "topology_changed": False,
+        }
+    )
+    initial = planner.plan(packet)
+    packet["reviews"] = [
+        {"key": "old-whole-stack-1", "status": "completed"},
+        {"key": "old-whole-stack-2", "status": "completed"},
+    ]
+
+    result = planner.plan(packet)
+
+    assert result["action"] == planner.ACTION_STACK
+    assert result["selected_scope"]["kind"] == "whole-stack"
+    assert result["request_key"] == initial["request_key"]
+
+
 def test_invalid_candidate_binding_fails_closed() -> None:
     packet = _packet()
     candidate = packet["candidate"]
