@@ -9,6 +9,11 @@
     "contracts/publication-compatibility/provider-registry.json",
     "contracts/publication-compatibility/feature-registry.json"
   ],
+  "expected_documents": [
+    "index.md",
+    "docs/index.md",
+    "contracts/index.md"
+  ],
   "authored_boundaries": [
     "docs",
     "contracts"
