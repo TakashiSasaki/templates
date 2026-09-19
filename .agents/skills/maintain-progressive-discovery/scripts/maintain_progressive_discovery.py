@@ -15,6 +15,7 @@ import re
 import string
 import subprocess
 from collections.abc import Iterable
+from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
 from urllib.parse import quote, unquote, urlsplit
@@ -245,10 +246,11 @@ def _load_adapter(root: Path, relative: str) -> tuple[dict[str, Any], list[str]]
         errors.append("adapter: root_index must be a canonical index.md path")
     generated = _generated_specs(value)
     for target, spec in generated.items():
-        if "title" in spec and (
-            not isinstance(spec["title"], str) or not spec["title"].strip()
-        ):
-            errors.append(f"adapter: generated title must be nonempty text: {target}")
+        for heading in ("title", "section"):
+            if heading in spec and (
+                not isinstance(spec[heading], str) or not spec[heading].strip()
+            ):
+                errors.append(f"adapter: generated {heading} must be nonempty text: {target}")
         if "inventory" in spec:
             scopes = spec["inventory"]
             if not isinstance(scopes, list) or any(
@@ -260,6 +262,8 @@ def _load_adapter(root: Path, relative: str) -> tuple[dict[str, Any], list[str]]
                     f"adapter: generated inventory requires canonical path array: {target}"
                 )
     retired = _configured_paths(value, "remove_generated_indexes")
+    if root_index in retired:
+        errors.append("adapter: active root_index cannot be retired")
     retired_declarations = value.get("remove_generated_indexes", [])
     if not isinstance(retired_declarations, (list, dict)):
         retired_declarations = []
@@ -523,6 +527,32 @@ def _index_paths(root: Path, adapter: dict[str, Any]) -> list[str]:
     )
 
 
+def _rendered_blocks(text: str) -> str:
+    """Exclude comments and code blocks from the supported Markdown surfaces."""
+    text = re.sub(r"<!--.*?(?:-->|$)", "", text, flags=re.DOTALL)
+    visible: list[str] = []
+    fence = ""
+    for line in text.splitlines():
+        marker = re.match(r"^ {0,3}(`{3,}|~{3,})(.*)$", line)
+        if fence:
+            if (marker and marker.group(1)[0] == fence[0]
+                    and len(marker.group(1)) >= len(fence)
+                    and not marker.group(2).strip()):
+                fence = ""
+            continue
+        if marker:
+            fence = marker.group(1)
+            continue
+        if line.expandtabs(4).startswith("    "):
+            continue
+        visible.append(line)
+    return "\n".join(visible)
+
+
+def _without_code_spans(text: str) -> str:
+    return re.sub(r"(`+).*?\1", "", text, flags=re.DOTALL)
+
+
 def _read_index_links(root: Path, relative: str) -> tuple[list[dict[str, str]], list[str]]:
     if problem := _repository_path_error(root, relative):
         return [], [problem]
@@ -550,26 +580,7 @@ def _read_index_links(root: Path, relative: str) -> tuple[list[dict[str, str]], 
             issues.append(f"{relative}:{line_number}: list item must contain a Markdown link")
         if not line.startswith(("#", "- ", "* ", "  ")) and not LINK_RE.search(line):
             issues.append(f"{relative}:{line_number}: content is outside the small index grammar")
-    # Comments and code do not provide rendered navigation. Keep visible prose
-    # (including link labels containing code spans) available to the grammar.
-    navigation_text = re.sub(r"<!--.*?(?:-->|$)", "", text, flags=re.DOTALL)
-    visible_lines: list[str] = []
-    fence = ""
-    for line in navigation_text.splitlines():
-        marker = re.match(r"^ {0,3}(`{3,}|~{3,})", line)
-        if marker:
-            token = marker.group(1)
-            if not fence:
-                fence = token
-            elif token[0] == fence[0] and len(token) >= len(fence):
-                fence = ""
-            continue
-        if fence or line.startswith(("    ", "\t")):
-            continue
-        visible_lines.append(line)
-    navigation_text = re.sub(
-        r"(`+).*?\1", "", "\n".join(visible_lines), flags=re.DOTALL
-    )
+    navigation_text = _without_code_spans(_rendered_blocks(text))
     for match in LINK_RE.finditer(navigation_text):
         label, target = match.groups()
         links.append({"label": label.strip(), "target": target.strip()})
@@ -587,7 +598,8 @@ def _headings(path: Path) -> set[str]:
         return {
             _heading_slug(match.group(2))
             for match in (
-                HEADING_RE.match(line) for line in path.read_text(encoding="utf-8").splitlines()
+                HEADING_RE.match(line)
+                for line in _rendered_blocks(path.read_text(encoding="utf-8")).splitlines()
             )
             if match
         }
@@ -600,7 +612,19 @@ def _anchors(path: Path) -> set[str]:
         text = path.read_text(encoding="utf-8")
     except (OSError, UnicodeError):
         return set()
-    return {unquote(value) for value in re.findall(r"\b(?:id|name)=[\"']([^\"']+)[\"']", text)}
+    class AnchorParser(HTMLParser):
+        def __init__(self) -> None:
+            super().__init__()
+            self.anchors: set[str] = set()
+
+        def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+            for key, value in attrs:
+                if value and (key == "id" or tag == "a" and key == "name"):
+                    self.anchors.add(value)
+
+    parser = AnchorParser()
+    parser.feed(_without_code_spans(_rendered_blocks(text)))
+    return parser.anchors
 
 
 def _resolve_link(root: Path, source: str, target: str) -> tuple[str | None, str | None]:
@@ -624,7 +648,7 @@ def _resolve_link(root: Path, source: str, target: str) -> tuple[str | None, str
         return relative, f"{source}: missing link target {target}"
     if parsed.fragment and base.is_file():
         fragment = unquote(parsed.fragment)
-        if _heading_slug(fragment) not in _headings(base) and fragment not in _anchors(base):
+        if fragment not in _headings(base) and fragment not in _anchors(base):
             return relative, f"{source}: missing fragment {parsed.fragment} in {relative}"
     return relative, None
 
