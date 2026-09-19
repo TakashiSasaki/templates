@@ -192,14 +192,14 @@ def load_reader_translations(path: Path) -> dict[tuple[str, str, str], str]:
     return result
 
 
-def locale_index_url(language: str, provider: str, source_path: str) -> str:
+def locale_index_url(language: str, provider: str, source_path: str, *, root_index: str = ROOT_INDEX) -> str:
     language = validate_language(language)
-    return f"/{quote(language, safe='')}" + index_page_url(provider, source_path)
+    return f"/{quote(language, safe='')}" + index_page_url(provider, source_path, root_index=root_index)
 
 
-def locale_index_path(language: str, provider: str, source_path: str) -> Path:
+def locale_index_path(language: str, provider: str, source_path: str, *, root_index: str = ROOT_INDEX) -> Path:
     language = validate_language(language)
-    return Path(language) / index_page_path(provider, source_path)
+    return Path(language) / index_page_path(provider, source_path, root_index=root_index)
 
 
 def translated_edge_href(
@@ -217,7 +217,7 @@ def translated_edge_href(
     fragment = edge.get("fragment")
     if kind == "index" and target in overlay_indexes:
         suffix = "" if fragment is None else "#" + quote(fragment, safe="-._~:/")
-        return locale_index_url(language, provider["name"], target) + suffix, "index", False
+        return locale_index_url(language, provider["name"], target, root_index=provider.get("root_index", ROOT_INDEX)) + suffix, "index", False
     if kind == "fragment":
         suffix = "" if fragment is None else "#" + quote(fragment, safe="-._~:/")
         return suffix, "same index", False
@@ -242,6 +242,7 @@ def translated_edge_href(
         edge,
         published,
         repository,
+        root_index=provider.get("root_index", ROOT_INDEX),
     )
 
 
@@ -257,10 +258,11 @@ def localized_shell(title: str, body: str, page_path: str, language: str) -> str
 def path_chain(
     current: str,
     parents: dict[str, tuple[str, str]],
+    *, root_index: str = ROOT_INDEX,
 ) -> list[str]:
     chain = [current]
     seen = {current}
-    while chain[-1] != ROOT_INDEX:
+    while chain[-1] != root_index:
         parent = parents.get(chain[-1])
         if parent is None or parent[0] in seen:
             break
@@ -334,13 +336,13 @@ def render_localized_index(
     source = github_blob_url(repository, provider["revision"], source_path)
     revision = github_commit_url(repository, provider["revision"])
     breadcrumbs = []
-    for path in path_chain(source_path, parents):
+    for path in path_chain(source_path, parents, root_index=provider.get("root_index", ROOT_INDEX)):
         path_overlay = overlay_indexes.get(path)
         title = path_overlay["title"] if path_overlay is not None else indexes[path]["title"]
         url = (
-            locale_index_url(language, provider["name"], path)
+            locale_index_url(language, provider["name"], path, root_index=provider.get("root_index", ROOT_INDEX))
             if path_overlay is not None
-            else index_page_url(provider["name"], path)
+            else index_page_url(provider["name"], path, root_index=provider.get("root_index", ROOT_INDEX))
         )
         breadcrumbs.append((title, url))
     breadcrumb_html = "".join(
@@ -431,7 +433,7 @@ def render_localized_index(
     return localized_shell(
         overlay["title"],
         "\n".join(body_parts),
-        locale_index_url(language, provider["name"], source_path),
+        locale_index_url(language, provider["name"], source_path, root_index=provider.get("root_index", ROOT_INDEX)),
         language,
     )
 
@@ -449,11 +451,12 @@ def render_localized_landing(
     for provider in graph["providers"]:
         name = provider["name"]
         diagnostics = provider["diagnostics"]
-        root_overlay = locale.get(name, {}).get(ROOT_INDEX)
+        root_index = provider.get("root_index", ROOT_INDEX)
+        root_overlay = locale.get(name, {}).get(root_index)
         target = (
-            locale_index_url(language, name, ROOT_INDEX)
+            locale_index_url(language, name, root_index, root_index=root_index)
             if root_overlay is not None
-            else index_page_url(name, ROOT_INDEX)
+            else index_page_url(name, root_index, root_index=root_index)
         )
         cards.append(
             '<section class="provider-card">'
@@ -540,7 +543,7 @@ def generate_from_bundle(repository, graph, overlays, reader_translations, publi
             indexes, parents, edges_by_source = provider_render_indexes(provider)
             for source_path, overlay in provider_overlays.items():
                 canonical_index = indexes[source_path]
-                relative = locale_index_path(language, name, source_path)
+                relative = locale_index_path(language, name, source_path, root_index=provider["root_index"])
                 rendered.append(
                     (
                         relative,
@@ -562,7 +565,7 @@ def generate_from_bundle(repository, graph, overlays, reader_translations, publi
                 pairs.append(
                     {
                         "language": language,
-                        "canonical_path": index_page_path(name, source_path).as_posix(),
+                        "canonical_path": index_page_path(name, source_path, root_index=provider["root_index"]).as_posix(),
                         "translation_path": relative.as_posix(),
                     }
                 )

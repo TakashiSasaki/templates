@@ -28,7 +28,7 @@ def load_graph(path: Path, *, provider_order=None) -> dict[str, Any]:
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         raise IndexNavigationViewerError(f"unable to read index graph {path}: {exc}") from exc
     schema_version = value.get("schema_version") if isinstance(value, dict) else None
-    if schema_version not in {LEGACY_GRAPH_SCHEMA_VERSION, GRAPH_SCHEMA_VERSION}:
+    if type(schema_version) is not int or schema_version not in {LEGACY_GRAPH_SCHEMA_VERSION, GRAPH_SCHEMA_VERSION}:
         raise IndexNavigationViewerError("index graph must use schema_version 1 or 2")
     repository = value.get("repository")
     providers = value.get("providers")

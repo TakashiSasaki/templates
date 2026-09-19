@@ -162,14 +162,15 @@ def _validate_guided_projection(site_root: Path, bundle: Path, lock: dict) -> No
 
     for provider in graph["providers"]:
         for index in provider["indexes"]:
-            page = site_root / index_page_path(provider["name"], index["path"])
+            page = site_root / index_page_path(provider["name"], index["path"], root_index=provider["root_index"])
             try:
                 source = page.read_text(encoding="utf-8")
             except (OSError, UnicodeError) as exc:
                 raise SiteArtifactError(f"missing guided page {page}: {exc}") from exc
             for edge in [edge for edge in provider["edges"] if edge["source"] == index["path"]]:
                 href, _kind, _external = edge_href(
-                    provider["name"], provider["revision"], edge, published[provider["name"]], graph["repository"]
+                    provider["name"], provider["revision"], edge, published[provider["name"]], graph["repository"],
+                    root_index=provider["root_index"],
                 )
                 escaped = html.escape(href, quote=True)
                 if f'href="{escaped}"' not in source:

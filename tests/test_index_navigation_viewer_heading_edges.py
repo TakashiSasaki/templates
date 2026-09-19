@@ -210,6 +210,7 @@ class IndexNavigationViewerHeadingEdgeTests(unittest.TestCase):
             {"kind": "index", "target": "docs/index.md", "fragment": None},
             {},
             "TakashiSasaki/templates",
+            root_index="docs/index.md",
         )
 
         self.assertEqual(href, "/guided/skill/")
