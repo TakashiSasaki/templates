@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 import unittest
-
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -16,10 +15,13 @@ class ProgressiveDiscoveryBoundaryTests(unittest.TestCase):
         self.assertIn("docs/publication-catalog.json", adapter["authoritative_inventories"])
         self.assertIn("profiles/progressive-discovery.yml", adapter["authoritative_inventories"])
         self.assertIn("schemas", adapter["explicit_exclusions"])
-        self.assertEqual(adapter["surface_boundaries"]["consumer-distributed"], [
-            "docs/consumer/index.md",
-            "skills/agent-policy/SKILL.md",
-        ])
+        self.assertEqual(
+            adapter["surface_boundaries"]["consumer-distributed"],
+            [
+                "docs/consumer/index.md",
+                "skills/agent-policy/SKILL.md",
+            ],
+        )
 
     def test_root_routes_through_policy_profile_and_skill_boundaries(self) -> None:
         text = (ROOT / "index.md").read_text(encoding="utf-8")
