@@ -477,6 +477,7 @@ def _classify(
     )
     authored = _configured_paths(adapter, "authored_boundaries")
     curated = _configured_paths(adapter, "curated_shortcuts")
+    intentional_no_indexes = _configured_paths(adapter, "intentional_no_indexes")
     relevant: set[str] = set()
     for item in expected:
         path = Path(item).parent
@@ -524,16 +525,18 @@ def _classify(
         )
         existing = index in indexes
         curated_parent = next(
-            (
-                prefix
-                for prefix in sorted(curated)
-                if directory == prefix or directory.startswith(prefix + "/")
-            ),
+            (prefix for prefix in sorted(curated) if directory.startswith(prefix + "/")),
             None,
         )
         if excluded:
             category = "index-unnecessary"
             reason = f"explicit exclusion or closed inventory: {excluded}"
+        elif directory in intentional_no_indexes and existing:
+            category = "authority-needed"
+            reason = "existing index conflicts with an intentional no-index boundary"
+        elif directory in intentional_no_indexes:
+            category = "index-unnecessary"
+            reason = "adapter declares an intentional no-index discovery boundary"
         elif generated_here:
             category = "generated-index-needed"
             reason = "adapter declares a deterministic generated index"
@@ -959,6 +962,7 @@ def run(
         "exclusions": sorted(
             _configured_paths(adapter, "explicit_exclusions")
             | _configured_paths(adapter, "closed_inventories")
+            | _configured_paths(adapter, "intentional_no_indexes")
         ),
         "notes": sorted(adapter_errors + inventory_errors + policy_notes),
         "validation": validation,
