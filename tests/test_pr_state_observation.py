@@ -24,6 +24,8 @@ SPEC.loader.exec_module(OBSERVATION)
 
 HEAD = "1111111111111111111111111111111111111111"
 BASE = "2222222222222222222222222222222222222222"
+REPOSITORY_ID = "repository-123"
+RESOURCE_ID = "pull-request-123"
 
 
 def candidate(**overrides: object) -> dict:
@@ -31,6 +33,11 @@ def candidate(**overrides: object) -> dict:
         "repository": "TakashiSasaki/templates",
         "number": 123,
         "id": "PR_node_123",
+        "provider_identity": {
+            "provider": "fake",
+            "repository_id": REPOSITORY_ID,
+            "resource_id": RESOURCE_ID,
+        },
         "expected_head_sha": HEAD,
         "expected_base_sha": BASE,
         "dependencies": [],
@@ -46,6 +53,11 @@ def binding(
     dependencies: list[dict] | None = None,
 ) -> dict:
     return {
+        "provider_identity": {
+            "provider": "fake",
+            "repository_id": REPOSITORY_ID,
+            "resource_id": RESOURCE_ID,
+        },
         "head_sha": head,
         "base_sha": base,
         "dependencies": [] if dependencies is None else dependencies,
@@ -220,6 +232,107 @@ def test_summary_limit_preserves_continuation_reference() -> None:
     assert summary["omitted_change_count"] == 2
     assert summary["continuation"]["offset"] == 1
     assert summary["merge_authorization"] == "not_established"
+
+
+def test_summary_bounds_large_nested_values_and_serialized_size() -> None:
+    huge = "x" * 100_000
+    diff = {
+        "status": "changed",
+        "meaningful_change": True,
+        "counts": {"changed": 3},
+        "changes": [
+            {
+                "surface": "comments",
+                "kind": "changed",
+                "identity": f"comment-{index}",
+                "after": {
+                    "identity": f"comment-{index}",
+                    "body": huge,
+                    "message": huge,
+                    "diff_hunk": huge,
+                    "nested": {"value": huge},
+                },
+            }
+            for index in range(3)
+        ],
+        "unknowns": [],
+    }
+
+    summary = OBSERVATION.summarize_diff(
+        diff,
+        limit=3,
+        snapshot_reference={"path": "/tmp/detail.json", "digest": "a" * 64},
+    )
+
+    assert (
+        len(OBSERVATION.canonical_json(summary).encode("utf-8"))
+        <= OBSERVATION.MODEL_SUMMARY_MAX_BYTES
+    )
+    assert summary["summary_truncated"] is True
+    assert "detail_reference" in summary
+    assert "sha256=" in json.dumps(summary)
+    assert len(summary["changes"][0]["after"]["body"]) < len(huge)
+
+
+def test_incomplete_previous_snapshot_does_not_create_added_changes() -> None:
+    first = snapshot(
+        [{"identity": "known", "body": "baseline"}],
+        complete=False,
+        comments_complete=False,
+    )
+    second = snapshot(
+        [{"identity": "known", "body": "baseline"}, {"identity": "page-2", "body": "recovered"}],
+    )
+
+    diff = OBSERVATION.diff_snapshots(first, second)
+
+    assert diff["status"] == "incomplete"
+    assert diff["meaningful_change"] is False
+    assert not any(change["kind"] == "added" for change in diff["changes"])
+    assert any(change["kind"] == "newly_observed" for change in diff["changes"])
+    assert "previous_snapshot_incomplete" in diff["unknowns"]
+
+
+def test_changed_surface_set_fails_closed_and_reordering_is_harmless() -> None:
+    first = OBSERVATION.build_snapshot(
+        candidate=candidate(),
+        observed_start=binding(),
+        observed_end=binding(),
+        surfaces={
+            "comments": surface([{"identity": "comment-1", "body": "same"}]),
+            "reviews": surface([]),
+        },
+        requested_surfaces=["comments", "reviews"],
+        observation={"provider": "fake"},
+    )
+    reordered = OBSERVATION.build_snapshot(
+        candidate=candidate(),
+        observed_start=binding(),
+        observed_end=binding(),
+        surfaces={
+            "comments": surface([{"identity": "comment-1", "body": "same"}]),
+            "reviews": surface([]),
+        },
+        requested_surfaces=["reviews", "comments"],
+        observation={"provider": "fake"},
+    )
+    added = OBSERVATION.build_snapshot(
+        candidate=candidate(),
+        observed_start=binding(),
+        observed_end=binding(),
+        surfaces={
+            "comments": surface([{"identity": "comment-1", "body": "same"}]),
+            "reviews": surface([]),
+            "threads": surface([]),
+        },
+        requested_surfaces=["comments", "reviews", "threads"],
+        observation={"provider": "fake"},
+    )
+
+    assert OBSERVATION.diff_snapshots(first, reordered)["status"] == "unchanged"
+    changed = OBSERVATION.diff_snapshots(first, added)
+    assert changed["status"] == "incomplete"
+    assert changed["unknowns"] == ["requested_surface_set_changed"]
 
 
 def test_fixture_is_anonymized_and_has_expected_shape() -> None:
