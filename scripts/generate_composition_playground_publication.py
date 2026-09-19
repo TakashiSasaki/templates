@@ -22,6 +22,7 @@ ROOT = Path(__file__).resolve().parents[1]
 BASE_NAME = "composition-playground-v1.json.gz"
 INTENT_NAME = "composition-playground-intent-v1.json.gz"
 MANIFEST_NAME = "composition-playground-publication.json"
+DESCRIPTOR_NAME = "publication-descriptor.json"
 MAX_COMPRESSED_ASSET_BYTES = 262_144
 _GIT_OBJECT_RE = re.compile(r"^[0-9a-f]{40}$")
 
@@ -338,6 +339,14 @@ def write_directory(directory: Path, *, semantic_revision: str | None = None) ->
     return revision
 
 
+def publication_descriptor(semantic_revision: str) -> bytes:
+    return (json.dumps({
+        "schema_version": 1,
+        "provider": "composition",
+        "semantic_revision": semantic_revision,
+    }, indent=2) + "\n").encode("utf-8")
+
+
 def refresh_directory(directory: Path) -> str:
     """Refresh a generated publication snapshot from clean, committed semantics."""
     directory = directory.absolute()
@@ -372,7 +381,11 @@ def refresh_directory(directory: Path) -> str:
         _atomic_write(staged / MANIFEST_NAME, (json.dumps(manifest, indent=2) + "\n").encode("utf-8"))
         for name, payload in payloads.items():
             _atomic_write(staged / name, payload)
+        descriptor = publication_descriptor(revision)
+        _atomic_write(staged / DESCRIPTOR_NAME, descriptor)
         validate_written_payloads(staged, payloads, revision)
+        if (staged / DESCRIPTOR_NAME).read_bytes() != descriptor:
+            raise CompositionError("INVALID_PLAYGROUND_PUBLICATION", "staged descriptor differs from semantic revision")
         try:
             if directory.exists():
                 os.replace(directory, backup)
