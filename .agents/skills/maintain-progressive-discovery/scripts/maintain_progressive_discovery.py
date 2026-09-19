@@ -245,6 +245,10 @@ def _load_adapter(root: Path, relative: str) -> tuple[dict[str, Any], list[str]]
         errors.append("adapter: root_index must be a canonical index.md path")
     generated = _generated_specs(value)
     for target, spec in generated.items():
+        if "title" in spec and (
+            not isinstance(spec["title"], str) or not spec["title"].strip()
+        ):
+            errors.append(f"adapter: generated title must be nonempty text: {target}")
         if "inventory" in spec:
             scopes = spec["inventory"]
             if not isinstance(scopes, list) or any(
@@ -311,27 +315,7 @@ def _yaml_policy(root: Path, relative: str) -> tuple[Any, list[str]]:
 
         return _read_yaml(path) or {}, []
     except ImportError:
-        profiles: list[str] = []
-        skills: list[str] = []
-        section = ""
-        for raw in path.read_text(encoding="utf-8").splitlines():
-            line = raw.split("#", 1)[0].rstrip()
-            if not line:
-                continue
-            if re.match(r"^\s*profiles\s*:\s*$", line):
-                section = "profiles"
-                continue
-            if re.match(r"^\s*skills\s*:\s*$", line):
-                section = "skills"
-                continue
-            match = re.match(r"^\s*-\s*([A-Za-z0-9][A-Za-z0-9-]*)\s*$", line)
-            if match and section == "profiles":
-                profiles.append(match.group(1))
-            elif match and section == "skills":
-                skills.append(match.group(1))
-        return {"profiles": profiles, "skills": {"enabled": skills}}, [
-            "policy: PyYAML unavailable; used conservative list fallback"
-        ]
+        return {}, ["policy: PyYAML unavailable; cannot validate selection"]
     except Exception as exc:  # pragma: no cover - parser-specific defensive path
         return {}, [f"policy: {exc}"]
 
@@ -566,7 +550,15 @@ def _read_index_links(root: Path, relative: str) -> tuple[list[dict[str, str]], 
             issues.append(f"{relative}:{line_number}: list item must contain a Markdown link")
         if not line.startswith(("#", "- ", "* ", "  ")) and not LINK_RE.search(line):
             issues.append(f"{relative}:{line_number}: content is outside the small index grammar")
-    for match in LINK_RE.finditer(text):
+    # The small index grammar does not admit code or HTML as navigation.
+    # Refuse ambiguous constructs rather than count invisible links as coverage.
+    navigation_text = text.replace(GENERATED_MARKER, "")
+    if ("<!--" in navigation_text or "`" in navigation_text
+            or re.search(r"(?m)^[ \t]*~~~", navigation_text)
+            or any(line.startswith(("    ", "\t")) for line in lines)):
+        issues.append(f"{relative}: comments and code are outside the small index grammar")
+        return [], issues
+    for match in LINK_RE.finditer(navigation_text):
         label, target = match.groups()
         links.append({"label": label.strip(), "target": target.strip()})
     return links, issues
@@ -1157,10 +1149,7 @@ def run(
                 adapter_errors.append(
                     f"adapter: scoped exclusion is not an expected document: {document}"
                 )
-    source_errors = adapter_errors + inventory_errors + [
-        note for note in policy_notes
-        if "PyYAML unavailable; used conservative list fallback" not in note
-    ]
+    source_errors = adapter_errors + inventory_errors + policy_notes
     plan = [] if source_errors else _plan(root, adapter, indexes, expected, generated, policy)
     requested_plan = plan
     applied: list[str] = []
