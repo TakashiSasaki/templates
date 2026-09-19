@@ -1928,7 +1928,7 @@ def test_final_cleanup_marker_blocks_a_replacement_before_rmdir(tmp_path, monkey
     )
 
 
-def test_final_cleanup_detaches_before_rmdir_and_retains_a_late_replacement(
+def test_final_cleanup_native_mutation_boundary_retains_a_late_replacement(
     tmp_path, monkeypatch
 ):
     skill = _load_skill()
@@ -1943,81 +1943,21 @@ def test_final_cleanup_detaches_before_rmdir_and_retains_a_late_replacement(
         'token_hex',
         lambda _size: next(tokens, f'extra{next(counter)}'),
     )
-    original_rmdir = skill.os.rmdir
+    original_unlink = skill._unlink_directory_at
     swapped: list[str] = []
-    seen: list[str] = []
 
-    def swap_at_retirement_rmdir(path, *, dir_fd=None):
-        seen.append(path)
-        raw_name = getattr(path, 'name', path)
-        if (isinstance(raw_name, str)
-                and raw_name.startswith('.progressive-discovery-purge-')
-                and not swapped):
-            parent = Path(os.readlink(f'/proc/self/fd/{dir_fd}'))
-            original = parent / raw_name
-            original.rename(parent / (raw_name + '-moved'))
-            replacement = parent / raw_name
+    def swap_before_native_unlink(parent_fd, name, target_fd, identity):
+        if not swapped:
+            parent = Path(os.readlink(f'/proc/self/fd/{parent_fd}'))
+            original = parent / name
+            original.rename(parent / (name + '-moved'))
+            replacement = parent / name
             replacement.mkdir()
+            (replacement / 'replacement-sentinel').write_text('replacement\n')
             swapped.append(replacement.name)
-        return original_rmdir(path, dir_fd=dir_fd)
+        return original_unlink(parent_fd, name, target_fd, identity)
 
-    monkeypatch.setattr(skill.os, 'rmdir', swap_at_retirement_rmdir)
-    monkeypatch.setattr(
-        skill.os,
-        'supports_dir_fd',
-        skill.os.supports_dir_fd | {swap_at_retirement_rmdir},
-    )
-    applied, errors = skill._apply(
-        tmp_path,
-        [{'action': 'create', 'kind': 'generated', 'path': 'index.md',
-          'content': content, 'snapshot': snapshot}],
-        {'profile_selected': True, 'skill_selected': True},
-    )
-
-    assert swapped, seen
-    assert 'create index.md' in applied
-    assert errors
-    assert any(
-        path.is_dir() and path.name.startswith('.progressive-discovery-retire-')
-        for path in tmp_path.iterdir()
-    )
-    assert not (tmp_path / 'index.md').is_symlink()
-    # The late replacement is retained; the final rmdir operand is rebound
-    # only after its descriptor identity has been checked.
-
-
-def test_final_cleanup_audit_boundary_retains_a_late_replacement(
-    tmp_path, monkeypatch
-):
-    skill = _load_skill()
-    (tmp_path / 'README.md').write_text('# Repository\n')
-    _commit_generated_target(tmp_path)
-    content = skill.GENERATED_MARKER + '\n# Generated\n'
-    snapshot = skill._target_state(tmp_path, 'index.md')
-    tokens = iter(('holding', 'cleanup', 'final', 'retire', 'purge', 'bound'))
-    counter = iter(range(100))
-    monkeypatch.setattr(
-        skill.secrets,
-        'token_hex',
-        lambda _size: next(tokens, f'extra{next(counter)}'),
-    )
-    swapped: list[str] = []
-
-    def swap_at_rmdir_audit(event, args):
-        if event != 'os.rmdir' or len(args) < 2 or swapped:
-            return
-        path, dir_fd = args
-        if not isinstance(path, str) or not path.startswith(
-            '.progressive-discovery-bound-'
-        ):
-            return
-        parent = Path(os.readlink(f'/proc/self/fd/{dir_fd}'))
-        original = parent / path
-        original.rename(parent / (path + '-moved'))
-        (parent / path).mkdir()
-        swapped.append(path)
-
-    sys.addaudithook(swap_at_rmdir_audit)
+    monkeypatch.setattr(skill, '_unlink_directory_at', swap_before_native_unlink)
     applied, errors = skill._apply(
         tmp_path,
         [{'action': 'create', 'kind': 'generated', 'path': 'index.md',
@@ -2028,12 +1968,19 @@ def test_final_cleanup_audit_boundary_retains_a_late_replacement(
     assert swapped
     assert 'create index.md' in applied
     assert errors
-    assert any(path.is_dir() for path in tmp_path.iterdir()
-               if path.name.startswith('.progressive-discovery-bound-'))
-    assert any('progressive-discovery-retire-' in error for error in errors)
+    assert any(
+        (path / 'replacement-sentinel').is_file()
+        for path in tmp_path.iterdir()
+        if path.is_dir()
+    )
+    assert any(path.is_dir() and path.name == swapped[0] + '-moved'
+               for path in tmp_path.iterdir())
+    assert not (tmp_path / 'index.md').is_symlink()
+    # The replacement and operation-owned inode are both retained; the native
+    # helper revalidates at the actual destructive boundary before unlinkat.
 
 
-def test_final_cleanup_reports_retained_path_after_rmdir_failure(
+def test_final_cleanup_native_boundary_does_not_expose_os_rmdir_audit_gap(
     tmp_path, monkeypatch
 ):
     skill = _load_skill()
@@ -2048,20 +1995,90 @@ def test_final_cleanup_reports_retained_path_after_rmdir_failure(
         'token_hex',
         lambda _size: next(tokens, f'extra{next(counter)}'),
     )
-    original_rmdir = skill.os.rmdir
+    observed: list[str] = []
 
-    def fail_after_path_binding(path, *, dir_fd=None):
-        if getattr(path, 'name', path).startswith('.progressive-discovery-purge-'):
-            os.fspath(path)
-            raise OSError('injected rmdir failure')
-        return original_rmdir(path, dir_fd=dir_fd)
+    def observe_rmdir_audit(event, _args):
+        if event == 'os.rmdir':
+            observed.append(event)
 
-    monkeypatch.setattr(skill.os, 'rmdir', fail_after_path_binding)
-    monkeypatch.setattr(
-        skill.os,
-        'supports_dir_fd',
-        skill.os.supports_dir_fd | {fail_after_path_binding},
+    sys.addaudithook(observe_rmdir_audit)
+    applied, errors = skill._apply(
+        tmp_path,
+        [{'action': 'create', 'kind': 'generated', 'path': 'index.md',
+          'content': content, 'snapshot': snapshot}],
+        {'profile_selected': True, 'skill_selected': True},
     )
+
+    assert not observed
+    assert 'create index.md' in applied
+    assert not errors
+
+
+def test_final_cleanup_resolves_native_symbol_before_identity_checks(
+    tmp_path, monkeypatch
+):
+    skill = _load_skill()
+    (tmp_path / 'README.md').write_text('# Repository\n')
+    _commit_generated_target(tmp_path)
+    content = skill.GENERATED_MARKER + '\n# Generated\n'
+    snapshot = skill._target_state(tmp_path, 'index.md')
+    swapped: list[str] = []
+
+    def swap_on_native_lookup(event, _args):
+        if event not in {'ctypes.dlopen', 'ctypes.dlsym'} or swapped:
+            return
+        candidates = [
+            path for path in tmp_path.iterdir()
+            if path.is_dir() and path.name.startswith('.progressive-discovery-bound-')
+        ]
+        if not candidates:
+            return
+        original = candidates[0]
+        original.rename(tmp_path / (original.name + '-moved'))
+        replacement = tmp_path / original.name
+        replacement.mkdir()
+        (replacement / 'replacement-sentinel').write_text('replacement\n')
+        swapped.append(replacement.name)
+
+    sys.addaudithook(swap_on_native_lookup)
+    applied, errors = skill._apply(
+        tmp_path,
+        [{'action': 'create', 'kind': 'generated', 'path': 'index.md',
+          'content': content, 'snapshot': snapshot}],
+        {'profile_selected': True, 'skill_selected': True},
+    )
+
+    assert swapped
+    assert 'create index.md' in applied
+    assert errors
+    assert any(
+        (path / 'replacement-sentinel').is_file()
+        for path in tmp_path.iterdir()
+        if path.is_dir()
+    )
+    assert any(path.is_dir() and path.name == swapped[0] + '-moved'
+               for path in tmp_path.iterdir())
+
+
+def test_final_cleanup_reports_retained_path_after_unlinkat_failure(
+    tmp_path, monkeypatch
+):
+    skill = _load_skill()
+    (tmp_path / 'README.md').write_text('# Repository\n')
+    _commit_generated_target(tmp_path)
+    content = skill.GENERATED_MARKER + '\n# Generated\n'
+    snapshot = skill._target_state(tmp_path, 'index.md')
+    tokens = iter(('holding', 'cleanup', 'final', 'retire', 'purge', 'bound'))
+    counter = iter(range(100))
+    monkeypatch.setattr(
+        skill.secrets,
+        'token_hex',
+        lambda _size: next(tokens, f'extra{next(counter)}'),
+    )
+    def fail_after_native_boundary(*_args):
+        raise OSError('injected unlinkat failure')
+
+    monkeypatch.setattr(skill, '_unlink_directory_at', fail_after_native_boundary)
     _applied, errors = skill._apply(
         tmp_path,
         [{'action': 'create', 'kind': 'generated', 'path': 'index.md',
@@ -2069,5 +2086,5 @@ def test_final_cleanup_reports_retained_path_after_rmdir_failure(
         {'profile_selected': True, 'skill_selected': True},
     )
 
-    assert any('injected rmdir failure' in error for error in errors)
+    assert any('injected unlinkat failure' in error for error in errors)
     assert any('progressive-discovery-retire-' in error for error in errors)
