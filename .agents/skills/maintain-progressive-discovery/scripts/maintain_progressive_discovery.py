@@ -274,10 +274,18 @@ def _load_adapter(root: Path, relative: str) -> tuple[dict[str, Any], list[str]]
     excluded_boundaries = _configured_paths(value, "explicit_exclusions") | _configured_paths(
         value, "closed_inventories"
     )
-    for target in set(generated) | retired:
+    active_indexes = set(generated) | ({root_index} if isinstance(root_index, str) else set())
+    no_indexes = _configured_paths(value, "intentional_no_indexes")
+    for target in active_indexes:
+        # These directories are excluded by the canonical discovery walk.
+        if (_ignored(root / target, root)
+                or any(part.startswith(".") for part in Path(target).parent.parts)
+                or (posixpath.dirname(target) or ".") in no_indexes):
+            errors.append(f"adapter: active index is inside a no-index boundary: {target}")
+    for target in active_indexes | retired:
         if any(target == boundary or target.startswith(boundary + "/")
                for boundary in excluded_boundaries):
-            errors.append(f"adapter: generated/retired target overlaps excluded boundary: {target}")
+            errors.append(f"adapter: active root/generated/retired target overlaps excluded boundary: {target}")
         if _repository_path_error(root, target) or Path(target).name != INDEX_NAME:
             errors.append(
                 f"adapter: generated/retired target must be a safe index.md path: {target}"
@@ -347,7 +355,9 @@ def _find_values(value: Any, key: str | None = None) -> Iterable[str]:
     if key in {"destination", "destination_path", "url_path"}:
         return
     if isinstance(value, str):
-        if key in PATH_KEYS or value.endswith(PATH_SUFFIXES):
+        candidate = _safe_relative(value)
+        if (key in PATH_KEYS or value.strip().lower().endswith(PATH_SUFFIXES)
+                or candidate is not None and candidate.lower().endswith(PATH_SUFFIXES)):
             yield value
         return
     if isinstance(value, list):
@@ -907,10 +917,10 @@ def _plan(
             plan.append({"action": "authority-needed", "kind": "generated",
                          "path": relative, "reason": problem, "content": None})
             continue
-        path = root / relative
-        if not path.exists():
-            continue
         snapshot = _target_state(root, relative)
+        if (snapshot["kind"] == "missing" and snapshot.get("tracked") is False
+                and snapshot.get("dirty") is False):
+            continue
         if (snapshot.get("kind") == "file" and snapshot.get("generated_marker")
                 and snapshot.get("tracked") and snapshot.get("dirty") is False
                 and snapshot.get("utf8")):
