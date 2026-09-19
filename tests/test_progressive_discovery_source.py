@@ -47,7 +47,7 @@ class ProgressiveDiscoverySourceTests(unittest.TestCase):
     def test_schema_rejects_ambiguous_entries_and_noncanonical_hrefs(self):
         source = json.loads((ROOT / 'progressive-discovery.json').read_text())
         validator = Draft202012Validator(json.loads((ROOT / 'schemas/progressive-discovery.schema.json').read_text()))
-        for href in ('/../secret', '/./page', '/docs/..', '/docs/.', '/%2e%2e/secret', '/a/%2E', '//host/path', '/a\\b'):
+        for href in ('/a//../secret', '/a//./page', '/a//..', '/a//b', '/../secret', '/./page', '/docs/..', '/docs/.', '/%2e%2e/secret', '/a/%2E', '//host/path', '/a\\b'):
             value = copy.deepcopy(source)
             value['sections'][0]['entries'][0] = {'label': 'Route', 'description': 'Route.', 'href': href}
             with self.subTest(href=href), self.assertRaises(ValidationError):
