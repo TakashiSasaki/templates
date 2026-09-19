@@ -185,3 +185,7 @@ produced; malformed source declarations never yield actionable output plans.
 Policy selection requires PyYAML; an unavailable parser cannot authorize apply.
 Generated titles must contain non-whitespace text. Links inside HTML comments, code spans/fences and four-space/tab-indented
 code never establish navigation reachability; visible links remain navigable.
+The configured active root index cannot be retired. Both generated title and
+section headings require nonblank text. Fragment checks exclude comment/code
+headings and anchors; explicit anchors must be actual HTML attributes, and
+fragment identities match exactly rather than being silently slug-normalized.

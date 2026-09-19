@@ -12,7 +12,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 REQUIREMENT = re.compile(r"^([A-Za-z0-9][A-Za-z0-9_.-]*)===([A-Za-z0-9][A-Za-z0-9_.+!-]*)$")
-IMPORT_DISTRIBUTIONS = {"jsonschema": "jsonschema"}
+IMPORT_DISTRIBUTIONS = {"jsonschema": "jsonschema", "yaml": "PyYAML"}
 
 
 @dataclass(frozen=True)
@@ -27,6 +27,7 @@ ENVIRONMENTS = (
         "development",
         "requirements-dev.lock",
         (
+            ".agents/skills/maintain-progressive-discovery/scripts/*.py",
             "scripts/run_composition_preflight.py",
             "scripts/run_unittest_shard.py",
             "scripts/generate_composition_playground.py",
