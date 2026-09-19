@@ -868,3 +868,11 @@ def test_blank_generated_title_is_refused_before_mutation(tmp_path):
         assert report['result'] == 'AUTHORITY_NEEDED'
         assert report['applied'] == []
         assert not (target / 'generated/index.md').exists()
+
+
+def test_visible_links_survive_non_navigation_comment_and_code_prose(tmp_path):
+    (tmp_path / 'index.md').write_text(
+        '# Root\n\n<!-- maintenance -->\n- [The `start` guide](docs/start.md) - `code`.\n'
+    )
+    links, _ = _load_skill()._read_index_links(tmp_path, 'index.md')
+    assert [link['target'] for link in links] == ['docs/start.md']

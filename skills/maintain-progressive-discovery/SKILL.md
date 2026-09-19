@@ -183,6 +183,5 @@ as a successful clean status query. Unreadable or non-UTF-8 generated targets
 require authority. Boundary/exclusion paths are validated before any plan is
 produced; malformed source declarations never yield actionable output plans.
 Policy selection requires PyYAML; an unavailable parser cannot authorize apply.
-Generated titles must contain non-whitespace text. The small authored index
-language excludes HTML comments, code spans/fences and four-space/tab-indented
-code; links inside those constructs never establish navigation reachability.
+Generated titles must contain non-whitespace text. Links inside HTML comments, code spans/fences and four-space/tab-indented
+code never establish navigation reachability; visible links remain navigable.

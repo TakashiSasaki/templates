@@ -550,14 +550,26 @@ def _read_index_links(root: Path, relative: str) -> tuple[list[dict[str, str]], 
             issues.append(f"{relative}:{line_number}: list item must contain a Markdown link")
         if not line.startswith(("#", "- ", "* ", "  ")) and not LINK_RE.search(line):
             issues.append(f"{relative}:{line_number}: content is outside the small index grammar")
-    # The small index grammar does not admit code or HTML as navigation.
-    # Refuse ambiguous constructs rather than count invisible links as coverage.
-    navigation_text = text.replace(GENERATED_MARKER, "")
-    if ("<!--" in navigation_text or "`" in navigation_text
-            or re.search(r"(?m)^[ \t]*~~~", navigation_text)
-            or any(line.startswith(("    ", "\t")) for line in lines)):
-        issues.append(f"{relative}: comments and code are outside the small index grammar")
-        return [], issues
+    # Comments and code do not provide rendered navigation. Keep visible prose
+    # (including link labels containing code spans) available to the grammar.
+    navigation_text = re.sub(r"<!--.*?(?:-->|$)", "", text, flags=re.DOTALL)
+    visible_lines: list[str] = []
+    fence = ""
+    for line in navigation_text.splitlines():
+        marker = re.match(r"^ {0,3}(`{3,}|~{3,})", line)
+        if marker:
+            token = marker.group(1)
+            if not fence:
+                fence = token
+            elif token[0] == fence[0] and len(token) >= len(fence):
+                fence = ""
+            continue
+        if fence or line.startswith(("    ", "\t")):
+            continue
+        visible_lines.append(line)
+    navigation_text = re.sub(
+        r"(`+).*?\1", "", "\n".join(visible_lines), flags=re.DOTALL
+    )
     for match in LINK_RE.finditer(navigation_text):
         label, target = match.groups()
         links.append({"label": label.strip(), "target": target.strip()})
