@@ -521,6 +521,7 @@ def _plan(root: Path, adapter: dict[str, Any], indexes: list[str], expected: lis
         if isinstance(configured_inventory, list):
             configured = {str(item) for item in configured_inventory}
             expected_for_index = [item for item in expected if any(item == inv or item.startswith(inv.rstrip("/") + "/") for inv in configured)]
+        expected_for_index = [item for item in expected_for_index if item != relative]
         rendered = _render_generated(root, relative, spec, expected_for_index)
         path = root / relative
         if not path.exists():
@@ -594,6 +595,7 @@ def _validate(root: Path, indexes: list[str], expected: list[str], adapter: dict
         if isinstance(configured_inventory, list):
             configured = {str(item) for item in configured_inventory}
             expected_for_index = [item for item in expected if any(item == inv or item.startswith(inv.rstrip("/") + "/") for inv in configured)]
+        expected_for_index = [item for item in expected_for_index if item != relative]
         rendered = _render_generated(root, relative, spec, expected_for_index)
         if not path.is_file():
             errors.append(f"generated freshness: missing {relative}")
