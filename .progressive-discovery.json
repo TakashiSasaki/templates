@@ -3,12 +3,7 @@
   "authoritative_inventories": [
     "progressive-discovery.json",
     "docs/publication-catalog.json",
-    "agent.json",
-    "integration-source.json",
-    "reference-consumer.json",
-    "contracts/site-discovery.json",
-    "schemas/agent-bootstrap.schema.json",
-    "schemas/site-discovery.schema.json"
+    "agent.json"
   ],
   "authored_boundaries": [
     "docs",
@@ -46,5 +41,14 @@
   },
   "exclusion_reasons": {
     "authority.json": "agent.json describes this Modeling-owned canonical record filename; it is not a Site source path."
-  }
+  },
+  "expected_documents": [
+    "composition.json",
+    "integration-source.json",
+    "policy/project.md",
+    "reference-consumer.json",
+    "contracts/site-discovery.json",
+    "docs/publication-catalog.json"
+  ],
+  "inventory_scope_reason": "Document membership comes from the publication catalog and agent source inventory. Reference-consumer and Site discovery contracts mix deployed URLs with repository references; they are expected source documents, not repository-path inventories. Schemas remain the declared closed inventory."
 }

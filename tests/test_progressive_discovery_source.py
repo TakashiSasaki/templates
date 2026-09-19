@@ -29,6 +29,23 @@ class ProgressiveDiscoverySourceTests(unittest.TestCase):
             'generated site/index.md',
         )
 
+    def test_mixed_discovery_contracts_remain_expected_source_documents(self):
+        import subprocess
+        import sys
+
+        script = ROOT / '.agents/skills/maintain-progressive-discovery/scripts/maintain_progressive_discovery.py'
+        result = subprocess.run(
+            [sys.executable, str(script), '--root', str(ROOT), '--format', 'json'],
+            capture_output=True, text=True, check=True,
+        )
+        report = json.loads(result.stdout)
+        for path in ('reference-consumer.json', 'contracts/site-discovery.json',
+                     'docs/publication-catalog.json', 'composition.json',
+                     'integration-source.json', 'policy/project.md'):
+            self.assertIn(path, report['expected_documents'])
+            self.assertIn(path, report['validation']['reachable'])
+        self.assertEqual(report['result'], 'NO_UPDATE_REQUIRED')
+
     def test_source_uses_public_routes_or_document_identity_not_source_paths(self):
         source = json.loads((ROOT / 'progressive-discovery.json').read_text())
         self.assertEqual(source['schema_version'], 1)

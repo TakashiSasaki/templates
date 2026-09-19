@@ -22,6 +22,7 @@
 
 - [Documentation index](docs/index.md) - Routes reader-facing and maintainer-facing Site documentation and architecture material.
 - [Contracts](contracts/index.md) - Contains Site-owned contract instances and declared repository topology inputs.
+- [Reference consumer contract](reference-consumer.json) - Declares product, maintenance, and deployed publication relationships.
 - [Integration selection](integration-source.json) - Binds the exact Integration revision and Bundle identity selected by Site.
 - [Composition input](composition.json) - Records the Composition product input consumed by this Site authority.
 - [Site maintenance policy](policy/project.md) - Records the Site-local policy source routed by the maintenance configuration.
