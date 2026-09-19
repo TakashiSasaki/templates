@@ -1604,3 +1604,50 @@ def test_generated_creation_never_writes_a_public_placeholder(tmp_path, monkeypa
     assert changed and errors and not applied
     assert target.read_text() == '# Concurrent authored file\n'
     assert not (tmp_path / 'moved-placeholder.md').exists()
+
+
+def test_temporary_holding_cleanup_preserves_a_replacement_directory(tmp_path, monkeypatch):
+    skill = _load_skill()
+    (tmp_path / 'README.md').write_text('# Repository\n')
+    _commit_generated_target(tmp_path)
+    content = skill.GENERATED_MARKER + '\n# Generated\n'
+    snapshot = skill._target_state(tmp_path, 'index.md')
+    original_mkdir, original_close, original_fstat = (
+        skill.os.mkdir, skill.os.close, skill.os.fstat
+    )
+    holdings: list[str] = []
+    swapped: list[str] = []
+
+    def observe_mkdir(path, *args, **kwargs):
+        result = original_mkdir(path, *args, **kwargs)
+        if isinstance(path, str) and path.startswith('.progressive-discovery-'):
+            holdings.append(path)
+        return result
+
+    def swap_before_holding_close(fd):
+        identity = original_fstat(fd)
+        result = original_close(fd)
+        for name in holdings:
+            path = tmp_path / name
+            if not swapped and path.exists() and path.stat().st_ino == identity.st_ino:
+                path.rename(tmp_path / (name + '-moved'))
+                original_mkdir(path)
+                swapped.append(name)
+                break
+        return result
+
+    monkeypatch.setattr(skill.os, 'mkdir', observe_mkdir)
+    monkeypatch.setattr(skill.os, 'supports_dir_fd',
+                        skill.os.supports_dir_fd | {observe_mkdir})
+    monkeypatch.setattr(skill.os, 'close', swap_before_holding_close)
+    applied, errors = skill._apply(
+        tmp_path,
+        [{'action': 'create', 'kind': 'generated', 'path': 'index.md',
+          'content': content, 'snapshot': snapshot}],
+        {'profile_selected': True, 'skill_selected': True},
+    )
+    assert swapped and errors
+    assert any('temporary directory retained' in error for error in errors)
+    assert all((tmp_path / name).exists() for name in swapped)
+    assert all((tmp_path / (name + '-moved')).exists() for name in swapped)
+    assert 'create index.md' in applied

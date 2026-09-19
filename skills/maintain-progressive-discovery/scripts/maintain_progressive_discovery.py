@@ -1270,20 +1270,31 @@ def _apply(
             number = ctypes.get_errno()
             raise OSError(number, os.strerror(number))
 
-    def remove_owned(parent: int, name: str, identity: tuple[int, int],
-                     content: bytes | None, label: str) -> None:
-        # A shared pathname cannot be conditionally unlinked by inode. Atomically
-        # detach it into an operation-private namespace, validate what was moved,
-        # and delete only that object. A replacement at the public name survives.
+    def make_holding(parent: int, label: str) -> tuple[str, int, tuple[int, int], str]:
+        """Create a private holding directory and bind its descriptor identity."""
         holding = ".progressive-discovery-" + secrets.token_hex(16)
         os.mkdir(holding, 0o700, dir_fd=parent)
-        private = None
-        moved = False
-        retained = False
-        location = posixpath.join(posixpath.dirname(label), holding, "target")
         try:
             private = os.open(holding, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
                               dir_fd=parent)
+        except OSError as exc:
+            # We cannot safely unlink an unbound pathname. Leave it for an
+            # authority decision instead of risking removal of a replacement.
+            raise OSError(f"holding directory could not be identity-bound: {label}: {exc}") from exc
+        identity = os.fstat(private)
+        location = posixpath.join(posixpath.dirname(label), holding, "target")
+        return holding, private, (identity.st_dev, identity.st_ino), location
+
+    def remove_owned(parent: int, name: str, identity: tuple[int, int],
+                     content: bytes | None, label: str,
+                     *, cleanup_holding: bool = True) -> None:
+        # A shared pathname cannot be conditionally unlinked by inode. Atomically
+        # detach it into an operation-private namespace, validate what was moved,
+        # and delete only that object. A replacement at the public name survives.
+        holding, private, holding_identity, location = make_holding(parent, label)
+        moved = False
+        retained = False
+        try:
             rename_exclusive(parent, name, private, "target")
             moved = True
             fd = os.open("target", os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=private)
@@ -1320,7 +1331,16 @@ def _apply(
                 os.close(private)
             if not retained:
                 try:
-                    os.rmdir(holding, dir_fd=parent)
+                    if cleanup_holding:
+                        remove_owned(parent, holding, holding_identity,
+                                     None, posixpath.dirname(location),
+                                     cleanup_holding=False)
+                    else:
+                        current = os.stat(holding, dir_fd=parent, follow_symlinks=False)
+                        if ((current.st_dev, current.st_ino) != holding_identity
+                                or not stat.S_ISDIR(current.st_mode)):
+                            raise OSError("temporary directory identity changed")
+                        os.rmdir(holding, dir_fd=parent)
                 except OSError as exc:
                     cleanup_errors.append(
                         f"authority-needed: temporary directory retained: {location}: {exc}")
@@ -1331,17 +1351,12 @@ def _apply(
                     before_publish: Callable[[], str | None] | None = None) -> tuple[int, Any]:
         # Build and identify the object in a private namespace before exposing
         # its public name. No partially written rollback placeholder is public.
-        holding = ".progressive-discovery-" + secrets.token_hex(16)
-        os.mkdir(holding, 0o700, dir_fd=parent)
-        private = None
+        holding, private, holding_identity, location = make_holding(parent, label)
         fd = None
         published = False
         retained = False
         prepared = False
-        location = posixpath.join(posixpath.dirname(label), holding, "target")
         try:
-            private = os.open(holding, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
-                              dir_fd=parent)
             if content is None:
                 os.mkdir("target", 0o777 if mode is None else mode, dir_fd=private)
                 prepared = True
@@ -1388,7 +1403,9 @@ def _apply(
                 os.close(private)
             if not retained:
                 try:
-                    os.rmdir(holding, dir_fd=parent)
+                    remove_owned(parent, holding, holding_identity,
+                                 None, posixpath.dirname(location),
+                                 cleanup_holding=False)
                 except OSError as exc:
                     cleanup_errors.append(
                         f"authority-needed: temporary directory retained: {location}: {exc}")
