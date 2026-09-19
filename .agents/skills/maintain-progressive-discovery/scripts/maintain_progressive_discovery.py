@@ -477,6 +477,7 @@ def _classify(
     )
     authored = _configured_paths(adapter, "authored_boundaries")
     curated = _configured_paths(adapter, "curated_shortcuts")
+    intentional_no_indexes = _configured_paths(adapter, "intentional_no_indexes")
     relevant: set[str] = set()
     for item in expected:
         path = Path(item).parent
@@ -505,6 +506,23 @@ def _classify(
             item for item in expected if item == directory or item.startswith(directory + "/")
         ]
         generated_here = index in generated
+        generated_projection = next(
+            (
+                relative
+                for relative, spec in sorted(generated.items())
+                if isinstance(spec, dict)
+                and isinstance(spec.get("inventory"), list)
+                and expected_here
+                and all(
+                    any(
+                        item == str(scope) or item.startswith(str(scope).rstrip("/") + "/")
+                        for scope in spec["inventory"]
+                    )
+                    for item in expected_here
+                )
+            ),
+            None,
+        )
         existing = index in indexes
         curated_parent = next(
             (prefix for prefix in sorted(curated) if directory.startswith(prefix + "/")),
@@ -513,9 +531,20 @@ def _classify(
         if excluded:
             category = "index-unnecessary"
             reason = f"explicit exclusion or closed inventory: {excluded}"
+        elif directory in intentional_no_indexes and existing:
+            category = "authority-needed"
+            reason = "existing index conflicts with an intentional no-index boundary"
+        elif directory in intentional_no_indexes:
+            category = "index-unnecessary"
+            reason = "adapter declares an intentional no-index discovery boundary"
         elif generated_here:
             category = "generated-index-needed"
             reason = "adapter declares a deterministic generated index"
+        elif generated_projection:
+            category = "index-unnecessary"
+            reason = (
+                f"declared generated index {generated_projection} provides this discovery boundary"
+            )
         elif curated_parent and not existing:
             category = "index-unnecessary"
             reason = f"ancestor boundary {curated_parent} provides a curated shortcut"
@@ -612,17 +641,17 @@ def _plan(
         elif GENERATED_MARKER not in path.read_text(encoding="utf-8"):
             action = "authority-needed"
             reason = "refusing to overwrite an authored file at a generated target"
-        elif path.read_text(encoding="utf-8") != rendered:
+        else:
             state = _target_state(root, relative)
             if not state.get("tracked") or state.get("dirty"):
                 action = "authority-needed"
                 reason = "generated target is locally modified or ownership is unknown"
-            else:
+            elif path.read_text(encoding="utf-8") != rendered:
                 action = "regenerate"
                 reason = "generated output differs from deterministic source projection"
-        else:
-            action = "none"
-            reason = "generated output is fresh"
+            else:
+                action = "none"
+                reason = "generated output is fresh"
         plan.append(
             {
                 "action": action,
@@ -646,6 +675,7 @@ def _plan(
                     "path": relative,
                     "reason": "adapter explicitly retired this generated index",
                     "content": None,
+                    "snapshot": _target_state(root, relative),
                 }
             )
         else:
@@ -716,12 +746,15 @@ def _target_state(root: Path, relative: str) -> dict[str, Any]:
         )
     elif path.exists():
         state["kind"] = "other"
-    tracked = subprocess.run(
-        ["git", "-C", str(root), "ls-files", "--error-unmatch", "--", relative],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        check=False,
-    ).returncode == 0
+    tracked = (
+        subprocess.run(
+            ["git", "-C", str(root), "ls-files", "--error-unmatch", "--", relative],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        ).returncode
+        == 0
+    )
     status = subprocess.run(
         ["git", "-C", str(root), "status", "--porcelain", "--", relative],
         capture_output=True,
@@ -813,9 +846,13 @@ def _apply(
     root: Path, plan: list[dict[str, Any]], policy: dict[str, Any]
 ) -> tuple[list[str], list[str]]:
     if not policy["profile_selected"] or not policy["skill_selected"]:
-        return [], ["apply refused: progressive-discovery profile and Skill must both be explicitly selected"]
+        return [], [
+            "apply refused: progressive-discovery profile and Skill must both be "
+            "explicitly selected"
+        ]
     candidates = [
-        item for item in plan
+        item
+        for item in plan
         if item["action"] in {"create", "regenerate", "delete"} and item["kind"] == "generated"
     ]
     blockers: list[str] = []
@@ -830,7 +867,10 @@ def _apply(
             or current.get("dirty")
             or not current.get("generated_marker")
         ):
-            blockers.append(f"authority-needed: generated target is locally modified or ownership is unknown: {item['path']}")
+            blockers.append(
+                "authority-needed: generated target is locally modified or ownership "
+                f"is unknown: {item['path']}"
+            )
     if blockers:
         return [], blockers
     changes: list[str] = []
@@ -875,8 +915,15 @@ def run(
     selected = policy["profile_selected"] and policy["skill_selected"]
     if not selected:
         validation = {**validation, "valid": True, "errors": []}
-    authority_needed = sum(1 for item in plan if item["action"] == "authority-needed") + len(apply_errors)
-    actionable = any(item["action"] in {"create", "update", "regenerate", "delete"} for item in plan)
+    authority_needed = sum(1 for item in plan if item["action"] == "authority-needed") + len(
+        apply_errors
+    )
+    applied_actions = set(applied)
+    actionable = any(
+        item["action"] in {"create", "update", "regenerate", "delete"}
+        and f"{item['action']} {item['path']}" not in applied_actions
+        for item in plan
+    )
     if not selected:
         result = "NOT_APPLICABLE"
     elif authority_needed:
@@ -886,7 +933,9 @@ def run(
     else:
         result = "NO_UPDATE_REQUIRED"
     root_index = adapter.get("root_index", INDEX_NAME)
-    orphan_indexes = sorted(item for item in indexes if item != root_index and item not in validation["reachable"])
+    orphan_indexes = sorted(
+        item for item in indexes if item != root_index and item not in validation["reachable"]
+    )
     errors = validation["errors"]
     return {
         "repository": str(root),
@@ -913,6 +962,7 @@ def run(
         "exclusions": sorted(
             _configured_paths(adapter, "explicit_exclusions")
             | _configured_paths(adapter, "closed_inventories")
+            | _configured_paths(adapter, "intentional_no_indexes")
         ),
         "notes": sorted(adapter_errors + inventory_errors + policy_notes),
         "validation": validation,
@@ -955,6 +1005,7 @@ def _text_report(report: dict[str, Any]) -> str:
         lines.append(f"note: {item}")
     validation = report["validation"]
     lines.append(f"validation: {'pass' if validation['valid'] else 'fail'}")
+    lines.append(f"result: {report['result']}")
     for item in validation["errors"]:
         lines.append(f"  error: {item}")
     for item in validation["warnings"]:
