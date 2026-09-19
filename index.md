@@ -20,3 +20,10 @@
 - [Scripts](scripts/) - Contains Composer support, publication, validation, generation, and maintenance commands.
 - [Tests](tests/) - Contains Composition semantic, runtime, publication, and regression coverage.
 - [Translations](translations/) - Contains non-canonical translated documentation and synchronization metadata.
+
+## Provider-maintenance source
+
+- [WebMCP capability guide](docs/guides/webmcp-capability.md) - Maintains the source-only WebMCP guidance outside reader publication.
+- [Publication catalog](docs/publication-catalog.json) - Declares the exact reader documents and machine assets.
+- [Publication classification](docs/publication-classification.json) - Records source-only navigation and other publication exclusions.
+- [Composition glossary](docs/glossary.yml) - Maintains provider-owned terminology records.
