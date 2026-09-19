@@ -7,7 +7,7 @@ import pytest
 import yaml
 
 from agent_policy.config import package_root
-from agent_policy.policy_loader import parse_policy
+from agent_policy.policy_loader import parse_policy, policy_module_paths
 from agent_policy.renderer import NON_GENERATED_SKILLS, render_skill
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -68,7 +68,7 @@ def test_adapter_keeps_provider_mechanics_outside_atomic_policy() -> None:
     adapter = SKILL.read_text(encoding="utf-8")
     policy_corpus = "\n".join(
         path.read_text(encoding="utf-8")
-        for path in (ROOT / "policy" / "pull-request").glob("*.md")
+        for path in policy_module_paths(ROOT / "policy" / "pull-request")
     )
 
     adapter_terms = (

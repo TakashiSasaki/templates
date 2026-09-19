@@ -58,7 +58,7 @@ before changing policy source.
 The editable semantic inputs are `.agent-policy.yml` and `repository-policy/`.
 `AGENTS.md`, `.review-authority/review-policy.md`, `.agent-policy.lock`, and
 generated skills are managed projections. Re-render and check them with the exact
-repository-pinned Policy toolchain (`33a7ab809225c2a8b8dd2598ef04d0a39cf076a7`);
+repository-pinned Policy toolchain (`a53966ab02142795654fbda41d2c470c70db3422`);
 never hand-edit a generated output, and do not advance toolchain or installer pins
 as part of ordinary documentation routing. The canonical maintainer validation is
 the existing `python -m pytest` plus compile/release checks described in

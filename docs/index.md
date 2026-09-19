@@ -8,6 +8,8 @@
 
 * [Contributing to Policy](https://github.com/TakashiSasaki/templates/blob/policy/CONTRIBUTING.md) - Locates canonical maintenance authority, validation, and source ownership.
 * [Maintainer publication sources](publication-catalog.md#deferred-maintainer-publications) - Records stable Policy document IDs and the separate publication prerequisite.
+* [Policy concepts](policy-concepts.md) - Explains the shared policy layers and their authority boundaries.
+* [Policy glossary](glossary.yml) - Provides the Policy terminology source used by documentation validation.
 
 * [Provider and toolchain documentation](provider/index.md) - Describes the `policy` branch as the source repository for the toolchain, release and bootstrap machinery, maintenance model, and explanatory documentation.
 * [Maintaining the policy provider](policy-maintainer-workflow.md) - Explains how repository maintainers consume shared best practices through immutable self-hosting while preserving repository-specific maintenance authority and non-self-authorizing promotion.
