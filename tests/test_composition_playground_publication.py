@@ -70,6 +70,17 @@ class CompositionPlaygroundPublicationTests(unittest.TestCase):
             cls._build_projection_count = build_projection_count
         return cls._generated_fixture
 
+    def test_refresh_refuses_dirty_intent_generator_and_schema(self) -> None:
+        for target in ('scripts/generate_composition_playground_intent.py',
+                       'schemas/composition-playground-intent.schema.json'):
+            def git_result(*args):
+                output = f" M {target}\n" if args[0] == 'status' and target in args else ''
+                if args[0] == 'rev-parse': output = 'a' * 40 + '\n'
+                return subprocess.CompletedProcess(args, 0, output, '')
+            with self.subTest(target=target), mock.patch.object(publication, '_run_git', side_effect=git_result):
+                with self.assertRaisesRegex(CompositionError, 'modified Composition semantic inputs'):
+                    publication.current_semantic_snapshot()
+
     def test_manifest_pins_exact_semantic_source_and_asset_inventory(self) -> None:
         manifest = publication.read_publication_manifest(GENERATED)
         self.assertEqual(2, manifest["schema_version"])
