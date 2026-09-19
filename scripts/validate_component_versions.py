@@ -93,9 +93,19 @@ def validate_repository(base_revision: str, *, root: Path = ROOT) -> int:
         allow_failure=True,
     )
     if ancestry.returncode != 0:
-        raise ComponentVersionGuardError(
-            f"comparison base {base_revision} is not an ancestor of HEAD"
-        )
+        # A bottom-up merge followed by base-only PR retargeting introduces a
+        # merge commit outside the accepted upper head's ancestry. Reuse the
+        # comparison only when its entire tree equals the unique common base.
+        common = _run_git(root, "merge-base", "--all", base_revision, "HEAD")
+        bases = common.stdout.decode("ascii").splitlines()
+        unchanged = len(bases) == 1 and _run_git(
+            root, "diff", "--quiet", bases[0], base_revision, allow_failure=True
+        ).returncode == 0
+        if not unchanged:
+            raise ComponentVersionGuardError(
+                f"comparison base {base_revision} is not an ancestor of HEAD "
+                "or a tree-identical landed base"
+            )
 
     errors: list[str] = []
     compared = 0
