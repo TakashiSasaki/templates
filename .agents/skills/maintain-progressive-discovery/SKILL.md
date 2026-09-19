@@ -1,8 +1,3 @@
-<!--
-agent-policy-generated: true
-source-skill: maintain-progressive-discovery
-DO NOT EDIT DIRECTLY
--->
 ---
 name: maintain-progressive-discovery
 description: Discover, classify, validate, and safely maintain semantic index.md navigation boundaries from authoritative repository inventories.
@@ -10,10 +5,58 @@ description: Discover, classify, validate, and safely maintain semantic index.md
 
 # Maintain progressive discovery
 
-Use this Skill when a repository has opted into the `progressive-discovery`
-Policy profile and needs to keep `index.md` navigation aligned with documents,
+<!--
+agent-policy-generated: true
+source-skill: maintain-progressive-discovery
+DO NOT EDIT DIRECTLY
+-->
+
+## Purpose
+
+Maintain semantic `index.md` discovery boundaries from authoritative repository
+inventories while preserving the distinction between authored navigation and
+deterministic generated output.
+
+## Use when
+
+Use this Skill after a repository opts into the `progressive-discovery` Policy
+profile and explicitly selects this Skill, especially when documents,
 components, recipes, schemas, policy rules, records, generated documentation,
-or publication surfaces.
+or publication surfaces change.
+
+## Do not use when
+
+Do not use this Skill to infer an authority's semantic ownership, replace a
+curated authored index automatically, expose provider source paths as public
+URLs, or mutate a repository whose profile and Skill selection are not both
+explicit.
+
+## Canonical authorities
+
+The repository's authoritative inventories, source/generated ownership
+declarations, `.agent-policy.yml`, and local adapter are the inputs for a run.
+The shared Policy profile defines generic semantics; the repository authority
+decides unresolved boundaries and authored navigation content.
+
+## Inputs
+
+Discover the repository revision, existing indexes, authoritative inventories,
+publication state, provider-maintenance and consumer-distributed surfaces,
+generated targets, closed inventories, curated shortcuts, and explicit
+exclusions before planning changes.
+
+## Stop conditions
+
+Stop and report `authority-needed` when ownership is ambiguous, an authored
+index would need destructive rewriting, a generated target is authored or
+modified, a link is unsafe, or required inventory data cannot be read. Apply
+only when the caller explicitly authorizes mutation.
+
+## Evidence to report
+
+Report the dry-run plan, classifications, created/updated/deleted/regenerated
+outputs, exclusions and reasons, unresolved decisions, validation results,
+expected-document coverage, nested-index reachability, and generated freshness.
 
 The Skill is repository-neutral. Read the repository's `.progressive-discovery.json`
 adapter when present; it may declare only local facts such as authoritative
