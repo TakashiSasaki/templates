@@ -67,7 +67,10 @@ def _safe_relative(value: str) -> str | None:
     value = value.strip().replace("\\", "/")
     if not value or value.startswith(("/", "\\")):
         return None
-    parsed = urlsplit(value)
+    try:
+        parsed = urlsplit(value)
+    except ValueError:
+        return None
     if parsed.scheme or parsed.netloc:
         return None
     path = unquote(parsed.path)
@@ -106,7 +109,14 @@ def _walk_files(root: Path) -> Iterable[Path]:
 
 
 def _read_json(path: Path) -> Any:
-    return json.loads(path.read_text(encoding="utf-8"))
+    def unique_members(pairs):
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError(f"duplicate JSON member: {key}")
+            result[key] = value
+        return result
+    return json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=unique_members)
 
 
 def _read_inventory(path: Path) -> tuple[Any, list[str]]:
@@ -119,7 +129,7 @@ def _read_inventory(path: Path) -> tuple[Any, list[str]]:
             except ImportError:
                 return {}, [f"inventory {path}: PyYAML unavailable; YAML inventory was not read"]
             return yaml.safe_load(path.read_text(encoding="utf-8")) or {}, []
-    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+    except (OSError, UnicodeError, ValueError) as exc:
         return {}, [f"inventory {path}: {exc}"]
     except Exception as exc:  # pragma: no cover - parser-specific defensive path
         return {}, [f"inventory {path}: {exc}"]
@@ -172,7 +182,7 @@ def _load_adapter(root: Path, relative: str) -> tuple[dict[str, Any], list[str]]
         return {}, ["adapter: must be a regular file"]
     try:
         value = _read_json(path)
-    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+    except (OSError, UnicodeError, ValueError) as exc:
         return {}, [f"adapter: {exc}"]
     if not isinstance(value, dict):
         return {}, ["adapter: root must be an object"]
@@ -196,6 +206,32 @@ def _load_adapter(root: Path, relative: str) -> tuple[dict[str, Any], list[str]]
         )
         if not valid:
             errors.append("adapter: generated_indexes must declare paths and specification objects")
+    if "expected_documents" in value and not isinstance(value["expected_documents"], list):
+        errors.append("adapter: expected_documents must be an array")
+    root_index = value.get("root_index", INDEX_NAME)
+    if (not isinstance(root_index, str) or _repository_path_error(root, root_index)
+            or Path(root_index).name != INDEX_NAME):
+        errors.append("adapter: root_index must be a canonical index.md path")
+    generated = _generated_specs(value)
+    retired = _configured_paths(value, "remove_generated_indexes")
+    retired_declarations = value.get("remove_generated_indexes", [])
+    if not isinstance(retired_declarations, (list, dict)):
+        retired_declarations = []
+    for target in retired_declarations:
+        if isinstance(target, str) and _repository_path_error(root, target):
+            errors.append(f"adapter: retired target is not canonical: {target}")
+    for target in set(generated) | retired:
+        if _repository_path_error(root, target) or Path(target).name != INDEX_NAME:
+            errors.append(f"adapter: generated/retired target must be a safe index.md path: {target}")
+    for target in set(generated) & retired:
+        errors.append(f"adapter: target is both active and retired: {target}")
+    if isinstance(value.get("generated_indexes"), list):
+        paths = [item if isinstance(item, str) else item.get("path")
+                 for item in value["generated_indexes"]
+                 if isinstance(item, str) or isinstance(item, dict)
+                 and isinstance(item.get("path"), str)]
+        if len(paths) != len(set(paths)):
+            errors.append("adapter: duplicate generated target declarations")
     return value, errors
 
 
@@ -334,9 +370,10 @@ def _expected_documents(
     if isinstance(raw_expected, list):
         for item in raw_expected:
             if isinstance(item, str):
-                candidate = _path_candidate(root, item)
-                if candidate:
-                    expected.add(candidate)
+                if problem := _repository_path_error(root, item):
+                    errors.append(f"expected_documents: {problem}")
+                else:
+                    expected.add(item)
     excluded = _configured_paths(adapter, "explicit_exclusions") | _configured_paths(
         adapter, "closed_inventories"
     )
@@ -714,15 +751,15 @@ def _plan(
             reason = "refusing to overwrite an authored file at a generated target"
         else:
             state = _target_state(root, relative)
-            if not state.get("tracked") or state.get("dirty"):
+            if path.read_text(encoding="utf-8") == rendered:
+                action = "none"
+                reason = "generated output is fresh; no mutation is needed"
+            elif not state.get("tracked") or state.get("dirty"):
                 action = "authority-needed"
                 reason = "generated target is locally modified or ownership is unknown"
-            elif path.read_text(encoding="utf-8") != rendered:
+            else:
                 action = "regenerate"
                 reason = "generated output differs from deterministic source projection"
-            else:
-                action = "none"
-                reason = "generated output is fresh"
         plan.append(
             {
                 "action": action,

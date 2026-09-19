@@ -104,8 +104,6 @@ def test_generated_index_apply_is_deterministic_and_idempotent(tmp_path: Path) -
     assert applied["validation"]["valid"] is True
     assert applied["result"] == "NO_UPDATE_REQUIRED"
 
-    _commit_generated_target(target)
-
     second = skill.run(target, apply=True)
     assert second["applied"] == []
     assert second["validation"]["valid"] is True
@@ -279,9 +277,7 @@ def test_cli_apply_refusals_exit_nonzero(tmp_path):
         generated = target / "generated/index.md"
         command = [sys.executable, str(SCRIPT)]
         if case == "dirty":
-            # A staged mode change leaves the deterministic content valid.
-            subprocess.run(["git", "-C", str(target), "update-index", "--chmod=+x",
-                            "generated/index.md"], check=True)
+            generated.write_text(skill.GENERATED_MARKER + "\n# Dirty human content\n")
         elif case == "authored":
             generated.write_text(generated.read_text().replace(skill.GENERATED_MARKER, ""))
         elif case == "retired":
@@ -445,3 +441,65 @@ def test_metadata_configuration_and_link_paths_stay_inside_repository(tmp_path):
     report = skill.run(root)
     assert not report['validation']['valid']
     assert 'escape/secret.md' not in report['validation']['reachable']
+
+
+
+def test_declarations_reject_unsafe_nonindex_and_conflicting_paths(tmp_path):
+    cases = [
+        {"expected_documents": ["../outside.md"]},
+        {"expected_documents": ["docs/../index.md"]},
+        {"expected_documents": ["/outside.md"]},
+        {"root_index": "other.md"},
+        {"remove_generated_indexes": False},
+        {"expected_documents": False},
+        {"generated_indexes": False},
+        {"generated_indexes": ["new/index.md", "new/index.md"]},
+        {"generated_indexes": [{"path": []}]},
+        {"remove_generated_indexes": ["retired/index.md/"]},
+        {"generated_indexes": {"notes/not-an-index.md": {}}},
+        {"remove_generated_indexes": ["notes/not-an-index.md"]},
+        {"generated_indexes": {"new/index.md": {}}, "remove_generated_indexes": ["new/index.md"]},
+    ]
+    for number, declaration in enumerate(cases):
+        root = tmp_path / str(number)
+        shutil.copytree(_fixture('simple-docs'), root)
+        (root / '.progressive-discovery.json').write_text(json.dumps(
+            {'authoritative_inventories': [], **declaration}
+        ))
+        report = _load_skill().run(root, apply=True)
+        assert report['result'] == 'AUTHORITY_NEEDED', (declaration, report)
+        assert not report['applied']
+        assert not report['validation']['valid']
+        assert not (root / 'notes/not-an-index.md').exists()
+        assert not (root / 'new/index.md').exists()
+
+
+def test_regenerated_content_is_immediately_idempotent_without_commit(tmp_path):
+    root = tmp_path / 'repository'
+    shutil.copytree(_fixture('generated-docs'), root)
+    skill = _load_skill()
+    skill.run(root, apply=True)
+    _commit_generated_target(root)
+    path = root / 'generated/index.md'
+    path.write_text(skill.GENERATED_MARKER + '\n# Old generated output\n')
+    subprocess.run(['git', '-C', str(root), 'add', 'generated/index.md'], check=True)
+    subprocess.run(['git', '-C', str(root), 'commit', '-qm', 'old output'], check=True)
+    first = skill.run(root, apply=True)
+    assert first['applied'] == ['regenerate generated/index.md']
+    second = skill.run(root, apply=True)
+    assert second['result'] == 'NO_UPDATE_REQUIRED'
+    assert not second['applied']
+    assert skill.run(root)['result'] == 'NO_UPDATE_REQUIRED'
+
+
+
+def test_duplicate_adapter_members_are_not_silently_discarded(tmp_path):
+    root = tmp_path / 'repository'
+    shutil.copytree(_fixture('simple-docs'), root)
+    (root / '.progressive-discovery.json').write_text(
+        '{"expected_documents": ["missing.md"], "expected_documents": []}'
+    )
+    report = _load_skill().run(root, apply=True)
+    assert report['result'] == 'AUTHORITY_NEEDED'
+    assert not report['applied']
+    assert any('duplicate JSON member' in error for error in report['validation']['errors'])
