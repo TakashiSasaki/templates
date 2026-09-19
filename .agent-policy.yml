@@ -1,0 +1,14 @@
+schema_version: 2
+toolchain:
+  repository: TakashiSasaki/templates
+  revision: 88ddf6fc32918c30f27449a1e71e294ad337fd9b
+contexts:
+  default:
+    profiles:
+      - progressive-discovery
+    project_policy:
+      files: []
+skills:
+  enabled:
+    - maintain-progressive-discovery
+
