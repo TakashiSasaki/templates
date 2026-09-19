@@ -11,9 +11,9 @@
     "profiles/security-baseline.yml"
   ],
   "expected_documents": [
-    "README.md",
     "AGENTS.md",
     "CONTRIBUTING.md",
+    "README.md",
     "index.md",
     "profiles/core.yml",
     "profiles/external-artifact-intake.yml",
@@ -22,10 +22,15 @@
     "profiles/review.yml",
     "profiles/security-baseline.yml",
     "skills/agent-policy/SKILL.md",
-    "skills/pr-review/SKILL.md",
-    "skills/pr-merge-gate/SKILL.md",
+    "skills/audit-frozen-change/SKILL.md",
+    "skills/intake-validated-artifact/SKILL.md",
+    "skills/maintain-progressive-discovery/SKILL.md",
     "skills/orchestrate-repository-change/SKILL.md",
-    "skills/maintain-progressive-discovery/SKILL.md"
+    "skills/pr-merge-gate/SKILL.md",
+    "skills/pr-review/SKILL.md",
+    "skills/title-conversation-session/SKILL.md",
+    "skills/validate-agent-policy/SKILL.md",
+    "skills/work-in-google-ai-studio/SKILL.md"
   ],
   "authored_boundaries": [
     "docs",

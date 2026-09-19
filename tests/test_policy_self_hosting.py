@@ -223,7 +223,17 @@ def test_self_host_projection_uses_the_canonical_progressive_discovery_skill() -
         / ".agents/skills/maintain-progressive-discovery/scripts/maintain_progressive_discovery.py"
     )
 
-    assert revision == "8100e41589dfdd62be247298d7a9ca62a135059a"
+    assert revision == "e55c5c721bdcf4ccd46287f42a720662c53eb291"
     assert script.is_file()
     assert "authoritative inventory" in skill
     assert "--apply" in skill
+
+
+def test_every_distributable_skill_is_expected_and_reachable() -> None:
+    import json
+    adapter = json.loads((ROOT / '.progressive-discovery.json').read_text())
+    skills = {p.relative_to(ROOT).as_posix() for p in (ROOT / 'skills').glob('*/SKILL.md')}
+    assert skills.issubset(adapter['expected_documents'])
+    navigation = (ROOT / 'skills/index.md').read_text()
+    for source in skills:
+        assert f'({source.removeprefix("skills/")})' in navigation
