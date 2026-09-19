@@ -1,0 +1,61 @@
+{
+  "$schema": "schemas/progressive-discovery.schema.json",
+  "schema_version": 1,
+  "title": "Templates progressive discovery",
+  "sections": [
+    {
+      "title": "Start here",
+      "entries": [
+        {
+          "label": "Machine-readable agent discovery",
+          "href": "/agent.json",
+          "description": "Provides authority roles, publication state, and immutable discovery metadata."
+        },
+        {
+          "label": "Reader home",
+          "document": {"publication": "site", "document": "portal-home"},
+          "description": "Opens the reader-facing documentation portal."
+        },
+        {
+          "label": "Maintainer onboarding",
+          "document": {"publication": "site", "document": "site-maintainer-onboarding"},
+          "description": "Routes maintenance work to the owning independent authority."
+        }
+      ]
+    },
+    {
+      "title": "Publication and maintenance",
+      "entries": [
+        {
+          "document": {"publication": "site", "document": "site-integrated-publication"},
+          "label": "Integrated publication",
+          "description": "Explains the selected Bundle, provenance, and separate Site deployment gates."
+        },
+        {
+          "document": {"publication": "site", "document": "site-site-maintenance"},
+          "label": "Site maintenance",
+          "description": "Describes Site-owned qualification and maintenance commands."
+        },
+        {
+          "label": "Build provenance",
+          "href": "/build-provenance.json",
+          "description": "Exposes the exact Site and selected Integration provenance after publication."
+        }
+      ]
+    }
+  ],
+  "provider_labels": {
+    "modeling": {
+      "label": "Modeling",
+      "description": "Information-model records and generated resource projections."
+    },
+    "composition": {
+      "label": "Composition",
+      "description": "Artifact, capability, lifecycle, topology, and reusable component semantics."
+    },
+    "policy": {
+      "label": "Policy",
+      "description": "Coding-agent operating policy and reusable maintenance procedures."
+    }
+  }
+}
