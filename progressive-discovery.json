@@ -27,12 +27,12 @@
       "title": "Publication and maintenance",
       "entries": [
         {
-          "document": {"publication": "site", "document": "site-integrated-publication"},
+          "document": {"publication": "site", "document": "integrated-publication"},
           "label": "Integrated publication",
           "description": "Explains the selected Bundle, provenance, and separate Site deployment gates."
         },
         {
-          "document": {"publication": "site", "document": "site-site-maintenance"},
+          "document": {"publication": "site", "document": "site-maintenance"},
           "label": "Site maintenance",
           "description": "Describes Site-owned qualification and maintenance commands."
         },

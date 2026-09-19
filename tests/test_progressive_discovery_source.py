@@ -1,4 +1,6 @@
 import json
+import copy
+from jsonschema import Draft202012Validator, ValidationError
 from pathlib import Path
 import unittest
 
@@ -31,3 +33,28 @@ class ProgressiveDiscoverySourceTests(unittest.TestCase):
             set(source['provider_labels']), {'modeling', 'composition', 'policy'}
         )
 
+
+    def test_source_matches_schema_and_site_catalog(self):
+        source = json.loads((ROOT / 'progressive-discovery.json').read_text())
+        schema = json.loads((ROOT / 'schemas/progressive-discovery.schema.json').read_text())
+        Draft202012Validator(schema).validate(source)
+        identities = {d['id'] for d in json.loads((ROOT / 'docs/publication-catalog.json').read_text())['documents']}
+        for section in source['sections']:
+            for entry in section['entries']:
+                if entry.get('document', {}).get('publication') == 'site':
+                    self.assertIn(entry['document']['document'], identities)
+
+    def test_schema_rejects_ambiguous_entries_and_noncanonical_hrefs(self):
+        source = json.loads((ROOT / 'progressive-discovery.json').read_text())
+        validator = Draft202012Validator(json.loads((ROOT / 'schemas/progressive-discovery.schema.json').read_text()))
+        for href in ('/../secret', '/./page', '/docs/..', '/docs/.', '/%2e%2e/secret', '/a/%2E', '//host/path', '/a\\b'):
+            value = copy.deepcopy(source)
+            value['sections'][0]['entries'][0] = {'label': 'Route', 'description': 'Route.', 'href': href}
+            with self.subTest(href=href), self.assertRaises(ValidationError):
+                validator.validate(value)
+        value = copy.deepcopy(source)
+        value['unknown'] = True
+        with self.assertRaises(ValidationError): validator.validate(value)
+        value = copy.deepcopy(source)
+        value['sections'][0]['entries'][0].update(href='/', document={'publication': 'site', 'document': 'portal-home'})
+        with self.assertRaises(ValidationError): validator.validate(value)
