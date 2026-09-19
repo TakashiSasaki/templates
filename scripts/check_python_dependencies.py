@@ -16,6 +16,7 @@ REQUIREMENT = re.compile(
 )
 IMPORT_DISTRIBUTIONS = {
     "idna": "idna",
+    "jsonschema": "jsonschema",
     "yaml": "PyYAML",
 }
 
