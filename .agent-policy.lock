@@ -1,18 +1,18 @@
 lock_version: 1
 toolchain:
   repository: TakashiSasaki/templates
-  revision: 349df5037756d78837e1fff83cf3791c81778047
+  revision: 88ddf6fc32918c30f27449a1e71e294ad337fd9b
 inputs:
   .agent-policy.yml:
-    sha256: ba7e23524066fb1ef0850379deb26e781ce186ea23d0fd63bf37892fbdb4d3ff
+    sha256: 711d38863e2f4d03346b26f74dd6d8ab1368cd500da3c22394799242baacebb3
   policy/project.md:
     sha256: d9bd9aee0073e3c9b29d67b7578c1ee965fa9f602dc05a5ca11fe85b7bd35c24
 outputs:
   .agents/skills/maintain-progressive-discovery/SKILL.md:
     sha256: cbcdd1395366f24840acb18dc8608cc7ca08b710b9f6cd16c6870109c0b346e9
   .agents/skills/maintain-progressive-discovery/scripts/maintain_progressive_discovery.py:
-    sha256: e82295b2f5e86c92d02f3310f871a8308a85e9b73ae820d6ce88960ae4a7c56d
+    sha256: 4310481d3c4d6999bc48f15b3c3d6648616b6fb780889e71b714b4f244aa12f6
   .review-authority/review-policy.md:
-    sha256: 794fc6862a04559f5d6746bf865880f8b455d2e8c80f28eb8639a25d383cd378
+    sha256: d071e57a8b8371021ee7dc6015898f471d54264e6115da09e0545daa371914af
   AGENTS.md:
-    sha256: 5c935dcf12d7826cb9359e8de6b398ea137d6f74e960d66e17c83111db5b9085
+    sha256: 80616e26c860faae08c04aa1ee31d1cced629c6b9c56cb9e0359a3e8c0c43a43

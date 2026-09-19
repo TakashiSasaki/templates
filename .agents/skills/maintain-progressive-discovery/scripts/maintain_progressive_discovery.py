@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import posixpath
@@ -612,8 +613,13 @@ def _plan(
             action = "authority-needed"
             reason = "refusing to overwrite an authored file at a generated target"
         elif path.read_text(encoding="utf-8") != rendered:
-            action = "regenerate"
-            reason = "generated output differs from deterministic source projection"
+            state = _target_state(root, relative)
+            if not state.get("tracked") or state.get("dirty"):
+                action = "authority-needed"
+                reason = "generated target is locally modified or ownership is unknown"
+            else:
+                action = "regenerate"
+                reason = "generated output differs from deterministic source projection"
         else:
             action = "none"
             reason = "generated output is fresh"
@@ -624,6 +630,7 @@ def _plan(
                 "path": relative,
                 "reason": reason,
                 "content": rendered if action in {"create", "regenerate"} else None,
+                "snapshot": _target_state(root, relative),
             }
         )
     remove = _configured_paths(adapter, "remove_generated_indexes")
@@ -692,6 +699,38 @@ def _plan(
                 }
             )
     return plan
+
+
+def _target_state(root: Path, relative: str) -> dict[str, Any]:
+    """Capture the target facts that must still hold at mutation time."""
+    path = root / relative
+    state: dict[str, Any] = {"exists": path.exists(), "kind": "missing"}
+    if path.is_symlink():
+        state["kind"] = "symlink"
+    elif path.is_file():
+        data = path.read_bytes()
+        state.update(
+            kind="file",
+            bytes_sha256=hashlib.sha256(data).hexdigest(),
+            generated_marker=GENERATED_MARKER.encode("utf-8") in data,
+        )
+    elif path.exists():
+        state["kind"] = "other"
+    tracked = subprocess.run(
+        ["git", "-C", str(root), "ls-files", "--error-unmatch", "--", relative],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    ).returncode == 0
+    status = subprocess.run(
+        ["git", "-C", str(root), "status", "--porcelain", "--", relative],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    state["tracked"] = tracked
+    state["dirty"] = bool(status.stdout.strip()) if status.returncode == 0 else False
+    return state
 
 
 def _validate(
@@ -770,18 +809,32 @@ def _validate(
     }
 
 
-def _apply(root: Path, plan: list[dict[str, Any]], policy: dict[str, Any]) -> list[str]:
+def _apply(
+    root: Path, plan: list[dict[str, Any]], policy: dict[str, Any]
+) -> tuple[list[str], list[str]]:
     if not policy["profile_selected"] or not policy["skill_selected"]:
-        return [
-            "apply refused: progressive-discovery profile and Skill must "
-            "both be explicitly selected"
-        ]
+        return [], ["apply refused: progressive-discovery profile and Skill must both be explicitly selected"]
+    candidates = [
+        item for item in plan
+        if item["action"] in {"create", "regenerate", "delete"} and item["kind"] == "generated"
+    ]
+    blockers: list[str] = []
+    for item in candidates:
+        before = item.get("snapshot")
+        current = _target_state(root, item["path"])
+        if before != current:
+            blockers.append(f"authority-needed: target changed since plan: {item['path']}")
+            continue
+        if item["action"] in {"regenerate", "delete"} and (
+            not current.get("tracked")
+            or current.get("dirty")
+            or not current.get("generated_marker")
+        ):
+            blockers.append(f"authority-needed: generated target is locally modified or ownership is unknown: {item['path']}")
+    if blockers:
+        return [], blockers
     changes: list[str] = []
-    for item in plan:
-        if item["action"] not in {"create", "regenerate", "delete"}:
-            continue
-        if item["kind"] != "generated":
-            continue
+    for item in candidates:
         path = root / item["path"]
         if item["action"] in {"create", "regenerate"}:
             content = item.get("content")
@@ -793,7 +846,7 @@ def _apply(root: Path, plan: list[dict[str, Any]], policy: dict[str, Any]) -> li
         elif item["action"] == "delete" and path.is_file():
             path.unlink()
             changes.append(f"delete {item['path']}")
-    return changes
+    return changes, []
 
 
 def run(
@@ -813,14 +866,28 @@ def run(
     generated = _generated_specs(adapter)
     plan = _plan(root, adapter, indexes, expected, generated, policy)
     applied: list[str] = []
+    apply_errors: list[str] = []
     if apply:
-        applied = _apply(root, plan, policy)
+        applied, apply_errors = _apply(root, plan, policy)
         if applied:
             indexes = _index_paths(root, adapter)
     validation = _validate(root, indexes, expected, adapter, generated, policy)
     selected = policy["profile_selected"] and policy["skill_selected"]
     if not selected:
         validation = {**validation, "valid": True, "errors": []}
+    authority_needed = sum(1 for item in plan if item["action"] == "authority-needed") + len(apply_errors)
+    actionable = any(item["action"] in {"create", "update", "regenerate", "delete"} for item in plan)
+    if not selected:
+        result = "NOT_APPLICABLE"
+    elif authority_needed:
+        result = "AUTHORITY_NEEDED"
+    elif actionable or not validation["valid"]:
+        result = "UPDATE_REQUIRED"
+    else:
+        result = "NO_UPDATE_REQUIRED"
+    root_index = adapter.get("root_index", INDEX_NAME)
+    orphan_indexes = sorted(item for item in indexes if item != root_index and item not in validation["reachable"])
+    errors = validation["errors"]
     return {
         "repository": str(root),
         "revision": _git_revision(root),
@@ -842,12 +909,22 @@ def run(
         "classification": _classify(root, indexes, expected, adapter, generated),
         "plan": [{key: value for key, value in item.items() if key != "content"} for item in plan],
         "applied": applied,
+        "apply_errors": apply_errors,
         "exclusions": sorted(
             _configured_paths(adapter, "explicit_exclusions")
             | _configured_paths(adapter, "closed_inventories")
         ),
         "notes": sorted(adapter_errors + inventory_errors + policy_notes),
         "validation": validation,
+        "metrics": {
+            "expected": len(expected),
+            "reachable": len(validation["reachable"]),
+            "broken_links": sum("link" in item for item in errors),
+            "orphan_indexes": len(orphan_indexes),
+            "stale_generated_indexes": sum("generated freshness: stale" in item for item in errors),
+            "authority_needed": authority_needed,
+        },
+        "result": result,
     }
 
 
