@@ -126,6 +126,40 @@ class ComponentVersionGuardRepositoryTests(unittest.TestCase):
             (new_component / "files" / "demo.txt").write_text("new\n", encoding="utf-8")
             self.assertEqual(guard.validate_repository(base, root=root), 1)
 
+    def test_base_only_retarget_accepts_only_unchanged_landed_base_tree(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            self.run_git(root, "init", "-b", "composition")
+            self.run_git(root, "config", "user.email", "test@example.invalid")
+            self.run_git(root, "config", "user.name", "Composition Tests")
+            path = root / "components/demo/component.json"
+            path.parent.mkdir(parents=True)
+            path.write_bytes(descriptor())
+            self.run_git(root, "add", ".")
+            self.run_git(root, "commit", "-m", "authority")
+            self.run_git(root, "checkout", "-b", "lower")
+            (root / "index.md").write_text("# Root\n")
+            self.run_git(root, "add", "index.md")
+            self.run_git(root, "commit", "-m", "lower")
+            self.run_git(root, "checkout", "-b", "upper")
+            (root / "guide.md").write_text("# Guide\n")
+            self.run_git(root, "add", "guide.md")
+            self.run_git(root, "commit", "-m", "upper")
+            self.run_git(root, "checkout", "composition")
+            self.run_git(root, "merge", "--no-ff", "lower", "-m", "land lower")
+            landed = self.run_git(root, "rev-parse", "HEAD")
+            (root / "drift.md").write_text("# Unreviewed target drift\n")
+            self.run_git(root, "add", "drift.md")
+            self.run_git(root, "commit", "-m", "target drift")
+            drift = self.run_git(root, "rev-parse", "HEAD")
+            self.run_git(root, "checkout", "upper")
+            self.assertEqual(guard.validate_repository(landed, root=root), 1)
+            with self.assertRaises(guard.ComponentVersionGuardError):
+                guard.validate_repository(drift, root=root)
+            path.write_bytes(descriptor(summary="changed without version bump"))
+            with self.assertRaises(guard.ComponentVersionGuardError):
+                guard.validate_repository(landed, root=root)
+
 
 if __name__ == "__main__":
     unittest.main()
