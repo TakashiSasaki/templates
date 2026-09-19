@@ -83,3 +83,7 @@ Report:
 - exact Site PR head evaluated;
 - the canonical adapter's final gate result and merge evidence;
 - separate Site publication/deployment state when relevant.
+
+Require schema version 2 and the explicit immutable `closure` of the selected
+pull-request profile, its rules, and gate references. Verify every closure
+path/blob at the declared revision before loading the gate.
