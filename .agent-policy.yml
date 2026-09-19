@@ -1,7 +1,7 @@
 schema_version: 2
 toolchain:
   repository: TakashiSasaki/templates
-  revision: 88ddf6fc32918c30f27449a1e71e294ad337fd9b
+  revision: 601673cbced48ce15862eb3ba40d3c9ccb9abc7e
 contexts:
   default:
     profiles:
@@ -11,4 +11,3 @@ contexts:
 skills:
   enabled:
     - maintain-progressive-discovery
-
