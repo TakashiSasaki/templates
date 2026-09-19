@@ -673,3 +673,23 @@ def test_apply_refreshes_authored_reachability_after_generated_repair(tmp_path):
     assert report['result'] == 'NO_UPDATE_REQUIRED', report
     assert report['applied'] == ['create generated/index.md']
     assert skill.run(root)['result'] == 'NO_UPDATE_REQUIRED'
+
+
+def test_target_tracking_uses_literal_git_paths(tmp_path):
+    root = tmp_path / 'repository'
+    root.mkdir()
+    skill = _load_skill()
+    (root / 'docs-real').mkdir()
+    (root / 'docs-real/index.md').write_text(skill.GENERATED_MARKER + '\n# Tracked\n')
+    _commit_generated_target(root)
+    (root / '.gitignore').write_text('docs*/\n')
+    (root / 'docs*').mkdir()
+    target = root / 'docs*/index.md'
+    target.write_text(skill.GENERATED_MARKER + '\n# Untracked local file\n')
+    state = skill._target_state(root, 'docs*/index.md')
+    assert not state['tracked'], state
+    plan = [{'action': 'delete', 'kind': 'generated', 'path': 'docs*/index.md',
+             'snapshot': state, 'content': None}]
+    applied, errors = skill._apply(root, plan, {'profile_selected': True, 'skill_selected': True})
+    assert not applied and errors
+    assert target.exists()
