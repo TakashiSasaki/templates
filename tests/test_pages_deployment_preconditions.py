@@ -75,6 +75,11 @@ class PagesDeploymentPreconditionTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "kill switch is enabled"):
             read_kill_switch(api, expected_manual_value="true")
 
+    def test_malformed_manual_context_stops_before_variable_read(self) -> None:
+        api = _api([])
+        with self.assertRaisesRegex(RuntimeError, "manual kill-switch context is invalid"):
+            read_kill_switch(api, expected_manual_value="maybe")
+
     def test_automatic_lane_never_uses_manual_context_fallback(self) -> None:
         api = _api([_http_error(403)])
         with self.assertRaises(GitHubAPIError) as context:

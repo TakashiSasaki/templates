@@ -136,6 +136,8 @@ def read_kill_switch(
     automatic lane remains API-only and fail-closed.
     """
 
+    if not automatic and expected_manual_value is not None and expected_manual_value not in {"false", "true"}:
+        raise DeploymentCheckError("manual kill-switch context is invalid")
     try:
         value = api.repository_variable(KILL_SWITCH, allow_confirmed_missing=True)
     except GitHubAPIError as exc:
@@ -163,9 +165,12 @@ def revalidate(api: GitHubAPI, environment: dict[str, str] | None = None) -> dic
         raise DeploymentCheckError("deployment repository does not match the API client repository")
 
     automatic = values.get("AUTOMATIC", "").lower() == "true"
+    expected_manual_value = values.get("EXPECTED_KILL_SWITCH")
+    if not automatic and expected_manual_value not in {"false", "true"}:
+        raise DeploymentCheckError("manual kill-switch context is missing or invalid")
     read_kill_switch(
         api,
-        expected_manual_value=values.get("EXPECTED_KILL_SWITCH"),
+        expected_manual_value=expected_manual_value,
         automatic=automatic,
     )
 
