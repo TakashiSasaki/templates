@@ -32,7 +32,8 @@ ENVIRONMENTS = (
     Environment(
         "build",
         "requirements-build.lock",
-        ("integration", "publication_bundle", "ci_artifacts", "scripts", "tests"),
+        ("integration", "publication_bundle", "ci_artifacts", "scripts", "tests",
+         ".agents/skills/maintain-progressive-discovery/scripts"),
     ),
 )
 
