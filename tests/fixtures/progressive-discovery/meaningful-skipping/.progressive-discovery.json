@@ -1,0 +1,5 @@
+{
+  "authoritative_inventories": ["docs/manifest.json"],
+  "root_index": "index.md",
+  "explicit_exclusions": ["docs/internal"]
+}

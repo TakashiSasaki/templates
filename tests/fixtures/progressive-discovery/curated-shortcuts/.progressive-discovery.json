@@ -1,0 +1,5 @@
+{
+  "authoritative_inventories": ["docs/catalog.json"],
+  "curated_shortcuts": ["docs"],
+  "root_index": "index.md"
+}

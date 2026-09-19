@@ -1,0 +1,6 @@
+{
+  "authoritative_inventories": ["docs/catalog.json"],
+  "root_index": "index.md",
+  "intentional_no_indexes": ["docs"],
+  "publication_system": false
+}

@@ -132,9 +132,14 @@ def render_skill(
         SKILL_CONFIG_PATH_YAML_TOKEN: json.dumps(config_path),
         SKILL_CONFIG_PATH_TOKEN: config_path,
     }
+    if skill_name == "maintain-progressive-discovery":
+        schema_text = (package_root() / "schemas/agent-policy.schema.json").read_text(
+            encoding="utf-8"
+        )
+        replacements["{{ canonical_policy_schema_json }}"] = json.dumps(schema_text)[1:-1]
     result: dict[str, str] = {}
     for path in sorted(skill_root.rglob("*")):
-        if path.is_file():
+        if path.is_file() and "__pycache__" not in path.relative_to(skill_root).parts:
             relative = _portable_skill_relative_path(path, skill_root)
             content = path.read_text(encoding="utf-8")
             for token, value in replacements.items():

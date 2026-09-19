@@ -1,0 +1,4 @@
+{
+  "authoritative_inventories": ["inventory.json"],
+  "root_index": "index.md"
+}

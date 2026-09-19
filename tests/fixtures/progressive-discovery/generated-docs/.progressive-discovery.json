@@ -1,0 +1,10 @@
+{
+  "authoritative_inventories": ["docs/catalog.json"],
+  "root_index": "index.md",
+  "generated_indexes": {
+    "generated/index.md": {
+      "title": "Generated documentation",
+      "inventory": ["docs/"]
+    }
+  }
+}

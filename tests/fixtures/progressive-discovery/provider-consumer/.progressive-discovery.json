@@ -1,0 +1,9 @@
+{
+  "authoritative_inventories": ["docs/documentation-manifest.json"],
+  "root_index": "index.md",
+  "publication_system": true,
+  "surface_boundaries": {
+    "provider-maintenance": ["docs/provider-maintenance.md"],
+    "consumer-distributed": ["docs/consumer-guide.md"]
+  }
+}

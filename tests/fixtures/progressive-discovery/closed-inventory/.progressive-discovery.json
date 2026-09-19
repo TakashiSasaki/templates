@@ -1,0 +1,5 @@
+{
+  "authoritative_inventories": ["docs/catalog.json"],
+  "root_index": "index.md",
+  "closed_inventories": ["vendor/closed"]
+}

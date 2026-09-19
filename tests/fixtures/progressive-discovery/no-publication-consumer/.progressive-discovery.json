@@ -1,0 +1,5 @@
+{
+  "authoritative_inventories": ["docs/documentation-manifest.json"],
+  "root_index": "index.md",
+  "publication_system": false
+}
