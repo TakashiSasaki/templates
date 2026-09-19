@@ -22,7 +22,9 @@
     "skills",
     "tests",
     "translations",
-    "examples"
+    "examples",
+    "docs/migrations/pr2-skill-capabilities.md",
+    "docs/migrations/pr3-webapp-lifecycle.md"
   ],
   "closed_inventories": [
     "components"
