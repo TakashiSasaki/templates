@@ -331,11 +331,19 @@ def _policy_state(policy: Any) -> dict[str, Any]:
     }
 
 
-def _index_paths(root: Path) -> list[str]:
+def _index_paths(root: Path, adapter: dict[str, Any]) -> list[str]:
+    excluded = _configured_paths(adapter, "explicit_exclusions") | _configured_paths(
+        adapter, "closed_inventories"
+    )
     return sorted(
         _relative(path, root)
         for path in _walk_files(root)
         if path.name == INDEX_NAME
+        and not any(
+            _relative(path, root) == prefix
+            or _relative(path, root).startswith(prefix + "/")
+            for prefix in excluded
+        )
     )
 
 
@@ -422,6 +430,7 @@ def _render_generated(root: Path, relative: str, spec: dict[str, Any], expected:
 def _classify(root: Path, indexes: list[str], expected: list[str], adapter: dict[str, Any], generated: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
     exclusions = _configured_paths(adapter, "explicit_exclusions") | _configured_paths(adapter, "closed_inventories")
     authored = _configured_paths(adapter, "authored_boundaries")
+    curated = _configured_paths(adapter, "curated_shortcuts")
     relevant: set[str] = set()
     for item in expected:
         path = Path(item).parent
@@ -442,12 +451,26 @@ def _classify(root: Path, indexes: list[str], expected: list[str], adapter: dict
         expected_here = [item for item in expected if item == directory or item.startswith(directory + "/")]
         generated_here = index in generated
         existing = index in indexes
+        curated_parent = next(
+            (
+                prefix
+                for prefix in sorted(curated)
+                if directory.startswith(prefix + "/")
+            ),
+            None,
+        )
         if excluded:
             category = "index-unnecessary"
             reason = f"explicit exclusion or closed inventory: {excluded}"
         elif generated_here:
             category = "generated-index-needed"
             reason = "adapter declares a deterministic generated index"
+        elif curated_parent and not existing:
+            category = "index-unnecessary"
+            reason = f"ancestor boundary {curated_parent} provides a curated shortcut"
+        elif curated_parent and existing:
+            category = "authority-needed"
+            reason = f"existing index is under curated boundary {curated_parent}; removal or retention needs authority judgment"
         elif existing and expected_here:
             category = "authored-index-needed"
             reason = "authoritative inventory identifies a meaningful curated boundary"
@@ -467,6 +490,30 @@ def _classify(root: Path, indexes: list[str], expected: list[str], adapter: dict
     return result
 
 
+def _reachable_from_index(root: Path, indexes: list[str], start: str) -> tuple[set[str], list[str]]:
+    reachable: set[str] = set()
+    issues: list[str] = []
+    queue = [start]
+    while queue:
+        current = queue.pop(0)
+        if current in reachable:
+            continue
+        reachable.add(current)
+        links, grammar = _read_index_links(root, current)
+        issues.extend(grammar)
+        for link in links:
+            resolved, issue = _resolve_link(root, current, link["target"])
+            if issue:
+                issues.append(issue)
+            if not resolved or not (root / resolved).exists():
+                continue
+            if resolved in indexes:
+                queue.append(resolved)
+            else:
+                reachable.add(resolved)
+    return reachable, issues
+
+
 def _plan(root: Path, adapter: dict[str, Any], indexes: list[str], expected: list[str], generated: dict[str, dict[str, Any]], policy: dict[str, Any]) -> list[dict[str, Any]]:
     plan: list[dict[str, Any]] = []
     if not policy["profile_selected"] or not policy["skill_selected"]:
@@ -477,6 +524,7 @@ def _plan(root: Path, adapter: dict[str, Any], indexes: list[str], expected: lis
         if isinstance(configured_inventory, list):
             configured = {str(item) for item in configured_inventory}
             expected_for_index = [item for item in expected if any(item == inv or item.startswith(inv.rstrip("/") + "/") for inv in configured)]
+        expected_for_index = [item for item in expected_for_index if item != relative]
         rendered = _render_generated(root, relative, spec, expected_for_index)
         path = root / relative
         if not path.exists():
@@ -504,9 +552,26 @@ def _plan(root: Path, adapter: dict[str, Any], indexes: list[str], expected: lis
             plan.append({"action": "delete", "kind": "generated", "path": relative, "reason": "adapter explicitly retired this generated index", "content": None})
         else:
             plan.append({"action": "authority-needed", "kind": "authored", "path": relative, "reason": "retirement is explicit but the file is not generated", "content": None})
-    for item in _classify(root, indexes, expected, adapter, generated):
+    classifications = _classify(root, indexes, expected, adapter, generated)
+    for item in classifications:
         if item["classification"] == "authored-index-needed" and item["index"] not in indexes:
             plan.append({"action": "create", "kind": "authored", "path": item["index"], "reason": "curated authored index is missing; authority must supply links", "content": None})
+        elif item["classification"] == "authored-index-needed" and item["index"] in indexes:
+            reachable, issues = _reachable_from_index(root, indexes, item["index"])
+            missing = [document for document in item["expected"] if document not in reachable]
+            if issues or missing:
+                detail = []
+                if missing:
+                    detail.append(f"missing expected destinations: {', '.join(missing)}")
+                if issues:
+                    detail.append("link or grammar diagnostics require review")
+                plan.append({
+                    "action": "update",
+                    "kind": "authored",
+                    "path": item["index"],
+                    "reason": "authored navigation is stale; " + "; ".join(detail),
+                    "content": None,
+                })
         elif item["classification"] == "authority-needed" and item["index"] in indexes:
             plan.append({"action": "authority-needed", "kind": "authored", "path": item["index"], "reason": item["reason"], "content": None})
     return plan
@@ -533,6 +598,7 @@ def _validate(root: Path, indexes: list[str], expected: list[str], adapter: dict
         if isinstance(configured_inventory, list):
             configured = {str(item) for item in configured_inventory}
             expected_for_index = [item for item in expected if any(item == inv or item.startswith(inv.rstrip("/") + "/") for inv in configured)]
+        expected_for_index = [item for item in expected_for_index if item != relative]
         rendered = _render_generated(root, relative, spec, expected_for_index)
         if not path.is_file():
             errors.append(f"generated freshness: missing {relative}")
@@ -599,7 +665,7 @@ def run(root: Path, *, adapter_path: str = ADAPTER_NAME, policy_path: str = POLI
     adapter, adapter_errors = _load_adapter(root, adapter_path)
     policy_raw, policy_notes = _yaml_policy(root, policy_path)
     policy = _policy_state(policy_raw)
-    indexes = _index_paths(root)
+    indexes = _index_paths(root, adapter)
     inventories = _discover_inventory_paths(root, adapter)
     expected, inventory_errors = _expected_documents(root, adapter, inventories)
     generated = _generated_specs(adapter)
@@ -608,7 +674,7 @@ def run(root: Path, *, adapter_path: str = ADAPTER_NAME, policy_path: str = POLI
     if apply:
         applied = _apply(root, plan, policy)
         if applied:
-            indexes = _index_paths(root)
+            indexes = _index_paths(root, adapter)
     validation = _validate(root, indexes, expected, adapter, generated, policy)
     selected = policy["profile_selected"] and policy["skill_selected"]
     if not selected:
@@ -622,6 +688,12 @@ def run(root: Path, *, adapter_path: str = ADAPTER_NAME, policy_path: str = POLI
         "adapter": adapter_path if adapter else None,
         "publication_system": bool(adapter.get("publication_system", False)),
         "surface_boundaries": adapter.get("surface_boundaries", {}),
+        "source_ownership": {
+            "authored_indexes": sorted(indexes),
+            "generated_indexes": sorted(generated),
+            "authoritative_inventories": inventories,
+            "curated_shortcuts": sorted(_configured_paths(adapter, "curated_shortcuts")),
+        },
         "indexes": indexes,
         "inventories": inventories,
         "expected_documents": expected,

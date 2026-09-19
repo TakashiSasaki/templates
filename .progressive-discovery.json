@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "root_index": "index.md",
+  "authoritative_inventories": [
+    "docs/publication-catalog.json",
+    "profiles/core.yml",
+    "profiles/external-artifact-intake.yml",
+    "profiles/progressive-discovery.yml",
+    "profiles/pull-request.yml",
+    "profiles/review.yml",
+    "profiles/security-baseline.yml"
+  ],
+  "expected_documents": [
+    "README.md",
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "index.md",
+    "profiles/core.yml",
+    "profiles/external-artifact-intake.yml",
+    "profiles/progressive-discovery.yml",
+    "profiles/pull-request.yml",
+    "profiles/review.yml",
+    "profiles/security-baseline.yml",
+    "skills/agent-policy/SKILL.md",
+    "skills/pr-review/SKILL.md",
+    "skills/pr-merge-gate/SKILL.md",
+    "skills/orchestrate-repository-change/SKILL.md",
+    "skills/maintain-progressive-discovery/SKILL.md"
+  ],
+  "authored_boundaries": [
+    "docs",
+    "policy",
+    "profiles",
+    "skills"
+  ],
+  "explicit_exclusions": [
+    ".agents",
+    "docs/assets",
+    "repository-skills",
+    "review-evals",
+    "schemas",
+    "scripts",
+    "skills/pr-review/references",
+    "src",
+    "templates",
+    "tests",
+    "translations"
+  ],
+  "publication_system": true,
+  "surface_boundaries": {
+    "provider-maintenance": [
+      "docs/provider/index.md",
+      "docs/policy-maintainer-workflow.md",
+      "repository-policy/authority-boundary.md"
+    ],
+    "consumer-distributed": [
+      "docs/consumer/index.md",
+      "skills/agent-policy/SKILL.md"
+    ],
+    "generated": [
+      "AGENTS.md",
+      ".review-authority/review-policy.md",
+      ".agents/skills/"
+    ],
+    "closed-inventory": [
+      "repository-policy/",
+      "schemas/",
+      "src/",
+      "templates/"
+    ]
+  }
+}
