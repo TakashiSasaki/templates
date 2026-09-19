@@ -57,6 +57,7 @@ def test_selected_consumer_detects_stale_and_missing_discovery() -> None:
     assert report["policy_selected"] is True
     assert "missing link target" in errors
     assert "expected-document coverage" in errors
+    assert any(item["action"] == "update" for item in report["plan"])
 
 
 def test_generated_index_apply_is_deterministic_and_idempotent(tmp_path: Path) -> None:

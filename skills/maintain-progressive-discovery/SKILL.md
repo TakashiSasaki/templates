@@ -13,7 +13,10 @@ or publication surfaces.
 The Skill is repository-neutral. Read the repository's `.progressive-discovery.json`
 adapter when present; it may declare only local facts such as authoritative
 inventory paths, generated-index targets, the root index, closed inventories,
-and explicit exclusions. It must not redefine the shared semantics.
+curated shortcut boundaries, and explicit exclusions. It must not redefine the
+shared semantics. A curated shortcut says that an ancestor index intentionally
+links directly to important descendants; it does not cause the Skill to rewrite
+or delete an existing nested authored index.
 
 Run the bundled script from the repository root. In a distributed consumer the
 path is under `.agents/skills`; in the Policy source tree it is under `skills`:
@@ -47,8 +50,10 @@ The workflow is:
 The expected discoverable set comes from authoritative inventory data before it
 comes from existing indexes. An existing index is not proof that a boundary is
 still meaningful. A physical directory with one deep important document may be
-skipped in favor of a direct link. A consumer without a publication system is
-valid; do not invent publication metadata to satisfy the Skill.
+skipped in favor of a direct link, and an adapter can record an intentional
+curated shortcut when several deep documents are routed by an ancestor index. A
+consumer without a publication system is valid; do not invent publication
+metadata to satisfy the Skill.
 
 The script is intentionally conservative about authored indexes. To change
 curated navigation, make that source change explicitly and rerun validation;
