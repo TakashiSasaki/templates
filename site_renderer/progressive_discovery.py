@@ -178,7 +178,7 @@ def _provider_entries(source: dict[str, Any], graph: dict[str, Any]) -> list[dic
         result.append(
             {
                 "label": label["label"],
-                "href": index_page_url(provider["name"], provider["root_index"]),
+                "href": index_page_url(provider["name"], provider["root_index"], root_index=provider["root_index"]),
                 "description": label["description"],
             }
         )
