@@ -100,7 +100,12 @@ def test_policy_repository_maintainers_consume_shared_and_local_authority_layers
     config = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))
     assert isinstance(config, dict)
     coding = config["contexts"]["coding"]
-    assert coding["profiles"] == ["core", "security-baseline", "pull-request"]
+    assert coding["profiles"] == [
+        "core",
+        "security-baseline",
+        "pull-request",
+        "progressive-discovery",
+    ]
     project_files = coding["project_policy"]["files"]
     assert "repository-policy/maintainer-validation.md" in project_files
 
