@@ -123,10 +123,18 @@ missing explicit profile/Skill selection exits 2.
 
 Apply checks planned content identity, generated ownership, and tracked/dirty
 state both in global preflight and immediately before each target write/delete.
-If a later target changes, the report retains earlier successful mutations in
-`applied` and reports `AUTHORITY_NEEDED`. These checks do not provide filesystem
-atomicity or exclude a concurrent writer between a check and its I/O. Coordinate
-exclusive access when that guarantee is required; apply is not a transaction.
+Directory traversal and mutation use descriptor-relative operations without
+following symlinks; platforms without those operations refuse apply. A parent
+path replacement cannot redirect mutation outside the validated directory.
+If a later target changes, apply attempts to restore only its own earlier
+changes, checking identity and resulting bytes before restoration. Concurrent
+edits or recreated paths are preserved and reported as incomplete rollback.
+`applied` retains the mutation history and adds `rollback PATH` for each completed
+restoration; `apply_errors` reports any residual uncertainty. Refusal still reports
+`AUTHORITY_NEEDED` and exits nonzero even when rollback succeeds. These checks
+do not provide filesystem-wide atomicity or serialize independent writers to the
+same file. Coordinate exclusive access when that guarantee is required; apply is
+not a transaction.
 
 ## Inventory source closure
 
@@ -168,6 +176,8 @@ and escapes prose so valid filename punctuation cannot create broken navigation.
 Generated ownership requires the exact marker on the first line. A marker quoted
 inside authored prose or examples never grants permission to overwrite or retire
 the file; planning and mutation-boundary checks use the same placement rule.
+Generated specifications accept only `title`, `section`, and `inventory`, plus
+`path` in the list form. Unknown fields are rejected before planning.
 Generated `inventory` scopes must be arrays of canonical file/directory paths;
 a malformed scope never broadens to the whole expected set. Dry-run retirement
 also checks tracked and dirty state. After any applied change, `plan` describes
