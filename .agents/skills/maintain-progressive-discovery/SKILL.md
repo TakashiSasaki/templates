@@ -150,9 +150,11 @@ captured before its descriptor is opened, and cleanup detaches that identity
 through fresh operation-private names. The removal operand is itself rebound
 through a final no-clobber detach and descriptor/path identity check during
 pathname conversion. Cleanup then revalidates the descriptor and pathname at
-the mutation boundary and calls native `unlinkat(AT_REMOVEDIR)` directly, so a
-Python `os.rmdir` audit hook cannot replace the operand in a user-space gap. A
-replacement observed at the boundary is restored or retained without deletion. A replacement at the holding pathname
+the mutation boundary and calls native `unlinkat(AT_REMOVEDIR)` directly. The
+native symbol is resolved before those final checks, so Python `os.rmdir` or
+`ctypes` audit hooks cannot replace the operand in a user-space gap. A
+replacement observed at the boundary is restored or retained without deletion.
+A replacement at the holding pathname
 is retained and reported, never removed as if it belonged to the operation.
 Concurrent edits or recreated paths are preserved and reported as incomplete
 rollback.

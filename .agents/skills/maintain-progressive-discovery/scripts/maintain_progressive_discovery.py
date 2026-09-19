@@ -71,6 +71,14 @@ HEADING_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
 def _unlink_directory_at(parent: int, name: str, target_fd: int,
                          identity: tuple[int, int]) -> None:
     """Revalidate and remove one private directory at the native boundary."""
+    # Resolve the native symbol before validating the removal target.  Both
+    # ``ctypes.CDLL`` and the first ``libc.unlinkat`` attribute lookup can emit
+    # audit events; resolving them after validation would reopen the same
+    # user-space replacement window as ``os.rmdir``.
+    libc = ctypes.CDLL(None, use_errno=True)
+    unlinkat = libc.unlinkat
+    unlinkat.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_int]
+    unlinkat.restype = ctypes.c_int
     current = os.fstat(target_fd)
     if ((current.st_dev, current.st_ino) != identity
             or not stat.S_ISDIR(current.st_mode)):
@@ -80,12 +88,9 @@ def _unlink_directory_at(parent: int, name: str, target_fd: int,
             or not stat.S_ISDIR(current.st_mode)):
         raise OSError("temporary directory name changed at native removal boundary")
     # ``os.rmdir`` emits a Python audit event before entering the kernel.  Use
-    # libc's unlinkat(AT_REMOVEDIR) directly after the last check so a caller
-    # supplied audit hook cannot replace the operand in that user-space gap.
-    libc = ctypes.CDLL(None, use_errno=True)
-    unlinkat = libc.unlinkat
-    unlinkat.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_int]
-    unlinkat.restype = ctypes.c_int
+    # the already-resolved libc unlinkat(AT_REMOVEDIR) directly after the last
+    # check so a caller-supplied audit hook cannot replace the operand in that
+    # user-space gap.
     if unlinkat(parent, os.fsencode(name), 0x200):
         number = ctypes.get_errno()
         raise OSError(number, os.strerror(number))

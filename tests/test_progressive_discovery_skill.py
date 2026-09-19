@@ -2014,6 +2014,52 @@ def test_final_cleanup_native_boundary_does_not_expose_os_rmdir_audit_gap(
     assert not errors
 
 
+def test_final_cleanup_resolves_native_symbol_before_identity_checks(
+    tmp_path, monkeypatch
+):
+    skill = _load_skill()
+    (tmp_path / 'README.md').write_text('# Repository\n')
+    _commit_generated_target(tmp_path)
+    content = skill.GENERATED_MARKER + '\n# Generated\n'
+    snapshot = skill._target_state(tmp_path, 'index.md')
+    swapped: list[str] = []
+
+    def swap_on_native_lookup(event, _args):
+        if event not in {'ctypes.dlopen', 'ctypes.dlsym'} or swapped:
+            return
+        candidates = [
+            path for path in tmp_path.iterdir()
+            if path.is_dir() and path.name.startswith('.progressive-discovery-bound-')
+        ]
+        if not candidates:
+            return
+        original = candidates[0]
+        original.rename(tmp_path / (original.name + '-moved'))
+        replacement = tmp_path / original.name
+        replacement.mkdir()
+        (replacement / 'replacement-sentinel').write_text('replacement\n')
+        swapped.append(replacement.name)
+
+    sys.addaudithook(swap_on_native_lookup)
+    applied, errors = skill._apply(
+        tmp_path,
+        [{'action': 'create', 'kind': 'generated', 'path': 'index.md',
+          'content': content, 'snapshot': snapshot}],
+        {'profile_selected': True, 'skill_selected': True},
+    )
+
+    assert swapped
+    assert 'create index.md' in applied
+    assert errors
+    assert any(
+        (path / 'replacement-sentinel').is_file()
+        for path in tmp_path.iterdir()
+        if path.is_dir()
+    )
+    assert any(path.is_dir() and path.name == swapped[0] + '-moved'
+               for path in tmp_path.iterdir())
+
+
 def test_final_cleanup_reports_retained_path_after_unlinkat_failure(
     tmp_path, monkeypatch
 ):
