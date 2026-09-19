@@ -46,14 +46,14 @@
     {
       "generated": true,
       "path": "AGENTS.md",
-      "sha256": "628d7a25aa75d14b56d4ee3ded180df6339cf08159cc05082e77dd56dc45e556"
+      "sha256": "5c935dcf12d7826cb9359e8de6b398ea137d6f74e960d66e17c83111db5b9085"
     }
   ],
   "state_path": ".agent-policy/adoption.json",
   "status": "finalized",
   "toolchain": {
     "repository": "TakashiSasaki/templates",
-    "revision": "837b305fb9962dc971ab50aa5dbf40af234cbfed"
+    "revision": "349df5037756d78837e1fff83cf3791c81778047"
   },
   "verification_command": null
 }

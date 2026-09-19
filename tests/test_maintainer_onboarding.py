@@ -20,7 +20,7 @@ from scripts.verify_maintainer_source import (
 
 ROOT = Path(__file__).resolve().parents[1]
 CANONICAL_REVISION = "9c2c538d5ee0b866379db40e5c24b29d60e155ba"
-GENERATION_TOOLCHAIN_REVISION = "837b305fb9962dc971ab50aa5dbf40af234cbfed"
+GENERATION_TOOLCHAIN_REVISION = "349df5037756d78837e1fff83cf3791c81778047"
 CANONICAL_SKILL_PATH = "repository-skills/land-templates-stack/SKILL.md"
 CANONICAL_SKILL_BLOB = "06efa38681e374636bcabcbcb984be5ec43b47ee"
 CANONICAL_RULE_PATH = "repository-policy/stacked-pr-landing.md"
