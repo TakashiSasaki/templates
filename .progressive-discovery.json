@@ -13,7 +13,10 @@
     "docs/index.md",
     "docs/record-model.md",
     "docs/source-policy.md",
-    "docs/intake.md"
+    "docs/intake.md",
+    "catalog.json",
+    "docs/publication-catalog.json",
+    "docs/publication-capabilities.json"
   ],
   "authored_boundaries": [
     "docs"
@@ -22,7 +25,9 @@
     "docs/resources/index.md": {
       "title": "Modeling resource documentation index",
       "section": "Generated resource documentation",
-      "inventory": ["docs/resources"]
+      "inventory": [
+        "docs/resources"
+      ]
     }
   },
   "explicit_exclusions": [

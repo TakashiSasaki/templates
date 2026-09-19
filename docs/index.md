@@ -7,3 +7,8 @@
 - [Record model](record-model.md) — the local record shape and its ownership limits.
 - [Source policy](source-policy.md) — intake, rights, provenance, and external-reference boundaries.
 - [Intake procedure](intake.md) — how a new information resource enters this authority.
+
+## Provider publication maintenance
+
+- [Publication catalog](publication-catalog.json) - Defines the exact provider-owned reader documents and machine assets.
+- [Publication capabilities](publication-capabilities.json) - Declares supported provider publication capabilities.
