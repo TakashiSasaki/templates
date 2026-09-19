@@ -271,7 +271,13 @@ def _load_adapter(root: Path, relative: str) -> tuple[dict[str, Any], list[str]]
     for target in retired_declarations:
         if isinstance(target, str) and _repository_path_error(root, target):
             errors.append(f"adapter: retired target is not canonical: {target}")
+    excluded_boundaries = _configured_paths(value, "explicit_exclusions") | _configured_paths(
+        value, "closed_inventories"
+    )
     for target in set(generated) | retired:
+        if any(target == boundary or target.startswith(boundary + "/")
+               for boundary in excluded_boundaries):
+            errors.append(f"adapter: generated/retired target overlaps excluded boundary: {target}")
         if _repository_path_error(root, target) or Path(target).name != INDEX_NAME:
             errors.append(
                 f"adapter: generated/retired target must be a safe index.md path: {target}"
@@ -701,7 +707,8 @@ def _classify(
     authored = _configured_paths(adapter, "authored_boundaries")
     curated = _configured_paths(adapter, "curated_shortcuts")
     intentional_no_indexes = _configured_paths(adapter, "intentional_no_indexes")
-    relevant: set[str] = set()
+    root_index = adapter.get("root_index", INDEX_NAME)
+    relevant: set[str] = {posixpath.dirname(root_index) or "."}
     for item in expected:
         path = Path(item).parent
         while str(path) not in ("", "."):
@@ -714,8 +721,6 @@ def _classify(
     relevant.update(authored)
     result: list[dict[str, Any]] = []
     for directory in sorted(relevant):
-        if directory == ".":
-            continue
         excluded = next(
             (
                 prefix
@@ -724,9 +729,10 @@ def _classify(
             ),
             None,
         )
-        index = posixpath.join(directory, INDEX_NAME)
+        index = posixpath.normpath(posixpath.join(directory, INDEX_NAME))
         expected_here = [
-            item for item in expected if item == directory or item.startswith(directory + "/")
+            item for item in expected
+            if index == root_index or item == directory or item.startswith(directory + "/")
         ]
         generated_here = index in generated
         generated_projection = next(
@@ -763,6 +769,9 @@ def _classify(
         elif generated_here:
             category = "generated-index-needed"
             reason = "adapter declares a deterministic generated index"
+        elif index == root_index:
+            category = "authored-index-needed"
+            reason = "configured root provides authority-wide discovery"
         elif generated_projection:
             category = "index-unnecessary"
             reason = (
@@ -1255,7 +1264,7 @@ def run(
         "publication_system": bool(adapter.get("publication_system", False)),
         "surface_boundaries": adapter.get("surface_boundaries", {}),
         "source_ownership": {
-            "authored_indexes": sorted(indexes),
+            "authored_indexes": sorted(set(indexes) - set(generated)),
             "generated_indexes": sorted(generated),
             "authoritative_inventories": inventories,
             "inventory_path_namespaces": adapter.get("inventory_path_namespaces", {}),
