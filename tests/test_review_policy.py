@@ -6,7 +6,7 @@ from typing import Any
 
 import yaml
 
-from agent_policy.policy_loader import load_rules, parse_policy
+from agent_policy.policy_loader import load_rules, parse_policy, policy_module_paths
 
 ROOT = Path(__file__).resolve().parents[1]
 PROFILE = ROOT / "profiles/review.yml"
@@ -62,13 +62,13 @@ def test_review_profile_is_closed_and_atomic() -> None:
     assert [path.parent for path in paths] == [REVIEW_DIR] * len(paths)
     assert all(path.is_file() for path in paths)
     assert [_rule_id(path) for path in paths] == EXPECTED
-    actual_files = sorted(path.name for path in REVIEW_DIR.glob("*.md"))
+    actual_files = sorted(path.name for path in policy_module_paths(REVIEW_DIR))
     profile_files = sorted(path.name for path in paths)
     assert actual_files == profile_files
 
 
 def test_review_policy_metadata_schema() -> None:
-    metadata = [_metadata(path) for path in sorted(REVIEW_DIR.glob("*.md"))]
+    metadata = [_metadata(path) for path in policy_module_paths(REVIEW_DIR)]
     required = {"id", "severity", "overridable", "order"}
 
     assert metadata
@@ -101,7 +101,7 @@ def test_review_profile_composes_with_shared_baselines() -> None:
 
 def test_shared_review_rules_are_provider_neutral() -> None:
     corpus = "\n".join(
-        path.read_text(encoding="utf-8") for path in REVIEW_DIR.glob("*.md")
+        path.read_text(encoding="utf-8") for path in policy_module_paths(REVIEW_DIR)
     )
     provider_terms = (
         "Antigravity",
