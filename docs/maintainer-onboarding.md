@@ -105,7 +105,7 @@ Edit the source that owns the meaning and regenerate its projections:
 
 The Site `AGENTS.md` is generated from Site's `.agent-policy.yml`,
 `policy/project.md`, and selected toolchain revision
-`51a728ad97acda616e68d67567563b7856fed022`; update the source and run that
+`55bacd1874fc5c236d8b88d46b4559f246f2411f`; update the source and run that
 exact generator. Do not replace it with an unreviewed Policy checkout. The
 Policy authority's own generated outputs follow its separate pinned toolchain
 `33a7ab809225c2a8b8dd2598ef04d0a39cf076a7`. A toolchain adoption pin and a
