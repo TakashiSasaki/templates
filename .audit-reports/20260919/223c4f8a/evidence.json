@@ -1,0 +1,37 @@
+{
+  "format_version": 1,
+  "run_key": "223c4f8a",
+  "audit_date": "20260919",
+  "start": "2026-09-18T22:05:45Z",
+  "end": "2026-09-18T22:10:00Z",
+  "prompt_version": "2026-09-19.3（v3）",
+  "model": "Jules",
+  "environment": "Sandbox",
+  "audit_snapshot": {
+    "composition": "f05114a0747896a55b439cdf96838de40b19de6e",
+    "policy": "e4fd6f73ee1bba73bf69361c4d9b8205447dd346",
+    "integration": "2e99263a88cbb792e06a808b019eda2bc03ba37b",
+    "modeling": "43ebba97676b2a8f79f5a551a4d0cfeb5897710a",
+    "site": "8d36ad7dff48be577c58672d94a837af64b3c2ac"
+  },
+  "report_base_sha": "8d36ad7dff48be577c58672d94a837af64b3c2ac",
+  "input_provenance": "Isolated checkouts via git worktree",
+  "check_results": [
+    {"authority": "composition", "status": "FAIL", "type": "execution"},
+    {"authority": "policy", "status": "FAIL", "type": "execution"},
+    {"authority": "integration", "status": "FAIL", "type": "execution"},
+    {"authority": "modeling", "status": "PASS", "type": "execution"},
+    {"authority": "site", "status": "PASS", "type": "execution"}
+  ],
+  "metrics": {},
+  "baseline_refs": [],
+  "finding_refs": [],
+  "coverage": "partial",
+  "limitations": "Isolated checkouts limited git history checks",
+  "audit_execution": "COMPLETE",
+  "quality_assessment": "NO_CONFIRMED_ISSUES",
+  "source_integrity": "UNCHANGED",
+  "autonomy": "UNATTENDED",
+  "report_sha256": "700002a5e5a18a78e27c2a7f0b7e882bf49870d9af8656e14db39945d3f5153a",
+  "report_path": ".audit-reports/20260919/223c4f8a/report.md"
+}
