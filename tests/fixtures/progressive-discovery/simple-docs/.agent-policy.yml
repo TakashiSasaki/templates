@@ -2,10 +2,19 @@ schema_version: 2
 contexts:
   default:
     profiles:
-      - core
-      - progressive-discovery
+    - core
+    - progressive-discovery
     project_policy:
       files: []
 skills:
   enabled:
-    - maintain-progressive-discovery
+  - maintain-progressive-discovery
+toolchain:
+  repository: TakashiSasaki/templates
+  revision: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+outputs:
+  agents:
+    enabled: false
+    path: AGENTS.md
+    context: default
+    renderer: agents-md
