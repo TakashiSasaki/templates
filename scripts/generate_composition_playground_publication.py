@@ -143,6 +143,41 @@ def semantic_objects_from_manifest(directory: Path) -> dict[str, str]:
     return {str(path): str(object_id) for path, object_id in value.items()}
 
 
+def current_semantic_snapshot() -> tuple[str, dict[str, str]]:
+    """Return the clean current semantic source identity for an explicit refresh."""
+    status = _run_git(
+        "status",
+        "--porcelain=v1",
+        "--untracked-files=all",
+        "--",
+        *SEMANTIC_PATHS,
+    )
+    if status.returncode != 0:
+        raise CompositionError(
+            "GIT_FAILED",
+            f"cannot inspect Playground semantic working tree: {status.stderr.strip()}",
+        )
+    if status.stdout.strip():
+        raise CompositionError(
+            "STALE_PLAYGROUND_SOURCE",
+            "refusing to refresh from modified Composition semantic inputs",
+        )
+    revision = _run_git("rev-parse", "HEAD")
+    if revision.returncode != 0 or not _GIT_OBJECT_RE.fullmatch(revision.stdout.strip()):
+        raise CompositionError("GIT_FAILED", "cannot resolve current Composition semantic revision")
+    semantic_objects: dict[str, str] = {}
+    for path in SEMANTIC_PATHS:
+        current = _run_git("rev-parse", f"HEAD:{path}")
+        object_id = current.stdout.strip()
+        if current.returncode != 0 or not _GIT_OBJECT_RE.fullmatch(object_id):
+            raise CompositionError(
+                "GIT_FAILED",
+                f"cannot resolve current Playground semantic object {path}",
+            )
+        semantic_objects[path] = object_id
+    return revision.stdout.strip(), semantic_objects
+
+
 def semantic_revision_from_gzip(path: Path) -> str:
     try:
         raw = gzip.decompress(path.read_bytes())
@@ -301,10 +336,37 @@ def write_directory(directory: Path, *, semantic_revision: str | None = None) ->
     return revision
 
 
+def refresh_directory(directory: Path) -> str:
+    """Refresh a generated publication snapshot from clean, committed semantics."""
+    directory.mkdir(parents=True, exist_ok=True)
+    revision, semantic_objects = current_semantic_snapshot()
+    payloads = publication_payloads(
+        semantic_revision=revision,
+        semantic_objects=semantic_objects,
+    )
+    manifest = {
+        "schema_version": 2,
+        "projection_id": "composition-playground-v1",
+        "intent_projection_id": "composition-playground-intent-v1",
+        "semantic_revision": revision,
+        "semantic_objects": semantic_objects,
+        "assets": [BASE_NAME, INTENT_NAME],
+    }
+    _atomic_write(
+        directory / MANIFEST_NAME,
+        (json.dumps(manifest, indent=2) + "\n").encode("utf-8"),
+    )
+    for name, payload in payloads.items():
+        _atomic_write(directory / name, payload)
+    validate_written_payloads(directory, payloads, revision)
+    return revision
+
+
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--output-dir", type=Path)
+    group.add_argument("--refresh-dir", type=Path)
     group.add_argument("--check-dir", type=Path)
     parser.add_argument("--semantic-revision")
     return parser.parse_args(argv)
@@ -316,6 +378,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.check_dir is not None:
             revision = check_directory(args.check_dir, semantic_revision=args.semantic_revision)
             print(f"Composition Playground publication is current: {args.check_dir} (semantic source {revision})")
+        elif args.refresh_dir is not None:
+            if args.semantic_revision is not None:
+                raise CompositionError(
+                    "INVALID_PLAYGROUND_PUBLICATION",
+                    "an explicit semantic revision is not accepted for a refresh",
+                )
+            revision = refresh_directory(args.refresh_dir)
+            print(f"{args.refresh_dir} (refreshed semantic source {revision})")
         else:
             revision = write_directory(args.output_dir, semantic_revision=args.semantic_revision)
             print(f"{args.output_dir} (semantic source {revision})")
