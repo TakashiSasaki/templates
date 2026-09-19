@@ -21,11 +21,20 @@ def contains_non_scalar(value: str) -> bool:
     return any(0xD800 <= ord(character) <= 0xDFFF for character in value)
 
 
+def _unique_json_members(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise IndexNavigationViewerError(f"duplicate JSON member: {key}")
+        result[key] = value
+    return result
+
+
 def load_graph(path: Path, *, provider_order=PROVIDER_ORDER) -> dict[str, Any]:
     if path.is_symlink() or not path.is_file():
         raise IndexNavigationViewerError(f"graph must be a regular file: {path}")
     try:
-        value = json.loads(path.read_text(encoding="utf-8"))
+        value = json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=_unique_json_members)
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         raise IndexNavigationViewerError(f"unable to read index graph {path}: {exc}") from exc
     schema_version = value.get("schema_version") if isinstance(value, dict) else None

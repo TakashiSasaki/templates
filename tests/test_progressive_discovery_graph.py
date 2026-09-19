@@ -157,6 +157,29 @@ class ProgressiveDiscoveryGraphTests(unittest.TestCase):
             path.write_text(json.dumps(graph))
             self.assertEqual(load_graph(path, provider_order=('composition',))['schema_version'], 2)
 
+    def test_raw_graph_rejects_duplicate_members_at_every_object_level(self):
+        graph = {'schema_version': 2, 'repository': 'TakashiSasaki/templates',
+                 'providers': [self._provider(ROOT_INDEX)]}
+        raw = json.dumps(graph)
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'graph.json'
+            for original, replacement in (
+                ('"schema_version": 2', '"schema_version": 1, "schema_version": 2'),
+                ('"root_index": "index.md"',
+                 '"root_index": "docs/index.md", "root_index": "index.md"'),
+                ('"depth": 0', '"depth": 10, "depth": 0'),
+                ('"index_count": 1', '"index_count": 2, "index_count": 1'),
+            ):
+                self.assertIn(original, raw)
+                path.write_text(raw.replace(original, replacement))
+                with self.subTest(member=original), self.assertRaisesRegex(
+                    IndexNavigationViewerError, 'duplicate JSON member'
+                ):
+                    load_graph(path, provider_order=('composition',))
+            path.write_text(raw)
+            loaded = load_graph(path, provider_order=('composition',))
+            validate_provider_graph(loaded['providers'][0], provider_order=('composition',))
+
     def test_declared_root_must_match_the_schema_selected_root(self):
         for wrong_root in ('docs/index.md', 'other/index.md'):
             with self.subTest(root=wrong_root), self.assertRaises(IndexNavigationViewerError):
