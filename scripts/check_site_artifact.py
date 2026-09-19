@@ -20,7 +20,7 @@ from site_renderer.guided import (
     index_page_path,
     project_immutable_source_links,
 )
-from site_renderer.progressive_discovery import validate_generated
+from site_renderer.progressive_discovery import project, validate_generated
 
 
 REPOSITORY = "TakashiSasaki/templates"
@@ -215,6 +215,17 @@ def check(site_root: Path, bundle: Path | None = None, lock: dict | None = None)
             raise SiteArtifactError("Bundle validation requires the exact Site lock")
         validate_locked(bundle, lock)
         _validate_guided_projection(site_root, bundle, lock)
+        source_root = Path(__file__).resolve().parents[1]
+        try:
+            expected = project(
+                json.loads((source_root / "progressive-discovery.json").read_text()),
+                json.loads((bundle / "guided-navigation.json").read_text()),
+                json.loads((bundle / "documents.json").read_text()),
+                site_catalog=json.loads((source_root / "docs/publication-catalog.json").read_text()),
+            )
+            validate_generated(site_root / "index.md", expected=expected)
+        except (OSError, ValueError) as exc:
+            raise SiteArtifactError(f"static progressive discovery is stale: {exc}") from exc
     return {
         "html_pages": len(html_files),
         "links": len(hrefs),

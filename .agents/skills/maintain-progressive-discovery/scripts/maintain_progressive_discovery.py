@@ -855,37 +855,50 @@ def _apply(
         for item in plan
         if item["action"] in {"create", "regenerate", "delete"} and item["kind"] == "generated"
     ]
-    blockers: list[str] = []
-    for item in candidates:
-        before = item.get("snapshot")
+    def revalidate(item: dict[str, Any]) -> str | None:
         current = _target_state(root, item["path"])
-        if before != current:
-            blockers.append(f"authority-needed: target changed since plan: {item['path']}")
-            continue
-        if item["action"] in {"regenerate", "delete"} and (
-            not current.get("tracked")
-            or current.get("dirty")
-            or not current.get("generated_marker")
-        ):
-            blockers.append(
+        if item.get("snapshot") != current:
+            return f"authority-needed: target changed since plan: {item['path']}"
+        if item["action"] == "create":
+            safe = current.get("kind") == "missing" and not current.get("tracked")
+        else:
+            safe = (
+                current.get("kind") == "file"
+                and current.get("tracked")
+                and not current.get("dirty")
+                and current.get("generated_marker")
+            )
+        if not safe:
+            return (
                 "authority-needed: generated target is locally modified or ownership "
                 f"is unknown: {item['path']}"
             )
+        return None
+
+    blockers = [error for item in candidates if (error := revalidate(item))]
     if blockers:
         return [], blockers
     changes: list[str] = []
     for item in candidates:
         path = root / item["path"]
-        if item["action"] in {"create", "regenerate"}:
-            content = item.get("content")
-            if not isinstance(content, str):
-                continue
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(content, encoding="utf-8")
+        try:
+            if item["action"] in {"create", "regenerate"}:
+                content = item.get("content")
+                if not isinstance(content, str):
+                    return changes, [f"authority-needed: missing planned content: {item['path']}"]
+                path.parent.mkdir(parents=True, exist_ok=True)
+                # Global preflight is not a mutation-boundary check. Re-read all
+                # target facts after preparation and immediately before each I/O.
+                if error := revalidate(item):
+                    return changes, [error]
+                path.write_text(content, encoding="utf-8")
+            else:
+                if error := revalidate(item):
+                    return changes, [error]
+                path.unlink()
             changes.append(f"{item['action']} {item['path']}")
-        elif item["action"] == "delete" and path.is_file():
-            path.unlink()
-            changes.append(f"delete {item['path']}")
+        except OSError as exc:
+            return changes, [f"authority-needed: mutation failed: {item['path']}: {exc}"]
     return changes, []
 
 
@@ -1028,6 +1041,8 @@ def main(argv: list[str] | None = None) -> int:
         print(_text_report(report))
     if args.apply and not report["policy_selected"]:
         return 2
+    if args.apply and (report["apply_errors"] or report["result"] != "NO_UPDATE_REQUIRED"):
+        return 1
     return 0 if report["validation"]["valid"] else 1
 
 

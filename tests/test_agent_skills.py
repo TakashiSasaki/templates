@@ -164,7 +164,7 @@ class AgentSkillContractTests(unittest.TestCase):
 
     def test_merge_gate_source_pins_immutable_policy_adapter_identity(self) -> None:
         source = json.loads(MERGE_GATE_SOURCE.read_text(encoding="utf-8"))
-        self.assertEqual(source["schema_version"], 1)
+        self.assertEqual(source["schema_version"], 2)
         self.assertEqual(source["kind"], "policy-adapter-reference")
         self.assertEqual(source["repository"], "TakashiSasaki/templates")
         self.assertEqual(source["path"], "skills/pr-merge-gate/SKILL.md")

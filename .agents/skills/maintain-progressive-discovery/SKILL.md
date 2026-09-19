@@ -112,3 +112,18 @@ For a repository-local adapter, keep validation commands and inventory paths
 local. Do not copy this Skill into `repository-skills/` as a competing generic
 implementation; enable the immutable Policy-distributed Skill through the
 consumer's `.agent-policy.yml`.
+
+## Exit status and mutation limits
+
+Dry-run exits 0 when validation succeeds, even if the report identifies an
+update or authority decision; inspect `result` to establish cleanliness. Invalid
+validation exits 1. With `--apply`, exit 0 additionally requires
+`NO_UPDATE_REQUIRED` and no apply errors. Refused or incomplete apply exits 1;
+missing explicit profile/Skill selection exits 2.
+
+Apply checks planned content identity, generated ownership, and tracked/dirty
+state both in global preflight and immediately before each target write/delete.
+If a later target changes, the report retains earlier successful mutations in
+`applied` and reports `AUTHORITY_NEEDED`. These checks do not provide filesystem
+atomicity or exclude a concurrent writer between a check and its I/O. Coordinate
+exclusive access when that guarantee is required; apply is not a transaction.

@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
-from publication_bundle.contract import BundleError, read_json
+from publication_bundle.contract import BundleError, read_json, regular, safe_path
 from publication_bundle.paths import public_path
 from site_renderer.guided import index_page_url
 
@@ -78,6 +78,59 @@ def _document_routes(documents: list[dict[str, Any]]) -> dict[tuple[str, str], s
     return routes
 
 
+def _site_documents(source: dict[str, Any], catalog: dict[str, Any]) -> list[dict[str, Any]]:
+    """Resolve Site-owned routes from Site's own publication inventory."""
+    routes = source.get("site_routes")
+    inventory = catalog.get("documents")
+    if not isinstance(routes, dict) or not routes or not isinstance(inventory, list):
+        raise BundleError("missing or malformed Site route/catalog declaration")
+    by_id = {}
+    for record in inventory:
+        if not isinstance(record, dict) or not isinstance(record.get("id"), str):
+            raise BundleError("invalid Site publication catalog document")
+        if record["id"] in by_id:
+            raise BundleError("duplicate Site publication catalog identity")
+        by_id[record["id"]] = record
+    result = []
+    seen = set()
+    for identity, destination in routes.items():
+        if identity not in by_id:
+            raise BundleError(f"Site route is absent from Site catalog: {identity}")
+        path = safe_path(destination)
+        if (not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_./-]*\.md", str(path))
+                or public_path(str(path)) in seen):
+            raise BundleError(f"invalid or duplicate Site route: {destination}")
+        seen.add(public_path(str(path)))
+        record = by_id[identity]
+        source_path = safe_path(record.get("source"))
+        result.append({"publication": "site", "document": identity,
+                       "source": str(source_path), "destination": str(path), "slot": True,
+                       "title": identity, "primary_audience": "use" if record.get("home") else "maintain",
+                       "additional_audiences": []})
+    return result
+
+
+def extend_site_documents(site_root: Path, documents: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Add Site-owned pages without modifying the selected immutable Bundle."""
+    local = _site_documents(read_json(site_root / "progressive-discovery.json"),
+                            read_json(site_root / "docs/publication-catalog.json"))
+    result = list(documents)
+    for record in local:
+        regular(site_root, record["source"])
+        for existing in result:
+            if (existing["publication"], existing["document"]) == ("site", record["document"]):
+                if (existing["source"], existing["destination"]) != (record["source"], record["destination"]):
+                    raise BundleError("Site route conflicts with a selected slot")
+            if public_path(existing["destination"]) == public_path(record["destination"]):
+                if not (existing.get("slot") and existing["publication"] == "site"
+                        and existing["source"] == record["source"]):
+                    raise BundleError("Site route destination collision")
+                break
+        else:
+            result.append(record)
+    return result
+
+
 def _resolve_entry(entry: dict[str, Any], routes: dict[tuple[str, str], str]) -> str:
     if "href" in entry:
         return _public_href(entry["href"], "progressive discovery href")
@@ -136,10 +189,12 @@ def project(
     source: dict[str, Any],
     graph: dict[str, Any],
     documents: list[dict[str, Any]],
+    *, site_catalog: dict[str, Any] | None = None,
 ) -> str:
     """Return deterministic Markdown from Site source plus the selected Bundle model."""
     entries = _source_entries(source)
-    routes = _document_routes(documents)
+    routes = _document_routes([d for d in documents if d.get("publication") != "site"])
+    routes.update(_document_routes(_site_documents(source, site_catalog or {})))
     lines = [GENERATED_MARKER, f"# {source['title']}", ""]
     for section in source["sections"]:
         lines.extend([f"## {section['title']}", ""])
@@ -166,12 +221,16 @@ def write(
     output = output_root / "index.md"
     if output.exists() or output.is_symlink():
         raise BundleError("progressive discovery output already exists")
-    output.write_text(project(source, graph, documents), encoding="utf-8")
+    output.write_text(project(source, graph, documents,
+                              site_catalog=read_json(site_root / "docs/publication-catalog.json")),
+                      encoding="utf-8")
     return output
 
 
-def validate_generated(path: Path) -> None:
+def validate_generated(path: Path, *, expected: str | None = None) -> None:
     text = path.read_text(encoding="utf-8")
+    if expected is not None and text != expected:
+        raise BundleError("generated progressive discovery is stale")
     lines = text.splitlines()
     if not lines or lines[0] != GENERATED_MARKER or len(lines) < 2 or not lines[1].startswith("# "):
         raise BundleError("generated progressive discovery must begin with its marker and H1")
