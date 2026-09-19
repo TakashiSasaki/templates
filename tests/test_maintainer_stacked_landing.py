@@ -6,11 +6,16 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+import pytest
+
 from scripts.verify_maintainer_source_reference import (
+    CANONICAL_OBSERVER_LIBRARY_PATH,
+    CANONICAL_OBSERVER_PATH,
     CANONICAL_PLANNER_PATH,
     CANONICAL_RULE_PATH,
     CANONICAL_SKILL_PATH,
     SourceReferenceError,
+    required_source_closure_paths,
     verify_source_reference,
 )
 
@@ -59,6 +64,11 @@ def test_canonical_rule_and_skill_are_present_and_separated() -> None:
     assert "version-2" in skill
     assert "scripts/plan_review_scope.py" in skill
     assert "adaptive scope selection" in skill
+    assert CANONICAL_OBSERVER_PATH in skill
+    assert CANONICAL_OBSERVER_LIBRARY_PATH in required_source_closure_paths(
+        skill.encode("utf-8")
+    )
+    assert "merge_authorization" not in skill
     assert "at most one" not in skill
     assert "targeted review coverage required" not in skill
 
@@ -165,13 +175,10 @@ def test_source_fixtures_use_the_immutable_reference_boundary() -> None:
         "blob_sha": skill_blob,
         "closure": [
             {
-                "path": CANONICAL_RULE_PATH,
-                "blob_sha": rule_blob,
-            },
-            {
-                "path": CANONICAL_PLANNER_PATH,
-                "blob_sha": _git("rev-parse", f"{revision}:{CANONICAL_PLANNER_PATH}"),
-            },
+                "path": path,
+                "blob_sha": _git("rev-parse", f"{revision}:{path}"),
+            }
+            for path in required_source_closure_paths(SKILL.read_bytes())
         ],
     }
 
@@ -234,7 +241,13 @@ def test_source_boundary_rejects_tags_and_ignores_replacement_refs() -> None:
         skill.write_text("canonical skill\n", encoding="utf-8")
         rule.write_text("canonical rule\n", encoding="utf-8")
         planner_path.write_text("canonical planner\n", encoding="utf-8")
-        _git("add", CANONICAL_SKILL_PATH, CANONICAL_RULE_PATH, CANONICAL_PLANNER_PATH, cwd=repo)
+        _git(
+            "add",
+            CANONICAL_SKILL_PATH,
+            CANONICAL_RULE_PATH,
+            CANONICAL_PLANNER_PATH,
+            cwd=repo,
+        )
         _git("commit", "-q", "-m", "canonical", cwd=repo)
         revision = _git("rev-parse", "HEAD", cwd=repo)
         skill_blob = _git("rev-parse", f"{revision}:{CANONICAL_SKILL_PATH}", cwd=repo)
@@ -337,15 +350,50 @@ def test_source_boundary_rejects_missing_or_tampered_closure() -> None:
     else:
         raise AssertionError("incomplete source closure was accepted")
 
-    source["closure"].append(
-        {"path": CANONICAL_PLANNER_PATH, "blob_sha": "0" * 40}
-    )
+    source["closure"] = [
+        {
+            "path": path,
+            "blob_sha": _git("rev-parse", f"{revision}:{path}"),
+        }
+        for path in required_source_closure_paths(SKILL.read_bytes())
+    ]
+    next(
+        item for item in source["closure"] if item["path"] == CANONICAL_PLANNER_PATH
+    )["blob_sha"] = "0" * 40
     try:
         verify_source_reference(source, repo=ROOT, expected_planner_blob=planner_blob)
     except SourceReferenceError as exc:
         assert "closure blob" in str(exc)
     else:
         raise AssertionError("tampered source closure was accepted")
+
+
+def test_observer_skill_requires_observer_source_closure() -> None:
+    revision = _git("rev-parse", "HEAD")
+    skill_blob = _git("rev-parse", f"{revision}:{CANONICAL_SKILL_PATH}")
+    rule_blob = _git("rev-parse", f"{revision}:{CANONICAL_RULE_PATH}")
+    planner_blob = _git("rev-parse", f"{revision}:{CANONICAL_PLANNER_PATH}")
+    source = {
+        "schema_version": 2,
+        "kind": "repository-maintainer-skill-reference",
+        "repository": "TakashiSasaki/templates",
+        "revision": revision,
+        "path": CANONICAL_SKILL_PATH,
+        "blob_sha": skill_blob,
+        "closure": [
+            {"path": CANONICAL_RULE_PATH, "blob_sha": rule_blob},
+            {"path": CANONICAL_PLANNER_PATH, "blob_sha": planner_blob},
+        ],
+    }
+
+    with pytest.raises(SourceReferenceError, match="source closure is incomplete"):
+        verify_source_reference(
+            source,
+            repo=ROOT,
+            expected_skill_blob=skill_blob,
+            expected_rule_blob=rule_blob,
+            expected_planner_blob=planner_blob,
+        )
 
 
 def test_source_boundary_rejects_legacy_schema_one() -> None:

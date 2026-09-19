@@ -19,7 +19,18 @@ CANONICAL_RULE_PATH = "repository-policy/stacked-pr-landing.md"
 CANONICAL_PLANNER_PATH = (
     "repository-skills/land-templates-stack/scripts/plan_review_scope.py"
 )
-SOURCE_CLOSURE_PATHS = (CANONICAL_RULE_PATH, CANONICAL_PLANNER_PATH)
+CANONICAL_OBSERVER_PATH = (
+    "repository-skills/land-templates-stack/scripts/observe_pr_state.py"
+)
+CANONICAL_OBSERVER_LIBRARY_PATH = (
+    "repository-skills/land-templates-stack/scripts/pr_state_observation.py"
+)
+BASE_SOURCE_CLOSURE_PATHS = (CANONICAL_RULE_PATH, CANONICAL_PLANNER_PATH)
+OPTIONAL_SOURCE_CLOSURE_PATHS = (
+    CANONICAL_OBSERVER_PATH,
+    CANONICAL_OBSERVER_LIBRARY_PATH,
+)
+SOURCE_CLOSURE_PATHS = BASE_SOURCE_CLOSURE_PATHS + OPTIONAL_SOURCE_CLOSURE_PATHS
 FULL_SHA = re.compile(r"[0-9a-f]{40}")
 
 
@@ -76,6 +87,15 @@ def _require_blob(repo: Path, revision: str, path: str) -> tuple[str, bytes]:
     if git_blob_sha(payload) != object_id:
         raise SourceReferenceError(f"canonical blob changed while reading: {path}")
     return object_id, payload
+
+
+def required_source_closure_paths(skill: bytes) -> tuple[str, ...]:
+    """Require only the support files referenced by the candidate Skill."""
+
+    required = list(BASE_SOURCE_CLOSURE_PATHS)
+    if CANONICAL_OBSERVER_PATH.encode("utf-8") in skill:
+        required.extend(OPTIONAL_SOURCE_CLOSURE_PATHS)
+    return tuple(required)
 
 
 def verify_source_reference(
@@ -140,7 +160,8 @@ def verify_source_reference(
         if path in entries:
             raise SourceReferenceError("source closure contains a duplicate path")
         entries[path] = blob
-    if set(entries) != set(SOURCE_CLOSURE_PATHS):
+    required_paths = required_source_closure_paths(skill)
+    if set(entries) != set(required_paths):
         raise SourceReferenceError("source closure is incomplete")
     for path, expected_blob in entries.items():
         actual_blob, payload = _require_blob(repo, revision, path)
