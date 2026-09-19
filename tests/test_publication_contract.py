@@ -15,6 +15,7 @@ GUIDED_INDEX_PATHS = [
     "components/artifact.skill-core/files/docs/index.md",
     "components/artifact.webapp-core/files/docs/index.md",
     "docs/index.md",
+    "index.md",
 ]
 GUIDED_LINK = re.compile(r"^- \[[^\]]+\]\(.+\)[ \t]+[-–—][ \t]+\S.+$")
 LINK_TARGET = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
@@ -34,6 +35,20 @@ def load_validator():
 
 
 class CompositionPublicationContractTests(unittest.TestCase):
+    def test_recipe_assets_are_a_closed_machine_inventory(self):
+        catalog = json.loads((ROOT / "docs/publication-catalog.json").read_text())
+        assets = catalog["assets"]
+        recipes = {path.relative_to(ROOT).as_posix() for path in (ROOT / "recipes").glob("*.json")}
+        selected = [item for item in assets if item["source"] == "recipes"
+                    or item["source"].startswith("recipes/")]
+        self.assertEqual({item["source"] for item in selected}, recipes)
+        self.assertTrue(all(item["destination"] == item["source"] for item in selected))
+        # Future navigation at any depth must not fall under an asset root.
+        for navigation in ("recipes/index.md", "recipes/nested/index.md"):
+            self.assertFalse(any(navigation == item["source"]
+                                 or navigation.startswith(item["source"] + "/")
+                                 for item in assets))
+
     @REVIEWED_INTEGRATION_PROTOCOL_REQUIRED
     def test_provider_publication_is_valid(self):
         result = subprocess.run(
@@ -188,6 +203,7 @@ class CompositionPublicationContractTests(unittest.TestCase):
             for entry in translation_manifest["translations"]
         }
         expected_exclusions = {
+            PurePosixPath("index.md"),
             PurePosixPath(".agents/skills/pr-merge-gate/SKILL.md"),
             PurePosixPath(".agents/skills/land-templates-stack/SKILL.md"),
             PurePosixPath("AGENTS.md"),

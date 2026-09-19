@@ -12,8 +12,6 @@ from __future__ import annotations
 
 import argparse
 import importlib.util
-import json
-import os
 import subprocess
 import sys
 import tempfile
@@ -70,6 +68,11 @@ def ensure_runtime_dependencies() -> tempfile.TemporaryDirectory[str] | None:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source-root", required=True, type=Path)
+    parser.add_argument(
+        "--refresh",
+        action="store_true",
+        help="refresh the generated snapshot from clean, committed semantic inputs",
+    )
     args = parser.parse_args()
     dependency_target: tempfile.TemporaryDirectory[str] | None = None
     try:
@@ -86,23 +89,15 @@ def main() -> int:
         import generate_composition_playground_publication as playground
         from composer_core_impl import CompositionError
 
-        semantic_revision = playground.write_directory(ROOT / "generated")
-        descriptor = {
-            "schema_version": 1,
-            "provider": "composition",
-            "semantic_revision": semantic_revision,
-        }
-        descriptor_path = ROOT / "generated" / "publication-descriptor.json"
-        temp_descriptor = descriptor_path.with_name(f".{descriptor_path.name}.tmp.{os.getpid()}")
-        try:
-            temp_descriptor.write_text(json.dumps(descriptor, indent=2) + "\n", encoding="utf-8")
-            temp_descriptor.replace(descriptor_path)
-        finally:
-            if temp_descriptor.exists():
-                try:
-                    temp_descriptor.unlink()
-                except OSError:
-                    pass
+        if args.refresh:
+            semantic_revision = playground.refresh_directory(ROOT / "generated")
+        else:
+            semantic_revision = playground.write_directory(ROOT / "generated")
+        if not args.refresh:
+            playground._atomic_write(
+                ROOT / "generated" / playground.DESCRIPTOR_NAME,
+                playground.publication_descriptor(semantic_revision),
+            )
     except (RuntimeError, OSError, UnicodeError) as exc:
         code = getattr(exc, "code", "PUBLICATION_MATERIALIZATION_FAILED")
         print(f"materialize_publication.py: {code}: {exc}", file=sys.stderr)

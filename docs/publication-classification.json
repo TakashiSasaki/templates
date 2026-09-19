@@ -34,6 +34,10 @@
       "reason": "Repository-local executable fixture guidance documents non-production examples and is intentionally outside the supported reader publication surface."
     },
     {
+      "source": "index.md",
+      "reason": "Repository-root progressive-discovery navigation is a provider-maintenance and source-discovery entry point; it is not itself a reader-facing publication document. Any later guided-navigation projection must consume it through an explicit Integration contract rather than publication-catalog membership."
+    },
+    {
       "source": "skills/composition/SKILL.md",
       "reason": "Repository-facing agent skill instructions drive local Composition operation and are distributed as executable skill material rather than published as canonical reader documentation."
     },

@@ -7,6 +7,8 @@ import gzip
 import json
 import os
 import re
+import shutil
+import tempfile
 import subprocess
 import sys
 from pathlib import Path
@@ -20,6 +22,7 @@ ROOT = Path(__file__).resolve().parents[1]
 BASE_NAME = "composition-playground-v1.json.gz"
 INTENT_NAME = "composition-playground-intent-v1.json.gz"
 MANIFEST_NAME = "composition-playground-publication.json"
+DESCRIPTOR_NAME = "publication-descriptor.json"
 MAX_COMPRESSED_ASSET_BYTES = 262_144
 _GIT_OBJECT_RE = re.compile(r"^[0-9a-f]{40}$")
 
@@ -141,6 +144,41 @@ def semantic_objects_from_manifest(directory: Path) -> dict[str, str]:
     value = read_publication_manifest(directory)["semantic_objects"]
     assert isinstance(value, dict)
     return {str(path): str(object_id) for path, object_id in value.items()}
+
+
+def current_semantic_snapshot() -> tuple[str, dict[str, str]]:
+    """Return the clean current semantic source identity for an explicit refresh."""
+    status = _run_git(
+        "status",
+        "--porcelain=v1",
+        "--untracked-files=all",
+        "--",
+        *SEMANTIC_PATHS,
+    )
+    if status.returncode != 0:
+        raise CompositionError(
+            "GIT_FAILED",
+            f"cannot inspect Playground semantic working tree: {status.stderr.strip()}",
+        )
+    if status.stdout.strip():
+        raise CompositionError(
+            "STALE_PLAYGROUND_SOURCE",
+            "refusing to refresh from modified Composition semantic inputs",
+        )
+    revision = _run_git("rev-parse", "HEAD")
+    if revision.returncode != 0 or not _GIT_OBJECT_RE.fullmatch(revision.stdout.strip()):
+        raise CompositionError("GIT_FAILED", "cannot resolve current Composition semantic revision")
+    semantic_objects: dict[str, str] = {}
+    for path in SEMANTIC_PATHS:
+        current = _run_git("rev-parse", f"HEAD:{path}")
+        object_id = current.stdout.strip()
+        if current.returncode != 0 or not _GIT_OBJECT_RE.fullmatch(object_id):
+            raise CompositionError(
+                "GIT_FAILED",
+                f"cannot resolve current Playground semantic object {path}",
+            )
+        semantic_objects[path] = object_id
+    return revision.stdout.strip(), semantic_objects
 
 
 def semantic_revision_from_gzip(path: Path) -> str:
@@ -301,10 +339,76 @@ def write_directory(directory: Path, *, semantic_revision: str | None = None) ->
     return revision
 
 
+def publication_descriptor(semantic_revision: str) -> bytes:
+    return (json.dumps({
+        "schema_version": 1,
+        "provider": "composition",
+        "semantic_revision": semantic_revision,
+    }, indent=2) + "\n").encode("utf-8")
+
+
+def refresh_directory(directory: Path) -> str:
+    """Refresh a generated publication snapshot from clean, committed semantics."""
+    directory = directory.absolute()
+    if directory.is_symlink() or (directory.exists() and not directory.is_dir()):
+        raise CompositionError("INVALID_PLAYGROUND_PUBLICATION", "refresh destination must be a directory")
+    directory.parent.mkdir(parents=True, exist_ok=True)
+    revision, semantic_objects = current_semantic_snapshot()
+    payloads = publication_payloads(
+        semantic_revision=revision,
+        semantic_objects=semantic_objects,
+    )
+    manifest = {
+        "schema_version": 2,
+        "projection_id": "composition-playground-v1",
+        "intent_projection_id": "composition-playground-intent-v1",
+        "semantic_revision": revision,
+        "semantic_objects": semantic_objects,
+        "assets": [BASE_NAME, INTENT_NAME],
+    }
+    # Build and verify the whole snapshot before changing the caller's directory.
+    # Exclusive caller ownership is required. The two renames have a visibility
+    # gap; this is not crash-atomic. Keep the backup if rollback itself fails.
+    transaction = Path(tempfile.mkdtemp(prefix=f".{directory.name}.refresh-", dir=directory.parent))
+    staged = transaction / "staged"
+    backup = transaction / "previous"
+    committed = False
+    try:
+        if directory.exists():
+            shutil.copytree(directory, staged, symlinks=True)
+        else:
+            staged.mkdir()
+        _atomic_write(staged / MANIFEST_NAME, (json.dumps(manifest, indent=2) + "\n").encode("utf-8"))
+        for name, payload in payloads.items():
+            _atomic_write(staged / name, payload)
+        descriptor = publication_descriptor(revision)
+        _atomic_write(staged / DESCRIPTOR_NAME, descriptor)
+        validate_written_payloads(staged, payloads, revision)
+        if (staged / DESCRIPTOR_NAME).read_bytes() != descriptor:
+            raise CompositionError("INVALID_PLAYGROUND_PUBLICATION", "staged descriptor differs from semantic revision")
+        try:
+            if directory.exists():
+                os.replace(directory, backup)
+            os.replace(staged, directory)
+            committed = True
+        except BaseException:
+            if backup.exists():
+                try:
+                    os.replace(backup, directory)
+                except OSError as exc:
+                    raise CompositionError("REFRESH_ROLLBACK_FAILED", f"previous snapshot preserved at {backup}: {exc}") from exc
+            raise
+    finally:
+        if committed or not backup.exists():
+            shutil.rmtree(transaction)
+    return revision
+
+
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--output-dir", type=Path)
+    group.add_argument("--refresh-dir", type=Path)
     group.add_argument("--check-dir", type=Path)
     parser.add_argument("--semantic-revision")
     return parser.parse_args(argv)
@@ -316,6 +420,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.check_dir is not None:
             revision = check_directory(args.check_dir, semantic_revision=args.semantic_revision)
             print(f"Composition Playground publication is current: {args.check_dir} (semantic source {revision})")
+        elif args.refresh_dir is not None:
+            if args.semantic_revision is not None:
+                raise CompositionError(
+                    "INVALID_PLAYGROUND_PUBLICATION",
+                    "an explicit semantic revision is not accepted for a refresh",
+                )
+            revision = refresh_directory(args.refresh_dir)
+            print(f"{args.refresh_dir} (refreshed semantic source {revision})")
         else:
             revision = write_directory(args.output_dir, semantic_revision=args.semantic_revision)
             print(f"{args.output_dir} (semantic source {revision})")

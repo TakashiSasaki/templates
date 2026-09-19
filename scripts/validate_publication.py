@@ -382,9 +382,20 @@ def validate_reader_coverage(catalog: Any) -> None:
 def validate_machine_coverage(catalog: Any) -> None:
     required_assets = {
         PurePosixPath("catalog/catalog.json"),
-        PurePosixPath("recipes"),
         PurePosixPath("release/composition-installer.json"),
     }
+    recipe_paths = {
+        PurePosixPath(path.relative_to(ROOT).as_posix())
+        for path in (ROOT / "recipes").glob("*.json")
+    }
+    recipe_assets = {
+        asset.source for asset in catalog.assets
+        if asset.source == PurePosixPath("recipes")
+        or PurePosixPath("recipes") in asset.source.parents
+    }
+    if recipe_assets != recipe_paths:
+        raise PublicationError("recipe assets must explicitly inventory only recipe JSON files")
+    required_assets.update(recipe_paths)
     required_assets.update(
         PurePosixPath(path.relative_to(ROOT).as_posix())
         for path in (ROOT / "schemas").glob("*.json")

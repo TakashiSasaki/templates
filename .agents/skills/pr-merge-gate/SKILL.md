@@ -53,7 +53,7 @@ Before handing control to the canonical adapter, record:
 ## Loading workflow
 
 1. Read the adjacent `source.json`.
-2. Validate that `schema_version` is `1`, `kind` is `policy-adapter-reference`, `revision` is a full 40-character lowercase hexadecimal SHA, and `blob_sha` is a full 40-character lowercase Git blob SHA.
+2. Validate that `schema_version` is `2`, `kind` is `policy-adapter-reference`, `revision` is a full 40-character lowercase hexadecimal SHA, and `blob_sha` is a full 40-character lowercase Git blob SHA.
 3. Fetch the exact `repository` / `revision` / `path`.
 4. Compare the fetched blob identity with `blob_sha`.
 5. If any source field is missing, malformed, unavailable, or mismatched, stop in a blocked state and do not declare merge readiness.
@@ -83,3 +83,7 @@ Report:
 - exact Composition PR head evaluated;
 - the canonical adapter's final gate result and merge evidence;
 - any separate Composition release/publication state.
+
+Require schema version 2 and the explicit immutable `closure` of the selected
+pull-request profile, its rules, and gate references. Verify every closure
+path/blob at the declared revision before loading the gate.
