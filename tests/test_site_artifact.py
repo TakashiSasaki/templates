@@ -55,6 +55,28 @@ class SiteArtifactTests(unittest.TestCase):
         with self.assertRaisesRegex(SiteArtifactError, "progressive discovery"):
             check(self.site)
 
+    def test_projected_literal_discovery_routes_must_exist_in_artifact(self):
+        from site_renderer.progressive_discovery import project
+
+        for href in ("/missing/", "/present/", "/present", "/index.html"):
+            source = {"schema_version": 1, "title": "Discovery", "provider_labels": {},
+                      "site_routes": {"home": "index.md"}, "sections": [
+                {"title": "Routes", "entries": [
+                    {"label": "Route", "description": "A deployed route.", "href": href}
+                ]}
+            ]}
+            (self.site / "index.md").write_text(project(
+                source, {"providers": []}, [],
+                site_catalog={"documents": [{"id": "home", "source": "docs/home.md"}]},
+            ))
+            if href == "/missing/":
+                with self.assertRaisesRegex(SiteArtifactError, "discovery.*missing"):
+                    check(self.site)
+            else:
+                (self.site / "present").mkdir(exist_ok=True)
+                (self.site / "present/index.html").write_text("<p>Present</p>")
+                check(self.site)
+
     def test_rejects_retired_route_directory(self):
         (self.site / "files").mkdir()
         with self.assertRaisesRegex(SiteArtifactError, "retired route"):
