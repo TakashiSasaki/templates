@@ -46,5 +46,9 @@
     "integration/site-slots.json",
     "docs/publication-catalog.json",
     "docs/glossary.yml"
-  ]
+  ],
+  "inventory_path_namespaces": {
+    "integration/site-slots.json": "external",
+    "contracts/publication-compatibility/provider-registry.json": "external"
+  }
 }
