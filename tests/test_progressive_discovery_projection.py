@@ -137,3 +137,10 @@ class ProgressiveDiscoveryProjectionTests(unittest.TestCase):
                      'source': 'README.md', 'destination': 'maintain/site/maintainer-onboarding.md'}]
         with self.assertRaisesRegex(BundleError, 'collision'):
             extend_site_documents(ROOT, occupied)
+
+    def test_public_hrefs_reject_all_dot_segment_boundaries(self):
+        for href in ('/../x', '/./x', '/foo/..', '/foo/.', '/%2e%2e/x', '/foo/%2E', '/foo\\bar'):
+            configured = source()
+            configured['sections'][0]['entries'][0] = {'label': 'Bad', 'description': 'Bad.', 'href': href}
+            with self.subTest(href=href), self.assertRaises(BundleError):
+                project(configured, graph(), [], site_catalog=catalog())

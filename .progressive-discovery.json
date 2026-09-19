@@ -23,7 +23,8 @@
     "build"
   ],
   "explicit_exclusions": [
-    "publication"
+    "publication",
+    "authority.json"
   ],
   "publication_system": true,
   "surface_boundaries": {
@@ -39,5 +40,11 @@
       "source": "generated site/index.md",
       "consumer": "static /index.md"
     }
+  },
+  "inventory_path_namespaces": {
+    "progressive-discovery.json": "deployment"
+  },
+  "exclusion_reasons": {
+    "authority.json": "agent.json describes this Modeling-owned canonical record filename; it is not a Site source path."
   }
 }
