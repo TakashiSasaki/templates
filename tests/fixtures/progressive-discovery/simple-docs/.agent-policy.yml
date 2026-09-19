@@ -1,0 +1,11 @@
+schema_version: 2
+contexts:
+  default:
+    profiles:
+      - core
+      - progressive-discovery
+    project_policy:
+      files: []
+skills:
+  enabled:
+    - maintain-progressive-discovery

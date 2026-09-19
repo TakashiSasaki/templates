@@ -1,0 +1,1 @@
+# Closed inventory record
