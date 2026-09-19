@@ -825,7 +825,7 @@ def _plan(
             if path.read_text(encoding="utf-8") == rendered:
                 action = "none"
                 reason = "generated output is fresh; no mutation is needed"
-            elif not state.get("tracked") or state.get("dirty"):
+            elif not state.get("tracked") or state.get("dirty") is not False:
                 action = "authority-needed"
                 reason = "generated target is locally modified or ownership is unknown"
             else:
@@ -852,7 +852,7 @@ def _plan(
             continue
         snapshot = _target_state(root, relative)
         if (snapshot.get("kind") == "file" and snapshot.get("generated_marker")
-                and snapshot.get("tracked") and not snapshot.get("dirty")):
+                and snapshot.get("tracked") and snapshot.get("dirty") is False):
             plan.append(
                 {
                     "action": "delete",
@@ -951,7 +951,7 @@ def _target_state(root: Path, relative: str) -> dict[str, Any]:
         check=False,
     )
     state["tracked"] = tracked
-    state["dirty"] = bool(status.stdout.strip()) if status.returncode == 0 else False
+    state["dirty"] = bool(status.stdout.strip()) if status.returncode == 0 else None
     return state
 
 
@@ -1067,7 +1067,7 @@ def _apply(
             safe = (
                 current.get("kind") == "file"
                 and current.get("tracked")
-                and not current.get("dirty")
+                and current.get("dirty") is False
                 and current.get("generated_marker")
             )
         if not safe:

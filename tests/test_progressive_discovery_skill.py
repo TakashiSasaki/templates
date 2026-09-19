@@ -693,3 +693,25 @@ def test_target_tracking_uses_literal_git_paths(tmp_path):
     applied, errors = skill._apply(root, plan, {'profile_selected': True, 'skill_selected': True})
     assert not applied and errors
     assert target.exists()
+
+
+def test_unavailable_git_dirty_state_refuses_existing_target(tmp_path, monkeypatch):
+    root = tmp_path / 'repository'
+    shutil.copytree(_fixture('generated-docs'), root)
+    skill = _load_skill()
+    skill.run(root, apply=True)
+    target = root / 'generated/index.md'
+    target.write_text(skill.GENERATED_MARKER + '\n# Old generated output\n')
+    _commit_generated_target(root)
+    original = subprocess.run
+    def failed_status(args, *a, **kwargs):
+        if 'status' in args:
+            return subprocess.CompletedProcess(args, 128, stdout='', stderr='status unavailable')
+        return original(args, *a, **kwargs)
+    monkeypatch.setattr(subprocess, 'run', failed_status)
+    before = target.read_bytes()
+    for apply in (False, True):
+        report = skill.run(root, apply=apply)
+        assert report['result'] == 'AUTHORITY_NEEDED', report
+        assert not report['applied']
+        assert target.read_bytes() == before
