@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "root_index": "index.md",
+  "authoritative_inventories": [
+    ".agent-policy.yml",
+    "docs/publication-catalog.json",
+    "profiles/core.yml",
+    "profiles/external-artifact-intake.yml",
+    "profiles/progressive-discovery.yml",
+    "profiles/pull-request.yml",
+    "profiles/review.yml",
+    "profiles/security-baseline.yml"
+  ],
+  "expected_documents": [
+    ".agent-policy.yml",
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "README.md",
+    "docs/agent-work-orchestration.md",
+    "docs/policy-readiness-audit.md",
+    "docs/publication-catalog.json",
+    "docs/revision-bound-qualification.md",
+    "docs/staged-ci.md",
+    "index.md",
+    "profiles/core.yml",
+    "profiles/external-artifact-intake.yml",
+    "profiles/progressive-discovery.yml",
+    "profiles/pull-request.yml",
+    "profiles/review.yml",
+    "profiles/security-baseline.yml",
+    "skills/agent-policy/SKILL.md",
+    "skills/audit-frozen-change/SKILL.md",
+    "skills/intake-validated-artifact/SKILL.md",
+    "skills/maintain-progressive-discovery/SKILL.md",
+    "skills/orchestrate-repository-change/SKILL.md",
+    "skills/pr-merge-gate/SKILL.md",
+    "skills/pr-review/SKILL.md",
+    "skills/title-conversation-session/SKILL.md",
+    "skills/validate-agent-policy/SKILL.md",
+    "skills/work-in-google-ai-studio/SKILL.md"
+  ],
+  "authored_boundaries": [
+    "docs",
+    "policy",
+    "profiles",
+    "skills"
+  ],
+  "explicit_exclusions": [
+    ".agents",
+    "docs/assets",
+    "repository-skills",
+    "review-evals",
+    "schemas",
+    "scripts",
+    "skills/pr-review/references",
+    "src",
+    "templates",
+    "tests",
+    "translations"
+  ],
+  "publication_system": true,
+  "surface_boundaries": {
+    "provider-maintenance": [
+      "docs/provider/index.md",
+      "docs/policy-maintainer-workflow.md",
+      "repository-policy/authority-boundary.md"
+    ],
+    "consumer-distributed": [
+      "docs/consumer/index.md",
+      "skills/agent-policy/SKILL.md"
+    ],
+    "generated": [
+      "AGENTS.md",
+      ".review-authority/review-policy.md",
+      ".agents/skills/"
+    ],
+    "closed-inventory": [
+      "repository-policy/",
+      "schemas/",
+      "src/",
+      "templates/"
+    ]
+  },
+  "authored_index_exclusions": {
+    "docs/index.md": {
+      "docs/publication-catalog.json": "Source-only inventory is linked from authority root; published reader navigation remains publication-closed.",
+      "docs/policy-readiness-audit.md": "Source-only maintainer documentation is linked from the authority root; published reader navigation remains publication-closed.",
+      "docs/agent-work-orchestration.md": "Source-only maintainer documentation is linked from the authority root; published reader navigation remains publication-closed.",
+      "docs/staged-ci.md": "Source-only maintainer documentation is linked from the authority root; published reader navigation remains publication-closed.",
+      "docs/revision-bound-qualification.md": "Source-only maintainer documentation is linked from the authority root; published reader navigation remains publication-closed."
+    }
+  }
+}

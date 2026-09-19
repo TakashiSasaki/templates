@@ -1,10 +1,10 @@
 lock_version: 1
 toolchain:
   repository: TakashiSasaki/templates
-  revision: 33a7ab809225c2a8b8dd2598ef04d0a39cf076a7
+  revision: a53966ab02142795654fbda41d2c470c70db3422
 inputs:
   .agent-policy.yml:
-    sha256: e908c64287181e910f0507e09b9eecc4d70c661de31987bf96084252c3dc2da4
+    sha256: 6627aa6d1d804485a455ac7cad602e2a33a887342012e62c77e1bf95db0301d6
   repository-policy/architecture-decisions.md:
     sha256: 6377845c99329c58f0d26134dfa3cf91236d3d8ade4c317920bfdc13f77a0ff1
   repository-policy/authority-boundary.md:
@@ -14,7 +14,7 @@ inputs:
   repository-policy/history-boundary.md:
     sha256: 4de61b1a469770d12e1e66326cba5fadc242aaef63389b8a219bff52a701b910
   repository-policy/maintainer-merge-routing.md:
-    sha256: c836b8b12dabc00fab0356d09d92ef6dd8cc216938b55e67e7ae24bc8eb0b16f
+    sha256: a3eefea3c36363afe10c71a9a1fc5cd6512a66dab6ccc4aac87ff1f3f26919b2
   repository-policy/maintainer-validation.md:
     sha256: 32726e455e4e307806916d2ea1ce44061a6a4a34ca24efedbfa8dd7e554c0960
   repository-policy/release-trust.md:
@@ -22,6 +22,10 @@ inputs:
   repository-policy/toolchain-safety.md:
     sha256: eb45d47fafa2e406dabb2536a818e206acede23f229eda19e8fdaa37d8445542
 outputs:
+  .agents/skills/maintain-progressive-discovery/SKILL.md:
+    sha256: 0d775666738392d6ac2b23d7e26ddd6ead19f0d4b97845edc8e5dacc6d622acd
+  .agents/skills/maintain-progressive-discovery/scripts/maintain_progressive_discovery.py:
+    sha256: c9fb240bd62801b9d0d552f93fb469986fee808c49d9186089bad7a76c3bd8c2
   .agents/skills/orchestrate-repository-change/SKILL.md:
     sha256: e1e3811b5962bc98159bb8d6221bac621d21141b54ba64709cf7a7608ff59d82
   .agents/skills/orchestrate-repository-change/references/generated-artifact-transport.md:
@@ -77,6 +81,6 @@ outputs:
   .agents/skills/pr-review/references/risk-domains/state-mutation-and-recovery.md:
     sha256: 0cd5b71178b43da5128f4d2e1bfab8f3df5d71439531a9010f351c4ed1468f44
   .review-authority/review-policy.md:
-    sha256: 6548aeca9704debb93e080ee92e5c18bd011b74979a3e2177f5696b174d10d18
+    sha256: 7dcca5b76488625de33dc88ec42a73bf5f7e4b6f23c5cd6d622aba58bfe9fcdf
   AGENTS.md:
-    sha256: f0a490108f6320b3edd537bf8490f8d54b240673808ba54bba3af7038d0503c2
+    sha256: d2b37fd66dba2019fc4a830e5cc99364e3fa0758bb5f9ed5d974dbf6dac4d692
