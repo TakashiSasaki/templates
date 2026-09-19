@@ -6,6 +6,7 @@ import unittest
 
 from publication_bundle.graph import (
     GRAPH_SCHEMA_VERSION,
+    IndexNavigationViewerError,
     LEGACY_GRAPH_SCHEMA_VERSION,
     LEGACY_ROOT_INDEX,
     ROOT_INDEX,
@@ -128,3 +129,12 @@ class ProgressiveDiscoveryGraphTests(unittest.TestCase):
                           marker + '<script>alert(1)</script>\n' + text):
             with self.subTest(text=malformed), self.assertRaises(IndexNavigationError):
                 parse_index(malformed, 'index.md')
+
+    def test_graph_schema_requires_an_exact_integer(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'graph.json'
+            for version in (True, False, 1.0, 2.0, '1', None, [], {}):
+                path.write_text(json.dumps({'schema_version': version,
+                    'repository': 'TakashiSasaki/templates', 'providers': []}))
+                with self.subTest(version=version), self.assertRaises(IndexNavigationViewerError):
+                    load_graph(path, provider_order=())
