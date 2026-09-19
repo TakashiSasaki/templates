@@ -91,8 +91,6 @@
 ## Historical provenance
 
 - [Composition authority migration](migrations/composition-authority-migration.md) — consolidated chronology of the authority cutover, provider migration, branch retirement, and immutable PR provenance. Stage-specific implementation notes are retained only for repository maintenance and are not reader publication pages.
-- [Skill and capability migration](migrations/pr2-skill-capabilities.md) — historical migration record for reusable Skill and capability boundaries.
-- [Webapp lifecycle migration](migrations/pr3-webapp-lifecycle.md) — historical migration record for Webapp lifecycle contracts and release behavior.
 
 ## Machine-readable authorities
 

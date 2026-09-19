@@ -12,9 +12,14 @@ from pathlib import Path, PurePosixPath
 ROOT = Path(__file__).resolve().parents[1]
 VALIDATOR = ROOT / "scripts" / "validate_publication.py"
 GUIDED_INDEX_PATHS = [
+    "catalog/index.md",
     "components/artifact.skill-core/files/docs/index.md",
     "components/artifact.webapp-core/files/docs/index.md",
     "docs/index.md",
+    "index.md",
+    "recipes/index.md",
+    "release/index.md",
+    "schemas/index.md",
 ]
 GUIDED_LINK = re.compile(r"^- \[[^\]]+\]\(.+\)[ \t]+[-–—][ \t]+\S.+$")
 LINK_TARGET = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
