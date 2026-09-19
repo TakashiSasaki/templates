@@ -25,6 +25,10 @@ SPEC.loader.exec_module(OBSERVE)
 HEAD = "1111111111111111111111111111111111111111"
 BASE = "2222222222222222222222222222222222222222"
 OTHER_HEAD = "3333333333333333333333333333333333333333"
+REPOSITORY_ID = "repository-123"
+RESOURCE_ID = "pull-request-123"
+OTHER_REPOSITORY_ID = "repository-999"
+OTHER_RESOURCE_ID = "pull-request-999"
 
 
 def candidate(
@@ -32,6 +36,8 @@ def candidate(
     identifier: str = "PR_node_123",
     head: str = HEAD,
     base: str = BASE,
+    repository_id: str = REPOSITORY_ID,
+    resource_id: str = RESOURCE_ID,
     dependencies: list[dict] | None = None,
 ) -> OBSERVE.CandidateBinding:
     return OBSERVE.CandidateBinding.from_mapping(
@@ -39,6 +45,11 @@ def candidate(
             "repository": "TakashiSasaki/templates",
             "number": 123,
             "id": identifier,
+            "provider_identity": {
+                "provider": "github",
+                "repository_id": repository_id,
+                "resource_id": resource_id,
+            },
             "expected_head_sha": head,
             "expected_base_sha": base,
             "dependencies": [] if dependencies is None else dependencies,
@@ -50,9 +61,16 @@ def binding(
     *,
     head: str = HEAD,
     base: str = BASE,
+    repository_id: str = REPOSITORY_ID,
+    resource_id: str = RESOURCE_ID,
     dependencies: list[dict] | None = None,
 ) -> dict:
     return {
+        "provider_identity": {
+            "provider": "github",
+            "repository_id": repository_id,
+            "resource_id": resource_id,
+        },
         "head_sha": head,
         "base_sha": base,
         "dependencies": [] if dependencies is None else dependencies,
@@ -94,13 +112,25 @@ class FakeProvider:
         self,
         bindings: list[dict],
         surfaces: dict[str, list[dict | Exception]],
+        *,
+        clock: FakeClock | None = None,
+        advance_on_surface: float = 0.0,
     ) -> None:
         self.bindings = list(bindings)
         self.surfaces = {name: list(values) for name, values in surfaces.items()}
         self.binding_calls = 0
+        self.clock = clock
+        self.advance_on_surface = advance_on_surface
+        self.surface_calls: list[tuple[str, str]] = []
 
-    def read_binding(self, candidate: OBSERVE.CandidateBinding) -> dict:
+    def read_binding(
+        self,
+        candidate: OBSERVE.CandidateBinding,
+        *,
+        budget: OBSERVE.ObservationBudget,
+    ) -> dict:
         del candidate
+        budget.check()
         index = min(self.binding_calls, len(self.bindings) - 1)
         self.binding_calls += 1
         value = self.bindings[index]
@@ -113,12 +143,18 @@ class FakeProvider:
         candidate: OBSERVE.CandidateBinding,
         surface_name: str,
         binding_value: dict,
+        *,
+        budget: OBSERVE.ObservationBudget,
     ) -> dict:
-        del candidate, binding_value
+        self.surface_calls.append((candidate.identifier, surface_name))
+        del binding_value
+        budget.check()
         values = self.surfaces[surface_name]
         value = values.pop(0) if values else surface([], complete=True)
         if isinstance(value, Exception):
             raise value
+        if self.clock is not None:
+            self.clock.now += self.advance_on_surface
         return value
 
 
@@ -157,6 +193,25 @@ def run_observation(
         repository_root=tmp_path / "repo",
         clock=fake_clock,
         sleep=fake_clock.sleep,
+    )
+
+
+def unlimited_budget() -> OBSERVE.ObservationBudget:
+    return OBSERVE.ObservationBudget(None, clock=lambda: 0.0)
+
+
+def two_candidate_request(
+    tmp_path: Path, *, previous: Path | None = None
+) -> OBSERVE.ObservationRequest:
+    return OBSERVE.ObservationRequest(
+        candidates=(candidate(), candidate(identifier="PR_node_456")),
+        surfaces=("comments",),
+        mode="single-shot",
+        deadline=None,
+        max_attempts=1,
+        summary_limit=2,
+        snapshot_path=tmp_path / "observation.json",
+        previous_snapshot_path=previous,
     )
 
 
@@ -247,8 +302,23 @@ def test_page_failure_is_incomplete_not_unchanged(tmp_path: Path) -> None:
     result = run_observation(tmp_path, provider)
 
     assert result["outcome"] == "incomplete"
-    assert result["candidates"][0]["error"] is None if "error" in result["candidates"][0] else True
+    assert result["candidates"][0]["error"]["category"] == "incomplete"
     assert result["snapshots"]["PR_node_123"]["complete"] is False
+
+
+def test_surface_timeout_is_not_reclassified_as_incomplete_or_unchanged(
+    tmp_path: Path,
+) -> None:
+    provider = FakeProvider(
+        [binding(), binding()],
+        {"comments": [OBSERVE.ProviderFailure("timeout", "request timed out")]},
+    )
+
+    result = run_observation(tmp_path, provider)
+
+    assert result["outcome"] == "timed_out"
+    assert result["candidates"][0]["outcome"] == "timed_out"
+    assert result["candidates"][0]["error"]["category"] == "timeout"
 
 
 def test_binding_head_base_and_dependency_change_is_stale(tmp_path: Path) -> None:
@@ -256,16 +326,43 @@ def test_binding_head_base_and_dependency_change_is_stale(tmp_path: Path) -> Non
         "id": "policy-pr-1",
         "authority": "policy",
         "expected_head_sha": HEAD,
+        "provider_identity": {
+            "provider": "github",
+            "repository_id": "repository-1",
+            "resource_id": "pull-request-1",
+        },
         "provider_path": "/repos/TakashiSasaki/templates/pulls/1",
     }
     bound_candidate = candidate(dependencies=[dependency])
     provider = FakeProvider(
         [
-            binding(dependencies=[{"id": "policy-pr-1", "head_sha": HEAD}]),
+            binding(
+                dependencies=[
+                    {
+                        "id": "policy-pr-1",
+                        "head_sha": HEAD,
+                        "provider_identity": {
+                            "provider": "github",
+                            "repository_id": "repository-1",
+                            "resource_id": "pull-request-1",
+                        },
+                    }
+                ]
+            ),
             binding(
                 head=OTHER_HEAD,
                 base=OTHER_HEAD,
-                dependencies=[{"id": "policy-pr-1", "head_sha": OTHER_HEAD}],
+                dependencies=[
+                    {
+                        "id": "policy-pr-1",
+                        "head_sha": OTHER_HEAD,
+                        "provider_identity": {
+                            "provider": "github",
+                            "repository_id": "repository-1",
+                            "resource_id": "pull-request-1",
+                        },
+                    }
+                ],
             ),
         ],
         {"comments": [surface([{"identity": "comment-1", "body": "data"}])]},
@@ -295,6 +392,345 @@ def test_binding_head_base_and_dependency_change_is_stale(tmp_path: Path) -> Non
         "dependency_changed" in reason
         for reason in result["snapshots"]["PR_node_123"]["binding_reasons"]
     )
+
+
+def test_github_binding_reads_repository_and_pull_request_immutable_ids() -> None:
+    live_candidate = candidate(repository_id="123", resource_id="456")
+
+    def metadata(*, pull_request_id: int, number: int = 123) -> dict:
+        return {
+            "id": pull_request_id,
+            "number": number,
+            "head": {"sha": HEAD},
+            "base": {
+                "sha": BASE,
+                "repo": {"id": 123, "full_name": "TakashiSasaki/templates"},
+            },
+        }
+
+    def api(arguments: tuple[str, ...], *, timeout: float) -> OBSERVE.ApiResponse:
+        del timeout
+        endpoint = arguments[-1]
+        if endpoint.endswith("/pulls/123"):
+            return OBSERVE.ApiResponse([metadata(pull_request_id=456)])
+        if endpoint.endswith("/pulls/1"):
+            return OBSERVE.ApiResponse([metadata(pull_request_id=789, number=1)])
+        raise AssertionError(arguments)
+
+    dependency = candidate(
+        dependencies=[
+            {
+                "id": "policy-pr-1",
+                "authority": "policy",
+                "expected_head_sha": HEAD,
+                "provider_identity": {
+                    "provider": "github",
+                    "repository_id": "123",
+                    "resource_id": "789",
+                },
+                "provider_path": "/repos/TakashiSasaki/templates/pulls/1",
+            }
+        ]
+    ).dependencies[0]
+    live_candidate = OBSERVE.CandidateBinding(
+        live_candidate.repository,
+        live_candidate.number,
+        live_candidate.identifier,
+        live_candidate.provider_identity,
+        live_candidate.expected_head_sha,
+        live_candidate.expected_base_sha,
+        (dependency,),
+    )
+    provider = OBSERVE.GhReadonlyProvider(api)
+
+    binding_value = provider.read_binding(live_candidate, budget=unlimited_budget())
+
+    assert binding_value["provider_identity"] == {
+        "provider": "github",
+        "repository_id": "123",
+        "resource_id": "456",
+    }
+    assert binding_value["dependencies"][0]["provider_identity"]["resource_id"] == "789"
+
+
+def test_dependency_provider_path_identity_mismatch_is_stale_even_with_matching_sha() -> None:
+    declared_dependency = {
+        "id": "policy-pr-1",
+        "authority": "policy",
+        "expected_head_sha": HEAD,
+        "provider_identity": {
+            "provider": "github",
+            "repository_id": "123",
+            "resource_id": "expected-dependency",
+        },
+        "provider_path": "/repos/TakashiSasaki/templates/pulls/1",
+    }
+    live_candidate = candidate(
+        repository_id="123",
+        resource_id="456",
+        dependencies=[declared_dependency],
+    )
+
+    def api(arguments: tuple[str, ...], *, timeout: float) -> OBSERVE.ApiResponse:
+        del timeout
+        endpoint = arguments[-1]
+        live_id = 456 if endpoint.endswith("/pulls/123") else 999
+        return OBSERVE.ApiResponse(
+            [
+                {
+                    "id": live_id,
+                    "number": 123 if live_id == 456 else 1,
+                    "head": {"sha": HEAD},
+                    "base": {
+                        "sha": BASE,
+                        "repo": {"id": 123, "full_name": "TakashiSasaki/templates"},
+                    },
+                }
+            ]
+        )
+
+    provider = OBSERVE.GhReadonlyProvider(api)
+    observed = provider.read_binding(live_candidate, budget=unlimited_budget())
+    snapshot = OBSERVE.build_snapshot(
+        candidate=live_candidate,
+        observed_start=observed,
+        observed_end=observed,
+        surfaces={"comments": surface([])},
+        requested_surfaces=["comments"],
+        observation={"provider": "fake"},
+    )
+
+    assert snapshot["binding_status"] == "stale"
+    assert any(
+        "dependency_provider_identity_mismatch" in reason
+        for reason in snapshot["binding_reasons"]
+    )
+
+
+def test_github_repository_identity_mismatch_is_stale_even_with_matching_sha() -> None:
+    live_candidate = candidate(repository_id="expected-repository", resource_id="456")
+
+    def api(arguments: tuple[str, ...], *, timeout: float) -> OBSERVE.ApiResponse:
+        del arguments, timeout
+        return OBSERVE.ApiResponse(
+            [
+                {
+                    "id": 456,
+                    "number": 123,
+                    "head": {"sha": HEAD},
+                    "base": {
+                        "sha": BASE,
+                        "repo": {"id": 123, "full_name": "TakashiSasaki/templates"},
+                    },
+                }
+            ]
+        )
+
+    provider = OBSERVE.GhReadonlyProvider(api)
+    observed = provider.read_binding(live_candidate, budget=unlimited_budget())
+    snapshot = OBSERVE.build_snapshot(
+        candidate=live_candidate,
+        observed_start=observed,
+        observed_end=observed,
+        surfaces={"comments": surface([])},
+        requested_surfaces=["comments"],
+        observation={"provider": "fake"},
+    )
+
+    assert snapshot["binding_status"] == "stale"
+    assert "start_provider_identity_does_not_match_expected" in snapshot[
+        "binding_reasons"
+    ]
+
+
+@pytest.mark.parametrize(
+    ("candidate_kwargs", "binding_kwargs", "reason"),
+    [
+        (
+            {"resource_id": OTHER_RESOURCE_ID},
+            {},
+            "provider_identity_does_not_match_expected",
+        ),
+        (
+            {"repository_id": OTHER_REPOSITORY_ID},
+            {},
+            "provider_identity_does_not_match_expected",
+        ),
+        (
+            {},
+            {"repository_id": OTHER_REPOSITORY_ID},
+            "provider_identity_does_not_match_expected",
+        ),
+    ],
+)
+def test_live_provider_identity_mismatch_is_stale(
+    tmp_path: Path,
+    candidate_kwargs: dict[str, str],
+    binding_kwargs: dict[str, str],
+    reason: str,
+) -> None:
+    provider = FakeProvider(
+        [binding(**binding_kwargs), binding(**binding_kwargs)],
+        {"comments": [surface([{"identity": "comment-1", "body": "data"}])]},
+    )
+    request_value = request(
+        tmp_path,
+    )
+    request_value = OBSERVE.ObservationRequest(
+        candidates=(candidate(**candidate_kwargs),),
+        surfaces=request_value.surfaces,
+        mode=request_value.mode,
+        deadline=request_value.deadline,
+        max_attempts=request_value.max_attempts,
+        summary_limit=request_value.summary_limit,
+        snapshot_path=request_value.snapshot_path,
+        previous_snapshot_path=request_value.previous_snapshot_path,
+    )
+
+    result = run_observation(tmp_path, provider, observation_request=request_value)
+
+    assert result["outcome"] == "stale"
+    assert any(reason in item for item in result["snapshots"]["PR_node_123"]["binding_reasons"])
+
+
+def test_dependency_identity_mismatch_is_stale_even_when_head_matches(tmp_path: Path) -> None:
+    dependency = {
+        "id": "policy-pr-1",
+        "authority": "policy",
+        "expected_head_sha": HEAD,
+        "provider_identity": {
+            "provider": "github",
+            "repository_id": REPOSITORY_ID,
+            "resource_id": "expected-dependency",
+        },
+        "provider_path": "/repos/TakashiSasaki/templates/pulls/1",
+    }
+    observed_dependency = {
+        "id": "policy-pr-1",
+        "head_sha": HEAD,
+        "provider_identity": {
+            "provider": "github",
+            "repository_id": REPOSITORY_ID,
+            "resource_id": "another-dependency",
+        },
+    }
+    provider = FakeProvider(
+        [binding(dependencies=[observed_dependency])] * 2,
+        {"comments": [surface([])]},
+    )
+    result = run_observation(
+        tmp_path,
+        provider,
+        observation_request=OBSERVE.ObservationRequest(
+            candidates=(candidate(dependencies=[dependency]),),
+            surfaces=("comments",),
+            mode="single-shot",
+            deadline=None,
+            max_attempts=1,
+            summary_limit=2,
+            snapshot_path=tmp_path / "observation.json",
+            previous_snapshot_path=None,
+        ),
+    )
+
+    assert result["outcome"] == "stale"
+    assert any(
+        "dependency_provider_identity_mismatch" in reason
+        for reason in result["snapshots"]["PR_node_123"]["binding_reasons"]
+    )
+
+
+def test_provider_identity_movement_between_captures_is_stale(tmp_path: Path) -> None:
+    provider = FakeProvider(
+        [
+            binding(resource_id=RESOURCE_ID),
+            binding(resource_id=OTHER_RESOURCE_ID),
+        ],
+        {"comments": [surface([])]},
+    )
+
+    result = run_observation(tmp_path, provider)
+
+    assert result["outcome"] == "stale"
+    assert "candidate_provider_identity_changed_during_observation" in result["snapshots"][
+        "PR_node_123"
+    ]["binding_reasons"]
+
+
+@pytest.mark.parametrize(
+    "first_state", ["changed", "stale", "incomplete", "unknown", "provider_failed"]
+)
+def test_single_shot_observes_every_candidate_after_first_non_normal_state(
+    tmp_path: Path, first_state: str
+) -> None:
+    observation_request = two_candidate_request(tmp_path)
+    if first_state == "changed":
+        run_observation(
+            tmp_path,
+            FakeProvider(
+                [binding()] * 4,
+                {"comments": [surface([{"identity": "old"}]), surface([])]},
+            ),
+            observation_request=observation_request,
+        )
+        observation_request = two_candidate_request(
+            tmp_path, previous=tmp_path / "observation.json"
+        )
+        provider = FakeProvider(
+            [binding()] * 4,
+            {"comments": [surface([{"identity": "new"}]), surface([])]},
+        )
+    elif first_state == "stale":
+        provider = FakeProvider(
+            [
+                binding(head=OTHER_HEAD),
+                binding(head=OTHER_HEAD),
+                binding(),
+                binding(),
+            ],
+            {"comments": [surface([]), surface([])]},
+        )
+    elif first_state == "incomplete":
+        provider = FakeProvider(
+            [binding()] * 4,
+            {
+                "comments": [
+                    OBSERVE.ProviderFailure("incomplete", "page 2 failed"),
+                    surface([]),
+                ]
+            },
+        )
+    else:
+        provider = FakeProvider(
+            [
+                OBSERVE.ProviderFailure(
+                    "permission" if first_state == "unknown" else "provider",
+                    "provider failed",
+                ),
+                binding(),
+                binding(),
+            ],
+            {"comments": [surface([])]},
+        )
+
+    result = run_observation(
+        tmp_path,
+        provider,
+        observation_request=observation_request,
+    )
+
+    assert [item["candidate_id"] for item in result["candidates"]] == [
+        "PR_node_123",
+        "PR_node_456",
+    ]
+    assert result["coverage"]["omitted_candidate_ids"] == []
+    assert result["coverage"]["aggregate"] == "complete"
+    expected_outcome = first_state if first_state in {
+        "changed",
+        "stale",
+        "incomplete",
+    } else "unknown"
+    assert result["candidates"][0]["outcome"] == expected_outcome
 
 
 def test_permission_failure_is_unknown_not_unchanged(tmp_path: Path) -> None:
@@ -334,6 +770,48 @@ def test_watch_respects_backoff_and_deadline(tmp_path: Path) -> None:
     assert result["termination"] == "deadline"
     assert clock.sleeps == [1.0]
     assert result["resume"]["last_attempt"] == 2
+
+
+def test_deadline_during_capture_stops_surfaces_and_omits_suffix_candidates(
+    tmp_path: Path,
+) -> None:
+    clock = FakeClock()
+    provider = FakeProvider(
+        [binding()],
+        {
+            "comments": [surface([])],
+            "reviews": [surface([])],
+        },
+        clock=clock,
+        advance_on_surface=2.0,
+    )
+    observation_request = OBSERVE.ObservationRequest(
+        candidates=(candidate(), candidate(identifier="PR_node_456")),
+        surfaces=("comments", "reviews"),
+        mode="single-shot",
+        deadline=1.0,
+        max_attempts=1,
+        summary_limit=2,
+        snapshot_path=tmp_path / "observation.json",
+        previous_snapshot_path=None,
+    )
+
+    result = run_observation(
+        tmp_path,
+        provider,
+        observation_request=observation_request,
+        clock=clock,
+    )
+
+    assert result["outcome"] == "deadline_reached"
+    assert result["termination"] == "deadline"
+    assert provider.surface_calls == [("PR_node_123", "comments")]
+    assert result["coverage"]["omitted_candidate_ids"] == ["PR_node_456"]
+    assert result["coverage"]["aggregate"] == "partial"
+    assert result["candidates"][-1]["omitted"] is True
+    assert json.loads((tmp_path / "observation.json").read_text())["outcome"] == (
+        "deadline_reached"
+    )
 
 
 def test_watch_cancel_returns_resume_reason(tmp_path: Path) -> None:
@@ -405,13 +883,22 @@ def test_check_records_keep_old_success_and_current_failure_separate() -> None:
                     "check_runs": [
                         {
                             "id": 1,
+                            "node_id": "CR_1",
                             "name": "same-workflow",
+                            "head_sha": HEAD,
+                            "workflow_id": 11,
+                            "run_id": 22,
+                            "run_attempt": 3,
+                            "job_id": 33,
                             "status": "completed",
                             "conclusion": "success",
+                            "app": {"id": 7, "slug": "actions"},
                         },
                         {
                             "id": 2,
+                            "node_id": "CR_2",
                             "name": "same-workflow",
+                            "head_sha": HEAD,
                             "status": "completed",
                             "conclusion": "failure",
                         },
@@ -422,7 +909,7 @@ def test_check_records_keep_old_success_and_current_failure_separate() -> None:
         "status": OBSERVE.ApiResponse([{"statuses": []}]),
     }
 
-    def api(arguments: tuple[str, ...]) -> OBSERVE.ApiResponse:
+    def api(arguments: tuple[str, ...], **_: object) -> OBSERVE.ApiResponse:
         endpoint = arguments[-1]
         for key, response in responses.items():
             if key in endpoint:
@@ -430,7 +917,7 @@ def test_check_records_keep_old_success_and_current_failure_separate() -> None:
         raise AssertionError(arguments)
 
     provider = OBSERVE.GhReadonlyProvider(api)
-    result = provider._checks(candidate_value, HEAD)
+    result = provider._checks(candidate_value, HEAD, budget=unlimited_budget())
 
     assert len(result["records"]) == 2
     assert {record["identity"] for record in result["records"]} == {
@@ -441,12 +928,40 @@ def test_check_records_keep_old_success_and_current_failure_separate() -> None:
         "success",
         "failure",
     }
+    assert result["records"][0]["observed_head_sha"] == HEAD
+    assert result["records"][0]["head_sha"] == HEAD
+    assert result["records"][0]["workflow_id"] == 11
+    assert result["records"][0]["run_id"] == 22
+    assert result["records"][0]["run_attempt"] == 3
+    assert result["records"][0]["job_id"] == 33
+    assert result["records"][0]["app"]["id"] == 7
+
+
+def test_transport_timeout_never_exceeds_remaining_budget() -> None:
+    clock = FakeClock(now=3.0)
+    budget = OBSERVE.ObservationBudget(10.0, clock=clock)
+    timeouts: list[float] = []
+
+    def api(arguments: tuple[str, ...], *, timeout: float) -> OBSERVE.ApiResponse:
+        timeouts.append(timeout)
+        endpoint = arguments[-1]
+        if endpoint.endswith("check-runs"):
+            return OBSERVE.ApiResponse([{"check_runs": []}])
+        if endpoint.endswith("/status"):
+            return OBSERVE.ApiResponse([{"statuses": []}])
+        raise AssertionError(arguments)
+
+    provider = OBSERVE.GhReadonlyProvider(api)
+    provider._checks(candidate(), HEAD, budget=budget)
+
+    assert timeouts == [7.0, 7.0]
+    assert all(timeout <= 7.0 for timeout in timeouts)
 
 
 def test_reactions_cover_pr_issue_and_comment_surfaces() -> None:
     calls: list[tuple[str, ...]] = []
 
-    def api(arguments: tuple[str, ...]) -> OBSERVE.ApiResponse:
+    def api(arguments: tuple[str, ...], **_: object) -> OBSERVE.ApiResponse:
         calls.append(arguments)
         endpoint = arguments[-1]
         if endpoint.endswith("/issues/123/comments"):
@@ -462,7 +977,7 @@ def test_reactions_cover_pr_issue_and_comment_surfaces() -> None:
         raise AssertionError(arguments)
 
     provider = OBSERVE.GhReadonlyProvider(api)
-    result = provider._reactions(candidate())
+    result = provider._reactions(candidate(), budget=unlimited_budget())
 
     assert result["complete"] is True
     assert {
@@ -475,16 +990,130 @@ def test_reactions_cover_pr_issue_and_comment_surfaces() -> None:
     assert all("--paginate" in call for call in calls)
 
 
+def test_review_thread_comments_paginate_past_one_hundred() -> None:
+    first_comments = [
+        {"id": f"comment-{index}", "body": f"body-{index}"}
+        for index in range(100)
+    ]
+    calls: list[tuple[str, ...]] = []
+
+    def api(arguments: tuple[str, ...], *, timeout: float) -> OBSERVE.ApiResponse:
+        del timeout
+        calls.append(arguments)
+        if any(argument == "threadId=thread-1" for argument in arguments):
+            return OBSERVE.ApiResponse(
+                {
+                    "data": {
+                        "node": {
+                            "comments": {
+                                "nodes": [{"id": "comment-100", "body": "body-100"}],
+                                "pageInfo": {"hasNextPage": False, "endCursor": None},
+                            }
+                        }
+                    }
+                }
+            )
+        return OBSERVE.ApiResponse(
+            {
+                "data": {
+                    "repository": {
+                        "pullRequest": {
+                            "reviewThreads": {
+                                "nodes": [
+                                    {
+                                        "id": "thread-1",
+                                        "isResolved": False,
+                                        "comments": {
+                                            "nodes": first_comments,
+                                            "pageInfo": {
+                                                "hasNextPage": True,
+                                                "endCursor": "comment-cursor-1",
+                                            },
+                                        },
+                                    }
+                                ],
+                                "pageInfo": {"hasNextPage": False, "endCursor": None},
+                            }
+                        }
+                    }
+                }
+            }
+        )
+
+    provider = OBSERVE.GhReadonlyProvider(api)
+    result = provider._threads(candidate(), budget=unlimited_budget())
+
+    assert result["complete"] is True
+    assert len(result["records"][0]["comments"]["nodes"]) == 101
+    assert len(calls) == 2
+    assert any(argument == "threadId=thread-1" for argument in calls[1])
+
+
+def test_bounded_summary_caps_many_candidates_and_declares_omissions() -> None:
+    candidates = [
+        {
+            "candidate_id": f"candidate-{index}",
+            "outcome": "changed",
+            "attempted": True,
+            "omitted": False,
+            "diff": {
+                "status": "changed",
+                "meaningful_change": True,
+                "counts": {"added": 100},
+                "changes": [
+                    {
+                        "surface": "comments",
+                        "kind": "added",
+                        "identity": f"comment-{index}",
+                        "record": {"body": "x" * 100_000},
+                    }
+                ]
+                * 10,
+                "unknowns": [],
+            },
+        }
+        for index in range(400)
+    ]
+    result = {
+        "kind": "pr-state-observation-result",
+        "outcome": "changed",
+        "termination": "completed",
+        "attempts": 1,
+        "candidates": candidates,
+        "coverage": {
+            "requested_candidate_ids": [item["candidate_id"] for item in candidates],
+            "attempted_candidate_ids": [item["candidate_id"] for item in candidates],
+            "acquired_candidate_ids": [],
+            "omitted_candidate_ids": [],
+            "all_requested_attempted": True,
+            "aggregate": "complete",
+        },
+        "snapshot_reference": {"path": "/tmp/detail.json", "digest": "a" * 64},
+        "resume": {"reason": "changed"},
+    }
+
+    summary = OBSERVE.bounded_summary(result, 20)
+
+    assert len(
+        json.dumps(summary, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ) <= (
+        OBSERVE.MODEL_SUMMARY_MAX_BYTES
+    )
+    assert summary["summary_truncated"] is True
+    assert summary["candidate_id_digest"]
+    assert summary["omitted_candidate_count"] > 0
+
+
 def test_write_methods_and_malformed_responses_fail_closed() -> None:
     with pytest.raises(OBSERVE.ObservationInputError, match="write methods"):
         OBSERVE.gh_api_json(("POST", "/repos/TakashiSasaki/templates/pulls/1"))
 
-    def malformed(_: tuple[str, ...]) -> OBSERVE.ApiResponse:
+    def malformed(_: tuple[str, ...], **__: object) -> OBSERVE.ApiResponse:
         return OBSERVE.ApiResponse({"not": "a pull request"})
 
     provider = OBSERVE.GhReadonlyProvider(malformed)
     with pytest.raises(OBSERVE.ProviderFailure, match="pull request head"):
-        provider.read_binding(candidate())
+        provider.read_binding(candidate(), budget=unlimited_budget())
 
 
 def test_paginated_http_bodies_are_decoded_without_slurp_flag() -> None:

@@ -74,11 +74,16 @@ material, and any provider limitation at that path.
 Treat changed, stale, incomplete, unknown, rate-limited, timed-out, malformed,
 deadline, or cancelled outcomes as information requiring the corresponding
 reacquisition or handoff. Do not turn an unchanged result into approval. The
-observer preserves check workflow/run/attempt/job/app/head identities and all
-review, comment, thread, reaction, edit, dismissal, and commit fields it can
-observe; it does not determine finding validity, review approval, merge
-authorization, or adoption. Build the existing planner packet from the
-snapshot and continue through the pinned planner and shared gate.
+observer preserves the provider identities, check-run/status identities,
+observed head, and workflow/run/attempt/job/app fields when those fields are
+actually returned by the provider; it does not synthesize missing acceptance
+identities from display names or claim to be the acceptance gate. It preserves
+all review, comment, thread, reaction, edit, dismissal, and commit fields it
+can observe, but acceptance-specific enrichment remains with the existing
+planner and shared gate. The observer does not determine finding validity,
+review approval, merge authorization, or adoption. Build the existing planner
+packet from the snapshot and continue through the pinned planner and shared
+gate.
 
 ## 2. Establish the live stack snapshot
 

@@ -6,11 +6,21 @@
     "repository": "TakashiSasaki/templates",
     "number": 123,
     "id": "PR_node_123",
+    "provider_identity": {
+      "provider": "fixture",
+      "repository_id": "fixture-repository-1",
+      "resource_id": "fixture-pr-1"
+    },
     "expected_head_sha": "1111111111111111111111111111111111111111",
     "expected_base_sha": "2222222222222222222222222222222222222222",
     "dependencies": []
   },
   "observed_binding": {
+    "provider_identity": {
+      "provider": "fixture",
+      "repository_id": "fixture-repository-1",
+      "resource_id": "fixture-pr-1"
+    },
     "head_sha": "1111111111111111111111111111111111111111",
     "base_sha": "2222222222222222222222222222222222222222",
     "dependencies": []

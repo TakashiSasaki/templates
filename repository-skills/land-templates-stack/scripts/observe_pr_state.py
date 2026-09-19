@@ -27,14 +27,18 @@ if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
 from pr_state_observation import (  # noqa: E402
+    MODEL_SUMMARY_MAX_BYTES,
     CandidateBinding,
     ObservationInputError,
+    ProviderIdentity,
     SurfaceObservation,
+    bound_model_summary,
     build_snapshot,
     diff_snapshots,
     record_identity,
     sha256_digest,
     summarize_diff,
+    summary_has_truncation,
 )
 
 REQUEST_SCHEMA_VERSION = 1
@@ -92,6 +96,43 @@ class ProviderFailure(RuntimeError):
 
 class ObservationCancelled(RuntimeError):
     """Raised by a provider or test clock to stop a bounded observation."""
+
+
+class ObservationDeadlineExceeded(ObservationCancelled):
+    """Raised as soon as the observation deadline is no longer available."""
+
+
+class ObservationBudget:
+    """Shared cancellation and deadline budget for one capture."""
+
+    def __init__(
+        self,
+        deadline: float | None,
+        *,
+        clock: Callable[[], float],
+        cancelled: Callable[[], bool] | None = None,
+    ) -> None:
+        self.deadline = deadline
+        self.clock = clock
+        self.cancelled = cancelled
+
+    def check(self) -> None:
+        if self.cancelled is not None and self.cancelled():
+            raise ObservationCancelled()
+        if self.deadline is not None and self.clock() >= self.deadline:
+            raise ObservationDeadlineExceeded()
+
+    def remaining(self) -> float | None:
+        self.check()
+        if self.deadline is None:
+            return None
+        return max(0.0, self.deadline - self.clock())
+
+    def transport_timeout(self, default: float = 30.0) -> float:
+        remaining = self.remaining()
+        if remaining is None:
+            return default
+        return min(default, max(0.001, remaining))
 
 
 @dataclass(frozen=True)
@@ -195,7 +236,12 @@ class ObservationRequest:
 
 
 class ReadOnlyProvider(Protocol):
-    def read_binding(self, candidate: CandidateBinding) -> Mapping[str, Any]:
+    def read_binding(
+        self,
+        candidate: CandidateBinding,
+        *,
+        budget: ObservationBudget,
+    ) -> Mapping[str, Any]:
         ...
 
     def read_surface(
@@ -203,17 +249,21 @@ class ReadOnlyProvider(Protocol):
         candidate: CandidateBinding,
         surface: str,
         binding: Mapping[str, Any],
+        *,
+        budget: ObservationBudget,
     ) -> Mapping[str, Any] | SurfaceObservation:
         ...
 
 
-def _parse_http_metadata(text: str) -> tuple[int | None, float | None]:
+def _parse_http_metadata(
+    text: str, *, now: Callable[[], float] = time.time
+) -> tuple[int | None, float | None]:
     statuses = [int(value) for value in STATUS_LINE.findall(text)]
     status = statuses[-1] if statuses else None
     retry_after = RETRY_AFTER_LINE.search(text)
     retry_at = None
     if retry_after is not None:
-        retry_at = time.time() + float(retry_after.group(1))
+        retry_at = now() + float(retry_after.group(1))
     return status, retry_at
 
 
@@ -251,11 +301,18 @@ def _decode_json_body(text: str) -> Any:
     return values[0]
 
 
-def gh_api_json(arguments: Sequence[str], *, timeout: float = 30.0) -> ApiResponse:
+def gh_api_json(
+    arguments: Sequence[str],
+    *,
+    timeout: float = 30.0,
+    budget: ObservationBudget | None = None,
+) -> ApiResponse:
     """Execute a read-only gh API query and normalize transport failures."""
 
     if not arguments:
         raise ObservationInputError("gh API arguments must not be empty")
+    if budget is not None:
+        timeout = budget.transport_timeout(timeout)
     if arguments[0] == "graphql":
         if any("mutation" in argument.lower() for argument in arguments):
             raise ObservationInputError("GraphQL mutations are not permitted")
@@ -276,7 +333,10 @@ def gh_api_json(arguments: Sequence[str], *, timeout: float = 30.0) -> ApiRespon
         raise ProviderFailure("unavailable", "gh executable is unavailable") from exc
     except subprocess.TimeoutExpired as exc:
         raise ProviderFailure("timeout", "gh API query timed out") from exc
-    status, retry_at = _parse_http_metadata(completed.stdout)
+    status, retry_at = _parse_http_metadata(
+        completed.stdout,
+        now=time.time if budget is None else budget.clock,
+    )
     if completed.returncode != 0 or (status is not None and status >= 400):
         details = (completed.stderr or completed.stdout).strip() or "gh API query failed"
         if status in {401, 403} and not RATE_LIMIT_TEXT.search(details):
@@ -302,10 +362,13 @@ def _records_from_pages(
     *,
     key: str | None,
     surface: str,
+    budget: ObservationBudget | None = None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     records: list[dict[str, Any]] = []
     page_evidence: list[dict[str, Any]] = []
     for page_index, page in enumerate(pages):
+        if budget is not None:
+            budget.check()
         if key is None:
             raw_records = page if isinstance(page, list) else [page]
         elif isinstance(page, Mapping):
@@ -318,6 +381,8 @@ def _records_from_pages(
             {"page_index": page_index, "item_count": len(raw_records), "complete": True}
         )
         for raw in raw_records:
+            if budget is not None:
+                budget.check()
             if not isinstance(raw, Mapping):
                 raise ProviderFailure("malformed", f"{surface} record is not an object")
             records.append(dict(raw))
@@ -336,6 +401,33 @@ def _with_identity(
     return normalized
 
 
+def _metadata_repository_name(metadata: Mapping[str, Any]) -> str | None:
+    base = metadata.get("base")
+    repository = base.get("repo") if isinstance(base, Mapping) else None
+    name = repository.get("full_name") if isinstance(repository, Mapping) else None
+    return name if isinstance(name, str) else None
+
+
+def _provider_identity_from_metadata(
+    metadata: Mapping[str, Any], name: str
+) -> ProviderIdentity:
+    base = metadata.get("base")
+    repository = base.get("repo") if isinstance(base, Mapping) else None
+    repository_id = repository.get("id") if isinstance(repository, Mapping) else None
+    resource_id = metadata.get("id")
+    try:
+        return ProviderIdentity.from_mapping(
+            {
+                "provider": "github",
+                "repository_id": repository_id,
+                "resource_id": resource_id,
+            },
+            f"{name}.provider_identity",
+        )
+    except ObservationInputError as exc:
+        raise ProviderFailure("incomplete", f"{name} immutable identity is missing") from exc
+
+
 class GhReadonlyProvider:
     """Small gh api adapter; semantic decisions remain in the existing gate."""
 
@@ -345,12 +437,18 @@ class GhReadonlyProvider:
     ) -> None:
         self.api = api
 
-    def _rest_pages(self, endpoint: str) -> list[Any]:
-        response = self.api(("--paginate", endpoint))
-        return _page_values(response.payload)
+    def _rest_pages(self, endpoint: str, *, budget: ObservationBudget) -> list[Any]:
+        budget.check()
+        response = self.api(
+            ("--paginate", endpoint), timeout=budget.transport_timeout()
+        )
+        pages = _page_values(response.payload)
+        for _ in pages:
+            budget.check()
+        return pages
 
-    def _one_rest(self, endpoint: str) -> Mapping[str, Any]:
-        pages = self._rest_pages(endpoint)
+    def _one_rest(self, endpoint: str, *, budget: ObservationBudget) -> Mapping[str, Any]:
+        pages = self._rest_pages(endpoint, budget=budget)
         if len(pages) != 1 or not isinstance(pages[0], Mapping):
             raise ProviderFailure("malformed", f"expected one object from {endpoint}")
         return pages[0]
@@ -359,28 +457,58 @@ class GhReadonlyProvider:
     def _metadata_path(candidate: CandidateBinding) -> str:
         return f"/repos/{candidate.repository}/pulls/{candidate.number}"
 
-    def _metadata(self, candidate: CandidateBinding) -> Mapping[str, Any]:
-        return self._one_rest(self._metadata_path(candidate))
+    def _metadata(
+        self, candidate: CandidateBinding, *, budget: ObservationBudget
+    ) -> Mapping[str, Any]:
+        return self._one_rest(self._metadata_path(candidate), budget=budget)
 
-    def read_binding(self, candidate: CandidateBinding) -> Mapping[str, Any]:
-        metadata = self._metadata(candidate)
+    def read_binding(
+        self, candidate: CandidateBinding, *, budget: ObservationBudget
+    ) -> Mapping[str, Any]:
+        budget.check()
+        metadata = self._metadata(candidate, budget=budget)
         head = _require_sha_field(metadata, ("head", "sha"), "pull request head")
         base = _require_sha_field(metadata, ("base", "sha"), "pull request base")
-        dependencies: list[dict[str, str]] = []
+        provider_identity = _provider_identity_from_metadata(metadata, "pull request")
+        if provider_identity.provider != "github":
+            raise ProviderFailure("incomplete", "provider identity is not GitHub")
+        live_repository = _metadata_repository_name(metadata)
+        if live_repository != candidate.repository:
+            raise ProviderFailure(
+                "incomplete",
+                "pull request resolved to a different repository",
+            )
+        live_number = metadata.get("number")
+        if live_number != candidate.number:
+            raise ProviderFailure("incomplete", "pull request number does not match")
+        dependencies: list[dict[str, Any]] = []
         for dependency in candidate.dependencies:
-            if dependency.provider_path is None:
+            budget.check()
+            dependency_metadata = self._one_rest(
+                dependency.provider_path, budget=budget
+            )
+            dependency_identity = _provider_identity_from_metadata(
+                dependency_metadata, f"dependency {dependency.identifier}"
+            )
+            if dependency_identity.provider != "github":
                 raise ProviderFailure(
                     "incomplete",
-                    f"dependency {dependency.identifier} has no provider_path",
+                    f"dependency {dependency.identifier} is not a GitHub resource",
                 )
-            dependency_metadata = self._one_rest(dependency.provider_path)
             dependency_head = _require_sha_field(
                 dependency_metadata,
                 ("head", "sha"),
                 f"dependency {dependency.identifier} head",
             )
-            dependencies.append({"id": dependency.identifier, "head_sha": dependency_head})
+            dependencies.append(
+                {
+                    "id": dependency.identifier,
+                    "head_sha": dependency_head,
+                    "provider_identity": dependency_identity.as_dict(),
+                }
+            )
         return {
+            "provider_identity": provider_identity.as_dict(),
             "head_sha": head,
             "base_sha": base,
             "dependencies": dependencies,
@@ -391,12 +519,15 @@ class GhReadonlyProvider:
         candidate: CandidateBinding,
         surface: str,
         binding: Mapping[str, Any],
+        *,
+        budget: ObservationBudget,
     ) -> Mapping[str, Any]:
+        budget.check()
         head_sha = binding.get("head_sha")
         if not isinstance(head_sha, str):
             raise ProviderFailure("malformed", "binding head_sha is missing")
         if surface == "metadata":
-            metadata = self._metadata(candidate)
+            metadata = self._metadata(candidate, budget=budget)
             identity = record_identity(metadata, "metadata")
             return {
                 "complete": True,
@@ -405,23 +536,25 @@ class GhReadonlyProvider:
                 "error": None,
             }
         if surface == "checks":
-            return self._checks(candidate, head_sha)
+            return self._checks(candidate, head_sha, budget=budget)
         if surface == "reviews":
             return self._simple_surface(
                 candidate,
                 surface,
                 f"/repos/{candidate.repository}/pulls/{candidate.number}/reviews",
+                budget=budget,
             )
         if surface == "comments":
             return self._simple_surface(
                 candidate,
                 surface,
                 f"/repos/{candidate.repository}/issues/{candidate.number}/comments",
+                budget=budget,
             )
         if surface == "threads":
-            return self._threads(candidate)
+            return self._threads(candidate, budget=budget)
         if surface == "reactions":
-            return self._reactions(candidate)
+            return self._reactions(candidate, budget=budget)
         raise ObservationInputError(f"unsupported provider surface: {surface}")
 
     def _simple_surface(
@@ -429,13 +562,18 @@ class GhReadonlyProvider:
         candidate: CandidateBinding,
         surface: str,
         endpoint: str,
+        *,
+        budget: ObservationBudget,
     ) -> Mapping[str, Any]:
         del candidate
-        pages = self._rest_pages(endpoint)
-        raw_records, pages_evidence = _records_from_pages(pages, key=None, surface=surface)
+        pages = self._rest_pages(endpoint, budget=budget)
+        raw_records, pages_evidence = _records_from_pages(
+            pages, key=None, surface=surface, budget=budget
+        )
         records: list[dict[str, Any]] = []
         seen: set[str] = set()
         for raw in raw_records:
+            budget.check()
             identity = record_identity(raw, surface)
             if identity in seen:
                 raise ProviderFailure("malformed", f"duplicate {surface} identity {identity}")
@@ -443,22 +581,31 @@ class GhReadonlyProvider:
             records.append(_with_identity(raw, identity, provider_kind=surface))
         return {"complete": True, "records": records, "pages": pages_evidence, "error": None}
 
-    def _checks(self, candidate: CandidateBinding, head_sha: str) -> Mapping[str, Any]:
+    def _checks(
+        self,
+        candidate: CandidateBinding,
+        head_sha: str,
+        *,
+        budget: ObservationBudget,
+    ) -> Mapping[str, Any]:
         check_pages = self._rest_pages(
-            f"/repos/{candidate.repository}/commits/{head_sha}/check-runs"
+            f"/repos/{candidate.repository}/commits/{head_sha}/check-runs",
+            budget=budget,
         )
         status_pages = self._rest_pages(
-            f"/repos/{candidate.repository}/commits/{head_sha}/status"
+            f"/repos/{candidate.repository}/commits/{head_sha}/status",
+            budget=budget,
         )
         check_records, check_evidence = _records_from_pages(
-            check_pages, key="check_runs", surface="checks"
+            check_pages, key="check_runs", surface="checks", budget=budget
         )
         status_records, status_evidence = _records_from_pages(
-            status_pages, key="statuses", surface="checks"
+            status_pages, key="statuses", surface="checks", budget=budget
         )
         records: list[dict[str, Any]] = []
         seen: set[str] = set()
         for raw in check_records:
+            budget.check()
             raw_id = raw.get("id")
             if not isinstance(raw_id, (str, int)):
                 raise ProviderFailure("malformed", "check run has no stable id")
@@ -474,6 +621,7 @@ class GhReadonlyProvider:
                 )
             )
         for raw in status_records:
+            budget.check()
             context = raw.get("context")
             target_url = raw.get("target_url") or ""
             if not isinstance(context, str) or not context:
@@ -496,13 +644,20 @@ class GhReadonlyProvider:
             "error": None,
         }
 
-    def _graphql(self, query: str, variables: Mapping[str, Any]) -> Any:
+    def _graphql(
+        self,
+        query: str,
+        variables: Mapping[str, Any],
+        *,
+        budget: ObservationBudget,
+    ) -> Any:
+        budget.check()
         arguments = ["graphql", "-f", f"query={query}"]
         for name, value in variables.items():
             if value is not None:
                 flag = "-F" if isinstance(value, (int, float, bool)) else "-f"
                 arguments.extend([flag, f"{name}={value}"])
-        response = self.api(arguments)
+        response = self.api(arguments, timeout=budget.transport_timeout())
         payload = response.payload
         if not isinstance(payload, Mapping):
             raise ProviderFailure("malformed", "GraphQL response is not an object")
@@ -513,7 +668,62 @@ class GhReadonlyProvider:
             raise ProviderFailure("malformed", "GraphQL data is missing")
         return data
 
-    def _threads(self, candidate: CandidateBinding) -> Mapping[str, Any]:
+    def _thread_comments(
+        self,
+        thread_id: str,
+        initial_comments: list[Any],
+        initial_page_info: Mapping[str, Any],
+        *,
+        budget: ObservationBudget,
+    ) -> tuple[list[Any], list[dict[str, Any]]]:
+        query = """
+        query($threadId:ID!,$after:String) {
+          node(id:$threadId) {
+            ... on PullRequestReviewThread {
+              comments(first:100,after:$after) {
+                nodes { id body path line diffHunk createdAt updatedAt url author { login } }
+                pageInfo { hasNextPage endCursor }
+              }
+            }
+          }
+        }
+        """
+        comments = list(initial_comments)
+        pages: list[dict[str, Any]] = []
+        after = initial_page_info.get("endCursor")
+        while initial_page_info.get("hasNextPage") is True:
+            budget.check()
+            if not isinstance(after, str) or not after:
+                raise ProviderFailure("malformed", "review thread comment cursor is missing")
+            data = self._graphql(
+                query,
+                {"threadId": thread_id, "after": after},
+                budget=budget,
+            )
+            node = data.get("node")
+            connection = node.get("comments") if isinstance(node, Mapping) else None
+            if not isinstance(connection, Mapping):
+                raise ProviderFailure("malformed", "thread comments connection is missing")
+            nodes = connection.get("nodes", [])
+            page_info = connection.get("pageInfo", {})
+            if not isinstance(nodes, list) or not isinstance(page_info, Mapping):
+                raise ProviderFailure("malformed", "thread comments page is malformed")
+            pages.append(
+                {
+                    "thread_id": thread_id,
+                    "page_index": len(pages) + 1,
+                    "item_count": len(nodes),
+                    "complete": True,
+                }
+            )
+            comments.extend(nodes)
+            initial_page_info = page_info
+            after = page_info.get("endCursor")
+        return comments, pages
+
+    def _threads(
+        self, candidate: CandidateBinding, *, budget: ObservationBudget
+    ) -> Mapping[str, Any]:
         query = """
         query($owner:String!,$repo:String!,$number:Int!,$after:String) {
           repository(owner:$owner,name:$repo) {
@@ -535,11 +745,14 @@ class GhReadonlyProvider:
         owner, repo = candidate.repository.split("/", 1)
         after: str | None = None
         threads: list[dict[str, Any]] = []
+        seen: set[str] = set()
         pages: list[dict[str, Any]] = []
         while True:
+            budget.check()
             data = self._graphql(
                 query,
                 {"owner": owner, "repo": repo, "number": candidate.number, "after": after},
+                budget=budget,
             )
             repository = data.get("repository")
             pull_request = (
@@ -556,23 +769,42 @@ class GhReadonlyProvider:
             page_info = connection.get("pageInfo", {})
             if not isinstance(nodes, list) or not isinstance(page_info, Mapping):
                 raise ProviderFailure("malformed", "reviewThreads page is malformed")
-            pages.append({"page_index": len(pages), "item_count": len(nodes), "complete": True})
+            pages.append(
+                {"page_index": len(pages), "item_count": len(nodes), "complete": True}
+            )
             for node in nodes:
+                budget.check()
                 if not isinstance(node, Mapping):
                     raise ProviderFailure("malformed", "review thread is malformed")
                 identity = record_identity(node, "review thread")
+                if identity in seen:
+                    raise ProviderFailure("malformed", f"duplicate review thread {identity}")
+                seen.add(identity)
                 thread = dict(node)
                 thread["identity"] = identity
                 thread["provider_kind"] = "review_thread"
                 comments = node.get("comments", {})
                 if not isinstance(comments, Mapping):
                     raise ProviderFailure("malformed", "review thread comments are malformed")
+                comment_nodes = comments.get("nodes", [])
                 comment_page_info = comments.get("pageInfo", {})
-                if isinstance(comment_page_info, Mapping) and comment_page_info.get("hasNextPage"):
-                    raise ProviderFailure(
-                        "incomplete",
-                        f"review thread {identity} comments require another cursor",
-                    )
+                if not isinstance(comment_nodes, list) or not isinstance(
+                    comment_page_info, Mapping
+                ):
+                    raise ProviderFailure("malformed", "review thread comments are malformed")
+                all_comments, comment_pages = self._thread_comments(
+                    str(node.get("id", identity)),
+                    comment_nodes,
+                    comment_page_info,
+                    budget=budget,
+                )
+                if comment_pages:
+                    pages.extend(comment_pages)
+                thread["comments"] = {
+                    **dict(comments),
+                    "nodes": all_comments,
+                    "pageInfo": {"hasNextPage": False, "endCursor": None},
+                }
                 threads.append(thread)
             if page_info.get("hasNextPage") is not True:
                 break
@@ -581,7 +813,9 @@ class GhReadonlyProvider:
                 raise ProviderFailure("malformed", "review thread cursor is missing")
         return {"complete": True, "records": threads, "pages": pages, "error": None}
 
-    def _reactions(self, candidate: CandidateBinding) -> Mapping[str, Any]:
+    def _reactions(
+        self, candidate: CandidateBinding, *, budget: ObservationBudget
+    ) -> Mapping[str, Any]:
         records: list[dict[str, Any]] = []
         pages: list[dict[str, Any]] = []
         owner, repo = candidate.repository.split("/", 1)
@@ -594,13 +828,18 @@ class GhReadonlyProvider:
             )
         ]
         issue_comment_pages = self._rest_pages(
-            f"/repos/{candidate.repository}/issues/{candidate.number}/comments"
+            f"/repos/{candidate.repository}/issues/{candidate.number}/comments",
+            budget=budget,
         )
         issue_comments, issue_pages = _records_from_pages(
-            issue_comment_pages, key=None, surface="reactions.issue_comments"
+            issue_comment_pages,
+            key=None,
+            surface="reactions.issue_comments",
+            budget=budget,
         )
         pages.extend(issue_pages)
         for comment in issue_comments:
+            budget.check()
             comment_id = comment.get("id")
             if not isinstance(comment_id, (str, int)):
                 raise ProviderFailure("malformed", "issue comment has no stable id")
@@ -613,13 +852,18 @@ class GhReadonlyProvider:
             )
 
         review_comment_pages = self._rest_pages(
-            f"/repos/{candidate.repository}/pulls/{candidate.number}/comments"
+            f"/repos/{candidate.repository}/pulls/{candidate.number}/comments",
+            budget=budget,
         )
         review_comments, review_pages = _records_from_pages(
-            review_comment_pages, key=None, surface="reactions.review_comments"
+            review_comment_pages,
+            key=None,
+            surface="reactions.review_comments",
+            budget=budget,
         )
         pages.extend(review_pages)
         for comment in review_comments:
+            budget.check()
             comment_id = comment.get("id")
             if not isinstance(comment_id, (str, int)):
                 raise ProviderFailure("malformed", "review comment has no stable id")
@@ -632,14 +876,17 @@ class GhReadonlyProvider:
             )
 
         for endpoint, subject_kind, subject_id in reaction_endpoints:
-            reaction_pages = self._rest_pages(endpoint)
+            budget.check()
+            reaction_pages = self._rest_pages(endpoint, budget=budget)
             raw_reactions, reaction_evidence = _records_from_pages(
                 reaction_pages,
                 key=None,
                 surface="reactions",
+                budget=budget,
             )
             pages.extend(reaction_evidence)
             for raw in raw_reactions:
+                budget.check()
                 raw_id = raw.get("id")
                 if not isinstance(raw_id, (str, int)):
                     raise ProviderFailure("malformed", "reaction has no stable id")
@@ -677,24 +924,39 @@ def capture_once(
     surfaces: Sequence[str],
     *,
     clock: Callable[[], float],
+    budget: ObservationBudget | None = None,
 ) -> Capture:
+    active_budget = budget or ObservationBudget(None, clock=clock)
     started_time = clock()
     started_at = dt.datetime.fromtimestamp(started_time, dt.UTC).isoformat()
     try:
-        observed_start = dict(provider.read_binding(candidate))
+        active_budget.check()
+        observed_start = dict(provider.read_binding(candidate, budget=active_budget))
+    except ObservationDeadlineExceeded:
+        return Capture(None, ProviderFailure("deadline", "observation deadline reached"))
+    except ObservationCancelled:
+        return Capture(None, ProviderFailure("cancelled", "observation cancelled"))
     except ProviderFailure as failure:
         return Capture(None, failure)
     surface_values: dict[str, Mapping[str, Any] | SurfaceObservation] = {}
     failure: ProviderFailure | None = None
     for surface in surfaces:
         try:
+            active_budget.check()
             surface_values[surface] = provider.read_surface(
                 candidate,
                 surface,
                 observed_start,
+                budget=active_budget,
             )
+        except ObservationDeadlineExceeded:
+            return Capture(None, ProviderFailure("deadline", "observation deadline reached"))
+        except ObservationCancelled:
+            return Capture(None, ProviderFailure("cancelled", "observation cancelled"))
         except ProviderFailure as current_failure:
             failure = current_failure
+            if current_failure.category in {"deadline", "cancelled"}:
+                return Capture(None, current_failure)
             surface_values[surface] = {
                 "complete": False,
                 "records": [],
@@ -702,7 +964,13 @@ def capture_once(
                 "error": current_failure.as_dict(),
             }
     try:
-        observed_end = dict(provider.read_binding(candidate))
+        active_budget.check()
+        observed_end = dict(provider.read_binding(candidate, budget=active_budget))
+        active_budget.check()
+    except ObservationDeadlineExceeded:
+        return Capture(None, ProviderFailure("deadline", "observation deadline reached"))
+    except ObservationCancelled:
+        return Capture(None, ProviderFailure("cancelled", "observation cancelled"))
     except ProviderFailure as current_failure:
         return Capture(None, current_failure)
     ended_time = clock()
@@ -812,11 +1080,43 @@ def _failure_outcome(failure: ProviderFailure) -> str:
         "timeout": "timed_out",
         "rate_limit": "rate_limited",
         "incomplete": "incomplete",
+        "deadline": "deadline_reached",
+        "cancelled": "cancelled",
     }.get(failure.category, "unknown")
 
 
 def _backoff_seconds(attempt: int) -> float:
     return min(30.0, float(2 ** max(0, attempt - 1)))
+
+
+def _aggregate_outcome(outcomes: Sequence[str]) -> str:
+    priority = (
+        "unknown",
+        "malformed",
+        "rate_limited",
+        "timed_out",
+        "stale",
+        "incomplete",
+        "changed",
+        "unchanged",
+        "initialized",
+    )
+    for outcome in priority:
+        if outcome in outcomes:
+            return outcome
+    return "unknown"
+
+
+def _omitted_candidate(candidate: CandidateBinding, reason: str) -> dict[str, Any]:
+    return {
+        "candidate_id": candidate.identifier,
+        "outcome": reason,
+        "attempted": False,
+        "omitted": True,
+        "omission_reason": reason,
+        "merge_authorization": "not_established",
+        "review_approval": "not_inferred",
+    }
 
 
 def observe(
@@ -826,6 +1126,7 @@ def observe(
     repository_root: Path,
     clock: Callable[[], float] = time.time,
     sleep: Callable[[float], None] = time.sleep,
+    cancel: Callable[[], bool] | None = None,
 ) -> dict[str, Any]:
     """Run a single-shot or bounded watch and return the full persisted result."""
 
@@ -835,20 +1136,57 @@ def observe(
     candidate_results: list[dict[str, Any]] = []
     overall_outcome = "initialized"
     attempt = 0
-    last_failure: ProviderFailure | None = None
+    retry_at: float | None = None
+    global_stop: str | None = None
     while attempt < request.max_attempts:
         attempt += 1
-        if request.deadline is not None and clock() >= request.deadline:
-            overall_outcome = "deadline_reached"
+        budget = ObservationBudget(request.deadline, clock=clock, cancelled=cancel)
+        try:
+            budget.check()
+        except ObservationDeadlineExceeded:
+            global_stop = "deadline_reached"
+            candidate_results = [
+                _omitted_candidate(candidate, global_stop)
+                for candidate in request.candidates
+            ]
+            overall_outcome = global_stop
+            break
+        except ObservationCancelled:
+            global_stop = "cancelled"
+            candidate_results = [
+                _omitted_candidate(candidate, global_stop)
+                for candidate in request.candidates
+            ]
+            overall_outcome = global_stop
             break
         candidate_results = []
         snapshots = {}
-        should_wait = False
         iteration_outcomes: list[str] = []
-        last_failure = None
-        for candidate in request.candidates:
-            capture = capture_once(provider, candidate, request.surfaces, clock=clock)
-            last_failure = capture.failure
+        retry_at = None
+        for index, candidate in enumerate(request.candidates):
+            try:
+                budget.check()
+            except ObservationDeadlineExceeded:
+                global_stop = "deadline_reached"
+                candidate_results.extend(
+                    _omitted_candidate(item, global_stop)
+                    for item in request.candidates[index:]
+                )
+                break
+            except ObservationCancelled:
+                global_stop = "cancelled"
+                candidate_results.extend(
+                    _omitted_candidate(item, global_stop)
+                    for item in request.candidates[index:]
+                )
+                break
+            capture = capture_once(
+                provider,
+                candidate,
+                request.surfaces,
+                clock=clock,
+                budget=budget,
+            )
             if capture.snapshot is None:
                 failure = capture.failure or ProviderFailure("unknown", "capture failed")
                 outcome = _failure_outcome(failure)
@@ -857,24 +1195,32 @@ def observe(
                     {
                         "candidate_id": candidate.identifier,
                         "outcome": outcome,
+                        "attempted": True,
+                        "omitted": False,
                         "error": failure.as_dict(),
                         "merge_authorization": "not_established",
                         "review_approval": "not_inferred",
                     }
                 )
-                if request.mode == "watch" and outcome in {
-                    "rate_limited",
-                    "timed_out",
-                    "incomplete",
-                }:
-                    should_wait = True
-                else:
+                if failure.retry_at is not None:
+                    retry_at = failure.retry_at
+                if outcome in {"deadline_reached", "cancelled"}:
+                    global_stop = outcome
+                    candidate_results.extend(
+                        _omitted_candidate(item, global_stop)
+                        for item in request.candidates[index + 1 :]
+                    )
                     break
                 continue
             current = capture.snapshot
             snapshots[candidate.identifier] = current
             diff = diff_snapshots(previous.get(candidate.identifier), current)
-            if current["binding_status"] != "stable":
+            if capture.failure is not None:
+                # A partial snapshot is useful evidence, but its acquisition
+                # failure must remain the candidate outcome. Never let a
+                # timeout or provider failure look like an ordinary diff.
+                outcome = _failure_outcome(capture.failure)
+            elif current["binding_status"] != "stable":
                 outcome = "stale"
             elif previous.get(candidate.identifier) is None:
                 outcome = "initialized" if current["complete"] else "incomplete"
@@ -885,54 +1231,34 @@ def observe(
             else:
                 outcome = diff["status"]
             iteration_outcomes.append(outcome)
-            candidate_results.append(
-                {
-                    "candidate_id": candidate.identifier,
-                    "outcome": outcome,
-                    "diff": diff,
-                    "snapshot_digest": current["snapshot_digest"],
-                    "merge_authorization": "not_established",
-                    "review_approval": "not_inferred",
-                }
-            )
-            if request.mode == "watch" and outcome in {"initialized", "unchanged"}:
-                should_wait = True
-            elif outcome not in {"initialized", "unchanged"}:
-                should_wait = False
-                break
-        if "changed" in iteration_outcomes:
-            overall_outcome = "changed"
-        elif "stale" in iteration_outcomes:
-            overall_outcome = "stale"
-        elif "incomplete" in iteration_outcomes:
-            overall_outcome = "incomplete"
-        elif any(
-            outcome in {"unknown", "malformed", "timed_out", "rate_limited"}
-            for outcome in iteration_outcomes
-        ):
-            overall_outcome = next(
-                outcome
-                for outcome in iteration_outcomes
-                if outcome in {"unknown", "malformed", "timed_out", "rate_limited"}
-            )
-        elif iteration_outcomes and all(outcome == "unchanged" for outcome in iteration_outcomes):
-            overall_outcome = "unchanged"
-        else:
-            overall_outcome = "initialized"
-        if overall_outcome in {
-            "changed",
-            "stale",
-            "incomplete",
-            "unknown",
-            "malformed",
-            "timed_out",
-        }:
-            if overall_outcome == "incomplete" and should_wait:
-                pass
-            else:
-                break
+            candidate_result = {
+                "candidate_id": candidate.identifier,
+                "outcome": outcome,
+                "attempted": True,
+                "omitted": False,
+                "observation_complete": current["complete"]
+                and current["binding_status"] == "stable"
+                and capture.failure is None,
+                "diff": diff,
+                "snapshot_digest": current["snapshot_digest"],
+                "merge_authorization": "not_established",
+                "review_approval": "not_inferred",
+            }
+            if capture.failure is not None:
+                candidate_result["error"] = capture.failure.as_dict()
+                if capture.failure.retry_at is not None:
+                    retry_at = capture.failure.retry_at
+            candidate_results.append(candidate_result)
+        if global_stop is not None:
+            overall_outcome = global_stop
+            break
+        overall_outcome = _aggregate_outcome(iteration_outcomes)
         if request.mode == "single-shot":
             break
+        should_wait = bool(iteration_outcomes) and all(
+            outcome in {"initialized", "unchanged", "incomplete", "rate_limited", "timed_out"}
+            for outcome in iteration_outcomes
+        )
         if not should_wait:
             break
         previous.update(
@@ -947,12 +1273,17 @@ def observe(
             overall_outcome = "deadline_reached"
             break
         now = clock()
-        if request.deadline is not None and now >= request.deadline:
+        try:
+            budget.check()
+        except ObservationDeadlineExceeded:
             overall_outcome = "deadline_reached"
             break
+        except ObservationCancelled:
+            overall_outcome = "cancelled"
+            break
         delay = _backoff_seconds(attempt)
-        if last_failure is not None and last_failure.retry_at is not None:
-            delay = max(0.0, last_failure.retry_at - now)
+        if retry_at is not None:
+            delay = max(0.0, retry_at - now)
         if request.deadline is not None:
             delay = min(delay, max(0.0, request.deadline - now))
         if delay <= 0:
@@ -978,6 +1309,22 @@ def observe(
         "unknown": "error",
         "malformed": "error",
     }.get(overall_outcome, "completed")
+    requested_ids = [candidate.identifier for candidate in request.candidates]
+    attempted_ids = [
+        item["candidate_id"]
+        for item in candidate_results
+        if item.get("attempted") is True
+    ]
+    acquired_ids = [
+        item["candidate_id"]
+        for item in candidate_results
+        if item.get("observation_complete") is True
+    ]
+    omitted_ids = [
+        item["candidate_id"]
+        for item in candidate_results
+        if item.get("omitted") is True
+    ]
     full_result: dict[str, Any] = {
         "schema_version": REQUEST_SCHEMA_VERSION,
         "kind": RESULT_KIND,
@@ -986,6 +1333,15 @@ def observe(
         "attempts": attempt,
         "candidates": candidate_results,
         "snapshots": snapshots,
+        "coverage": {
+            "requested_candidate_ids": requested_ids,
+            "attempted_candidate_ids": attempted_ids,
+            "acquired_candidate_ids": acquired_ids,
+            "omitted_candidate_ids": omitted_ids,
+            "all_requested_attempted": not omitted_ids
+            and len(attempted_ids) == len(requested_ids),
+            "aggregate": "partial" if omitted_ids else "complete",
+        },
         "resume": {
             "previous_snapshot_path": None
             if request.previous_snapshot_path is None
@@ -1018,17 +1374,103 @@ def bounded_summary(result: Mapping[str, Any], limit: int) -> dict[str, Any]:
                 snapshot_reference=result.get("snapshot_reference"),
             )
         candidates.append(item)
-    return {
+    raw_coverage = result.get("coverage")
+    coverage = {
+        "requested_candidate_count": len(raw_coverage.get("requested_candidate_ids", []))
+        if isinstance(raw_coverage, Mapping)
+        else len(candidates),
+        "attempted_candidate_count": len(raw_coverage.get("attempted_candidate_ids", []))
+        if isinstance(raw_coverage, Mapping)
+        else 0,
+        "acquired_candidate_count": len(raw_coverage.get("acquired_candidate_ids", []))
+        if isinstance(raw_coverage, Mapping)
+        else 0,
+        "omitted_candidate_ids": raw_coverage.get("omitted_candidate_ids", [])
+        if isinstance(raw_coverage, Mapping)
+        else [],
+        "all_requested_attempted": raw_coverage.get("all_requested_attempted", False)
+        if isinstance(raw_coverage, Mapping)
+        else False,
+        "aggregate": raw_coverage.get("aggregate", "partial")
+        if isinstance(raw_coverage, Mapping)
+        else "partial",
+    }
+    summary = {
         "kind": result.get("kind"),
         "outcome": result.get("outcome"),
         "termination": result.get("termination"),
         "attempts": result.get("attempts"),
         "candidates": candidates,
+        "coverage": coverage,
         "snapshot_reference": result.get("snapshot_reference"),
         "resume": result.get("resume"),
+        "summary_truncated": False,
         "merge_authorization": "not_established",
         "review_approval": "not_inferred",
     }
+    try:
+        bounded = bound_model_summary(summary, max_bytes=MODEL_SUMMARY_MAX_BYTES)
+    except ObservationInputError:
+        compact_candidates: list[dict[str, Any]] = []
+        for item in candidates:
+            compact: dict[str, Any] = {
+                "candidate_id": item.get("candidate_id"),
+                "outcome": item.get("outcome"),
+                "attempted": item.get("attempted"),
+                "omitted": item.get("omitted"),
+            }
+            error = item.get("error")
+            if isinstance(error, Mapping):
+                compact["error"] = {"category": error.get("category")}
+            diff = item.get("diff")
+            if isinstance(diff, Mapping):
+                compact["diff"] = {
+                    "status": diff.get("status"),
+                    "meaningful_change": diff.get("meaningful_change"),
+                    "counts": diff.get("counts", {}),
+                    "changes": [],
+                    "summary_truncated": True,
+                    "omitted_change_count": len(diff.get("changes", []))
+                    if isinstance(diff.get("changes"), list)
+                    else 0,
+                    "detail_reference": result.get("snapshot_reference"),
+                }
+            compact_candidates.append(compact)
+        candidate_ids = [item.get("candidate_id") for item in candidates]
+        summary = {
+            **summary,
+            "candidates": compact_candidates,
+            "candidate_id_digest": sha256_digest(candidate_ids),
+            "summary_truncated": True,
+        }
+        try:
+            bounded = bound_model_summary(summary, max_bytes=MODEL_SUMMARY_MAX_BYTES)
+        except ObservationInputError:
+            # A request can contain enough candidates to exceed the bound
+            # even after every value has been truncated. Keep a deterministic
+            # prefix, identify the omitted suffix, and leave the complete
+            # candidate set in the external result artifact.
+            max_visible = len(compact_candidates)
+            while max_visible >= 0:
+                reduced = {
+                    **summary,
+                    "candidates": compact_candidates[:max_visible],
+                    "omitted_candidate_count": len(compact_candidates) - max_visible,
+                }
+                try:
+                    bounded = bound_model_summary(
+                        reduced, max_bytes=MODEL_SUMMARY_MAX_BYTES
+                    )
+                    break
+                except ObservationInputError:
+                    max_visible -= 1
+            else:
+                raise
+    if not isinstance(bounded, dict):
+        raise ObservationInputError("bounded observation summary is not an object")
+    if summary_has_truncation(bounded):
+        bounded["summary_truncated"] = True
+    return bounded
 
 
 def _read_json_input(path: Path | None) -> Mapping[str, Any]:
@@ -1090,7 +1532,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return 1
     output = result if args.debug else bounded_summary(result, request.summary_limit)
-    print(json.dumps(output, sort_keys=True, ensure_ascii=False))
+    print(
+        json.dumps(
+            output,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+        )
+    )
     return 0
 
 
