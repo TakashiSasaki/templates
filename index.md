@@ -17,6 +17,8 @@
 
 ## Toolchain, evaluation, and contracts
 
+- [Canonical publication allowlist](docs/publication-catalog.json) - Enumerates the authoritative Policy publication inventory.
+
 - [Policy implementation](src/) - Implements the Policy compiler, adoption, rendering, validation, runtime, and command-line behavior.
 - [Schemas](schemas/) - Contains Policy-owned schemas for adoption, configuration, publication automation, releases, and related state.
 - [Review evaluations](review-evals/README.md) - Contains review-evaluation cases, observations, and empirical fixtures.

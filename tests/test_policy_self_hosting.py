@@ -243,5 +243,5 @@ def test_authoritative_inventories_are_declared_navigation_targets() -> None:
     import json
     adapter = json.loads((ROOT / '.progressive-discovery.json').read_text())
     assert set(adapter['authoritative_inventories']).issubset(adapter['expected_documents'])
-    provider_index = (ROOT / 'docs/provider/index.md').read_text()
-    assert '(../publication-catalog.json)' in provider_index
+    source_index = (ROOT / 'index.md').read_text()
+    assert '(docs/publication-catalog.json)' in source_index
