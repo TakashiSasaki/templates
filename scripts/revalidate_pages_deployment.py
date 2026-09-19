@@ -121,10 +121,27 @@ class GitHubAPI:
         return result
 
 
-def read_kill_switch(api: GitHubAPI) -> str:
-    """Read the repository-wide kill switch and stop unless it is false."""
+def read_kill_switch(
+    api: GitHubAPI,
+    *,
+    expected_manual_value: str | None = None,
+    automatic: bool = False,
+) -> str:
+    """Read the kill switch, using the manual workflow context when needed.
 
-    value = api.repository_variable(KILL_SWITCH, allow_confirmed_missing=True)
+    ``GITHUB_TOKEN`` can evaluate ``vars`` in workflow expressions but may not
+    have permission to read the repository-variable REST endpoint. The manual
+    lane therefore supplies the exact value already used by its job
+    conditions. A REST 403 may use that value only for the manual lane; the
+    automatic lane remains API-only and fail-closed.
+    """
+
+    try:
+        value = api.repository_variable(KILL_SWITCH, allow_confirmed_missing=True)
+    except GitHubAPIError as exc:
+        if automatic or exc.status != 403 or expected_manual_value not in {"false", "true"}:
+            raise
+        value = expected_manual_value
     if value != "false":
         raise DeploymentCheckError("publication kill switch is enabled before Pages deployment")
     return value
@@ -145,8 +162,12 @@ def revalidate(api: GitHubAPI, environment: dict[str, str] | None = None) -> dic
     if repository != api.repository:
         raise DeploymentCheckError("deployment repository does not match the API client repository")
 
-    read_kill_switch(api)
     automatic = values.get("AUTOMATIC", "").lower() == "true"
+    read_kill_switch(
+        api,
+        expected_manual_value=values.get("EXPECTED_KILL_SWITCH"),
+        automatic=automatic,
+    )
 
     receipt = _json_environment("BUILD_RECEIPT")
     required_receipt = {
