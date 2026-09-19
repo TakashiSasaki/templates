@@ -154,6 +154,11 @@ def _read_inventory(path: Path) -> tuple[Any, list[str]]:
     return {}, [f"inventory {path}: unsupported inventory format"]
 
 
+def _has_generated_marker(content: str | bytes) -> bool:
+    data = content.encode("utf-8") if isinstance(content, str) else content
+    return data.partition(b"\n")[0] == GENERATED_MARKER.encode("utf-8")
+
+
 def _repository_path_error(root: Path, relative: str) -> str | None:
     if (_safe_relative(relative) != relative or "\x00" in relative
             or ".git" in Path(relative).parts):
@@ -801,7 +806,7 @@ def _plan(
         elif not path.is_file():
             action = "authority-needed"
             reason = "declared generated target is not a regular file"
-        elif GENERATED_MARKER not in path.read_text(encoding="utf-8"):
+        elif not _has_generated_marker(path.read_text(encoding="utf-8")):
             action = "authority-needed"
             reason = "refusing to overwrite an authored file at a generated target"
         else:
@@ -834,7 +839,7 @@ def _plan(
         path = root / relative
         if not path.exists():
             continue
-        if path.is_file() and GENERATED_MARKER in path.read_text(encoding="utf-8"):
+        if path.is_file() and _has_generated_marker(path.read_text(encoding="utf-8")):
             plan.append(
                 {
                     "action": "delete",
@@ -911,7 +916,7 @@ def _target_state(root: Path, relative: str) -> dict[str, Any]:
         state.update(
             kind="file",
             bytes_sha256=hashlib.sha256(data).hexdigest(),
-            generated_marker=GENERATED_MARKER.encode("utf-8") in data,
+            generated_marker=_has_generated_marker(data),
         )
     elif path.exists():
         state["kind"] = "other"

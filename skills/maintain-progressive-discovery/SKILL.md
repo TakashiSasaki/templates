@@ -165,3 +165,6 @@ supported document types. Unsafe declarations fail closed; absolute HTTP(S)
 references remain external references. JSON and YAML mappings reject duplicate
 keys, including Policy selection YAML. Generated Markdown encodes link targets
 and escapes prose so valid filename punctuation cannot create broken navigation.
+Generated ownership requires the exact marker on the first line. A marker quoted
+inside authored prose or examples never grants permission to overwrite or retire
+the file; planning and mutation-boundary checks use the same placement rule.
