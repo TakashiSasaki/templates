@@ -1002,3 +1002,54 @@ def test_rendered_skill_embeds_the_canonical_schema_without_local_override(tmp_p
     (tmp_path / 'schemas').mkdir()
     (tmp_path / 'schemas/agent-policy.schema.json').write_text('{}')
     assert module._policy_schema() == canonical
+
+
+def test_generated_targets_cannot_overlap_excluded_boundaries(tmp_path):
+    for number, (key, boundary) in enumerate(
+        (key, boundary) for key in ('explicit_exclusions', 'closed_inventories')
+        for boundary in ('generated', 'generated/index.md')
+    ):
+        target = tmp_path / str(number)
+        shutil.copytree(_fixture('generated-docs'), target)
+        adapter_path = target / '.progressive-discovery.json'
+        adapter = json.loads(adapter_path.read_text())
+        adapter[key] = [boundary]
+        adapter_path.write_text(json.dumps(adapter))
+        _commit_generated_target(target)
+        for apply in (False, True):
+            report = _load_skill().run(target, apply=apply)
+            assert report['result'] == 'AUTHORITY_NEEDED'
+            assert report['applied'] == []
+            assert not any(item['kind'] == 'generated' for item in report['plan'])
+            assert not (target / 'generated/index.md').exists()
+
+
+def test_authored_root_has_missing_and_stale_navigation_plans(tmp_path):
+    for action in ('create', 'update'):
+        target = tmp_path / action
+        shutil.copytree(_fixture('simple-docs'), target)
+        index = target / 'index.md'
+        if action == 'create':
+            index.unlink()
+        else:
+            index.write_text('# Navigation\n\n## Start\n\n'
+                             '- [Start](docs/getting-started.md) - Begin.\n')
+        report = _load_skill().run(target)
+        assert any(item['index'] == 'index.md'
+                   and item['classification'] == 'authored-index-needed'
+                   for item in report['classification'])
+        assert any(item['path'] == 'index.md' and item['action'] == action
+                   and item['kind'] == 'authored' for item in report['plan'])
+
+
+def test_generated_and_authored_ownership_are_disjoint_after_apply(tmp_path):
+    shutil.copytree(_fixture('generated-docs'), tmp_path / 'repository')
+    target = tmp_path / 'repository'
+    _commit_generated_target(target)
+    skill = _load_skill()
+    for report in (skill.run(target, apply=True), skill.run(target)):
+        ownership = report['source_ownership']
+        assert report['result'] == 'NO_UPDATE_REQUIRED'
+        assert 'generated/index.md' in ownership['generated_indexes']
+        assert 'index.md' in ownership['authored_indexes']
+        assert not set(ownership['authored_indexes']) & set(ownership['generated_indexes'])
