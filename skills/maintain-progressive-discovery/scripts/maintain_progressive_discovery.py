@@ -102,6 +102,23 @@ def _read_json(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def _read_inventory(path: Path) -> tuple[Any, list[str]]:
+    try:
+        if path.suffix.lower() == ".json":
+            return _read_json(path), []
+        if path.suffix.lower() in {".yaml", ".yml"}:
+            try:
+                import yaml  # type: ignore
+            except ImportError:
+                return {}, [f"inventory {path}: PyYAML unavailable; YAML inventory was not read"]
+            return yaml.safe_load(path.read_text(encoding="utf-8")) or {}, []
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        return {}, [f"inventory {path}: {exc}"]
+    except Exception as exc:  # pragma: no cover - parser-specific defensive path
+        return {}, [f"inventory {path}: {exc}"]
+    return {}, [f"inventory {path}: unsupported inventory format"]
+
+
 def _git_revision(root: Path) -> str:
     try:
         return subprocess.check_output(
@@ -193,6 +210,8 @@ def _path_candidate(root: Path, raw: str) -> str | None:
         return None
     if candidate.startswith("http:") or candidate.startswith("https:"):
         return None
+    if not candidate.lower().endswith(PATH_SUFFIXES):
+        return None
     path = root / candidate
     if not path.is_file() or _ignored(path, root):
         return None
@@ -234,10 +253,9 @@ def _expected_documents(root: Path, adapter: dict[str, Any], inventories: list[s
     errors: list[str] = []
     for relative in inventories:
         path = root / relative
-        try:
-            value = _read_json(path) if path.suffix.lower() == ".json" else {}
-        except (OSError, json.JSONDecodeError) as exc:
-            errors.append(f"inventory {relative}: {exc}")
+        value, notes = _read_inventory(path)
+        errors.extend(notes)
+        if notes:
             continue
         for raw in _find_values(value):
             candidate = _path_candidate(root, raw)
@@ -392,6 +410,17 @@ def _headings(path: Path) -> set[str]:
         return set()
 
 
+def _anchors(path: Path) -> set[str]:
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError:
+        return set()
+    return {
+        unquote(value)
+        for value in re.findall(r"\b(?:id|name)=[\"']([^\"']+)[\"']", text)
+    }
+
+
 def _resolve_link(root: Path, source: str, target: str) -> tuple[str | None, str | None]:
     parsed = urlsplit(target)
     if parsed.scheme in {"http", "https", "mailto"} or parsed.netloc:
@@ -406,8 +435,10 @@ def _resolve_link(root: Path, source: str, target: str) -> tuple[str | None, str
     base = root / relative
     if not base.exists():
         return relative, f"{source}: missing link target {target}"
-    if parsed.fragment and base.is_file() and _heading_slug(parsed.fragment) not in _headings(base):
-        return relative, f"{source}: missing fragment {parsed.fragment} in {relative}"
+    if parsed.fragment and base.is_file():
+        fragment = unquote(parsed.fragment)
+        if _heading_slug(fragment) not in _headings(base) and fragment not in _anchors(base):
+            return relative, f"{source}: missing fragment {parsed.fragment} in {relative}"
     return relative, None
 
 
