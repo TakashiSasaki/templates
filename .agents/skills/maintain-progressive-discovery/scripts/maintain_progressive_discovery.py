@@ -935,7 +935,8 @@ def _target_state(root: Path, relative: str) -> dict[str, Any]:
         state["kind"] = "other"
     tracked = (
         subprocess.run(
-            ["git", "-C", str(root), "ls-files", "--error-unmatch", "--", relative],
+            ["git", "--literal-pathspecs", "-C", str(root),
+             "ls-files", "--error-unmatch", "--", relative],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             check=False,
@@ -943,7 +944,8 @@ def _target_state(root: Path, relative: str) -> dict[str, Any]:
         == 0
     )
     status = subprocess.run(
-        ["git", "-C", str(root), "status", "--porcelain", "--", relative],
+        ["git", "--literal-pathspecs", "-C", str(root),
+         "status", "--porcelain", "--", relative],
         capture_output=True,
         text=True,
         check=False,
