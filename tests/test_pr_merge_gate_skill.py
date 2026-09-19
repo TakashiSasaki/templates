@@ -13,6 +13,13 @@ SHA_PATTERN = re.compile(r"^[0-9a-f]{40}$")
 
 
 class PullRequestMergeGateReferenceTests(unittest.TestCase):
+    def test_loading_instructions_match_the_declared_schema(self):
+        source = json.loads((ROOT / ".agents/skills/pr-merge-gate/source.json").read_text())
+        text = (ROOT / ".agents/skills/pr-merge-gate/SKILL.md").read_text()
+        declared = re.findall(r"`schema_version` is `(\d+)`", text)
+        self.assertTrue(declared)
+        self.assertEqual(set(declared), {str(source["schema_version"])})
+
     def test_agents_routes_merge_completion_through_reference_shim(self) -> None:
         index = AGENTS.read_text(encoding="utf-8")
         self.assertIn(".agents/skills/pr-merge-gate/SKILL.md", index)
