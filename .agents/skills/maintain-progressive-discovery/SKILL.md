@@ -145,3 +145,17 @@ Malformed adapters, unreadable/missing inventories, missing declared documents,
 and orphan nested indexes cannot report a clean result. Generated and retired
 targets must be canonical repository-relative paths with no symlink component;
 validate that boundary during planning and again before mutation.
+
+An exact deterministic generated result is a no-op, including immediately after
+creation or regeneration before a Git commit. A no-op does not rewrite dirty or
+untracked content. Any actual write or deletion still requires the planned
+snapshot, generated ownership, tracking and dirty-state checks at its boundary.
+Explicit expected-document declarations must be canonical local paths; generated
+and retired targets must be `index.md` files and cannot be both active and retired.
+
+An adapter may declare `authored_index_exclusions` as a mapping from an existing
+non-root authored index to expected document paths and nonempty reasons. This
+limits that child index's navigation scope, for example when a published reader
+index must omit a source-only inventory linked from the authority root. It does
+not remove documents from the global expected inventory or root reachability
+validation. Unknown expected paths and malformed declarations require authority.
