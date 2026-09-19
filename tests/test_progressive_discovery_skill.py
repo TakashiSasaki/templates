@@ -876,3 +876,58 @@ def test_visible_links_survive_non_navigation_comment_and_code_prose(tmp_path):
     )
     links, _ = _load_skill()._read_index_links(tmp_path, 'index.md')
     assert [link['target'] for link in links] == ['docs/start.md']
+
+
+def test_active_root_cannot_be_retired(tmp_path):
+    target = tmp_path / 'consumer'
+    shutil.copytree(_fixture('generated-docs'), target)
+    root = target / 'index.md'
+    root.write_text(_load_skill().GENERATED_MARKER + '\n# Root\n')
+    adapter = target / '.progressive-discovery.json'
+    data = json.loads(adapter.read_text())
+    data['remove_generated_indexes'] = ['index.md']
+    adapter.write_text(json.dumps(data))
+    _commit_generated_target(target)
+    before = root.read_bytes()
+    report = _load_skill().run(target, apply=True)
+    assert report['result'] == 'AUTHORITY_NEEDED'
+    assert report['applied'] == []
+    assert root.read_bytes() == before
+
+
+def test_blank_generated_section_is_refused_before_mutation(tmp_path):
+    for number, section in enumerate(('', '  ', '\n\t')):
+        target = tmp_path / str(number)
+        shutil.copytree(_fixture('generated-docs'), target)
+        adapter = target / '.progressive-discovery.json'
+        data = json.loads(adapter.read_text())
+        data['generated_indexes']['generated/index.md']['section'] = section
+        adapter.write_text(json.dumps(data))
+        _commit_generated_target(target)
+        report = _load_skill().run(target, apply=True)
+        assert report['result'] == 'AUTHORITY_NEEDED'
+        assert report['applied'] == []
+        assert not (target / 'generated/index.md').exists()
+
+
+def test_nonrendered_headings_and_anchors_cannot_satisfy_fragments(tmp_path):
+    skill = _load_skill()
+    for wrapper in ('<!--\n%s\n-->', '```markdown\n%s\n```', '~~~\n%s\n~~~',
+                    '    %s', '  \t%s', '```\n```not-a-closing-fence\n%s\n```'):
+        for fake in ('# Fake', '<a id="fake"></a>'):
+            (tmp_path / 'doc.md').write_text('# Real\n\n' + wrapper % fake + '\n')
+            _, error = skill._resolve_link(tmp_path, 'index.md', 'doc.md#fake')
+            assert error and 'missing fragment' in error, (wrapper, fake)
+    (tmp_path / 'doc.md').write_text('# Real `code`\n\n<a id="explicit"></a>\n')
+    for fragment in ('real-code', 'explicit'):
+        assert skill._resolve_link(tmp_path, 'index.md', 'doc.md#' + fragment)[1] is None
+    (tmp_path / 'doc.md').write_text('# Real\n\n`<a id="fake"></a>`\n')
+    assert skill._resolve_link(tmp_path, 'index.md', 'doc.md#fake')[1]
+
+
+def test_fragment_requires_real_anchor_with_exact_identity(tmp_path):
+    skill = _load_skill()
+    (tmp_path / 'doc.md').write_text('# Visible\n\nprose id="fake"\n')
+    for fragment in ('fake', 'Visible', 'visible!'):
+        assert skill._resolve_link(tmp_path, 'index.md', 'doc.md#' + fragment)[1]
+    assert skill._resolve_link(tmp_path, 'index.md', 'doc.md#visible')[1] is None
