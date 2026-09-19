@@ -405,3 +405,38 @@ def test_external_inventory_paths_do_not_hide_missing_local_sources(tmp_path):
     assert report['result'] == 'AUTHORITY_NEEDED'
     assert not report['validation']['valid']
     assert not report['applied']
+
+
+def test_metadata_configuration_and_link_paths_stay_inside_repository(tmp_path):
+    skill = _load_skill()
+    root = tmp_path / 'repository'
+    shutil.copytree(_fixture('simple-docs'), root)
+    outside = tmp_path / 'outside'
+    outside.mkdir()
+    (outside / 'adapter.json').write_text(json.dumps({'generated_indexes': {'generated/index.md': {}}}))
+    (outside / 'policy.yml').write_bytes((root / '.agent-policy.yml').read_bytes())
+    (outside / 'secret.md').write_text('# Secret\n')
+    (root / 'escape').symlink_to(outside, target_is_directory=True)
+    for option, name in [('adapter_path', 'adapter.json'), ('policy_path', 'policy.yml')]:
+        for relative in (str(outside / name), '../outside/' + name, 'escape/' + name):
+            report = skill.run(root, apply=True, **{option: relative})
+            assert report['result'] == 'AUTHORITY_NEEDED', (option, relative, report)
+            assert not report['validation']['valid']
+            assert not report['applied']
+            assert not (root / 'generated/index.md').exists()
+    adapter = root / '.progressive-discovery.json'
+    for key in ('generated_indexes', 'remove_generated_indexes'):
+        (root / '.git').mkdir(exist_ok=True)
+        sentinel = root / '.git/index.md'
+        sentinel.write_text(skill.GENERATED_MARKER + '\n# Metadata\n')
+        before = sentinel.read_bytes()
+        adapter.write_text(json.dumps({key: {'.git/index.md': {}} if key == 'generated_indexes' else ['.git/index.md']}))
+        report = skill.run(root, apply=True)
+        assert report['result'] == 'AUTHORITY_NEEDED'
+        assert sentinel.read_bytes() == before
+        assert not report['applied']
+    adapter.write_text(json.dumps({'expected_documents': ['escape/secret.md']}))
+    (root / 'index.md').write_text('# Root\n\n- [Secret](escape/secret.md#secret) - External file.\n')
+    report = skill.run(root)
+    assert not report['validation']['valid']
+    assert 'escape/secret.md' not in report['validation']['reachable']
