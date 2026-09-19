@@ -70,8 +70,9 @@ class CompositionPlaygroundPublicationTests(unittest.TestCase):
             cls._build_projection_count = build_projection_count
         return cls._generated_fixture
 
-    def test_refresh_refuses_dirty_intent_generator_and_schema(self) -> None:
-        for target in ('scripts/generate_composition_playground_intent.py',
+    def test_refresh_refuses_dirty_publication_generators_and_schema(self) -> None:
+        for target in ('scripts/generate_composition_playground_publication.py',
+                       'scripts/generate_composition_playground_intent.py',
                        'schemas/composition-playground-intent.schema.json'):
             def git_result(*args):
                 output = f" M {target}\n" if args[0] == 'status' and target in args else ''

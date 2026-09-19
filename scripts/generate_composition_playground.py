@@ -44,6 +44,7 @@ SEMANTIC_PATHS = (
     "scripts/composer_core_impl.py",
     "scripts/generate_composition_playground.py",
     "scripts/generate_composition_playground_intent.py",
+    "scripts/generate_composition_playground_publication.py",
     "schemas/composition-playground-intent.schema.json",
 )
 PROVENANCE_REASON_BITS = {
