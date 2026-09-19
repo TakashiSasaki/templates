@@ -222,7 +222,9 @@ def _load_adapter(root: Path, relative: str) -> tuple[dict[str, Any], list[str]]
             errors.append(f"adapter: retired target is not canonical: {target}")
     for target in set(generated) | retired:
         if _repository_path_error(root, target) or Path(target).name != INDEX_NAME:
-            errors.append(f"adapter: generated/retired target must be a safe index.md path: {target}")
+            errors.append(
+                f"adapter: generated/retired target must be a safe index.md path: {target}"
+            )
     for target in set(generated) & retired:
         errors.append(f"adapter: target is both active and retired: {target}")
     if isinstance(value.get("generated_indexes"), list):
@@ -232,6 +234,27 @@ def _load_adapter(root: Path, relative: str) -> tuple[dict[str, Any], list[str]]
                  and isinstance(item.get("path"), str)]
         if len(paths) != len(set(paths)):
             errors.append("adapter: duplicate generated target declarations")
+    exclusions = value.get("authored_index_exclusions", {})
+    if not isinstance(exclusions, dict):
+        errors.append("adapter: authored_index_exclusions must be an object")
+        value["authored_index_exclusions"] = {}
+    else:
+        for index, documents in exclusions.items():
+            if (_repository_path_error(root, index) or Path(index).name != INDEX_NAME
+                    or index == root_index or index in generated or not (root / index).is_file()):
+                errors.append(
+                    f"adapter: scoped exclusion requires an existing authored index: {index}"
+                )
+            if not isinstance(documents, dict):
+                errors.append(
+                    f"adapter: scoped exclusions require document/reason mappings: {index}"
+                )
+                exclusions[index] = {}
+                continue
+            for document, reason in documents.items():
+                if (_repository_path_error(root, document)
+                        or not isinstance(reason, str) or not reason.strip()):
+                    errors.append(f"adapter: invalid scoped exclusion for {index}: {document}")
     return value, errors
 
 
@@ -814,7 +837,9 @@ def _plan(
             )
         elif item["classification"] == "authored-index-needed" and item["index"] in indexes:
             reachable, issues = _reachable_from_index(root, indexes, item["index"])
-            missing = [document for document in item["expected"] if document not in reachable]
+            exclusions = adapter.get("authored_index_exclusions", {}).get(item["index"], {})
+            missing = [document for document in item["expected"]
+                       if document not in reachable and document not in exclusions]
             if issues or missing:
                 detail = []
                 if missing:
@@ -1045,11 +1070,18 @@ def run(
     inventories = _discover_inventory_paths(root, adapter)
     expected, inventory_errors = _expected_documents(root, adapter, inventories)
     generated = _generated_specs(adapter)
+    for documents in adapter.get("authored_index_exclusions", {}).values():
+        for document in documents:
+            if document not in expected:
+                adapter_errors.append(
+                    f"adapter: scoped exclusion is not an expected document: {document}"
+                )
     plan = _plan(root, adapter, indexes, expected, generated, policy)
     applied: list[str] = []
     apply_errors: list[str] = []
     source_errors = adapter_errors + inventory_errors + [
-        note for note in policy_notes if "PyYAML unavailable; used conservative list fallback" not in note
+        note for note in policy_notes
+        if "PyYAML unavailable; used conservative list fallback" not in note
     ]
     if apply:
         if source_errors:
