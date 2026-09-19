@@ -126,6 +126,17 @@ def _read_inventory(path: Path) -> tuple[Any, list[str]]:
     return {}, [f"inventory {path}: unsupported inventory format"]
 
 
+def _repository_path_error(root: Path, relative: str) -> str | None:
+    if _safe_relative(relative) != relative or "\x00" in relative:
+        return f"unsafe repository-relative target: {relative}"
+    current = root
+    for part in Path(relative).parts:
+        current = current / part
+        if current.is_symlink():
+            return f"symlink in repository target: {relative}"
+    return None
+
+
 def _git_revision(root: Path) -> str:
     try:
         return subprocess.check_output(
@@ -152,15 +163,37 @@ def _git_dirty(root: Path) -> bool | None:
 
 def _load_adapter(root: Path, relative: str) -> tuple[dict[str, Any], list[str]]:
     path = root / relative
-    if not path.is_file():
+    if not path.exists() and not path.is_symlink():
         return {}, []
+    if not path.is_file() or path.is_symlink():
+        return {}, ["adapter: must be a regular file"]
     try:
         value = _read_json(path)
-    except (OSError, json.JSONDecodeError) as exc:
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         return {}, [f"adapter: {exc}"]
     if not isinstance(value, dict):
         return {}, ["adapter: root must be an object"]
-    return value, []
+    errors: list[str] = []
+    for key in ("expected_documents", "authoritative_inventories", "authored_boundaries",
+                "explicit_exclusions", "closed_inventories", "curated_shortcuts",
+                "intentional_no_indexes", "remove_generated_indexes"):
+        if key in value:
+            paths = value[key]
+            if not isinstance(paths, (list, dict)) or any(
+                not isinstance(item, str) or not item.strip() for item in paths
+            ):
+                errors.append(f"adapter: {key} must declare nonempty path strings")
+    if "generated_indexes" in value:
+        specs = value["generated_indexes"]
+        valid = isinstance(specs, dict) and all(
+            isinstance(spec, dict) for spec in specs.values()
+        ) or isinstance(specs, list) and all(
+            isinstance(spec, str) or isinstance(spec, dict) and isinstance(spec.get("path"), str)
+            for spec in specs
+        )
+        if not valid:
+            errors.append("adapter: generated_indexes must declare paths and specification objects")
+    return value, errors
 
 
 def _yaml_policy(root: Path, relative: str) -> tuple[Any, list[str]]:
@@ -198,6 +231,8 @@ def _yaml_policy(root: Path, relative: str) -> tuple[Any, list[str]]:
 
 
 def _find_values(value: Any, key: str | None = None) -> Iterable[str]:
+    if key in {"destination", "destination_path", "url_path"}:
+        return
     if isinstance(value, str):
         if key in PATH_KEYS or value.endswith(PATH_SUFFIXES):
             yield value
@@ -220,7 +255,7 @@ def _path_candidate(root: Path, raw: str) -> str | None:
     if not candidate.lower().endswith(PATH_SUFFIXES):
         return None
     path = root / candidate
-    if not path.is_file() or _ignored(path, root):
+    if _ignored(path, root):
         return None
     return candidate
 
@@ -233,14 +268,14 @@ def _explicit_inventory_paths(root: Path, adapter: dict[str, Any]) -> list[str]:
     for item in raw:
         if isinstance(item, str):
             path = _safe_relative(item)
-            if path and (root / path).is_file():
+            if path:
                 result.append(path)
     return sorted(set(result))
 
 
 def _discover_inventory_paths(root: Path, adapter: dict[str, Any]) -> list[str]:
     explicit = _explicit_inventory_paths(root, adapter)
-    if explicit:
+    if "authoritative_inventories" in adapter:
         return explicit
     pattern = re.compile(
         r"(?:catalog|manifest|inventory|registry|publication|documentation|site-discovery|feature-registry)",
@@ -260,11 +295,31 @@ def _expected_documents(
 ) -> tuple[list[str], list[str]]:
     expected: set[str] = set()
     errors: list[str] = []
+    if "authoritative_inventories" in adapter:
+        declarations = adapter["authoritative_inventories"]
+        if not isinstance(declarations, list) or any(
+            not isinstance(item, str) or _safe_relative(item) != item
+            for item in declarations
+        ):
+            errors.append("authoritative_inventories: require canonical repository-relative paths")
+    namespaces = adapter.get("inventory_path_namespaces", {})
+    if not isinstance(namespaces, dict) or any(
+        key not in inventories or value not in ("repository", "external", "deployment")
+        for key, value in namespaces.items()
+    ):
+        errors.append("inventory_path_namespaces: require declared inventory and known namespace")
+        namespaces = {}
     for relative in inventories:
         path = root / relative
+        problem = _repository_path_error(root, relative)
+        if problem:
+            errors.append(problem)
+            continue
         value, notes = _read_inventory(path)
         errors.extend(notes)
         if notes:
+            continue
+        if namespaces.get(relative, "repository") != "repository":
             continue
         for raw in _find_values(value):
             candidate = _path_candidate(root, raw)
@@ -620,6 +675,10 @@ def _plan(
     if not policy["profile_selected"] or not policy["skill_selected"]:
         return plan
     for relative, spec in sorted(generated.items()):
+        if problem := _repository_path_error(root, relative):
+            plan.append({"action": "authority-needed", "kind": "generated",
+                         "path": relative, "reason": problem, "content": None})
+            continue
         expected_for_index = expected
         configured_inventory = spec.get("inventory") if isinstance(spec, dict) else None
         if isinstance(configured_inventory, list):
@@ -664,6 +723,10 @@ def _plan(
         )
     remove = _configured_paths(adapter, "remove_generated_indexes")
     for relative in sorted(remove):
+        if problem := _repository_path_error(root, relative):
+            plan.append({"action": "authority-needed", "kind": "generated",
+                         "path": relative, "reason": problem, "content": None})
+            continue
         path = root / relative
         if not path.exists():
             continue
@@ -788,6 +851,9 @@ def _validate(
             if resolved:
                 links_by_index[relative].append(resolved)
     for relative, spec in generated.items():
+        if problem := _repository_path_error(root, relative):
+            errors.append(problem)
+            continue
         path = root / relative
         configured_inventory = spec.get("inventory") if isinstance(spec, dict) else None
         expected_for_index = expected
@@ -822,7 +888,11 @@ def _validate(
             elif target in expected:
                 reachable.add(target)
     if policy["profile_selected"] and policy["skill_selected"]:
+        for orphan in sorted(set(indexes) - reachable):
+            errors.append(f"nested-index reachability: orphan index {orphan}")
         for item in expected:
+            if not (root / item).is_file():
+                errors.append(f"expected-document coverage: declared document is missing: {item}")
             if item not in reachable:
                 errors.append(
                     f"expected-document coverage: {item} is not reachable from {root_index}"
@@ -856,6 +926,8 @@ def _apply(
         if item["action"] in {"create", "regenerate", "delete"} and item["kind"] == "generated"
     ]
     def revalidate(item: dict[str, Any]) -> str | None:
+        if problem := _repository_path_error(root, item["path"]):
+            return f"authority-needed: {problem}"
         current = _target_state(root, item["path"])
         if item.get("snapshot") != current:
             return f"authority-needed: target changed since plan: {item['path']}"
@@ -875,7 +947,8 @@ def _apply(
             )
         return None
 
-    blockers = [error for item in candidates if (error := revalidate(item))]
+    blockers = [item["reason"] for item in plan if item["action"] == "authority-needed"]
+    blockers.extend(error for item in candidates if (error := revalidate(item)))
     if blockers:
         return [], blockers
     changes: list[str] = []
@@ -886,6 +959,8 @@ def _apply(
                 content = item.get("content")
                 if not isinstance(content, str):
                     return changes, [f"authority-needed: missing planned content: {item['path']}"]
+                if problem := _repository_path_error(root, item["path"]):
+                    return changes, [f"authority-needed: {problem}"]
                 path.parent.mkdir(parents=True, exist_ok=True)
                 # Global preflight is not a mutation-boundary check. Re-read all
                 # target facts after preparation and immediately before each I/O.
@@ -920,17 +995,24 @@ def run(
     plan = _plan(root, adapter, indexes, expected, generated, policy)
     applied: list[str] = []
     apply_errors: list[str] = []
+    source_errors = adapter_errors + inventory_errors
     if apply:
-        applied, apply_errors = _apply(root, plan, policy)
+        if source_errors:
+            apply_errors = [f"authority-needed: {error}" for error in source_errors]
+        else:
+            applied, apply_errors = _apply(root, plan, policy)
         if applied:
             indexes = _index_paths(root, adapter)
     validation = _validate(root, indexes, expected, adapter, generated, policy)
     selected = policy["profile_selected"] and policy["skill_selected"]
+    if source_errors:
+        validation["errors"] = sorted(set(validation["errors"] + source_errors))
+        validation["valid"] = False
     if not selected:
         validation = {**validation, "valid": True, "errors": []}
     authority_needed = sum(1 for item in plan if item["action"] == "authority-needed") + len(
         apply_errors
-    )
+    ) + (len(source_errors) if not apply else 0)
     applied_actions = set(applied)
     actionable = any(
         item["action"] in {"create", "update", "regenerate", "delete"}
@@ -963,6 +1045,7 @@ def run(
             "authored_indexes": sorted(indexes),
             "generated_indexes": sorted(generated),
             "authoritative_inventories": inventories,
+            "inventory_path_namespaces": adapter.get("inventory_path_namespaces", {}),
             "curated_shortcuts": sorted(_configured_paths(adapter, "curated_shortcuts")),
         },
         "indexes": indexes,
