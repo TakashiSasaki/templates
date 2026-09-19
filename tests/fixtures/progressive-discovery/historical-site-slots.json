@@ -1,0 +1,195 @@
+{
+  "bundle_identity": "43d0fda160cf9d596fa9596b476e1dcc2a3322e9bf2284d0bfa253cc9a393edb",
+  "documents": [
+    {
+      "additional_audiences": [
+        "maintain"
+      ],
+      "destination": "index.md",
+      "document": "portal-home",
+      "primary_audience": "use",
+      "publication": "site",
+      "slot": true,
+      "source": "docs/landing.md",
+      "title": "Documentation portal"
+    },
+    {
+      "additional_audiences": [
+        "use"
+      ],
+      "destination": "coexistence/index.md",
+      "document": "policy-composition-coexistence",
+      "primary_audience": "maintain",
+      "publication": "site",
+      "slot": true,
+      "source": "docs/policy-composition-coexistence.md",
+      "title": "Policy\u2013Composition coexistence"
+    },
+    {
+      "additional_audiences": [],
+      "destination": "playground/index.md",
+      "document": "composition-playground",
+      "primary_audience": "use",
+      "publication": "site",
+      "slot": true,
+      "source": "docs/composition-playground.md",
+      "title": "Composition Playground"
+    },
+    {
+      "additional_audiences": [],
+      "destination": "capabilities/index.md",
+      "document": "capabilities-overview",
+      "primary_audience": "use",
+      "publication": "site",
+      "slot": true,
+      "source": "docs/capabilities.md",
+      "title": "Overview"
+    },
+    {
+      "additional_audiences": [],
+      "destination": "capabilities/webmcp/index.md",
+      "document": "webmcp-guide",
+      "primary_audience": "use",
+      "publication": "site",
+      "slot": true,
+      "source": "docs/webmcp.md",
+      "title": "WebMCP overview"
+    },
+    {
+      "additional_audiences": [
+        "maintain"
+      ],
+      "destination": "topology/index.md",
+      "document": "repository-topology-overview",
+      "primary_audience": "use",
+      "publication": "site",
+      "slot": true,
+      "source": "docs/architecture/repository-topology.md",
+      "title": "Overview"
+    },
+    {
+      "additional_audiences": [
+        "maintain"
+      ],
+      "destination": "workspace/index.md",
+      "document": "workspace-topology-overview",
+      "primary_audience": "use",
+      "publication": "site",
+      "slot": true,
+      "source": "docs/architecture/workspace-topology.md",
+      "title": "Overview"
+    },
+    {
+      "additional_audiences": [
+        "maintain"
+      ],
+      "destination": "lifecycle/index.md",
+      "document": "lifecycle-overview",
+      "primary_audience": "use",
+      "publication": "site",
+      "slot": true,
+      "source": "docs/lifecycle.md",
+      "title": "Overview"
+    },
+    {
+      "additional_audiences": [],
+      "destination": "maintain/site/maintenance.md",
+      "document": "site-maintenance",
+      "primary_audience": "maintain",
+      "publication": "site",
+      "slot": true,
+      "source": "MAINTENANCE.md",
+      "title": "Site maintenance"
+    },
+    {
+      "additional_audiences": [],
+      "destination": "maintain/site/authority-model.md",
+      "document": "authority-model",
+      "primary_audience": "maintain",
+      "publication": "site",
+      "slot": true,
+      "source": "docs/authority-model.md",
+      "title": "Authority model"
+    },
+    {
+      "additional_audiences": [],
+      "destination": "maintain/publication/integrated-publication.md",
+      "document": "integrated-publication",
+      "primary_audience": "maintain",
+      "publication": "site",
+      "slot": true,
+      "source": "PUBLISHING.md",
+      "title": "Integrated publication"
+    },
+    {
+      "additional_audiences": [],
+      "destination": "maintain/publication/staging.md",
+      "document": "publication-staging",
+      "primary_audience": "maintain",
+      "publication": "site",
+      "slot": true,
+      "source": "PUBLICATION_STAGING.md",
+      "title": "Staging and cutover"
+    },
+    {
+      "additional_audiences": [],
+      "destination": "maintain/publication/provider-freshness.md",
+      "document": "publication-freshness",
+      "primary_audience": "maintain",
+      "publication": "site",
+      "slot": true,
+      "source": "PUBLICATION_FRESHNESS.md",
+      "title": "Provider source freshness"
+    },
+    {
+      "additional_audiences": [],
+      "destination": "maintain/site/runtime-freshness.md",
+      "document": "runtime-freshness",
+      "primary_audience": "maintain",
+      "publication": "site",
+      "slot": true,
+      "source": "FRESHNESS.md",
+      "title": "Runtime freshness"
+    },
+    {
+      "additional_audiences": [],
+      "destination": "maintain/publication/glossary.md",
+      "document": "glossary-contract",
+      "primary_audience": "maintain",
+      "publication": "site",
+      "slot": true,
+      "source": "GLOSSARY.md",
+      "title": "Glossary integration"
+    },
+    {
+      "additional_audiences": [],
+      "destination": "maintain/publication/language.md",
+      "document": "language-contract",
+      "primary_audience": "maintain",
+      "publication": "site",
+      "slot": true,
+      "source": "LANGUAGE.md",
+      "title": "Language and translation"
+    },
+    {
+      "additional_audiences": [],
+      "destination": "maintain/site/pwa.md",
+      "document": "site-pwa-contract",
+      "primary_audience": "maintain",
+      "publication": "site",
+      "slot": true,
+      "source": "PWA.md",
+      "title": "Site PWA contract"
+    },
+    {
+      "additional_audiences": [],
+      "destination": "maintain/qualification/ci-performance.md",
+      "document": "ci-performance",
+      "primary_audience": "maintain",
+      "publication": "site",
+      "slot": true,
+      "source": "docs/ci/site-performance.md",
+      "title": "Site CI performance"
+    }
+  ]
+}
