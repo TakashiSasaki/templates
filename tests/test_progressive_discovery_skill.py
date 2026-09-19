@@ -821,3 +821,50 @@ def test_malformed_link_does_not_hide_applied_generated_changes(tmp_path):
     assert not report['validation']['valid']
     assert report['applied'] == ['create generated/index.md']
     assert report['result'] != 'NO_UPDATE_REQUIRED'
+
+
+def test_missing_yaml_parser_cannot_authorize_apply(tmp_path, monkeypatch):
+    import sys
+    target = tmp_path / 'consumer'
+    shutil.copytree(_fixture('generated-docs'), target)
+    _commit_generated_target(target)
+    (target / '.agent-policy.yml').write_text(
+        'metadata:\n  profiles:\n    - progressive-discovery\n'
+        '  skills:\n    - maintain-progressive-discovery\n'
+    )
+    monkeypatch.setitem(sys.modules, 'yaml', None)
+    report = _load_skill().run(target, apply=True)
+    assert report['result'] == 'AUTHORITY_NEEDED'
+    assert report['applied'] == []
+    assert not (target / 'generated/index.md').exists()
+
+
+def test_nonrendered_links_do_not_prove_reachability(tmp_path):
+    skill = _load_skill()
+    for number, text in enumerate((
+        '# Root\n\n    [Start](docs/start.md)\n',
+        '# Root\n\n<!--\n- [Start](docs/start.md)\n-->\n',
+        '# Root\n\n<!-- [Start](docs/start.md) -->\n',
+        '# Root\n\n```md\n- [Start](docs/start.md)\n```\n',
+        '# Root\n\n`[Start](docs/start.md)`\n',
+    )):
+        root = tmp_path / str(number)
+        root.mkdir()
+        (root / 'index.md').write_text(text)
+        links, issues = skill._read_index_links(root, 'index.md')
+        assert not links, (text, links, issues)
+
+
+def test_blank_generated_title_is_refused_before_mutation(tmp_path):
+    for number, title in enumerate(('', '  ', '\n\t')):
+        target = tmp_path / str(number)
+        shutil.copytree(_fixture('generated-docs'), target)
+        adapter_path = target / '.progressive-discovery.json'
+        adapter = json.loads(adapter_path.read_text())
+        adapter['generated_indexes']['generated/index.md']['title'] = title
+        adapter_path.write_text(json.dumps(adapter))
+        _commit_generated_target(target)
+        report = _load_skill().run(target, apply=True)
+        assert report['result'] == 'AUTHORITY_NEEDED'
+        assert report['applied'] == []
+        assert not (target / 'generated/index.md').exists()
