@@ -38,6 +38,22 @@
       "reason": "Repository-root progressive-discovery navigation is a provider-maintenance and source-discovery entry point; it is not itself a reader-facing publication document. Any later guided-navigation projection must consume it through an explicit Integration contract rather than publication-catalog membership."
     },
     {
+      "source": "catalog/index.md",
+      "reason": "Catalog progressive-discovery navigation is a provider-maintenance source boundary; the reader-facing catalog guide remains catalog/README.md and the publication catalog owns its public inclusion."
+    },
+    {
+      "source": "recipes/index.md",
+      "reason": "Recipe progressive-discovery navigation is a provider-maintenance source boundary; recipe JSON remains a machine-readable publication asset rather than a second reader document."
+    },
+    {
+      "source": "release/index.md",
+      "reason": "Release progressive-discovery navigation is a provider-maintenance source boundary; the reader-facing release record remains release/README.md."
+    },
+    {
+      "source": "schemas/index.md",
+      "reason": "Schema progressive-discovery navigation is a provider-maintenance source boundary; schema JSON remains machine-readable publication assets and schemas/README.md remains the reader guide."
+    },
+    {
       "source": "skills/composition/SKILL.md",
       "reason": "Repository-facing agent skill instructions drive local Composition operation and are distributed as executable skill material rather than published as canonical reader documentation."
     },

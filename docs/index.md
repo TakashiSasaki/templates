@@ -6,6 +6,8 @@
 - [Website product walkthrough](guides/website-product-walkthrough.md) — Creating your first content/document-oriented Website? Follow Project Docs from a separate repository through `website` selection, `inspect -> plan -> apply -> validate`, Website contracts, planning/product evidence, implementation, and browser proof.
 - [Webapp product walkthrough](guides/webapp-product-walkthrough.md) — Creating your first Web application? Start here. Follow one zero-to-one Task Ledger path from a separate product repository through installation, `composition.json`, `inspect -> plan -> apply -> validate`, ownership, implementation, product tests, evidence, optional Policy, and later update/upgrade.
 - [Composition concepts for first-time readers](guides/composition-concepts.md) — Optional mental-model guide for repository-specific uses of recipe, artifact, component, contract, material, and lock. You do not need to read it before following a first-use walkthrough.
+- [Agent Skill first-use walkthrough](guides/skill-first-use-walkthrough.md) — Create a reusable Skill from a separate repository with the smallest Composition path.
+- [WebMCP capability guide](guides/webmcp-capability.md) — Select and validate the browser-exposed WebMCP capability without confusing it with server-side MCP.
 - [Evaluating Composition](evaluation-guide.md) — canonical independent clean-room evaluator entry point: follow the formal protocol, use the scorecard guide, validate the machine-readable scorecard against its schema, and preserve transcript chronology.
 - [Using Composition](consumer-guide.md) — task-oriented create, inspect, update, upgrade, recovery, ownership, and conflict workflows for consumer repositories. Human terminal users may add `--format human` to `inspect`, `plan`, `apply`, or `validate` for concise next-action guidance; automation should continue to use the default JSON output.
 - [Choosing a recipe and components](../catalog/README.md) — choose `skill`, `website`, or `webapp`, then select only the capabilities or lifecycle behavior the product actually needs.
@@ -23,6 +25,9 @@
 ## Publication boundary
 
 - [Publication boundary](publication-catalog.md) — what this provider exposes to the integrated documentation site and why.
+- [Publication catalog](publication-catalog.json) — machine-readable allowlist for reader documents and publication assets.
+- [Publication classification](publication-classification.json) — explicit exclusions for repository Markdown outside the reader publication surface.
+- [Composition glossary](glossary.yml) — Composition-owned terminology records used by publication validation.
 
 ## Composition provider maintenance
 
@@ -86,6 +91,8 @@
 ## Historical provenance
 
 - [Composition authority migration](migrations/composition-authority-migration.md) — consolidated chronology of the authority cutover, provider migration, branch retirement, and immutable PR provenance. Stage-specific implementation notes are retained only for repository maintenance and are not reader publication pages.
+- [Skill and capability migration](migrations/pr2-skill-capabilities.md) — historical migration record for reusable Skill and capability boundaries.
+- [Webapp lifecycle migration](migrations/pr3-webapp-lifecycle.md) — historical migration record for Webapp lifecycle contracts and release behavior.
 
 ## Machine-readable authorities
 
