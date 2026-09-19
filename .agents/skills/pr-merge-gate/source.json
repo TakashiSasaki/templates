@@ -1,8 +1,114 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "kind": "policy-adapter-reference",
   "repository": "TakashiSasaki/templates",
   "revision": "94eb84397d913f2ebb0e2c79d0b841ae580fbc31",
   "path": "skills/pr-merge-gate/SKILL.md",
-  "blob_sha": "2ef890673600f0f4c30b53cef7c19a78d34cf5bc"
+  "blob_sha": "2ef890673600f0f4c30b53cef7c19a78d34cf5bc",
+  "closure": [
+    {
+      "path": "policy/pull-request/ci-discovery-fail-closed.md",
+      "blob_sha": "991cf3120f17a7e21496fecf94c30b8a3455173f"
+    },
+    {
+      "path": "policy/pull-request/current-mergeability.md",
+      "blob_sha": "ddf708d9c8e24a8fe09a3b6463421dcac2f915bb"
+    },
+    {
+      "path": "policy/pull-request/defer-revision-bound-qualification.md",
+      "blob_sha": "7c4bb86e586d446e8df03740bb2a0ec565871abf"
+    },
+    {
+      "path": "policy/pull-request/exact-head-ci-evidence.md",
+      "blob_sha": "da7a32a48560340282ad431de00602a9fb1bb0f9"
+    },
+    {
+      "path": "policy/pull-request/final-live-state-refresh.md",
+      "blob_sha": "26bd85861bb072c860f0dafb687e829ba3e0d9df"
+    },
+    {
+      "path": "policy/pull-request/immutable-head-guard.md",
+      "blob_sha": "0a9857e38bc91a9b54031bdc124c763227405708"
+    },
+    {
+      "path": "policy/pull-request/independent-exact-head-review.md",
+      "blob_sha": "16bd3fc6aaec6cde03e0a3f569968c759365c7bd"
+    },
+    {
+      "path": "policy/pull-request/post-merge-verification.md",
+      "blob_sha": "ae5fe449676b0aeee84873fe3cb8221336cb187d"
+    },
+    {
+      "path": "policy/pull-request/reuse-valid-evidence.md",
+      "blob_sha": "0a10186c1fbf8df7edf3473e1d7e064d6f511cf8"
+    },
+    {
+      "path": "policy/pull-request/review-acquisition-preflight.md",
+      "blob_sha": "0497db63318178e9b8b92f2597e5afbc4ffe9a35"
+    },
+    {
+      "path": "policy/pull-request/review-reacquisition-after-disposition.md",
+      "blob_sha": "a0c8087e1e6eb487ceaa5216920de0b0dca17579"
+    },
+    {
+      "path": "policy/pull-request/review-result-applicability.md",
+      "blob_sha": "b6b889f5063cfcb4c3137cd2fd7b0230328881fe"
+    },
+    {
+      "path": "policy/pull-request/review-result-discovery.md",
+      "blob_sha": "8455446f1d5dbab82a952c6e4095ff7a2c1276ce"
+    },
+    {
+      "path": "policy/pull-request/review-scope-selection.md",
+      "blob_sha": "fac1fdca9acb2364549d2b5a03f723b2bb2dbaea"
+    },
+    {
+      "path": "policy/pull-request/review-thread-closure.md",
+      "blob_sha": "8a63305a181cfc0f2a9e379f5efdc73fc983073d"
+    },
+    {
+      "path": "policy/pull-request/stacked-review-coverage.md",
+      "blob_sha": "547103683c10aa0170ea8106064b41f37f18509e"
+    },
+    {
+      "path": "policy/pull-request/staged-ci-and-preflight.md",
+      "blob_sha": "729f24d3f3d95849fe0f6117a512d450d72107ae"
+    },
+    {
+      "path": "policy/pull-request/target-branch-head-freshness.md",
+      "blob_sha": "58a31dd544af3480a3cfdba1c4a89696e21c53b3"
+    },
+    {
+      "path": "profiles/pull-request.yml",
+      "blob_sha": "0fae0046c165d58482a71516ce98f7297658a7b4"
+    },
+    {
+      "path": "skills/pr-merge-gate/references/github-review-finding-representation.md",
+      "blob_sha": "2acdb051e022b4b634e3b03592d8d204466ddee5"
+    },
+    {
+      "path": "skills/pr-merge-gate/references/github-review-result-discovery.md",
+      "blob_sha": "3941b5c268b4d8d62f849fcbc367bb53193137d8"
+    },
+    {
+      "path": "skills/pr-merge-gate/references/head-mutation-batching.md",
+      "blob_sha": "710cbca1b8ed90e641e160a9899cf41ded5e671e"
+    },
+    {
+      "path": "skills/pr-merge-gate/references/review-acquisition-preflight.md",
+      "blob_sha": "7c7ced15e2825e1f3251f75ab267929a6d98391a"
+    },
+    {
+      "path": "skills/pr-merge-gate/references/review-feedback-disposition.md",
+      "blob_sha": "9cb5aed18d25f0703ec9a2433cec1739254bb509"
+    },
+    {
+      "path": "skills/pr-merge-gate/references/review-finding-ledger.md",
+      "blob_sha": "46ae85b87ac61e43142b33856782e4655b5411a7"
+    },
+    {
+      "path": "skills/pr-merge-gate/references/stacked-review-coverage.md",
+      "blob_sha": "11d74b57d50eee2f4b049c7998968fef236ea297"
+    }
+  ]
 }
