@@ -625,7 +625,7 @@ def summarize_diff(
     changes = diff.get("changes")
     if not isinstance(changes, list):
         raise ObservationInputError("diff.changes must be a list")
-    visible = changes[:limit]
+    visible = [_summary_change(change) for change in changes[:limit]]
     omitted = len(changes) - len(visible)
     result: dict[str, Any] = {
         "status": diff.get("status"),
@@ -646,4 +646,70 @@ def summarize_diff(
             if snapshot_reference is None
             else _json_data(dict(snapshot_reference), "snapshot_reference"),
         }
+    return result
+
+
+SUMMARY_RECORD_FIELDS = frozenset(
+    {
+        "identity",
+        "provider_kind",
+        "id",
+        "node_id",
+        "name",
+        "title",
+        "body",
+        "message",
+        "state",
+        "status",
+        "conclusion",
+        "context",
+        "head_sha",
+        "observed_head_sha",
+        "workflow_id",
+        "run_id",
+        "run_attempt",
+        "job_id",
+        "app_id",
+        "commit_id",
+        "path",
+        "line",
+        "start_line",
+        "diff_hunk",
+        "url",
+        "html_url",
+        "author",
+        "user",
+        "dismissed_by",
+        "resolved_by",
+        "is_resolved",
+        "created_at",
+        "updated_at",
+        "submitted_at",
+        "subject_kind",
+        "subject_id",
+    }
+)
+
+
+def _summary_record(record: Any) -> Any:
+    if not isinstance(record, Mapping):
+        return record
+    return {
+        key: value
+        for key, value in record.items()
+        if key in SUMMARY_RECORD_FIELDS
+    }
+
+
+def _summary_change(change: Any) -> Any:
+    if not isinstance(change, Mapping):
+        return change
+    result = {
+        key: value
+        for key, value in change.items()
+        if key not in {"record", "before", "after"}
+    }
+    for field in ("record", "before", "after"):
+        if field in change:
+            result[field] = _summary_record(change[field])
     return result
