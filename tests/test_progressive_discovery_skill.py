@@ -606,3 +606,70 @@ def test_authored_marker_mentions_do_not_grant_generated_ownership(tmp_path):
         assert report['result'] == 'AUTHORITY_NEEDED', report
         assert report['applied'] == []
         assert target.read_text() == authored
+
+
+def test_generated_inventory_scope_rejects_malformed_declarations(tmp_path):
+    for number, scope in enumerate(['private/', [1], ['../private'], ['/private'],
+                                    ['docs//'], ['docs/a#fragment']]):
+        root = tmp_path / str(number)
+        shutil.copytree(_fixture('generated-docs'), root)
+        path = root / '.progressive-discovery.json'
+        data = json.loads(path.read_text())
+        data['generated_indexes']['generated/index.md']['inventory'] = scope
+        path.write_text(json.dumps(data))
+        report = _load_skill().run(root, apply=True)
+        assert report['result'] == 'AUTHORITY_NEEDED', (scope, report)
+        assert not report['applied']
+        assert not (root / 'generated/index.md').exists()
+
+
+def test_fragment_only_links_use_the_source_index(tmp_path):
+    root = tmp_path / 'repository'
+    shutil.copytree(_fixture('simple-docs'), root)
+    (root / 'docs/index.md').write_text('# Nested\n\n## Section\n')
+    skill = _load_skill()
+    for source, fragment in [('index.md', 'start-here'), ('docs/index.md', 'section')]:
+        assert skill._resolve_link(root, source, '#' + fragment) == (source, None)
+        _, error = skill._resolve_link(root, source, '#absent')
+        assert error and 'missing fragment' in error
+
+
+def test_dirty_retired_target_is_authority_needed_in_dry_run(tmp_path):
+    root = tmp_path / 'repository'
+    shutil.copytree(_fixture('generated-docs'), root)
+    skill = _load_skill()
+    skill.run(root, apply=True)
+    _commit_generated_target(root)
+    path = root / '.progressive-discovery.json'
+    data = json.loads(path.read_text())
+    data.pop('generated_indexes')
+    data['remove_generated_indexes'] = ['generated/index.md']
+    path.write_text(json.dumps(data))
+    (root / 'generated/index.md').write_text(skill.GENERATED_MARKER + '\n# Human change\n')
+    report = skill.run(root)
+    assert report['result'] == 'AUTHORITY_NEEDED', report
+    assert not any(item['action'] == 'delete' for item in report['plan'])
+
+
+def test_apply_refreshes_authored_reachability_after_generated_repair(tmp_path):
+    root = tmp_path / 'repository'
+    shutil.copytree(_fixture('generated-docs'), root)
+    (root / 'docs/index.md').write_text(
+        '# Documentation\n\n- [Generated](../generated/index.md) - Generated documents.\n'
+        '- [Local](local.md) - Authored document.\n'
+    )
+    entry = root / 'index.md'
+    entry.write_text(entry.read_text() + '\n- [Docs](docs/index.md) - Authored navigation.\n')
+    path = root / '.progressive-discovery.json'
+    data = json.loads(path.read_text())
+    data['authored_boundaries'] = ['docs']
+    path.write_text(json.dumps(data))
+    (root / 'docs/local.md').write_text('# Local\n')
+    data['expected_documents'] = ['docs/local.md']
+    data['generated_indexes']['generated/index.md']['inventory'] = ['docs/one.md', 'docs/two.md']
+    path.write_text(json.dumps(data))
+    skill = _load_skill()
+    report = skill.run(root, apply=True)
+    assert report['result'] == 'NO_UPDATE_REQUIRED', report
+    assert report['applied'] == ['create generated/index.md']
+    assert skill.run(root)['result'] == 'NO_UPDATE_REQUIRED'
