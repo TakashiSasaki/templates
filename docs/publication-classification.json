@@ -60,6 +60,10 @@
     {
       "source": "translations/README.md",
       "reason": "Provider-owned translation maintenance guidance defines derivative translation handling and is not a canonical reader publication document."
+    },
+    {
+      "source": ".agents/skills/maintain-progressive-discovery/SKILL.md",
+      "reason": "Policy-generated repository maintenance instructions are consumer-distributed executable Skill material, not reader publication."
     }
   ]
 }
