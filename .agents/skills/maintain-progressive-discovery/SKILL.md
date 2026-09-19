@@ -168,3 +168,8 @@ and escapes prose so valid filename punctuation cannot create broken navigation.
 Generated ownership requires the exact marker on the first line. A marker quoted
 inside authored prose or examples never grants permission to overwrite or retire
 the file; planning and mutation-boundary checks use the same placement rule.
+Generated `inventory` scopes must be arrays of canonical file/directory paths;
+a malformed scope never broadens to the whole expected set. Dry-run retirement
+also checks tracked and dirty state. After any applied change, `plan` describes
+remaining work recomputed from the resulting navigation; `requested_plan` keeps
+the original request and `applied` keeps all mutations, including partial work.

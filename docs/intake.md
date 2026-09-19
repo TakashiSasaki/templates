@@ -55,3 +55,14 @@ The recorded edition label is not a Git commit, and a metadata-only correction i
 Before future reproducible model adoption, define the exact release, representations, import/reference closure, base URIs, engine/dialect settings, and rights-compatible retention plan. Refresh checks propose new observations instead of mutating existing release inputs during builds.
 
 The intended provider flow is Modeling to Integration to Site, with optional explicit Composition/Policy consumption. Discovery references are not normative dependencies. Keep model semantics independent of downstream presentation and qualification. Integration qualification, Site adoption, and deployment each require separate authorization and are not enabled by adding a record here.
+
+## Discovery index generation safety
+
+`tools/catalog.py generate` delegates `docs/resources/index.md` writes to the
+selected immutable Policy discovery CLI after verifying its distribution lock.
+It checks for an already unsafe index before generating other catalog outputs.
+The CLI re-plans and revalidates ownership at its mutation boundary; a dirty or
+authored index is refused, never overwritten. Generation is not a transaction:
+if a later discovery apply is refused, the command exits nonzero and reports
+which catalog outputs were already changed. Review those changes and the
+reported index refusal before retrying.

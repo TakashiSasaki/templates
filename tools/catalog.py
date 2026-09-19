@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import subprocess
 import sys
 from pathlib import Path, PurePosixPath
 from typing import Any
@@ -12,6 +13,8 @@ from typing import Any
 from jsonschema import Draft202012Validator, FormatChecker
 from referencing import Registry
 from referencing.exceptions import NoSuchResource
+
+from policy_distribution import check_policy_distribution
 
 ROOT = Path(__file__).resolve().parents[1]
 OWNER = "https://github.com/TakashiSasaki/templates/tree/modeling"
@@ -225,6 +228,25 @@ def outputs(root: Path, records: list[dict[str, Any]], collections: list[dict[st
     return result
 
 
+def _discovery(root: Path, *, apply: bool) -> tuple[int, dict[str, Any]]:
+    try:
+        check_policy_distribution(root)
+    except ValueError as exc:
+        raise CatalogError(str(exc)) from exc
+    script = root / ".agents/skills/maintain-progressive-discovery/scripts/maintain_progressive_discovery.py"
+    command = [sys.executable, str(script), "--root", str(root), "--format", "json"]
+    if apply:
+        command.append("--apply")
+    result = subprocess.run(command, capture_output=True, text=True)
+    try:
+        report = json.loads(result.stdout)
+        if not isinstance(report, dict):
+            raise ValueError("report is not an object")
+    except ValueError as exc:
+        raise CatalogError(f"discovery did not produce a report: {result.stderr}") from exc
+    return result.returncode, report
+
+
 def project(root: Path = ROOT, *, check: bool = True) -> tuple[int, int]:
     records, collections = load(root)
     expected = outputs(root, records, collections)
@@ -235,6 +257,13 @@ def project(root: Path = ROOT, *, check: bool = True) -> tuple[int, int]:
     stale = actual - expected.keys()
     if stale:
         raise CatalogError(f"unexpected generated resource files; remove explicitly: {sorted(stale)}")
+    discovery_index = "docs/resources/index.md"
+    if not check:
+        _, report = _discovery(root, apply=False)
+        if any(item.get("path") == discovery_index and item.get("action") == "authority-needed"
+               for item in report.get("plan", [])):
+            raise CatalogError(f"discovery index refused before catalog writes: {report}")
+    changed: list[str] = []
     for relative, content in expected.items():
         destination = root / relative
         current = root
@@ -245,9 +274,21 @@ def project(root: Path = ROOT, *, check: bool = True) -> tuple[int, int]:
         if check:
             if not destination.is_file() or destination.read_bytes() != content.encode("utf-8"):
                 raise CatalogError(f"stale or missing generated output: {relative}; run generate")
-        else:
+        elif relative != discovery_index:
             destination.parent.mkdir(parents=True, exist_ok=True)
-            destination.write_text(content, encoding="utf-8", newline="\n")
+            if not destination.is_file() or destination.read_bytes() != content.encode("utf-8"):
+                destination.write_text(content, encoding="utf-8", newline="\n")
+                changed.append(relative)
+    if not check:
+        try:
+            status, report = _discovery(root, apply=True)
+            if status or report.get("result") != "NO_UPDATE_REQUIRED":
+                raise CatalogError(f"canonical discovery apply refused or incomplete: {report}")
+            if (root / discovery_index).read_bytes() != expected[discovery_index].encode("utf-8"):
+                raise CatalogError("canonical discovery output differs from Modeling projection")
+        except (CatalogError, OSError, UnicodeError) as exc:
+            raise CatalogError(f"{exc}; prior catalog outputs changed: {changed}; "
+                               "generation is not a transaction") from exc
     return len(records), len(collections)
 
 
