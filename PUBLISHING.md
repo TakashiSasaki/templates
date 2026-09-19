@@ -104,6 +104,13 @@ The Bundle supplies the public destination model. Current entry points include
 provided by immutable GitHub blob/tree links at the exact recorded revisions.
 The former Skill/Webapp copyable-template trees are retired.
 
+Every published artifact also contains a generated `/index.md` Markdown entry
+point. It is usable without JavaScript and is projected from the Site-owned
+`progressive-discovery.json` source plus the selected Integration Bundle's
+document identities and guided-navigation graph. The projection emits deployed
+routes only; provider repository-relative source paths remain behind the
+immutable guided/source-link contracts.
+
 Current and stale provider translations are included exactly as Integration declares.
 Stale pages display a static accessible warning and current English link, including
 when cached offline. Missing translations do not create routes. Translation freshness

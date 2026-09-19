@@ -59,10 +59,8 @@ def index_page_path(provider: str, source_path: str) -> Path:
     validate_repository_path(source_path, "index source path")
     if not is_index_source_path(source_path):
         raise IndexNavigationViewerError(f"not an index source path: {source_path}")
-    if source_path == ROOT_INDEX:
+    if source_path in {ROOT_INDEX, LEGACY_ROOT_INDEX}:
         return GUIDED_ROOT / provider / "index.html"
-    if source_path == "index.md":
-        return GUIDED_ROOT / ROOT_INDEX_NAMESPACE / provider / "index.html"
     parent = PurePosixPath(source_path).parent
     return GUIDED_ROOT / provider / Path(parent.as_posix()) / "index.html"
 
@@ -71,10 +69,8 @@ def index_page_url(provider: str, source_path: str) -> str:
     validate_repository_path(source_path, "index source path")
     if not is_index_source_path(source_path):
         raise IndexNavigationViewerError(f"not an index source path: {source_path}")
-    if source_path == ROOT_INDEX:
+    if source_path in {ROOT_INDEX, LEGACY_ROOT_INDEX}:
         return f"/guided/{quote(provider, safe='')}/"
-    if source_path == "index.md":
-        return f"/guided/{ROOT_INDEX_NAMESPACE}/{quote(provider, safe='')}/"
     parent = PurePosixPath(source_path).parent
     suffix = encoded_path(tuple(parent.parts))
     return f"/guided/{quote(provider, safe='')}/{suffix}/"

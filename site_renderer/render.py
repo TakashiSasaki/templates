@@ -233,6 +233,8 @@ def render_snapshot(*,bundle,site_root,output,identity,site_revision,parent_iden
         for document in documents:
             if not document['slot']:
                 published.setdefault(document['publication'], {})[document['source']] = document['destination']
+        from site_renderer.progressive_discovery import write as write_progressive_discovery
+        write_progressive_discovery(site_root,site,graph,documents)
         guided.generate_from_bundle(repository,graph,published,site)
         overlays=guided_locales.load_overlays(bundle/'guided-locales.json',graph)
         reader_translations=guided_locales.load_reader_translations(build/'translation-publication.json')

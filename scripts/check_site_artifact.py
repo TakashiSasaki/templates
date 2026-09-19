@@ -20,6 +20,7 @@ from site_renderer.guided import (
     index_page_path,
     project_immutable_source_links,
 )
+from site_renderer.progressive_discovery import validate_generated
 
 
 REPOSITORY = "TakashiSasaki/templates"
@@ -187,6 +188,12 @@ def check(site_root: Path, bundle: Path | None = None, lock: dict | None = None)
     html_files = sorted(site_root.rglob("*.html"))
     if not html_files:
         raise SiteArtifactError("generated Site contains no HTML files")
+    try:
+        validate_generated(site_root / "index.md")
+    except (OSError, UnicodeError, ValueError) as exc:
+        raise SiteArtifactError(
+            f"static progressive discovery entry point is invalid: {exc}"
+        ) from exc
     hrefs: list[str] = []
     anchors: list[tuple[str, str]] = []
     rendered_text: list[str] = []

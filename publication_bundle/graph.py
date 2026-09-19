@@ -6,7 +6,10 @@ from typing import Any
 from urllib.parse import urlsplit
 from publication_bundle.identity import FULL_SHA, REPOSITORY
 from publication_bundle.url_contract import IndexNavigationError, contains_disallowed_control, validate_external_location
-ROOT_INDEX = 'docs/index.md' 
+GRAPH_SCHEMA_VERSION = 2
+LEGACY_GRAPH_SCHEMA_VERSION = 1
+ROOT_INDEX = 'index.md'
+LEGACY_ROOT_INDEX = 'docs/index.md'
 
 class IndexNavigationViewerError(RuntimeError):
     """Raised when a guided-navigation viewer cannot be rendered safely."""
@@ -25,8 +28,8 @@ def load_graph(path: Path, *, provider_order=None) -> dict[str, Any]:
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         raise IndexNavigationViewerError(f"unable to read index graph {path}: {exc}") from exc
     schema_version = value.get("schema_version") if isinstance(value, dict) else None
-    if type(schema_version) is not int or schema_version != 1:
-        raise IndexNavigationViewerError("index graph must use schema_version 1")
+    if schema_version not in {LEGACY_GRAPH_SCHEMA_VERSION, GRAPH_SCHEMA_VERSION}:
+        raise IndexNavigationViewerError("index graph must use schema_version 1 or 2")
     repository = value.get("repository")
     providers = value.get("providers")
     if (
@@ -105,10 +108,21 @@ def _section_level(section: Any) -> int:
     return level
 
 
-def validate_provider_graph(provider: dict[str, Any], *, provider_order=None) -> None:
+def validate_provider_graph(
+    provider: dict[str, Any],
+    *,
+    provider_order=None,
+    root_index: str | None = None,
+) -> None:
     name = provider.get("name")
     revision = provider.get("revision")
-    root_index = provider.get("root_index")
+    provider_root_index = provider.get("root_index")
+    if root_index is None:
+        root_index = (
+            LEGACY_ROOT_INDEX
+            if provider_root_index == LEGACY_ROOT_INDEX
+            else ROOT_INDEX
+        )
     indexes = provider.get("indexes")
     edges = provider.get("edges")
     diagnostics = provider.get("diagnostics")
@@ -116,7 +130,7 @@ def validate_provider_graph(provider: dict[str, Any], *, provider_order=None) ->
         raise IndexNavigationViewerError("provider name is invalid")
     if not isinstance(revision, str) or not FULL_SHA.fullmatch(revision):
         raise IndexNavigationViewerError(f"{name} revision is invalid")
-    if root_index != ROOT_INDEX:
+    if provider_root_index != root_index:
         raise IndexNavigationViewerError(f"{name} root index is invalid")
     if not isinstance(indexes, list) or not indexes:
         raise IndexNavigationViewerError(f"{name} indexes must be a non-empty array")
@@ -168,7 +182,7 @@ def validate_provider_graph(provider: dict[str, Any], *, provider_order=None) ->
         index_by_path[path] = index
         section_titles_by_path[path] = set(section_titles)
 
-    if ROOT_INDEX not in paths:
+    if root_index not in paths:
         raise IndexNavigationViewerError(f"{name} graph does not contain its root index")
 
     allowed_kinds = {"index", "file", "directory", "fragment", "external"}
@@ -239,7 +253,7 @@ def validate_provider_graph(provider: dict[str, Any], *, provider_order=None) ->
                 f"{name} index edge targets a non-rendered index: {target}"
             )
 
-    expected_diagnostics = graph_diagnostics(indexes, edges)
+    expected_diagnostics = graph_diagnostics(indexes, edges, root_index=root_index)
     if set(diagnostics) != set(expected_diagnostics):
         raise IndexNavigationViewerError(f"{name} diagnostics fields do not match producer contract")
     for field, expected in expected_diagnostics.items():
@@ -283,7 +297,7 @@ def find_cycle_edges(
     return cycle_edges
 
 
-def graph_diagnostics(indexes, edges):
+def graph_diagnostics(indexes, edges, *, root_index: str = ROOT_INDEX):
     """One deterministic diagnostic derivation for producers and consumers."""
     adjacency = {}
     incoming_sources = {}
@@ -291,8 +305,8 @@ def graph_diagnostics(indexes, edges):
         if edge["kind"] == "index":
             adjacency.setdefault(edge["source"], []).append(edge["target"])
             incoming_sources.setdefault(edge["target"], set()).add(edge["source"])
-    depths = {ROOT_INDEX: 0}
-    queue = [ROOT_INDEX]
+    depths = {root_index: 0}
+    queue = [root_index]
     cursor = 0
     while cursor < len(queue):
         source = queue[cursor];cursor += 1
@@ -308,6 +322,6 @@ def graph_diagnostics(indexes, edges):
         "index_count": len(indexes),
         "edge_count": len(edges),
         "max_index_depth": max((index["depth"] for index in indexes), default=0),
-        "cycle_edges": find_cycle_edges(adjacency, ROOT_INDEX),
+        "cycle_edges": find_cycle_edges(adjacency, root_index),
         "multiple_parent_indexes": sorted(path for path, sources in incoming_sources.items() if len(sources) > 1),
     }
