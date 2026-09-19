@@ -122,10 +122,19 @@ def test_policy_local_gate_entry_has_a_separate_shared_gate_manifest() -> None:
     assert "contains no acceptance semantics" in text
     data = json.loads(source.read_text(encoding="utf-8"))
     assert data == {
-        "schema_version": 1,
+        "schema_version": 2,
         "kind": "policy-adapter-reference",
         "repository": "TakashiSasaki/templates",
             "revision": GATE_REVISION,
         "path": "skills/pr-merge-gate/SKILL.md",
         "blob_sha": "2ef890673600f0f4c30b53cef7c19a78d34cf5bc",
+        "closure": data["closure"],
     }
+    profile = yaml.safe_load(_git("show", f"{GATE_REVISION}:profiles/pull-request.yml"))
+    references = _git("ls-tree", "-r", "--name-only", GATE_REVISION,
+                      "skills/pr-merge-gate/references").splitlines()
+    expected = set(profile["policy_files"] + references + ["profiles/pull-request.yml"])
+    assert {entry["path"] for entry in data["closure"]} == expected
+    assert len(data["closure"]) == len(expected)
+    for entry in data["closure"]:
+        assert _git("rev-parse", f"{GATE_REVISION}:{entry['path']}") == entry["blob_sha"]
