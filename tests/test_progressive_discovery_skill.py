@@ -39,6 +39,15 @@ def test_evaluation_corpus_covers_representative_layouts() -> None:
     assert expected <= actual
 
 
+def test_distributed_skill_keeps_agent_skill_frontmatter_first() -> None:
+    text = (ROOT / "skills/maintain-progressive-discovery/SKILL.md").read_text(
+        encoding="utf-8"
+    )
+
+    assert text.startswith("---\n")
+    assert "agent-policy-generated: true" in text
+
+
 def test_unselected_consumer_does_not_receive_progressive_discovery_rules() -> None:
     report = _load_skill().run(_fixture("consumer-unselected"))
 
