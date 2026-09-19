@@ -9,12 +9,12 @@ ROOT = Path(__file__).resolve().parents[1]
 class ProgressiveDiscoverySourceTests(unittest.TestCase):
     def test_site_explicitly_selects_the_immutable_policy_skill(self):
         policy = (ROOT / '.agent-policy.yml').read_text()
-        self.assertIn('revision: 349df5037756d78837e1fff83cf3791c81778047', policy)
+        self.assertIn('revision: 6d281bd17b2304eb867adbc812a0a6d041e1c9c8', policy)
         self.assertIn('    - progressive-discovery', policy)
         self.assertIn('  - maintain-progressive-discovery', policy)
 
         lock = (ROOT / '.agent-policy.lock').read_text()
-        self.assertIn('revision: 349df5037756d78837e1fff83cf3791c81778047', lock)
+        self.assertIn('revision: 6d281bd17b2304eb867adbc812a0a6d041e1c9c8', lock)
         self.assertIn('.agents/skills/maintain-progressive-discovery/SKILL.md:', lock)
 
     def test_adapter_declares_site_owned_source_and_bundle_projection(self):
