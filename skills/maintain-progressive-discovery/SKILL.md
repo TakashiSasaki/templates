@@ -189,3 +189,10 @@ The configured active root index cannot be retired. Both generated title and
 section headings require nonblank text. Fragment checks exclude comment/code
 headings and anchors; explicit anchors must be actual HTML attributes, and
 fragment identities match exactly rather than being silently slug-normalized.
+Policy selection must pass the canonical schema-2 configuration schema before
+it can authorize mutation. Policy render embeds that exact source schema in the
+standalone script; consumer-local schemas cannot replace it. PyYAML and
+jsonschema are required validation dependencies, and their absence fails closed.
+Unexecutable Git queries produce unknown target state rather than a traceback.
+Grammar and reachability use the same visible block view; document fragments
+support both ATX and setext headings while excluding comment/code examples.

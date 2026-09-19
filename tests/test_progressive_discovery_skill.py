@@ -931,3 +931,74 @@ def test_fragment_requires_real_anchor_with_exact_identity(tmp_path):
     for fragment in ('fake', 'Visible', 'visible!'):
         assert skill._resolve_link(tmp_path, 'index.md', 'doc.md#' + fragment)[1]
     assert skill._resolve_link(tmp_path, 'index.md', 'doc.md#visible')[1] is None
+
+
+def test_schema_invalid_policy_cannot_authorize_generated_apply(tmp_path):
+    import yaml
+    for number, mutate in enumerate((
+        lambda config: config.pop('schema_version'),
+        lambda config: config.pop('outputs'),
+        lambda config: config.update(profiles=['progressive-discovery']),
+        lambda config: config['toolchain'].update(revision='policy'),
+    )):
+        target = tmp_path / str(number)
+        shutil.copytree(_fixture('generated-docs'), target)
+        path = target / '.agent-policy.yml'
+        config = yaml.safe_load(path.read_text())
+        mutate(config)
+        path.write_text(yaml.safe_dump(config))
+        _commit_generated_target(target)
+        report = _load_skill().run(target, apply=True)
+        assert report['result'] == 'AUTHORITY_NEEDED'
+        assert report['applied'] == []
+        assert not (target / 'generated/index.md').exists()
+
+
+def test_hidden_blocks_do_not_invalidate_visible_index_grammar(tmp_path):
+    (tmp_path / 'index.md').write_text(
+        '# Root\n\n<!-- Maintenance note -->\n\n```md\n# Example\n'
+        '- [Fake](missing.md)\n```\n\n- [Visible](doc.md)\n'
+    )
+    links, issues = _load_skill()._read_index_links(tmp_path, 'index.md')
+    assert issues == []
+    assert [link['target'] for link in links] == ['doc.md']
+
+
+def test_git_execution_failure_reports_unknown_target_state(tmp_path, monkeypatch):
+    target = tmp_path / 'consumer'
+    shutil.copytree(_fixture('generated-docs'), target)
+    _commit_generated_target(target)
+    skill = _load_skill()
+    real_run = subprocess.run
+    def unavailable(command, *args, **kwargs):
+        if command[0] == 'git':
+            raise OSError('git cannot be executed')
+        return real_run(command, *args, **kwargs)
+    monkeypatch.setattr(subprocess, 'run', unavailable)
+    for apply in (False, True):
+        report = skill.run(target, apply=apply)
+        assert report['result'] == 'AUTHORITY_NEEDED'
+        assert report['applied'] == []
+    assert not (target / 'generated/index.md').exists()
+
+
+def test_setext_headings_are_valid_fragment_targets(tmp_path):
+    skill = _load_skill()
+    for underline in ('=====', '-----'):
+        (tmp_path / 'doc.md').write_text('Title\n' + underline + '\n')
+        assert skill._resolve_link(tmp_path, 'index.md', 'doc.md#title')[1] is None
+
+
+def test_rendered_skill_embeds_the_canonical_schema_without_local_override(tmp_path):
+    from agent_policy.renderer import render_skill
+    generated = render_skill('maintain-progressive-discovery')
+    path = tmp_path / 'standalone.py'
+    path.write_text(generated['scripts/maintain_progressive_discovery.py'])
+    spec = importlib.util.spec_from_file_location('rendered_discovery', path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    canonical = json.loads((ROOT / 'schemas/agent-policy.schema.json').read_text())
+    assert module._policy_schema() == canonical
+    (tmp_path / 'schemas').mkdir()
+    (tmp_path / 'schemas/agent-policy.schema.json').write_text('{}')
+    assert module._policy_schema() == canonical
