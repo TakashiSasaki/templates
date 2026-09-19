@@ -327,6 +327,49 @@ class PublicationLifecycleRegressionTests(unittest.TestCase):
         self.assertNotIn("publication_staging_ids:", workflow)
         self.assertNotIn("publication_staging_id:", workflow)
 
+    def test_refresh_failure_preserves_the_previous_complete_snapshot(self) -> None:
+        for failure in (OSError('disk full'), KeyboardInterrupt()):
+            with self.subTest(failure=type(failure).__name__), tempfile.TemporaryDirectory() as temporary:
+                target = Path(temporary) / 'generated'
+                target.mkdir()
+                names = [publication.MANIFEST_NAME, publication.BASE_NAME, publication.INTENT_NAME]
+                original = {name: ('old-' + name).encode() for name in names}
+                for name, value in original.items():
+                    (target / name).write_bytes(value)
+                (target / 'unrelated.txt').write_text('preserve')
+                write = publication._atomic_write
+                def fail_later(path, data):
+                    if path.name == publication.INTENT_NAME:
+                        raise failure
+                    write(path, data)
+                with mock.patch.object(publication, 'current_semantic_snapshot', return_value=('a' * 40, {})), mock.patch.object(
+                    publication, 'publication_payloads', return_value={publication.BASE_NAME: b'new-base', publication.INTENT_NAME: b'new-intent'}
+                ), mock.patch.object(publication, '_atomic_write', side_effect=fail_later), mock.patch.object(publication, 'validate_written_payloads'):
+                    with self.assertRaises(type(failure)):
+                        publication.refresh_directory(target)
+                self.assertEqual(original, {name: (target / name).read_bytes() for name in names})
+                self.assertEqual('preserve', (target / 'unrelated.txt').read_text())
+
+
+    def test_refresh_restores_previous_directory_when_commit_rename_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            target = Path(temporary) / 'generated'
+            target.mkdir()
+            (target / 'original').write_text('previous complete snapshot')
+            replace = publication.os.replace
+            def fail_commit(source, destination):
+                if Path(source).name == 'staged' and Path(destination) == target:
+                    raise OSError('commit rename failed')
+                return replace(source, destination)
+            with mock.patch.object(publication, 'current_semantic_snapshot', return_value=('a' * 40, {})), mock.patch.object(
+                publication, 'publication_payloads', return_value={publication.BASE_NAME: b'new-base', publication.INTENT_NAME: b'new-intent'}
+            ), mock.patch.object(publication.os, 'replace', side_effect=fail_commit), mock.patch.object(publication, 'validate_written_payloads') as validate:
+                with self.assertRaisesRegex(OSError, 'commit rename failed'):
+                    publication.refresh_directory(target)
+                self.assertEqual('staged', validate.call_args.args[0].name)
+            self.assertEqual(['original'], [p.name for p in target.iterdir()])
+            self.assertEqual('previous complete snapshot', (target / 'original').read_text())
+
 
 if __name__ == "__main__":
     unittest.main()

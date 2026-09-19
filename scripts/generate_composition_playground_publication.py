@@ -7,6 +7,8 @@ import gzip
 import json
 import os
 import re
+import shutil
+import tempfile
 import subprocess
 import sys
 from pathlib import Path
@@ -338,7 +340,10 @@ def write_directory(directory: Path, *, semantic_revision: str | None = None) ->
 
 def refresh_directory(directory: Path) -> str:
     """Refresh a generated publication snapshot from clean, committed semantics."""
-    directory.mkdir(parents=True, exist_ok=True)
+    directory = directory.absolute()
+    if directory.is_symlink() or (directory.exists() and not directory.is_dir()):
+        raise CompositionError("INVALID_PLAYGROUND_PUBLICATION", "refresh destination must be a directory")
+    directory.parent.mkdir(parents=True, exist_ok=True)
     revision, semantic_objects = current_semantic_snapshot()
     payloads = publication_payloads(
         semantic_revision=revision,
@@ -352,13 +357,37 @@ def refresh_directory(directory: Path) -> str:
         "semantic_objects": semantic_objects,
         "assets": [BASE_NAME, INTENT_NAME],
     }
-    _atomic_write(
-        directory / MANIFEST_NAME,
-        (json.dumps(manifest, indent=2) + "\n").encode("utf-8"),
-    )
-    for name, payload in payloads.items():
-        _atomic_write(directory / name, payload)
-    validate_written_payloads(directory, payloads, revision)
+    # Build and verify the whole snapshot before changing the caller's directory.
+    # Exclusive caller ownership is required. The two renames have a visibility
+    # gap; this is not crash-atomic. Keep the backup if rollback itself fails.
+    transaction = Path(tempfile.mkdtemp(prefix=f".{directory.name}.refresh-", dir=directory.parent))
+    staged = transaction / "staged"
+    backup = transaction / "previous"
+    committed = False
+    try:
+        if directory.exists():
+            shutil.copytree(directory, staged, symlinks=True)
+        else:
+            staged.mkdir()
+        _atomic_write(staged / MANIFEST_NAME, (json.dumps(manifest, indent=2) + "\n").encode("utf-8"))
+        for name, payload in payloads.items():
+            _atomic_write(staged / name, payload)
+        validate_written_payloads(staged, payloads, revision)
+        try:
+            if directory.exists():
+                os.replace(directory, backup)
+            os.replace(staged, directory)
+            committed = True
+        except BaseException:
+            if backup.exists():
+                try:
+                    os.replace(backup, directory)
+                except OSError as exc:
+                    raise CompositionError("REFRESH_ROLLBACK_FAILED", f"previous snapshot preserved at {backup}: {exc}") from exc
+            raise
+    finally:
+        if committed or not backup.exists():
+            shutil.rmtree(transaction)
     return revision
 
 
