@@ -21,9 +21,9 @@ def fixture(root):
     models={name:{} for name in MODELS}
     models['documents.json']=[{'publication':'composition','document':'intro','source':'docs/index.md','destination':'intro.md','slot':False}]
     models['navigation.json']={'schema_version':1,'navigation':{'use':[{'publication':'composition','document':'intro','destination':'intro.md','title':'Intro'}]},'locale_labels':{'schema_version':1,'canonical_language':'en','locales':[{'language':'ja','labels':[{'id':'intro','canonical':'Intro','localized':'はじめに'},{'id':'use','canonical':'Use templates','localized':'利用'}]}]},'audience_runtime':{'schema_version':1,'audiences':['use'],'documents':{'intro.md':{'destination':'intro.md','key':'composition:intro','audiences':['use'],'primary':'use','is_landing':False,'title':'Intro'}},'routes':audience_routes(['intro.md']),'navigation':{'use':[{'title':'Intro','destination':'intro.md','href':'/intro/'}]},'overviews':{'use':'/intro/'},'landing_destination':'intro.md'}}
-    models['guided-locales.json']={'schema_version':1,'canonical_graph_schema_version':1,'canonical_language':'en','locales':[]}
+    models['guided-locales.json']={'schema_version':1,'canonical_graph_schema_version':2,'canonical_language':'en','locales':[]}
     models['reader-navigation-runtime.json']={'schema_version':1,'canonical_language':'en','locales':[{'language':'ja','labels':{'Intro':'はじめに','Use templates':'利用'},'routes':{}}]}
-    models['guided-navigation.json']={'schema_version':1,'repository':'TakashiSasaki/templates','providers':[{'name':k,'revision':v,'root_index':'docs/index.md','indexes':[{'path':'docs/index.md','title':'Intro','sections':[],'depth':0,'object_id':'f'*40}],'edges':[],'diagnostics':{'index_count':1,'edge_count':0,'max_index_depth':0,'cycle_edges':[],'multiple_parent_indexes':[]}} for k,v in PROVIDERS.items()]}
+    models['guided-navigation.json']={'schema_version':2,'repository':'TakashiSasaki/templates','providers':[{'name':k,'revision':v,'root_index':'index.md','indexes':[{'path':'index.md','title':'Intro','sections':[],'depth':0,'object_id':'f'*40}],'edges':[],'diagnostics':{'index_count':1,'edge_count':0,'max_index_depth':0,'cycle_edges':[],'multiple_parent_indexes':[]}} for k,v in PROVIDERS.items()]}
     models['translation-availability.json']={'schema_version':1,'canonical_language':'en','surface':'reader','languages':[],'summary':{'current':0,'stale':0,'missing':0},'by_language':{},'records':[]}
     models['translation-publication.json']={'schema_version':1,'canonical_language':'en','translations':[]}
     models['glossary.json']={'schema_version':1,'repository':'TakashiSasaki/templates','terms':[]}
@@ -149,6 +149,28 @@ class BundleTests(unittest.TestCase):
         self.assertEqual(data['requirements'], REQUIREMENTS_V4)
         self.assertEqual(data['requirements_digest'], digest(canonical(REQUIREMENTS_V4)))
         self.assertEqual(validate(root)['identity'], data['identity'])
+
+    def test_v4_rejects_legacy_graph_but_historical_bundle_accepts_it(self):
+        for version in (3, 4):
+            with self.subTest(version=version):
+                root = (v4_fixture if version == 4 else fixture)(self.base / str(version))
+                graph = json.loads((root / 'guided-navigation.json').read_text())
+                graph['schema_version'] = 1
+                for provider in graph['providers']:
+                    provider['root_index'] = 'docs/index.md'
+                    provider['indexes'][0]['path'] = 'docs/index.md'
+                (root / 'guided-navigation.json').write_bytes(canonical(graph))
+                locales = json.loads((root / 'guided-locales.json').read_text())
+                locales['canonical_graph_schema_version'] = 1
+                (root / 'guided-locales.json').write_bytes(canonical(locales))
+                if version == 4:
+                    with self.assertRaisesRegex(BundleError, 'requires guided graph schema v2'):
+                        finish_v4(root)
+                    with self.assertRaisesRegex(BundleError, 'requires guided graph schema v2'):
+                        validate(root)
+                else:
+                    finish(root)
+                    self.assertEqual(validate(root)['schema_version'], 3)
 
     def test_v4_requirement_identity_or_provider_binding_fails_closed(self):
         for mutation in ('digest', 'provider'):

@@ -1,0 +1,19 @@
+schema_version: 2
+toolchain:
+  repository: TakashiSasaki/templates
+  revision: a53966ab02142795654fbda41d2c470c70db3422
+contexts:
+  default:
+    profiles:
+      - progressive-discovery
+    project_policy:
+      files: []
+skills:
+  enabled:
+    - maintain-progressive-discovery
+outputs:
+  agents:
+    enabled: false
+    path: AGENTS.md
+    context: default
+    renderer: agents-md

@@ -7,7 +7,10 @@ from urllib.parse import urlsplit
 from publication_bundle.repository import FULL_SHA, REPOSITORY
 from publication_bundle.url_contract import IndexNavigationError, contains_disallowed_control, validate_external_location
 PROVIDER_ORDER = ('composition', 'policy')
-ROOT_INDEX = 'docs/index.md' 
+GRAPH_SCHEMA_VERSION = 2
+LEGACY_GRAPH_SCHEMA_VERSION = 1
+ROOT_INDEX = 'index.md'
+LEGACY_ROOT_INDEX = 'docs/index.md'
 
 class IndexNavigationViewerError(RuntimeError):
     """Raised when a guided-navigation viewer cannot be rendered safely."""
@@ -18,16 +21,27 @@ def contains_non_scalar(value: str) -> bool:
     return any(0xD800 <= ord(character) <= 0xDFFF for character in value)
 
 
+def _unique_json_members(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise IndexNavigationViewerError(f"duplicate JSON member: {key}")
+        result[key] = value
+    return result
+
+
 def load_graph(path: Path, *, provider_order=PROVIDER_ORDER) -> dict[str, Any]:
     if path.is_symlink() or not path.is_file():
         raise IndexNavigationViewerError(f"graph must be a regular file: {path}")
     try:
-        value = json.loads(path.read_text(encoding="utf-8"))
+        value = json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=_unique_json_members)
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         raise IndexNavigationViewerError(f"unable to read index graph {path}: {exc}") from exc
     schema_version = value.get("schema_version") if isinstance(value, dict) else None
-    if type(schema_version) is not int or schema_version != 1:
-        raise IndexNavigationViewerError("index graph must use schema_version 1")
+    if type(schema_version) is not int or schema_version not in {LEGACY_GRAPH_SCHEMA_VERSION, GRAPH_SCHEMA_VERSION}:
+        raise IndexNavigationViewerError("index graph must use schema_version 1 or 2")
+    if schema_version == GRAPH_SCHEMA_VERSION and set(value) != {"schema_version", "repository", "providers"}:
+        raise IndexNavigationViewerError("schema-v2 graph fields do not match the contract")
     repository = value.get("repository")
     providers = value.get("providers")
     if (
@@ -88,6 +102,8 @@ def _section_title(section: Any) -> str:
         return section
     if not isinstance(section, dict):
         raise IndexNavigationViewerError("index section must be a string or object")
+    if set(section) != {"title", "level"}:
+        raise IndexNavigationViewerError("index section fields do not match the contract")
     title = section.get("title")
     level = section.get("level")
     if not isinstance(title, str) or not title or contains_non_scalar(title):
@@ -106,10 +122,16 @@ def _section_level(section: Any) -> int:
     return level
 
 
-def validate_provider_graph(provider: dict[str, Any], *, provider_order=PROVIDER_ORDER) -> None:
+def validate_provider_graph(
+    provider: dict[str, Any],
+    *,
+    provider_order=PROVIDER_ORDER,
+    root_index: str = ROOT_INDEX,
+) -> None:
+    if root_index == ROOT_INDEX and set(provider) != {"name", "revision", "root_index", "indexes", "edges", "diagnostics"}:
+        raise IndexNavigationViewerError("schema-v2 provider fields do not match the contract")
     name = provider.get("name")
     revision = provider.get("revision")
-    root_index = provider.get("root_index")
     indexes = provider.get("indexes")
     edges = provider.get("edges")
     diagnostics = provider.get("diagnostics")
@@ -117,7 +139,7 @@ def validate_provider_graph(provider: dict[str, Any], *, provider_order=PROVIDER
         raise IndexNavigationViewerError("provider name is invalid")
     if not isinstance(revision, str) or not FULL_SHA.fullmatch(revision):
         raise IndexNavigationViewerError(f"{name} revision is invalid")
-    if root_index != ROOT_INDEX:
+    if provider.get("root_index") != root_index:
         raise IndexNavigationViewerError(f"{name} root index is invalid")
     if not isinstance(indexes, list) or not indexes:
         raise IndexNavigationViewerError(f"{name} indexes must be a non-empty array")
@@ -134,6 +156,8 @@ def validate_provider_graph(provider: dict[str, Any], *, provider_order=PROVIDER
     for index in indexes:
         if not isinstance(index, dict):
             raise IndexNavigationViewerError(f"{name} index record must be an object")
+        if set(index) != {"path", "title", "sections", "depth", "object_id"}:
+            raise IndexNavigationViewerError(f"{name} index record fields do not match the contract")
         path = index.get("path")
         title = index.get("title")
         sections = index.get("sections")
@@ -169,13 +193,20 @@ def validate_provider_graph(provider: dict[str, Any], *, provider_order=PROVIDER
         index_by_path[path] = index
         section_titles_by_path[path] = set(section_titles)
 
-    if ROOT_INDEX not in paths:
+    if root_index not in paths:
         raise IndexNavigationViewerError(f"{name} graph does not contain its root index")
 
     allowed_kinds = {"index", "file", "directory", "fragment", "external"}
     for edge in edges:
         if not isinstance(edge, dict):
             raise IndexNavigationViewerError(f"{name} edge must be an object")
+        edge_fields = {
+            "source", "kind", "label", "description", "raw_target", "target", "line",
+            "section", "fragment",
+        }
+        required_edge_fields = edge_fields - {"section", "fragment"}
+        if not required_edge_fields <= set(edge) or not set(edge) <= edge_fields:
+            raise IndexNavigationViewerError(f"{name} edge fields do not match the contract")
         source = edge.get("source")
         if source not in paths:
             raise IndexNavigationViewerError(f"{name} edge source is not a rendered index")
@@ -240,13 +271,18 @@ def validate_provider_graph(provider: dict[str, Any], *, provider_order=PROVIDER
                 f"{name} index edge targets a non-rendered index: {target}"
             )
 
-    expected_diagnostics = graph_diagnostics(indexes, edges)
+    expected_diagnostics = graph_diagnostics(indexes, edges, root_index=root_index)
     if set(diagnostics) != set(expected_diagnostics):
         raise IndexNavigationViewerError(f"{name} diagnostics fields do not match producer contract")
     for field, expected in expected_diagnostics.items():
         if diagnostics[field] != expected:
             raise IndexNavigationViewerError(
                 f"{name} diagnostics {field} does not match graph contents"
+            )
+    for cycle_edge in diagnostics["cycle_edges"]:
+        if not isinstance(cycle_edge, dict) or set(cycle_edge) != {"source", "target"}:
+            raise IndexNavigationViewerError(
+                f"{name} diagnostics cycle edge fields do not match the contract"
             )
 
 
@@ -284,7 +320,7 @@ def find_cycle_edges(
     return cycle_edges
 
 
-def graph_diagnostics(indexes, edges):
+def graph_diagnostics(indexes, edges, *, root_index: str = ROOT_INDEX):
     """One deterministic diagnostic derivation for producers and consumers."""
     adjacency = {}
     incoming_sources = {}
@@ -292,8 +328,8 @@ def graph_diagnostics(indexes, edges):
         if edge["kind"] == "index":
             adjacency.setdefault(edge["source"], []).append(edge["target"])
             incoming_sources.setdefault(edge["target"], set()).add(edge["source"])
-    depths = {ROOT_INDEX: 0}
-    queue = [ROOT_INDEX]
+    depths = {root_index: 0}
+    queue = [root_index]
     cursor = 0
     while cursor < len(queue):
         source = queue[cursor];cursor += 1
@@ -309,6 +345,6 @@ def graph_diagnostics(indexes, edges):
         "index_count": len(indexes),
         "edge_count": len(edges),
         "max_index_depth": max((index["depth"] for index in indexes), default=0),
-        "cycle_edges": find_cycle_edges(adjacency, ROOT_INDEX),
+        "cycle_edges": find_cycle_edges(adjacency, root_index),
         "multiple_parent_indexes": sorted(path for path, sources in incoming_sources.items() if len(sources) > 1),
     }

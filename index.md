@@ -12,8 +12,10 @@
 - [Provider selection](publication-sources.json) - Records the exact reviewed provider revisions selected by Integration.
 - [Publication staging](publication-staging.json) - Records explicit staging state for publication processing.
 - [Site manifest](site-manifest.json) - Defines the integrated publication destination and reader information-architecture contract.
-- [Contracts](contracts/) - Contains Publication Bundle and compatibility contracts, schemas, registries, and qualification-report definitions.
-- [Integration documentation](docs/) - Contains Integration-owned glossary and publication catalog inputs.
+- [Reader navigation locales](reader-navigation-locales.json) - Owns locale labels that are hashed into generated reader navigation.
+- [Site content slots](integration/site-slots.json) - Declares Integration publication slots filled by Site-owned content.
+- [Contracts](contracts/index.md) - Contains Publication Bundle and compatibility contracts, schemas, registries, and qualification-report definitions.
+- [Integration documentation](docs/index.md) - Contains Integration-owned glossary and publication catalog inputs.
 
 ## Implementation and qualification
 

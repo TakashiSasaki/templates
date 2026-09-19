@@ -39,6 +39,24 @@ the graph; Site source browsing uses immutable GitHub URLs instead of receiving 
 repository inventories or source bytes.
 Site content slots contain declarations only; downstream Site supplies its own bytes.
 
+The current guided-navigation read model is schema v2. Its provider discovery root is the
+authority-root `index.md`, and each provider record retains the exact provider revision and
+Git blob identity for every reachable index. The validator continues to read historical
+schema-v1 graphs rooted at `docs/index.md`; new graph generation never falls back to that
+legacy root.
+
+The guided graph JSON Schema is a structural precheck, not a standalone acceptance
+validator. Consumers MUST run the public `publication_bundle.graph.load_graph` on
+the raw graph file and `validate_provider_graph` for each provider, using the
+schema-selected root and provider order. Full Bundle consumers should use
+`publication_bundle.contract.validate`, which already performs these checks.
+JSON Schema treats `2`, `2.0`, and `2e0` as the same integer value; the canonical
+runtime deliberately requires integer JSON tokens for schema versions, section
+levels, depths, line numbers, and diagnostic counts. Decimal/exponent spellings
+and booleans are rejected. Do not weaken that canonical check or claim acceptance
+from a schema-only pass; provenance and cross-record constraints also require the
+public validator.
+
 Provider-owned translation manifests are authenticated against their exact source
 checkouts during production. The Bundle carries the resulting translation availability,
 exact source identities and published derivatives, but no provider repository tree or

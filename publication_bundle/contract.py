@@ -295,7 +295,14 @@ def validate(root, *, expected_identity=None, expected_producer=None,
     graph = read_json(regular(root, 'guided-navigation.json'))
     if not isinstance(graph, dict) or {p.get('name'):p.get('revision') for p in graph.get('providers', [])} != providers:
         raise BundleError('guided graph provenance mismatch')
-    from publication_bundle.graph import load_graph, validate_provider_graph
+    from publication_bundle.graph import (
+        GRAPH_SCHEMA_VERSION,
+        LEGACY_GRAPH_SCHEMA_VERSION,
+        LEGACY_ROOT_INDEX,
+        ROOT_INDEX,
+        load_graph,
+        validate_provider_graph,
+    )
     from publication_bundle.glossary import load_model, GlossaryViewerError
     try:
         glossary = load_model(root / 'glossary.json')
@@ -308,8 +315,20 @@ def validate(root, *, expected_identity=None, expected_producer=None,
         from publication_bundle.navigation import validate_navigation
         validate_navigation(root, navigation, documents)
         accepted_graph = load_graph(root / 'guided-navigation.json', provider_order=PROVIDER_ORDERS[schema_version])
+        graph_schema_version = accepted_graph['schema_version']
+        if schema_version == SCHEMA_VERSION_V4 and graph_schema_version != GRAPH_SCHEMA_VERSION:
+            raise BundleError('Bundle v4 requires guided graph schema v2')
+        graph_root_index = (
+            LEGACY_ROOT_INDEX
+            if graph_schema_version == LEGACY_GRAPH_SCHEMA_VERSION
+            else ROOT_INDEX
+        )
         for provider in accepted_graph['providers']:
-            validate_provider_graph(provider, provider_order=PROVIDER_ORDERS[schema_version])
+            validate_provider_graph(
+                provider,
+                provider_order=PROVIDER_ORDERS[schema_version],
+                root_index=graph_root_index,
+            )
     except (ValueError, RuntimeError, KeyError, TypeError, UnicodeError) as exc:
         raise BundleError('invalid Bundle read model: ' + str(exc)) from exc
     from publication_bundle.translations import validate_translations
