@@ -223,7 +223,7 @@ def test_self_host_projection_uses_the_canonical_progressive_discovery_skill() -
         / ".agents/skills/maintain-progressive-discovery/scripts/maintain_progressive_discovery.py"
     )
 
-    assert revision == "e65e5a6c041e01943a0b45c6f9a10dfd17d2c304"
+    assert revision == "6c3147a84311804da83e87eb6f883574bb8736cc"
     assert script.is_file()
     assert "authoritative inventory" in skill
     assert "--apply" in skill
@@ -245,3 +245,44 @@ def test_authoritative_inventories_are_declared_navigation_targets() -> None:
     assert set(adapter['authoritative_inventories']).issubset(adapter['expected_documents'])
     source_index = (ROOT / 'index.md').read_text()
     assert '(docs/publication-catalog.json)' in source_index
+
+
+def _require_clean_repository_discovery(root: Path) -> None:
+    import subprocess
+    import sys
+    script = (root / '.agents/skills/maintain-progressive-discovery/scripts'
+              / 'maintain_progressive_discovery.py')
+    result = subprocess.run(
+        [sys.executable, str(script), '--root', str(root), '--format', 'json'],
+        text=True, capture_output=True, check=False,
+    )
+    report = json.loads(result.stdout)
+    assert result.returncode == 0 and report['result'] == 'NO_UPDATE_REQUIRED', (
+        report['result'], report['validation']['errors']
+    )
+
+
+def test_repository_progressive_discovery_is_clean() -> None:
+    _require_clean_repository_discovery(ROOT)
+
+
+def test_repository_discovery_gate_rejects_a_removed_navigation_entry(tmp_path: Path) -> None:
+    import shutil
+    import subprocess
+    import pytest
+    paths = subprocess.check_output(['git', '-C', str(ROOT), 'ls-files', '-z']).decode().split('\0')
+    for relative in filter(None, paths):
+        source = ROOT / relative
+        if source.is_file():
+            destination = tmp_path / relative
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(source, destination)
+    _require_clean_repository_discovery(tmp_path)
+    index = tmp_path / 'policy/core/index.md'
+    text = index.read_text()
+    assert '[Testing](testing.md)' in text
+    index.write_text('\n'.join(
+        line for line in text.splitlines() if '[Testing](testing.md)' not in line
+    ) + '\n')
+    with pytest.raises(AssertionError, match='UPDATE_REQUIRED'):
+        _require_clean_repository_discovery(tmp_path)
