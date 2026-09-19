@@ -20,13 +20,33 @@
   "sources": [
     {
       "generated": false,
+      "path": ".agents/skills/land-templates-stack/SKILL.md",
+      "sha256": "9ea07fb47437a9fd2c2697eb28bcc5b9f17bf6736d76624ff1c9b5053c6bbf9e"
+    },
+    {
+      "generated": false,
+      "path": ".agents/skills/land-templates-stack/source.json",
+      "sha256": "e40ab2abc8bc68e1c30f34c46e6c21f434cd66605d4a63bb6d72b8acd741569f"
+    },
+    {
+      "generated": true,
+      "path": ".agents/skills/maintain-progressive-discovery/SKILL.md",
+      "sha256": "368eff2cd84afacf83b822c997358d90ca0404c3c6c401e3e2ee8bdddb6fc9f7"
+    },
+    {
+      "generated": true,
+      "path": ".agents/skills/maintain-progressive-discovery/scripts/maintain_progressive_discovery.py",
+      "sha256": "23d12046c9ef9ad383c12825c9dfa4677a84510d42d43bd5d71ef3cc8f0155b1"
+    },
+    {
+      "generated": false,
       "path": ".agents/skills/pr-merge-gate/SKILL.md",
-      "sha256": "74d6d1890bc8c42b622a0ff622a877e59522f836156466e9719171dc1bfda92f"
+      "sha256": "656001031239bf2b0a49a58be2ab61eedfdebad179adbb4282110be21a99fd4b"
     },
     {
       "generated": false,
       "path": ".agents/skills/pr-merge-gate/source.json",
-      "sha256": "987531b4a46dd94c636cf933375d941ed3b48fdc7e9261f142bb899e62c0a593"
+      "sha256": "e2833c6cfa650c42b0b1bf654026d8f1a7065dbab17bcde6d07cae1407429f86"
     },
     {
       "generated": false,
@@ -46,14 +66,14 @@
     {
       "generated": true,
       "path": "AGENTS.md",
-      "sha256": "628d7a25aa75d14b56d4ee3ded180df6339cf08159cc05082e77dd56dc45e556"
+      "sha256": "2172690c0fb7dba86ce8feca6cade7f53b5ee6fda9a899a97c3504eda158b005"
     }
   ],
   "state_path": ".agent-policy/adoption.json",
   "status": "finalized",
   "toolchain": {
     "repository": "TakashiSasaki/templates",
-    "revision": "837b305fb9962dc971ab50aa5dbf40af234cbfed"
+    "revision": "960d44725a62096b37c599689a09dcc5b780f4bd"
   },
   "verification_command": null
 }
