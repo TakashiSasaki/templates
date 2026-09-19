@@ -287,3 +287,31 @@ def test_repository_discovery_gate_rejects_a_removed_navigation_entry(tmp_path: 
     ) + '\n')
     with pytest.raises(AssertionError, match='UPDATE_REQUIRED'):
         _require_clean_repository_discovery(tmp_path)
+
+
+def test_mkdocs_destinations_are_covered_by_repository_discovery() -> None:
+    import subprocess
+    import sys
+
+    manifest = load_yaml(ROOT / 'mkdocs.yml')
+
+    def destinations(value):
+        if isinstance(value, str):
+            if '://' not in value and not value.startswith('#'):
+                yield value.split('#', 1)[0]
+        elif isinstance(value, dict):
+            for child in value.values():
+                yield from destinations(child)
+        elif isinstance(value, list):
+            for child in value:
+                yield from destinations(child)
+
+    docs_root = manifest.get('docs_dir', 'docs')
+    expected = {f'{docs_root}/{path}' for path in destinations(manifest['nav'])}
+    script = (ROOT / '.agents/skills/maintain-progressive-discovery/scripts'
+              / 'maintain_progressive_discovery.py')
+    result = subprocess.run([sys.executable, str(script), '--root', str(ROOT), '--format', 'json'],
+                            text=True, capture_output=True, check=True)
+    report = json.loads(result.stdout)
+    assert expected <= set(report['expected_documents'])
+    assert expected <= set(report['validation']['reachable'])

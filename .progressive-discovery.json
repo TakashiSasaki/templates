@@ -14,7 +14,11 @@
     "AGENTS.md",
     "CONTRIBUTING.md",
     "README.md",
+    "docs/agent-work-orchestration.md",
+    "docs/policy-readiness-audit.md",
     "docs/publication-catalog.json",
+    "docs/revision-bound-qualification.md",
+    "docs/staged-ci.md",
     "index.md",
     "profiles/core.yml",
     "profiles/external-artifact-intake.yml",
@@ -77,7 +81,11 @@
   },
   "authored_index_exclusions": {
     "docs/index.md": {
-      "docs/publication-catalog.json": "Source-only inventory is linked from authority root; published reader navigation remains publication-closed."
+      "docs/publication-catalog.json": "Source-only inventory is linked from authority root; published reader navigation remains publication-closed.",
+      "docs/policy-readiness-audit.md": "Source-only maintainer documentation is linked from the authority root; published reader navigation remains publication-closed.",
+      "docs/agent-work-orchestration.md": "Source-only maintainer documentation is linked from the authority root; published reader navigation remains publication-closed.",
+      "docs/staged-ci.md": "Source-only maintainer documentation is linked from the authority root; published reader navigation remains publication-closed.",
+      "docs/revision-bound-qualification.md": "Source-only maintainer documentation is linked from the authority root; published reader navigation remains publication-closed."
     }
   }
 }

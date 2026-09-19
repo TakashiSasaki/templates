@@ -26,3 +26,10 @@
 - [Scripts](scripts/) - Contains validation, release, documentation, and maintenance commands.
 - [Tests](tests/) - Contains Policy semantic, runtime, distribution, documentation, and regression coverage.
 - [Translations](translations/) - Contains non-canonical translated Policy documentation and synchronization metadata.
+
+## Maintainer operation and qualification
+
+- [Policy readiness audit](docs/policy-readiness-audit.md) - Records evidence and remaining work for the Policy completion roadmap.
+- [Repository-change orchestration](docs/agent-work-orchestration.md) - Explains coordinated agent work and repository change ownership.
+- [Staged CI and preflight](docs/staged-ci.md) - Explains local preflight and staged continuous integration checks.
+- [Revision-bound qualification](docs/revision-bound-qualification.md) - Defines qualification evidence bound to immutable revisions.
