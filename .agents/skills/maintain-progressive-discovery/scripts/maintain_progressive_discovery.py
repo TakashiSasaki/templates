@@ -12,11 +12,10 @@ import os
 import posixpath
 import re
 import subprocess
-import sys
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 from urllib.parse import unquote, urlsplit
-
 
 INDEX_NAME = "index.md"
 ADAPTER_NAME = ".progressive-discovery.json"
@@ -82,7 +81,10 @@ def _ignored(path: Path, root: Path) -> bool:
         parts = path.relative_to(root).parts
     except ValueError:
         return True
-    return any(part in IGNORED_DIRECTORIES or part.startswith(".") and part != ".well-known" for part in parts)
+    return any(
+        part in IGNORED_DIRECTORIES or part.startswith(".") and part != ".well-known"
+        for part in parts
+    )
 
 
 def _walk_files(root: Path) -> Iterable[Path]:
@@ -91,7 +93,8 @@ def _walk_files(root: Path) -> Iterable[Path]:
         dirnames[:] = sorted(
             name
             for name in dirnames
-            if name not in IGNORED_DIRECTORIES and not name.startswith(".")
+            if name not in IGNORED_DIRECTORIES
+            and not name.startswith(".")
             and not (current / name).is_symlink()
         )
         for name in sorted(filenames):
@@ -251,7 +254,9 @@ def _discover_inventory_paths(root: Path, adapter: dict[str, Any]) -> list[str]:
     return sorted(paths)
 
 
-def _expected_documents(root: Path, adapter: dict[str, Any], inventories: list[str]) -> tuple[list[str], list[str]]:
+def _expected_documents(
+    root: Path, adapter: dict[str, Any], inventories: list[str]
+) -> tuple[list[str], list[str]]:
     expected: set[str] = set()
     errors: list[str] = []
     for relative in inventories:
@@ -275,7 +280,8 @@ def _expected_documents(root: Path, adapter: dict[str, Any], inventories: list[s
         adapter, "closed_inventories"
     )
     expected = {
-        item for item in expected
+        item
+        for item in expected
         if not any(item == prefix or item.startswith(prefix + "/") for prefix in excluded)
     }
     return sorted(expected), errors
@@ -287,11 +293,7 @@ def _configured_paths(adapter: dict[str, Any], key: str) -> set[str]:
         raw = list(raw)
     if not isinstance(raw, list):
         return set()
-    return {
-        value.rstrip("/")
-        for value in raw
-        if isinstance(value, str) and value.strip()
-    }
+    return {value.rstrip("/") for value in raw if isinstance(value, str) and value.strip()}
 
 
 def _generated_specs(adapter: dict[str, Any]) -> dict[str, dict[str, Any]]:
@@ -358,8 +360,7 @@ def _index_paths(root: Path, adapter: dict[str, Any]) -> list[str]:
         for path in _walk_files(root)
         if path.name == INDEX_NAME
         and not any(
-            _relative(path, root) == prefix
-            or _relative(path, root).startswith(prefix + "/")
+            _relative(path, root) == prefix or _relative(path, root).startswith(prefix + "/")
             for prefix in excluded
         )
     )
@@ -406,7 +407,9 @@ def _headings(path: Path) -> set[str]:
     try:
         return {
             _heading_slug(match.group(2))
-            for match in (HEADING_RE.match(line) for line in path.read_text(encoding="utf-8").splitlines())
+            for match in (
+                HEADING_RE.match(line) for line in path.read_text(encoding="utf-8").splitlines()
+            )
             if match
         }
     except OSError:
@@ -418,10 +421,7 @@ def _anchors(path: Path) -> set[str]:
         text = path.read_text(encoding="utf-8")
     except OSError:
         return set()
-    return {
-        unquote(value)
-        for value in re.findall(r"\b(?:id|name)=[\"']([^\"']+)[\"']", text)
-    }
+    return {unquote(value) for value in re.findall(r"\b(?:id|name)=[\"']([^\"']+)[\"']", text)}
 
 
 def _resolve_link(root: Path, source: str, target: str) -> tuple[str | None, str | None]:
@@ -446,8 +446,14 @@ def _resolve_link(root: Path, source: str, target: str) -> tuple[str | None, str
 
 
 def _render_generated(root: Path, relative: str, spec: dict[str, Any], expected: list[str]) -> str:
-    title = spec.get("title") if isinstance(spec.get("title"), str) else f"Generated discovery for {relative}"
-    section = spec.get("section") if isinstance(spec.get("section"), str) else "Discoverable documents"
+    title = (
+        spec.get("title")
+        if isinstance(spec.get("title"), str)
+        else f"Generated discovery for {relative}"
+    )
+    section = (
+        spec.get("section") if isinstance(spec.get("section"), str) else "Discoverable documents"
+    )
     parent = posixpath.dirname(relative)
     lines = [GENERATED_MARKER, f"# {title}", "", f"## {section}", ""]
     for item in sorted(expected):
@@ -458,8 +464,16 @@ def _render_generated(root: Path, relative: str, spec: dict[str, Any], expected:
     return "\n".join(lines)
 
 
-def _classify(root: Path, indexes: list[str], expected: list[str], adapter: dict[str, Any], generated: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
-    exclusions = _configured_paths(adapter, "explicit_exclusions") | _configured_paths(adapter, "closed_inventories")
+def _classify(
+    root: Path,
+    indexes: list[str],
+    expected: list[str],
+    adapter: dict[str, Any],
+    generated: dict[str, dict[str, Any]],
+) -> list[dict[str, Any]]:
+    exclusions = _configured_paths(adapter, "explicit_exclusions") | _configured_paths(
+        adapter, "closed_inventories"
+    )
     authored = _configured_paths(adapter, "authored_boundaries")
     curated = _configured_paths(adapter, "curated_shortcuts")
     relevant: set[str] = set()
@@ -477,17 +491,22 @@ def _classify(root: Path, indexes: list[str], expected: list[str], adapter: dict
     for directory in sorted(relevant):
         if directory == ".":
             continue
-        excluded = next((prefix for prefix in sorted(exclusions) if directory == prefix or directory.startswith(prefix + "/")), None)
+        excluded = next(
+            (
+                prefix
+                for prefix in sorted(exclusions)
+                if directory == prefix or directory.startswith(prefix + "/")
+            ),
+            None,
+        )
         index = posixpath.join(directory, INDEX_NAME)
-        expected_here = [item for item in expected if item == directory or item.startswith(directory + "/")]
+        expected_here = [
+            item for item in expected if item == directory or item.startswith(directory + "/")
+        ]
         generated_here = index in generated
         existing = index in indexes
         curated_parent = next(
-            (
-                prefix
-                for prefix in sorted(curated)
-                if directory.startswith(prefix + "/")
-            ),
+            (prefix for prefix in sorted(curated) if directory.startswith(prefix + "/")),
             None,
         )
         if excluded:
@@ -501,13 +520,19 @@ def _classify(root: Path, indexes: list[str], expected: list[str], adapter: dict
             reason = f"ancestor boundary {curated_parent} provides a curated shortcut"
         elif curated_parent and existing:
             category = "authority-needed"
-            reason = f"existing index is under curated boundary {curated_parent}; removal or retention needs authority judgment"
+            reason = (
+                f"existing index is under curated boundary {curated_parent}; "
+                "removal or retention needs authority judgment"
+            )
         elif existing and expected_here:
             category = "authored-index-needed"
             reason = "authoritative inventory identifies a meaningful curated boundary"
         elif existing:
             category = "authority-needed"
-            reason = "existing index has no authoritative expected set; it is not retained by presence alone"
+            reason = (
+                "existing index has no authoritative expected set; "
+                "it is not retained by presence alone"
+            )
         elif directory in authored or len(expected_here) > 1:
             category = "authored-index-needed"
             reason = "meaningful boundary needs curated next-step navigation"
@@ -517,7 +542,15 @@ def _classify(root: Path, indexes: list[str], expected: list[str], adapter: dict
         else:
             category = "index-unnecessary"
             reason = "no authoritative discoverable destination"
-        result.append({"directory": directory, "index": index, "classification": category, "reason": reason, "expected": expected_here})
+        result.append(
+            {
+                "directory": directory,
+                "index": index,
+                "classification": category,
+                "reason": reason,
+                "expected": expected_here,
+            }
+        )
     return result
 
 
@@ -545,7 +578,14 @@ def _reachable_from_index(root: Path, indexes: list[str], start: str) -> tuple[s
     return reachable, issues
 
 
-def _plan(root: Path, adapter: dict[str, Any], indexes: list[str], expected: list[str], generated: dict[str, dict[str, Any]], policy: dict[str, Any]) -> list[dict[str, Any]]:
+def _plan(
+    root: Path,
+    adapter: dict[str, Any],
+    indexes: list[str],
+    expected: list[str],
+    generated: dict[str, dict[str, Any]],
+    policy: dict[str, Any],
+) -> list[dict[str, Any]]:
     plan: list[dict[str, Any]] = []
     if not policy["profile_selected"] or not policy["skill_selected"]:
         return plan
@@ -554,7 +594,11 @@ def _plan(root: Path, adapter: dict[str, Any], indexes: list[str], expected: lis
         configured_inventory = spec.get("inventory") if isinstance(spec, dict) else None
         if isinstance(configured_inventory, list):
             configured = {str(item) for item in configured_inventory}
-            expected_for_index = [item for item in expected if any(item == inv or item.startswith(inv.rstrip("/") + "/") for inv in configured)]
+            expected_for_index = [
+                item
+                for item in expected
+                if any(item == inv or item.startswith(inv.rstrip("/") + "/") for inv in configured)
+            ]
         expected_for_index = [item for item in expected_for_index if item != relative]
         rendered = _render_generated(root, relative, spec, expected_for_index)
         path = root / relative
@@ -573,20 +617,52 @@ def _plan(root: Path, adapter: dict[str, Any], indexes: list[str], expected: lis
         else:
             action = "none"
             reason = "generated output is fresh"
-        plan.append({"action": action, "kind": "generated", "path": relative, "reason": reason, "content": rendered if action in {"create", "regenerate"} else None})
+        plan.append(
+            {
+                "action": action,
+                "kind": "generated",
+                "path": relative,
+                "reason": reason,
+                "content": rendered if action in {"create", "regenerate"} else None,
+            }
+        )
     remove = _configured_paths(adapter, "remove_generated_indexes")
     for relative in sorted(remove):
         path = root / relative
         if not path.exists():
             continue
         if path.is_file() and GENERATED_MARKER in path.read_text(encoding="utf-8"):
-            plan.append({"action": "delete", "kind": "generated", "path": relative, "reason": "adapter explicitly retired this generated index", "content": None})
+            plan.append(
+                {
+                    "action": "delete",
+                    "kind": "generated",
+                    "path": relative,
+                    "reason": "adapter explicitly retired this generated index",
+                    "content": None,
+                }
+            )
         else:
-            plan.append({"action": "authority-needed", "kind": "authored", "path": relative, "reason": "retirement is explicit but the file is not generated", "content": None})
+            plan.append(
+                {
+                    "action": "authority-needed",
+                    "kind": "authored",
+                    "path": relative,
+                    "reason": "retirement is explicit but the file is not generated",
+                    "content": None,
+                }
+            )
     classifications = _classify(root, indexes, expected, adapter, generated)
     for item in classifications:
         if item["classification"] == "authored-index-needed" and item["index"] not in indexes:
-            plan.append({"action": "create", "kind": "authored", "path": item["index"], "reason": "curated authored index is missing; authority must supply links", "content": None})
+            plan.append(
+                {
+                    "action": "create",
+                    "kind": "authored",
+                    "path": item["index"],
+                    "reason": "curated authored index is missing; authority must supply links",
+                    "content": None,
+                }
+            )
         elif item["classification"] == "authored-index-needed" and item["index"] in indexes:
             reachable, issues = _reachable_from_index(root, indexes, item["index"])
             missing = [document for document in item["expected"] if document not in reachable]
@@ -596,19 +672,36 @@ def _plan(root: Path, adapter: dict[str, Any], indexes: list[str], expected: lis
                     detail.append(f"missing expected destinations: {', '.join(missing)}")
                 if issues:
                     detail.append("link or grammar diagnostics require review")
-                plan.append({
-                    "action": "update",
+                plan.append(
+                    {
+                        "action": "update",
+                        "kind": "authored",
+                        "path": item["index"],
+                        "reason": "authored navigation is stale; " + "; ".join(detail),
+                        "content": None,
+                    }
+                )
+        elif item["classification"] == "authority-needed" and item["index"] in indexes:
+            plan.append(
+                {
+                    "action": "authority-needed",
                     "kind": "authored",
                     "path": item["index"],
-                    "reason": "authored navigation is stale; " + "; ".join(detail),
+                    "reason": item["reason"],
                     "content": None,
-                })
-        elif item["classification"] == "authority-needed" and item["index"] in indexes:
-            plan.append({"action": "authority-needed", "kind": "authored", "path": item["index"], "reason": item["reason"], "content": None})
+                }
+            )
     return plan
 
 
-def _validate(root: Path, indexes: list[str], expected: list[str], adapter: dict[str, Any], generated: dict[str, dict[str, Any]], policy: dict[str, Any]) -> dict[str, Any]:
+def _validate(
+    root: Path,
+    indexes: list[str],
+    expected: list[str],
+    adapter: dict[str, Any],
+    generated: dict[str, dict[str, Any]],
+    policy: dict[str, Any],
+) -> dict[str, Any]:
     errors: list[str] = []
     warnings: list[str] = []
     links_by_index: dict[str, list[str]] = {}
@@ -628,7 +721,11 @@ def _validate(root: Path, indexes: list[str], expected: list[str], adapter: dict
         expected_for_index = expected
         if isinstance(configured_inventory, list):
             configured = {str(item) for item in configured_inventory}
-            expected_for_index = [item for item in expected if any(item == inv or item.startswith(inv.rstrip("/") + "/") for inv in configured)]
+            expected_for_index = [
+                item
+                for item in expected
+                if any(item == inv or item.startswith(inv.rstrip("/") + "/") for inv in configured)
+            ]
         expected_for_index = [item for item in expected_for_index if item != relative]
         rendered = _render_generated(root, relative, spec, expected_for_index)
         if not path.is_file():
@@ -655,9 +752,14 @@ def _validate(root: Path, indexes: list[str], expected: list[str], adapter: dict
     if policy["profile_selected"] and policy["skill_selected"]:
         for item in expected:
             if item not in reachable:
-                errors.append(f"expected-document coverage: {item} is not reachable from {root_index}")
+                errors.append(
+                    f"expected-document coverage: {item} is not reachable from {root_index}"
+                )
     if not adapter.get("authoritative_inventories") and expected:
-        warnings.append("expected set used discovered inventory filenames; declare authoritative_inventories for a stable local adapter")
+        warnings.append(
+            "expected set used discovered inventory filenames; declare "
+            "authoritative_inventories for a stable local adapter"
+        )
     if not adapter.get("publication_system", False):
         warnings.append("publication system not declared; publication metadata is not required")
     return {
@@ -670,7 +772,10 @@ def _validate(root: Path, indexes: list[str], expected: list[str], adapter: dict
 
 def _apply(root: Path, plan: list[dict[str, Any]], policy: dict[str, Any]) -> list[str]:
     if not policy["profile_selected"] or not policy["skill_selected"]:
-        return ["apply refused: progressive-discovery profile and Skill must both be explicitly selected"]
+        return [
+            "apply refused: progressive-discovery profile and Skill must "
+            "both be explicitly selected"
+        ]
     changes: list[str] = []
     for item in plan:
         if item["action"] not in {"create", "regenerate", "delete"}:
@@ -691,7 +796,13 @@ def _apply(root: Path, plan: list[dict[str, Any]], policy: dict[str, Any]) -> li
     return changes
 
 
-def run(root: Path, *, adapter_path: str = ADAPTER_NAME, policy_path: str = POLICY_NAME, apply: bool = False) -> dict[str, Any]:
+def run(
+    root: Path,
+    *,
+    adapter_path: str = ADAPTER_NAME,
+    policy_path: str = POLICY_NAME,
+    apply: bool = False,
+) -> dict[str, Any]:
     root = root.resolve()
     adapter, adapter_errors = _load_adapter(root, adapter_path)
     policy_raw, policy_notes = _yaml_policy(root, policy_path)
@@ -731,7 +842,10 @@ def run(root: Path, *, adapter_path: str = ADAPTER_NAME, policy_path: str = POLI
         "classification": _classify(root, indexes, expected, adapter, generated),
         "plan": [{key: value for key, value in item.items() if key != "content"} for item in plan],
         "applied": applied,
-        "exclusions": sorted(_configured_paths(adapter, "explicit_exclusions") | _configured_paths(adapter, "closed_inventories")),
+        "exclusions": sorted(
+            _configured_paths(adapter, "explicit_exclusions")
+            | _configured_paths(adapter, "closed_inventories")
+        ),
         "notes": sorted(adapter_errors + inventory_errors + policy_notes),
         "validation": validation,
     }
@@ -741,8 +855,13 @@ def _text_report(report: dict[str, Any]) -> str:
     lines = [
         f"repository: {report['repository']}",
         f"revision: {report['revision']}",
-        f"policy: profile={'selected' if report['policy']['profile_selected'] else 'unselected'}, skill={'selected' if report['policy']['skill_selected'] else 'unselected'}",
-        f"inventories: {len(report['inventories'])}; expected documents: {len(report['expected_documents'])}; indexes: {len(report['indexes'])}",
+        "policy: "
+        f"profile={'selected' if report['policy']['profile_selected'] else 'unselected'}, "
+        f"skill={'selected' if report['policy']['skill_selected'] else 'unselected'}",
+        "inventories: "
+        f"{len(report['inventories'])}; "
+        f"expected documents: {len(report['expected_documents'])}; "
+        f"indexes: {len(report['indexes'])}",
         f"publication system: {'yes' if report['publication_system'] else 'no'}",
         "classifications:",
     ]
