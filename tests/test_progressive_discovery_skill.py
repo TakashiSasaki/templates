@@ -1231,6 +1231,7 @@ def test_surface_paths_reject_symlinks_and_allow_declared_generated_creation(tmp
     _commit_generated_target(target)
     skill = _load_skill()
     assert skill.run(target, apply=True)['result'] == 'NO_UPDATE_REQUIRED'
+    assert skill.run(target)['result'] == 'NO_UPDATE_REQUIRED'
     outside = tmp_path / 'outside.md'
     outside.write_text('# Outside\n')
     (target / 'docs/linked.md').symlink_to(outside)
@@ -1240,3 +1241,37 @@ def test_surface_paths_reject_symlinks_and_allow_declared_generated_creation(tmp
     assert report['result'] == 'AUTHORITY_NEEDED'
     assert report['applied'] == []
     assert outside.read_text() == '# Outside\n'
+
+
+def test_planned_generated_file_cannot_be_a_directory_surface(tmp_path):
+    for existing in (False, True):
+        target = tmp_path / str(existing)
+        shutil.copytree(_fixture('generated-docs'), target)
+        _commit_generated_target(target)
+        skill = _load_skill()
+        if existing:
+            assert skill.run(target, apply=True)['result'] == 'NO_UPDATE_REQUIRED'
+            _commit_generated_target(target)
+        path = target / '.progressive-discovery.json'
+        adapter = json.loads(path.read_text())
+        adapter['surface_boundaries'] = {'generated': ['generated/index.md/']}
+        path.write_text(json.dumps(adapter))
+        for apply in (False, True):
+            report = skill.run(target, apply=apply)
+            assert report['result'] == 'AUTHORITY_NEEDED'
+            assert report['applied'] == []
+            assert (target / 'generated/index.md').exists() is existing
+
+
+def test_generated_file_cannot_contain_another_active_index(tmp_path):
+    target = tmp_path / 'repository'
+    shutil.copytree(_fixture('generated-docs'), target)
+    path = target / '.progressive-discovery.json'
+    adapter = json.loads(path.read_text())
+    adapter['generated_indexes']['generated/index.md/child/index.md'] = {'title': 'Child'}
+    path.write_text(json.dumps(adapter))
+    _commit_generated_target(target)
+    report = _load_skill().run(target, apply=True)
+    assert report['result'] == 'AUTHORITY_NEEDED'
+    assert report['applied'] == []
+    assert not (target / 'generated/index.md').exists()
