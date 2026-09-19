@@ -38,3 +38,13 @@ class ProgressiveDiscoveryBoundaryTests(unittest.TestCase):
         root = (ROOT / 'index.md').read_text()
         for source in ('reader-navigation-locales.json', 'integration/site-slots.json'):
             self.assertIn(f']({source})', root)
+
+    def test_adapter_has_unique_members_and_complete_expected_documents(self):
+        def unique(pairs):
+            result = {}
+            for key, value in pairs:
+                self.assertNotIn(key, result, f'duplicate adapter member: {key}')
+                result[key] = value
+            return result
+        adapter = json.loads((ROOT / '.progressive-discovery.json').read_text(), object_pairs_hook=unique)
+        self.assertTrue({'index.md', 'docs/index.md', 'contracts/index.md'}.issubset(adapter['expected_documents']))

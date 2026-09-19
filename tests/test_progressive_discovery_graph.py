@@ -143,3 +143,30 @@ class ProgressiveDiscoveryGraphTests(unittest.TestCase):
         for wrong_root in ('docs/index.md', 'other/index.md'):
             with self.subTest(root=wrong_root), self.assertRaises(IndexNavigationViewerError):
                 validate_provider_graph(self._provider(wrong_root), provider_order=('composition',), root_index=ROOT_INDEX)
+
+    def test_published_schema_validates_provider_record_shapes(self):
+        import copy
+        import jsonschema
+        schema = json.loads((Path(__file__).resolve().parents[1] /
+                             'contracts/publication-bundle/guided-navigation.schema.json').read_text())
+        validator = jsonschema.Draft202012Validator(schema)
+        validator.check_schema(schema)
+        graph = {'schema_version': 2, 'repository': 'TakashiSasaki/templates',
+                 'providers': [self._provider(ROOT_INDEX)]}
+        graph['providers'][0]['indexes'][0]['sections'] = [{'title': 'Start', 'level': 2}]
+        graph['providers'][0]['edges'] = [{'source': ROOT_INDEX, 'kind': 'fragment',
+            'label': 'Start', 'description': '', 'raw_target': '#start', 'target': ROOT_INDEX,
+            'line': 3, 'section': 'Start', 'fragment': 'start'}]
+        graph['providers'][0]['diagnostics'] = graph_diagnostics(
+            graph['providers'][0]['indexes'], graph['providers'][0]['edges'])
+        validate_provider_graph(graph['providers'][0], provider_order=('composition',))
+        validator.validate(graph)
+        cases = [('indexes', [None]), ('indexes', [{}]), ('edges', [None]),
+                 ('edges', [{}]), ('diagnostics', {}),
+                 ('diagnostics', dict(graph['providers'][0]['diagnostics'], cycle_edges=[None])),
+                 ('diagnostics', dict(graph['providers'][0]['diagnostics'], multiple_parent_indexes=[None]))]
+        for field, value in cases:
+            candidate = copy.deepcopy(graph)
+            candidate['providers'][0][field] = value
+            with self.subTest(field=field, value=value), self.assertRaises(jsonschema.ValidationError):
+                validator.validate(candidate)

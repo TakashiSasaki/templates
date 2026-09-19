@@ -12,9 +12,18 @@
     "docs/glossary.yml"
   ],
   "expected_documents": [
-    "index.md",
+    "contracts/index.md",
+    "contracts/publication-compatibility/feature-registry.json",
+    "contracts/publication-compatibility/provider-registry.json",
+    "docs/glossary.yml",
     "docs/index.md",
-    "contracts/index.md"
+    "docs/publication-catalog.json",
+    "index.md",
+    "integration/site-slots.json",
+    "publication-sources.json",
+    "publication-staging.json",
+    "reader-navigation-locales.json",
+    "site-manifest.json"
   ],
   "authored_boundaries": [
     "docs",
@@ -38,17 +47,6 @@
       "consumer": "guided-navigation.json"
     }
   },
-  "expected_documents": [
-    "contracts/publication-compatibility/feature-registry.json",
-    "contracts/publication-compatibility/provider-registry.json",
-    "docs/glossary.yml",
-    "docs/publication-catalog.json",
-    "integration/site-slots.json",
-    "publication-sources.json",
-    "publication-staging.json",
-    "reader-navigation-locales.json",
-    "site-manifest.json"
-  ],
   "inventory_path_namespaces": {
     "integration/site-slots.json": "external",
     "contracts/publication-compatibility/provider-registry.json": "external"
