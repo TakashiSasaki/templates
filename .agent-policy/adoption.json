@@ -36,7 +36,7 @@
     {
       "generated": true,
       "path": ".agents/skills/maintain-progressive-discovery/scripts/maintain_progressive_discovery.py",
-      "sha256": "98fd3c58a028cc038c0caa040939c89eed2cd7ae20c38d2a90e1714082e151c9"
+      "sha256": "76b89ab3b08d15c7b89a46e427f9089adeaba393c95136ff94dbf3fdbc5727a1"
     },
     {
       "generated": false,
@@ -66,14 +66,14 @@
     {
       "generated": true,
       "path": "AGENTS.md",
-      "sha256": "f21e056c01f85a977e7245396ce1157e1bd7563768b03d6cf34d83fb22643f18"
+      "sha256": "0e04a11201a9382eea6ea0b99ca8e56890800605e5f49f8bbcc3d930b6cd9108"
     }
   ],
   "state_path": ".agent-policy/adoption.json",
   "status": "finalized",
   "toolchain": {
     "repository": "TakashiSasaki/templates",
-    "revision": "696161bcc3dbae99d9ef01934fc76c2a959c3dd6"
+    "revision": "eb550cc4bdd15e7d52bdba3957dd212d657b8fdf"
   },
   "verification_command": null
 }
