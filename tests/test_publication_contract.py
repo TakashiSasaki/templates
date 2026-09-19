@@ -203,6 +203,7 @@ class CompositionPublicationContractTests(unittest.TestCase):
             for entry in translation_manifest["translations"]
         }
         expected_exclusions = {
+            PurePosixPath("index.md"),
             PurePosixPath(".agents/skills/pr-merge-gate/SKILL.md"),
             PurePosixPath(".agents/skills/land-templates-stack/SKILL.md"),
             PurePosixPath("AGENTS.md"),
