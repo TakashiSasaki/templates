@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import re
+import string
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlsplit
+from urllib.parse import quote, urlsplit
 
 from publication_bundle.contract import BundleError, read_json, regular, safe_path
 from publication_bundle.paths import public_path
@@ -57,7 +58,7 @@ def _source_entries(source: dict[str, Any]) -> list[dict[str, Any]]:
                 raise BundleError(
                     f"invalid progressive discovery entry {section_index}:{entry_index}"
                 )
-            entries.append({"section": section["title"], **entry})
+            entries.append({**entry, "section_index": section_index})
     return entries
 
 
@@ -185,6 +186,19 @@ def _provider_entries(source: dict[str, Any], graph: dict[str, Any]) -> list[dic
     return result
 
 
+def _markdown_prose(value: str) -> str:
+    # Prose is plain text, never an additional Markdown/HTML source surface.
+    normalized = " ".join(value.split())
+    if any(ord(character) < 32 or ord(character) == 127 for character in normalized):
+        raise BundleError("progressive discovery prose contains control characters")
+    return "".join("\\" + character if character in string.punctuation else character
+                   for character in normalized)
+
+
+def _markdown_href(value: str) -> str:
+    return quote(value, safe="/%-._~")
+
+
 def project(
     source: dict[str, Any],
     graph: dict[str, Any],
@@ -195,18 +209,18 @@ def project(
     entries = _source_entries(source)
     routes = _document_routes([d for d in documents if d.get("publication") != "site"])
     routes.update(_document_routes(_site_documents(source, site_catalog or {})))
-    lines = [GENERATED_MARKER, f"# {source['title']}", ""]
-    for section in source["sections"]:
-        lines.extend([f"## {section['title']}", ""])
+    lines = [GENERATED_MARKER, f"# {_markdown_prose(source['title'])}", ""]
+    for section_index, section in enumerate(source["sections"]):
+        lines.extend([f"## {_markdown_prose(section['title'])}", ""])
         for entry in entries:
-            if entry["section"] != section["title"]:
+            if entry["section_index"] != section_index:
                 continue
             href = _resolve_entry(entry, routes)
-            lines.append(f"- [{entry['label']}]({href}) - {entry['description']}")
+            lines.append(f"- [{_markdown_prose(entry['label'])}]({_markdown_href(href)}) - {_markdown_prose(entry['description'])}")
             lines.append("")
     lines.extend(["## Provider navigation", ""])
     for entry in _provider_entries(source, graph):
-        lines.append(f"- [{entry['label']}]({entry['href']}) - {entry['description']}")
+        lines.append(f"- [{_markdown_prose(entry['label'])}]({_markdown_href(entry['href'])}) - {_markdown_prose(entry['description'])}")
         lines.append("")
     return "\n".join(lines)
 
