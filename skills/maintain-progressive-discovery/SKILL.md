@@ -134,7 +134,7 @@ order only if the same directory remains empty; existing directories and
 concurrently added contents are preserved. New parents are identified in the
 private namespace before atomic no-replace publication, so a later pathname
 replacement cannot be claimed as an operation-created directory. Deleted-file
-rollback likewise completes bytes and restores the saved mode with `fchmod` in
+rollback and generated-file creation likewise complete bytes before publication. Rollback restores the saved mode with `fchmod` in
 the private namespace before publication; process umask cannot alter that mode. Concurrent
 edits or recreated paths are preserved and reported as incomplete rollback.
 `applied` retains the mutation history and adds `rollback PATH` for each completed

@@ -1565,3 +1565,42 @@ def test_delete_rollback_restores_exact_mode_under_restrictive_umask(tmp_path, m
     assert errors and 'rollback first.md' in applied
     assert first.read_text() == original
     assert first.stat().st_mode & 0o777 == 0o644
+
+
+def test_generated_creation_never_writes_a_public_placeholder(tmp_path, monkeypatch):
+    skill = _load_skill()
+    (tmp_path / 'README.md').write_text('# Repository\n')
+    _commit_generated_target(tmp_path)
+    target = tmp_path / 'index.md'
+    content = skill.GENERATED_MARKER + '\n# Generated\n'
+    snapshot = skill._target_state(tmp_path, 'index.md')
+    original_fstat, original_write = skill.os.fstat, skill.os.write
+    changed = []
+
+    def concurrent_public_file():
+        if target.exists():
+            target.rename(tmp_path / 'moved-placeholder.md')
+        target.write_text('# Concurrent authored file\n')
+        changed.append(True)
+
+    def after_open(fd):
+        state = original_fstat(fd)
+        if (not changed and target.exists()
+                and state.st_ino == target.stat().st_ino):
+            concurrent_public_file()
+        return state
+
+    def before_write(fd, data):
+        if not changed and bytes(data) == content.encode():
+            concurrent_public_file()
+        return original_write(fd, data)
+
+    monkeypatch.setattr(skill.os, 'fstat', after_open)
+    monkeypatch.setattr(skill.os, 'write', before_write)
+    applied, errors = skill._apply(tmp_path, [
+        {'action': 'create', 'kind': 'generated', 'path': 'index.md',
+         'content': content, 'snapshot': snapshot}],
+        {'profile_selected': True, 'skill_selected': True})
+    assert changed and errors and not applied
+    assert target.read_text() == '# Concurrent authored file\n'
+    assert not (tmp_path / 'moved-placeholder.md').exists()

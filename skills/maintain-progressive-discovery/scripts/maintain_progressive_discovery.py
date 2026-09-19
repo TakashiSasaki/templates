@@ -17,7 +17,7 @@ import secrets
 import stat
 import string
 import subprocess
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from contextlib import ExitStack
 from html.parser import HTMLParser
 from pathlib import Path
@@ -1326,7 +1326,9 @@ def _apply(
                         f"authority-needed: temporary directory retained: {location}: {exc}")
 
     def publish_new(parent: int, name: str, label: str, *,
-                    content: bytes | None = None, mode: int = 0o777) -> tuple[int, Any]:
+                    content: bytes | None = None, mode: int | None = None,
+                    retain_on_failure: bool = True,
+                    before_publish: Callable[[], str | None] | None = None) -> tuple[int, Any]:
         # Build and identify the object in a private namespace before exposing
         # its public name. No partially written rollback placeholder is public.
         holding = ".progressive-discovery-" + secrets.token_hex(16)
@@ -1341,19 +1343,22 @@ def _apply(
             private = os.open(holding, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
                               dir_fd=parent)
             if content is None:
-                os.mkdir("target", mode, dir_fd=private)
+                os.mkdir("target", 0o777 if mode is None else mode, dir_fd=private)
                 prepared = True
                 fd = os.open("target", os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
                              dir_fd=private)
             else:
                 fd = os.open("target", os.O_RDWR | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
-                             0o600, dir_fd=private)
+                             0o666 if mode is None else 0o600, dir_fd=private)
                 prepared = True
                 replace_fd(fd, content)
                 # Creation modes are masked by umask; restoring a saved mode is
                 # an explicit operation on the private completed object.
-                os.fchmod(fd, mode)
+                if mode is not None:
+                    os.fchmod(fd, mode)
             identity = os.fstat(fd)
+            if before_publish and (error := before_publish()):
+                raise OSError(error)
             rename_exclusive(private, "target", parent, name)
             published = True
             return fd, identity
@@ -1362,6 +1367,12 @@ def _apply(
                 if content is None:
                     try:
                         os.rmdir("target", dir_fd=private)
+                        prepared = False
+                    except OSError:
+                        pass
+                elif not retain_on_failure:
+                    try:
+                        os.unlink("target", dir_fd=private)
                         prepared = False
                     except OSError:
                         pass
@@ -1464,10 +1475,21 @@ def _apply(
                 content = item.get("content")
                 if action != "delete" and not isinstance(content, str):
                     raise OSError(f"missing planned content: {relative}")
-                flags = os.O_RDWR | os.O_NOFOLLOW
                 if action == "create":
-                    flags |= os.O_CREAT | os.O_EXCL
-                fd = os.open(name, flags, 0o666, dir_fd=parent_fd)
+                    after = content.encode("utf-8")
+                    fd, identity = publish_new(parent_fd, name, relative,
+                                               content=after, retain_on_failure=False,
+                                               before_publish=lambda: revalidate(item))
+                    try:
+                        undo.append({"action": action, "path": relative, "parent": parent_fd,
+                                     "name": name, "identity": (identity.st_dev, identity.st_ino),
+                                     "mode": stat.S_IMODE(identity.st_mode),
+                                     "before": b"", "after": after})
+                        changes.append(f"{action} {relative}")
+                    finally:
+                        os.close(fd)
+                    continue
+                fd = os.open(name, os.O_RDWR | os.O_NOFOLLOW, dir_fd=parent_fd)
                 try:
                     identity = os.fstat(fd)
                     if not stat.S_ISREG(identity.st_mode) or identity.st_nlink != 1:
