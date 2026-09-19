@@ -24,7 +24,9 @@
     "translations",
     "examples",
     "docs/migrations/pr2-skill-capabilities.md",
-    "docs/migrations/pr3-webapp-lifecycle.md"
+    "docs/migrations/pr3-webapp-lifecycle.md",
+    "docs/guides/webmcp-capability.md",
+    "docs/glossary.yml"
   ],
   "closed_inventories": [
     "components"
@@ -41,7 +43,9 @@
   "surface_boundaries": {
     "provider-maintenance": [
       "docs/provider-maintenance.md",
-      "docs/publication-catalog.md"
+      "docs/publication-catalog.md",
+      "docs/guides/webmcp-capability.md",
+      "docs/glossary.yml"
     ],
     "consumer-distributed": [
       "docs/consumer-guide.md",
@@ -56,5 +60,9 @@
       "recipes/",
       "schemas/"
     ]
+  },
+  "exclusion_reasons": {
+    "docs/guides/webmcp-capability.md": "Source-only maintenance input, routed directly from the authority root; not a reader documentation-index destination.",
+    "docs/glossary.yml": "Source-only maintenance input, routed directly from the authority root; not a reader documentation-index destination."
   }
 }

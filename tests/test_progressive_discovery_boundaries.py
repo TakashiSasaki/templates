@@ -21,7 +21,8 @@ class ProgressiveDiscoveryBoundaryTests(unittest.TestCase):
         self.assertTrue(adapter["publication_system"])
         self.assertEqual(
             adapter["surface_boundaries"]["provider-maintenance"],
-            ["docs/provider-maintenance.md", "docs/publication-catalog.md"],
+            ["docs/provider-maintenance.md", "docs/publication-catalog.md",
+             "docs/guides/webmcp-capability.md", "docs/glossary.yml"],
         )
         self.assertEqual(
             adapter["surface_boundaries"]["consumer-distributed"],
@@ -35,6 +36,16 @@ class ProgressiveDiscoveryBoundaryTests(unittest.TestCase):
                 self.assertIn(f"]({target})", text)
         self.assertNotIn("](components/)", text)
         self.assertIn("](examples/README.md)", text)
+
+    def test_source_only_inputs_remain_discoverable_without_reader_publication(self) -> None:
+        adapter = json.loads((ROOT / ".progressive-discovery.json").read_text())
+        root = (ROOT / "index.md").read_text()
+        reader = (ROOT / "docs/index.md").read_text()
+        for source in ("docs/guides/webmcp-capability.md", "docs/glossary.yml"):
+            self.assertIn(source, adapter["explicit_exclusions"])
+            self.assertTrue(adapter["exclusion_reasons"][source])
+            self.assertIn(f"]({source})", root)
+            self.assertNotIn(f"]({source.removeprefix('docs/')})", reader)
 
     def test_nested_indexes_are_small_curated_navigation_surfaces(self) -> None:
         for relative in ("index.md", "docs/index.md", "catalog/index.md", "recipes/index.md", "schemas/index.md"):
