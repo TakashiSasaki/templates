@@ -210,6 +210,72 @@ def test_identity_is_required_and_check_name_cannot_be_used_as_identity() -> Non
         snapshot([{"name": "same check", "state": "success"}])
 
 
+@pytest.mark.parametrize(
+    ("signal", "record"),
+    [
+        (
+            "short_sha_in_text",
+            {"identity": "review-1", "body": "1111111 is clean", "state": "commented"},
+        ),
+        (
+            "clean_wording",
+            {"identity": "review-2", "body": "clean", "state": "commented"},
+        ),
+        (
+            "reaction_only",
+            {"identity": "reaction-1", "content": "+1", "state": "reaction"},
+        ),
+        (
+            "outdated_thread",
+            {
+                "identity": "thread-1",
+                "body": "outdated thread",
+                "is_outdated": True,
+                "is_resolved": False,
+            },
+        ),
+    ],
+)
+def test_weak_signals_do_not_infer_binding_or_approval(
+    signal: str, record: dict
+) -> None:
+    del signal
+    current = snapshot([record])
+
+    assert current["binding_status"] == "stable"
+    assert current["merge_authorization"] == "not_established"
+    assert current["review_approval"] == "not_inferred"
+
+
+def test_absence_of_a_new_review_does_not_establish_approval() -> None:
+    current = snapshot([])
+
+    assert current["review_approval"] == "not_inferred"
+    assert current["merge_authorization"] == "not_established"
+
+
+def test_outdated_thread_disappearance_does_not_establish_resolution() -> None:
+    previous = snapshot(
+        [
+            {
+                "identity": "thread-1",
+                "body": "finding",
+                "is_outdated": True,
+                "is_resolved": False,
+            }
+        ]
+    )
+    current = snapshot([])
+
+    diff = OBSERVATION.diff_snapshots(previous, current)
+
+    assert diff["status"] == "changed"
+    removed = [change for change in diff["changes"] if change["kind"] == "removed_observed"]
+    assert len(removed) == 1
+    assert removed[0]["semantic_resolution"] == "not_inferred"
+    assert current["review_approval"] == "not_inferred"
+
+
 def test_summary_limit_preserves_continuation_reference() -> None:
     diff = {
         "status": "changed",

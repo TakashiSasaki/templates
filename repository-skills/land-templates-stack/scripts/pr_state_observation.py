@@ -785,7 +785,7 @@ def _summary_value(
     string_limit: int = SUMMARY_STRING_MAX_CHARS,
 ) -> tuple[Any, bool]:
     if isinstance(value, str):
-        if key in SUMMARY_PROTECTED_FIELDS:
+        if key in SUMMARY_PROTECTED_FIELDS and len(value) <= string_limit:
             return value, False
         return _truncate_summary_string(value, string_limit)
     if isinstance(value, list):
@@ -907,12 +907,16 @@ def summarize_diff(
             result: dict[str, Any] = {
                 "status": diff.get("status"),
                 "meaningful_change": diff.get("meaningful_change"),
-                "counts": diff.get("counts", {}),
+                "counts": _summary_value(
+                    diff.get("counts", {}), string_limit=string_limit
+                )[0],
                 "changes": [
                     _summary_change(change, string_limit=string_limit)
                     for change in changes[:visible_count]
                 ],
-                "unknowns": diff.get("unknowns", []),
+                "unknowns": _summary_value(
+                    diff.get("unknowns", []), string_limit=string_limit
+                )[0],
                 "summary_truncated": omitted > 0,
                 "omitted_change_count": omitted,
                 "merge_authorization": "not_established",
