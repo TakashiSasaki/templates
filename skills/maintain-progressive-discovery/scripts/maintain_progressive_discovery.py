@@ -127,7 +127,8 @@ def _read_inventory(path: Path) -> tuple[Any, list[str]]:
 
 
 def _repository_path_error(root: Path, relative: str) -> str | None:
-    if _safe_relative(relative) != relative or "\x00" in relative:
+    if (_safe_relative(relative) != relative or "\x00" in relative
+            or ".git" in Path(relative).parts):
         return f"unsafe repository-relative target: {relative}"
     current = root
     for part in Path(relative).parts:
@@ -162,6 +163,8 @@ def _git_dirty(root: Path) -> bool | None:
 
 
 def _load_adapter(root: Path, relative: str) -> tuple[dict[str, Any], list[str]]:
+    if problem := _repository_path_error(root, relative):
+        return {}, [f"adapter: {problem}"]
     path = root / relative
     if not path.exists() and not path.is_symlink():
         return {}, []
@@ -197,6 +200,8 @@ def _load_adapter(root: Path, relative: str) -> tuple[dict[str, Any], list[str]]
 
 
 def _yaml_policy(root: Path, relative: str) -> tuple[Any, list[str]]:
+    if problem := _repository_path_error(root, relative):
+        return {}, [f"policy: {problem}"]
     path = root / relative
     if not path.is_file():
         return {}, []
@@ -340,6 +345,9 @@ def _expected_documents(
         for item in expected
         if not any(item == prefix or item.startswith(prefix + "/") for prefix in excluded)
     }
+    for item in expected:
+        if problem := _repository_path_error(root, item):
+            errors.append(problem)
     return sorted(expected), errors
 
 
@@ -423,6 +431,8 @@ def _index_paths(root: Path, adapter: dict[str, Any]) -> list[str]:
 
 
 def _read_index_links(root: Path, relative: str) -> tuple[list[dict[str, str]], list[str]]:
+    if problem := _repository_path_error(root, relative):
+        return [], [problem]
     path = root / relative
     try:
         text = path.read_text(encoding="utf-8")
@@ -491,6 +501,8 @@ def _resolve_link(root: Path, source: str, target: str) -> tuple[str | None, str
     relative = _safe_relative(joined)
     if relative is None:
         return None, f"{source}: link escapes repository or is invalid: {target}"
+    if problem := _repository_path_error(root, relative):
+        return None, f"{source}: {problem}"
     base = root / relative
     if not base.exists():
         return relative, f"{source}: missing link target {target}"
@@ -891,6 +903,10 @@ def _validate(
         for orphan in sorted(set(indexes) - reachable):
             errors.append(f"nested-index reachability: orphan index {orphan}")
         for item in expected:
+            if problem := _repository_path_error(root, item):
+                errors.append(problem)
+                reachable.discard(item)
+                continue
             if not (root / item).is_file():
                 errors.append(f"expected-document coverage: declared document is missing: {item}")
             if item not in reachable:
@@ -995,7 +1011,9 @@ def run(
     plan = _plan(root, adapter, indexes, expected, generated, policy)
     applied: list[str] = []
     apply_errors: list[str] = []
-    source_errors = adapter_errors + inventory_errors
+    source_errors = adapter_errors + inventory_errors + [
+        note for note in policy_notes if "PyYAML unavailable; used conservative list fallback" not in note
+    ]
     if apply:
         if source_errors:
             apply_errors = [f"authority-needed: {error}" for error in source_errors]
@@ -1008,7 +1026,7 @@ def run(
     if source_errors:
         validation["errors"] = sorted(set(validation["errors"] + source_errors))
         validation["valid"] = False
-    if not selected:
+    if not selected and not source_errors:
         validation = {**validation, "valid": True, "errors": []}
     authority_needed = sum(1 for item in plan if item["action"] == "authority-needed") + len(
         apply_errors
@@ -1019,10 +1037,10 @@ def run(
         and f"{item['action']} {item['path']}" not in applied_actions
         for item in plan
     )
-    if not selected:
-        result = "NOT_APPLICABLE"
-    elif authority_needed:
+    if authority_needed:
         result = "AUTHORITY_NEEDED"
+    elif not selected:
+        result = "NOT_APPLICABLE"
     elif actionable or not validation["valid"]:
         result = "UPDATE_REQUIRED"
     else:
