@@ -336,3 +336,21 @@ def test_cli_parses_adoption_commands() -> None:
                 "--no-skills",
             ]
         )
+
+
+def test_skill_bytecode_cache_is_not_an_adoption_source(tmp_path: Path) -> None:
+    from agent_policy.adoption import discover_sources
+
+    skill = tmp_path / '.agents/skills/example'
+    cache = skill / 'scripts/__pycache__'
+    cache.mkdir(parents=True)
+    (skill / 'SKILL.md').write_text('# Skill\n')
+    (skill / 'scripts/helper.py').write_text('print("source")\n')
+    compiled = cache / 'helper.cpython-312.pyc'
+    compiled.write_bytes(b'first runtime cache')
+    before = discover_sources(tmp_path)
+    assert {source.path for source in before} == {
+        '.agents/skills/example/SKILL.md', '.agents/skills/example/scripts/helper.py'
+    }
+    compiled.write_bytes(b'rebuilt runtime cache')
+    assert discover_sources(tmp_path) == before
