@@ -584,3 +584,25 @@ def test_generated_markdown_handles_significant_filename_characters(tmp_path):
     assert report['validation']['valid'], report
     assert name in report['validation']['reachable']
     assert skill.run(root)['result'] == 'NO_UPDATE_REQUIRED'
+
+
+def test_authored_marker_mentions_do_not_grant_generated_ownership(tmp_path):
+    for action in ('regenerate', 'delete'):
+        root = tmp_path / action
+        shutil.copytree(_fixture('generated-docs'), root)
+        skill = _load_skill()
+        skill.run(root, apply=True)
+        target = root / 'generated/index.md'
+        authored = '# Authored navigation\n\nExample: ' + skill.GENERATED_MARKER + '\n'
+        target.write_text(authored)
+        _commit_generated_target(root)
+        if action == 'delete':
+            adapter = root / '.progressive-discovery.json'
+            data = json.loads(adapter.read_text())
+            data.pop('generated_indexes')
+            data['remove_generated_indexes'] = ['generated/index.md']
+            adapter.write_text(json.dumps(data))
+        report = skill.run(root, apply=True)
+        assert report['result'] == 'AUTHORITY_NEEDED', report
+        assert report['applied'] == []
+        assert target.read_text() == authored
