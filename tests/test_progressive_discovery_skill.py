@@ -1788,7 +1788,8 @@ def test_terminal_holding_cleanup_never_removes_a_replacement_after_stat(
             isinstance(path, str)
             and path.startswith('.progressive-discovery-')
             and not path.startswith(
-                ('.progressive-discovery-final-', '.progressive-discovery-cleanup-')
+                ('.progressive-discovery-final-', '.progressive-discovery-cleanup-',
+                 '.progressive-discovery-unlink-')
             )
         ):
             bound.add(path)
@@ -1978,6 +1979,74 @@ def test_final_cleanup_native_mutation_boundary_retains_a_late_replacement(
     assert not (tmp_path / 'index.md').is_symlink()
     # The replacement and operation-owned inode are both retained; the native
     # helper revalidates at the actual destructive boundary before unlinkat.
+
+
+def test_final_cleanup_native_capture_rejects_swap_after_final_stat(
+    tmp_path, monkeypatch
+):
+    skill = _load_skill()
+    (tmp_path / 'README.md').write_text('# Repository\n')
+    _commit_generated_target(tmp_path)
+    content = skill.GENERATED_MARKER + '\n# Generated\n'
+    snapshot = skill._target_state(tmp_path, 'index.md')
+    tokens = iter(('holding', 'cleanup', 'final', 'retire', 'purge', 'bound', 'unlink'))
+    counter = iter(range(100))
+    monkeypatch.setattr(
+        skill.secrets,
+        'token_hex',
+        lambda _size: next(tokens, f'extra{next(counter)}'),
+    )
+    original_stat = skill.os.stat
+    bound_stats: dict[str, int] = {}
+    swapped: list[str] = []
+    replacement_identity: list[tuple[int, int]] = []
+
+    def swap_after_native_final_stat(path, *args, **kwargs):
+        result = original_stat(path, *args, **kwargs)
+        if isinstance(path, str) and path.startswith('.progressive-discovery-bound-'):
+            count = bound_stats.get(path, 0) + 1
+            bound_stats[path] = count
+            # BoundRmdirPath performs the first stat.  The second is the
+            # native helper's final pathname check; swap immediately after it
+            # returns to exercise the check-to-rename boundary.
+            if count == 2 and not swapped:
+                bound_path = tmp_path / path
+                bound_path.rename(tmp_path / (path + '-moved'))
+                replacement = tmp_path / path
+                replacement.mkdir()
+                replacement_stat = original_stat(replacement)
+                replacement_identity.append(
+                    (replacement_stat.st_dev, replacement_stat.st_ino)
+                )
+                swapped.append(path)
+        return result
+
+    monkeypatch.setattr(skill.os, 'stat', swap_after_native_final_stat)
+    monkeypatch.setattr(
+        skill.os,
+        'supports_dir_fd',
+        skill.os.supports_dir_fd | {swap_after_native_final_stat},
+    )
+    applied, errors = skill._apply(
+        tmp_path,
+        [{'action': 'create', 'kind': 'generated', 'path': 'index.md',
+          'content': content, 'snapshot': snapshot}],
+        {'profile_selected': True, 'skill_selected': True},
+    )
+
+    assert swapped
+    assert 'create index.md' in applied
+    assert errors
+    assert replacement_identity
+    assert any(
+        (current := path.stat()).st_dev == replacement_identity[0][0]
+        and current.st_ino == replacement_identity[0][1]
+        for path in tmp_path.iterdir()
+        if path.is_dir()
+    )
+    assert (tmp_path / (swapped[0] + '-moved')).is_dir()
+    # The late replacement survives; the native capture must refuse it rather
+    # than unlinking whichever inode occupies the checked pathname.
 
 
 def test_final_cleanup_native_boundary_does_not_expose_os_rmdir_audit_gap(
