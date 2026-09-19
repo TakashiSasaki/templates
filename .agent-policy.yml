@@ -1,13 +1,14 @@
 schema_version: 2
 toolchain:
   repository: TakashiSasaki/templates
-  revision: 33a7ab809225c2a8b8dd2598ef04d0a39cf076a7
+  revision: c5c01e0e59e217571991420f4dc884c3e58e73f3
 contexts:
   coding:
     profiles:
       - core
       - security-baseline
       - pull-request
+      - progressive-discovery
     project_policy:
       files:
         - repository-policy/authority-boundary.md
@@ -48,3 +49,4 @@ skills:
   enabled:
     - pr-review
     - orchestrate-repository-change
+    - maintain-progressive-discovery

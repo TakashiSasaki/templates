@@ -84,6 +84,8 @@ def test_repository_self_hosting_outputs_match_recorded_lock() -> None:
         ".agents/skills/pr-review/references/risk-domains/privileged-execution.md",
         ".agents/skills/pr-review/references/risk-domains/resource-behavior.md",
         ".agents/skills/pr-review/references/risk-domains/state-mutation-and-recovery.md",
+        ".agents/skills/maintain-progressive-discovery/SKILL.md",
+        ".agents/skills/maintain-progressive-discovery/scripts/maintain_progressive_discovery.py",
     }
 
     for relative, metadata in outputs.items():
@@ -111,15 +113,22 @@ def test_core_context_delivers_local_checkout_discovery_rule() -> None:
         assert "core.discover-local-checkout-topology-fail-closed" in output
 
 
-def test_repository_self_hosting_workflow_checks_with_consumer_pin() -> None:
+def test_repository_self_hosting_workflow_checks_with_released_pin() -> None:
     config = load_yaml(CONFIG_PATH)
     toolchain = config["toolchain"]
     assert isinstance(toolchain, dict)
     revision = toolchain["revision"]
     assert isinstance(revision, str)
 
+    release = load_json(RELEASE_PATH)
+    stable_toolchain = release["toolchain"]
+    assert isinstance(stable_toolchain, dict)
+    stable_revision = stable_toolchain["revision"]
+    assert isinstance(stable_revision, str)
+
     workflow = SELF_HOST_WORKFLOW_PATH.read_text(encoding="utf-8")
-    assert f"uses: TakashiSasaki/templates@{revision}" in workflow
+    assert f"uses: TakashiSasaki/templates@{stable_revision}" in workflow
+    assert revision != stable_revision
     assert "uses: TakashiSasaki/templates@policy" not in workflow
     assert "uses: TakashiSasaki/templates@main" not in workflow
     assert "command: check" in workflow
@@ -132,7 +141,12 @@ def test_coding_and_review_share_repository_local_authority() -> None:
     coding = contexts["coding"]
     review = contexts["review"]
 
-    assert coding["profiles"] == ["core", "security-baseline", "pull-request"]
+    assert coding["profiles"] == [
+        "core",
+        "security-baseline",
+        "pull-request",
+        "progressive-discovery",
+    ]
     assert review["profiles"] == ["core", "security-baseline", "review"]
 
     coding_files = coding["project_policy"]["files"]
@@ -172,7 +186,11 @@ def test_generated_outputs_use_provider_neutral_review_authority() -> None:
         "renderer": "policy-context-md",
     }
     assert config["skills"] == {
-        "enabled": ["pr-review", "orchestrate-repository-change"]
+        "enabled": [
+            "pr-review",
+            "orchestrate-repository-change",
+            "maintain-progressive-discovery",
+        ]
     }
 
 
@@ -180,12 +198,32 @@ def test_self_host_projection_contains_workflow_source_and_pin() -> None:
     config = load_yaml(CONFIG_PATH)
     revision = config["toolchain"]["revision"]
     assert isinstance(revision, str)
+    release = load_json(RELEASE_PATH)
+    stable_revision = release["toolchain"]["revision"]
+    assert isinstance(stable_revision, str)
     agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
     workflow = SELF_HOST_WORKFLOW_PATH.read_text(encoding="utf-8")
     skill = (
         ROOT / ".agents/skills/orchestrate-repository-change/SKILL.md"
     ).read_text(encoding="utf-8")
     assert revision in agents
-    assert revision in workflow
+    assert stable_revision in workflow
     assert "strategy-neutral workflow dispatcher" in skill.lower()
     assert "references/stacked-pr-workflow.md" in skill
+
+
+def test_self_host_projection_uses_the_canonical_progressive_discovery_skill() -> None:
+    config = load_yaml(CONFIG_PATH)
+    revision = config["toolchain"]["revision"]
+    skill = (
+        ROOT / ".agents/skills/maintain-progressive-discovery/SKILL.md"
+    ).read_text(encoding="utf-8")
+    script = (
+        ROOT
+        / ".agents/skills/maintain-progressive-discovery/scripts/maintain_progressive_discovery.py"
+    )
+
+    assert revision == "c5c01e0e59e217571991420f4dc884c3e58e73f3"
+    assert script.is_file()
+    assert "authoritative inventory" in skill
+    assert "--apply" in skill
