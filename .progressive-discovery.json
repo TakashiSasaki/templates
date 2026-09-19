@@ -1,0 +1,47 @@
+{
+  "root_index": "index.md",
+  "authoritative_inventories": [
+    "progressive-discovery.json",
+    "docs/publication-catalog.json",
+    "agent.json",
+    "integration-source.json",
+    "reference-consumer.json",
+    "contracts/site-discovery.json",
+    "schemas/agent-bootstrap.schema.json",
+    "schemas/site-discovery.schema.json"
+  ],
+  "authored_boundaries": [
+    "docs",
+    "contracts"
+  ],
+  "closed_inventories": [
+    "schemas",
+    "assets",
+    "build"
+  ],
+  "explicit_exclusions": [
+    "publication",
+    "authority.json"
+  ],
+  "publication_system": true,
+  "surface_boundaries": {
+    "site-owned-source": {
+      "source": "progressive-discovery.json",
+      "consumer": "site_renderer/progressive_discovery.py"
+    },
+    "integration-read-model": {
+      "source": "guided-navigation.json and documents.json in the selected Bundle",
+      "consumer": "generated site/index.md"
+    },
+    "deployed-entrypoint": {
+      "source": "generated site/index.md",
+      "consumer": "static /index.md"
+    }
+  },
+  "inventory_path_namespaces": {
+    "progressive-discovery.json": "deployment"
+  },
+  "exclusion_reasons": {
+    "authority.json": "agent.json describes this Modeling-owned canonical record filename; it is not a Site source path."
+  }
+}

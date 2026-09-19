@@ -17,7 +17,7 @@
 ## Documentation and contracts
 
 - [Documentation](docs/) - Contains reader-facing and maintainer-facing Site documentation and architecture material.
-- [Contracts](contracts/) - Contains Site-owned contract instances and declared repository topology inputs.
+- [Contracts](contracts/index.md) - Contains Site-owned contract instances and declared repository topology inputs.
 - [Schemas](schemas/) - Contains Site-owned schema material used to validate Site contracts and publication inputs.
 - [Translations](translations/) - Contains Site-owned translation sources and synchronization metadata.
 
