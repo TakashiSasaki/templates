@@ -144,3 +144,46 @@ class ProgressiveDiscoveryProjectionTests(unittest.TestCase):
             configured['sections'][0]['entries'][0] = {'label': 'Bad', 'description': 'Bad.', 'href': href}
             with self.subTest(href=href), self.assertRaises(BundleError):
                 project(configured, graph(), [], site_catalog=catalog())
+
+    def test_duplicate_section_titles_keep_entries_in_their_own_section(self):
+        configured = source()
+        configured['sections'] = [
+            {'title': 'Same', 'entries': [{'label': 'First', 'description': 'First route.', 'href': '/first/'}]},
+            {'title': 'Same', 'entries': [{'label': 'Second', 'description': 'Second route.', 'href': '/second/'}]},
+        ]
+        text = project(configured, graph(), [], site_catalog=catalog())
+        sections = text.split('## Same\n')[1:]
+        self.assertEqual(2, len(sections))
+        self.assertIn('(/first/)', sections[0])
+        self.assertNotIn('(/second/)', sections[0])
+        self.assertIn('(/second/)', sections[1])
+        self.assertNotIn('(/first/)', sections[1])
+
+    def test_prose_and_destination_cannot_inject_undeclared_markdown_links(self):
+        from html.parser import HTMLParser
+        import markdown
+        class Links(HTMLParser):
+            def __init__(self):
+                super().__init__()
+                self.hrefs = []
+                self.images = []
+            def handle_starttag(self, tag, attrs):
+                if tag == 'a': self.hrefs.append(dict(attrs).get('href'))
+                if tag == 'img': self.images.append(dict(attrs))
+        configured = source()
+        payload = 'normal\n- [undeclared](https://example.com)<img src=x>'
+        configured['title'] = payload
+        configured['sections'] = [{'title': payload, 'entries': [
+            {'label': payload, 'description': payload, 'href': '/a)[undeclared](/other'},
+        ]}]
+        for label in configured['provider_labels'].values():
+            label.update(label=payload, description=payload)
+        text = project(configured, graph(), [], site_catalog=catalog())
+        parsed = Links()
+        parsed.feed(markdown.markdown(text))
+        self.assertEqual(['/a%29%5Bundeclared%5D%28/other', '/guided/modeling/', '/guided/composition/', '/guided/policy/'], parsed.hrefs)
+        self.assertEqual([], parsed.images)
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'index.md'
+            path.write_text(text)
+            validate_generated(path)
