@@ -55,25 +55,25 @@ def encoded_path(parts: tuple[str, ...]) -> str:
     return "/".join(quote(part, safe="") for part in parts)
 
 
-def index_page_path(provider: str, source_path: str) -> Path:
+def index_page_path(provider: str, source_path: str, *, root_index: str = ROOT_INDEX) -> Path:
     validate_repository_path(source_path, "index source path")
     if not is_index_source_path(source_path):
         raise IndexNavigationViewerError(f"not an index source path: {source_path}")
-    if source_path == ROOT_INDEX:
+    if source_path == root_index:
         return GUIDED_ROOT / provider / "index.html"
-    if source_path == "index.md":
+    if source_path == ROOT_INDEX:
         return GUIDED_ROOT / ROOT_INDEX_NAMESPACE / provider / "index.html"
     parent = PurePosixPath(source_path).parent
     return GUIDED_ROOT / provider / Path(parent.as_posix()) / "index.html"
 
 
-def index_page_url(provider: str, source_path: str) -> str:
+def index_page_url(provider: str, source_path: str, *, root_index: str = ROOT_INDEX) -> str:
     validate_repository_path(source_path, "index source path")
     if not is_index_source_path(source_path):
         raise IndexNavigationViewerError(f"not an index source path: {source_path}")
-    if source_path == ROOT_INDEX:
+    if source_path == root_index:
         return f"/guided/{quote(provider, safe='')}/"
-    if source_path == "index.md":
+    if source_path == ROOT_INDEX:
         return f"/guided/{ROOT_INDEX_NAMESPACE}/{quote(provider, safe='')}/"
     parent = PurePosixPath(source_path).parent
     suffix = encoded_path(tuple(parent.parts))
@@ -136,13 +136,14 @@ def edge_href(
     edge: dict[str, Any],
     published: dict[str, str],
     repository: str | None = None,
+    *, root_index: str = ROOT_INDEX,
 ) -> tuple[str, str, bool]:
     kind = edge["kind"]
     target = edge["target"]
     fragment = edge.get("fragment")
     if kind == "index":
         return (
-            index_page_url(provider, target) + fragment_suffix(fragment),
+            index_page_url(provider, target, root_index=root_index) + fragment_suffix(fragment),
             "index",
             False,
         )
@@ -267,7 +268,7 @@ def breadcrumb_chain(
             parents = built_parents
     chain: list[str] = [current]
     seen = {current}
-    while chain[-1] != ROOT_INDEX:
+    while chain[-1] != provider.get("root_index", ROOT_INDEX):
         parent = parents.get(chain[-1])
         if parent is None:
             break
@@ -278,7 +279,7 @@ def breadcrumb_chain(
         chain.append(path)
     chain.reverse()
     return [
-        (indexes[path]["title"], index_page_url(provider["name"], path))
+        (indexes[path]["title"], index_page_url(provider["name"], path, root_index=provider.get("root_index", ROOT_INDEX)))
         for path in chain
     ]
 
@@ -341,7 +342,8 @@ def render_edge(
     published: dict[str, str],
 ) -> str:
     href, route_kind, external = edge_href(
-        provider["name"], provider["revision"], edge, published, repository
+        provider["name"], provider["revision"], edge, published, repository,
+        root_index=provider.get("root_index", ROOT_INDEX),
     )
     source = immutable_target_url(repository, provider["revision"], edge)
     attrs = ' target="_blank" rel="noopener"' if external else ""
@@ -448,7 +450,7 @@ def render_index_page(
     return page_shell(
         index["title"],
         "\n".join(body_parts),
-        index_page_url(provider["name"], source_path),
+        index_page_url(provider["name"], source_path, root_index=provider.get("root_index", ROOT_INDEX)),
     )
 
 
@@ -551,7 +553,7 @@ def generate_from_bundle(repository, graph, published, output_root):
         indexes, parents, edges_by_source = provider_render_indexes(provider)
         for index in provider["indexes"]:
             source_path = index["path"]
-            relative = index_page_path(name, source_path)
+            relative = index_page_path(name, source_path, root_index=provider["root_index"])
             rendered.append(
                 (
                     relative,

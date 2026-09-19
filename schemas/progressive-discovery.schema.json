@@ -4,44 +4,93 @@
   "title": "Site-owned progressive discovery source",
   "type": "object",
   "additionalProperties": false,
-  "required": ["$schema", "schema_version", "title", "sections", "provider_labels"],
+  "required": [
+    "$schema",
+    "schema_version",
+    "title",
+    "sections",
+    "provider_labels",
+    "site_routes"
+  ],
   "properties": {
-    "$schema": {"const": "schemas/progressive-discovery.schema.json"},
-    "schema_version": {"const": 1},
-    "title": {"type": "string", "minLength": 1},
+    "$schema": {
+      "const": "schemas/progressive-discovery.schema.json"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
     "sections": {
       "type": "array",
       "minItems": 1,
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["title", "entries"],
+        "required": [
+          "title",
+          "entries"
+        ],
         "properties": {
-          "title": {"type": "string", "minLength": 1},
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
           "entries": {
             "type": "array",
             "minItems": 1,
             "items": {
               "type": "object",
               "additionalProperties": false,
-              "required": ["label", "description"],
+              "required": [
+                "label",
+                "description"
+              ],
               "properties": {
-                "label": {"type": "string", "minLength": 1},
-                "description": {"type": "string", "minLength": 1},
-                "href": {"type": "string", "pattern": "^/(?!/)(?!.*//)(?!(?:[^/]+/)*\\.{1,2}(?:/|$))[^%\\\\?#\\x00-\\x20]*$"},
+                "label": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "description": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "href": {
+                  "type": "string",
+                  "pattern": "^/(?!/)(?!.*//)(?!(?:[^/]+/)*\\.{1,2}(?:/|$))[^%\\\\?#\\x00-\\x20]*$"
+                },
                 "document": {
                   "type": "object",
                   "additionalProperties": false,
-                  "required": ["publication", "document"],
+                  "required": [
+                    "publication",
+                    "document"
+                  ],
                   "properties": {
-                    "publication": {"type": "string", "minLength": 1},
-                    "document": {"type": "string", "minLength": 1}
+                    "publication": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "document": {
+                      "type": "string",
+                      "minLength": 1
+                    }
                   }
                 }
               },
               "oneOf": [
-                {"required": ["href"]},
-                {"required": ["document"]}
+                {
+                  "required": [
+                    "href"
+                  ]
+                },
+                {
+                  "required": [
+                    "document"
+                  ]
+                }
               ]
             }
           }
@@ -54,11 +103,28 @@
       "additionalProperties": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["label", "description"],
+        "required": [
+          "label",
+          "description"
+        ],
         "properties": {
-          "label": {"type": "string", "minLength": 1},
-          "description": {"type": "string", "minLength": 1}
+          "label": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          }
         }
+      }
+    },
+    "site_routes": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.?/).+\\.md$"
       }
     }
   }

@@ -5,6 +5,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from publication_bundle.graph import ROOT_INDEX
+
 from site_renderer.guided_locales import (
     LocaleViewerError,
     load_overlays,
@@ -180,7 +182,7 @@ class IndexNavigationLocaleViewerTests(unittest.TestCase):
         }
         locale = {
             "policy": {
-                "docs/index.md": {
+                ROOT_INDEX: {
                     "title": "ポリシーナビゲーション",
                     "sections": [],
                     "links": [],

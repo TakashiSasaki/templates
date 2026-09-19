@@ -13,12 +13,18 @@
         },
         {
           "label": "Reader home",
-          "document": {"publication": "site", "document": "portal-home"},
+          "document": {
+            "publication": "site",
+            "document": "portal-home"
+          },
           "description": "Opens the reader-facing documentation portal."
         },
         {
           "label": "Maintainer onboarding",
-          "document": {"publication": "site", "document": "site-maintainer-onboarding"},
+          "document": {
+            "publication": "site",
+            "document": "site-maintainer-onboarding"
+          },
           "description": "Routes maintenance work to the owning independent authority."
         }
       ]
@@ -27,12 +33,18 @@
       "title": "Publication and maintenance",
       "entries": [
         {
-          "document": {"publication": "site", "document": "integrated-publication"},
+          "document": {
+            "publication": "site",
+            "document": "integrated-publication"
+          },
           "label": "Integrated publication",
           "description": "Explains the selected Bundle, provenance, and separate Site deployment gates."
         },
         {
-          "document": {"publication": "site", "document": "site-maintenance"},
+          "document": {
+            "publication": "site",
+            "document": "site-maintenance"
+          },
           "label": "Site maintenance",
           "description": "Describes Site-owned qualification and maintenance commands."
         },
@@ -57,5 +69,11 @@
       "label": "Policy",
       "description": "Coding-agent operating policy and reusable maintenance procedures."
     }
+  },
+  "site_routes": {
+    "portal-home": "index.md",
+    "site-maintainer-onboarding": "maintain/site/maintainer-onboarding.md",
+    "integrated-publication": "maintain/publication/integrated-publication.md",
+    "site-maintenance": "maintain/site/maintenance.md"
   }
 }

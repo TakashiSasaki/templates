@@ -10,6 +10,8 @@ from pathlib import Path
 import sys
 from urllib.parse import unquote, urlsplit
 
+import markdown
+
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -20,6 +22,8 @@ from site_renderer.guided import (
     index_page_path,
     project_immutable_source_links,
 )
+from site_renderer.progressive_discovery import project, validate_generated
+from scripts.validate_site_links import local_asset_path
 
 
 REPOSITORY = "TakashiSasaki/templates"
@@ -161,14 +165,15 @@ def _validate_guided_projection(site_root: Path, bundle: Path, lock: dict) -> No
 
     for provider in graph["providers"]:
         for index in provider["indexes"]:
-            page = site_root / index_page_path(provider["name"], index["path"])
+            page = site_root / index_page_path(provider["name"], index["path"], root_index=provider["root_index"])
             try:
                 source = page.read_text(encoding="utf-8")
             except (OSError, UnicodeError) as exc:
                 raise SiteArtifactError(f"missing guided page {page}: {exc}") from exc
             for edge in [edge for edge in provider["edges"] if edge["source"] == index["path"]]:
                 href, _kind, _external = edge_href(
-                    provider["name"], provider["revision"], edge, published[provider["name"]], graph["repository"]
+                    provider["name"], provider["revision"], edge, published[provider["name"]], graph["repository"],
+                    root_index=provider["root_index"],
                 )
                 escaped = html.escape(href, quote=True)
                 if f'href="{escaped}"' not in source:
@@ -187,6 +192,19 @@ def check(site_root: Path, bundle: Path | None = None, lock: dict | None = None)
     html_files = sorted(site_root.rglob("*.html"))
     if not html_files:
         raise SiteArtifactError("generated Site contains no HTML files")
+    try:
+        validate_generated(site_root / "index.md")
+    except (OSError, UnicodeError, ValueError) as exc:
+        raise SiteArtifactError(
+            f"static progressive discovery entry point is invalid: {exc}"
+        ) from exc
+    discovery = LinkParser()
+    discovery.feed(markdown.markdown((site_root / "index.md").read_text(encoding="utf-8")))
+    for href in discovery.hrefs:
+        parsed = urlsplit(href)
+        target = local_asset_path(site_root.resolve(), "/", unquote(parsed.path))
+        if parsed.scheme or parsed.netloc or parsed.query or parsed.fragment or target is None:
+            raise SiteArtifactError(f"progressive discovery has a missing or invalid route: {href}")
     hrefs: list[str] = []
     anchors: list[tuple[str, str]] = []
     rendered_text: list[str] = []
@@ -208,6 +226,17 @@ def check(site_root: Path, bundle: Path | None = None, lock: dict | None = None)
             raise SiteArtifactError("Bundle validation requires the exact Site lock")
         validate_locked(bundle, lock)
         _validate_guided_projection(site_root, bundle, lock)
+        source_root = Path(__file__).resolve().parents[1]
+        try:
+            expected = project(
+                json.loads((source_root / "progressive-discovery.json").read_text()),
+                json.loads((bundle / "guided-navigation.json").read_text()),
+                json.loads((bundle / "documents.json").read_text()),
+                site_catalog=json.loads((source_root / "docs/publication-catalog.json").read_text()),
+            )
+            validate_generated(site_root / "index.md", expected=expected)
+        except (OSError, ValueError) as exc:
+            raise SiteArtifactError(f"static progressive discovery is stale: {exc}") from exc
     return {
         "html_pages": len(html_files),
         "links": len(hrefs),
