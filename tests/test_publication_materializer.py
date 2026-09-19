@@ -122,11 +122,44 @@ class PublicationMaterializerTests(unittest.TestCase):
                 playground_pub.check_directory(directory)
             self.assertEqual("INVALID_PLAYGROUND_PUBLICATION", ctx.exception.code)
 
-    def test_materializer_script_defines_descriptor_contract(self) -> None:
-        source = (ROOT / "scripts" / "materialize_publication.py").read_text(encoding="utf-8")
-        self.assertIn('"provider": "composition"', source)
-        self.assertIn('"semantic_revision": semantic_revision', source)
-        self.assertIn('"publication-descriptor.json"', source)
+    def test_materializer_descriptor_binds_the_semantic_revision(self) -> None:
+        import generate_composition_playground_publication as publication
+        revision = 'a' * 40
+        self.assertEqual({'schema_version': 1, 'provider': 'composition',
+                          'semantic_revision': revision},
+                         json.loads(publication.publication_descriptor(revision)))
+        self.assertEqual('publication-descriptor.json', publication.DESCRIPTOR_NAME)
+
+    def test_refresh_descriptor_failure_preserves_all_previous_outputs(self) -> None:
+        from unittest import mock
+        import tempfile
+        import materialize_publication as materializer
+        import generate_composition_playground_publication as publication
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            generated = root / 'generated'
+            generated.mkdir()
+            names = [publication.MANIFEST_NAME, publication.BASE_NAME,
+                     publication.INTENT_NAME, 'publication-descriptor.json']
+            before = {name: ('old-' + name).encode() for name in names}
+            for name, data in before.items(): (generated / name).write_bytes(data)
+            write = publication._atomic_write
+            write_text = Path.write_text
+            def fail_atomic(path, data):
+                if 'publication-descriptor' in path.name: raise OSError('descriptor write failed')
+                write(path, data)
+            def fail_text(path, *args, **kwargs):
+                if 'publication-descriptor' in path.name: raise OSError('descriptor write failed')
+                return write_text(path, *args, **kwargs)
+            with mock.patch.object(materializer, 'ROOT', root), mock.patch.object(
+                materializer, 'ensure_runtime_dependencies', return_value=None
+            ), mock.patch.object(sys, 'argv', ['materialize_publication.py', '--source-root', str(root), '--refresh']), mock.patch.object(
+                publication, 'current_semantic_snapshot', return_value=('a' * 40, {})
+            ), mock.patch.object(publication, 'publication_payloads', return_value={publication.BASE_NAME: b'new-base', publication.INTENT_NAME: b'new-intent'}), mock.patch.object(
+                publication, 'validate_written_payloads'
+            ), mock.patch.object(publication, '_atomic_write', side_effect=fail_atomic), mock.patch.object(Path, 'write_text', fail_text):
+                self.assertEqual(1, materializer.main())
+            self.assertEqual(before, {name: (generated / name).read_bytes() for name in names})
 
 
 if __name__ == "__main__":

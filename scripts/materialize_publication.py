@@ -12,8 +12,6 @@ from __future__ import annotations
 
 import argparse
 import importlib.util
-import json
-import os
 import subprocess
 import sys
 import tempfile
@@ -95,22 +93,11 @@ def main() -> int:
             semantic_revision = playground.refresh_directory(ROOT / "generated")
         else:
             semantic_revision = playground.write_directory(ROOT / "generated")
-        descriptor = {
-            "schema_version": 1,
-            "provider": "composition",
-            "semantic_revision": semantic_revision,
-        }
-        descriptor_path = ROOT / "generated" / "publication-descriptor.json"
-        temp_descriptor = descriptor_path.with_name(f".{descriptor_path.name}.tmp.{os.getpid()}")
-        try:
-            temp_descriptor.write_text(json.dumps(descriptor, indent=2) + "\n", encoding="utf-8")
-            temp_descriptor.replace(descriptor_path)
-        finally:
-            if temp_descriptor.exists():
-                try:
-                    temp_descriptor.unlink()
-                except OSError:
-                    pass
+        if not args.refresh:
+            playground._atomic_write(
+                ROOT / "generated" / playground.DESCRIPTOR_NAME,
+                playground.publication_descriptor(semantic_revision),
+            )
     except (RuntimeError, OSError, UnicodeError) as exc:
         code = getattr(exc, "code", "PUBLICATION_MATERIALIZATION_FAILED")
         print(f"materialize_publication.py: {code}: {exc}", file=sys.stderr)

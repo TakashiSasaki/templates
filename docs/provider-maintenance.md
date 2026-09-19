@@ -85,7 +85,7 @@ or redefining it here.
 ### Refresh failure boundary
 
 `generate_composition_playground_publication.py --refresh-dir generated` stages
-and validates the manifest and both gzip assets before replacing the snapshot
+and validates the manifest, both gzip assets and publication descriptor before replacing the snapshot
 directory. Use an exclusively owned checkout. Staging failures leave the previous
 snapshot intact; a failed commit rename restores the previous directory. This is
 not a crash-atomic directory exchange: readers can observe a rename gap, and an
