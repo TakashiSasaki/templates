@@ -12,11 +12,12 @@ import json
 import os
 import posixpath
 import re
+import string
 import subprocess
 from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
-from urllib.parse import unquote, urlsplit
+from urllib.parse import quote, unquote, urlsplit
 
 INDEX_NAME = "index.md"
 ADAPTER_NAME = ".progressive-discovery.json"
@@ -119,21 +120,43 @@ def _read_json(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=unique_members)
 
 
+def _read_yaml(path: Path) -> Any:
+    import yaml
+
+    class UniqueLoader(yaml.SafeLoader):
+        def construct_mapping(self, node, deep=False):
+            self.flatten_mapping(node)
+            seen = set()
+            for key_node, _ in node.value:
+                key = self.construct_object(key_node, deep=deep)
+                if key in seen:
+                    raise ValueError(f"duplicate YAML member: {key}")
+                seen.add(key)
+            return super().construct_mapping(node, deep=deep)
+
+    return yaml.load(path.read_text(encoding="utf-8"), Loader=UniqueLoader)
+
+
 def _read_inventory(path: Path) -> tuple[Any, list[str]]:
     try:
         if path.suffix.lower() == ".json":
             return _read_json(path), []
         if path.suffix.lower() in {".yaml", ".yml"}:
             try:
-                import yaml  # type: ignore
+                import yaml  # type: ignore  # noqa: F401
             except ImportError:
                 return {}, [f"inventory {path}: PyYAML unavailable; YAML inventory was not read"]
-            return yaml.safe_load(path.read_text(encoding="utf-8")) or {}, []
+            return _read_yaml(path) or {}, []
     except (OSError, UnicodeError, ValueError) as exc:
         return {}, [f"inventory {path}: {exc}"]
     except Exception as exc:  # pragma: no cover - parser-specific defensive path
         return {}, [f"inventory {path}: {exc}"]
     return {}, [f"inventory {path}: unsupported inventory format"]
+
+
+def _has_generated_marker(content: str | bytes) -> bool:
+    data = content.encode("utf-8") if isinstance(content, str) else content
+    return data.partition(b"\n")[0] == GENERATED_MARKER.encode("utf-8")
 
 
 def _repository_path_error(root: Path, relative: str) -> str | None:
@@ -265,9 +288,9 @@ def _yaml_policy(root: Path, relative: str) -> tuple[Any, list[str]]:
     if not path.is_file():
         return {}, []
     try:
-        import yaml  # type: ignore
+        import yaml  # type: ignore  # noqa: F401
 
-        return yaml.safe_load(path.read_text(encoding="utf-8")) or {}, []
+        return _read_yaml(path) or {}, []
     except ImportError:
         profiles: list[str] = []
         skills: list[str] = []
@@ -386,6 +409,13 @@ def _expected_documents(
         if namespaces.get(relative, "repository") != "repository":
             continue
         for raw in _find_values(value):
+            # Absolute network references are not repository documents. Local
+            # declarations must be canonical before any suffix/filter decision.
+            if raw.startswith(("https://", "http://", "mailto:")):
+                continue
+            if problem := _repository_path_error(root, raw):
+                errors.append(f"inventory {relative}: {problem}")
+                continue
             candidate = _path_candidate(root, raw)
             if candidate:
                 expected.add(candidate)
@@ -573,6 +603,12 @@ def _resolve_link(root: Path, source: str, target: str) -> tuple[str | None, str
     return relative, None
 
 
+def _markdown_text(value: str) -> str:
+    # Entities cannot introduce link delimiters, HTML, or extra Markdown lines.
+    return "".join(f"&#{ord(char)};" if char in string.punctuation and char not in "/.-" else char
+                   for char in " ".join(value.split()))
+
+
 def _render_generated(root: Path, relative: str, spec: dict[str, Any], expected: list[str]) -> str:
     title = (
         spec.get("title")
@@ -583,10 +619,11 @@ def _render_generated(root: Path, relative: str, spec: dict[str, Any], expected:
         spec.get("section") if isinstance(spec.get("section"), str) else "Discoverable documents"
     )
     parent = posixpath.dirname(relative)
-    lines = [GENERATED_MARKER, f"# {title}", "", f"## {section}", ""]
+    lines = [GENERATED_MARKER, f"# {_markdown_text(title)}", "",
+             f"## {_markdown_text(section)}", ""]
     for item in sorted(expected):
-        target = posixpath.relpath(item, parent or ".")
-        label = item
+        target = quote(posixpath.relpath(item, parent or "."), safe="/.-_~")
+        label = _markdown_text(item)
         lines.append(f"- [{label}]({target}) - Declared by an authoritative inventory.")
         lines.append("")
     return "\n".join(lines)
@@ -769,7 +806,7 @@ def _plan(
         elif not path.is_file():
             action = "authority-needed"
             reason = "declared generated target is not a regular file"
-        elif GENERATED_MARKER not in path.read_text(encoding="utf-8"):
+        elif not _has_generated_marker(path.read_text(encoding="utf-8")):
             action = "authority-needed"
             reason = "refusing to overwrite an authored file at a generated target"
         else:
@@ -802,7 +839,7 @@ def _plan(
         path = root / relative
         if not path.exists():
             continue
-        if path.is_file() and GENERATED_MARKER in path.read_text(encoding="utf-8"):
+        if path.is_file() and _has_generated_marker(path.read_text(encoding="utf-8")):
             plan.append(
                 {
                     "action": "delete",
@@ -879,7 +916,7 @@ def _target_state(root: Path, relative: str) -> dict[str, Any]:
         state.update(
             kind="file",
             bytes_sha256=hashlib.sha256(data).hexdigest(),
-            generated_marker=GENERATED_MARKER.encode("utf-8") in data,
+            generated_marker=_has_generated_marker(data),
         )
     elif path.exists():
         state["kind"] = "other"
