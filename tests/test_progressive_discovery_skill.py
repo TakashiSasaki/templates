@@ -503,3 +503,35 @@ def test_duplicate_adapter_members_are_not_silently_discarded(tmp_path):
     assert report['result'] == 'AUTHORITY_NEEDED'
     assert not report['applied']
     assert any('duplicate JSON member' in error for error in report['validation']['errors'])
+
+
+def test_authored_scope_exclusion_preserves_global_inventory_coverage(tmp_path):
+    root = tmp_path / 'repository'
+    shutil.copytree(_fixture('simple-docs'), root)
+    (root / 'docs/catalog.json').write_text('{}')
+    adapter_path = root / '.progressive-discovery.json'
+    adapter = json.loads(adapter_path.read_text())
+    adapter['expected_documents'] = ['docs/catalog.json']
+    adapter.pop('intentional_no_indexes', None)
+    adapter['authored_boundaries'] = ['docs']
+    (root / 'docs/index.md').write_text(
+        '# Documentation\n\n- [Start](getting-started.md) - Start here.\n'
+        '- [Reference](reference.md) - Reference.\n'
+    )
+    adapter['authored_index_exclusions'] = {
+        'docs/index.md': {
+            'docs/catalog.json': 'Source-only inventory is linked from authority root.'
+        }
+    }
+    adapter_path.write_text(json.dumps(adapter))
+    root_index = root / 'index.md'
+    original = root_index.read_text() + '\n- [Docs](docs/index.md) - Reader navigation.\n'
+    root_index.write_text(original + '\n- [Catalog](docs/catalog.json) - Source inventory.\n')
+    report = _load_skill().run(root)
+    assert report['result'] == 'NO_UPDATE_REQUIRED', report
+    assert 'docs/catalog.json' in report['expected_documents']
+    assert 'docs/catalog.json' in report['validation']['reachable']
+    root_index.write_text(original)
+    report = _load_skill().run(root)
+    assert not report['validation']['valid']
+    assert report['result'] != 'NO_UPDATE_REQUIRED'
