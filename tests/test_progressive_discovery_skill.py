@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -1721,6 +1722,53 @@ def test_regeneration_does_not_write_an_inode_moved_after_open(tmp_path, monkeyp
     assert (tmp_path / 'moved.md').read_text() == original
 
 
+def test_rollback_regeneration_does_not_write_an_inode_moved_after_check(
+    tmp_path, monkeypatch
+):
+    skill = _load_skill()
+    original = skill.GENERATED_MARKER + '\n# Original\n'
+    after = skill.GENERATED_MARKER + '\n# Regenerated\n'
+    first, second = tmp_path / 'first.md', tmp_path / 'second.md'
+    for path in (first, second):
+        path.write_text(original)
+    _commit_generated_target(tmp_path)
+    plan = [
+        {'action': 'regenerate', 'kind': 'generated', 'path': path.name,
+         'content': after, 'snapshot': skill._target_state(tmp_path, path.name)}
+        for path in (first, second)
+    ]
+    original_state = skill._target_state
+    original_write = skill.os.write
+    reads: list[str] = []
+    moved: list[bool] = []
+
+    def change_second(root, relative):
+        state = original_state(root, relative)
+        reads.append(relative)
+        if len(reads) == 5:
+            second.write_text('# Concurrent second\n')
+        return state
+
+    def move_before_rollback_write(fd, data):
+        if not moved and bytes(data) == original.encode() and first.exists():
+            first.rename(tmp_path / 'moved-first.md')
+            first.write_text('# Concurrent first\n')
+            moved.append(True)
+        return original_write(fd, data)
+
+    monkeypatch.setattr(skill, '_target_state', change_second)
+    monkeypatch.setattr(skill.os, 'write', move_before_rollback_write)
+    applied, errors = skill._apply(
+        tmp_path, plan, {'profile_selected': True, 'skill_selected': True}
+    )
+
+    assert moved and errors
+    assert 'regenerate first.md' in applied
+    assert 'rollback first.md' not in applied
+    assert first.read_text() == '# Concurrent first\n'
+    assert (tmp_path / 'moved-first.md').read_text() == after
+
+
 def test_terminal_holding_cleanup_never_removes_a_replacement_after_stat(
     tmp_path, monkeypatch
 ):
@@ -1765,3 +1813,56 @@ def test_terminal_holding_cleanup_never_removes_a_replacement_after_stat(
 
     assert not swapped and not errors
     assert 'create index.md' in applied
+
+
+def test_detached_cleanup_rechecks_identity_before_removal(tmp_path, monkeypatch):
+    skill = _load_skill()
+    (tmp_path / 'README.md').write_text('# Repository\n')
+    _commit_generated_target(tmp_path)
+    content = skill.GENERATED_MARKER + '\n# Generated\n'
+    snapshot = skill._target_state(tmp_path, 'index.md')
+    original_open, original_fstat = skill.os.open, skill.os.fstat
+    cleanup_fds: set[int] = set()
+    swapped: list[str] = []
+
+    def observe_cleanup_open(path, flags, mode=0o777, *, dir_fd=None):
+        fd = original_open(path, flags, mode, dir_fd=dir_fd)
+        if isinstance(path, str) and path.startswith('.progressive-discovery-cleanup-'):
+            cleanup_fds.add(fd)
+        return fd
+
+    def swap_after_cleanup_validation(fd):
+        result = original_fstat(fd)
+        if fd in cleanup_fds and not swapped:
+            cleanup_fds.remove(fd)
+            link = Path(f'/proc/self/fd/{fd}')
+            cleanup = Path(os.readlink(link)) if link.exists() else None
+            if cleanup is not None and cleanup.name.startswith('.progressive-discovery-cleanup-'):
+                cleanup.rename(tmp_path / (cleanup.name + '-moved'))
+                cleanup.mkdir()
+                swapped.append(cleanup.name)
+        return result
+
+    monkeypatch.setattr(skill.os, 'open', observe_cleanup_open)
+    monkeypatch.setattr(skill.os, 'fstat', swap_after_cleanup_validation)
+    monkeypatch.setattr(
+        skill.os,
+        'supports_dir_fd',
+        skill.os.supports_dir_fd | {observe_cleanup_open},
+    )
+    applied, errors = skill._apply(
+        tmp_path,
+        [{'action': 'create', 'kind': 'generated', 'path': 'index.md',
+          'content': content, 'snapshot': snapshot}],
+        {'profile_selected': True, 'skill_selected': True},
+    )
+
+    assert swapped and errors
+    assert 'create index.md' in applied
+    assert (tmp_path / (swapped[0] + '-moved')).is_dir()
+    survivors = [
+        path for path in tmp_path.iterdir()
+        if path.is_dir() and path.name.startswith('.progressive-discovery-')
+        and not path.name.endswith('-moved')
+    ]
+    assert survivors

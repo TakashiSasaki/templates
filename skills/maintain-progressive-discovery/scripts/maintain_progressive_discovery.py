@@ -1325,7 +1325,9 @@ def _apply(
         state for authority review.
         """
         cleanup = ".progressive-discovery-cleanup-" + secrets.token_hex(16)
+        final = ".progressive-discovery-final-" + secrets.token_hex(16)
         moved = False
+        detached = False
         try:
             rename_exclusive(parent, name, parent, cleanup)
             moved = True
@@ -1338,12 +1340,40 @@ def _apply(
                     raise OSError("temporary directory identity changed")
             finally:
                 os.close(fd)
-            # The detached cleanup name is operation-private.  Do not perform
-            # a separate pathname stat immediately before rmdir; a replacement
-            # at the public holding name remains untouched.
-            os.rmdir(cleanup, dir_fd=parent)
+            # Bind the object to a second, freshly-created operation-private
+            # name immediately before removal.  If a writer replaces the
+            # first detached name after validation, this no-replace move
+            # carries that replacement, the identity check below refuses it,
+            # and restoration preserves both states.
+            rename_exclusive(parent, cleanup, parent, final)
+            detached = True
+            fd = os.open(final, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+                         dir_fd=parent)
+            try:
+                current = os.fstat(fd)
+                if ((current.st_dev, current.st_ino) != identity
+                        or not stat.S_ISDIR(current.st_mode)):
+                    raise OSError("temporary directory identity changed before removal")
+            finally:
+                os.close(fd)
+            # The final name is created and consumed within this operation's
+            # private namespace.  No public holding pathname is removed here.
+            os.rmdir(final, dir_fd=parent)
+            detached = False
             moved = False
         except OSError as exc:
+            if detached:
+                try:
+                    rename_exclusive(parent, final, parent, cleanup)
+                    detached = False
+                except OSError as restore_error:
+                    retained_path = posixpath.join(
+                        posixpath.dirname(label), final
+                    )
+                    raise OSError(
+                        f"{exc}; state retained at {retained_path}; "
+                        f"no-clobber cleanup restoration failed: {restore_error}"
+                    ) from exc
             if moved:
                 try:
                     rename_exclusive(parent, cleanup, parent, name)
@@ -1476,7 +1506,8 @@ def _apply(
 
     def replace_owned(parent: int, name: str, expected_identity: tuple[int, int],
                       before: bytes, after: bytes, mode: int, label: str,
-                      item: dict[str, Any]) -> tuple[int, int]:
+                      boundary_check: Callable[[], str | None] | None = None
+                      ) -> tuple[int, int]:
         """Replace one generated file while retaining the public-name binding.
 
         The complete replacement is written in a private directory.  An
@@ -1513,7 +1544,7 @@ def _apply(
             os.fchmod(temp_fd, mode)
             prepared = os.fstat(temp_fd)
             replacement_identity = (prepared.st_dev, prepared.st_ino)
-            if error := revalidate(item):
+            if boundary_check and (error := boundary_check()):
                 raise OSError(error)
             os.close(temp_fd)
             temp_fd = None
@@ -1610,19 +1641,43 @@ def _apply(
                                         content=owned["before"], mode=owned["mode"])
                     os.close(fd)
                 else:
-                    fd = os.open(name, os.O_RDWR | os.O_NOFOLLOW, dir_fd=parent)
-                    try:
-                        current = os.fstat(fd)
-                        if ((current.st_dev, current.st_ino) != owned["identity"]
-                                or read_fd(fd) != owned["after"]):
-                            raise OSError("concurrent state retained")
-                        if owned["action"] == "create":
+                    if owned["action"] == "create":
+                        fd = os.open(name, os.O_RDWR | os.O_NOFOLLOW, dir_fd=parent)
+                        try:
+                            current = os.fstat(fd)
+                            if ((current.st_dev, current.st_ino) != owned["identity"]
+                                    or read_fd(fd) != owned["after"]):
+                                raise OSError("concurrent state retained")
                             remove_owned(parent, name, owned["identity"],
                                          owned["after"], owned["path"])
-                        else:
-                            replace_fd(fd, owned["before"])
-                    finally:
-                        os.close(fd)
+                        finally:
+                            os.close(fd)
+                    else:
+                        def rollback_check() -> str | None:
+                            fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK,
+                                         dir_fd=parent)
+                            try:
+                                current = os.fstat(fd)
+                                if ((current.st_dev, current.st_ino) != owned["identity"]
+                                        or not stat.S_ISREG(current.st_mode)
+                                        or current.st_nlink != 1
+                                        or read_fd(fd) != owned["after"]
+                                        or stat.S_IMODE(current.st_mode) != owned["mode"]):
+                                    return "authority-needed: concurrent state retained"
+                            finally:
+                                os.close(fd)
+                            return None
+
+                        replace_owned(
+                            parent,
+                            name,
+                            owned["identity"],
+                            owned["after"],
+                            owned["before"],
+                            owned["mode"],
+                            owned["path"],
+                            boundary_check=rollback_check,
+                        )
                 changes.append(f"rollback {owned['path']}")
             except OSError as exc:
                 errors.append(f"authority-needed: rollback incomplete: {owned['path']}: {exc}")
@@ -1724,7 +1779,8 @@ def _apply(
                         # rollback still refuses any later concurrent change.
                         replacement_identity = replace_owned(
                             parent_fd, name, record["identity"], before, after,
-                            record["mode"], relative, item,
+                            record["mode"], relative,
+                            boundary_check=lambda: revalidate(item),
                         )
                         record["identity"] = replacement_identity
                         undo.append(record)
