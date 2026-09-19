@@ -74,5 +74,10 @@
       "src/",
       "templates/"
     ]
+  },
+  "authored_index_exclusions": {
+    "docs/index.md": {
+      "docs/publication-catalog.json": "Source-only inventory is linked from authority root; published reader navigation remains publication-closed."
+    }
   }
 }
