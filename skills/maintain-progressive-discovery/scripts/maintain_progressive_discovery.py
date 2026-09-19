@@ -421,7 +421,10 @@ def _anchors(path: Path) -> set[str]:
         text = path.read_text(encoding="utf-8")
     except OSError:
         return set()
-    return {unquote(value) for value in re.findall(r"\b(?:id|name)=[\"']([^\"']+)[\"']", text)}
+    return {
+        unquote(value)
+        for value in re.findall(r"\b(?:id|name)=[\"']([^\"']+)[\"']", text)
+    }
 
 
 def _resolve_link(root: Path, source: str, target: str) -> tuple[str | None, str | None]:
