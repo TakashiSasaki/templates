@@ -170,3 +170,25 @@ class ProgressiveDiscoveryGraphTests(unittest.TestCase):
             candidate['providers'][0][field] = value
             with self.subTest(field=field, value=value), self.assertRaises(jsonschema.ValidationError):
                 validator.validate(candidate)
+
+    def test_v2_python_validator_enforces_schema_field_closure(self):
+        import copy
+        import jsonschema
+        schema = json.loads((Path(__file__).resolve().parents[1] /
+                             'contracts/publication-bundle/guided-navigation.schema.json').read_text())
+        validator = jsonschema.Draft202012Validator(schema)
+        graph = {'schema_version': 2, 'repository': 'TakashiSasaki/templates',
+                 'providers': [self._provider(ROOT_INDEX)]}
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / 'graph.json'
+            for location in ('graph', 'provider'):
+                candidate = copy.deepcopy(graph)
+                target = candidate if location == 'graph' else candidate['providers'][0]
+                target['unexpected'] = True
+                path.write_text(json.dumps(candidate))
+                with self.subTest(location=location):
+                    with self.assertRaises(jsonschema.ValidationError):
+                        validator.validate(candidate)
+                    with self.assertRaises(IndexNavigationViewerError):
+                        loaded = load_graph(path, provider_order=('composition',))
+                        validate_provider_graph(loaded['providers'][0], provider_order=('composition',))

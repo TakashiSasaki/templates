@@ -31,6 +31,8 @@ def load_graph(path: Path, *, provider_order=PROVIDER_ORDER) -> dict[str, Any]:
     schema_version = value.get("schema_version") if isinstance(value, dict) else None
     if type(schema_version) is not int or schema_version not in {LEGACY_GRAPH_SCHEMA_VERSION, GRAPH_SCHEMA_VERSION}:
         raise IndexNavigationViewerError("index graph must use schema_version 1 or 2")
+    if schema_version == GRAPH_SCHEMA_VERSION and set(value) != {"schema_version", "repository", "providers"}:
+        raise IndexNavigationViewerError("schema-v2 graph fields do not match the contract")
     repository = value.get("repository")
     providers = value.get("providers")
     if (
@@ -115,6 +117,8 @@ def validate_provider_graph(
     provider_order=PROVIDER_ORDER,
     root_index: str = ROOT_INDEX,
 ) -> None:
+    if root_index == ROOT_INDEX and set(provider) != {"name", "revision", "root_index", "indexes", "edges", "diagnostics"}:
+        raise IndexNavigationViewerError("schema-v2 provider fields do not match the contract")
     name = provider.get("name")
     revision = provider.get("revision")
     indexes = provider.get("indexes")
