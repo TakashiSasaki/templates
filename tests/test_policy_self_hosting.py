@@ -269,6 +269,7 @@ def test_repository_progressive_discovery_is_clean() -> None:
 def test_repository_discovery_gate_rejects_a_removed_navigation_entry(tmp_path: Path) -> None:
     import shutil
     import subprocess
+
     import pytest
     paths = subprocess.check_output(['git', '-C', str(ROOT), 'ls-files', '-z']).decode().split('\0')
     for relative in filter(None, paths):
