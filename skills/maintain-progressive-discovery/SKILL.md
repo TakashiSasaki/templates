@@ -145,3 +145,10 @@ Malformed adapters, unreadable/missing inventories, missing declared documents,
 and orphan nested indexes cannot report a clean result. Generated and retired
 targets must be canonical repository-relative paths with no symlink component;
 validate that boundary during planning and again before mutation.
+
+An exact deterministic generated result is a no-op, including immediately after
+creation or regeneration before a Git commit. A no-op does not rewrite dirty or
+untracked content. Any actual write or deletion still requires the planned
+snapshot, generated ownership, tracking and dirty-state checks at its boundary.
+Explicit expected-document declarations must be canonical local paths; generated
+and retired targets must be `index.md` files and cannot be both active and retired.
