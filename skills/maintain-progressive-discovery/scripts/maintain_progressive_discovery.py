@@ -812,8 +812,13 @@ def _plan(
         rendered = _render_generated(root, relative, spec, expected_for_index)
         path = root / relative
         if not path.exists():
-            action = "create"
-            reason = "declared generated index is missing"
+            state = _target_state(root, relative)
+            if state.get("tracked") is False and state.get("dirty") is False:
+                action = "create"
+                reason = "declared generated index is missing"
+            else:
+                action = "authority-needed"
+                reason = "missing target is tracked, dirty, or Git state is unknown"
         elif not path.is_file():
             action = "authority-needed"
             reason = "declared generated target is not a regular file"
@@ -933,16 +938,14 @@ def _target_state(root: Path, relative: str) -> dict[str, Any]:
         )
     elif path.exists():
         state["kind"] = "other"
-    tracked = (
-        subprocess.run(
-            ["git", "--literal-pathspecs", "-C", str(root),
-             "ls-files", "--error-unmatch", "--", relative],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            check=False,
-        ).returncode
-        == 0
-    )
+    tracking_status = subprocess.run(
+        ["git", "--literal-pathspecs", "-C", str(root),
+         "ls-files", "--error-unmatch", "--", relative],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    ).returncode
+    tracked = True if tracking_status == 0 else False if tracking_status == 1 else None
     status = subprocess.run(
         ["git", "--literal-pathspecs", "-C", str(root),
          "status", "--porcelain", "--", relative],
@@ -1062,7 +1065,8 @@ def _apply(
         if item.get("snapshot") != current:
             return f"authority-needed: target changed since plan: {item['path']}"
         if item["action"] == "create":
-            safe = current.get("kind") == "missing" and not current.get("tracked")
+            safe = (current.get("kind") == "missing"
+                    and current.get("tracked") is False and current.get("dirty") is False)
         else:
             safe = (
                 current.get("kind") == "file"

@@ -173,5 +173,7 @@ a malformed scope never broadens to the whole expected set. Dry-run retirement
 also checks tracked and dirty state. After any applied change, `plan` describes
 remaining work recomputed from the resulting navigation; `requested_plan` keeps
 the original request and `applied` keeps all mutations, including partial work.
-For an existing target, a failed Git status query means dirty state is unknown,
-not clean. Both dry-run and apply refuse mutation until that state can be read.
+A failed Git tracking or status query means state is unknown, not untracked or
+clean. Both dry-run and apply refuse mutation until those states can be read,
+including creation of a missing target. Initialize a Git repository before
+applying generated indexes; dry-run inspection itself remains available.

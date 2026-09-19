@@ -91,6 +91,7 @@ def test_generated_index_apply_is_deterministic_and_idempotent(tmp_path: Path) -
     source = _fixture("generated-docs")
     target = tmp_path / source.name
     shutil.copytree(source, target)
+    _commit_generated_target(target)
     skill = _load_skill()
 
     before = skill.run(target)
@@ -124,6 +125,7 @@ def _commit_generated_target(target: Path) -> None:
 def test_dirty_generated_target_requires_authority_and_is_not_overwritten(tmp_path: Path) -> None:
     target = tmp_path / "generated-docs"
     shutil.copytree(_fixture("generated-docs"), target)
+    _commit_generated_target(target)
     skill = _load_skill()
     skill.run(target, apply=True)
     _commit_generated_target(target)
@@ -142,6 +144,7 @@ def test_dirty_generated_target_requires_authority_and_is_not_overwritten(tmp_pa
 def test_apply_refuses_target_changed_after_plan(tmp_path: Path) -> None:
     target = tmp_path / "generated-docs"
     shutil.copytree(_fixture("generated-docs"), target)
+    _commit_generated_target(target)
     skill = _load_skill()
     skill.run(target, apply=True)
     _commit_generated_target(target)
@@ -271,6 +274,7 @@ def test_cli_apply_refusals_exit_nonzero(tmp_path):
     for case in ("dirty", "changed-after-plan", "authored", "retired"):
         target = tmp_path / case
         shutil.copytree(_fixture("generated-docs"), target)
+        _commit_generated_target(target)
         skill = _load_skill()
         skill.run(target, apply=True)
         _commit_generated_target(target)
@@ -477,6 +481,7 @@ def test_declarations_reject_unsafe_nonindex_and_conflicting_paths(tmp_path):
 def test_regenerated_content_is_immediately_idempotent_without_commit(tmp_path):
     root = tmp_path / 'repository'
     shutil.copytree(_fixture('generated-docs'), root)
+    _commit_generated_target(root)
     skill = _load_skill()
     skill.run(root, apply=True)
     _commit_generated_target(root)
@@ -573,6 +578,7 @@ def test_duplicate_yaml_inventory_and_policy_keys_fail_closed(tmp_path):
 def test_generated_markdown_handles_significant_filename_characters(tmp_path):
     root = tmp_path / 'repository'
     shutil.copytree(_fixture('generated-docs'), root)
+    _commit_generated_target(root)
     name = 'docs/a)b[c]*<x>.md'
     (root / name).write_text('# Document\n')
     path = root / '.progressive-discovery.json'
@@ -590,6 +596,7 @@ def test_authored_marker_mentions_do_not_grant_generated_ownership(tmp_path):
     for action in ('regenerate', 'delete'):
         root = tmp_path / action
         shutil.copytree(_fixture('generated-docs'), root)
+        _commit_generated_target(root)
         skill = _load_skill()
         skill.run(root, apply=True)
         target = root / 'generated/index.md'
@@ -613,6 +620,7 @@ def test_generated_inventory_scope_rejects_malformed_declarations(tmp_path):
                                     ['docs//'], ['docs/a#fragment']]):
         root = tmp_path / str(number)
         shutil.copytree(_fixture('generated-docs'), root)
+        _commit_generated_target(root)
         path = root / '.progressive-discovery.json'
         data = json.loads(path.read_text())
         data['generated_indexes']['generated/index.md']['inventory'] = scope
@@ -637,6 +645,7 @@ def test_fragment_only_links_use_the_source_index(tmp_path):
 def test_dirty_retired_target_is_authority_needed_in_dry_run(tmp_path):
     root = tmp_path / 'repository'
     shutil.copytree(_fixture('generated-docs'), root)
+    _commit_generated_target(root)
     skill = _load_skill()
     skill.run(root, apply=True)
     _commit_generated_target(root)
@@ -654,6 +663,7 @@ def test_dirty_retired_target_is_authority_needed_in_dry_run(tmp_path):
 def test_apply_refreshes_authored_reachability_after_generated_repair(tmp_path):
     root = tmp_path / 'repository'
     shutil.copytree(_fixture('generated-docs'), root)
+    _commit_generated_target(root)
     (root / 'docs/index.md').write_text(
         '# Documentation\n\n- [Generated](../generated/index.md) - Generated documents.\n'
         '- [Local](local.md) - Authored document.\n'
@@ -698,6 +708,7 @@ def test_target_tracking_uses_literal_git_paths(tmp_path):
 def test_unavailable_git_dirty_state_refuses_existing_target(tmp_path, monkeypatch):
     root = tmp_path / 'repository'
     shutil.copytree(_fixture('generated-docs'), root)
+    _commit_generated_target(root)
     skill = _load_skill()
     skill.run(root, apply=True)
     target = root / 'generated/index.md'
@@ -715,3 +726,23 @@ def test_unavailable_git_dirty_state_refuses_existing_target(tmp_path, monkeypat
         assert report['result'] == 'AUTHORITY_NEEDED', report
         assert not report['applied']
         assert target.read_bytes() == before
+
+
+def test_unknown_git_state_cannot_create_a_generated_target(tmp_path, monkeypatch):
+    root = tmp_path / 'repository'
+    shutil.copytree(_fixture('generated-docs'), root)
+    _commit_generated_target(root)
+    skill = _load_skill()
+    original = subprocess.run
+    for command in ('status', 'ls-files'):
+        def failed_query(args, *a, command=command, **kwargs):
+            if command in args:
+                return subprocess.CompletedProcess(args, 128, stdout='', stderr='Git unavailable')
+            return original(args, *a, **kwargs)
+        with monkeypatch.context() as patch:
+            patch.setattr(subprocess, 'run', failed_query)
+            for apply in (False, True):
+                report = skill.run(root, apply=apply)
+                assert report['result'] == 'AUTHORITY_NEEDED', report
+                assert not report['applied']
+                assert not (root / 'generated/index.md').exists()
