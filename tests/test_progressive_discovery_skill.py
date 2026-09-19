@@ -1783,7 +1783,13 @@ def test_terminal_holding_cleanup_never_removes_a_replacement_after_stat(
     swapped: list[str] = []
 
     def observe_holding_open(path, flags, mode=0o777, *, dir_fd=None):
-        if (isinstance(path, str) and path.startswith('.progressive-discovery-')):
+        if (
+            isinstance(path, str)
+            and path.startswith('.progressive-discovery-')
+            and not path.startswith(
+                ('.progressive-discovery-final-', '.progressive-discovery-cleanup-')
+            )
+        ):
             bound.add(path)
         return original_open(path, flags, mode, dir_fd=dir_fd)
 
@@ -1866,3 +1872,56 @@ def test_detached_cleanup_rechecks_identity_before_removal(tmp_path, monkeypatch
         and not path.name.endswith('-moved')
     ]
     assert survivors
+
+
+def test_final_cleanup_marker_blocks_a_replacement_before_rmdir(tmp_path, monkeypatch):
+    skill = _load_skill()
+    (tmp_path / 'README.md').write_text('# Repository\n')
+    _commit_generated_target(tmp_path)
+    content = skill.GENERATED_MARKER + '\n# Generated\n'
+    snapshot = skill._target_state(tmp_path, 'index.md')
+    original_open, original_fstat = skill.os.open, skill.os.fstat
+    final_fds: set[int] = set()
+    swapped: list[str] = []
+
+    def observe_final_open(path, flags, mode=0o777, *, dir_fd=None):
+        fd = original_open(path, flags, mode, dir_fd=dir_fd)
+        if isinstance(path, str) and path.startswith('.progressive-discovery-final-'):
+            final_fds.add(fd)
+        return fd
+
+    def swap_after_final_validation(fd):
+        result = original_fstat(fd)
+        if fd in final_fds and not swapped:
+            final_fds.remove(fd)
+            link = Path(f'/proc/self/fd/{fd}')
+            final = Path(os.readlink(link)) if link.exists() else None
+            if final is not None and final.name.startswith('.progressive-discovery-final-'):
+                final.rename(tmp_path / (final.name + '-moved'))
+                final.mkdir()
+                (final / 'replacement-sentinel').write_text('replacement\n')
+                swapped.append(final.name)
+        return result
+
+    monkeypatch.setattr(skill.os, 'open', observe_final_open)
+    monkeypatch.setattr(skill.os, 'fstat', swap_after_final_validation)
+    monkeypatch.setattr(
+        skill.os,
+        'supports_dir_fd',
+        skill.os.supports_dir_fd | {observe_final_open},
+    )
+    applied, errors = skill._apply(
+        tmp_path,
+        [{'action': 'create', 'kind': 'generated', 'path': 'index.md',
+          'content': content, 'snapshot': snapshot}],
+        {'profile_selected': True, 'skill_selected': True},
+    )
+
+    assert swapped and errors
+    assert 'create index.md' in applied
+    assert (tmp_path / (swapped[0] + '-moved')).is_dir()
+    assert any(
+        (path / 'replacement-sentinel').is_file()
+        for path in tmp_path.iterdir()
+        if path.is_dir()
+    )
