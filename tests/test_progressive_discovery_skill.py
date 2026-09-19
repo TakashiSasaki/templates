@@ -1053,3 +1053,100 @@ def test_generated_and_authored_ownership_are_disjoint_after_apply(tmp_path):
         assert 'generated/index.md' in ownership['generated_indexes']
         assert 'index.md' in ownership['authored_indexes']
         assert not set(ownership['authored_indexes']) & set(ownership['generated_indexes'])
+
+
+def test_inventory_list_suffix_recognition_is_case_insensitive(tmp_path):
+    for number, document in enumerate(('docs/README.MD', 'docs/Guide.MarkDown',
+                                       'docs/MISSING.MD', 'docs/README.MD#part')):
+        target = tmp_path / str(number)
+        shutil.copytree(_fixture('simple-docs'), target)
+        (target / 'docs/catalog.json').write_text(json.dumps({'documents': [document]}))
+        if 'MISSING' not in document:
+            (target / document.split('#')[0]).write_text('# Part\n')
+        report = _load_skill().run(target)
+        assert report['result'] != 'NO_UPDATE_REQUIRED'
+        if '#' not in document:
+            assert document in report['expected_documents']
+        else:
+            assert report['result'] == 'AUTHORITY_NEEDED'
+
+
+def test_active_root_cannot_be_hidden_by_exclusions(tmp_path):
+    cases = [(key, boundary) for key in ('explicit_exclusions', 'closed_inventories')
+             for boundary in ('docs', 'docs/index.md')]
+    for number, (key, boundary) in enumerate(cases):
+        target = tmp_path / str(number)
+        shutil.copytree(_fixture('generated-docs'), target)
+        adapter_path = target / '.progressive-discovery.json'
+        adapter = json.loads(adapter_path.read_text())
+        adapter.update(root_index='docs/index.md', **{key: [boundary]})
+        (target / 'index.md').unlink()
+        adapter_path.write_text(json.dumps(adapter))
+        (target / 'docs/index.md').write_text('# Docs\n\n## Start\n\n'
+                                            '- [Guide](one.md) - Begin.\n')
+        _commit_generated_target(target)
+        for apply in (False, True):
+            report = _load_skill().run(target, apply=apply)
+            assert report['result'] == 'AUTHORITY_NEEDED'
+            assert report['applied'] == []
+            assert not (target / 'generated/index.md').exists()
+
+
+def test_missing_retired_target_requires_known_clean_git_state(tmp_path, monkeypatch):
+    for case in ('unstaged', 'staged', 'committed', 'unknown'):
+        target = tmp_path / case
+        shutil.copytree(_fixture('generated-docs'), target)
+        _commit_generated_target(target)
+        skill = _load_skill()
+        skill.run(target, apply=True)
+        retired = target / 'retired/index.md'
+        retired.parent.mkdir()
+        retired.write_text(skill.GENERATED_MARKER + '\n# Retired\n')
+        adapter_path = target / '.progressive-discovery.json'
+        adapter = json.loads(adapter_path.read_text())
+        adapter['remove_generated_indexes'] = ['retired/index.md']
+        adapter_path.write_text(json.dumps(adapter))
+        _commit_generated_target(target)
+        retired.unlink()
+        if case in ('staged', 'committed', 'unknown'):
+            subprocess.run(['git', '-C', str(target), 'add', 'retired/index.md'], check=True)
+        if case in ('committed', 'unknown'):
+            subprocess.run(['git', '-C', str(target), 'commit', '-qm', 'retire'], check=True)
+        original = skill._target_state
+        def state(root, relative, original=original, case=case):
+            result = original(root, relative)
+            if case == 'unknown' and relative == 'retired/index.md':
+                result.update(tracked=None, dirty=None)
+            return result
+        with monkeypatch.context() as patch:
+            patch.setattr(skill, '_target_state', state)
+            for apply in (False, True):
+                report = skill.run(target, apply=apply)
+                assert report['result'] == (
+                    'NO_UPDATE_REQUIRED' if case == 'committed' else 'AUTHORITY_NEEDED')
+                assert report['applied'] == []
+
+
+def test_active_indexes_cannot_use_undiscoverable_boundaries(tmp_path):
+    for number, (kind, boundary) in enumerate(
+        (kind, boundary) for kind in ('root', 'generated')
+        for boundary in ('.private', 'node_modules', '.well-known', 'intentional')
+    ):
+        target = tmp_path / str(number)
+        shutil.copytree(_fixture('generated-docs'), target)
+        path = target / '.progressive-discovery.json'
+        adapter = json.loads(path.read_text())
+        index = boundary + '/index.md'
+        if kind == 'root':
+            adapter['root_index'] = index
+            (target / 'index.md').unlink()
+        else:
+            adapter['generated_indexes'] = {index: {'title': 'Generated'}}
+        if boundary == 'intentional':
+            adapter['intentional_no_indexes'] = [boundary]
+        path.write_text(json.dumps(adapter))
+        _commit_generated_target(target)
+        report = _load_skill().run(target, apply=True)
+        assert report['result'] == 'AUTHORITY_NEEDED'
+        assert report['applied'] == []
+        assert not (target / index).exists()
