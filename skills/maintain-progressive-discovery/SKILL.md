@@ -124,8 +124,9 @@ missing explicit profile/Skill selection exits 2.
 Apply checks planned content identity, generated ownership, and tracked/dirty
 state both in global preflight and immediately before each target write/delete.
 Directory traversal and mutation use descriptor-relative operations without
-following symlinks. Apply also requires Linux `renameat2(RENAME_NOREPLACE)`
-for no-clobber removal/restoration; unavailable operations refuse apply. A parent
+following symlinks. Apply also requires Linux `renameat2` with
+`RENAME_NOREPLACE` and `RENAME_EXCHANGE` for no-clobber removal/restoration and
+complete generated-file replacement; unavailable operations refuse apply. A parent
 path replacement cannot redirect mutation outside the validated directory.
 If a later target changes, apply attempts to restore only its own earlier
 changes, checking identity and resulting bytes before restoration. Parent
@@ -136,10 +137,14 @@ private namespace before atomic no-replace publication, so a later pathname
 replacement cannot be claimed as an operation-created directory. Deleted-file
 rollback and generated-file creation likewise complete bytes before publication.
 Rollback restores the saved mode with `fchmod` in the private namespace before
-publication; process umask cannot alter that mode. The holding directory's
-inode is captured before publication and its cleanup uses the same identity-bound
-detachment. A replacement at the holding pathname is retained and reported,
-never removed as if it belonged to the operation. Concurrent
+publication; process umask cannot alter that mode. Regeneration writes complete
+bytes to a private file, exchanges it with the public name, and validates the
+detached old inode before removal; a public-name change is restored only when
+the public name still contains the operation's replacement. The holding
+directory's inode is captured before its descriptor is opened, and cleanup
+first detaches that identity to a fresh operation-private name. A replacement
+at the holding pathname is retained and reported, never removed as if it
+belonged to the operation. Concurrent
 edits or recreated paths are preserved and reported as incomplete rollback.
 `applied` retains the mutation history and adds `rollback PATH` for each completed
 restoration; `apply_errors` reports any residual uncertainty. Refusal still reports

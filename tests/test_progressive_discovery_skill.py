@@ -1347,7 +1347,7 @@ def test_rollback_preserves_concurrent_edits_and_reports_residual_changes(tmp_pa
 
     def concurrent_edits(root, relative):
         reads.append(relative)
-        if len(reads) == 4:
+        if len(reads) == 5:
             first.write_text('# Concurrent first\n')
             second.write_text('# Concurrent second\n')
         return real_state(root, relative)
@@ -1650,4 +1650,118 @@ def test_temporary_holding_cleanup_preserves_a_replacement_directory(tmp_path, m
     assert any('temporary directory retained' in error for error in errors)
     assert all((tmp_path / name).exists() for name in swapped)
     assert all((tmp_path / (name + '-moved')).exists() for name in swapped)
+    assert 'create index.md' in applied
+
+
+def test_holding_identity_is_bound_before_open(tmp_path, monkeypatch):
+    skill = _load_skill()
+    (tmp_path / 'README.md').write_text('# Repository\n')
+    _commit_generated_target(tmp_path)
+    content = skill.GENERATED_MARKER + '\n# Generated\n'
+    snapshot = skill._target_state(tmp_path, 'index.md')
+    original_open = skill.os.open
+    swapped: list[str] = []
+
+    def swap_holding_before_open(path, flags, mode=0o777, *, dir_fd=None):
+        if (not swapped and isinstance(path, str)
+                and path.startswith('.progressive-discovery-')):
+            holding = tmp_path / path
+            holding.rename(tmp_path / (path + '-moved'))
+            holding.mkdir()
+            swapped.append(path)
+        return original_open(path, flags, mode, dir_fd=dir_fd)
+
+    monkeypatch.setattr(skill.os, 'open', swap_holding_before_open)
+    monkeypatch.setattr(
+        skill.os,
+        'supports_dir_fd',
+        skill.os.supports_dir_fd | {swap_holding_before_open},
+    )
+    applied, errors = skill._apply(
+        tmp_path,
+        [{'action': 'create', 'kind': 'generated', 'path': 'index.md',
+          'content': content, 'snapshot': snapshot}],
+        {'profile_selected': True, 'skill_selected': True},
+    )
+
+    assert swapped and errors and not applied
+    assert not (tmp_path / 'index.md').exists()
+    assert (tmp_path / (swapped[0] + '-moved')).is_dir()
+    assert (tmp_path / swapped[0]).is_dir()
+
+
+def test_regeneration_does_not_write_an_inode_moved_after_open(tmp_path, monkeypatch):
+    skill = _load_skill()
+    target = tmp_path / 'index.md'
+    original = skill.GENERATED_MARKER + '\n# Original\n'
+    after = skill.GENERATED_MARKER + '\n# Regenerated\n'
+    target.write_text(original)
+    _commit_generated_target(tmp_path)
+    snapshot = skill._target_state(tmp_path, 'index.md')
+    original_write = skill.os.write
+    moved: list[bool] = []
+
+    def move_before_public_write(fd, data):
+        if not moved and bytes(data) == after.encode():
+            target.rename(tmp_path / 'moved.md')
+            target.write_text('# Concurrent authored file\n')
+            moved.append(True)
+        return original_write(fd, data)
+
+    monkeypatch.setattr(skill.os, 'write', move_before_public_write)
+    applied, errors = skill._apply(
+        tmp_path,
+        [{'action': 'regenerate', 'kind': 'generated', 'path': 'index.md',
+          'content': after, 'snapshot': snapshot}],
+        {'profile_selected': True, 'skill_selected': True},
+    )
+
+    assert moved and errors and not applied
+    assert target.read_text() == '# Concurrent authored file\n'
+    assert (tmp_path / 'moved.md').read_text() == original
+
+
+def test_terminal_holding_cleanup_never_removes_a_replacement_after_stat(
+    tmp_path, monkeypatch
+):
+    skill = _load_skill()
+    (tmp_path / 'README.md').write_text('# Repository\n')
+    _commit_generated_target(tmp_path)
+    content = skill.GENERATED_MARKER + '\n# Generated\n'
+    snapshot = skill._target_state(tmp_path, 'index.md')
+    original_open = skill.os.open
+    original_stat = skill.os.stat
+    bound: set[str] = set()
+    swapped: list[str] = []
+
+    def observe_holding_open(path, flags, mode=0o777, *, dir_fd=None):
+        if (isinstance(path, str) and path.startswith('.progressive-discovery-')):
+            bound.add(path)
+        return original_open(path, flags, mode, dir_fd=dir_fd)
+
+    def swap_holding_after_stat(path, *args, **kwargs):
+        result = original_stat(path, *args, **kwargs)
+        if (not swapped and isinstance(path, str) and path in bound):
+            holding = tmp_path / path
+            if holding.is_dir():
+                holding.rename(tmp_path / (path + '-moved'))
+                holding.mkdir()
+                swapped.append(path)
+        return result
+
+    monkeypatch.setattr(skill.os, 'open', observe_holding_open)
+    monkeypatch.setattr(skill.os, 'stat', swap_holding_after_stat)
+    monkeypatch.setattr(
+        skill.os,
+        'supports_dir_fd',
+        skill.os.supports_dir_fd | {observe_holding_open},
+    )
+    applied, errors = skill._apply(
+        tmp_path,
+        [{'action': 'create', 'kind': 'generated', 'path': 'index.md',
+          'content': content, 'snapshot': snapshot}],
+        {'profile_selected': True, 'skill_selected': True},
+    )
+
+    assert not swapped and not errors
     assert 'create index.md' in applied

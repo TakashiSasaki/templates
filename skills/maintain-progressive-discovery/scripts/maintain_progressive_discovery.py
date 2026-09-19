@@ -1254,10 +1254,8 @@ def _apply(
 
     cleanup_errors: list[str] = []
 
-    def rename_exclusive(source_fd: int, source: str, destination_fd: int,
-                         destination: str) -> None:
-        # Linux renameat2(RENAME_NOREPLACE) provides the required atomic
-        # no-clobber restoration for files, symlinks, and directories alike.
+    def rename_at2(source_fd: int, source: str, destination_fd: int,
+                   destination: str, flags: int) -> None:
         libc = ctypes.CDLL(None, use_errno=True)
         rename = getattr(libc, "renameat2", None)
         if rename is None:
@@ -1266,14 +1264,38 @@ def _apply(
                            ctypes.c_char_p, ctypes.c_uint]
         rename.restype = ctypes.c_int
         if rename(source_fd, os.fsencode(source), destination_fd,
-                  os.fsencode(destination), 1):
+                  os.fsencode(destination), flags):
             number = ctypes.get_errno()
             raise OSError(number, os.strerror(number))
+
+    def rename_exclusive(source_fd: int, source: str, destination_fd: int,
+                         destination: str) -> None:
+        # Linux renameat2(RENAME_NOREPLACE) provides the required atomic
+        # no-clobber restoration for files, symlinks, and directories alike.
+        rename_at2(source_fd, source, destination_fd, destination, 1)
+
+    def rename_exchange(source_fd: int, source: str, destination_fd: int,
+                        destination: str) -> None:
+        # RENAME_EXCHANGE lets regeneration publish a complete private file
+        # while retaining the old inode for identity validation.  It never
+        # follows a public pathname between validation and publication.
+        rename_at2(source_fd, source, destination_fd, destination, 2)
 
     def make_holding(parent: int, label: str) -> tuple[str, int, tuple[int, int], str]:
         """Create a private holding directory and bind its descriptor identity."""
         holding = ".progressive-discovery-" + secrets.token_hex(16)
         os.mkdir(holding, 0o700, dir_fd=parent)
+        try:
+            expected = os.stat(holding, dir_fd=parent, follow_symlinks=False)
+            if not stat.S_ISDIR(expected.st_mode):
+                raise OSError("holding path is not a directory")
+            expected_identity = (expected.st_dev, expected.st_ino)
+        except OSError as exc:
+            # The newly-created name cannot be safely removed without an
+            # identity-bound descriptor. Leave it for an authority decision.
+            raise OSError(
+                f"holding directory could not be identity-bound before open: {label}: {exc}"
+            ) from exc
         try:
             private = os.open(holding, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
                               dir_fd=parent)
@@ -1282,8 +1304,59 @@ def _apply(
             # authority decision instead of risking removal of a replacement.
             raise OSError(f"holding directory could not be identity-bound: {label}: {exc}") from exc
         identity = os.fstat(private)
+        actual_identity = (identity.st_dev, identity.st_ino)
+        if actual_identity != expected_identity or not stat.S_ISDIR(identity.st_mode):
+            os.close(private)
+            raise OSError(
+                f"holding directory changed before open: {label}"
+            )
         location = posixpath.join(posixpath.dirname(label), holding, "target")
-        return holding, private, (identity.st_dev, identity.st_ino), location
+        return holding, private, actual_identity, location
+
+    def remove_holding(parent: int, name: str, identity: tuple[int, int],
+                       label: str) -> None:
+        """Detach and remove exactly one operation-private directory.
+
+        The public holding name is first moved with an atomic no-clobber
+        rename to a fresh operation-private name.  Validation then occurs on
+        the detached object; a replacement at the original name can never be
+        removed by the cleanup path.  If identity cannot be proved, restore
+        the moved object without clobbering a concurrent name and retain the
+        state for authority review.
+        """
+        cleanup = ".progressive-discovery-cleanup-" + secrets.token_hex(16)
+        moved = False
+        try:
+            rename_exclusive(parent, name, parent, cleanup)
+            moved = True
+            fd = os.open(cleanup, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+                         dir_fd=parent)
+            try:
+                current = os.fstat(fd)
+                if ((current.st_dev, current.st_ino) != identity
+                        or not stat.S_ISDIR(current.st_mode)):
+                    raise OSError("temporary directory identity changed")
+            finally:
+                os.close(fd)
+            # The detached cleanup name is operation-private.  Do not perform
+            # a separate pathname stat immediately before rmdir; a replacement
+            # at the public holding name remains untouched.
+            os.rmdir(cleanup, dir_fd=parent)
+            moved = False
+        except OSError as exc:
+            if moved:
+                try:
+                    rename_exclusive(parent, cleanup, parent, name)
+                    moved = False
+                except OSError as restore_error:
+                    retained_path = posixpath.join(
+                        posixpath.dirname(label), cleanup
+                    )
+                    raise OSError(
+                        f"{exc}; state retained at {retained_path}; "
+                        f"no-clobber restoration failed: {restore_error}"
+                    ) from exc
+            raise
 
     def remove_owned(parent: int, name: str, identity: tuple[int, int],
                      content: bytes | None, label: str,
@@ -1331,16 +1404,8 @@ def _apply(
                 os.close(private)
             if not retained:
                 try:
-                    if cleanup_holding:
-                        remove_owned(parent, holding, holding_identity,
-                                     None, posixpath.dirname(location),
-                                     cleanup_holding=False)
-                    else:
-                        current = os.stat(holding, dir_fd=parent, follow_symlinks=False)
-                        if ((current.st_dev, current.st_ino) != holding_identity
-                                or not stat.S_ISDIR(current.st_mode)):
-                            raise OSError("temporary directory identity changed")
-                        os.rmdir(holding, dir_fd=parent)
+                    remove_holding(parent, holding, holding_identity,
+                                   posixpath.dirname(location))
                 except OSError as exc:
                     cleanup_errors.append(
                         f"authority-needed: temporary directory retained: {location}: {exc}")
@@ -1403,12 +1468,130 @@ def _apply(
                 os.close(private)
             if not retained:
                 try:
-                    remove_owned(parent, holding, holding_identity,
-                                 None, posixpath.dirname(location),
-                                 cleanup_holding=False)
+                    remove_holding(parent, holding, holding_identity,
+                                   posixpath.dirname(location))
                 except OSError as exc:
                     cleanup_errors.append(
                         f"authority-needed: temporary directory retained: {location}: {exc}")
+
+    def replace_owned(parent: int, name: str, expected_identity: tuple[int, int],
+                      before: bytes, after: bytes, mode: int, label: str,
+                      item: dict[str, Any]) -> tuple[int, int]:
+        """Replace one generated file while retaining the public-name binding.
+
+        The complete replacement is written in a private directory.  An
+        atomic exchange moves the old inode into that directory, where its
+        identity and bytes are checked before it is removed.  If the public
+        name no longer contains the planned inode, the exchange is reversed
+        only when the public name still contains our replacement; otherwise
+        both states are retained for authority review.
+        """
+        holding, private, holding_identity, location = make_holding(parent, label)
+        temp_fd = None
+        swapped = False
+        published = False
+        retained = False
+        replacement_identity: tuple[int, int] | None = None
+
+        def _public_is_replacement() -> bool:
+            fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK,
+                         dir_fd=parent)
+            try:
+                current = os.fstat(fd)
+                return ((current.st_dev, current.st_ino) == replacement_identity
+                        and stat.S_ISREG(current.st_mode)
+                        and current.st_nlink == 1
+                        and read_fd(fd) == after
+                        and stat.S_IMODE(current.st_mode) == mode)
+            finally:
+                os.close(fd)
+
+        try:
+            temp_fd = os.open("target", os.O_RDWR | os.O_CREAT | os.O_EXCL
+                              | os.O_NOFOLLOW, 0o600, dir_fd=private)
+            replace_fd(temp_fd, after)
+            os.fchmod(temp_fd, mode)
+            prepared = os.fstat(temp_fd)
+            replacement_identity = (prepared.st_dev, prepared.st_ino)
+            if error := revalidate(item):
+                raise OSError(error)
+            os.close(temp_fd)
+            temp_fd = None
+
+            rename_exchange(private, "target", parent, name)
+            swapped = True
+            old_fd = os.open("target", os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK,
+                             dir_fd=private)
+            try:
+                current = os.fstat(old_fd)
+                if ((current.st_dev, current.st_ino) != expected_identity
+                        or not stat.S_ISREG(current.st_mode)
+                        or current.st_nlink != 1
+                        or read_fd(old_fd) != before
+                        or stat.S_IMODE(current.st_mode) != mode):
+                    raise OSError("target identity or content changed during exchange")
+            finally:
+                os.close(old_fd)
+            if not _public_is_replacement():
+                raise OSError("public target changed during exchange")
+            os.unlink("target", dir_fd=private)
+            swapped = False
+            published = True
+            return replacement_identity
+        except OSError as exc:
+            if swapped:
+                try:
+                    if replacement_identity is None or not _public_is_replacement():
+                        raise OSError("public target changed before rollback exchange")
+                    rename_exchange(private, "target", parent, name)
+                    swapped = False
+                except OSError as restore_error:
+                    retained = True
+                    changes.append(f"retain {label} at {location}")
+                    raise OSError(
+                        f"{exc}; state retained at {location}; "
+                        f"exchange restoration failed: {restore_error}"
+                    ) from exc
+            raise
+        finally:
+            if temp_fd is not None:
+                os.close(temp_fd)
+            if not published and not retained:
+                try:
+                    # After a successful restoration, the private target is
+                    # our complete replacement.  Remove it only after binding
+                    # its descriptor identity; otherwise retain the namespace.
+                    private_target = os.open(
+                        "target", os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK,
+                        dir_fd=private,
+                    )
+                    try:
+                        current = os.fstat(private_target)
+                        if (replacement_identity is None
+                                or (current.st_dev, current.st_ino) != replacement_identity):
+                            raise OSError("private replacement identity changed")
+                    finally:
+                        os.close(private_target)
+                    os.unlink("target", dir_fd=private)
+                except FileNotFoundError:
+                    pass
+                except OSError as cleanup_error:
+                    retained = True
+                    changes.append(f"retain {label} at {location}")
+                    cleanup_errors.append(
+                        f"authority-needed: temporary directory retained: {location}: "
+                        f"{cleanup_error}"
+                    )
+            os.close(private)
+            if not retained:
+                try:
+                    remove_holding(parent, holding, holding_identity,
+                                   posixpath.dirname(location))
+                except OSError as cleanup_error:
+                    cleanup_errors.append(
+                        f"authority-needed: temporary directory retained: {location}: "
+                        f"{cleanup_error}"
+                    )
 
     def rollback(errors: list[str]) -> tuple[list[str], list[str]]:
         for owned in reversed(undo):
@@ -1529,12 +1712,17 @@ def _apply(
                         undo.append(record)
                         changes.append(f"{action} {relative}")
                     else:
-                        # Record even a partial I/O failure. Rollback refuses
-                        # bytes differing from the completed planned output;
-                        # partial writes remain explicit residual changes.
+                        # Regeneration writes a complete private replacement and
+                        # atomically exchanges it with the planned public inode.
+                        # The undo identity is therefore the new public inode;
+                        # rollback still refuses any later concurrent change.
+                        replacement_identity = replace_owned(
+                            parent_fd, name, record["identity"], before, after,
+                            record["mode"], relative, item,
+                        )
+                        record["identity"] = replacement_identity
                         undo.append(record)
                         changes.append(f"{action} {relative}")
-                        replace_fd(fd, after)
                 finally:
                     os.close(fd)
         except OSError as exc:
