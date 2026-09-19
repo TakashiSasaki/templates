@@ -29,9 +29,9 @@ existing index alone cannot prove completeness.
 
 When a relevant source, document, component, recipe, schema, policy rule,
 record, generated document, or publication surface changes, re-run the
-repository's progressive-discovery maintenance Skill. The Skill may propose
-create, update, delete, or regenerate operations in dry-run mode, but it may
-mutate authoritative sources only after an explicit apply authorization.
+repository's discovery validation against those authoritative sources. Keep
+proposed navigation changes distinguishable from completed changes, preserve
+authored ownership, and respect the repository's mutation authorization boundary.
 Provider-maintenance documentation and consumer-distributed documentation are
 separate surfaces, and a consumer without a publication system must not be
 forced to invent one. Repository-local adapters may add validation commands,

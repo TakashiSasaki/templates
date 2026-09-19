@@ -59,6 +59,8 @@ def test_progressive_discovery_is_opt_in_and_application_neutral() -> None:
     assert "policy/progressive-discovery/maintain-index-boundaries.md" in progressive
     assert "policy/core/" not in progressive
     assert "web application" not in rule.lower()
+    assert "skill" not in rule.lower()
+    assert "dry-run" not in rule.lower()
 
 
 def test_application_neutral_scope_decision_is_documented_and_published() -> None:
