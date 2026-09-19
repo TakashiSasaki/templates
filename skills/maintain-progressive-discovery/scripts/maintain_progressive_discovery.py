@@ -7,11 +7,13 @@
 from __future__ import annotations
 
 import argparse
+import ctypes
 import hashlib
 import json
 import os
 import posixpath
 import re
+import secrets
 import stat
 import string
 import subprocess
@@ -1249,11 +1251,92 @@ def _apply(
             remaining = remaining[count:]
         os.ftruncate(fd, len(content))
 
+    cleanup_errors: list[str] = []
+
+    def rename_exclusive(source_fd: int, source: str, destination_fd: int,
+                         destination: str) -> None:
+        # Linux renameat2(RENAME_NOREPLACE) provides the required atomic
+        # no-clobber restoration for files, symlinks, and directories alike.
+        libc = ctypes.CDLL(None, use_errno=True)
+        rename = getattr(libc, "renameat2", None)
+        if rename is None:
+            raise OSError("atomic no-replace rename is unavailable")
+        rename.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_int,
+                           ctypes.c_char_p, ctypes.c_uint]
+        rename.restype = ctypes.c_int
+        if rename(source_fd, os.fsencode(source), destination_fd,
+                  os.fsencode(destination), 1):
+            number = ctypes.get_errno()
+            raise OSError(number, os.strerror(number))
+
+    def remove_owned(parent: int, name: str, identity: tuple[int, int],
+                     content: bytes | None, label: str) -> None:
+        # A shared pathname cannot be conditionally unlinked by inode. Atomically
+        # detach it into an operation-private namespace, validate what was moved,
+        # and delete only that object. A replacement at the public name survives.
+        holding = ".progressive-discovery-" + secrets.token_hex(16)
+        os.mkdir(holding, 0o700, dir_fd=parent)
+        private = None
+        moved = False
+        retained = False
+        location = posixpath.join(posixpath.dirname(label), holding, "target")
+        try:
+            private = os.open(holding, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+                              dir_fd=parent)
+            rename_exclusive(parent, name, private, "target")
+            moved = True
+            fd = os.open("target", os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=private)
+            try:
+                current = os.fstat(fd)
+                if (current.st_dev, current.st_ino) != identity:
+                    raise OSError("target identity changed before removal")
+                if content is None:
+                    if not stat.S_ISDIR(current.st_mode):
+                        raise OSError("directory kind changed before removal")
+                elif (not stat.S_ISREG(current.st_mode) or current.st_nlink != 1
+                      or read_fd(fd) != content):
+                    raise OSError("target content or ownership changed before removal")
+            finally:
+                os.close(fd)
+            if content is None:
+                os.rmdir("target", dir_fd=private)
+            else:
+                os.unlink("target", dir_fd=private)
+            moved = False
+        except OSError as exc:
+            if moved:
+                try:
+                    rename_exclusive(private, "target", parent, name)
+                    moved = False
+                except OSError as restore_error:
+                    retained = True
+                    changes.append(f"retain {label} at {location}")
+                    raise OSError(f"{exc}; state retained at {location}; "
+                                  f"no-clobber restoration failed: {restore_error}") from exc
+            raise
+        finally:
+            if private is not None:
+                os.close(private)
+            if not retained:
+                try:
+                    os.rmdir(holding, dir_fd=parent)
+                except OSError as exc:
+                    cleanup_errors.append(
+                        f"authority-needed: temporary directory retained: {location}: {exc}")
+
     def rollback(errors: list[str]) -> tuple[list[str], list[str]]:
         for owned in reversed(undo):
             try:
                 parent, name = owned["parent"], owned["name"]
-                if owned["action"] == "delete":
+                if owned["action"] == "mkdir":
+                    current = os.stat(name, dir_fd=parent, follow_symlinks=False)
+                    if (not stat.S_ISDIR(current.st_mode)
+                            or (current.st_dev, current.st_ino) != owned["identity"]):
+                        raise OSError("concurrent directory state retained")
+                    # rmdir is atomic with respect to emptiness: another process's
+                    # newly created contents are never recursively removed.
+                    remove_owned(parent, name, owned["identity"], None, owned["path"])
+                elif owned["action"] == "delete":
                     # Never replace a concurrently recreated path, including a symlink.
                     fd = os.open(name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
                                  owned["mode"], dir_fd=parent)
@@ -1269,7 +1352,8 @@ def _apply(
                                 or read_fd(fd) != owned["after"]):
                             raise OSError("concurrent state retained")
                         if owned["action"] == "create":
-                            os.unlink(name, dir_fd=parent)
+                            remove_owned(parent, name, owned["identity"],
+                                         owned["after"], owned["path"])
                         else:
                             replace_fd(fd, owned["before"])
                     finally:
@@ -1277,7 +1361,7 @@ def _apply(
                 changes.append(f"rollback {owned['path']}")
             except OSError as exc:
                 errors.append(f"authority-needed: rollback incomplete: {owned['path']}: {exc}")
-        return changes, errors
+        return changes, errors + cleanup_errors
 
     # Resolve every directory without following symlinks, then keep the directory
     # descriptors alive through mutation and any owned rollback. A renamed parent
@@ -1286,8 +1370,10 @@ def _apply(
         try:
             if (not hasattr(os, "O_NOFOLLOW") or not hasattr(os, "O_DIRECTORY")
                     or any(operation not in os.supports_dir_fd
-                           for operation in (os.open, os.mkdir, os.unlink))):
+                           for operation in (os.open, os.mkdir, os.unlink, os.rmdir))):
                 raise OSError("safe descriptor-relative mutations are unavailable")
+            if getattr(ctypes.CDLL(None), "renameat2", None) is None:
+                raise OSError("atomic no-replace rename is unavailable")
             directory_flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
             root_fd = os.open(root.anchor, directory_flags)
             descriptors.callback(os.close, root_fd)
@@ -1298,13 +1384,21 @@ def _apply(
                 relative = item["path"]
                 parent_fd = root_fd
                 parts = Path(relative).parts
-                for component in parts[:-1]:
+                for depth, component in enumerate(parts[:-1]):
                     try:
                         child_fd = os.open(component, directory_flags, dir_fd=parent_fd)
                     except FileNotFoundError:
                         if item["action"] == "delete":
                             raise
                         os.mkdir(component, dir_fd=parent_fd)
+                        directory_path = "/".join(parts[:depth + 1])
+                        changes.append(f"mkdir {directory_path}")
+                        created = os.stat(component, dir_fd=parent_fd, follow_symlinks=False)
+                        if not stat.S_ISDIR(created.st_mode):
+                            raise OSError(f"created directory changed: {directory_path}")
+                        undo.append({"action": "mkdir", "path": directory_path,
+                                     "parent": parent_fd, "name": component,
+                                     "identity": (created.st_dev, created.st_ino)})
                         child_fd = os.open(component, directory_flags, dir_fd=parent_fd)
                     descriptors.callback(os.close, child_fd)
                     parent_fd = child_fd
@@ -1341,7 +1435,7 @@ def _apply(
                               "mode": stat.S_IMODE(identity.st_mode),
                               "before": before, "after": after}
                     if action == "delete":
-                        os.unlink(name, dir_fd=parent_fd)
+                        remove_owned(parent_fd, name, record["identity"], before, relative)
                         undo.append(record)
                         changes.append(f"{action} {relative}")
                     else:
@@ -1355,6 +1449,8 @@ def _apply(
                     os.close(fd)
         except OSError as exc:
             return rollback([f"authority-needed: mutation failed: {exc}"])
+        if cleanup_errors:
+            return rollback([])
     return changes, []
 
 

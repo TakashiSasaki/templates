@@ -6,6 +6,8 @@ import shutil
 import subprocess
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[1]
 CORPUS = ROOT / "tests/fixtures/progressive-discovery"
 SCRIPT = ROOT / "skills/maintain-progressive-discovery/scripts/maintain_progressive_discovery.py"
@@ -682,7 +684,7 @@ def test_apply_refreshes_authored_reachability_after_generated_repair(tmp_path):
     skill = _load_skill()
     report = skill.run(root, apply=True)
     assert report['result'] == 'NO_UPDATE_REQUIRED', report
-    assert report['applied'] == ['create generated/index.md']
+    assert report['applied'] == ['mkdir generated', 'create generated/index.md']
     assert skill.run(root)['result'] == 'NO_UPDATE_REQUIRED'
 
 
@@ -820,7 +822,7 @@ def test_malformed_link_does_not_hide_applied_generated_changes(tmp_path):
     path.write_text(path.read_text() + '\n- [Malformed](http://[) - Invalid authority URL.\n')
     report = _load_skill().run(root, apply=True)
     assert not report['validation']['valid']
-    assert report['applied'] == ['create generated/index.md']
+    assert report['applied'] == ['mkdir generated', 'create generated/index.md']
     assert report['result'] != 'NO_UPDATE_REQUIRED'
 
 
@@ -1357,3 +1359,96 @@ def test_rollback_preserves_concurrent_edits_and_reports_residual_changes(tmp_pa
     assert any('rollback incomplete' in error for error in errors)
     assert first.read_text() == '# Concurrent first\n'
     assert second.read_text() == '# Concurrent second\n'
+
+
+def test_failed_apply_rolls_back_only_owned_empty_parent_directories(tmp_path, monkeypatch):
+    for case in ('new', 'preexisting', 'concurrent'):
+        skill = _load_skill()
+        root = tmp_path / case
+        root.mkdir()
+        if case == 'preexisting':
+            (root / 'new').mkdir()
+        second = root / 'second.md'
+        original = skill.GENERATED_MARKER + '\n# Original\n'
+        second.write_text(original)
+        _commit_generated_target(root)
+        plan = [{'action': action, 'kind': 'generated', 'path': relative,
+                 'content': original, 'snapshot': skill._target_state(root, relative)}
+                for action, relative in [('create', 'new/deep/index.md'),
+                                         ('regenerate', 'second.md')]]
+        real_state = skill._target_state
+        reads = []
+
+        def change_second(repository, relative, real_state=real_state, reads=reads,
+                          second=second, root=root, case=case):
+            state = real_state(repository, relative)
+            reads.append(relative)
+            if len(reads) == 2:
+                second.write_text('# Concurrent target\n')
+            if len(reads) == 4 and case == 'concurrent':
+                (root / 'new/deep/authored.md').write_text('# Concurrent document\n')
+            return state
+
+        with monkeypatch.context() as patch:
+            patch.setattr(skill, '_target_state', change_second)
+            applied, errors = skill._apply(root, plan,
+                                           {'profile_selected': True, 'skill_selected': True})
+        assert errors and 'rollback new/deep/index.md' in applied
+        assert not (root / 'new/deep/index.md').exists()
+        assert second.read_text() == '# Concurrent target\n'
+        if case == 'concurrent':
+            assert (root / 'new/deep/authored.md').read_text() == '# Concurrent document\n'
+            assert any('rollback incomplete' in error for error in errors)
+        else:
+            assert not (root / 'new/deep').exists()
+            assert (root / 'new').exists() == (case == 'preexisting')
+
+
+@pytest.mark.parametrize("replacement", ["file", "symlink", "directory", "collision"])
+def test_delete_does_not_unlink_a_replacement_after_open(tmp_path, monkeypatch, replacement):
+    skill = _load_skill()
+    target = tmp_path / 'index.md'
+    original = skill.GENERATED_MARKER + '\n# Original\n'
+    target.write_text(original)
+    _commit_generated_target(tmp_path)
+    snapshot = skill._target_state(tmp_path, 'index.md')
+    original_fstat = skill.os.fstat
+    replaced = []
+
+    def swap_after_fstat(fd):
+        state = original_fstat(fd)
+        if not replaced and [state.st_dev, state.st_ino] == snapshot['identity']:
+            target.rename(tmp_path / 'moved.md')
+            if replacement == 'symlink':
+                target.symlink_to('moved.md')
+            elif replacement == 'directory':
+                target.mkdir()
+                (target / 'authored.md').write_text('# Concurrent authored file\n')
+            else:
+                target.write_text('# Concurrent authored file\n')
+            replaced.append(target.lstat().st_ino)
+        elif replacement == 'collision' and replaced and state.st_ino == replaced[0]:
+            target.write_text('# Second concurrent file\n')
+        return state
+
+    monkeypatch.setattr(skill.os, 'fstat', swap_after_fstat)
+    applied, errors = skill._apply(tmp_path, [
+        {'action': 'delete', 'kind': 'generated', 'path': 'index.md', 'snapshot': snapshot}],
+        {'profile_selected': True, 'skill_selected': True})
+    assert replaced
+    assert errors
+    if replacement == 'collision':
+        assert any(entry.startswith('retain index.md at ') for entry in applied)
+        assert target.read_text() == '# Second concurrent file\n'
+        held = list(tmp_path.glob('.progressive-discovery-*/target'))
+        assert len(held) == 1 and held[0].read_text() == '# Concurrent authored file\n'
+        assert any(str(held[0].relative_to(tmp_path)) in error for error in errors)
+    else:
+        assert not applied
+        if replacement == 'symlink':
+            assert target.is_symlink() and target.readlink() == Path('moved.md')
+        elif replacement == 'directory':
+            assert (target / 'authored.md').read_text() == '# Concurrent authored file\n'
+        else:
+            assert target.read_text() == '# Concurrent authored file\n'
+    assert (tmp_path / 'moved.md').read_text() == original

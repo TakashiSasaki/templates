@@ -124,10 +124,14 @@ missing explicit profile/Skill selection exits 2.
 Apply checks planned content identity, generated ownership, and tracked/dirty
 state both in global preflight and immediately before each target write/delete.
 Directory traversal and mutation use descriptor-relative operations without
-following symlinks; platforms without those operations refuse apply. A parent
+following symlinks. Apply also requires Linux `renameat2(RENAME_NOREPLACE)`
+for no-clobber removal/restoration; unavailable operations refuse apply. A parent
 path replacement cannot redirect mutation outside the validated directory.
 If a later target changes, apply attempts to restore only its own earlier
-changes, checking identity and resulting bytes before restoration. Concurrent
+changes, checking identity and resulting bytes before restoration. Parent
+directories created by apply are recorded as `mkdir PATH` and removed in reverse
+order only if the same directory remains empty; existing directories and
+concurrently added contents are preserved. Concurrent
 edits or recreated paths are preserved and reported as incomplete rollback.
 `applied` retains the mutation history and adds `rollback PATH` for each completed
 restoration; `apply_errors` reports any residual uncertainty. Refusal still reports
@@ -135,6 +139,15 @@ restoration; `apply_errors` reports any residual uncertainty. Refusal still repo
 do not provide filesystem-wide atomicity or serialize independent writers to the
 same file. Coordinate exclusive access when that guarantee is required; apply is
 not a transaction.
+
+Removal atomically detaches a name into a mode-0700 operation-private directory,
+then verifies the captured object identity and content before unlink/rmdir. A
+replacement at the original public path is never unlinked by that operation.
+An unexpected captured object is restored with atomic no-replace rename. If the
+public path is occupied again, both objects survive: `applied` records
+`retain PATH at RECOVERY_PATH` and `apply_errors` names that recovery location.
+Do not delete a reported recovery directory without inspecting its contents.
+The same mechanism protects removal of created files/directories during rollback.
 
 ## Inventory source closure
 
