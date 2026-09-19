@@ -1,0 +1,34 @@
+{
+  "root_index": "index.md",
+  "authoritative_inventories": [
+    "publication-sources.json",
+    "publication-staging.json",
+    "site-manifest.json",
+    "integration/site-slots.json",
+    "docs/publication-catalog.json",
+    "contracts/publication-compatibility/provider-registry.json",
+    "contracts/publication-compatibility/feature-registry.json"
+  ],
+  "authored_boundaries": [
+    "docs",
+    "contracts"
+  ],
+  "explicit_exclusions": [
+    "publication"
+  ],
+  "publication_system": true,
+  "surface_boundaries": {
+    "provider-selection": {
+      "source": "publication-sources.json",
+      "consumer": "integration/producer.py"
+    },
+    "bundle-read-model": {
+      "source": "publication_bundle/",
+      "consumer": "Site-owned Bundle reader"
+    },
+    "discovery-graph": {
+      "source": "provider root index.md",
+      "consumer": "guided-navigation.json"
+    }
+  }
+}
