@@ -70,6 +70,11 @@ def ensure_runtime_dependencies() -> tempfile.TemporaryDirectory[str] | None:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source-root", required=True, type=Path)
+    parser.add_argument(
+        "--refresh",
+        action="store_true",
+        help="refresh the generated snapshot from clean, committed semantic inputs",
+    )
     args = parser.parse_args()
     dependency_target: tempfile.TemporaryDirectory[str] | None = None
     try:
@@ -86,7 +91,10 @@ def main() -> int:
         import generate_composition_playground_publication as playground
         from composer_core_impl import CompositionError
 
-        semantic_revision = playground.write_directory(ROOT / "generated")
+        if args.refresh:
+            semantic_revision = playground.refresh_directory(ROOT / "generated")
+        else:
+            semantic_revision = playground.write_directory(ROOT / "generated")
         descriptor = {
             "schema_version": 1,
             "provider": "composition",

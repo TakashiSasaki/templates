@@ -149,6 +149,18 @@ class CompositionPlaygroundPublicationTests(unittest.TestCase):
             publication.verify_semantic_snapshot(semantic_objects)
         self.assertEqual("STALE_PLAYGROUND_SOURCE", context.exception.code)
 
+    def test_refresh_directory_rebinds_a_clean_current_semantic_snapshot(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="composition-playground-refresh-") as directory:
+            target = Path(directory)
+            revision = publication.refresh_directory(target)
+            self.assertEqual(
+                subprocess.check_output(
+                    ["git", "-C", str(ROOT), "rev-parse", "HEAD"], text=True
+                ).strip(),
+                revision,
+            )
+            self.assertEqual(revision, publication.check_directory(target))
+
     def test_publication_provider_may_be_semantically_equivalent_descendant(self) -> None:
         semantic_revision = publication.semantic_revision_from_manifest(GENERATED)
         provider_revision = subprocess.check_output(

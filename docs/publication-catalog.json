@@ -82,7 +82,9 @@
   ],
   "assets": [
     {"source":"catalog/catalog.json","destination":"catalog/catalog.json","optional":false},
-    {"source":"recipes","destination":"recipes","optional":false},
+    {"source":"recipes/skill.json","destination":"recipes/skill.json","optional":false},
+    {"source":"recipes/webapp.json","destination":"recipes/webapp.json","optional":false},
+    {"source":"recipes/website.json","destination":"recipes/website.json","optional":false},
     {"source":"release/composition-installer.json","destination":"release/composition-installer.json","optional":false},
     {"source":"generated/composition-playground-v1.json.gz","destination":"playground/composition-playground-v1.json.gz","optional":false},
     {"source":"generated/composition-playground-intent-v1.json.gz","destination":"playground/composition-playground-intent-v1.json.gz","optional":false},

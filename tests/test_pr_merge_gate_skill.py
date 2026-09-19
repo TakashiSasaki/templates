@@ -30,13 +30,21 @@ class PullRequestMergeGateReferenceTests(unittest.TestCase):
 
     def test_source_manifest_pins_immutable_policy_adapter_identity(self) -> None:
         source = json.loads(SOURCE.read_text(encoding="utf-8"))
-        self.assertEqual(source["schema_version"], 1)
+        self.assertEqual(source["schema_version"], 2)
         self.assertEqual(source["kind"], "policy-adapter-reference")
         self.assertEqual(source["repository"], "TakashiSasaki/templates")
         self.assertEqual(source["path"], "skills/pr-merge-gate/SKILL.md")
         self.assertRegex(source["revision"], SHA_PATTERN)
         self.assertRegex(source["blob_sha"], SHA_PATTERN)
         self.assertNotEqual(source["revision"], source["blob_sha"])
+        closure = source["closure"]
+        paths = [entry["path"] for entry in closure]
+        self.assertEqual(len(paths), len(set(paths)))
+        self.assertIn("profiles/pull-request.yml", paths)
+        self.assertIn("policy/pull-request/independent-exact-head-review.md", paths)
+        self.assertIn("skills/pr-merge-gate/references/review-acquisition-preflight.md", paths)
+        for entry in closure:
+            self.assertRegex(entry["blob_sha"], SHA_PATTERN)
 
     def test_shim_declares_reference_not_policy_authority(self) -> None:
         text = SKILL.read_text(encoding="utf-8").lower()
