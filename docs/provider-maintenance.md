@@ -80,3 +80,16 @@ product release evidence. Policy owns coding-agent operational policy. When a
 change crosses an authority boundary, retain the canonical semantic source in
 its owner and use the owner’s current integration procedure rather than copying
 or redefining it here.
+
+
+### Refresh failure boundary
+
+`generate_composition_playground_publication.py --refresh-dir generated` stages
+and validates the manifest and both gzip assets before replacing the snapshot
+directory. Use an exclusively owned checkout. Staging failures leave the previous
+snapshot intact; a failed commit rename restores the previous directory. This is
+not a crash-atomic directory exchange: readers can observe a rename gap, and an
+uncatchable process termination can leave a sibling `.generated.refresh-*`
+directory. If rollback fails, the error names its preserved `previous` directory;
+recover that complete snapshot before retrying instead of combining its files
+with partially staged output.
