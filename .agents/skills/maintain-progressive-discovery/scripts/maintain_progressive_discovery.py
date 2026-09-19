@@ -263,7 +263,7 @@ def _load_adapter(root: Path, relative: str) -> tuple[dict[str, Any], list[str]]
                     f"adapter: generated inventory requires canonical path array: {target}"
                 )
     retired = _configured_paths(value, "remove_generated_indexes")
-    if root_index in retired:
+    if isinstance(root_index, str) and root_index in retired:
         errors.append("adapter: active root_index cannot be retired")
     retired_declarations = value.get("remove_generated_indexes", [])
     if not isinstance(retired_declarations, (list, dict)):
@@ -285,7 +285,9 @@ def _load_adapter(root: Path, relative: str) -> tuple[dict[str, Any], list[str]]
     for target in active_indexes | retired:
         if any(target == boundary or target.startswith(boundary + "/")
                for boundary in excluded_boundaries):
-            errors.append(f"adapter: active root/generated/retired target overlaps excluded boundary: {target}")
+            errors.append(
+                f"adapter: active root/generated/retired target overlaps excluded boundary: {target}"
+            )
         if _repository_path_error(root, target) or Path(target).name != INDEX_NAME:
             errors.append(
                 f"adapter: generated/retired target must be a safe index.md path: {target}"
