@@ -51,7 +51,8 @@ def test_routing_declares_immutable_rule_and_skill_bindings() -> None:
         PLANNER_BLOB,
         REVISION,
         "2ef890673600f0f4c30b53cef7c19a78d34cf5bc",
-        "33a7ab809225c2a8b8dd2598ef04d0a39cf076a7",
+        ".agent-policy.yml",
+        "toolchain.revision",
         "stop as blocked",
         "single PR",
         "same-authority stack",
@@ -138,3 +139,15 @@ def test_policy_local_gate_entry_has_a_separate_shared_gate_manifest() -> None:
     assert len(data["closure"]) == len(expected)
     for entry in data["closure"]:
         assert _git("rev-parse", f"{GATE_REVISION}:{entry['path']}") == entry["blob_sha"]
+
+
+def test_generation_routing_does_not_conflict_with_selected_toolchain() -> None:
+    revision = yaml.safe_load(CONFIG.read_text())['toolchain']['revision']
+    for path in (ROUTING, AGENTS, REVIEW):
+        paragraph = path.read_text().split('The Policy generation toolchain', 1)[1].split(
+            '\n\n', 1
+        )[0]
+        assert all(sha == revision for sha in FULL_SHA.findall(paragraph)), path
+        assert '.agent-policy.yml' in paragraph and 'toolchain.revision' in paragraph
+    for path in (AGENTS, REVIEW):
+        assert f'TakashiSasaki/templates@{revision}' in path.read_text()

@@ -845,8 +845,10 @@ even when stored in the same candidate commit:
 `TakashiSasaki/templates@94eb84397d913f2ebb0e2c79d0b841ae580fbc31`,
 `skills/pr-merge-gate/SKILL.md`, blob
 `2ef890673600f0f4c30b53cef7c19a78d34cf5bc`. The Policy generation toolchain
-pin remains separate at
-`TakashiSasaki/templates@33a7ab809225c2a8b8dd2598ef04d0a39cf076a7`.
+is selected separately by `toolchain.revision` in `.agent-policy.yml`. Verify
+that exact revision against `.agent-policy.lock`; the generated instruction
+headers identify the selected toolchain. Do not substitute either maintainer
+procedure revision for that configuration identity.
 
 The route applies to a single PR and to a same-authority stack. Use the
 canonical landing Skill to order members and invoke the shared gate; do not
