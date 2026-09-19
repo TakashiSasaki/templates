@@ -73,7 +73,7 @@
   "status": "finalized",
   "toolchain": {
     "repository": "TakashiSasaki/templates",
-    "revision": "960d44725a62096b37c599689a09dcc5b780f4bd"
+    "revision": "772c6fdd33976b6b91e0cfba2a09a4e00847f431"
   },
   "verification_command": null
 }
