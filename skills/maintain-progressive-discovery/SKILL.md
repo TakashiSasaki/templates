@@ -1,8 +1,3 @@
-<!--
-agent-policy-generated: true
-source-skill: maintain-progressive-discovery
-DO NOT EDIT DIRECTLY
--->
 ---
 name: maintain-progressive-discovery
 description: Discover, classify, validate, and safely maintain semantic index.md navigation boundaries from authoritative repository inventories.
