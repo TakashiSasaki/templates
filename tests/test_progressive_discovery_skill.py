@@ -1165,3 +1165,78 @@ def test_malformed_root_declaration_returns_authority_report(tmp_path):
         assert report['result'] == 'AUTHORITY_NEEDED'
         assert report['applied'] == []
         assert not (target / 'generated/index.md').exists()
+
+
+def test_publication_system_requires_a_boolean(tmp_path):
+    for number, value in enumerate(('false', 'true', 0, 1, None, [], {})):
+        target = tmp_path / str(number)
+        shutil.copytree(_fixture('generated-docs'), target)
+        path = target / '.progressive-discovery.json'
+        adapter = json.loads(path.read_text())
+        adapter['publication_system'] = value
+        path.write_text(json.dumps(adapter))
+        _commit_generated_target(target)
+        report = _load_skill().run(target, apply=True)
+        assert report['result'] == 'AUTHORITY_NEEDED'
+        assert report['applied'] == []
+        assert report['publication_system'] is False
+
+
+def test_surface_declarations_validate_shape_and_local_paths(tmp_path):
+    invalid = [[], 'surfaces', {'provider-maintenance': '../outside.md'},
+               {'provider-maintenance': ['../outside.md']},
+               {'provider-maintenance': ['docs/missing.md']},
+               {'provider-maintenance': [None]},
+               {'': ['docs/provider-maintenance.md']},
+               {'boundary': {'source': '', 'consumer': 'Reader'}},
+               {'boundary': {'source': 'Bundle', 'unexpected': 'Reader'}}]
+    for number, value in enumerate(invalid):
+        target = tmp_path / str(number)
+        shutil.copytree(_fixture('provider-consumer'), target)
+        path = target / '.progressive-discovery.json'
+        adapter = json.loads(path.read_text())
+        adapter['intentional_no_indexes'] = ['docs']
+        adapter['surface_boundaries'] = value
+        path.write_text(json.dumps(adapter))
+        report = _load_skill().run(target)
+        assert report['result'] == 'AUTHORITY_NEEDED', (value, report)
+
+
+def test_surface_names_and_external_relations_remain_authority_owned(tmp_path):
+    target = tmp_path / 'repository'
+    shutil.copytree(_fixture('provider-consumer'), target)
+    path = target / '.progressive-discovery.json'
+    adapter = json.loads(path.read_text())
+    adapter['intentional_no_indexes'] = ['docs']
+    adapter['surface_boundaries'] = {
+        'local-reader': ['docs/consumer-guide.md'],
+        'closed-inventory': ['docs/'],
+        'bundle-read-model': {'source': 'guided-navigation.json in the selected Bundle',
+                              'consumer': 'Site-owned Bundle reader'},
+    }
+    path.write_text(json.dumps(adapter))
+    report = _load_skill().run(target)
+    assert report['result'] == 'NO_UPDATE_REQUIRED'
+    assert report['surface_boundaries'] == adapter['surface_boundaries']
+    assert 'guided-navigation.json in the selected Bundle' not in report['expected_documents']
+
+
+def test_surface_paths_reject_symlinks_and_allow_declared_generated_creation(tmp_path):
+    target = tmp_path / 'repository'
+    shutil.copytree(_fixture('generated-docs'), target)
+    path = target / '.progressive-discovery.json'
+    adapter = json.loads(path.read_text())
+    adapter['surface_boundaries'] = {'generated': ['generated/', 'generated/index.md']}
+    path.write_text(json.dumps(adapter))
+    _commit_generated_target(target)
+    skill = _load_skill()
+    assert skill.run(target, apply=True)['result'] == 'NO_UPDATE_REQUIRED'
+    outside = tmp_path / 'outside.md'
+    outside.write_text('# Outside\n')
+    (target / 'docs/linked.md').symlink_to(outside)
+    adapter['surface_boundaries'] = {'provider-maintenance': ['docs/linked.md']}
+    path.write_text(json.dumps(adapter))
+    report = skill.run(target, apply=True)
+    assert report['result'] == 'AUTHORITY_NEEDED'
+    assert report['applied'] == []
+    assert outside.read_text() == '# Outside\n'

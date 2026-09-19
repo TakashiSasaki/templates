@@ -246,6 +246,42 @@ def _load_adapter(root: Path, relative: str) -> tuple[dict[str, Any], list[str]]
             or Path(root_index).name != INDEX_NAME):
         errors.append("adapter: root_index must be a canonical index.md path")
     generated = _generated_specs(value)
+    if "publication_system" in value and type(value["publication_system"]) is not bool:
+        errors.append("adapter: publication_system must be a JSON boolean")
+    surfaces = value.get("surface_boundaries", {})
+    if not isinstance(surfaces, dict):
+        errors.append("adapter: surface_boundaries must be a mapping")
+    else:
+        for name, declaration in surfaces.items():
+            if not isinstance(name, str) or not name.strip():
+                errors.append("adapter: surface boundary names must be nonempty text")
+            if isinstance(declaration, dict):
+                # Authority-owned descriptive relations may reference another
+                # authority or deployed output; they do not assert local paths.
+                if (set(declaration) != {"source", "consumer"}
+                        or any(not isinstance(text, str) or not text.strip()
+                               for text in declaration.values())):
+                    errors.append(f"adapter: invalid descriptive surface relation: {name}")
+            elif isinstance(declaration, list):
+                for entry in declaration:
+                    if not isinstance(entry, str):
+                        errors.append(f"adapter: surface paths must be strings: {name}")
+                        continue
+                    relative = entry.removesuffix("/")
+                    if problem := _repository_path_error(root, relative):
+                        errors.append(f"adapter: surface {name}: {problem}")
+                        continue
+                    path = root / relative
+                    planned = relative in generated or any(
+                        target.startswith(relative + "/") for target in generated
+                    )
+                    if not path.exists() and not planned:
+                        errors.append(f"adapter: missing local surface path: {relative}")
+                    elif path.exists() and (not path.is_file() and not path.is_dir()
+                                            or entry.endswith("/") and not path.is_dir()):
+                        errors.append(f"adapter: invalid local surface path kind: {relative}")
+            else:
+                errors.append(f"adapter: surface must declare local paths or a relation: {name}")
     for target, spec in generated.items():
         for heading in ("title", "section"):
             if heading in spec and (
