@@ -2,7 +2,7 @@
   "schema_version": 2,
   "projection_id": "composition-playground-v1",
   "intent_projection_id": "composition-playground-intent-v1",
-  "semantic_revision": "1c2d160edee3eda412c7736e5fab6a9bec73daaf",
+  "semantic_revision": "a5f625c10213cc2f35521e4a1f8fcc92768079d0",
   "semantic_objects": {
     "catalog": "d7e3e69c6540ce6e7fb94300a57699443a6bb28b",
     "recipes": "798db9452d8f6e09e7ecc7060903ab2187fcaa76",
@@ -14,7 +14,9 @@
     "schemas/composition-playground-projection.schema.json": "de0b8c5a4400f31f675dd181431e26b42ef9d76b",
     "scripts/composer_core.py": "ccfc0e00b40ae42c92f2b6b1ce30a1b0899441a8",
     "scripts/composer_core_impl.py": "6cc38c67600323524799819886c614a5265e1df9",
-    "scripts/generate_composition_playground.py": "c2aff6c7cf2cf7d1975d2003d3e0399144888367"
+    "scripts/generate_composition_playground.py": "b142783d95f3554890441d62f283efa82e836c17",
+    "scripts/generate_composition_playground_intent.py": "fd0a4055e3fafa27179486a0be59e49211e31405",
+    "schemas/composition-playground-intent.schema.json": "15e6d3974ea13f31e1d7c0d303ffdc6d34e413c7"
   },
   "assets": [
     "composition-playground-v1.json.gz",
