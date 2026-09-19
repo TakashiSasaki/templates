@@ -12,9 +12,11 @@ import json
 import os
 import posixpath
 import re
+import stat
 import string
 import subprocess
 from collections.abc import Iterable
+from contextlib import ExitStack
 from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
@@ -285,6 +287,12 @@ def _load_adapter(root: Path, relative: str) -> tuple[dict[str, Any], list[str]]
             else:
                 errors.append(f"adapter: surface must declare local paths or a relation: {name}")
     for target, spec in generated.items():
+        allowed = {"title", "section", "inventory"}
+        if isinstance(value.get("generated_indexes"), list):
+            allowed.add("path")
+        if unknown := set(spec) - allowed:
+            errors.append(f"adapter: unsupported generated specification fields: {target}: "
+                          + ", ".join(sorted(unknown)))
         for heading in ("title", "section"):
             if heading in spec and (
                 not isinstance(spec[heading], str) or not spec[heading].strip()
@@ -1040,7 +1048,9 @@ def _target_state(root: Path, relative: str) -> dict[str, Any]:
     elif path.is_file():
         state["kind"] = "file"
         try:
+            identity = path.stat()
             data = path.read_bytes()
+            state["identity"] = [identity.st_dev, identity.st_ino]
             state.update(bytes_sha256=hashlib.sha256(data).hexdigest(),
                          generated_marker=_has_generated_marker(data), utf8=True)
             try:
@@ -1217,29 +1227,134 @@ def _apply(
     blockers.extend(error for item in candidates if (error := revalidate(item)))
     if blockers:
         return [], blockers
+    if not candidates:
+        return [], []
     changes: list[str] = []
-    for item in candidates:
-        path = root / item["path"]
+    undo: list[dict[str, Any]] = []
+
+    def read_fd(fd: int) -> bytes:
+        os.lseek(fd, 0, os.SEEK_SET)
+        chunks = []
+        while chunk := os.read(fd, 65536):
+            chunks.append(chunk)
+        return b"".join(chunks)
+
+    def replace_fd(fd: int, content: bytes) -> None:
+        os.lseek(fd, 0, os.SEEK_SET)
+        remaining = memoryview(content)
+        while remaining:
+            count = os.write(fd, remaining)
+            if not count:
+                raise OSError("short write")
+            remaining = remaining[count:]
+        os.ftruncate(fd, len(content))
+
+    def rollback(errors: list[str]) -> tuple[list[str], list[str]]:
+        for owned in reversed(undo):
+            try:
+                parent, name = owned["parent"], owned["name"]
+                if owned["action"] == "delete":
+                    # Never replace a concurrently recreated path, including a symlink.
+                    fd = os.open(name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                                 owned["mode"], dir_fd=parent)
+                    try:
+                        replace_fd(fd, owned["before"])
+                    finally:
+                        os.close(fd)
+                else:
+                    fd = os.open(name, os.O_RDWR | os.O_NOFOLLOW, dir_fd=parent)
+                    try:
+                        current = os.fstat(fd)
+                        if ((current.st_dev, current.st_ino) != owned["identity"]
+                                or read_fd(fd) != owned["after"]):
+                            raise OSError("concurrent state retained")
+                        if owned["action"] == "create":
+                            os.unlink(name, dir_fd=parent)
+                        else:
+                            replace_fd(fd, owned["before"])
+                    finally:
+                        os.close(fd)
+                changes.append(f"rollback {owned['path']}")
+            except OSError as exc:
+                errors.append(f"authority-needed: rollback incomplete: {owned['path']}: {exc}")
+        return changes, errors
+
+    # Resolve every directory without following symlinks, then keep the directory
+    # descriptors alive through mutation and any owned rollback. A renamed parent
+    # cannot redirect an operation to an unrelated directory outside the authority.
+    with ExitStack() as descriptors:
         try:
-            if item["action"] in {"create", "regenerate"}:
+            if (not hasattr(os, "O_NOFOLLOW") or not hasattr(os, "O_DIRECTORY")
+                    or any(operation not in os.supports_dir_fd
+                           for operation in (os.open, os.mkdir, os.unlink))):
+                raise OSError("safe descriptor-relative mutations are unavailable")
+            directory_flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+            root_fd = os.open(root.anchor, directory_flags)
+            descriptors.callback(os.close, root_fd)
+            for component in root.parts[1:]:
+                root_fd = os.open(component, directory_flags, dir_fd=root_fd)
+                descriptors.callback(os.close, root_fd)
+            for item in candidates:
+                relative = item["path"]
+                parent_fd = root_fd
+                parts = Path(relative).parts
+                for component in parts[:-1]:
+                    try:
+                        child_fd = os.open(component, directory_flags, dir_fd=parent_fd)
+                    except FileNotFoundError:
+                        if item["action"] == "delete":
+                            raise
+                        os.mkdir(component, dir_fd=parent_fd)
+                        child_fd = os.open(component, directory_flags, dir_fd=parent_fd)
+                    descriptors.callback(os.close, child_fd)
+                    parent_fd = child_fd
+                if error := revalidate(item):
+                    return rollback([error])
+                # Detect a swap performed during validation itself. Subsequent
+                # operations remain anchored even if the path is swapped later.
+                parent_state = (root / relative).parent.stat()
+                anchored = os.fstat(parent_fd)
+                if (parent_state.st_dev, parent_state.st_ino) != (anchored.st_dev, anchored.st_ino):
+                    raise OSError(f"parent directory changed: {relative}")
+                action, name = item["action"], parts[-1]
                 content = item.get("content")
-                if not isinstance(content, str):
-                    return changes, [f"authority-needed: missing planned content: {item['path']}"]
-                if problem := _repository_path_error(root, item["path"]):
-                    return changes, [f"authority-needed: {problem}"]
-                path.parent.mkdir(parents=True, exist_ok=True)
-                # Global preflight is not a mutation-boundary check. Re-read all
-                # target facts after preparation and immediately before each I/O.
-                if error := revalidate(item):
-                    return changes, [error]
-                path.write_text(content, encoding="utf-8")
-            else:
-                if error := revalidate(item):
-                    return changes, [error]
-                path.unlink()
-            changes.append(f"{item['action']} {item['path']}")
+                if action != "delete" and not isinstance(content, str):
+                    raise OSError(f"missing planned content: {relative}")
+                flags = os.O_RDWR | os.O_NOFOLLOW
+                if action == "create":
+                    flags |= os.O_CREAT | os.O_EXCL
+                fd = os.open(name, flags, 0o666, dir_fd=parent_fd)
+                try:
+                    identity = os.fstat(fd)
+                    if not stat.S_ISREG(identity.st_mode) or identity.st_nlink != 1:
+                        raise OSError(f"target is not an exclusively owned regular file: {relative}")
+                    before = read_fd(fd)
+                    if action != "create" and (
+                        [identity.st_dev, identity.st_ino] != item["snapshot"].get("identity")
+                        or hashlib.sha256(before).hexdigest() != item["snapshot"].get("bytes_sha256")
+                        or not _has_generated_marker(before)
+                    ):
+                        raise OSError(f"target changed since plan: {relative}")
+                    after = content.encode("utf-8") if action != "delete" else None
+                    record = {"action": action, "path": relative, "parent": parent_fd,
+                              "name": name, "identity": (identity.st_dev, identity.st_ino),
+                              "mode": stat.S_IMODE(identity.st_mode),
+                              "before": before, "after": after}
+                    if action == "delete":
+                        os.unlink(name, dir_fd=parent_fd)
+                        undo.append(record)
+                        changes.append(f"{action} {relative}")
+                    else:
+                        # Record even a partial I/O failure. Rollback refuses
+                        # bytes differing from the completed planned output;
+                        # partial writes remain explicit residual changes.
+                        undo.append(record)
+                        changes.append(f"{action} {relative}")
+                        replace_fd(fd, after)
+                finally:
+                    os.close(fd)
         except OSError as exc:
-            return changes, [f"authority-needed: mutation failed: {item['path']}: {exc}"]
+            return rollback([f"authority-needed: mutation failed: {exc}"])
     return changes, []
 
 
