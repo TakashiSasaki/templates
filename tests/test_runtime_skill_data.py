@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path, PurePosixPath, PureWindowsPath
 
+from agent_policy import renderer
 from agent_policy.renderer import _portable_skill_relative_path
 from scripts.verify_runtime_skill_data import (
     compare_skill_inventories,
@@ -19,6 +20,29 @@ def test_source_generated_skill_inventory_contains_orchestration_skill() -> None
     assert "SKILL.md" in inventory["orchestrate-repository-change"]
     assert "agent-policy" not in inventory
     assert "pr-merge-gate" not in inventory
+
+
+def test_generated_skill_inventory_ignores_runtime_python_bytecode(tmp_path: Path) -> None:
+    skill = tmp_path / "skills" / "example"
+    cache = skill / "scripts" / "__pycache__"
+    cache.mkdir(parents=True)
+    (skill / "SKILL.md").write_text("# Example\n", encoding="utf-8")
+    (cache / "example.cpython-312.pyc").write_bytes(b"runtime bytecode")
+
+    assert generated_skill_inventory(tmp_path) == {"example": ("SKILL.md",)}
+
+
+def test_render_skill_ignores_runtime_python_bytecode(
+    monkeypatch, tmp_path: Path
+) -> None:
+    skill = tmp_path / "skills" / "example"
+    cache = skill / "scripts" / "__pycache__"
+    cache.mkdir(parents=True)
+    (skill / "SKILL.md").write_text("# Example\n", encoding="utf-8")
+    (cache / "example.cpython-312.pyc").write_bytes(b"runtime bytecode")
+    monkeypatch.setattr(renderer, "package_root", lambda: tmp_path)
+
+    assert renderer.render_skill("example") == {"SKILL.md": "# Example\n"}
 
 
 def test_skill_relative_paths_are_posix_on_all_supported_hosts() -> None:

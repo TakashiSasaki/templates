@@ -1,6 +1,6 @@
 {
   "authoritative_inventories": ["docs/catalog.json"],
   "root_index": "index.md",
-  "authored_boundaries": ["docs"],
+  "intentional_no_indexes": ["docs"],
   "publication_system": false
 }

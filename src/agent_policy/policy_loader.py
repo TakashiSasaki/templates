@@ -11,6 +11,12 @@ from .paths import resolve_inside
 from .yamlutil import load_yaml
 
 PolicyOrigin = Literal["toolchain", "repository"]
+DISCOVERY_INDEX_NAME = "index.md"
+
+
+def policy_module_paths(directory: Path) -> list[Path]:
+    """Return normative Markdown modules, never discovery-only indexes."""
+    return sorted(path for path in directory.glob("*.md") if path.name != DISCOVERY_INDEX_NAME)
 
 
 @dataclass(frozen=True)
