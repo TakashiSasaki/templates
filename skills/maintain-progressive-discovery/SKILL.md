@@ -126,7 +126,10 @@ state both in global preflight and immediately before each target write/delete.
 Directory traversal and mutation use descriptor-relative operations without
 following symlinks. Apply also requires Linux `renameat2` with
 `RENAME_NOREPLACE` and `RENAME_EXCHANGE` for no-clobber removal/restoration and
-complete generated-file replacement; unavailable operations refuse apply. A parent
+complete generated-file replacement; unavailable operations refuse apply. Apply
+also holds an exclusive advisory lock on the repository root while constructing
+and cleaning its operation-private namespace, so cooperating writers cannot
+swap a holding directory between creation and identity binding. A parent
 path replacement cannot redirect mutation outside the validated directory.
 If a later target changes, apply attempts to restore only its own earlier
 changes, checking identity and resulting bytes before restoration. Parent

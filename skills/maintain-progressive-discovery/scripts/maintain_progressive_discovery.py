@@ -1645,6 +1645,12 @@ def _apply(
             for component in root.parts[1:]:
                 root_fd = os.open(component, directory_flags, dir_fd=root_fd)
                 descriptors.callback(os.close, root_fd)
+            try:
+                import fcntl
+                fcntl.flock(root_fd, fcntl.LOCK_EX)
+                descriptors.callback(fcntl.flock, root_fd, fcntl.LOCK_UN)
+            except (ImportError, OSError) as exc:
+                raise OSError("exclusive repository namespace locking is unavailable") from exc
             for item in candidates:
                 relative = item["path"]
                 parent_fd = root_fd
