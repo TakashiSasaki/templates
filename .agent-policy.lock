@@ -23,9 +23,9 @@ inputs:
     sha256: eb45d47fafa2e406dabb2536a818e206acede23f229eda19e8fdaa37d8445542
 outputs:
   .agents/skills/maintain-progressive-discovery/SKILL.md:
-    sha256: b273208d21b6f55b60d91dda960c4d1770c606a07ee0e60ee7e8787e34316703
+    sha256: 9804a191be896925a25bb9b27e94a38e1073ba31a5323bc29d70e236b98be9e1
   .agents/skills/maintain-progressive-discovery/scripts/maintain_progressive_discovery.py:
-    sha256: ab6e7af78937775c71d25dcaa0ee6a61cad64ee982cfc5022778f236ad3af6d9
+    sha256: b6080b41d5cd76753f97dfd6c4148e39b05c56887e54a03f4b0561b884d57d81
   .agents/skills/orchestrate-repository-change/SKILL.md:
     sha256: e1e3811b5962bc98159bb8d6221bac621d21141b54ba64709cf7a7608ff59d82
   .agents/skills/orchestrate-repository-change/references/generated-artifact-transport.md:

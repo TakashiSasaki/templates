@@ -17,6 +17,7 @@ import secrets
 import stat
 import string
 import subprocess
+import sys
 from collections.abc import Callable, Iterable
 from contextlib import ExitStack
 from html.parser import HTMLParser
@@ -66,6 +67,58 @@ PATH_SUFFIXES = (
 )
 LINK_RE = re.compile(r"(?<!!)\[([^\]]+)\]\(([^)]+)\)")
 HEADING_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
+
+_RMDIR_GUARDS_ATTR = "_maintain_progressive_discovery_rmdir_guards"
+
+
+def _rmdir_audit_guard(event: str, args: tuple[Any, ...]) -> None:
+    if event != "os.rmdir" or len(args) < 2:
+        return
+    path, dir_fd = args[0], args[1]
+    if not isinstance(dir_fd, int):
+        return
+    if isinstance(path, bytes):
+        path = os.fsdecode(path)
+    if not isinstance(path, str):
+        return
+    guards = getattr(sys, _RMDIR_GUARDS_ATTR, {})
+    guard = guards.get((dir_fd, path))
+    if guard is None:
+        return
+    parent_fd, target_fd, identity = guard
+    current = os.fstat(target_fd)
+    if ((current.st_dev, current.st_ino) != identity
+            or not stat.S_ISDIR(current.st_mode)):
+        raise OSError("temporary directory identity changed at rmdir audit boundary")
+    current = os.stat(path, dir_fd=parent_fd, follow_symlinks=False)
+    if ((current.st_dev, current.st_ino) != identity
+            or not stat.S_ISDIR(current.st_mode)):
+        raise OSError("temporary directory name changed at rmdir audit boundary")
+
+
+def _ensure_rmdir_audit_guard() -> None:
+    if not hasattr(sys, _RMDIR_GUARDS_ATTR):
+        setattr(sys, _RMDIR_GUARDS_ATTR, {})
+
+
+def _register_rmdir_guard(
+    parent_fd: int, path: str, target_fd: int, identity: tuple[int, int]
+) -> None:
+    _ensure_rmdir_audit_guard()
+    # Register the dispatcher after any caller-supplied audit hooks so a hook
+    # that swaps the operand is observed before the native syscall. Python does
+    # not expose audit-hook removal; the dispatcher is inert when no guard is
+    # active and the bounded process lifetime of the CLI keeps this registry
+    # operationally small.
+    sys.addaudithook(_rmdir_audit_guard)
+    guards = getattr(sys, _RMDIR_GUARDS_ATTR)
+    guards[(parent_fd, path)] = (parent_fd, target_fd, identity)
+
+
+def _unregister_rmdir_guard(parent_fd: int, path: str) -> None:
+    guards = getattr(sys, _RMDIR_GUARDS_ATTR, None)
+    if guards is not None:
+        guards.pop((parent_fd, path), None)
 
 
 def _relative(path: Path, root: Path) -> str:
@@ -1475,9 +1528,14 @@ def _apply(
                             raise OSError(
                                 "temporary directory changed at rmdir boundary; state retained"
                             )
+                        _register_rmdir_guard(parent, bound, fd, identity)
                         return bound
 
-                os.rmdir(BoundRmdirPath(), dir_fd=parent)
+                try:
+                    os.rmdir(BoundRmdirPath(), dir_fd=parent)
+                finally:
+                    if bound is not None:
+                        _unregister_rmdir_guard(parent, bound)
                 bound_moved = False
                 bound = None
                 detached = False
@@ -1527,10 +1585,13 @@ def _apply(
                         f"no-clobber purge restoration failed: {restore_error}"
                     ) from exc
                 if marker_removed:
+                    retained_path = posixpath.join(
+                        posixpath.dirname(label), retirement
+                    )
                     raise OSError(
                         f"{exc}; temporary directory cleanup failed after ownership "
-                        "marker removal; "
-                        "state restored for authority review"
+                        f"marker removal; state retained at {retained_path} for "
+                        "authority review"
                     ) from exc
             if retired:
                 try:
@@ -1550,10 +1611,13 @@ def _apply(
                         f"no-clobber retirement restoration failed: {restore_error}"
                     ) from exc
                 if marker_removed:
+                    retained_path = posixpath.join(
+                        posixpath.dirname(label), final
+                    )
                     raise OSError(
                         f"{exc}; temporary directory cleanup failed after ownership "
-                        "marker removal; "
-                        "state restored for authority review"
+                        f"marker removal; state retained at {retained_path} for "
+                        "authority review"
                     ) from exc
             if detached:
                 try:

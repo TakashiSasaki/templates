@@ -149,10 +149,12 @@ an earlier inode through a public fd. The holding directory's inode is
 captured before its descriptor is opened, and cleanup detaches that identity
 through fresh operation-private names. The `rmdir` operand is itself rebound
 through a final no-clobber detach and descriptor/path identity check during
-pathname conversion; a replacement observed at that boundary is restored or
-retained without deletion. A replacement at the holding pathname is retained
-and reported, never removed as if it belonged to the operation. Concurrent
-edits or recreated paths are preserved and reported as incomplete rollback.
+pathname conversion. An `os.rmdir` audit-boundary guard repeats that identity
+check before the native syscall; a replacement observed at either boundary is
+restored or retained without deletion. A replacement at the holding pathname
+is retained and reported, never removed as if it belonged to the operation.
+Concurrent edits or recreated paths are preserved and reported as incomplete
+rollback.
 `applied` retains the mutation history and adds `rollback PATH` for each completed
 restoration; `apply_errors` reports any residual uncertainty. Refusal still reports
 `AUTHORITY_NEEDED` and exits nonzero even when rollback succeeds. These checks
