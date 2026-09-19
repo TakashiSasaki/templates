@@ -139,6 +139,24 @@ class ProgressiveDiscoveryGraphTests(unittest.TestCase):
                 with self.subTest(version=version), self.assertRaises(IndexNavigationViewerError):
                     load_graph(path, provider_order=())
 
+    def test_schema_only_numeric_equality_requires_raw_graph_validation(self):
+        import jsonschema
+        schema = json.loads((Path(__file__).resolve().parents[1] /
+                             'contracts/publication-bundle/guided-navigation.schema.json').read_text())
+        graph = {'schema_version': 2, 'repository': 'TakashiSasaki/templates',
+                 'providers': [self._provider(ROOT_INDEX)]}
+        validator = jsonschema.Draft202012Validator(schema)
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'graph.json'
+            for token in ('2.0', '2e0'):
+                raw = json.dumps(graph).replace('"schema_version": 2', '"schema_version": ' + token)
+                validator.validate(json.loads(raw))
+                path.write_text(raw)
+                with self.subTest(token=token), self.assertRaises(IndexNavigationViewerError):
+                    load_graph(path, provider_order=('composition',))
+            path.write_text(json.dumps(graph))
+            self.assertEqual(load_graph(path, provider_order=('composition',))['schema_version'], 2)
+
     def test_declared_root_must_match_the_schema_selected_root(self):
         for wrong_root in ('docs/index.md', 'other/index.md'):
             with self.subTest(root=wrong_root), self.assertRaises(IndexNavigationViewerError):

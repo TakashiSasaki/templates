@@ -62,7 +62,7 @@
       }
     }
   },
-  "$comment": "publication_bundle.graph additionally enforces provider order, immutable object identities, Markdown link safety, nested-index reachability, and deterministic diagnostics.",
+  "$comment": "Structural precheck only. Acceptance MUST also validate the raw JSON with publication_bundle.graph.load_graph and validate_provider_graph, or use publication_bundle.contract.validate for a complete Bundle. JSON Schema numeric equality accepts 2.0 and 2e0 as integer values; the canonical runtime requires integer JSON tokens for version, depth, levels, lines and diagnostics. Schema-only validation is insufficient.",
   "$defs": {
     "section": {
       "oneOf": [
