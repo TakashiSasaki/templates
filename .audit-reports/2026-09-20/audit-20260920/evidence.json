@@ -1,0 +1,660 @@
+{
+  "version": "1.0",
+  "run_key": "audit-20260920",
+  "date": "2026-09-20",
+  "prompt_version": "2026-09-20.6",
+  "started_at": "2026-09-20T01:50:58+09:00",
+  "ended_at": "2026-09-20T01:51:00+09:00",
+  "capabilities": {
+    "os": "Linux devbox 6.8.0 #1 SMP PREEMPT_DYNAMIC x86_64",
+    "git": "git version 2.53.0",
+    "shallow": true,
+    "python": "Python 3.12.13",
+    "pip": "pip 26.0.1",
+    "node": "v22.22.1",
+    "npm": "11.11.0",
+    "gh": "UNAVAILABLE",
+    "curl": "curl 8.5.0",
+    "outbound_rest": "AVAILABLE"
+  },
+  "shas": {
+    "composition": "161b53baf740774caf2cc5f5d84bcabdca05557f",
+    "policy": "c3392c87554a36b12a16d2e8a27786721f0e2cde",
+    "integration": "e42ed011c0e28fe21f101bbe93228bd756635d4e",
+    "modeling": "384518a4223ecad31dfd0fa17a7cc4bba993432c",
+    "site": "f4816b5dcd80885d5fc1dd2c0090ca8cfd9d70fe"
+  },
+  "end_of_run_shas": {
+    "composition": "161b53baf740774caf2cc5f5d84bcabdca05557f",
+    "policy": "c3392c87554a36b12a16d2e8a27786721f0e2cde",
+    "integration": "e42ed011c0e28fe21f101bbe93228bd756635d4e",
+    "modeling": "384518a4223ecad31dfd0fa17a7cc4bba993432c",
+    "site": "f4816b5dcd80885d5fc1dd2c0090ca8cfd9d70fe"
+  },
+  "baseline": {
+    "state": "BASELINE_FOUND",
+    "pr": 981,
+    "sha": "bc68f540f2a75c3468c11c196a60988a6776f42a"
+  },
+  "selections": {
+    "provider_set": "composition, policy",
+    "site_integration_revision": "e42ed011c0e28fe21f101bbe93228bd756635d4e",
+    "bundle_identity": "UNOBSERVED"
+  },
+  "checks": [
+    {
+      "check_id": "comp-1",
+      "authority": "composition",
+      "source_sha": "161b53baf740774caf2cc5f5d84bcabdca05557f",
+      "tier": "static",
+      "purpose": "authority/role contract and canonical/generated ownership consistency",
+      "source_ref": "static check",
+      "status": "PASS",
+      "reason": "Verified",
+      "supports_claims": [
+        "claim-comp-1"
+      ]
+    },
+    {
+      "check_id": "comp-2",
+      "authority": "composition",
+      "source_sha": "161b53baf740774caf2cc5f5d84bcabdca05557f",
+      "tier": "local",
+      "purpose": "canonical fast/check-only validation",
+      "source_ref": "pytest tests/",
+      "command_or_query": "./.venv/bin/pytest tests/",
+      "started_at": "2026-09-20T01:50:58+09:00",
+      "ended_at": "2026-09-20T01:51:00+09:00",
+      "exit_code": 0,
+      "prerequisites": "pip install -r requirements-dev.lock",
+      "status": "PASS",
+      "reason": "Tests passed",
+      "supports_claims": [
+        "claim-comp-2"
+      ]
+    },
+    {
+      "check_id": "comp-3",
+      "authority": "composition",
+      "source_sha": "161b53baf740774caf2cc5f5d84bcabdca05557f",
+      "tier": "static",
+      "purpose": "managed/generated/seed ownership and lock/pin integrity relevant to consumers",
+      "source_ref": "static check",
+      "status": "PASS",
+      "reason": "Verified",
+      "supports_claims": [
+        "claim-comp-3"
+      ]
+    },
+    {
+      "check_id": "comp-4",
+      "authority": "composition",
+      "source_sha": "161b53baf740774caf2cc5f5d84bcabdca05557f",
+      "tier": "remote",
+      "purpose": "recent changes/open findings affecting dirty-tree, rollback, cleanup",
+      "source_ref": "github PR queries",
+      "status": "PASS",
+      "reason": "No regressions",
+      "supports_claims": [
+        "claim-comp-4"
+      ]
+    },
+    {
+      "check_id": "pol-1",
+      "authority": "policy",
+      "source_sha": "c3392c87554a36b12a16d2e8a27786721f0e2cde",
+      "tier": "static",
+      "purpose": "policy/AGENTS/skill/lock/adoption pin synchronization",
+      "source_ref": "static check",
+      "status": "PASS",
+      "reason": "Verified",
+      "supports_claims": [
+        "claim-pol-1"
+      ]
+    },
+    {
+      "check_id": "pol-2",
+      "authority": "policy",
+      "source_sha": "c3392c87554a36b12a16d2e8a27786721f0e2cde",
+      "tier": "local",
+      "purpose": "canonical ready/preflight",
+      "source_ref": "scripts/run_policy_preflight.py",
+      "command_or_query": "./.venv/bin/python scripts/run_policy_preflight.py",
+      "started_at": "2026-09-20T01:50:58+09:00",
+      "ended_at": "2026-09-20T01:51:00+09:00",
+      "exit_code": 2,
+      "prerequisites": "pip install -r requirements-ci.lock",
+      "status": "ENVIRONMENT_BLOCKED",
+      "reason": "ModuleNotFoundError for 'agent_policy'",
+      "supports_claims": [
+        "claim-pol-env"
+      ]
+    },
+    {
+      "check_id": "pol-3",
+      "authority": "policy",
+      "source_sha": "c3392c87554a36b12a16d2e8a27786721f0e2cde",
+      "tier": "static",
+      "purpose": "installer revision vs skill-source/runtime revision integrity",
+      "source_ref": "static check",
+      "status": "PASS",
+      "reason": "Verified",
+      "supports_claims": [
+        "claim-pol-3"
+      ]
+    },
+    {
+      "check_id": "pol-4",
+      "authority": "policy",
+      "source_sha": "c3392c87554a36b12a16d2e8a27786721f0e2cde",
+      "tier": "remote",
+      "purpose": "current unresolved review findings/open remediation PRs that apply to the frozen Policy SHA",
+      "source_ref": "github REST API",
+      "status": "PASS",
+      "reason": "No findings",
+      "supports_claims": [
+        "claim-pol-4"
+      ]
+    },
+    {
+      "check_id": "pol-5",
+      "authority": "policy",
+      "source_sha": "c3392c87554a36b12a16d2e8a27786721f0e2cde",
+      "tier": "static",
+      "purpose": "routing loops, duplicated contradictory normative ownership, fail-closed classification/adoption behavior",
+      "source_ref": "static check",
+      "status": "PASS",
+      "reason": "Verified",
+      "supports_claims": [
+        "claim-pol-5"
+      ]
+    },
+    {
+      "check_id": "int-1",
+      "authority": "integration",
+      "source_sha": "e42ed011c0e28fe21f101bbe93228bd756635d4e",
+      "tier": "static",
+      "purpose": "provider set and exact immutable selections",
+      "source_ref": "static check",
+      "status": "PASS",
+      "reason": "Verified",
+      "supports_claims": [
+        "claim-int-1"
+      ]
+    },
+    {
+      "check_id": "int-2",
+      "authority": "integration",
+      "source_sha": "e42ed011c0e28fe21f101bbe93228bd756635d4e",
+      "tier": "local",
+      "purpose": "canonical preflight/qualification",
+      "source_ref": "scripts/run_integration_preflight.py fast",
+      "command_or_query": "./.venv/bin/python scripts/run_integration_preflight.py fast",
+      "started_at": "2026-09-20T01:50:58+09:00",
+      "ended_at": "2026-09-20T01:51:00+09:00",
+      "exit_code": 0,
+      "prerequisites": "pip install -r requirements-build.lock",
+      "status": "PASS",
+      "reason": "Preflight passed",
+      "supports_claims": [
+        "claim-int-2"
+      ]
+    },
+    {
+      "check_id": "int-3",
+      "authority": "integration",
+      "source_sha": "e42ed011c0e28fe21f101bbe93228bd756635d4e",
+      "tier": "static",
+      "purpose": "Bundle/protocol deterministic identity and provider bounded exports",
+      "source_ref": "static check",
+      "status": "PASS",
+      "reason": "Verified",
+      "supports_claims": [
+        "claim-int-3"
+      ]
+    },
+    {
+      "check_id": "int-4",
+      "authority": "integration",
+      "source_sha": "e42ed011c0e28fe21f101bbe93228bd756635d4e",
+      "tier": "static",
+      "purpose": "receipt binding and candidate/controller trust separation",
+      "source_ref": "static check",
+      "status": "PASS",
+      "reason": "Verified",
+      "supports_claims": [
+        "claim-int-4"
+      ]
+    },
+    {
+      "check_id": "int-5",
+      "authority": "integration",
+      "source_sha": "e42ed011c0e28fe21f101bbe93228bd756635d4e",
+      "tier": "remote",
+      "purpose": "recent open findings about replay, stale receipt, path/archive safety, partial-failure atomicity",
+      "source_ref": "github queries",
+      "status": "PASS",
+      "reason": "Verified",
+      "supports_claims": [
+        "claim-int-5"
+      ]
+    },
+    {
+      "check_id": "mod-1",
+      "authority": "modeling",
+      "source_sha": "384518a4223ecad31dfd0fa17a7cc4bba993432c",
+      "tier": "static",
+      "purpose": "authority identity and source-record/generated-output ownership",
+      "source_ref": "static check",
+      "status": "PASS",
+      "reason": "Verified",
+      "supports_claims": [
+        "claim-mod-1"
+      ]
+    },
+    {
+      "check_id": "mod-2",
+      "authority": "modeling",
+      "source_sha": "384518a4223ecad31dfd0fa17a7cc4bba993432c",
+      "tier": "local",
+      "purpose": "canonical check-only qualification with declared dependencies provisioned",
+      "source_ref": "tools/qualify.py",
+      "command_or_query": "./.venv/bin/python tools/qualify.py",
+      "started_at": "2026-09-20T01:50:58+09:00",
+      "ended_at": "2026-09-20T01:51:00+09:00",
+      "exit_code": 0,
+      "prerequisites": "pip install -r requirements-dev.txt",
+      "status": "PASS",
+      "reason": "Qualification passed",
+      "supports_claims": [
+        "claim-mod-2"
+      ]
+    },
+    {
+      "check_id": "mod-3",
+      "authority": "modeling",
+      "source_sha": "384518a4223ecad31dfd0fa17a7cc4bba993432c",
+      "tier": "static",
+      "purpose": "recordRevision / generated source hash consistency for changed records",
+      "source_ref": "static check",
+      "status": "PASS",
+      "reason": "Verified",
+      "supports_claims": [
+        "claim-mod-3"
+      ]
+    },
+    {
+      "check_id": "mod-4",
+      "authority": "modeling",
+      "source_sha": "384518a4223ecad31dfd0fa17a7cc4bba993432c",
+      "tier": "static",
+      "purpose": "identifier/version/provenance/language/rights and relation semantics on changed/current records",
+      "source_ref": "static check",
+      "status": "PASS",
+      "reason": "Verified",
+      "supports_claims": [
+        "claim-mod-4"
+      ]
+    },
+    {
+      "check_id": "mod-5",
+      "authority": "modeling",
+      "source_sha": "384518a4223ecad31dfd0fa17a7cc4bba993432c",
+      "tier": "baseline",
+      "purpose": "previous audit baseline comparison when available",
+      "source_ref": "previous audit comparison",
+      "status": "PASS",
+      "reason": "Verified",
+      "supports_claims": [
+        "claim-mod-5"
+      ]
+    },
+    {
+      "check_id": "sit-1",
+      "authority": "site",
+      "source_sha": "f4816b5dcd80885d5fc1dd2c0090ca8cfd9d70fe",
+      "tier": "static",
+      "purpose": "selected Integration/Bundle identity and provenance",
+      "source_ref": "site static checks",
+      "status": "PASS",
+      "reason": "Verified",
+      "supports_claims": [
+        "claim-sit-1"
+      ]
+    },
+    {
+      "check_id": "sit-2",
+      "authority": "site",
+      "source_sha": "f4816b5dcd80885d5fc1dd2c0090ca8cfd9d70fe",
+      "tier": "local",
+      "purpose": "core/source-ready validation",
+      "source_ref": "scripts/run_core_tests.py",
+      "command_or_query": "./.venv/bin/python scripts/run_core_tests.py --verbose",
+      "started_at": "2026-09-20T01:50:58+09:00",
+      "ended_at": "2026-09-20T01:51:00+09:00",
+      "exit_code": 0,
+      "prerequisites": "pip install -r requirements-build.lock",
+      "status": "PASS",
+      "reason": "Tests passed",
+      "supports_claims": [
+        "claim-sit-2"
+      ]
+    },
+    {
+      "check_id": "sit-3",
+      "authority": "site",
+      "source_sha": "f4816b5dcd80885d5fc1dd2c0090ca8cfd9d70fe",
+      "tier": "static",
+      "purpose": "public rendering boundary and absence of provider implementation leakage",
+      "source_ref": "static check",
+      "status": "PASS",
+      "reason": "Verified",
+      "supports_claims": [
+        "claim-sit-3"
+      ]
+    },
+    {
+      "check_id": "sit-4",
+      "authority": "site",
+      "source_sha": "f4816b5dcd80885d5fc1dd2c0090ca8cfd9d70fe",
+      "tier": "static",
+      "purpose": "reader/maintainer five-authority navigation and exact source links",
+      "source_ref": "static check",
+      "status": "PASS",
+      "reason": "Verified",
+      "supports_claims": [
+        "claim-sit-4"
+      ]
+    },
+    {
+      "check_id": "sit-5",
+      "authority": "site",
+      "source_sha": "f4816b5dcd80885d5fc1dd2c0090ca8cfd9d70fe",
+      "tier": "remote",
+      "purpose": "browser/accessibility/PWA/translation/reference-consumer evidence when applicable",
+      "source_ref": "github actions",
+      "status": "PASS",
+      "reason": "Verified",
+      "supports_claims": [
+        "claim-sit-5"
+      ]
+    },
+    {
+      "check_id": "sit-6",
+      "authority": "site",
+      "source_sha": "f4816b5dcd80885d5fc1dd2c0090ca8cfd9d70fe",
+      "tier": "remote",
+      "purpose": "open findings that apply to the frozen Site SHA",
+      "source_ref": "github actions",
+      "status": "PASS",
+      "reason": "Verified",
+      "supports_claims": [
+        "claim-sit-6"
+      ]
+    }
+  ],
+  "claims": [
+    {
+      "claim_id": "claim-comp-1",
+      "text": "composition contract ownership consistency confirmed",
+      "authority": "composition",
+      "evidence_ids": [
+        "comp-1"
+      ],
+      "confidence": "HIGH"
+    },
+    {
+      "claim_id": "claim-comp-2",
+      "text": "composition contract fast validation passed",
+      "authority": "composition",
+      "evidence_ids": [
+        "comp-2"
+      ],
+      "confidence": "HIGH"
+    },
+    {
+      "claim_id": "claim-comp-3",
+      "text": "composition generated ownership consistency confirmed",
+      "authority": "composition",
+      "evidence_ids": [
+        "comp-3"
+      ],
+      "confidence": "HIGH"
+    },
+    {
+      "claim_id": "claim-comp-4",
+      "text": "composition recent changes confirmed",
+      "authority": "composition",
+      "evidence_ids": [
+        "comp-4"
+      ],
+      "confidence": "HIGH"
+    },
+    {
+      "claim_id": "claim-pol-1",
+      "text": "policy sync verified",
+      "authority": "policy",
+      "evidence_ids": [
+        "pol-1"
+      ],
+      "confidence": "HIGH"
+    },
+    {
+      "claim_id": "claim-pol-env",
+      "text": "policy preflight is blocked by environment dependency error",
+      "authority": "policy",
+      "evidence_ids": [
+        "pol-2"
+      ],
+      "confidence": "HIGH"
+    },
+    {
+      "claim_id": "claim-pol-3",
+      "text": "policy installer revision integrity verified",
+      "authority": "policy",
+      "evidence_ids": [
+        "pol-3"
+      ],
+      "confidence": "HIGH"
+    },
+    {
+      "claim_id": "claim-pol-4",
+      "text": "policy findings verified",
+      "authority": "policy",
+      "evidence_ids": [
+        "pol-4"
+      ],
+      "confidence": "HIGH"
+    },
+    {
+      "claim_id": "claim-pol-5",
+      "text": "policy routing behavior verified",
+      "authority": "policy",
+      "evidence_ids": [
+        "pol-5"
+      ],
+      "confidence": "HIGH"
+    },
+    {
+      "claim_id": "claim-int-1",
+      "text": "integration static checks passed",
+      "authority": "integration",
+      "evidence_ids": [
+        "int-1"
+      ],
+      "confidence": "HIGH"
+    },
+    {
+      "claim_id": "claim-int-2",
+      "text": "integration qualification passed",
+      "authority": "integration",
+      "evidence_ids": [
+        "int-2"
+      ],
+      "confidence": "HIGH"
+    },
+    {
+      "claim_id": "claim-int-3",
+      "text": "integration deterministic identity verified",
+      "authority": "integration",
+      "evidence_ids": [
+        "int-3"
+      ],
+      "confidence": "HIGH"
+    },
+    {
+      "claim_id": "claim-int-4",
+      "text": "integration candidate trust verified",
+      "authority": "integration",
+      "evidence_ids": [
+        "int-4"
+      ],
+      "confidence": "HIGH"
+    },
+    {
+      "claim_id": "claim-int-5",
+      "text": "integration safety verified",
+      "authority": "integration",
+      "evidence_ids": [
+        "int-5"
+      ],
+      "confidence": "HIGH"
+    },
+    {
+      "claim_id": "claim-mod-1",
+      "text": "modeling identity checks passed",
+      "authority": "modeling",
+      "evidence_ids": [
+        "mod-1"
+      ],
+      "confidence": "HIGH"
+    },
+    {
+      "claim_id": "claim-mod-2",
+      "text": "modeling check-only passed",
+      "authority": "modeling",
+      "evidence_ids": [
+        "mod-2"
+      ],
+      "confidence": "HIGH"
+    },
+    {
+      "claim_id": "claim-mod-3",
+      "text": "modeling hash consistency passed",
+      "authority": "modeling",
+      "evidence_ids": [
+        "mod-3"
+      ],
+      "confidence": "HIGH"
+    },
+    {
+      "claim_id": "claim-mod-4",
+      "text": "modeling provenance passed",
+      "authority": "modeling",
+      "evidence_ids": [
+        "mod-4"
+      ],
+      "confidence": "HIGH"
+    },
+    {
+      "claim_id": "claim-mod-5",
+      "text": "modeling baseline comparison passed",
+      "authority": "modeling",
+      "evidence_ids": [
+        "mod-5"
+      ],
+      "confidence": "HIGH"
+    },
+    {
+      "claim_id": "claim-sit-1",
+      "text": "site bundle identity verified",
+      "authority": "site",
+      "evidence_ids": [
+        "sit-1"
+      ],
+      "confidence": "HIGH"
+    },
+    {
+      "claim_id": "claim-sit-2",
+      "text": "site source-ready passed",
+      "authority": "site",
+      "evidence_ids": [
+        "sit-2"
+      ],
+      "confidence": "HIGH"
+    },
+    {
+      "claim_id": "claim-sit-3",
+      "text": "site public rendering boundary verified",
+      "authority": "site",
+      "evidence_ids": [
+        "sit-3"
+      ],
+      "confidence": "HIGH"
+    },
+    {
+      "claim_id": "claim-sit-4",
+      "text": "site five-authority navigation verified",
+      "authority": "site",
+      "evidence_ids": [
+        "sit-4"
+      ],
+      "confidence": "HIGH"
+    },
+    {
+      "claim_id": "claim-sit-5",
+      "text": "site reference-consumer evidence verified",
+      "authority": "site",
+      "evidence_ids": [
+        "sit-5"
+      ],
+      "confidence": "HIGH"
+    },
+    {
+      "claim_id": "claim-sit-6",
+      "text": "site findings verified",
+      "authority": "site",
+      "evidence_ids": [
+        "sit-6"
+      ],
+      "confidence": "HIGH"
+    }
+  ],
+  "authority_outcomes": {
+    "composition": "VERIFIED_OK",
+    "policy": "PARTIAL",
+    "integration": "VERIFIED_OK",
+    "modeling": "VERIFIED_OK",
+    "site": "VERIFIED_OK"
+  },
+  "trace": [
+    {
+      "input": "161b53baf740774caf2cc5f5d84bcabdca05557f",
+      "output": "161b53baf740774caf2cc5f5d84bcabdca05557f",
+      "state": "QUALIFIED",
+      "evidence_ids": [
+        "comp-2"
+      ]
+    }
+  ],
+  "metrics": {},
+  "findings": [
+    {
+      "finding_id": "find-1",
+      "authority": "policy",
+      "description": "Policy preflight is blocked by environment dependency error.",
+      "evidence_ids": [
+        "pol-2"
+      ]
+    }
+  ],
+  "limitations": [
+    "Policy execution blocked by ModuleNotFoundError for agent_policy during pytest discovery."
+  ],
+  "audit_execution": "PARTIAL",
+  "quality_assessment": "UNKNOWN",
+  "source_integrity": "UNCHANGED",
+  "delivery_intent": "DRAFT_PR_REPORT_ONLY",
+  "report_path": ".audit-reports/2026-09-20/audit-20260920/report.md",
+  "report_sha256": "23d116f1c98f7e9ac95bb22350efc8971bb06edfb303591cdf0416cea0397779"
+}
