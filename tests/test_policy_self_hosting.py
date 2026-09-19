@@ -223,7 +223,7 @@ def test_self_host_projection_uses_the_canonical_progressive_discovery_skill() -
         / ".agents/skills/maintain-progressive-discovery/scripts/maintain_progressive_discovery.py"
     )
 
-    assert revision == "d6e407180d6df52881f0e3653baaf7aaa61045b6"
+    assert revision == "e65e5a6c041e01943a0b45c6f9a10dfd17d2c304"
     assert script.is_file()
     assert "authoritative inventory" in skill
     assert "--apply" in skill
