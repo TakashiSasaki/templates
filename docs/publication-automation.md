@@ -55,21 +55,25 @@ Manual publication remains available in every non-kill-switched mode. An explici
 exact Site SHA, runs the same Site qualification and immutable artifact checks, and
 deploys only that artifact through `github-pages`. The manual dispatch is the human
 authorization; it does not require `PUBLICATION_AUTOMATION_MODE=auto-publish` or
-`PUBLICATION_AUTOMATION_AUTHORIZED=true`. The automatic dispatch sets `automatic=true`
-and requires all of the stricter activation variables.
+`PUBLICATION_AUTOMATION_AUTHORIZED=true`. Its `manual_kill_switch_context` input is
+an explicit workflow-evaluated boolean, defaulting to `false`, and is passed to the
+final verifier without normalization. The existing repository kill-switch gate
+still prevents the job from starting when the repository variable is `true`.
+The automatic dispatch sets `automatic=true` and requires all of the stricter
+activation variables.
 
 The deployment verifier reads `PUBLICATION_AUTOMATION_KILL_SWITCH` through the
 authenticated GitHub API immediately before deployment. A confirmed HTTP 404 for
 that variable, followed by a successful authenticated repository metadata read,
 means the variable is absent and applies the documented default `false`. On an
 explicit manual dispatch only, the workflow also passes the raw evaluated
-repository-variable context to the verifier. If the Actions token receives HTTP
-403 for that variable endpoint, the verifier may use that exact context when it
-is `false` (and still rejects `true`); an empty or malformed context remains a
-failure. Automatic publication never uses this exception. Any authentication,
-permission, rate-limit, transport, malformed-response, or server error outside
-that narrowly scoped manual variable request stops deployment; it is never
-treated as an inactive switch.
+`manual_kill_switch_context` to the verifier. If the Actions token receives HTTP
+403 for the repository-variable endpoint, the verifier may use that exact context
+when it is `false` (and still rejects `true`); an empty or malformed context
+remains a failure. Automatic publication never uses this exception. Any
+authentication, permission, rate-limit, transport, malformed-response, or server
+error outside that narrowly scoped manual variable request stops deployment; it is
+never treated as an inactive switch.
 
 ## One-time activation checklist
 
