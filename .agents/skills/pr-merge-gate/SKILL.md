@@ -14,3 +14,7 @@ Use the gate after Modeling-specific record, catalog, generation, and
 qualification evidence is complete. CI and review remain separate evidence
 layers, and review or green CI does not authorize merge. This shim does not
 restate shared semantics or authorize Integration/Site adoption or deployment.
+
+Require schema version 2 and the explicit immutable `closure` of the selected
+pull-request profile, its rules, and gate references. Verify every closure
+path/blob at the declared revision before loading the gate.
