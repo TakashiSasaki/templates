@@ -62,7 +62,7 @@ def index_page_path(provider: str, source_path: str, *, root_index: str = ROOT_I
     if source_path == root_index:
         return GUIDED_ROOT / provider / "index.html"
     if source_path == ROOT_INDEX:
-        return GUIDED_ROOT / provider / ROOT_INDEX_NAMESPACE / "index.html"
+        return GUIDED_ROOT / ROOT_INDEX_NAMESPACE / provider / "index.html"
     parent = PurePosixPath(source_path).parent
     return GUIDED_ROOT / provider / Path(parent.as_posix()) / "index.html"
 
@@ -74,7 +74,7 @@ def index_page_url(provider: str, source_path: str, *, root_index: str = ROOT_IN
     if source_path == root_index:
         return f"/guided/{quote(provider, safe='')}/"
     if source_path == ROOT_INDEX:
-        return f"/guided/{quote(provider, safe='')}/{ROOT_INDEX_NAMESPACE}/"
+        return f"/guided/{ROOT_INDEX_NAMESPACE}/{quote(provider, safe='')}/"
     parent = PurePosixPath(source_path).parent
     suffix = encoded_path(tuple(parent.parts))
     return f"/guided/{quote(provider, safe='')}/{suffix}/"
