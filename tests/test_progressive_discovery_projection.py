@@ -78,4 +78,3 @@ class ProgressiveDiscoveryProjectionTests(unittest.TestCase):
         }
         with self.assertRaises(BundleError):
             project(invalid, graph(), documents())
-
