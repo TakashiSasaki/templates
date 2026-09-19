@@ -1452,3 +1452,116 @@ def test_delete_does_not_unlink_a_replacement_after_open(tmp_path, monkeypatch, 
         else:
             assert target.read_text() == '# Concurrent authored file\n'
     assert (tmp_path / 'moved.md').read_text() == original
+
+
+def test_created_directory_identity_is_bound_before_publication(tmp_path, monkeypatch):
+    skill = _load_skill()
+    second = tmp_path / 'second.md'
+    second.write_text(skill.GENERATED_MARKER + '\n# Original\n')
+    _commit_generated_target(tmp_path)
+    plan = [{'action': action, 'kind': 'generated', 'path': relative,
+             'content': skill.GENERATED_MARKER + '\n# Generated\n',
+             'snapshot': skill._target_state(tmp_path, relative)}
+            for action, relative in [('create', 'new/index.md'), ('regenerate', 'second.md')]]
+    original_mkdir = skill.os.mkdir
+    original_state = skill._target_state
+    swapped = []
+    reads = []
+
+    def swap_new_directory(path, *args, **kwargs):
+        result = original_mkdir(path, *args, **kwargs)
+        if path == 'new' and not swapped:
+            (tmp_path / 'new').rename(tmp_path / 'moved-new')
+            original_mkdir(tmp_path / 'new')
+            swapped.append((tmp_path / 'new').stat().st_ino)
+        return result
+
+    def change_second(root, relative):
+        state = original_state(root, relative)
+        reads.append(relative)
+        if len(reads) == 2:
+            second.write_text('# Concurrent target\n')
+        if len(reads) == 3 and not swapped:
+            (tmp_path / 'new').rename(tmp_path / 'moved-new')
+            original_mkdir(tmp_path / 'new')
+            swapped.append((tmp_path / 'new').stat().st_ino)
+        return state
+
+    monkeypatch.setattr(skill.os, 'mkdir', swap_new_directory)
+    monkeypatch.setattr(skill.os, 'supports_dir_fd',
+                        skill.os.supports_dir_fd | {swap_new_directory})
+    monkeypatch.setattr(skill, '_target_state', change_second)
+    applied, errors = skill._apply(tmp_path, plan,
+                                   {'profile_selected': True, 'skill_selected': True})
+    assert errors
+    assert swapped
+    assert (tmp_path / 'new').stat().st_ino == swapped[0]
+    assert 'rollback new' not in applied
+
+
+def test_delete_rollback_publication_preserves_a_concurrent_name(tmp_path, monkeypatch):
+    skill = _load_skill()
+    original = skill.GENERATED_MARKER + '\n# Original\n'
+    first, second = tmp_path / 'first.md', tmp_path / 'second.md'
+    for path in (first, second):
+        path.write_text(original)
+    _commit_generated_target(tmp_path)
+    plan = [{'action': 'delete', 'kind': 'generated', 'path': path.name,
+             'snapshot': skill._target_state(tmp_path, path.name)} for path in (first, second)]
+    original_state, original_write = skill._target_state, skill.os.write
+    reads, changed = [], []
+
+    def change_second(root, relative):
+        state = original_state(root, relative)
+        reads.append(relative)
+        if len(reads) == 2:
+            second.write_text('# Concurrent second\n')
+        return state
+
+    def race_restore(fd, data):
+        if not changed and bytes(data) == original.encode():
+            if first.exists():
+                first.rename(tmp_path / 'moved-placeholder.md')
+            first.write_text('# Concurrent first\n')
+            changed.append(True)
+        return original_write(fd, data)
+
+    monkeypatch.setattr(skill, '_target_state', change_second)
+    monkeypatch.setattr(skill.os, 'write', race_restore)
+    applied, errors = skill._apply(tmp_path, plan,
+                                   {'profile_selected': True, 'skill_selected': True})
+    assert changed and any('rollback incomplete' in error for error in errors)
+    assert 'rollback first.md' not in applied
+    assert first.read_text() == '# Concurrent first\n'
+
+
+def test_delete_rollback_restores_exact_mode_under_restrictive_umask(tmp_path, monkeypatch):
+    skill = _load_skill()
+    original = skill.GENERATED_MARKER + '\n# Original\n'
+    first, second = tmp_path / 'first.md', tmp_path / 'second.md'
+    for path in (first, second):
+        path.write_text(original)
+        path.chmod(0o644)
+    _commit_generated_target(tmp_path)
+    plan = [{'action': 'delete', 'kind': 'generated', 'path': path.name,
+             'snapshot': skill._target_state(tmp_path, path.name)} for path in (first, second)]
+    original_state = skill._target_state
+    reads = []
+
+    def change_second(root, relative):
+        state = original_state(root, relative)
+        reads.append(relative)
+        if len(reads) == 2:
+            second.write_text('# Concurrent second\n')
+        return state
+
+    monkeypatch.setattr(skill, '_target_state', change_second)
+    previous = skill.os.umask(0o077)
+    try:
+        applied, errors = skill._apply(tmp_path, plan,
+                                       {'profile_selected': True, 'skill_selected': True})
+    finally:
+        skill.os.umask(previous)
+    assert errors and 'rollback first.md' in applied
+    assert first.read_text() == original
+    assert first.stat().st_mode & 0o777 == 0o644

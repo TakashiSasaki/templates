@@ -1053,6 +1053,7 @@ def _target_state(root: Path, relative: str) -> dict[str, Any]:
             identity = path.stat()
             data = path.read_bytes()
             state["identity"] = [identity.st_dev, identity.st_ino]
+            state["mode"] = stat.S_IMODE(identity.st_mode)
             state.update(bytes_sha256=hashlib.sha256(data).hexdigest(),
                          generated_marker=_has_generated_marker(data), utf8=True)
             try:
@@ -1324,6 +1325,63 @@ def _apply(
                     cleanup_errors.append(
                         f"authority-needed: temporary directory retained: {location}: {exc}")
 
+    def publish_new(parent: int, name: str, label: str, *,
+                    content: bytes | None = None, mode: int = 0o777) -> tuple[int, Any]:
+        # Build and identify the object in a private namespace before exposing
+        # its public name. No partially written rollback placeholder is public.
+        holding = ".progressive-discovery-" + secrets.token_hex(16)
+        os.mkdir(holding, 0o700, dir_fd=parent)
+        private = None
+        fd = None
+        published = False
+        retained = False
+        prepared = False
+        location = posixpath.join(posixpath.dirname(label), holding, "target")
+        try:
+            private = os.open(holding, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+                              dir_fd=parent)
+            if content is None:
+                os.mkdir("target", mode, dir_fd=private)
+                prepared = True
+                fd = os.open("target", os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+                             dir_fd=private)
+            else:
+                fd = os.open("target", os.O_RDWR | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                             0o600, dir_fd=private)
+                prepared = True
+                replace_fd(fd, content)
+                # Creation modes are masked by umask; restoring a saved mode is
+                # an explicit operation on the private completed object.
+                os.fchmod(fd, mode)
+            identity = os.fstat(fd)
+            rename_exclusive(private, "target", parent, name)
+            published = True
+            return fd, identity
+        except OSError as exc:
+            if prepared:
+                if content is None:
+                    try:
+                        os.rmdir("target", dir_fd=private)
+                        prepared = False
+                    except OSError:
+                        pass
+                if prepared:
+                    retained = True
+                    changes.append(f"retain {label} at {location}")
+                    raise OSError(f"{exc}; unpublished restoration retained at {location}") from exc
+            raise
+        finally:
+            if fd is not None and not published:
+                os.close(fd)
+            if private is not None:
+                os.close(private)
+            if not retained:
+                try:
+                    os.rmdir(holding, dir_fd=parent)
+                except OSError as exc:
+                    cleanup_errors.append(
+                        f"authority-needed: temporary directory retained: {location}: {exc}")
+
     def rollback(errors: list[str]) -> tuple[list[str], list[str]]:
         for owned in reversed(undo):
             try:
@@ -1337,13 +1395,9 @@ def _apply(
                     # newly created contents are never recursively removed.
                     remove_owned(parent, name, owned["identity"], None, owned["path"])
                 elif owned["action"] == "delete":
-                    # Never replace a concurrently recreated path, including a symlink.
-                    fd = os.open(name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
-                                 owned["mode"], dir_fd=parent)
-                    try:
-                        replace_fd(fd, owned["before"])
-                    finally:
-                        os.close(fd)
+                    fd, _ = publish_new(parent, name, owned["path"],
+                                        content=owned["before"], mode=owned["mode"])
+                    os.close(fd)
                 else:
                     fd = os.open(name, os.O_RDWR | os.O_NOFOLLOW, dir_fd=parent)
                     try:
@@ -1390,16 +1444,12 @@ def _apply(
                     except FileNotFoundError:
                         if item["action"] == "delete":
                             raise
-                        os.mkdir(component, dir_fd=parent_fd)
                         directory_path = "/".join(parts[:depth + 1])
+                        child_fd, created = publish_new(parent_fd, component, directory_path)
                         changes.append(f"mkdir {directory_path}")
-                        created = os.stat(component, dir_fd=parent_fd, follow_symlinks=False)
-                        if not stat.S_ISDIR(created.st_mode):
-                            raise OSError(f"created directory changed: {directory_path}")
                         undo.append({"action": "mkdir", "path": directory_path,
                                      "parent": parent_fd, "name": component,
                                      "identity": (created.st_dev, created.st_ino)})
-                        child_fd = os.open(component, directory_flags, dir_fd=parent_fd)
                     descriptors.callback(os.close, child_fd)
                     parent_fd = child_fd
                 if error := revalidate(item):
@@ -1425,6 +1475,7 @@ def _apply(
                     before = read_fd(fd)
                     if action != "create" and (
                         [identity.st_dev, identity.st_ino] != item["snapshot"].get("identity")
+                        or stat.S_IMODE(identity.st_mode) != item["snapshot"].get("mode")
                         or hashlib.sha256(before).hexdigest() != item["snapshot"].get("bytes_sha256")
                         or not _has_generated_marker(before)
                     ):
