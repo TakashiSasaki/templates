@@ -236,6 +236,17 @@ def _load_adapter(root: Path, relative: str) -> tuple[dict[str, Any], list[str]]
             or Path(root_index).name != INDEX_NAME):
         errors.append("adapter: root_index must be a canonical index.md path")
     generated = _generated_specs(value)
+    for target, spec in generated.items():
+        if "inventory" in spec:
+            scopes = spec["inventory"]
+            if not isinstance(scopes, list) or any(
+                not isinstance(scope, str) or not scope
+                or _repository_path_error(root, scope.removesuffix("/"))
+                for scope in scopes
+            ):
+                errors.append(
+                    f"adapter: generated inventory requires canonical path array: {target}"
+                )
     retired = _configured_paths(value, "remove_generated_indexes")
     retired_declarations = value.get("remove_generated_indexes", [])
     if not isinstance(retired_declarations, (list, dict)):
@@ -587,7 +598,7 @@ def _resolve_link(root: Path, source: str, target: str) -> tuple[str | None, str
     if parsed.scheme or target.startswith("/"):
         return None, f"{source}: unsafe absolute link {target}"
     parent = posixpath.dirname(source)
-    joined = posixpath.join(parent, parsed.path or ".")
+    joined = posixpath.join(parent, parsed.path) if parsed.path else source
     relative = _safe_relative(joined)
     if relative is None:
         return None, f"{source}: link escapes repository or is invalid: {target}"
@@ -839,7 +850,9 @@ def _plan(
         path = root / relative
         if not path.exists():
             continue
-        if path.is_file() and _has_generated_marker(path.read_text(encoding="utf-8")):
+        snapshot = _target_state(root, relative)
+        if (snapshot.get("kind") == "file" and snapshot.get("generated_marker")
+                and snapshot.get("tracked") and not snapshot.get("dirty")):
             plan.append(
                 {
                     "action": "delete",
@@ -847,7 +860,7 @@ def _plan(
                     "path": relative,
                     "reason": "adapter explicitly retired this generated index",
                     "content": None,
-                    "snapshot": _target_state(root, relative),
+                    "snapshot": snapshot,
                 }
             )
         else:
@@ -856,7 +869,7 @@ def _plan(
                     "action": "authority-needed",
                     "kind": "authored",
                     "path": relative,
-                    "reason": "retirement is explicit but the file is not generated",
+                    "reason": "retired target is authored, untracked, dirty, or ownership unknown",
                     "content": None,
                 }
             )
@@ -1114,6 +1127,7 @@ def run(
                     f"adapter: scoped exclusion is not an expected document: {document}"
                 )
     plan = _plan(root, adapter, indexes, expected, generated, policy)
+    requested_plan = plan
     applied: list[str] = []
     apply_errors: list[str] = []
     source_errors = adapter_errors + inventory_errors + [
@@ -1127,6 +1141,7 @@ def run(
             applied, apply_errors = _apply(root, plan, policy)
         if applied:
             indexes = _index_paths(root, adapter)
+            plan = _plan(root, adapter, indexes, expected, generated, policy)
     validation = _validate(root, indexes, expected, adapter, generated, policy)
     selected = policy["profile_selected"] and policy["skill_selected"]
     if source_errors:
@@ -1179,6 +1194,7 @@ def run(
         "plan": [{key: value for key, value in item.items() if key != "content"} for item in plan],
         "applied": applied,
         "apply_errors": apply_errors,
+        "requested_plan": requested_plan if apply else [],
         "exclusions": sorted(
             _configured_paths(adapter, "explicit_exclusions")
             | _configured_paths(adapter, "closed_inventories")
