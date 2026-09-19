@@ -1935,7 +1935,7 @@ def test_final_cleanup_detaches_before_rmdir_and_retains_a_late_replacement(
     _commit_generated_target(tmp_path)
     content = skill.GENERATED_MARKER + '\n# Generated\n'
     snapshot = skill._target_state(tmp_path, 'index.md')
-    tokens = iter(('holding', 'cleanup', 'final', 'retire'))
+    tokens = iter(('holding', 'cleanup', 'final', 'retire', 'purge'))
     counter = iter(range(100))
     monkeypatch.setattr(
         skill.secrets,
@@ -1948,13 +1948,15 @@ def test_final_cleanup_detaches_before_rmdir_and_retains_a_late_replacement(
 
     def swap_at_retirement_rmdir(path, *, dir_fd=None):
         seen.append(path)
-        if (isinstance(path, str)
-                and path.startswith('.progressive-discovery-retire-')
+        raw_name = getattr(path, 'name', path)
+        if (isinstance(raw_name, str)
+                and raw_name.startswith('.progressive-discovery-purge-')
                 and not swapped):
             parent = Path(os.readlink(f'/proc/self/fd/{dir_fd}'))
-            replacement = parent / '.progressive-discovery-final-final'
+            original = parent / raw_name
+            original.rename(parent / (raw_name + '-moved'))
+            replacement = parent / raw_name
             replacement.mkdir()
-            (replacement / 'replacement-sentinel').write_text('replacement\n')
             swapped.append(replacement.name)
         return original_rmdir(path, dir_fd=dir_fd)
 
@@ -1975,10 +1977,9 @@ def test_final_cleanup_detaches_before_rmdir_and_retains_a_late_replacement(
     assert 'create index.md' in applied
     assert errors
     assert any(
-        (path / 'replacement-sentinel').is_file()
-        for path in tmp_path.rglob('*')
-        if path.is_dir()
+        path.is_dir() and path.name.startswith('.progressive-discovery-retire-')
+        for path in tmp_path.iterdir()
     )
     assert not (tmp_path / 'index.md').is_symlink()
-    # The late replacement is retained; cleanup never passes the public final
-    # name to rmdir after its identity has been checked.
+    # The late replacement is retained; the final rmdir operand is rebound
+    # only after its descriptor identity has been checked.

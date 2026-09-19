@@ -1339,9 +1339,13 @@ def _apply(
         cleanup = ".progressive-discovery-cleanup-" + secrets.token_hex(16)
         final = ".progressive-discovery-final-" + secrets.token_hex(16)
         retirement = ".progressive-discovery-retire-" + secrets.token_hex(16)
+        purge = None
+        bound = None
         moved = False
         detached = False
         retired = False
+        purged = False
+        bound_moved = False
         marker_removed = False
         try:
             rename_exclusive(parent, name, parent, cleanup)
@@ -1411,26 +1415,123 @@ def _apply(
                         raise OSError("temporary directory ownership marker changed")
                 finally:
                     os.close(marker_fd)
+                # Bind the actual removal operand only after the last identity
+                # check.  The retirement name is moved with no-clobber rename
+                # to a fresh name generated at this mutation boundary.  A
+                # replacement at any earlier private name is therefore carried
+                # to the fresh operand and fails the descriptor/path identity
+                # checks before rmdir can see it.
+                purge = ".progressive-discovery-purge-" + secrets.token_hex(16)
+                rename_exclusive(parent, retirement, parent, purge)
+                retired = False
+                purged = True
+                current = os.fstat(fd)
+                if ((current.st_dev, current.st_ino) != identity
+                        or not stat.S_ISDIR(current.st_mode)):
+                    raise OSError("temporary directory identity changed before purge")
+                marker_fd = os.open(
+                    HOLDING_MARKER,
+                    os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK,
+                    dir_fd=fd,
+                )
+                try:
+                    if read_fd(marker_fd) != HOLDING_MARKER_CONTENT:
+                        raise OSError("temporary directory ownership marker changed")
+                finally:
+                    os.close(marker_fd)
+                current = os.stat(purge, dir_fd=parent, follow_symlinks=False)
+                if ((current.st_dev, current.st_ino) != identity
+                        or not stat.S_ISDIR(current.st_mode)):
+                    raise OSError("temporary directory name changed before purge")
                 os.unlink(HOLDING_MARKER, dir_fd=fd)
                 marker_removed = True
-                # The retirement name is consumed within this operation's
-                # private namespace.  A replacement at the former final name
-                # remains visible and cannot be removed by this call.
-                os.rmdir(retirement, dir_fd=parent)
-                retired = False
-                try:
-                    replacement = os.stat(final, dir_fd=parent, follow_symlinks=False)
-                except FileNotFoundError:
-                    pass
-                else:
+
+                class BoundRmdirPath:
+                    def __init__(self) -> None:
+                        self.name = purge
+
+                    def __fspath__(self) -> str:
+                        nonlocal bound, bound_moved, purged
+                        bound = ".progressive-discovery-bound-" + secrets.token_hex(16)
+                        rename_exclusive(parent, purge, parent, bound)
+                        purged = False
+                        bound_moved = True
+                        current = os.fstat(fd)
+                        if ((current.st_dev, current.st_ino) != identity
+                                or not stat.S_ISDIR(current.st_mode)):
+                            raise OSError("temporary directory identity changed at rmdir boundary")
+                        current = os.stat(bound, dir_fd=parent, follow_symlinks=False)
+                        if ((current.st_dev, current.st_ino) != identity
+                                or not stat.S_ISDIR(current.st_mode)):
+                            try:
+                                rename_exclusive(parent, bound, parent, purge)
+                                bound_moved = False
+                                purged = True
+                            except OSError as restore_error:
+                                raise OSError(
+                                    "temporary directory replacement retained at rmdir "
+                                    f"boundary; restoration failed: {restore_error}"
+                                ) from restore_error
+                            raise OSError(
+                                "temporary directory changed at rmdir boundary; state retained"
+                            )
+                        return bound
+
+                os.rmdir(BoundRmdirPath(), dir_fd=parent)
+                bound_moved = False
+                bound = None
+                detached = False
+                moved = False
+                for private_name in (final, retirement, purge):
+                    try:
+                        os.stat(private_name, dir_fd=parent, follow_symlinks=False)
+                    except FileNotFoundError:
+                        continue
                     raise OSError(
-                        "private final name was replaced during cleanup; state retained"
+                        f"private cleanup name was replaced during cleanup: {private_name}; "
+                        "state retained"
                     )
             finally:
                 os.close(fd)
             detached = False
             moved = False
         except OSError as exc:
+            if bound_moved:
+                try:
+                    if bound is None:
+                        raise OSError("missing bound cleanup name")
+                    rename_exclusive(parent, bound, parent, purge)
+                    bound_moved = False
+                    purged = True
+                except OSError as restore_error:
+                    retained_path = posixpath.join(
+                        posixpath.dirname(label), bound or "<unknown>"
+                    )
+                    raise OSError(
+                        f"{exc}; state retained at {retained_path}; "
+                        f"no-clobber bound restoration failed: {restore_error}"
+                    ) from exc
+            if purged:
+                try:
+                    if purge is None:
+                        raise OSError("missing purge cleanup name")
+                    rename_exclusive(parent, purge, parent, retirement)
+                    purged = False
+                    retired = True
+                except OSError as restore_error:
+                    retained_path = posixpath.join(
+                        posixpath.dirname(label), purge or "<unknown>"
+                    )
+                    raise OSError(
+                        f"{exc}; state retained at {retained_path}; "
+                        f"no-clobber purge restoration failed: {restore_error}"
+                    ) from exc
+                if marker_removed:
+                    raise OSError(
+                        f"{exc}; temporary directory cleanup failed after ownership "
+                        "marker removal; "
+                        "state restored for authority review"
+                    ) from exc
             if retired:
                 try:
                     # Restore the operation-owned directory under its final
@@ -1450,7 +1551,8 @@ def _apply(
                     ) from exc
                 if marker_removed:
                     raise OSError(
-                        f"{exc}; temporary directory cleanup failed after ownership marker removal; "
+                        f"{exc}; temporary directory cleanup failed after ownership "
+                        "marker removal; "
                         "state restored for authority review"
                     ) from exc
             if detached:
