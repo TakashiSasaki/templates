@@ -102,6 +102,8 @@ def _section_title(section: Any) -> str:
         return section
     if not isinstance(section, dict):
         raise IndexNavigationViewerError("index section must be a string or object")
+    if set(section) != {"title", "level"}:
+        raise IndexNavigationViewerError("index section fields do not match the contract")
     title = section.get("title")
     level = section.get("level")
     if not isinstance(title, str) or not title or contains_non_scalar(title):
@@ -154,6 +156,8 @@ def validate_provider_graph(
     for index in indexes:
         if not isinstance(index, dict):
             raise IndexNavigationViewerError(f"{name} index record must be an object")
+        if set(index) != {"path", "title", "sections", "depth", "object_id"}:
+            raise IndexNavigationViewerError(f"{name} index record fields do not match the contract")
         path = index.get("path")
         title = index.get("title")
         sections = index.get("sections")
@@ -196,6 +200,13 @@ def validate_provider_graph(
     for edge in edges:
         if not isinstance(edge, dict):
             raise IndexNavigationViewerError(f"{name} edge must be an object")
+        edge_fields = {
+            "source", "kind", "label", "description", "raw_target", "target", "line",
+            "section", "fragment",
+        }
+        required_edge_fields = edge_fields - {"section", "fragment"}
+        if not required_edge_fields <= set(edge) or not set(edge) <= edge_fields:
+            raise IndexNavigationViewerError(f"{name} edge fields do not match the contract")
         source = edge.get("source")
         if source not in paths:
             raise IndexNavigationViewerError(f"{name} edge source is not a rendered index")
@@ -267,6 +278,11 @@ def validate_provider_graph(
         if diagnostics[field] != expected:
             raise IndexNavigationViewerError(
                 f"{name} diagnostics {field} does not match graph contents"
+            )
+    for cycle_edge in diagnostics["cycle_edges"]:
+        if not isinstance(cycle_edge, dict) or set(cycle_edge) != {"source", "target"}:
+            raise IndexNavigationViewerError(
+                f"{name} diagnostics cycle edge fields do not match the contract"
             )
 
 

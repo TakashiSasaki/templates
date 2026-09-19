@@ -233,3 +233,45 @@ class ProgressiveDiscoveryGraphTests(unittest.TestCase):
                     with self.assertRaises(IndexNavigationViewerError):
                         loaded = load_graph(path, provider_order=('composition',))
                         validate_provider_graph(loaded['providers'][0], provider_order=('composition',))
+
+    def test_v2_nested_records_reject_unknown_members(self):
+        import copy
+        import jsonschema
+        schema = json.loads((Path(__file__).resolve().parents[1] /
+                             'contracts/publication-bundle/guided-navigation.schema.json').read_text())
+        validator = jsonschema.Draft202012Validator(schema)
+        graph = {'schema_version': 2, 'repository': 'TakashiSasaki/templates',
+                 'providers': [self._provider(ROOT_INDEX)]}
+        provider = graph['providers'][0]
+        provider['indexes'][0]['sections'] = [{'title': 'Start', 'level': 2}]
+        provider['edges'] = [{'source': ROOT_INDEX, 'kind': 'fragment',
+            'label': 'Start', 'description': '', 'raw_target': '#start', 'target': ROOT_INDEX,
+            'line': 3, 'section': 'Start', 'fragment': 'start'}]
+        provider['diagnostics'] = graph_diagnostics(provider['indexes'], provider['edges'])
+        nested = (
+            ('section', provider['indexes'][0]['sections'][0]),
+            ('index', provider['indexes'][0]),
+            ('edge', provider['edges'][0]),
+            ('cycle edge', {'source': ROOT_INDEX, 'target': ROOT_INDEX}),
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / 'graph.json'
+            for label, target in nested:
+                candidate = copy.deepcopy(graph)
+                if label == 'section':
+                    candidate['providers'][0]['indexes'][0]['sections'][0]['unexpected'] = True
+                elif label == 'index':
+                    candidate['providers'][0]['indexes'][0]['unexpected'] = True
+                elif label == 'edge':
+                    candidate['providers'][0]['edges'][0]['unexpected'] = True
+                else:
+                    candidate['providers'][0]['diagnostics']['cycle_edges'] = [
+                        {'source': ROOT_INDEX, 'target': ROOT_INDEX, 'unexpected': True}
+                    ]
+                path.write_text(json.dumps(candidate))
+                with self.subTest(record=label):
+                    with self.assertRaises(jsonschema.ValidationError):
+                        validator.validate(candidate)
+                    with self.assertRaises(IndexNavigationViewerError):
+                        loaded = load_graph(path, provider_order=('composition',))
+                        validate_provider_graph(loaded['providers'][0], provider_order=('composition',))

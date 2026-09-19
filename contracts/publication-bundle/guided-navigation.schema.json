@@ -72,6 +72,7 @@
         },
         {
           "type": "object",
+          "additionalProperties": false,
           "required": [
             "title",
             "level"
@@ -92,6 +93,7 @@
     },
     "index": {
       "type": "object",
+      "additionalProperties": false,
       "required": [
         "path",
         "title",
@@ -126,6 +128,7 @@
     },
     "edge": {
       "type": "object",
+      "additionalProperties": false,
       "required": [
         "source",
         "kind",
@@ -205,6 +208,7 @@
           "type": "array",
           "items": {
             "type": "object",
+            "additionalProperties": false,
             "required": [
               "source",
               "target"
