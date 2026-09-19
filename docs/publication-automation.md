@@ -61,9 +61,15 @@ and requires all of the stricter activation variables.
 The deployment verifier reads `PUBLICATION_AUTOMATION_KILL_SWITCH` through the
 authenticated GitHub API immediately before deployment. A confirmed HTTP 404 for
 that variable, followed by a successful authenticated repository metadata read,
-means the variable is absent and applies the documented default `false`. Any
-authentication, permission, rate-limit, transport, malformed-response, or server
-error stops deployment; it is never treated as an inactive switch.
+means the variable is absent and applies the documented default `false`. On an
+explicit manual dispatch only, the workflow also passes the raw evaluated
+repository-variable context to the verifier. If the Actions token receives HTTP
+403 for that variable endpoint, the verifier may use that exact context when it
+is `false` (and still rejects `true`); an empty or malformed context remains a
+failure. Automatic publication never uses this exception. Any authentication,
+permission, rate-limit, transport, malformed-response, or server error outside
+that narrowly scoped manual variable request stops deployment; it is never
+treated as an inactive switch.
 
 ## One-time activation checklist
 

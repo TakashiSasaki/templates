@@ -70,6 +70,13 @@ class PagesDeploymentPreconditionTests(unittest.TestCase):
             "false",
         )
 
+    def test_manual_context_does_not_mask_confirmation_permission_failure(self) -> None:
+        api = _api([_http_error(404), _http_error(403)])
+        with self.assertRaises(GitHubAPIError) as context:
+            read_kill_switch(api, expected_manual_value="false")
+        self.assertEqual(context.exception.status, 403)
+        self.assertEqual(context.exception.path, "repos/TakashiSasaki/templates")
+
     def test_manual_context_true_still_stops_when_token_cannot_read_variables(self) -> None:
         api = _api([_http_error(403)])
         with self.assertRaisesRegex(RuntimeError, "kill switch is enabled"):

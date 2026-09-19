@@ -141,7 +141,13 @@ def read_kill_switch(
     try:
         value = api.repository_variable(KILL_SWITCH, allow_confirmed_missing=True)
     except GitHubAPIError as exc:
-        if automatic or exc.status != 403 or expected_manual_value not in {"false", "true"}:
+        variable_path = f"repos/{api.repository}/actions/variables/{KILL_SWITCH}"
+        if (
+            automatic
+            or exc.status != 403
+            or exc.path != variable_path
+            or expected_manual_value not in {"false", "true"}
+        ):
             raise
         value = expected_manual_value
     if value != "false":

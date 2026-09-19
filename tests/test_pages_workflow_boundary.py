@@ -268,7 +268,7 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
         self.assertIn("Human dispatch is the authorization for the manual lane", text)
         self.assertIn("cancel-in-progress: false", text)
         self.assertIn("BUILD_RECEIPT: ${{ needs.build.outputs.bundle_receipt }}", text)
-        self.assertIn("EXPECTED_KILL_SWITCH: ${{ vars.PUBLICATION_AUTOMATION_KILL_SWITCH || 'false' }}", text)
+        self.assertIn("EXPECTED_KILL_SWITCH: ${{ vars.PUBLICATION_AUTOMATION_KILL_SWITCH }}", text)
         self.assertIn("the automatic build did not carry a trusted Integration receipt", (ROOT / "scripts/revalidate_pages_deployment.py").read_text(encoding="utf-8"))
         self.assertIn("trusted receipt and final artifact selected different Bundle inputs", (ROOT / "scripts/revalidate_pages_deployment.py").read_text(encoding="utf-8"))
         self.assertIn("-f \"automatic=true\"", (ROOT / ".github/workflows/site-publication-notify.yml").read_text(encoding="utf-8"))
