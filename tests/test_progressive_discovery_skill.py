@@ -1150,3 +1150,18 @@ def test_active_indexes_cannot_use_undiscoverable_boundaries(tmp_path):
         assert report['result'] == 'AUTHORITY_NEEDED'
         assert report['applied'] == []
         assert not (target / index).exists()
+
+
+def test_malformed_root_declaration_returns_authority_report(tmp_path):
+    for number, value in enumerate(([], {}, None, True, 7)):
+        target = tmp_path / str(number)
+        shutil.copytree(_fixture('generated-docs'), target)
+        path = target / '.progressive-discovery.json'
+        adapter = json.loads(path.read_text())
+        adapter['root_index'] = value
+        path.write_text(json.dumps(adapter))
+        _commit_generated_target(target)
+        report = _load_skill().run(target, apply=True)
+        assert report['result'] == 'AUTHORITY_NEEDED'
+        assert report['applied'] == []
+        assert not (target / 'generated/index.md').exists()
