@@ -263,7 +263,8 @@ def test_rechecks_each_target_after_global_preflight(tmp_path, monkeypatch):
             patch.setattr(skill, "_target_state", changing_state)
             applied, errors = skill._apply(target, plan, policy)
         assert errors and "changed since plan" in errors[0]
-        assert applied == [f"{action} first.md"]
+        assert applied == [f"{action} first.md", "rollback first.md"]
+        assert first.read_text() == original
         assert second.read_text() == "# Concurrent authored edit\n"
         subprocess.run(["git", "-C", str(target), "restore", "first.md", "second.md"], check=True)
 
@@ -1275,3 +1276,84 @@ def test_generated_file_cannot_contain_another_active_index(tmp_path):
     assert report['result'] == 'AUTHORITY_NEEDED'
     assert report['applied'] == []
     assert not (target / 'generated/index.md').exists()
+
+
+def test_parent_rebinding_cannot_mutate_outside_repository(tmp_path, monkeypatch):
+    for action in ('create', 'regenerate', 'delete'):
+        skill = _load_skill()
+        root = tmp_path / action
+        parent = root / 'generated'
+        parent.mkdir(parents=True)
+        (root / 'README.md').write_text('# Repository\n')
+        outside = tmp_path / (action + '-outside')
+        outside.mkdir()
+        original = skill.GENERATED_MARKER + '\n# Original\n'
+        victim = outside / 'index.md'
+        victim.write_text(original)
+        if action != 'create':
+            (parent / 'index.md').write_text(original)
+        _commit_generated_target(root)
+        plan = [{'action': action, 'kind': 'generated', 'path': 'generated/index.md',
+                 'content': original + '\n',
+                 'snapshot': skill._target_state(root, 'generated/index.md')}]
+        real_state = skill._target_state
+        reads = []
+
+        def rebind_after_check(repository, relative, real_state=real_state, reads=reads,
+                               parent=parent, root=root, outside=outside):
+            state = real_state(repository, relative)
+            reads.append(relative)
+            if len(reads) == 2:
+                parent.rename(root / 'original-directory')
+                parent.symlink_to(outside, target_is_directory=True)
+            return state
+
+        with monkeypatch.context() as patch:
+            patch.setattr(skill, '_target_state', rebind_after_check)
+            applied, errors = skill._apply(
+                root, plan, {'profile_selected': True, 'skill_selected': True})
+        assert errors and not applied
+        assert victim.read_text() == original
+
+
+def test_generated_spec_unknown_fields_refuse_apply(tmp_path):
+    root = tmp_path / 'repository'
+    shutil.copytree(_fixture('generated-docs'), root)
+    _commit_generated_target(root)
+    adapter = root / '.progressive-discovery.json'
+    value = json.loads(adapter.read_text())
+    value['generated_indexes']['generated/index.md']['inventroy'] = ['docs/one.md']
+    adapter.write_text(json.dumps(value))
+    report = _load_skill().run(root, apply=True)
+    assert report['result'] == 'AUTHORITY_NEEDED'
+    assert report['applied'] == []
+    assert not (root / 'generated/index.md').exists()
+
+
+def test_rollback_preserves_concurrent_edits_and_reports_residual_changes(tmp_path, monkeypatch):
+    skill = _load_skill()
+    original = skill.GENERATED_MARKER + '\n# Original\n'
+    first, second = tmp_path / 'first.md', tmp_path / 'second.md'
+    for path in (first, second):
+        path.write_text(original)
+    _commit_generated_target(tmp_path)
+    plan = [{'action': 'regenerate', 'kind': 'generated', 'path': path.name,
+             'content': original + '\n', 'snapshot': skill._target_state(tmp_path, path.name)}
+            for path in (first, second)]
+    real_state = skill._target_state
+    reads = []
+
+    def concurrent_edits(root, relative):
+        reads.append(relative)
+        if len(reads) == 4:
+            first.write_text('# Concurrent first\n')
+            second.write_text('# Concurrent second\n')
+        return real_state(root, relative)
+
+    monkeypatch.setattr(skill, '_target_state', concurrent_edits)
+    applied, errors = skill._apply(tmp_path, plan,
+                                   {'profile_selected': True, 'skill_selected': True})
+    assert applied == ['regenerate first.md']
+    assert any('rollback incomplete' in error for error in errors)
+    assert first.read_text() == '# Concurrent first\n'
+    assert second.read_text() == '# Concurrent second\n'
