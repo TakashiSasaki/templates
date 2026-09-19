@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:templates:publication-bundle:guided-navigation:2",
+  "title": "Integrated provider progressive-discovery graph v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "repository", "providers"],
+  "properties": {
+    "schema_version": {"const": 2},
+    "repository": {"type": "string", "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"},
+    "providers": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "revision", "root_index", "indexes", "edges", "diagnostics"],
+        "properties": {
+          "name": {"type": "string"},
+          "revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+          "root_index": {"const": "index.md"},
+          "indexes": {"type": "array", "minItems": 1},
+          "edges": {"type": "array"},
+          "diagnostics": {"type": "object"}
+        }
+      }
+    }
+  },
+  "$comment": "publication_bundle.graph additionally enforces provider order, immutable object identities, Markdown link safety, nested-index reachability, and deterministic diagnostics."
+}

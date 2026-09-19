@@ -13,6 +13,7 @@ from urllib.parse import urlsplit
 from integration.generate_index_navigation import IndexNavigationError, decode_fragment, decode_link_path, decode_markdown_destination, parse_index
 from integration.translation_link_identity import TranslationLinkProjectionError, build_translation_projection, project_translation_target
 from integration.translation_manifest import TranslationManifestError, load_translation_manifest
+from publication_bundle.graph import GRAPH_SCHEMA_VERSION
 
 PROVIDER_ORDER = ("skill", "policy", "webapp")
 JA_NOTICE = "> **参考訳（非正本）:**"
@@ -126,8 +127,10 @@ def section_index(section: str | None, titles: list[str], field: str) -> int | N
 
 
 def validate_graph(graph: dict[str, Any]) -> dict[str, dict[str, Any]]:
-    if graph.get("schema_version") != 1:
-        raise IndexNavigationLocaleError("canonical navigation graph schema_version must be 1")
+    if graph.get("schema_version") != GRAPH_SCHEMA_VERSION:
+        raise IndexNavigationLocaleError(
+            f"canonical navigation graph schema_version must be {GRAPH_SCHEMA_VERSION}"
+        )
     providers = graph.get("providers")
     if not isinstance(providers, list):
         raise IndexNavigationLocaleError("canonical navigation graph providers must be an array")
@@ -408,7 +411,7 @@ def generate_locale_overlays(
         locales.append({"language": language, "providers": providers})
     return {
         "schema_version": 1,
-        "canonical_graph_schema_version": 1,
+        "canonical_graph_schema_version": GRAPH_SCHEMA_VERSION,
         "canonical_language": "en",
         "locales": locales,
     }

@@ -78,12 +78,14 @@ terms:
         term: インデックス誘導ナビゲーション
     origin: repository
     definition: >-
-      The bounded Integration-generated guided-navigation graph of Provider-branch-owned
-      index.md navigation metadata from exact reviewed Provider branch
-      revisions. It preserves Provider branch grouping, order, labels, and
-      descriptions without turning provider indexes into a publication catalog
-      or replacing Integration-owned reader navigation. Site may render
-      this schema-versioned machine-readable graph at /guided/.
+      The bounded Integration-generated guided-navigation graph v2 of
+      Provider-branch-owned index.md navigation metadata from exact reviewed
+      Provider branch revisions. Its provider discovery root is the authority
+      root index.md; each reachable index retains its source blob identity. It
+      preserves Provider branch grouping, order, labels, and descriptions
+      without turning provider indexes into a publication catalog or replacing
+      Integration-owned reader navigation. Site may render this schema-versioned
+      machine-readable graph at /guided/.
     related_terms:
       - templates-integrated-publication
       - templates-provider-branch

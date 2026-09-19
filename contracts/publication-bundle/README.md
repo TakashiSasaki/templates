@@ -39,6 +39,12 @@ the graph; Site source browsing uses immutable GitHub URLs instead of receiving 
 repository inventories or source bytes.
 Site content slots contain declarations only; downstream Site supplies its own bytes.
 
+The current guided-navigation read model is schema v2. Its provider discovery root is the
+authority-root `index.md`, and each provider record retains the exact provider revision and
+Git blob identity for every reachable index. The validator continues to read historical
+schema-v1 graphs rooted at `docs/index.md`; new graph generation never falls back to that
+legacy root.
+
 Provider-owned translation manifests are authenticated against their exact source
 checkouts during production. The Bundle carries the resulting translation availability,
 exact source identities and published derivatives, but no provider repository tree or
