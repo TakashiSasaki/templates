@@ -514,8 +514,7 @@ def _classify(
                 and expected_here
                 and all(
                     any(
-                        item == str(scope)
-                        or item.startswith(str(scope).rstrip("/") + "/")
+                        item == str(scope) or item.startswith(str(scope).rstrip("/") + "/")
                         for scope in spec["inventory"]
                     )
                     for item in expected_here
@@ -541,8 +540,7 @@ def _classify(
         elif generated_projection:
             category = "index-unnecessary"
             reason = (
-                "declared generated index "
-                f"{generated_projection} provides this discovery boundary"
+                f"declared generated index {generated_projection} provides this discovery boundary"
             )
         elif curated_parent and not existing:
             category = "index-unnecessary"
@@ -745,12 +743,15 @@ def _target_state(root: Path, relative: str) -> dict[str, Any]:
         )
     elif path.exists():
         state["kind"] = "other"
-    tracked = subprocess.run(
-        ["git", "-C", str(root), "ls-files", "--error-unmatch", "--", relative],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        check=False,
-    ).returncode == 0
+    tracked = (
+        subprocess.run(
+            ["git", "-C", str(root), "ls-files", "--error-unmatch", "--", relative],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        ).returncode
+        == 0
+    )
     status = subprocess.run(
         ["git", "-C", str(root), "status", "--porcelain", "--", relative],
         capture_output=True,
@@ -842,9 +843,13 @@ def _apply(
     root: Path, plan: list[dict[str, Any]], policy: dict[str, Any]
 ) -> tuple[list[str], list[str]]:
     if not policy["profile_selected"] or not policy["skill_selected"]:
-        return [], ["apply refused: progressive-discovery profile and Skill must both be explicitly selected"]
+        return [], [
+            "apply refused: progressive-discovery profile and Skill must both be "
+            "explicitly selected"
+        ]
     candidates = [
-        item for item in plan
+        item
+        for item in plan
         if item["action"] in {"create", "regenerate", "delete"} and item["kind"] == "generated"
     ]
     blockers: list[str] = []
@@ -859,7 +864,10 @@ def _apply(
             or current.get("dirty")
             or not current.get("generated_marker")
         ):
-            blockers.append(f"authority-needed: generated target is locally modified or ownership is unknown: {item['path']}")
+            blockers.append(
+                "authority-needed: generated target is locally modified or ownership "
+                f"is unknown: {item['path']}"
+            )
     if blockers:
         return [], blockers
     changes: list[str] = []
@@ -904,7 +912,9 @@ def run(
     selected = policy["profile_selected"] and policy["skill_selected"]
     if not selected:
         validation = {**validation, "valid": True, "errors": []}
-    authority_needed = sum(1 for item in plan if item["action"] == "authority-needed") + len(apply_errors)
+    authority_needed = sum(1 for item in plan if item["action"] == "authority-needed") + len(
+        apply_errors
+    )
     applied_actions = set(applied)
     actionable = any(
         item["action"] in {"create", "update", "regenerate", "delete"}
@@ -920,7 +930,9 @@ def run(
     else:
         result = "NO_UPDATE_REQUIRED"
     root_index = adapter.get("root_index", INDEX_NAME)
-    orphan_indexes = sorted(item for item in indexes if item != root_index and item not in validation["reachable"])
+    orphan_indexes = sorted(
+        item for item in indexes if item != root_index and item not in validation["reachable"]
+    )
     errors = validation["errors"]
     return {
         "repository": str(root),
