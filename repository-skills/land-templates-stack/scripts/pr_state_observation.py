@@ -877,6 +877,12 @@ def _summary_has_truncation(value: Any) -> bool:
     return isinstance(value, str) and "…[truncated;sha256=" in value
 
 
+def summary_has_truncation(value: Any) -> bool:
+    """Report whether a bounded model-facing value contains truncation."""
+
+    return _summary_has_truncation(value)
+
+
 def bound_model_summary(value: Any, *, max_bytes: int = MODEL_SUMMARY_MAX_BYTES) -> Any:
     """Bound arbitrary model-facing JSON without changing persisted evidence."""
 
