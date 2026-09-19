@@ -47,6 +47,7 @@ For a normal managed repository, start with `core` and `security-baseline`. Add 
 | Creating, updating, or closing pull-request work | `core`, `security-baseline`, `pull-request` |
 | Reviewing changes for blocking defects | `core`, `security-baseline`, `review` |
 | Receiving or staging externally produced artifacts | `core`, `security-baseline`, `external-artifact-intake` |
+| Maintaining semantic `index.md` discovery boundaries | `core`, `security-baseline`, `progressive-discovery` |
 
 The `policy` branch itself demonstrates the distinction between pull-request work and review work: its `coding` context selects `pull-request`, while its `review` context selects `review`.
 
@@ -205,6 +206,20 @@ Included modules:
 - `policy/artifacts/staging-boundaries.md`
 - `policy/artifacts/transport-isolation.md`
 - `policy/artifacts/dependency-closure.md`
+
+<!-- PROFILE: progressive-discovery -->
+### `progressive-discovery`
+
+Use only in a repository or context that explicitly maintains semantic
+progressive-discovery indexes. This optional profile does not become part of
+`core`: repositories without an explicit selection receive no index-maintenance
+rules. It keeps authored navigation small, separates generated projections from
+their source of truth, and requires expected discoverable coverage to come from
+authoritative inventories rather than from existing indexes alone.
+
+Included modules:
+
+- `policy/progressive-discovery/maintain-index-boundaries.md`
 
 ## Profiles and repository-local policy
 

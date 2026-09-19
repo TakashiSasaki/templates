@@ -46,6 +46,21 @@ def test_builtin_profiles_do_not_classify_artifact_categories() -> None:
     assert ARTIFACT_CATEGORY_PROFILES.isdisjoint(profile_names)
 
 
+def test_progressive_discovery_is_opt_in_and_application_neutral() -> None:
+    core = (ROOT / "profiles/core.yml").read_text(encoding="utf-8")
+    progressive = (ROOT / "profiles/progressive-discovery.yml").read_text(
+        encoding="utf-8"
+    )
+    rule = (ROOT / "policy/progressive-discovery/maintain-index-boundaries.md").read_text(
+        encoding="utf-8"
+    )
+
+    assert "progressive-discovery" not in core
+    assert "policy/progressive-discovery/maintain-index-boundaries.md" in progressive
+    assert "policy/core/" not in progressive
+    assert "web application" not in rule.lower()
+
+
 def test_application_neutral_scope_decision_is_documented_and_published() -> None:
     decision = ADR.read_text(encoding="utf-8")
     navigation = MKDOCS.read_text(encoding="utf-8")
