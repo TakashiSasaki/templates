@@ -234,6 +234,7 @@ jobs:
           EXPECTED_BUILD_INPUTS: ${{ needs.build.outputs.build_inputs }}
           BUILD_RECEIPT: ${{ needs.build.outputs.bundle_receipt }}
           AUTOMATIC: ${{ inputs.automatic }}
+          EXPECTED_KILL_SWITCH: ${{ vars.PUBLICATION_AUTOMATION_KILL_SWITCH || 'false' }}
         run: |
           python3 .trusted-deployment-verifier/scripts/revalidate_pages_deployment.py
 
