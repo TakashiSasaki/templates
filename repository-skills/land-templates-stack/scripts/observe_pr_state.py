@@ -217,16 +217,38 @@ def _parse_http_metadata(text: str) -> tuple[int | None, float | None]:
     return status, retry_at
 
 
-def _decode_json_body(text: str) -> Any:
+def _decode_json_bodies(text: str) -> list[Any]:
     decoder = json.JSONDecoder()
-    candidates = [index for index, char in enumerate(text) if char in "[{"]
-    for index in candidates:
-        try:
-            value, _ = decoder.raw_decode(text[index:])
-        except json.JSONDecodeError:
-            continue
-        return value
-    raise ProviderFailure("malformed", "provider response did not contain JSON")
+    values: list[Any] = []
+    offset = 0
+    while offset < len(text):
+        candidates = [
+            index
+            for index, char in enumerate(text[offset:], start=offset)
+            if char in "[{"
+        ]
+        if not candidates:
+            break
+        parsed = False
+        for index in candidates:
+            try:
+                value, consumed = decoder.raw_decode(text[index:])
+            except json.JSONDecodeError:
+                continue
+            values.append(value)
+            offset = index + consumed
+            parsed = True
+            break
+        if not parsed:
+            break
+    if not values:
+        raise ProviderFailure("malformed", "provider response did not contain JSON")
+    return values
+
+
+def _decode_json_body(text: str) -> Any:
+    values = _decode_json_bodies(text)
+    return values[0]
 
 
 def gh_api_json(arguments: Sequence[str], *, timeout: float = 30.0) -> ApiResponse:
@@ -264,7 +286,9 @@ def gh_api_json(arguments: Sequence[str], *, timeout: float = 30.0) -> ApiRespon
         else:
             category = "provider"
         raise ProviderFailure(category, details, retry_at=retry_at)
-    return ApiResponse(_decode_json_body(completed.stdout), status, retry_at)
+    values = _decode_json_bodies(completed.stdout)
+    payload = values if "--paginate" in arguments else values[0]
+    return ApiResponse(payload, status, retry_at)
 
 
 def _page_values(payload: Any) -> list[Any]:
@@ -322,7 +346,7 @@ class GhReadonlyProvider:
         self.api = api
 
     def _rest_pages(self, endpoint: str) -> list[Any]:
-        response = self.api(("--paginate", "--slurp", endpoint))
+        response = self.api(("--paginate", endpoint))
         return _page_values(response.payload)
 
     def _one_rest(self, endpoint: str) -> Mapping[str, Any]:

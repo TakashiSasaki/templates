@@ -485,3 +485,14 @@ def test_write_methods_and_malformed_responses_fail_closed() -> None:
     provider = OBSERVE.GhReadonlyProvider(malformed)
     with pytest.raises(OBSERVE.ProviderFailure, match="pull request head"):
         provider.read_binding(candidate())
+
+
+def test_paginated_http_bodies_are_decoded_without_slurp_flag() -> None:
+    bodies = OBSERVE._decode_json_bodies(
+        "HTTP/2 200\ncontent-type: application/json\n\n"
+        "{\"page\": 1}\n"
+        "HTTP/2 200\ncontent-type: application/json\n\n"
+        "{\"page\": 2}\n"
+    )
+
+    assert bodies == [{"page": 1}, {"page": 2}]
