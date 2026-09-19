@@ -11,7 +11,7 @@ These instructions were generated from shared policy profiles and repository-spe
 ## Policy system
 
 - Semantic configuration: `.agent-policy.yml`
-- Pinned shared toolchain: `TakashiSasaki/templates@d8058c37aff854add435a04619366a38a16684bc`
+- Pinned shared toolchain: `TakashiSasaki/templates@9c4bfd6d7da1a611212f551061b1aef67d6c36b7`
 - Repository policy inputs:
   - `repository-policy/authority-boundary.md`
   - `repository-policy/history-boundary.md`
@@ -46,7 +46,7 @@ branch, authority ancestry, immutable gitlinks, submodule repository identity, a
 projection consistency against that declaration. Perform operations only on the
 corresponding authority and refresh affected bindings before use.
 
-_Source: `TakashiSasaki/templates@d8058c37aff854add435a04619366a38a16684bc:policy/core/repository-topology-discovery.md`; rule ID: `core.discover-repository-topology-fail-closed`; severity: `mandatory`._
+_Source: `TakashiSasaki/templates@9c4bfd6d7da1a611212f551061b1aef67d6c36b7:policy/core/repository-topology-discovery.md`; rule ID: `core.discover-repository-topology-fail-closed`; severity: `mandatory`._
 
 
 ## Discover local-checkout topology separately from repository topology
@@ -71,42 +71,42 @@ refs, config, fetch, maintenance, and object storage as shared common-repository
 state. Reject unsafe/symlinked declaration paths and any required live-state
 contradiction before mutation.
 
-_Source: `TakashiSasaki/templates@d8058c37aff854add435a04619366a38a16684bc:policy/core/local-checkout-topology-discovery.md`; rule ID: `core.discover-local-checkout-topology-fail-closed`; severity: `mandatory`._
+_Source: `TakashiSasaki/templates@9c4bfd6d7da1a611212f551061b1aef67d6c36b7:policy/core/local-checkout-topology-discovery.md`; rule ID: `core.discover-local-checkout-topology-fail-closed`; severity: `mandatory`._
 
 
 ## Define the change contract before editing
 
 Before editing, identify the requested outcome, the allowed change surface, the existing behavior and invariants that must be preserved, explicit non-goals, and the evidence required for acceptance. Treat unspecified behavior as preserved unless the requested change necessarily alters it; do not silently broaden the contract to resolve ambiguity or implementation difficulty.
 
-_Source: `TakashiSasaki/templates@d8058c37aff854add435a04619366a38a16684bc:policy/core/change-contract.md`; rule ID: `changes.define-contract`; severity: `mandatory`._
+_Source: `TakashiSasaki/templates@9c4bfd6d7da1a611212f551061b1aef67d6c36b7:policy/core/change-contract.md`; rule ID: `changes.define-contract`; severity: `mandatory`._
 
 
 ## Preserve the agreed acceptance baseline
 
 Once implementation or audit begins against an agreed change contract, do not retroactively expand its scope, non-goals, completion criteria, required evidence, or stop condition. Rebaseline only with explicit authorization, and record the impact on completed work and prior evidence.
 
-_Source: `TakashiSasaki/templates@d8058c37aff854add435a04619366a38a16684bc:policy/core/acceptance-baseline.md`; rule ID: `changes.preserve-acceptance-baseline`; severity: `mandatory`._
+_Source: `TakashiSasaki/templates@9c4bfd6d7da1a611212f551061b1aef67d6c36b7:policy/core/acceptance-baseline.md`; rule ID: `changes.preserve-acceptance-baseline`; severity: `mandatory`._
 
 
 ## Keep changes within the requested scope
 
 Do not modify files, behavior, dependencies, formatting, or architecture that are unrelated to the requested change. Inspect the final diff and remove incidental changes before reporting completion.
 
-_Source: `TakashiSasaki/templates@d8058c37aff854add435a04619366a38a16684bc:policy/core/change-scope.md`; rule ID: `changes.minimize-scope`; severity: `mandatory`._
+_Source: `TakashiSasaki/templates@9c4bfd6d7da1a611212f551061b1aef67d6c36b7:policy/core/change-scope.md`; rule ID: `changes.minimize-scope`; severity: `mandatory`._
 
 
 ## Escalate material semantic ambiguity
 
 When an unresolved choice would materially affect observable behavior, data meaning, compatibility, architecture, risk, or scope, do not guess. Present the viable options, trade-offs, impact, and a recommendation, and obtain an explicit decision before making the dependent change.
 
-_Source: `TakashiSasaki/templates@d8058c37aff854add435a04619366a38a16684bc:policy/core/semantic-decision-gates.md`; rule ID: `decisions.escalate-semantic-ambiguity`; severity: `mandatory`._
+_Source: `TakashiSasaki/templates@9c4bfd6d7da1a611212f551061b1aef67d6c36b7:policy/core/semantic-decision-gates.md`; rule ID: `decisions.escalate-semantic-ambiguity`; severity: `mandatory`._
 
 
 ## Do not weaken existing tests
 
 Do not delete, skip, narrow, or relax an existing test merely to make a change pass. For a bug fix, add a regression test that fails before the fix and passes afterward whenever the failure can be reproduced deterministically.
 
-_Source: `TakashiSasaki/templates@d8058c37aff854add435a04619366a38a16684bc:policy/core/regression-safety.md`; rule ID: `regression.no-weaken-tests`; severity: `mandatory`._
+_Source: `TakashiSasaki/templates@9c4bfd6d7da1a611212f551061b1aef67d6c36b7:policy/core/regression-safety.md`; rule ID: `regression.no-weaken-tests`; severity: `mandatory`._
 
 
 ## Run the repository's required verification
@@ -117,7 +117,7 @@ A validation claim is supported only when the claimed check is reachable from an
 
 Use repository-appropriate evidence such as source inspection with execution results, test discovery, workflow wiring tests, or runtime markers; universal static call-graph tooling is not required. Reachability alone is not a passing result: establish execution and the claimed outcome for the applicable revision, configuration, and evidence layer. If the effective path or execution cannot be established, report that coverage as unverified rather than accepting a green aggregate result.
 
-_Source: `TakashiSasaki/templates@d8058c37aff854add435a04619366a38a16684bc:policy/core/testing.md`; rule ID: `testing.run-required-checks`; severity: `mandatory`._
+_Source: `TakashiSasaki/templates@9c4bfd6d7da1a611212f551061b1aef67d6c36b7:policy/core/testing.md`; rule ID: `testing.run-required-checks`; severity: `mandatory`._
 
 
 ## Test material invariants beyond the nominal path
@@ -130,21 +130,21 @@ When a defect or review finding proves that one dimension of an invariant was pr
 
 Close the materially reachable finding family before deliberately sending the repair to expensive final qualification or independent acceptance review. Where correctness depends on a downstream consumer, exercise a small representative path through the actual canonical entrypoint and consumer setup. A mock assertion that a helper received an argument does not establish that the real consumer received the required bytes, state, or resource. Keep unit tests where useful, but obtain evidence at the boundary where the changed invariant can fail; use existing validators rather than duplicating their semantics.
 
-_Source: `TakashiSasaki/templates@d8058c37aff854add435a04619366a38a16684bc:policy/core/adversarial-invariant-testing.md`; rule ID: `testing.require-adversarial-invariant-coverage`; severity: `mandatory`._
+_Source: `TakashiSasaki/templates@9c4bfd6d7da1a611212f551061b1aef67d6c36b7:policy/core/adversarial-invariant-testing.md`; rule ID: `testing.require-adversarial-invariant-coverage`; severity: `mandatory`._
 
 
 ## Keep verification evidence bound to its layer
 
 Bind every verification result to the exact revision or artifact and to its evidence layer. Report repository-local checks, environment-dependent checks, remote CI, and independent audit separately; success in one layer does not prove success in another.
 
-_Source: `TakashiSasaki/templates@d8058c37aff854add435a04619366a38a16684bc:policy/core/evidence-layers.md`; rule ID: `verification.separate-evidence-layers`; severity: `mandatory`._
+_Source: `TakashiSasaki/templates@9c4bfd6d7da1a611212f551061b1aef67d6c36b7:policy/core/evidence-layers.md`; rule ID: `verification.separate-evidence-layers`; severity: `mandatory`._
 
 
 ## Keep derived artifacts synchronized
 
 When a change affects generated, mirrored, compiled, or otherwise derived artifacts, update them from their declared source of truth using the repository's documented process and verify that no stale or missing output remains. Do not hand-edit generated artifacts unless the repository explicitly designates that operation as authoritative.
 
-_Source: `TakashiSasaki/templates@d8058c37aff854add435a04619366a38a16684bc:policy/core/generated-artifacts.md`; rule ID: `consistency.synchronize-derived-artifacts`; severity: `mandatory`._
+_Source: `TakashiSasaki/templates@9c4bfd6d7da1a611212f551061b1aef67d6c36b7:policy/core/generated-artifacts.md`; rule ID: `consistency.synchronize-derived-artifacts`; severity: `mandatory`._
 
 
 ## Maintain progressive-discovery index boundaries
@@ -181,42 +181,42 @@ forced to invent one. Repository-local adapters may add validation commands,
 authoritative inventory locations, and explicit exclusions, but may not redefine
 these generic semantics.
 
-_Source: `TakashiSasaki/templates@d8058c37aff854add435a04619366a38a16684bc:policy/progressive-discovery/maintain-index-boundaries.md`; rule ID: `discovery.maintain-index-boundaries`; severity: `mandatory`._
+_Source: `TakashiSasaki/templates@9c4bfd6d7da1a611212f551061b1aef67d6c36b7:policy/progressive-discovery/maintain-index-boundaries.md`; rule ID: `discovery.maintain-index-boundaries`; severity: `mandatory`._
 
 
 ## Preserve externally observable contracts
 
 Do not break public APIs, serialized data, configuration formats, command-line interfaces, or migration paths unless the requested change explicitly authorizes the incompatibility and documents its consequences.
 
-_Source: `TakashiSasaki/templates@d8058c37aff854add435a04619366a38a16684bc:policy/core/compatibility.md`; rule ID: `compatibility.preserve-contracts`; severity: `mandatory`._
+_Source: `TakashiSasaki/templates@9c4bfd6d7da1a611212f551061b1aef67d6c36b7:policy/core/compatibility.md`; rule ID: `compatibility.preserve-contracts`; severity: `mandatory`._
 
 
 ## Revalidate destructive actions against current state
 
 Immediately before deleting, overwriting, migrating, deploying, publishing, force-updating, or otherwise making an irreversible or externally visible change, re-read the target's current state and revalidate its identity, scope, version or revision, protections, and conflicting uses. Prefer dry-run, least-scope, and idempotent operations; do not authorize the action solely from stale observations made earlier in the task.
 
-_Source: `TakashiSasaki/templates@d8058c37aff854add435a04619366a38a16684bc:policy/core/destructive-actions.md`; rule ID: `safety.revalidate-destructive-actions`; severity: `mandatory`._
+_Source: `TakashiSasaki/templates@9c4bfd6d7da1a611212f551061b1aef67d6c36b7:policy/core/destructive-actions.md`; rule ID: `safety.revalidate-destructive-actions`; severity: `mandatory`._
 
 
 ## Bind validated state to the effective operation
 
 When correctness or safety depends on a validated or authorized target identity, scope, or other mutable precondition, ensure that the same effective target and required preconditions remain bound to the operation through use. Account for normalization, indirection, aliases, redirects, rebinding, and concurrent mutation; use stable identity or protected state, an atomic, transactional, or serialized mechanism, or revalidation at a protected commit or use boundary as appropriate. Fail closed if the operation can proceed against a different effective target or after the condition that authorized or validated it has become stale.
 
-_Source: `TakashiSasaki/templates@d8058c37aff854add435a04619366a38a16684bc:policy/core/validation-operation-binding.md`; rule ID: `safety.bind-validated-state-to-operation`; severity: `mandatory`._
+_Source: `TakashiSasaki/templates@9c4bfd6d7da1a611212f551061b1aef67d6c36b7:policy/core/validation-operation-binding.md`; rule ID: `safety.bind-validated-state-to-operation`; severity: `mandatory`._
 
 
 ## Limit rollback to changes owned by the operation
 
 For a multi-step mutation, complete preflight before the first write, revalidate the live state at the commit boundary, and track which paths the current operation created or changed. On failure, roll back only those owned changes; never delete or overwrite pre-existing or concurrently created state as cleanup unless explicitly authorized.
 
-_Source: `TakashiSasaki/templates@d8058c37aff854add435a04619366a38a16684bc:policy/core/transaction-ownership.md`; rule ID: `safety.limit-rollback-to-owned-changes`; severity: `mandatory`._
+_Source: `TakashiSasaki/templates@9c4bfd6d7da1a611212f551061b1aef67d6c36b7:policy/core/transaction-ownership.md`; rule ID: `safety.limit-rollback-to-owned-changes`; severity: `mandatory`._
 
 
 ## Report actual state and residual uncertainty
 
 Distinguish implemented, generated, executed, verified, and merely inferred results. State unresolved failures and unverified assumptions explicitly.
 
-_Source: `TakashiSasaki/templates@d8058c37aff854add435a04619366a38a16684bc:policy/core/truthful-reporting.md`; rule ID: `reporting.truthful-status`; severity: `mandatory`._
+_Source: `TakashiSasaki/templates@9c4bfd6d7da1a611212f551061b1aef67d6c36b7:policy/core/truthful-reporting.md`; rule ID: `reporting.truthful-status`; severity: `mandatory`._
 
 
 ## Separate task completion from review and merge authorization
@@ -227,7 +227,7 @@ A repository-change task may declare human-handoff as its completion boundary. H
 
 Human handoff is not a review waiver, does not remove acceptance requirements for a later review or merge, and does not authorize a merge. Reports must not label a handoff review complete unless applicable pre-existing review evidence establishes that state, and must not label the handoff merge ready or merged. When the task explicitly requires a final diagnostic request, select its current scope and binding through the adaptive review-selection rule, issue one logical request after the authorized work is stable, and stop without waiting for its result. A later continuation may acquire additional scope when new evidence or a changed contract makes the prior result inapplicable; this is not a retry loop or a waiver. Use explicit state labels such as IMPLEMENTATION_COMPLETE, VALIDATION_COMPLETE, REVIEW_NOT_REQUESTED, REVIEW_PENDING, REVIEW_COMPLETE, HANDOFF_READY, MERGE_READY, and MERGED only when the corresponding state is established.
 
-_Source: `TakashiSasaki/templates@d8058c37aff854add435a04619366a38a16684bc:policy/core/repository-change-completion.md`; rule ID: `changes.separate-task-review-merge-state`; severity: `mandatory`._
+_Source: `TakashiSasaki/templates@9c4bfd6d7da1a611212f551061b1aef67d6c36b7:policy/core/repository-change-completion.md`; rule ID: `changes.separate-task-review-merge-state`; severity: `mandatory`._
 
 
 ## Repository-change anti-stall policy
@@ -400,21 +400,21 @@ Anti-stall behavior never relaxes exact-head validation, review-debt resolution,
 
 Before a final review request, unresolved review findings MUST still be resolved or explicitly rejected under the review policy. After the final review request, any final-review-stop rule remains controlling; anti-stall checkpointing MUST NOT create forbidden post-request reads, polls, or mutations.
 
-_Source: `TakashiSasaki/templates@d8058c37aff854add435a04619366a38a16684bc:policy/core/repository-change-anti-stall.md`; rule ID: `changes.prevent-diagnostic-stall`; severity: `mandatory`._
+_Source: `TakashiSasaki/templates@9c4bfd6d7da1a611212f551061b1aef67d6c36b7:policy/core/repository-change-anti-stall.md`; rule ID: `changes.prevent-diagnostic-stall`; severity: `mandatory`._
 
 
 ## Do not expose or commit secrets
 
 Do not print, persist, or commit credentials, private keys, access tokens, session material, or unredacted sensitive configuration. Use established secret-management mechanisms.
 
-_Source: `TakashiSasaki/templates@d8058c37aff854add435a04619366a38a16684bc:policy/security/secrets.md`; rule ID: `security.no-secrets`; severity: `mandatory`._
+_Source: `TakashiSasaki/templates@9c4bfd6d7da1a611212f551061b1aef67d6c36b7:policy/security/secrets.md`; rule ID: `security.no-secrets`; severity: `mandatory`._
 
 
 ## Validate data at trust boundaries
 
 Validate untrusted input before it reaches privileged operations, persistence, command execution, or external requests. Preserve existing authentication and authorization checks.
 
-_Source: `TakashiSasaki/templates@d8058c37aff854add435a04619366a38a16684bc:policy/security/input-validation.md`; rule ID: `security.validate-boundaries`; severity: `mandatory`._
+_Source: `TakashiSasaki/templates@9c4bfd6d7da1a611212f551061b1aef67d6c36b7:policy/security/input-validation.md`; rule ID: `security.validate-boundaries`; severity: `mandatory`._
 
 
 ## Bind cumulative review evidence to an ordered pull-request stack
@@ -429,7 +429,7 @@ If a provider cannot clearly attest one or more lower-member cumulative bindings
 
 Evaluate applicability again when a member exact head changes, stack ordering changes, integration base changes, cumulative scope changes, or the review contract changes. Reuse unchanged evidence only when its bindings and remaining stack applicability are established; if applicability is unknown, fail closed. A lower member merge may move a later member's base without mechanically invalidating all evidence or requiring an upper-head rewrite solely for base movement, but the changed bindings and remaining coverage must be evaluated before relying on it.
 
-_Source: `TakashiSasaki/templates@d8058c37aff854add435a04619366a38a16684bc:policy/pull-request/stacked-review-coverage.md`; rule ID: `pull-request.require-explicit-stacked-review-coverage`; severity: `mandatory`._
+_Source: `TakashiSasaki/templates@9c4bfd6d7da1a611212f551061b1aef67d6c36b7:policy/pull-request/stacked-review-coverage.md`; rule ID: `pull-request.require-explicit-stacked-review-coverage`; severity: `mandatory`._
 
 
 ## Defer revision-bound qualification until an authority boundary requires it
@@ -450,7 +450,7 @@ When a revision-bound boundary is reached, stabilize the actual prerequisite ide
 
 This deferral is an execution-efficiency discipline, not an acceptance waiver. It must not delay an urgent security, operational, data-integrity, or publication-integrity repair, and it must not weaken exact-head CI, independent exact-head review, immutable-head merge protection, release trust, provenance, publication, or other authority-defined completion requirements.
 
-_Source: `TakashiSasaki/templates@d8058c37aff854add435a04619366a38a16684bc:policy/pull-request/defer-revision-bound-qualification.md`; rule ID: `pull-request.defer-revision-bound-qualification-until-required`; severity: `mandatory`._
+_Source: `TakashiSasaki/templates@9c4bfd6d7da1a611212f551061b1aef67d6c36b7:policy/pull-request/defer-revision-bound-qualification.md`; rule ID: `pull-request.defer-revision-bound-qualification-until-required`; severity: `mandatory`._
 
 
 ## Evaluate merge readiness against the current target branch HEAD
@@ -461,7 +461,7 @@ Synchronize or rebuild the proposed head only when that impact evaluation or cur
 
 Target-branch movement invalidates the freshness decision itself, but it does not by itself invalidate unrelated exact-head CI or review evidence. Do not claim target-branch freshness from cached, historical, or inferred branch metadata.
 
-_Source: `TakashiSasaki/templates@d8058c37aff854add435a04619366a38a16684bc:policy/pull-request/target-branch-head-freshness.md`; rule ID: `pull-request.verify-target-branch-head-freshness`; severity: `mandatory`._
+_Source: `TakashiSasaki/templates@9c4bfd6d7da1a611212f551061b1aef67d6c36b7:policy/pull-request/target-branch-head-freshness.md`; rule ID: `pull-request.verify-target-branch-head-freshness`; severity: `mandatory`._
 
 
 ## Select review scope from current bindings
@@ -503,7 +503,7 @@ issuer. It must use the formal authority validation and the shared
 `pr-merge-gate` for those decisions. A diagnostic result remains separate from
 independent exact-head merge-acceptance evidence.
 
-_Source: `TakashiSasaki/templates@d8058c37aff854add435a04619366a38a16684bc:policy/pull-request/review-scope-selection.md`; rule ID: `pull-request.select-review-scope-from-current-bindings`; severity: `mandatory`._
+_Source: `TakashiSasaki/templates@9c4bfd6d7da1a611212f551061b1aef67d6c36b7:policy/pull-request/review-scope-selection.md`; rule ID: `pull-request.select-review-scope-from-current-bindings`; severity: `mandatory`._
 
 
 ## Preflight revision-bound review acquisition
@@ -516,7 +516,7 @@ For descendant exact-head acceptance review, first apply the expected-invalidati
 
 This preflight protects review acquisition from avoidable transport and identity failures. It is not completed-review evidence, does not establish merge readiness, does not weaken exact-head review requirements, and must not become a fixed waiting period or an excuse to re-read unrelated state. Naturally delayed provider execution can still fail after a correct preflight; report such provider failure separately from substantive review completion.
 
-_Source: `TakashiSasaki/templates@d8058c37aff854add435a04619366a38a16684bc:policy/pull-request/review-acquisition-preflight.md`; rule ID: `pull-request.preflight-review-acquisition`; severity: `mandatory`._
+_Source: `TakashiSasaki/templates@9c4bfd6d7da1a611212f551061b1aef67d6c36b7:policy/pull-request/review-acquisition-preflight.md`; rule ID: `pull-request.preflight-review-acquisition`; severity: `mandatory`._
 
 
 ## Disposition known findings before review reacquisition
@@ -529,7 +529,7 @@ Treat reviewer text as a defect hypothesis rather than authority. A finding firs
 
 This rule governs intentional acquisition of a new review cycle. It does not require delaying an urgent operational, security, or data-integrity repair in order to batch review work; does not prohibit naturally triggered CI or review-provider behavior; and does not require waiting for hypothetical future findings. Before any explicitly authorized diagnostic or merge-acceptance request, apply the adaptive review-selection rule to the current purpose, candidate, scope, and coverage, including the diagnostic purpose when that is the selected purpose. This applies to every new merge-acceptance review cycle as well as to a diagnostic request. Perform the required known-finding disposition and closure checks before invoking a reviewer; the request must have the validated dispositions and recorded closure evidence required above. A diagnostic audit remains distinct from merge-acceptance evidence and does not satisfy or waive the independent exact-head review requirements for later merge authorization. A newer request for one purpose must not supersede an applicable result for a different purpose merely because it is newer.
 
-_Source: `TakashiSasaki/templates@d8058c37aff854add435a04619366a38a16684bc:policy/pull-request/review-reacquisition-after-disposition.md`; rule ID: `pull-request.disposition-known-findings-before-review-reacquisition`; severity: `mandatory`._
+_Source: `TakashiSasaki/templates@9c4bfd6d7da1a611212f551061b1aef67d6c36b7:policy/pull-request/review-reacquisition-after-disposition.md`; rule ID: `pull-request.disposition-known-findings-before-review-reacquisition`; severity: `mandatory`._
 
 
 ## Discover review results across applicable surfaces
@@ -544,7 +544,7 @@ If the execution environment cannot inspect a provider surface that is known to 
 
 Retain a bounded observation index of the inspected surfaces, retrieval completeness or errors, and evidence locators, tied to the applicable request or request-less cycle anchor and reviewed revision. Use it to refresh only changed or materially stale observations. An unchanged head does not establish that comments, threads, or review results are unchanged. Thread resolution or disappearance of an attention signal does not independently prove current-head acceptance. Reuse the existing Work ledger and review-finding authority for orchestration and disposition; do not create another acceptance ledger or an unbounded polling loop.
 
-_Source: `TakashiSasaki/templates@d8058c37aff854add435a04619366a38a16684bc:policy/pull-request/review-result-discovery.md`; rule ID: `pull-request.discover-review-results-across-applicable-surfaces`; severity: `mandatory`._
+_Source: `TakashiSasaki/templates@9c4bfd6d7da1a611212f551061b1aef67d6c36b7:policy/pull-request/review-result-discovery.md`; rule ID: `pull-request.discover-review-results-across-applicable-surfaces`; severity: `mandatory`._
 
 
 ## Require an independent exact-head review before merge
@@ -559,7 +559,7 @@ The relied-upon review evidence must identify the reviewed exact head through re
 
 If the required reviewer is unavailable or does not complete the review, report the pull request as blocked rather than waiving the requirement. Only an explicit repository policy may define an exception; an implementing agent must not invent or self-authorize one.
 
-_Source: `TakashiSasaki/templates@d8058c37aff854add435a04619366a38a16684bc:policy/pull-request/independent-exact-head-review.md`; rule ID: `pull-request.require-independent-exact-head-review`; severity: `mandatory`._
+_Source: `TakashiSasaki/templates@9c4bfd6d7da1a611212f551061b1aef67d6c36b7:policy/pull-request/independent-exact-head-review.md`; rule ID: `pull-request.require-independent-exact-head-review`; severity: `mandatory`._
 
 
 ## Bind review-result classification to the applicable cycle and revision
@@ -576,7 +576,7 @@ Review-cycle completion applicability and finding applicability are distinct. Ev
 
 When current evidence is insufficient to determine which request or request-less result defines the applicable cycle, what purpose the result served, or whether its revision binding applies to the current candidate, record the ambiguity and do not promote the review state to complete or problem-free. Historical evidence may still be retained for traceability and finding disposition without being accepted as current-cycle completion evidence.
 
-_Source: `TakashiSasaki/templates@d8058c37aff854add435a04619366a38a16684bc:policy/pull-request/review-result-applicability.md`; rule ID: `pull-request.bind-review-result-classification-to-applicable-cycle-and-revision`; severity: `mandatory`._
+_Source: `TakashiSasaki/templates@9c4bfd6d7da1a611212f551061b1aef67d6c36b7:policy/pull-request/review-result-applicability.md`; rule ID: `pull-request.bind-review-result-classification-to-applicable-cycle-and-revision`; severity: `mandatory`._
 
 
 ## Close review findings before merge
@@ -589,7 +589,7 @@ When an actionable finding exists only in a top-level review body or another non
 
 Do not treat an unresolved material finding as complete merely by changing provider UI state. Do not merge while any material actionable finding lacks validated remediation or an explicit validated disposition, unless an explicit repository policy defines a documented exception. After that semantic closure is established, mark the corresponding provider thread resolved when such a thread exists and provider mechanics permit it.
 
-_Source: `TakashiSasaki/templates@d8058c37aff854add435a04619366a38a16684bc:policy/pull-request/review-thread-closure.md`; rule ID: `pull-request.close-review-threads-before-merge`; severity: `mandatory`._
+_Source: `TakashiSasaki/templates@9c4bfd6d7da1a611212f551061b1aef67d6c36b7:policy/pull-request/review-thread-closure.md`; rule ID: `pull-request.close-review-threads-before-merge`; severity: `mandatory`._
 
 
 ## Structure CI as staged validation with an explicit preflight
@@ -610,7 +610,7 @@ When an authority-defined revision-bound boundary is reached—such as pull-requ
 
 For stacked descendants, apply `pull-request.defer-revision-bound-qualification-until-required` before intentionally launching or reacquiring expensive full qualification. Construction validation, repository-required automatic CI, and intentional final evidence acquisition are distinct: automatic execution neither freezes a provisional descendant nor proves final qualification. Advance qualification only when the applicable boundary and prerequisite/evidence bindings support it, including the canonical immediate-boundary, safety, usefulness, and critical-path cases. Do not serialize dependency-safe implementation behind ancestor CI or review, and do not repeatedly qualify a descendant while a known prerequisite mutation is expected to stale that evidence.
 
-_Source: `TakashiSasaki/templates@d8058c37aff854add435a04619366a38a16684bc:policy/pull-request/staged-ci-and-preflight.md`; rule ID: `pull-request.use-staged-ci-with-preflight`; severity: `mandatory`._
+_Source: `TakashiSasaki/templates@9c4bfd6d7da1a611212f551061b1aef67d6c36b7:policy/pull-request/staged-ci-and-preflight.md`; rule ID: `pull-request.use-staged-ci-with-preflight`; severity: `mandatory`._
 
 
 ## Require exact-head CI evidence before merge
@@ -640,7 +640,7 @@ If a newer applicable exact-head run supersedes an older cancelled or stale run,
 
 When a provider supports retries, bind observations to the run identity and attempt as well as the applicable revision. Inspect the actual job and step identities, statuses, and conclusions needed for the decision. A later step's position or an aggregate result does not establish another step's success; skipped, pending, and successful are distinct. Do not silently combine an older attempt's success with a newer attempt. Retained successful jobs may contribute only when the provider's retry contract and the evidence bindings establish their continued applicability. Diagnose the root failing job and step before selecting a repair or the smallest valid retry scope, including required dependent gates.
 
-_Source: `TakashiSasaki/templates@d8058c37aff854add435a04619366a38a16684bc:policy/pull-request/exact-head-ci-evidence.md`; rule ID: `pull-request.require-exact-head-ci-evidence`; severity: `mandatory`._
+_Source: `TakashiSasaki/templates@9c4bfd6d7da1a611212f551061b1aef67d6c36b7:policy/pull-request/exact-head-ci-evidence.md`; rule ID: `pull-request.require-exact-head-ci-evidence`; severity: `mandatory`._
 
 
 ## Fail closed while expected CI evidence is unresolved
@@ -653,7 +653,7 @@ Once applicable exact-head checks have been positively identified and acceptable
 
 Do not mutate the pull request or proposed head solely to manufacture new CI evidence while discovery remains unresolved. If uncertainty remains, keep merge authorization blocked rather than inferring success or non-applicability.
 
-_Source: `TakashiSasaki/templates@d8058c37aff854add435a04619366a38a16684bc:policy/pull-request/ci-discovery-fail-closed.md`; rule ID: `pull-request.fail-closed-on-unresolved-ci-discovery`; severity: `mandatory`._
+_Source: `TakashiSasaki/templates@9c4bfd6d7da1a611212f551061b1aef67d6c36b7:policy/pull-request/ci-discovery-fail-closed.md`; rule ID: `pull-request.fail-closed-on-unresolved-ci-discovery`; severity: `mandatory`._
 
 
 ## Reuse valid pull-request evidence until an applicable binding changes
@@ -703,7 +703,7 @@ If the continued validity of relied-upon evidence cannot be established, fail cl
 
 For local stage reuse, the same commit SHA alone is insufficient. Bind evidence to the effective source inputs, including relevant dirty, untracked, or ignored inputs actually consumed; validator/build definitions; dependency locks; runtime; provider revisions; artifact integrity; and result format and stage meaning. Re-establish these bindings through use, including after waiting for a lock or another process. Isolate stage-generated mutation from a reusable source snapshot so an earlier stage cannot silently change a later stage's inputs. Incomplete, interrupted, stale, or mismatched stage evidence must not become a reuse hit. Local reuse remains local evidence and cannot authorize skipping remote qualification. Keep disposable runtime caches off implementation and qualification branches; the existing Work-ledger storage rules continue to govern operational checkpoints separately.
 
-_Source: `TakashiSasaki/templates@d8058c37aff854add435a04619366a38a16684bc:policy/pull-request/reuse-valid-evidence.md`; rule ID: `pull-request.reuse-valid-exact-head-evidence`; severity: `mandatory`._
+_Source: `TakashiSasaki/templates@9c4bfd6d7da1a611212f551061b1aef67d6c36b7:policy/pull-request/reuse-valid-evidence.md`; rule ID: `pull-request.reuse-valid-exact-head-evidence`; severity: `mandatory`._
 
 
 ## Require current mergeability before merge
@@ -712,7 +712,7 @@ Immediately before merge authorization, verify from current repository state tha
 
 If mergeability is unknown, false, or changes before the merge operation completes, keep or return merge authorization to a blocked state and refresh the relevant current evidence before attempting merge again.
 
-_Source: `TakashiSasaki/templates@d8058c37aff854add435a04619366a38a16684bc:policy/pull-request/current-mergeability.md`; rule ID: `pull-request.require-current-mergeability`; severity: `mandatory`._
+_Source: `TakashiSasaki/templates@9c4bfd6d7da1a611212f551061b1aef67d6c36b7:policy/pull-request/current-mergeability.md`; rule ID: `pull-request.require-current-mergeability`; severity: `mandatory`._
 
 
 ## Refresh mutable live state and validate evidence bindings before merge
@@ -723,7 +723,7 @@ Do not unconditionally reacquire exact-head validation, completed review, or sco
 
 If a required current value is missing, stale, materially different, or cannot be reconciled to the accepted evidence, leave merge authorization blocked and reacquire the affected evidence.
 
-_Source: `TakashiSasaki/templates@d8058c37aff854add435a04619366a38a16684bc:policy/pull-request/final-live-state-refresh.md`; rule ID: `pull-request.refresh-live-state-before-merge`; severity: `mandatory`._
+_Source: `TakashiSasaki/templates@9c4bfd6d7da1a611212f551061b1aef67d6c36b7:policy/pull-request/final-live-state-refresh.md`; rule ID: `pull-request.refresh-live-state-before-merge`; severity: `mandatory`._
 
 
 ## Guard merge against proposed-head movement
@@ -734,7 +734,7 @@ If the merge surface cannot enforce an immutable proposed-head precondition, tre
 
 If the merge operation reports that the proposed head or repository state changed, do not retry blindly. Refresh current state and re-run the affected acceptance gates for the resulting proposed head before attempting merge again.
 
-_Source: `TakashiSasaki/templates@d8058c37aff854add435a04619366a38a16684bc:policy/pull-request/immutable-head-guard.md`; rule ID: `pull-request.guard-merge-against-head-movement`; severity: `mandatory`._
+_Source: `TakashiSasaki/templates@9c4bfd6d7da1a611212f551061b1aef67d6c36b7:policy/pull-request/immutable-head-guard.md`; rule ID: `pull-request.guard-merge-against-head-movement`; severity: `mandatory`._
 
 
 ## Verify the merge result after execution
@@ -745,7 +745,7 @@ Do not report merge completion solely because the merge operation returned witho
 
 Treat any release, publication, deployment, or other post-merge readiness requirement as a separate acceptance boundary; successful merge verification does not by itself establish those later states.
 
-_Source: `TakashiSasaki/templates@d8058c37aff854add435a04619366a38a16684bc:policy/pull-request/post-merge-verification.md`; rule ID: `pull-request.verify-merge-result`; severity: `mandatory`._
+_Source: `TakashiSasaki/templates@9c4bfd6d7da1a611212f551061b1aef67d6c36b7:policy/pull-request/post-merge-verification.md`; rule ID: `pull-request.verify-merge-result`; severity: `mandatory`._
 
 
 ## Preserve the policy-toolkit authority boundary
