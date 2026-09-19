@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 import unittest
+import yaml
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -8,14 +9,13 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class ProgressiveDiscoverySourceTests(unittest.TestCase):
     def test_site_explicitly_selects_the_immutable_policy_skill(self):
-        policy = (ROOT / '.agent-policy.yml').read_text()
-        self.assertIn('revision: 837b305fb9962dc971ab50aa5dbf40af234cbfed', policy)
-        self.assertIn('    - progressive-discovery', policy)
-        self.assertIn('  - maintain-progressive-discovery', policy)
-
-        lock = (ROOT / '.agent-policy.lock').read_text()
-        self.assertIn('revision: 837b305fb9962dc971ab50aa5dbf40af234cbfed', lock)
-        self.assertIn('.agents/skills/maintain-progressive-discovery/SKILL.md:', lock)
+        policy = yaml.safe_load((ROOT / '.agent-policy.yml').read_text())
+        self.assertRegex(policy['toolchain']['revision'], r'^[0-9a-f]{40}$')
+        self.assertIn('progressive-discovery', policy['contexts']['default']['profiles'])
+        self.assertIn('maintain-progressive-discovery', policy['skills']['enabled'])
+        lock = yaml.safe_load((ROOT / '.agent-policy.lock').read_text())
+        self.assertEqual(policy['toolchain'], lock['toolchain'])
+        self.assertIn('.agents/skills/maintain-progressive-discovery/SKILL.md', lock['outputs'])
 
     def test_adapter_declares_site_owned_source_and_bundle_projection(self):
         adapter = json.loads((ROOT / '.progressive-discovery.json').read_text())
