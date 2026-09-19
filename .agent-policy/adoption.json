@@ -31,12 +31,12 @@
     {
       "generated": true,
       "path": ".agents/skills/maintain-progressive-discovery/SKILL.md",
-      "sha256": "452e0be6d15acd485dbe5eeae7245bb77bc4b04a9327e2c480272d9e00ecbbaf"
+      "sha256": "2a9d454496dfef285904cfb79106ea0629c5ce0d5c12352759079088ca451cbf"
     },
     {
       "generated": true,
       "path": ".agents/skills/maintain-progressive-discovery/scripts/maintain_progressive_discovery.py",
-      "sha256": "7921b6ea9f7d050ae6ffc003f0362e396d54151c7fca7293770b65057f6f5cce"
+      "sha256": "6c7ff906f036cdd6bbfe3b4058703c0ac2f2836e93bacbebf7fbc68671563454"
     },
     {
       "generated": false,
@@ -66,14 +66,14 @@
     {
       "generated": true,
       "path": "AGENTS.md",
-      "sha256": "2d8ef0bfa56e0c7cd54bf456d7af08aac3e041b9cf01a216219d57ce51d8ceba"
+      "sha256": "e94045b334dbaa76e08c2f4e3b5dce6026483372e1913eeb95aeba2daea49b03"
     }
   ],
   "state_path": ".agent-policy/adoption.json",
   "status": "finalized",
   "toolchain": {
     "repository": "TakashiSasaki/templates",
-    "revision": "de05dc1e54247af1fc5331011d6c1d229a13c0db"
+    "revision": "119de9dff98c7a46ca410c4ce5fef4b24ddeb593"
   },
   "verification_command": null
 }

@@ -198,7 +198,7 @@ The consumer relationships below are independent of the selected publication Bun
 | --- | --- | --- |
 | Composition consumer | `a739b3823660e3db742ff0e1e159d279126cba7c` | Governs the Site Website contracts and material ownership |
 | Policy maintenance procedure | `9c2c538d5ee0b866379db40e5c24b29d60e155ba` | Landing Skill, rule, and review-scope planner |
-| Policy generation toolchain | `de05dc1e54247af1fc5331011d6c1d229a13c0db` | Generates AGENTS.md, reviewer instructions, Policy lock, and the canonical progressive-discovery Skill projection |
+| Policy generation toolchain | `119de9dff98c7a46ca410c4ce5fef4b24ddeb593` | Generates AGENTS.md, reviewer instructions, Policy lock, and the canonical progressive-discovery Skill projection |
 | Publication input | `integration-source.json` | Exact reviewed Integration release and Bundle; provider identities are supplied by that Bundle |
 
 ```mermaid
