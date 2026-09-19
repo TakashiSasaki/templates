@@ -1,13 +1,14 @@
 schema_version: 2
 toolchain:
   repository: TakashiSasaki/templates
-  revision: 671014164461a709e193d83e87d375ac12a34d56
+  revision: 2b910f849537bd799bf8b8f6eaf76c837ab5d773
 contexts:
   default:
     profiles:
     - core
     - security-baseline
     - pull-request
+    - progressive-discovery
     project_policy:
       files:
       - policy/project.md
@@ -31,4 +32,5 @@ outputs:
     context: review
     renderer: policy-context-md
 skills:
-  enabled: []
+  enabled:
+  - maintain-progressive-discovery

@@ -3,12 +3,22 @@ import copy
 from jsonschema import Draft202012Validator, ValidationError
 from pathlib import Path
 import unittest
+import yaml
 
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 class ProgressiveDiscoverySourceTests(unittest.TestCase):
+    def test_site_explicitly_selects_the_immutable_policy_skill(self):
+        policy = yaml.safe_load((ROOT / '.agent-policy.yml').read_text())
+        self.assertRegex(policy['toolchain']['revision'], r'^[0-9a-f]{40}$')
+        self.assertIn('progressive-discovery', policy['contexts']['default']['profiles'])
+        self.assertIn('maintain-progressive-discovery', policy['skills']['enabled'])
+        lock = yaml.safe_load((ROOT / '.agent-policy.lock').read_text())
+        self.assertEqual(policy['toolchain'], lock['toolchain'])
+        self.assertIn('.agents/skills/maintain-progressive-discovery/SKILL.md', lock['outputs'])
+
     def test_adapter_declares_site_owned_source_and_bundle_projection(self):
         adapter = json.loads((ROOT / '.progressive-discovery.json').read_text())
         self.assertEqual(adapter['root_index'], 'index.md')
@@ -18,6 +28,23 @@ class ProgressiveDiscoverySourceTests(unittest.TestCase):
             adapter['surface_boundaries']['integration-read-model']['consumer'],
             'generated site/index.md',
         )
+
+    def test_mixed_discovery_contracts_remain_expected_source_documents(self):
+        import subprocess
+        import sys
+
+        script = ROOT / '.agents/skills/maintain-progressive-discovery/scripts/maintain_progressive_discovery.py'
+        result = subprocess.run(
+            [sys.executable, str(script), '--root', str(ROOT), '--format', 'json'],
+            capture_output=True, text=True, check=True,
+        )
+        report = json.loads(result.stdout)
+        for path in ('reference-consumer.json', 'contracts/site-discovery.json',
+                     'docs/publication-catalog.json', 'composition.json',
+                     'integration-source.json', 'policy/project.md'):
+            self.assertIn(path, report['expected_documents'])
+            self.assertIn(path, report['validation']['reachable'])
+        self.assertEqual(report['result'], 'NO_UPDATE_REQUIRED')
 
     def test_source_uses_public_routes_or_document_identity_not_source_paths(self):
         source = json.loads((ROOT / 'progressive-discovery.json').read_text())
