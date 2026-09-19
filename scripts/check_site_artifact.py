@@ -10,6 +10,8 @@ from pathlib import Path
 import sys
 from urllib.parse import unquote, urlsplit
 
+import markdown
+
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -21,6 +23,7 @@ from site_renderer.guided import (
     project_immutable_source_links,
 )
 from site_renderer.progressive_discovery import project, validate_generated
+from scripts.validate_site_links import local_asset_path
 
 
 REPOSITORY = "TakashiSasaki/templates"
@@ -195,6 +198,13 @@ def check(site_root: Path, bundle: Path | None = None, lock: dict | None = None)
         raise SiteArtifactError(
             f"static progressive discovery entry point is invalid: {exc}"
         ) from exc
+    discovery = LinkParser()
+    discovery.feed(markdown.markdown((site_root / "index.md").read_text(encoding="utf-8")))
+    for href in discovery.hrefs:
+        parsed = urlsplit(href)
+        target = local_asset_path(site_root.resolve(), "/", unquote(parsed.path))
+        if parsed.scheme or parsed.netloc or parsed.query or parsed.fragment or target is None:
+            raise SiteArtifactError(f"progressive discovery has a missing or invalid route: {href}")
     hrefs: list[str] = []
     anchors: list[tuple[str, str]] = []
     rendered_text: list[str] = []
