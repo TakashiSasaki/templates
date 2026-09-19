@@ -244,7 +244,24 @@ def test_authoritative_inventories_are_declared_navigation_targets() -> None:
     adapter = json.loads((ROOT / '.progressive-discovery.json').read_text())
     assert set(adapter['authoritative_inventories']).issubset(adapter['expected_documents'])
     source_index = (ROOT / 'index.md').read_text()
+    assert '(.agent-policy.yml)' in source_index
     assert '(docs/publication-catalog.json)' in source_index
+    assert '(repository-policy/index.md)' in source_index
+
+
+def test_self_host_manifest_routes_repository_policy_inputs() -> None:
+    import json
+    adapter = json.loads((ROOT / '.progressive-discovery.json').read_text())
+    assert '.agent-policy.yml' in adapter['authoritative_inventories']
+    assert '.agent-policy.yml' in adapter['expected_documents']
+    policy_index = (ROOT / 'repository-policy/index.md').read_text()
+    configured = set(load_yaml(CONFIG_PATH)['contexts']['coding']['project_policy']['files'])
+    linked = {
+        'repository-policy/' + line.split('(', 1)[1].split(')', 1)[0]
+        for line in policy_index.splitlines()
+        if '](' in line
+    }
+    assert configured <= linked
 
 
 def _require_clean_repository_discovery(root: Path) -> None:

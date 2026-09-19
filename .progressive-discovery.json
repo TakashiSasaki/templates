@@ -2,6 +2,7 @@
   "schema_version": 1,
   "root_index": "index.md",
   "authoritative_inventories": [
+    ".agent-policy.yml",
     "docs/publication-catalog.json",
     "profiles/core.yml",
     "profiles/external-artifact-intake.yml",
@@ -11,6 +12,7 @@
     "profiles/security-baseline.yml"
   ],
   "expected_documents": [
+    ".agent-policy.yml",
     "AGENTS.md",
     "CONTRIBUTING.md",
     "README.md",
