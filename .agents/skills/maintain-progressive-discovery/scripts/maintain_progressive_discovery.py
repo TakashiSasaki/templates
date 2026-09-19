@@ -275,7 +275,9 @@ def _load_adapter(root: Path, relative: str) -> tuple[dict[str, Any], list[str]]
                     planned = relative in generated or any(
                         target.startswith(relative + "/") for target in generated
                     )
-                    if not path.exists() and not planned:
+                    if relative in generated and entry.endswith("/"):
+                        errors.append(f"adapter: generated file is declared as a directory: {entry}")
+                    elif not path.exists() and not planned:
                         errors.append(f"adapter: missing local surface path: {relative}")
                     elif path.exists() and (not path.is_file() and not path.is_dir()
                                             or entry.endswith("/") and not path.is_dir()):
@@ -313,6 +315,8 @@ def _load_adapter(root: Path, relative: str) -> tuple[dict[str, Any], list[str]]
     active_indexes = set(generated) | ({root_index} if isinstance(root_index, str) else set())
     no_indexes = _configured_paths(value, "intentional_no_indexes")
     for target in active_indexes:
+        if any(other.startswith(target + "/") for other in active_indexes):
+            errors.append(f"adapter: active index file cannot contain another index: {target}")
         # These directories are excluded by the canonical discovery walk.
         if (_ignored(root / target, root)
                 or any(part.startswith(".") for part in Path(target).parent.parts)
