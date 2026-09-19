@@ -63,6 +63,36 @@ class PagesDeploymentPreconditionTests(unittest.TestCase):
             read_kill_switch(api)
         self.assertEqual(context.exception.status, 403)
 
+    def test_manual_context_confirms_false_when_token_cannot_read_variables(self) -> None:
+        api = _api([_http_error(403)])
+        self.assertEqual(
+            read_kill_switch(api, expected_manual_value="false"),
+            "false",
+        )
+
+    def test_manual_context_does_not_mask_confirmation_permission_failure(self) -> None:
+        api = _api([_http_error(404), _http_error(403)])
+        with self.assertRaises(GitHubAPIError) as context:
+            read_kill_switch(api, expected_manual_value="false")
+        self.assertEqual(context.exception.status, 403)
+        self.assertEqual(context.exception.path, "repos/TakashiSasaki/templates")
+
+    def test_manual_context_true_still_stops_when_token_cannot_read_variables(self) -> None:
+        api = _api([_http_error(403)])
+        with self.assertRaisesRegex(RuntimeError, "kill switch is enabled"):
+            read_kill_switch(api, expected_manual_value="true")
+
+    def test_malformed_manual_context_stops_before_variable_read(self) -> None:
+        api = _api([])
+        with self.assertRaisesRegex(RuntimeError, "manual kill-switch context is invalid"):
+            read_kill_switch(api, expected_manual_value="maybe")
+
+    def test_automatic_lane_never_uses_manual_context_fallback(self) -> None:
+        api = _api([_http_error(403)])
+        with self.assertRaises(GitHubAPIError) as context:
+            read_kill_switch(api, expected_manual_value="false", automatic=True)
+        self.assertEqual(context.exception.status, 403)
+
     def test_authentication_failure_stops(self) -> None:
         with self.assertRaises(GitHubAPIError) as context:
             read_kill_switch(_api([_http_error(401)]))
