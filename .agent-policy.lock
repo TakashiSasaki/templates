@@ -1,10 +1,10 @@
 lock_version: 1
 toolchain:
   repository: TakashiSasaki/templates
-  revision: 9c4bfd6d7da1a611212f551061b1aef67d6c36b7
+  revision: a53966ab02142795654fbda41d2c470c70db3422
 inputs:
   .agent-policy.yml:
-    sha256: 0d83f1f84e83a897e3f958c1aa153e27b98d3a48621a2c2d2ec83cab1e4bf406
+    sha256: 6627aa6d1d804485a455ac7cad602e2a33a887342012e62c77e1bf95db0301d6
   repository-policy/architecture-decisions.md:
     sha256: 6377845c99329c58f0d26134dfa3cf91236d3d8ade4c317920bfdc13f77a0ff1
   repository-policy/authority-boundary.md:
@@ -23,9 +23,9 @@ inputs:
     sha256: eb45d47fafa2e406dabb2536a818e206acede23f229eda19e8fdaa37d8445542
 outputs:
   .agents/skills/maintain-progressive-discovery/SKILL.md:
-    sha256: 61ddd87fc487be4f76c29432f69c81084652855bb52bee8eaafc591ba06cff69
+    sha256: 0d775666738392d6ac2b23d7e26ddd6ead19f0d4b97845edc8e5dacc6d622acd
   .agents/skills/maintain-progressive-discovery/scripts/maintain_progressive_discovery.py:
-    sha256: c7a1230526f6181e4f430865a5cdf5862adcb8e0c5c8136ba2e236a3ac714a33
+    sha256: c9fb240bd62801b9d0d552f93fb469986fee808c49d9186089bad7a76c3bd8c2
   .agents/skills/orchestrate-repository-change/SKILL.md:
     sha256: e1e3811b5962bc98159bb8d6221bac621d21141b54ba64709cf7a7608ff59d82
   .agents/skills/orchestrate-repository-change/references/generated-artifact-transport.md:
@@ -81,6 +81,6 @@ outputs:
   .agents/skills/pr-review/references/risk-domains/state-mutation-and-recovery.md:
     sha256: 0cd5b71178b43da5128f4d2e1bfab8f3df5d71439531a9010f351c4ed1468f44
   .review-authority/review-policy.md:
-    sha256: d1e37e99131cc7b958a9a63a067d33b70bd13e2c43477b3d248e7eeb3652a24c
+    sha256: 7dcca5b76488625de33dc88ec42a73bf5f7e4b6f23c5cd6d622aba58bfe9fcdf
   AGENTS.md:
-    sha256: e99b900af2463ed4fc806376f05b7952ef7dbd28c89e131c1b18279370f2e7f6
+    sha256: d2b37fd66dba2019fc4a830e5cc99364e3fa0758bb5f9ed5d974dbf6dac4d692
