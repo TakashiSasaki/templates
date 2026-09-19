@@ -7,7 +7,9 @@
     "integration/site-slots.json",
     "docs/publication-catalog.json",
     "contracts/publication-compatibility/provider-registry.json",
-    "contracts/publication-compatibility/feature-registry.json"
+    "contracts/publication-compatibility/feature-registry.json",
+    "reader-navigation-locales.json",
+    "docs/glossary.yml"
   ],
   "authored_boundaries": [
     "docs",
@@ -30,5 +32,14 @@
       "source": "provider root index.md",
       "consumer": "guided-navigation.json"
     }
-  }
+  },
+  "expected_documents": [
+    "publication-sources.json",
+    "site-manifest.json",
+    "reader-navigation-locales.json",
+    "publication-staging.json",
+    "integration/site-slots.json",
+    "docs/publication-catalog.json",
+    "docs/glossary.yml"
+  ]
 }

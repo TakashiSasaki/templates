@@ -29,3 +29,12 @@ class ProgressiveDiscoveryBoundaryTests(unittest.TestCase):
             self.assertTrue(text.startswith('# '))
             self.assertNotIn('git SHA', text)
             self.assertNotIn('provenance', text.lower())
+
+    def test_hashed_producer_configuration_is_in_the_discovery_contract(self):
+        from integration.producer import CONFIGURATION_FILES
+        adapter = json.loads((ROOT / '.progressive-discovery.json').read_text())
+        self.assertTrue(set(CONFIGURATION_FILES).issubset(adapter['authoritative_inventories']))
+        self.assertTrue(set(CONFIGURATION_FILES).issubset(adapter.get('expected_documents', [])))
+        root = (ROOT / 'index.md').read_text()
+        for source in ('reader-navigation-locales.json', 'integration/site-slots.json'):
+            self.assertIn(f']({source})', root)
