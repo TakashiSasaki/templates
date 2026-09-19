@@ -219,6 +219,14 @@ def _load_adapter(root: Path, relative: str) -> tuple[dict[str, Any], list[str]]
                 not isinstance(item, str) or not item.strip() for item in paths
             ):
                 errors.append(f"adapter: {key} must declare nonempty path strings")
+    for key in ("authored_boundaries", "explicit_exclusions", "closed_inventories",
+                "curated_shortcuts", "intentional_no_indexes"):
+        declarations = value.get(key, [])
+        if isinstance(declarations, (list, dict)):
+            for path in declarations:
+                if (not isinstance(path, str)
+                        or _repository_path_error(root, path.removesuffix("/"))):
+                    errors.append(f"adapter: {key} requires canonical repository paths: {path}")
     if "generated_indexes" in value:
         specs = value["generated_indexes"]
         valid = isinstance(specs, dict) and all(
@@ -289,7 +297,7 @@ def _load_adapter(root: Path, relative: str) -> tuple[dict[str, Any], list[str]]
                 if (_repository_path_error(root, document)
                         or not isinstance(reason, str) or not reason.strip()):
                     errors.append(f"adapter: invalid scoped exclusion for {index}: {document}")
-    return value, errors
+    return ({} if errors else value), errors
 
 
 def _yaml_policy(root: Path, relative: str) -> tuple[Any, list[str]]:
@@ -537,7 +545,7 @@ def _read_index_links(root: Path, relative: str) -> tuple[list[dict[str, str]], 
     path = root / relative
     try:
         text = path.read_text(encoding="utf-8")
-    except OSError as exc:
+    except (OSError, UnicodeError) as exc:
         return [], [f"{relative}: {exc}"]
     links: list[dict[str, str]] = []
     issues: list[str] = []
@@ -579,20 +587,23 @@ def _headings(path: Path) -> set[str]:
             )
             if match
         }
-    except OSError:
+    except (OSError, UnicodeError):
         return set()
 
 
 def _anchors(path: Path) -> set[str]:
     try:
         text = path.read_text(encoding="utf-8")
-    except OSError:
+    except (OSError, UnicodeError):
         return set()
     return {unquote(value) for value in re.findall(r"\b(?:id|name)=[\"']([^\"']+)[\"']", text)}
 
 
 def _resolve_link(root: Path, source: str, target: str) -> tuple[str | None, str | None]:
-    parsed = urlsplit(target)
+    try:
+        parsed = urlsplit(target)
+    except ValueError as exc:
+        return None, f"{source}: malformed link {target}: {exc}"
     if parsed.scheme in {"http", "https", "mailto"} or parsed.netloc:
         return None, None
     if parsed.scheme or target.startswith("/"):
@@ -811,31 +822,29 @@ def _plan(
         expected_for_index = [item for item in expected_for_index if item != relative]
         rendered = _render_generated(root, relative, spec, expected_for_index)
         path = root / relative
-        if not path.exists():
-            state = _target_state(root, relative)
+        state = _target_state(root, relative)
+        if state["kind"] == "missing":
             if state.get("tracked") is False and state.get("dirty") is False:
                 action = "create"
                 reason = "declared generated index is missing"
             else:
                 action = "authority-needed"
                 reason = "missing target is tracked, dirty, or Git state is unknown"
-        elif not path.is_file():
+        elif state["kind"] != "file" or state.get("read_error"):
             action = "authority-needed"
-            reason = "declared generated target is not a regular file"
-        elif not _has_generated_marker(path.read_text(encoding="utf-8")):
+            reason = "declared generated target is not a readable regular file"
+        elif not state.get("generated_marker") or not state.get("utf8"):
             action = "authority-needed"
-            reason = "refusing to overwrite an authored file at a generated target"
+            reason = "refusing authored or non-UTF-8 content at a generated target"
+        elif state.get("bytes_sha256") == hashlib.sha256(rendered.encode("utf-8")).hexdigest():
+            action = "none"
+            reason = "generated output is fresh; no mutation is needed"
+        elif not state.get("tracked") or state.get("dirty") is not False:
+            action = "authority-needed"
+            reason = "generated target is locally modified or ownership is unknown"
         else:
-            state = _target_state(root, relative)
-            if path.read_text(encoding="utf-8") == rendered:
-                action = "none"
-                reason = "generated output is fresh; no mutation is needed"
-            elif not state.get("tracked") or state.get("dirty") is not False:
-                action = "authority-needed"
-                reason = "generated target is locally modified or ownership is unknown"
-            else:
-                action = "regenerate"
-                reason = "generated output differs from deterministic source projection"
+            action = "regenerate"
+            reason = "generated output differs from deterministic source projection"
         plan.append(
             {
                 "action": action,
@@ -843,7 +852,7 @@ def _plan(
                 "path": relative,
                 "reason": reason,
                 "content": rendered if action in {"create", "regenerate"} else None,
-                "snapshot": _target_state(root, relative),
+                "snapshot": state,
             }
         )
     remove = _configured_paths(adapter, "remove_generated_indexes")
@@ -857,7 +866,8 @@ def _plan(
             continue
         snapshot = _target_state(root, relative)
         if (snapshot.get("kind") == "file" and snapshot.get("generated_marker")
-                and snapshot.get("tracked") and snapshot.get("dirty") is False):
+                and snapshot.get("tracked") and snapshot.get("dirty") is False
+                and snapshot.get("utf8")):
             plan.append(
                 {
                     "action": "delete",
@@ -930,21 +940,27 @@ def _target_state(root: Path, relative: str) -> dict[str, Any]:
     if path.is_symlink():
         state["kind"] = "symlink"
     elif path.is_file():
-        data = path.read_bytes()
-        state.update(
-            kind="file",
-            bytes_sha256=hashlib.sha256(data).hexdigest(),
-            generated_marker=_has_generated_marker(data),
-        )
+        state["kind"] = "file"
+        try:
+            data = path.read_bytes()
+            state.update(bytes_sha256=hashlib.sha256(data).hexdigest(),
+                         generated_marker=_has_generated_marker(data), utf8=True)
+            try:
+                data.decode("utf-8")
+            except UnicodeError:
+                state["utf8"] = False
+        except OSError as exc:
+            state["read_error"] = str(exc)
     elif path.exists():
         state["kind"] = "other"
-    tracking_status = subprocess.run(
+    tracking_query = subprocess.run(
         ["git", "--literal-pathspecs", "-C", str(root),
-         "ls-files", "--error-unmatch", "--", relative],
-        stdout=subprocess.DEVNULL,
+         "ls-files", "-v", "-z", "--error-unmatch", "--", relative],
+        stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL,
         check=False,
-    ).returncode
+    )
+    tracking_status = tracking_query.returncode
     tracked = True if tracking_status == 0 else False if tracking_status == 1 else None
     status = subprocess.run(
         ["git", "--literal-pathspecs", "-C", str(root),
@@ -954,7 +970,11 @@ def _target_state(root: Path, relative: str) -> dict[str, Any]:
         check=False,
     )
     state["tracked"] = tracked
+    state["git_index_tag"] = (tracking_query.stdout[:1].decode("ascii", errors="replace")
+                              if tracked else None)
     state["dirty"] = bool(status.stdout.strip()) if status.returncode == 0 else None
+    if tracked and state["git_index_tag"] != "H":
+        state["dirty"] = None  # Git index flags can suppress worktree changes.
     return state
 
 
@@ -997,8 +1017,12 @@ def _validate(
         rendered = _render_generated(root, relative, spec, expected_for_index)
         if not path.is_file():
             errors.append(f"generated freshness: missing {relative}")
-        elif path.read_text(encoding="utf-8") != rendered:
-            errors.append(f"generated freshness: stale {relative}")
+        else:
+            try:
+                if path.read_bytes() != rendered.encode("utf-8"):
+                    errors.append(f"generated freshness: stale {relative}")
+            except OSError as exc:
+                errors.append(f"generated freshness: unreadable {relative}: {exc}")
     root_index = adapter.get("root_index", INDEX_NAME)
     if not isinstance(root_index, str):
         root_index = INDEX_NAME
@@ -1073,6 +1097,7 @@ def _apply(
                 and current.get("tracked")
                 and current.get("dirty") is False
                 and current.get("generated_marker")
+                and current.get("utf8")
             )
         if not safe:
             return (
@@ -1132,14 +1157,14 @@ def run(
                 adapter_errors.append(
                     f"adapter: scoped exclusion is not an expected document: {document}"
                 )
-    plan = _plan(root, adapter, indexes, expected, generated, policy)
-    requested_plan = plan
-    applied: list[str] = []
-    apply_errors: list[str] = []
     source_errors = adapter_errors + inventory_errors + [
         note for note in policy_notes
         if "PyYAML unavailable; used conservative list fallback" not in note
     ]
+    plan = [] if source_errors else _plan(root, adapter, indexes, expected, generated, policy)
+    requested_plan = plan
+    applied: list[str] = []
+    apply_errors: list[str] = []
     if apply:
         if source_errors:
             apply_errors = [f"authority-needed: {error}" for error in source_errors]
