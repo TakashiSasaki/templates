@@ -316,6 +316,8 @@ def validate(root, *, expected_identity=None, expected_producer=None,
         validate_navigation(root, navigation, documents)
         accepted_graph = load_graph(root / 'guided-navigation.json', provider_order=PROVIDER_ORDERS[schema_version])
         graph_schema_version = accepted_graph['schema_version']
+        if schema_version == SCHEMA_VERSION_V4 and graph_schema_version != GRAPH_SCHEMA_VERSION:
+            raise BundleError('Bundle v4 requires guided graph schema v2')
         graph_root_index = (
             LEGACY_ROOT_INDEX
             if graph_schema_version == LEGACY_GRAPH_SCHEMA_VERSION

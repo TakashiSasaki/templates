@@ -150,6 +150,28 @@ class BundleTests(unittest.TestCase):
         self.assertEqual(data['requirements_digest'], digest(canonical(REQUIREMENTS_V4)))
         self.assertEqual(validate(root)['identity'], data['identity'])
 
+    def test_v4_rejects_legacy_graph_but_historical_bundle_accepts_it(self):
+        for version in (3, 4):
+            with self.subTest(version=version):
+                root = (v4_fixture if version == 4 else fixture)(self.base / str(version))
+                graph = json.loads((root / 'guided-navigation.json').read_text())
+                graph['schema_version'] = 1
+                for provider in graph['providers']:
+                    provider['root_index'] = 'docs/index.md'
+                    provider['indexes'][0]['path'] = 'docs/index.md'
+                (root / 'guided-navigation.json').write_bytes(canonical(graph))
+                locales = json.loads((root / 'guided-locales.json').read_text())
+                locales['canonical_graph_schema_version'] = 1
+                (root / 'guided-locales.json').write_bytes(canonical(locales))
+                if version == 4:
+                    with self.assertRaisesRegex(BundleError, 'requires guided graph schema v2'):
+                        finish_v4(root)
+                    with self.assertRaisesRegex(BundleError, 'requires guided graph schema v2'):
+                        validate(root)
+                else:
+                    finish(root)
+                    self.assertEqual(validate(root)['schema_version'], 3)
+
     def test_v4_requirement_identity_or_provider_binding_fails_closed(self):
         for mutation in ('digest', 'provider'):
             with self.subTest(mutation=mutation):
