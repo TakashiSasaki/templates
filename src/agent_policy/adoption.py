@@ -114,6 +114,8 @@ def _has_inconsistent_known_source_artifact(repository_root: Path) -> bool:
         if not resolved.is_dir():
             continue
         for path in sorted(literal.rglob("*")):
+            if "__pycache__" in path.relative_to(repository_root).parts:
+                continue
             if not path.is_symlink():
                 continue
             if _has_absolute_symlink_component(repository_root, path):
@@ -153,6 +155,8 @@ def discover_sources(repository_root: Path) -> tuple[AdoptionSource, ...]:
             continue
         literal_directory = repository_root / lexical_directory
         for path in sorted(literal_directory.rglob("*")):
+            if "__pycache__" in path.relative_to(repository_root).parts:
+                continue
             if not path.is_file():
                 continue
             lexical_name = lexical_relative_name(
