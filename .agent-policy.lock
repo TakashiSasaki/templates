@@ -1,10 +1,10 @@
 lock_version: 1
 toolchain:
   repository: TakashiSasaki/templates
-  revision: e55c5c721bdcf4ccd46287f42a720662c53eb291
+  revision: f4b60ccbc71e2153f34c5dc5d15d5ce33ab6de3f
 inputs:
   .agent-policy.yml:
-    sha256: 2fd96de94e1f61e054f3b0b23ce22e1566c59d04a0441150f3f2fd7fc6494fef
+    sha256: 92830f26f7874587a77456c0d71884eb409d8b7c9c28f46f1857a18a91d8656f
   repository-policy/architecture-decisions.md:
     sha256: 6377845c99329c58f0d26134dfa3cf91236d3d8ade4c317920bfdc13f77a0ff1
   repository-policy/authority-boundary.md:
@@ -81,6 +81,6 @@ outputs:
   .agents/skills/pr-review/references/risk-domains/state-mutation-and-recovery.md:
     sha256: 0cd5b71178b43da5128f4d2e1bfab8f3df5d71439531a9010f351c4ed1468f44
   .review-authority/review-policy.md:
-    sha256: 74d6425c2a08dddd2749d5f195cac4d24a645be02a217c2ff021c3f086c7f77c
+    sha256: 70dfcc66d0912858109ce6ef1b723c98872b0f41b5b5f05bdcfd65fad73d5e79
   AGENTS.md:
-    sha256: 0d68be221daada050e67018e459df0b1fc5474a555bcfb57c12db74bb22a8b46
+    sha256: 919e49136fb87e7d5c49ffa4dd5265ee268d9c215ec294a0fbdbb60d4c59f472
