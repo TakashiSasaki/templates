@@ -1925,3 +1925,60 @@ def test_final_cleanup_marker_blocks_a_replacement_before_rmdir(tmp_path, monkey
         for path in tmp_path.iterdir()
         if path.is_dir()
     )
+
+
+def test_final_cleanup_detaches_before_rmdir_and_retains_a_late_replacement(
+    tmp_path, monkeypatch
+):
+    skill = _load_skill()
+    (tmp_path / 'README.md').write_text('# Repository\n')
+    _commit_generated_target(tmp_path)
+    content = skill.GENERATED_MARKER + '\n# Generated\n'
+    snapshot = skill._target_state(tmp_path, 'index.md')
+    tokens = iter(('holding', 'cleanup', 'final', 'retire'))
+    counter = iter(range(100))
+    monkeypatch.setattr(
+        skill.secrets,
+        'token_hex',
+        lambda _size: next(tokens, f'extra{next(counter)}'),
+    )
+    original_rmdir = skill.os.rmdir
+    swapped: list[str] = []
+    seen: list[str] = []
+
+    def swap_at_retirement_rmdir(path, *, dir_fd=None):
+        seen.append(path)
+        if (isinstance(path, str)
+                and path.startswith('.progressive-discovery-retire-')
+                and not swapped):
+            parent = Path(os.readlink(f'/proc/self/fd/{dir_fd}'))
+            replacement = parent / '.progressive-discovery-final-final'
+            replacement.mkdir()
+            (replacement / 'replacement-sentinel').write_text('replacement\n')
+            swapped.append(replacement.name)
+        return original_rmdir(path, dir_fd=dir_fd)
+
+    monkeypatch.setattr(skill.os, 'rmdir', swap_at_retirement_rmdir)
+    monkeypatch.setattr(
+        skill.os,
+        'supports_dir_fd',
+        skill.os.supports_dir_fd | {swap_at_retirement_rmdir},
+    )
+    applied, errors = skill._apply(
+        tmp_path,
+        [{'action': 'create', 'kind': 'generated', 'path': 'index.md',
+          'content': content, 'snapshot': snapshot}],
+        {'profile_selected': True, 'skill_selected': True},
+    )
+
+    assert swapped, seen
+    assert 'create index.md' in applied
+    assert errors
+    assert any(
+        (path / 'replacement-sentinel').is_file()
+        for path in tmp_path.rglob('*')
+        if path.is_dir()
+    )
+    assert not (tmp_path / 'index.md').is_symlink()
+    # The late replacement is retained; cleanup never passes the public final
+    # name to rmdir after its identity has been checked.

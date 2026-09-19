@@ -1338,8 +1338,11 @@ def _apply(
         """
         cleanup = ".progressive-discovery-cleanup-" + secrets.token_hex(16)
         final = ".progressive-discovery-final-" + secrets.token_hex(16)
+        retirement = ".progressive-discovery-retire-" + secrets.token_hex(16)
         moved = False
         detached = False
+        retired = False
+        marker_removed = False
         try:
             rename_exclusive(parent, name, parent, cleanup)
             moved = True
@@ -1385,19 +1388,71 @@ def _apply(
                 if ((current.st_dev, current.st_ino) != identity
                         or not stat.S_ISDIR(current.st_mode)):
                     raise OSError("temporary directory name changed before removal")
-                os.unlink(HOLDING_MARKER, dir_fd=fd)
-                current = os.stat(final, dir_fd=parent, follow_symlinks=False)
+                # Detach the verified inode one more time immediately before
+                # destructive cleanup.  A writer that replaces the public
+                # private name after the last pathname check is moved to the
+                # retirement name and fails the identity check below; it is
+                # never passed to rmdir.  The name given to rmdir is therefore
+                # an operation-owned, identity-bound name rather than the name
+                # a concurrent writer can replace at the check boundary.
+                rename_exclusive(parent, final, parent, retirement)
+                retired = True
+                current = os.fstat(fd)
                 if ((current.st_dev, current.st_ino) != identity
                         or not stat.S_ISDIR(current.st_mode)):
-                    raise OSError("temporary directory name changed before removal")
-                # The final name is created and consumed within this operation's
-                # private namespace.  No public holding pathname is removed here.
-                os.rmdir(final, dir_fd=parent)
+                    raise OSError("temporary directory identity changed before retirement")
+                marker_fd = os.open(
+                    HOLDING_MARKER,
+                    os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK,
+                    dir_fd=fd,
+                )
+                try:
+                    if read_fd(marker_fd) != HOLDING_MARKER_CONTENT:
+                        raise OSError("temporary directory ownership marker changed")
+                finally:
+                    os.close(marker_fd)
+                os.unlink(HOLDING_MARKER, dir_fd=fd)
+                marker_removed = True
+                # The retirement name is consumed within this operation's
+                # private namespace.  A replacement at the former final name
+                # remains visible and cannot be removed by this call.
+                os.rmdir(retirement, dir_fd=parent)
+                retired = False
+                try:
+                    replacement = os.stat(final, dir_fd=parent, follow_symlinks=False)
+                except FileNotFoundError:
+                    pass
+                else:
+                    raise OSError(
+                        "private final name was replaced during cleanup; state retained"
+                    )
             finally:
                 os.close(fd)
             detached = False
             moved = False
         except OSError as exc:
+            if retired:
+                try:
+                    # Restore the operation-owned directory under its final
+                    # name without clobbering a concurrent replacement.  If
+                    # marker removal already happened, the retained inode is
+                    # still reported as authority-needed rather than silently
+                    # treated as an owned holding directory.
+                    rename_exclusive(parent, retirement, parent, final)
+                    retired = False
+                except OSError as restore_error:
+                    retained_path = posixpath.join(
+                        posixpath.dirname(label), retirement
+                    )
+                    raise OSError(
+                        f"{exc}; state retained at {retained_path}; "
+                        f"no-clobber retirement restoration failed: {restore_error}"
+                    ) from exc
+                if marker_removed:
+                    raise OSError(
+                        f"{exc}; temporary directory cleanup failed after ownership marker removal; "
+                        "state restored for authority review"
+                    ) from exc
             if detached:
                 try:
                     rename_exclusive(parent, final, parent, cleanup)
