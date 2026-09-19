@@ -159,3 +159,9 @@ limits that child index's navigation scope, for example when a published reader
 index must omit a source-only inventory linked from the authority root. It does
 not remove documents from the global expected inventory or root reachability
 validation. Unknown expected paths and malformed declarations require authority.
+
+Repository-namespace inventory paths must be canonical before filtering for
+supported document types. Unsafe declarations fail closed; absolute HTTP(S)
+references remain external references. JSON and YAML mappings reject duplicate
+keys, including Policy selection YAML. Generated Markdown encodes link targets
+and escapes prose so valid filename punctuation cannot create broken navigation.
