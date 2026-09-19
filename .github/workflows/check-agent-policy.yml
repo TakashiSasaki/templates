@@ -20,7 +20,7 @@ jobs:
         with:
           ref: ${{ inputs.site_revision || github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
-      - uses: TakashiSasaki/templates@dac8d7a9b74f7426004430f7877b943cecd0c26c
+      - uses: TakashiSasaki/templates@772c6fdd33976b6b91e0cfba2a09a4e00847f431
         with:
           command: check
       - name: Verify review output freshness and regeneration
