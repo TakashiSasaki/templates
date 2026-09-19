@@ -535,3 +535,52 @@ def test_authored_scope_exclusion_preserves_global_inventory_coverage(tmp_path):
     report = _load_skill().run(root)
     assert not report['validation']['valid']
     assert report['result'] != 'NO_UPDATE_REQUIRED'
+
+
+def test_inventory_paths_fail_closed_instead_of_disappearing(tmp_path):
+    for number, path in enumerate(['../outside.md', '/outside.md', 'docs/a#b.md',
+                                  'docs/a?b.md', '.git/config', 'docs/%61.md']):
+        root = tmp_path / str(number)
+        shutil.copytree(_fixture('simple-docs'), root)
+        (root / 'docs/catalog.json').write_text(json.dumps({'documents': [{'path': path}]}))
+        report = _load_skill().run(root, apply=True)
+        assert report['result'] == 'AUTHORITY_NEEDED', (path, report)
+        assert not report['applied']
+        assert not report['validation']['valid']
+
+
+def test_duplicate_yaml_inventory_and_policy_keys_fail_closed(tmp_path):
+    for kind in ('inventory', 'policy'):
+        root = tmp_path / kind
+        shutil.copytree(_fixture('simple-docs'), root)
+        if kind == 'inventory':
+            (root / 'inventory.yml').write_text(
+                'documents:\n  - docs/hidden.md\ndocuments:\n  - docs/reference.md\n'
+            )
+            path = root / '.progressive-discovery.json'
+            data = json.loads(path.read_text())
+            data['authoritative_inventories'] = ['inventory.yml']
+            path.write_text(json.dumps(data))
+        else:
+            path = root / '.agent-policy.yml'
+            path.write_text(path.read_text() + '\nskills: {}\n')
+        report = _load_skill().run(root, apply=True)
+        assert report['result'] == 'AUTHORITY_NEEDED', (kind, report)
+        assert not report['applied']
+        assert any('duplicate YAML' in error for error in report['validation']['errors'])
+
+
+def test_generated_markdown_handles_significant_filename_characters(tmp_path):
+    root = tmp_path / 'repository'
+    shutil.copytree(_fixture('generated-docs'), root)
+    name = 'docs/a)b[c]*<x>.md'
+    (root / name).write_text('# Document\n')
+    path = root / '.progressive-discovery.json'
+    data = json.loads(path.read_text())
+    data.setdefault('expected_documents', []).append(name)
+    path.write_text(json.dumps(data))
+    skill = _load_skill()
+    report = skill.run(root, apply=True)
+    assert report['validation']['valid'], report
+    assert name in report['validation']['reachable']
+    assert skill.run(root)['result'] == 'NO_UPDATE_REQUIRED'
