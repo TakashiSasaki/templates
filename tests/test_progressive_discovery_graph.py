@@ -138,3 +138,8 @@ class ProgressiveDiscoveryGraphTests(unittest.TestCase):
                     'repository': 'TakashiSasaki/templates', 'providers': []}))
                 with self.subTest(version=version), self.assertRaises(IndexNavigationViewerError):
                     load_graph(path, provider_order=())
+
+    def test_declared_root_must_match_the_schema_selected_root(self):
+        for wrong_root in ('docs/index.md', 'other/index.md'):
+            with self.subTest(root=wrong_root), self.assertRaises(IndexNavigationViewerError):
+                validate_provider_graph(self._provider(wrong_root), provider_order=('composition',), root_index=ROOT_INDEX)

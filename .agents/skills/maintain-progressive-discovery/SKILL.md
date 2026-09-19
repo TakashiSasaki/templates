@@ -127,3 +127,21 @@ If a later target changes, the report retains earlier successful mutations in
 `applied` and reports `AUTHORITY_NEEDED`. These checks do not provide filesystem
 atomicity or exclude a concurrent writer between a check and its I/O. Coordinate
 exclusive access when that guarantee is required; apply is not a transaction.
+
+## Inventory source closure
+
+Declared inventories must exist and parse successfully. Their repository-source
+paths remain expected even when the files are missing. Publication `destination`,
+`destination_path`, and `url_path` fields describe output namespaces, not local
+source files. An adapter may explicitly assign a declared inventory's path
+namespace using `inventory_path_namespaces`: `repository` (the default),
+`external` (another authority), or `deployment` (public routes). External and
+deployment inventories are still required and parsed; their path values do not
+claim files in this checkout. Keep each such decision in the authority's local
+surface declarations, and list the local inventory/configuration file itself
+in `expected_documents` when it is a discoverable source.
+
+Malformed adapters, unreadable/missing inventories, missing declared documents,
+and orphan nested indexes cannot report a clean result. Generated and retired
+targets must be canonical repository-relative paths with no symlink component;
+validate that boundary during planning and again before mutation.

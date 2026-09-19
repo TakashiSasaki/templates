@@ -117,7 +117,6 @@ def validate_provider_graph(
 ) -> None:
     name = provider.get("name")
     revision = provider.get("revision")
-    root_index = provider.get("root_index")
     indexes = provider.get("indexes")
     edges = provider.get("edges")
     diagnostics = provider.get("diagnostics")

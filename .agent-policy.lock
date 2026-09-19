@@ -1,12 +1,12 @@
 lock_version: 1
 toolchain:
   repository: TakashiSasaki/templates
-  revision: 960d44725a62096b37c599689a09dcc5b780f4bd
+  revision: dac8d7a9b74f7426004430f7877b943cecd0c26c
 inputs:
   .agent-policy.yml:
-    sha256: 79a263ae8380a7137f92562726c1b997c204257e3626bc1327f4f25ed9278f75
+    sha256: 6cac0b0e842d4f5e3f9ed141a3cf84cea89b87d4780272b3b029b93eb2ed3989
 outputs:
   .agents/skills/maintain-progressive-discovery/SKILL.md:
-    sha256: 368eff2cd84afacf83b822c997358d90ca0404c3c6c401e3e2ee8bdddb6fc9f7
+    sha256: 4fe79da3b1c332869e5c899caed9d283817e7c742bf4bcfc3d4b6a34dbba9279
   .agents/skills/maintain-progressive-discovery/scripts/maintain_progressive_discovery.py:
-    sha256: 23d12046c9ef9ad383c12825c9dfa4677a84510d42d43bd5d71ef3cc8f0155b1
+    sha256: 1744bfe325bc89be6dfba98282572b8e4befa07298da95d19fbf21fe222345dc
