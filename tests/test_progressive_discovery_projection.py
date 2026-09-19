@@ -14,6 +14,10 @@ def source():
     return json.loads((ROOT / 'progressive-discovery.json').read_text())
 
 
+def catalog():
+    return json.loads((ROOT / "docs/publication-catalog.json").read_text())
+
+
 def graph():
     return {
         'schema_version': 2,
@@ -28,7 +32,8 @@ def graph():
 
 def documents():
     return [
-        {'publication': 'site', 'document': 'portal-home', 'destination': 'index.md'},
+        {'publication': 'site', 'document': 'portal-home', 'destination': 'index.md',
+         'source': 'docs/landing.md', 'slot': True},
         {
             'publication': 'site',
             'document': 'site-maintainer-onboarding',
@@ -49,8 +54,8 @@ def documents():
 
 class ProgressiveDiscoveryProjectionTests(unittest.TestCase):
     def test_projection_is_deterministic_and_uses_deployed_namespaces(self):
-        first = project(source(), graph(), documents())
-        second = project(source(), graph(), documents())
+        first = project(source(), graph(), documents(), site_catalog=catalog())
+        second = project(source(), graph(), documents(), site_catalog=catalog())
         self.assertEqual(first, second)
         self.assertIn(GENERATED_MARKER, first)
         self.assertIn('(/maintain/site/maintainer-onboarding/)', first)
@@ -64,10 +69,9 @@ class ProgressiveDiscoveryProjectionTests(unittest.TestCase):
             path.write_text(first, encoding='utf-8')
             validate_generated(path)
 
-    def test_missing_bundle_document_fails_closed(self):
-        incomplete = [documents()[0]]
-        with self.assertRaisesRegex(BundleError, 'absent from the selected Bundle'):
-            project(source(), graph(), incomplete)
+    def test_missing_site_catalog_fails_closed(self):
+        with self.assertRaisesRegex(BundleError, 'Site route/catalog'):
+            project(source(), graph(), documents())
 
     def test_source_path_cannot_be_used_as_a_public_entry(self):
         invalid = source()
@@ -78,3 +82,58 @@ class ProgressiveDiscoveryProjectionTests(unittest.TestCase):
         }
         with self.assertRaises(BundleError):
             project(invalid, graph(), documents())
+
+    def test_site_owned_document_does_not_require_a_bundle_slot(self):
+        from site_renderer.progressive_discovery import extend_site_documents
+        historical = [documents()[0]]
+        projected = project(source(), graph(), historical, site_catalog=catalog())
+        self.assertIn('(/maintain/site/maintainer-onboarding/)', projected)
+        extended = extend_site_documents(ROOT, historical)
+        self.assertTrue(any(d['source'] == 'docs/maintainer-onboarding.md' for d in extended))
+        self.assertEqual(historical, [documents()[0]])
+
+    def test_site_route_absence_or_malformed_route_is_rejected(self):
+        for value in (None, '../escape.md', '/absolute.md', 'bad.html'):
+            invalid = source()
+            if value is None:
+                invalid['site_routes'].pop('site-maintainer-onboarding')
+            else:
+                invalid['site_routes']['site-maintainer-onboarding'] = value
+            with self.subTest(value=value), self.assertRaises(BundleError):
+                project(invalid, graph(), [], site_catalog=catalog())
+
+    def test_provider_document_still_requires_selected_bundle_identity(self):
+        configured = source()
+        configured['sections'][0]['entries'].append({
+            'label': 'Provider', 'description': 'Provider-owned documentation.',
+            'document': {'publication': 'policy', 'document': 'guide'}})
+        provider = {'publication': 'policy', 'document': 'guide', 'destination': 'policy/guide.md'}
+        self.assertIn('(/policy/guide/)', project(configured, graph(), [provider], site_catalog=catalog()))
+        with self.assertRaisesRegex(BundleError, 'absent from the selected Bundle'):
+            project(configured, graph(), [], site_catalog=catalog())
+
+    def test_generated_freshness_detects_marker_preserving_edit(self):
+        expected = project(source(), graph(), [], site_catalog=catalog())
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / 'index.md'
+            path.write_text(expected.replace('Reader home', 'Stale home'))
+            with self.assertRaisesRegex(BundleError, 'stale'):
+                validate_generated(path, expected=expected)
+
+    def test_selected_historical_bundle_keeps_site_ownership(self):
+        from site_renderer.progressive_discovery import extend_site_documents
+        fixture = json.loads((ROOT / 'tests/fixtures/progressive-discovery/historical-site-slots.json').read_text())
+        self.assertEqual(fixture['bundle_identity'], '43d0fda160cf9d596fa9596b476e1dcc2a3322e9bf2284d0bfa253cc9a393edb')
+        original = fixture['documents']
+        effective = extend_site_documents(ROOT, original)
+        self.assertEqual(len(effective), len(original) + 1)
+        self.assertEqual(effective[-1]['document'], 'site-maintainer-onboarding')
+        self.assertIn('(/maintain/publication/integrated-publication/)',
+                      project(source(), graph(), original, site_catalog=catalog()))
+
+    def test_local_route_cannot_replace_provider_content(self):
+        from site_renderer.progressive_discovery import extend_site_documents
+        occupied = [{'publication': 'policy', 'document': 'foreign', 'slot': False,
+                     'source': 'README.md', 'destination': 'maintain/site/maintainer-onboarding.md'}]
+        with self.assertRaisesRegex(BundleError, 'collision'):
+            extend_site_documents(ROOT, occupied)

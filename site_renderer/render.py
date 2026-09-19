@@ -205,6 +205,8 @@ def render_snapshot(*,bundle,site_root,output,identity,site_revision,parent_iden
             if name.startswith('publication/'):
                 put(regular(bundle,name),docs/name.removeprefix('publication/'))
         documents=read_json(bundle/'documents.json');nav=read_json(bundle/'navigation.json')
+        from site_renderer.progressive_discovery import extend_site_documents
+        documents=extend_site_documents(site_root,documents)
         translations=fill(site_root,docs,documents,nav,read_json(bundle/'translation-publication.json'),read_json(bundle/'translation-availability.json'),build,site_revision=site_revision)
         source_revisions={'site':site_revision,'integration':identity['producer']['revision'],**identity['providers']}
         for path in sorted(docs.rglob('*.md')):
