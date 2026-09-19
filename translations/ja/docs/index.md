@@ -8,6 +8,7 @@
 - [Website product walkthrough](guides/website-product-walkthrough.md) — 初めて content/document-oriented Website を作る場合の canonical first-use path です。別 repository の Project Docs を `website` 選択、`inspect -> plan -> apply -> validate`、Website contracts、planning/product evidence、implementation、browser proof まで進めます。
 - [Webapp product walkthrough](guides/webapp-product-walkthrough.md) — 初めて Web application を作る場合はここから始めます。別 product repository から Task Ledger を zero-to-one で進め、installation、`composition.json`、`inspect -> plan -> apply -> validate`、ownership、implementation、product tests、evidence、optional Policy、後続 update/upgrade までを追体験します。
 - [初見者向け Composition concepts](guides/composition-concepts.md) — recipe、artifact、component、contract、material、lock など、この repository 固有の意味を持つ語の mental model を補助的に説明します。
+- [Agent Skill first-use walkthrough](guides/skill-first-use-walkthrough.md) — 別 repository で再利用可能な Skill を作るための最小の Composition path です。
 - [Composition の評価](evaluation-guide.md) — canonical な independent clean-room evaluator entry point です。
 - [Composition の利用方法](consumer-guide.md) — consumer repository の作成、inspect、update、upgrade、recovery、ownership、conflict を扱うタスク指向 workflow です。
 - [Recipe と component の選び方](../catalog/README.md) — `skill`、`website`、`webapp` を選び、product が実際に必要とする capability または lifecycle behavior だけを選択します。
