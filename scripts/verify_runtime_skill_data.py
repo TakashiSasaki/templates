@@ -29,7 +29,7 @@ def generated_skill_inventory(root: Path) -> dict[str, tuple[str, ...]]:
             sorted(
                 path.relative_to(skill_root).as_posix()
                 for path in skill_root.rglob("*")
-                if path.is_file()
+                if path.is_file() and "__pycache__" not in path.relative_to(skill_root).parts
             )
         )
         if not files:

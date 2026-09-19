@@ -134,7 +134,7 @@ def render_skill(
     }
     result: dict[str, str] = {}
     for path in sorted(skill_root.rglob("*")):
-        if path.is_file():
+        if path.is_file() and "__pycache__" not in path.relative_to(skill_root).parts:
             relative = _portable_skill_relative_path(path, skill_root)
             content = path.read_text(encoding="utf-8")
             for token, value in replacements.items():
