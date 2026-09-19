@@ -41,7 +41,7 @@ class ProgressiveDiscoveryBoundaryTests(unittest.TestCase):
             self.assertNotIn("git_sha", text)
             self.assertNotIn("timestamp", text)
 
-    def test_policy_adapter_excludes_non-document_assets_from_expected_coverage(self) -> None:
+    def test_policy_adapter_excludes_non_document_assets_from_expected_coverage(self) -> None:
         adapter = json.loads((ROOT / ".progressive-discovery.json").read_text(encoding="utf-8"))
         self.assertIn("skills/pr-review/references", adapter["explicit_exclusions"])
 
