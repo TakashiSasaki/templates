@@ -19,6 +19,7 @@
 * [Policy completion roadmap](../policy-readiness.md) - Records completion criteria for the maintained policy toolchain.
 * [Documentation publication](../documentation-publication.md) - Defines the branch-owned documentation publication boundary.
 * [Publication catalog](../publication-catalog.md) - Documents the branch-owned publication allowlist.
+* [Canonical publication allowlist](../publication-catalog.json) - Enumerates the authoritative Policy publication inventory.
 * [PWA usage](../pwa.md) - Describes Progressive Web App behavior for policy documentation.
 * [Architecture decisions](../adr/index.md) - Enumerates active architecture decision records.
 

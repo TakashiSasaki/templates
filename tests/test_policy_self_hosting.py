@@ -237,3 +237,11 @@ def test_every_distributable_skill_is_expected_and_reachable() -> None:
     navigation = (ROOT / 'skills/index.md').read_text()
     for source in skills:
         assert f'({source.removeprefix("skills/")})' in navigation
+
+
+def test_authoritative_inventories_are_declared_navigation_targets() -> None:
+    import json
+    adapter = json.loads((ROOT / '.progressive-discovery.json').read_text())
+    assert set(adapter['authoritative_inventories']).issubset(adapter['expected_documents'])
+    provider_index = (ROOT / 'docs/provider/index.md').read_text()
+    assert '(../publication-catalog.json)' in provider_index
