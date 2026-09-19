@@ -4,6 +4,8 @@
 
 Entries retain external normative ownership. Registration is not adoption or endorsement. External bodies are not mirrored. Source verification is scoped per record; unverified references are not described as checked. Canonical resource documentation follows its source language.
 
+[Generated resource documentation](docs/resources/index.md) provides the maintained next-step navigation for the generated record pages.
+
 | Record | Canonical language | Ownership | Source check |
 | --- | --- | --- | --- |
 | [Asset Description Metadata Schema (ADMS)](docs/resources/adms.md) | en | external | metadata-observed |

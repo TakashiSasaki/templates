@@ -12,7 +12,7 @@
 
 - [Resource records](records/) - Contains editable authoritative descriptions of registered information resources.
 - [Collections](collections/) - Contains discovery collections whose membership does not itself imply adoption.
-- [Modeling documentation](docs/) - Contains the record model, source policy, intake procedure, publication boundary, and generated resource documentation.
+- [Modeling documentation](docs/index.md) - Contains the record model, source policy, intake procedure, publication boundary, and generated resource documentation.
 - [Administrative schemas](schemas/) - Contains Modeling-owned schemas for records and collections.
 
 ## Tooling and qualification

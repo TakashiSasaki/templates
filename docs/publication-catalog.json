@@ -2,6 +2,7 @@
   "schema_version": 4,
   "documents": [
     {"id": "catalog", "source": "CATALOG.md", "optional": false, "home": true},
+    {"id": "resource-documentation-index", "source": "docs/resources/index.md", "optional": false, "home": false},
     {"id": "adms", "source": "docs/resources/adms.md", "optional": false, "home": false},
     {"id": "datacite", "source": "docs/resources/datacite.md", "optional": false, "home": false},
     {"id": "dcat-ap", "source": "docs/resources/dcat-ap.md", "optional": false, "home": false},

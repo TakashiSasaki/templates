@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "root_index": "index.md",
+  "authoritative_inventories": [
+    "catalog.json",
+    "collections/initial-standards.json",
+    "docs/publication-catalog.json",
+    "docs/publication-capabilities.json"
+  ],
+  "expected_documents": [
+    "index.md",
+    "CATALOG.md",
+    "docs/index.md",
+    "docs/record-model.md",
+    "docs/source-policy.md",
+    "docs/intake.md",
+    "catalog.json",
+    "docs/publication-catalog.json",
+    "docs/publication-capabilities.json"
+  ],
+  "authored_boundaries": [
+    "docs"
+  ],
+  "generated_indexes": {
+    "docs/resources/index.md": {
+      "title": "Modeling resource documentation index",
+      "section": "Generated resource documentation",
+      "inventory": [
+        "docs/resources"
+      ]
+    }
+  },
+  "explicit_exclusions": [
+    ".agents",
+    "tests",
+    "tools"
+  ],
+  "closed_inventories": [
+    "collections",
+    "records",
+    "schemas"
+  ],
+  "curated_shortcuts": [
+    "docs"
+  ],
+  "publication_system": true,
+  "surface_boundaries": {
+    "provider-maintenance": [
+      "docs/intake.md",
+      "docs/source-policy.md"
+    ],
+    "consumer-distributed": [],
+    "generated": [
+      "CATALOG.md",
+      "catalog.json",
+      "docs/resources/"
+    ],
+    "closed-inventory": [
+      "records/",
+      "collections/",
+      "schemas/"
+    ]
+  }
+}
