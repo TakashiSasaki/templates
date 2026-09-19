@@ -234,3 +234,87 @@ def test_report_is_json_serializable_and_records_revision() -> None:
         "docs/getting-started.md",
         "docs/reference.md",
     ]
+
+
+def test_rechecks_each_target_after_global_preflight(tmp_path, monkeypatch):
+    skill = _load_skill()
+    target = tmp_path / "repository"
+    target.mkdir()
+    first, second = target / "first.md", target / "second.md"
+    original = skill.GENERATED_MARKER + "\n# Original\n"
+    for path in (first, second):
+        path.write_text(original)
+    _commit_generated_target(target)
+    policy = {"profile_selected": True, "skill_selected": True}
+    for action in ("regenerate", "delete"):
+        plan = [{"action": action, "kind": "generated", "path": path.name,
+                 "content": original + "\n", "snapshot": skill._target_state(target, path.name)}
+                for path in (first, second)]
+        real_state = skill._target_state
+        reads = []
+        def changing_state(root, relative, real_state=real_state, reads=reads):
+            state = real_state(root, relative)
+            reads.append(relative)
+            if len(reads) == 2:
+                second.write_text("# Concurrent authored edit\n")
+            return state
+        with monkeypatch.context() as patch:
+            patch.setattr(skill, "_target_state", changing_state)
+            applied, errors = skill._apply(target, plan, policy)
+        assert errors and "changed since plan" in errors[0]
+        assert applied == [f"{action} first.md"]
+        assert second.read_text() == "# Concurrent authored edit\n"
+        subprocess.run(["git", "-C", str(target), "restore", "first.md", "second.md"], check=True)
+
+
+def test_cli_apply_refusals_exit_nonzero(tmp_path):
+    import sys
+
+    for case in ("dirty", "changed-after-plan", "authored", "retired"):
+        target = tmp_path / case
+        shutil.copytree(_fixture("generated-docs"), target)
+        skill = _load_skill()
+        skill.run(target, apply=True)
+        _commit_generated_target(target)
+        generated = target / "generated/index.md"
+        command = [sys.executable, str(SCRIPT)]
+        if case == "dirty":
+            # A staged mode change leaves the deterministic content valid.
+            subprocess.run(["git", "-C", str(target), "update-index", "--chmod=+x",
+                            "generated/index.md"], check=True)
+        elif case == "authored":
+            generated.write_text(generated.read_text().replace(skill.GENERATED_MARKER, ""))
+        elif case == "retired":
+            retired = target / "retired/index.md"
+            retired.parent.mkdir()
+            retired.write_text(skill.GENERATED_MARKER + "\n# Retired\n")
+            adapter = target / ".progressive-discovery.json"
+            data = json.loads(adapter.read_text())
+            data["remove_generated_indexes"] = ["retired/index.md"]
+            data.setdefault("excluded_paths", []).append("retired")
+            adapter.write_text(json.dumps(data))
+        else:
+            generated.write_text(skill.GENERATED_MARKER + "\n# Stale\n")
+            subprocess.run(["git", "-C", str(target), "add", "generated/index.md"], check=True)
+            subprocess.run(["git", "-C", str(target), "commit", "-qm", "stale"], check=True)
+            # Exercise main and its process exit after an actual post-plan change.
+            harness = '''import importlib.util, sys
+from pathlib import Path
+spec = importlib.util.spec_from_file_location("skill", sys.argv.pop(1))
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+original = module._apply
+def change_after_plan(root, plan, policy):
+    item = next(item for item in plan if item["action"] == "regenerate")
+    (root / item["path"]).write_text(item["content"])
+    return original(root, plan, policy)
+module._apply = change_after_plan
+raise SystemExit(module.main())
+'''
+            command = [sys.executable, "-c", harness, str(SCRIPT)]
+        result = subprocess.run(command + ["--root", str(target), "--apply", "--format", "json"],
+                                capture_output=True, text=True)
+        report = json.loads(result.stdout)
+        assert report["result"] == "AUTHORITY_NEEDED", (case, report)
+        assert report["applied"] == []
+        assert result.returncode != 0, (case, report)
