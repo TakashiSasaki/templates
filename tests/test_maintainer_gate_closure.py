@@ -8,6 +8,13 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class MaintainerGateClosureTests(unittest.TestCase):
+    def test_loading_instructions_match_the_declared_schema(self):
+        source = json.loads((ROOT / ".agents/skills/pr-merge-gate/source.json").read_text())
+        text = (ROOT / ".agents/skills/pr-merge-gate/SKILL.md").read_text()
+        declared = re.findall(r"`schema_version` is `(\d+)`", text)
+        self.assertTrue(declared)
+        self.assertEqual(set(declared), {str(source["schema_version"])})
+
     def test_gate_closes_profile_rules_and_references(self):
         source = json.loads((ROOT / ".agents/skills/pr-merge-gate/source.json").read_text())
         self.assertEqual(source["schema_version"], 2)
