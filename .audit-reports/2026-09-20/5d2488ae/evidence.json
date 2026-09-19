@@ -1,0 +1,50 @@
+{
+  "version": "1.0",
+  "run_key": "5d2488ae",
+  "start_utc": "2026-09-19T15:47:15.763340+00:00",
+  "end_utc": "2026-09-19T15:50:15.763340+00:00",
+  "prompt_version": "2026-09-20.5",
+  "observed_environment": {
+    "os": "Linux devbox 6.8.0",
+    "git_version": "2.53.0",
+    "python_version": "3.12.13",
+    "node_version": "v22.22.1"
+  },
+  "authority_shas": {
+    "composition": "161b53baf740774caf2cc5f5d84bcabdca05557f",
+    "policy": "143a9cc7e29f923f122a5e5cbaff787fc64f9377",
+    "integration": "e42ed011c0e28fe21f101bbe93228bd756635d4e",
+    "modeling": "384518a4223ecad31dfd0fa17a7cc4bba993432c",
+    "site": "f4816b5dcd80885d5fc1dd2c0090ca8cfd9d70fe"
+  },
+  "checks": [
+    {
+      "authority": "composition",
+      "command": "python3 scripts/run_core_tests.py",
+      "type": "local",
+      "status": "PASS",
+      "applicability": "core"
+    },
+    {
+      "authority": "modeling",
+      "command": "pytest tests/",
+      "type": "local",
+      "status": "ENVIRONMENT_BLOCKED",
+      "applicability": "schema_validation"
+    }
+  ],
+  "metrics": {},
+  "limitations": [
+    "ENVIRONMENT_BLOCKED: jsonschema and yaml dependencies missing for modeling tests",
+    "ENVIRONMENT_BLOCKED: gh CLI unavailable"
+  ],
+  "finding_references": [
+    "modeling tests failed due to missing jsonschema/yaml dependencies"
+  ],
+  "audit_execution": "PARTIAL",
+  "quality_assessment": "UNKNOWN",
+  "source_integrity": "UNCHANGED",
+  "delivery": "BRANCH_ONLY",
+  "report_path": ".audit-reports/2026-09-20/5d2488ae/report.md",
+  "report_sha256": "769227e4dad09effbc2eb64d6aaa242b546e78c956e9d90cc2e20c8a12be49f8"
+}
