@@ -9,7 +9,7 @@
 - [Webapp product walkthrough](guides/webapp-product-walkthrough.md) — 初めて Web application を作る場合はここから始めます。別 product repository から Task Ledger を zero-to-one で進め、installation、`composition.json`、`inspect -> plan -> apply -> validate`、ownership、implementation、product tests、evidence、optional Policy、後続 update/upgrade までを追体験します。
 - [初見者向け Composition concepts](guides/composition-concepts.md) — recipe、artifact、component、contract、material、lock など、この repository 固有の意味を持つ語の mental model を補助的に説明します。
 - [Agent Skill first-use walkthrough](guides/skill-first-use-walkthrough.md) — 別 repository で再利用可能な Skill を作るための最小の Composition path です。
-- [WebMCP capability guide](../../../docs/guides/webmcp-capability.md) — browser-exposed WebMCP capability を server-side MCP と混同せず選択・検証します。
+- [WebMCP capability guide](https://github.com/TakashiSasaki/templates/blob/96e7b4d874d2a71316ed1b9c3165bfb5716aff4b/docs/guides/webmcp-capability.md) — browser-exposed WebMCP capability を server-side MCP と混同せず選択・検証します。
 - [Composition の評価](evaluation-guide.md) — canonical な independent clean-room evaluator entry point です。
 - [Composition の利用方法](consumer-guide.md) — consumer repository の作成、inspect、update、upgrade、recovery、ownership、conflict を扱うタスク指向 workflow です。
 - [Recipe と component の選び方](../catalog/README.md) — `skill`、`website`、`webapp` を選び、product が実際に必要とする capability または lifecycle behavior だけを選択します。
@@ -27,9 +27,9 @@
 ## 公開境界
 
 - [公開境界](publication-catalog.md) — この provider が統合ドキュメントサイトへ何を公開し、その境界をなぜ設けるかを説明します。
-- [Publication catalog](../../../docs/publication-catalog.json) — reader document と publication asset の machine-readable allowlist です。
-- [Publication classification](../../../docs/publication-classification.json) — reader publication surface 外の repository Markdown に対する明示的な除外です。
-- [Composition glossary](../../../docs/glossary.yml) — publication validation で用いる Composition-owned terminology record です。
+- [Publication catalog](https://github.com/TakashiSasaki/templates/blob/96e7b4d874d2a71316ed1b9c3165bfb5716aff4b/docs/publication-catalog.json) — reader document と publication asset の machine-readable allowlist です。
+- [Publication classification](https://github.com/TakashiSasaki/templates/blob/96e7b4d874d2a71316ed1b9c3165bfb5716aff4b/docs/publication-classification.json) — reader publication surface 外の repository Markdown に対する明示的な除外です。
+- [Composition glossary](https://github.com/TakashiSasaki/templates/blob/96e7b4d874d2a71316ed1b9c3165bfb5716aff4b/docs/glossary.yml) — publication validation で用いる Composition-owned terminology record です。
 
 ## Composition provider の保守
 
