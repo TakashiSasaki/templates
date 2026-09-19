@@ -413,7 +413,9 @@ def test_metadata_configuration_and_link_paths_stay_inside_repository(tmp_path):
     shutil.copytree(_fixture('simple-docs'), root)
     outside = tmp_path / 'outside'
     outside.mkdir()
-    (outside / 'adapter.json').write_text(json.dumps({'generated_indexes': {'generated/index.md': {}}}))
+    (outside / 'adapter.json').write_text(
+        json.dumps({'generated_indexes': {'generated/index.md': {}}})
+    )
     (outside / 'policy.yml').write_bytes((root / '.agent-policy.yml').read_bytes())
     (outside / 'secret.md').write_text('# Secret\n')
     (root / 'escape').symlink_to(outside, target_is_directory=True)
@@ -430,13 +432,16 @@ def test_metadata_configuration_and_link_paths_stay_inside_repository(tmp_path):
         sentinel = root / '.git/index.md'
         sentinel.write_text(skill.GENERATED_MARKER + '\n# Metadata\n')
         before = sentinel.read_bytes()
-        adapter.write_text(json.dumps({key: {'.git/index.md': {}} if key == 'generated_indexes' else ['.git/index.md']}))
+        metadata = {'.git/index.md': {}} if key == 'generated_indexes' else ['.git/index.md']
+        adapter.write_text(json.dumps({key: metadata}))
         report = skill.run(root, apply=True)
         assert report['result'] == 'AUTHORITY_NEEDED'
         assert sentinel.read_bytes() == before
         assert not report['applied']
     adapter.write_text(json.dumps({'expected_documents': ['escape/secret.md']}))
-    (root / 'index.md').write_text('# Root\n\n- [Secret](escape/secret.md#secret) - External file.\n')
+    (root / 'index.md').write_text(
+        '# Root\n\n- [Secret](escape/secret.md#secret) - External file.\n'
+    )
     report = skill.run(root)
     assert not report['validation']['valid']
     assert 'escape/secret.md' not in report['validation']['reachable']
