@@ -16,3 +16,7 @@ qualification evidence is established. Keep CI and review evidence separate,
 and keep Site adoption, publication, deployment, and external authorization
 as distinct boundaries. A green check or absent review list is not acceptance
 evidence. This shim does not authorize merge by itself.
+
+Require schema version 2 and the explicit immutable `closure` of the selected
+pull-request profile, its rules, and gate references. Verify every closure
+path/blob at the declared revision before loading the gate.
