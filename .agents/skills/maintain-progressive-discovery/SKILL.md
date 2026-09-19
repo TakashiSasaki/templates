@@ -196,3 +196,14 @@ jsonschema are required validation dependencies, and their absence fails closed.
 Unexecutable Git queries produce unknown target state rather than a traceback.
 Grammar and reachability use the same visible block view; document fragments
 support both ATX and setext headings while excluding comment/code examples.
+
+`publication_system` is a boolean declaration, not proof of a publication build.
+`surface_boundaries` maps authority-owned nonempty names to either arrays of local
+file/directory paths or descriptive `{source, consumer}` relations with nonempty
+text. Local paths must be canonical, nonsymlink paths that exist (or are declared
+pending generated indexes/their parent directories). Descriptive relations may
+name immutable external Bundle inputs or deployed outputs; they are not local
+path inventories and never establish local document reachability. Surface names
+and publication semantics belong to the repository authority, not a shared enum.
+These declarations do not replace authoritative expected-document inventories,
+closed-inventory exclusions, or the provider's publication-contract validator.
