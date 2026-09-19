@@ -244,7 +244,9 @@ def _load_adapter(root: Path, relative: str) -> tuple[dict[str, Any], list[str]]
                 or _repository_path_error(root, scope.removesuffix("/"))
                 for scope in scopes
             ):
-                errors.append(f"adapter: generated inventory requires canonical path array: {target}")
+                errors.append(
+                    f"adapter: generated inventory requires canonical path array: {target}"
+                )
     retired = _configured_paths(value, "remove_generated_indexes")
     retired_declarations = value.get("remove_generated_indexes", [])
     if not isinstance(retired_declarations, (list, dict)):
@@ -867,7 +869,7 @@ def _plan(
                     "action": "authority-needed",
                     "kind": "authored",
                     "path": relative,
-                    "reason": "retired target is authored, untracked, dirty, or ownership is unknown",
+                    "reason": "retired target is authored, untracked, dirty, or ownership unknown",
                     "content": None,
                 }
             )
