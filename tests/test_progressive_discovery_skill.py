@@ -5,7 +5,6 @@ import json
 import shutil
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 CORPUS = ROOT / "tests/fixtures/progressive-discovery"
 SCRIPT = ROOT / "skills/maintain-progressive-discovery/scripts/maintain_progressive_discovery.py"
@@ -90,7 +89,9 @@ def test_closed_inventory_and_curated_shortcuts_are_preserved() -> None:
     closed_dirs = {item["directory"]: item for item in closed["classification"]}
     assert "vendor/closed" not in closed_dirs
     assert closed["validation"]["valid"] is True
-    shortcut = next(item for item in curated["classification"] if item["directory"] == "docs/reference")
+    shortcut = next(
+        item for item in curated["classification"] if item["directory"] == "docs/reference"
+    )
     assert shortcut["classification"] == "index-unnecessary"
     assert curated["validation"]["valid"] is True
 
@@ -103,13 +104,13 @@ def test_surface_separation_and_no_publication_are_reported_without_invention() 
     assert provider["surface_boundaries"]["provider-maintenance"] == [
         "docs/provider-maintenance.md"
     ]
-    assert provider["surface_boundaries"]["consumer-distributed"] == [
-        "docs/consumer-guide.md"
-    ]
+    assert provider["surface_boundaries"]["consumer-distributed"] == ["docs/consumer-guide.md"]
     assert provider["publication_system"] is True
     assert consumer["publication_system"] is False
     assert consumer["validation"]["valid"] is True
-    assert any("publication system not declared" in item for item in consumer["validation"]["warnings"])
+    assert any(
+        "publication system not declared" in item for item in consumer["validation"]["warnings"]
+    )
 
 
 def test_report_is_json_serializable_and_records_revision() -> None:
