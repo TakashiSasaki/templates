@@ -145,14 +145,19 @@ bytes to a private file, exchanges it with the public name, and validates the
 detached old inode before removal; a public-name change is restored only when
 the public name still contains the operation's replacement. Rollback
 regeneration uses the same exchange path and boundary check; it never writes
-an earlier inode through a public fd. The holding
-directory's inode is captured before its descriptor is opened, and cleanup
-first detaches that identity to a fresh operation-private name, re-detaches it
-to a second fresh name immediately before `rmdir`, and rechecks the identity.
-A replacement observed between those stages is restored or retained without
-deletion. A replacement at the holding pathname is retained and reported,
-never removed as if it belonged to the operation. Concurrent
-edits or recreated paths are preserved and reported as incomplete rollback.
+an earlier inode through a public fd. The holding directory's inode is
+captured before its descriptor is opened, and cleanup detaches that identity
+through fresh operation-private names. The removal operand is itself rebound
+through a final no-clobber detach and descriptor/path identity check during
+pathname conversion. Cleanup then revalidates the descriptor and pathname at
+the mutation boundary and calls native `unlinkat(AT_REMOVEDIR)` directly. The
+native symbol is resolved before those final checks, so Python `os.rmdir` or
+`ctypes` audit hooks cannot replace the operand in a user-space gap. A
+replacement observed at the boundary is restored or retained without deletion.
+A replacement at the holding pathname
+is retained and reported, never removed as if it belonged to the operation.
+Concurrent edits or recreated paths are preserved and reported as incomplete
+rollback.
 `applied` retains the mutation history and adds `rollback PATH` for each completed
 restoration; `apply_errors` reports any residual uncertainty. Refusal still reports
 `AUTHORITY_NEEDED` and exits nonzero even when rollback succeeds. These checks
