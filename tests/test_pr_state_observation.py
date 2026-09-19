@@ -340,6 +340,27 @@ def test_summary_bounds_large_nested_values_and_serialized_size() -> None:
     assert len(summary["changes"][0]["after"]["body"]) < len(huge)
 
 
+@pytest.mark.parametrize(
+    ("field", "replacement", "message"),
+    [
+        ("complete", False, "complete"),
+        ("binding_status", "stale", "binding_status"),
+        ("binding_reasons", ["fabricated"], "binding_reasons"),
+    ],
+)
+def test_self_consistent_but_malformed_previous_snapshot_is_rejected(
+    field: str, replacement: object, message: str
+) -> None:
+    previous = snapshot([{"identity": "known", "body": "baseline"}])
+    malformed = {**previous, field: replacement}
+    without_digest = dict(malformed)
+    without_digest.pop("snapshot_digest")
+    malformed["snapshot_digest"] = OBSERVATION.sha256_digest(without_digest)
+
+    with pytest.raises(OBSERVATION.ObservationInputError, match=message):
+        OBSERVATION.diff_snapshots(malformed, previous)
+
+
 def test_incomplete_previous_snapshot_does_not_create_added_changes() -> None:
     first = snapshot(
         [{"identity": "known", "body": "baseline"}],

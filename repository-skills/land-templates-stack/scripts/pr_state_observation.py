@@ -486,7 +486,14 @@ def build_snapshot(
 
 
 def validate_snapshot(snapshot: Mapping[str, Any]) -> None:
-    """Validate the minimum integrity needed before a snapshot is compared."""
+    """Validate snapshot integrity and recompute all derived state.
+
+    The digest proves that the persisted document has not changed since it
+    was written; it does not prove that a producer wrote truthful derived
+    flags. Recompute binding and completeness from the normalized contents so
+    a self-consistent but malformed baseline cannot manufacture a semantic
+    diff.
+    """
 
     if snapshot.get("schema_version") != SCHEMA_VERSION:
         raise ObservationInputError("unsupported observation snapshot schema")
@@ -499,10 +506,42 @@ def validate_snapshot(snapshot: Mapping[str, Any]) -> None:
     requested = snapshot.get("requested_surfaces")
     if not isinstance(requested, list) or not requested:
         raise ObservationInputError("snapshot.requested_surfaces must be a non-empty list")
+    if any(type(surface) is not str for surface in requested):
+        raise ObservationInputError("snapshot.requested_surfaces must contain strings")
+    if len(requested) != len(set(requested)):
+        raise ObservationInputError("snapshot.requested_surfaces must be unique")
+    unknown = sorted(set(requested) - set(SURFACES))
+    if unknown:
+        raise ObservationInputError(
+            f"snapshot.requested_surfaces contains unknown surfaces: {', '.join(unknown)}"
+        )
+    normalized_surfaces: dict[str, SurfaceObservation] = {}
     for surface in requested:
-        _surface_map(snapshot, surface)
-    _binding_observation(snapshot.get("observed_start", {}), "snapshot.observed_start")
-    _binding_observation(snapshot.get("observed_end", {}), "snapshot.observed_end")
+        normalized_surfaces[surface] = _surface_map(snapshot, surface)[surface]
+    start = _binding_observation(snapshot.get("observed_start", {}), "snapshot.observed_start")
+    end = _binding_observation(snapshot.get("observed_end", {}), "snapshot.observed_end")
+    expected_reasons = binding_mismatch_reasons(
+        CandidateBinding.from_mapping(candidate), start, end
+    )
+    binding_reasons = snapshot.get("binding_reasons")
+    if not isinstance(binding_reasons, list) or any(
+        type(reason) is not str for reason in binding_reasons
+    ):
+        raise ObservationInputError("snapshot.binding_reasons must be a list of strings")
+    if binding_reasons != expected_reasons:
+        raise ObservationInputError("snapshot.binding_reasons does not match its content")
+    binding_status = snapshot.get("binding_status")
+    expected_binding_status = "stable" if not expected_reasons else "stale"
+    if binding_status != expected_binding_status:
+        raise ObservationInputError("snapshot.binding_status does not match its content")
+    complete = snapshot.get("complete")
+    if type(complete) is not bool:
+        raise ObservationInputError("snapshot.complete must be a boolean")
+    expected_complete = not expected_reasons and all(
+        normalized_surfaces[surface].complete for surface in requested
+    )
+    if complete != expected_complete:
+        raise ObservationInputError("snapshot.complete does not match its content")
     declared_digest = snapshot.get("snapshot_digest")
     if not isinstance(declared_digest, str):
         raise ObservationInputError("snapshot.snapshot_digest is missing")
