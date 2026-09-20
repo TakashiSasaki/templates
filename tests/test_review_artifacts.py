@@ -806,6 +806,53 @@ def test_old_pending_ci_is_stale_when_revision_binding_is_present() -> None:
 
 
 @pytest.mark.parametrize("status", ["success", "failure", "pending"])
+@pytest.mark.parametrize("dimension", ["head_sha", "base_sha", "effective_base_sha"])
+def test_every_revision_bound_ci_status_rejects_each_moved_candidate_dimension(
+    status: str, dimension: str
+) -> None:
+    source = _source()
+    candidate = source["candidate"]
+    ci = {
+        "status": status,
+        "head_sha": candidate["head_sha"],
+        "applicable_to": {
+            "head_sha": candidate["head_sha"],
+            "base_sha": candidate["base_sha"],
+            "effective_base_sha": candidate["effective_base_sha"],
+        },
+    }
+    old_value = _sha("e")
+    ci["applicable_to"][dimension] = old_value
+    if dimension == "head_sha":
+        ci["head_sha"] = old_value
+    source["observed"]["facts"]["ci"] = ci
+
+    normalized = artifacts.normalize(source)
+
+    assert artifacts._ci_state(ci, normalized.data["candidate"])["state"] == "stale"
+
+
+@pytest.mark.parametrize("status", ["requested", "pending", "evidence_present"])
+@pytest.mark.parametrize("dimension", ["candidate_head_sha", "base_sha", "effective_base_sha"])
+def test_every_revision_bound_review_status_rejects_each_moved_candidate_dimension(
+    status: str, dimension: str
+) -> None:
+    normalized = artifacts.normalize(_source())
+    candidate = normalized.data["candidate"]
+    review = {
+        "status": status,
+        "applicable_to": {
+            "candidate_head_sha": candidate["head_sha"],
+            "base_sha": candidate["base_sha"],
+            "effective_base_sha": candidate["effective_base_sha"],
+        },
+    }
+    review["applicable_to"][dimension] = _sha("e")
+
+    assert not artifacts._review_is_applicable(review, candidate)
+
+
+@pytest.mark.parametrize("status", ["success", "failure", "pending"])
 def test_stack_bound_evidence_requires_current_member_binding_digest(status: str) -> None:
     normalized = artifacts.normalize(_source())
     candidate = normalized.data["candidate"]
