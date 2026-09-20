@@ -1338,16 +1338,16 @@ def publish(
     # lost response is reconciled rather than retried.
     comment_specs = [
         (
-            "review_request",
-            renderer.REVIEW_REQUEST_MARKER,
-            renderer.idempotency_key(normalized, "review-request"),
-            rendered.files["review-request.md"],
-        ),
-        (
             "work_checkpoint",
             renderer.WORK_CHECKPOINT_MARKER,
             renderer.idempotency_key(normalized, "work-ledger-checkpoint"),
             rendered.files["work-ledger-checkpoint.md"],
+        ),
+        (
+            "review_request",
+            renderer.REVIEW_REQUEST_MARKER,
+            renderer.idempotency_key(normalized, "review-request"),
+            rendered.files["review-request.md"],
         ),
     ]
     for operation_type, prefix, key, body in comment_specs:
