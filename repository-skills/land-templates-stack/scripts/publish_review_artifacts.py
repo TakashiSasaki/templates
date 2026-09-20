@@ -272,6 +272,8 @@ def _expected_binding(normalized: Any) -> dict[str, Any]:
         "planner_input_digest": renderer.semantic_digest(planner["packet"]),
         "planner_result_digest": renderer.semantic_digest(planner["result"]),
         "gate_input_binding_digest": data["gate"]["input_binding_digest"],
+        "gate_status": data["gate"]["status"],
+        "evidence_digest": renderer.semantic_digest(data["observed"]["facts"]),
     }
 
 

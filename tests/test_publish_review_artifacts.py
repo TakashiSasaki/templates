@@ -180,6 +180,20 @@ def test_stale_base_or_existing_evaluation_binding_stops_before_any_write() -> N
         assert provider.create_calls == 0
 
 
+def test_gate_status_or_evidence_change_stops_before_any_write() -> None:
+    for field, value in (("gate_status", "failed"), ("evidence_digest", "8" * 64)):
+        normalized = _bound_source()
+        provider = FakeProvider(normalized)
+        provider.state[field] = value
+
+        result = _publish(provider)
+
+        assert result.status == "stale"
+        assert any(field in reason for reason in result.reasons)
+        assert provider.update_calls == 0
+        assert provider.create_calls == 0
+
+
 def test_body_conflict_between_read_and_write_is_not_overwritten() -> None:
     normalized = _bound_source()
     provider = FakeProvider(normalized)

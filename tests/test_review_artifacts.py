@@ -682,6 +682,11 @@ def test_human_pr_text_is_preserved_and_owned_region_is_fail_closed() -> None:
             f"{artifacts.GENERATED_REGION_START}\n{artifacts.GENERATED_REGION_START}\n{artifacts.GENERATED_REGION_END}",
             region,
         )
+    with pytest.raises(artifacts.RegionOwnershipError, match="reversed"):
+        artifacts.replace_generated_region(
+            body,
+            f"{artifacts.GENERATED_REGION_END}\n{artifacts.GENERATED_REGION_START}",
+        )
 
 
 def test_special_multiline_checkpoint_values_are_escaped() -> None:

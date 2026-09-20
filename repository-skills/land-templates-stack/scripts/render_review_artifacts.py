@@ -1894,6 +1894,10 @@ def replace_generated_region(
         raise RegionOwnershipError("generated PR-description markers are duplicated or malformed")
     if region.count(GENERATED_REGION_START) != 1 or region.count(GENERATED_REGION_END) != 1:
         raise RegionOwnershipError("replacement region markers are duplicated or malformed")
+    region_start = region.index(GENERATED_REGION_START)
+    region_end = region.index(GENERATED_REGION_END)
+    if region_end < region_start:
+        raise RegionOwnershipError("replacement region markers are reversed")
     start = body.index(GENERATED_REGION_START)
     end = body.index(GENERATED_REGION_END)
     if end < start:
