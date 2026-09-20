@@ -85,9 +85,10 @@ distinct provider pull-request identity, and exactly one member must identify
 the target PR.
 
 The trusted planner binding is authenticated against the immutable source
-closure recorded by `.agents/skills/land-templates-stack/source.json` at the
-candidate's exact base, rather than against a second self-asserted field in the
-artifact payload. All revision roles are declared explicitly, including
+closure recorded by `.agents/skills/land-templates-stack/source.json` at an
+independently supplied trusted base SHA. The candidate base must equal that
+trusted base; the artifact payload cannot choose which manifest authenticates
+its planner. All revision roles are declared explicitly, including
 `unknown` and `not_applicable` roles. Human or model judgments bind to the
 candidate head, base, and effective base. PR-body revision/digest values remain
 concurrency checks for publication and do not change the semantic review-request
@@ -97,7 +98,8 @@ For a local preview:
 
 ```console
 python3 repository-skills/land-templates-stack/scripts/render_review_artifacts.py \
-  render --input review-artifacts.json --output-dir .review-artifacts
+  render --input review-artifacts.json \
+  --trusted-base-sha <trusted-base-sha> --output-dir .review-artifacts
 ```
 
 The output contains `review-packet.json`, `review-request.md`,
@@ -110,9 +112,10 @@ separate binding. An unknown or not-applicable role is explicit; it is never
 silently filled from another worktree's HEAD. A planner source without a full
 trusted blob identity, or one that differs from the independent maintainer
 binding, is rejected, so a candidate checkout cannot substitute its sibling
-planner implementation. A CI success is likewise rendered stale when its
-bound candidate base differs from the current candidate base; an optional
-effective-base binding is checked independently when supplied.
+planner implementation. A CI success is likewise rendered stale unless its
+applicability binds the exact candidate head, PR base, and effective base.
+The trusted base is an input to the entry point, not a value inferred from the
+candidate JSON.
 
 Rendering is local and side-effect free with respect to GitHub, PR bodies,
 review requests, and Work-ledger storage. The generated PR region is owned only

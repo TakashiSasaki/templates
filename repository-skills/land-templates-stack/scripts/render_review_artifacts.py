@@ -583,6 +583,7 @@ def _trusted_planner_source(
     bindings: Sequence[Mapping[str, Any]],
     candidate: Mapping[str, Any],
     *,
+    trusted_base_sha: str,
     repository_root: Path | None = None,
 ) -> dict[str, Any]:
     """Return the independently bound immutable source for planner execution.
@@ -593,13 +594,18 @@ def _trusted_planner_source(
     identity used for the planner.
     """
 
+    trusted_base_sha = _require_sha(trusted_base_sha, "trusted_base_sha")
+    if candidate["base_sha"] != trusted_base_sha:
+        raise ArtifactInputError(
+            "candidate.base_sha does not match the independently trusted base"
+        )
     root = repository_root or Path(__file__).parents[3]
     try:
         manifest = json.loads(
             _read_git_bytes(
                 root,
                 "show",
-                f"{candidate['base_sha']}:{TRUSTED_SOURCE_MANIFEST_PATH}",
+                f"{trusted_base_sha}:{TRUSTED_SOURCE_MANIFEST_PATH}",
             ).decode("utf-8")
         )
     except (ArtifactInputError, UnicodeDecodeError, json.JSONDecodeError) as exc:
@@ -688,8 +694,12 @@ def _require_trusted_planner_source(
     planner_source: Mapping[str, Any],
     bindings: Sequence[Mapping[str, Any]],
     candidate: Mapping[str, Any],
+    *,
+    trusted_base_sha: str,
 ) -> dict[str, Any]:
-    trusted_source = _trusted_planner_source(bindings, candidate)
+    trusted_source = _trusted_planner_source(
+        bindings, candidate, trusted_base_sha=trusted_base_sha
+    )
     for field in ("repository", "revision", "path", "blob_sha"):
         if planner_source.get(field) != trusted_source.get(field):
             raise ArtifactInputError(
@@ -1022,7 +1032,9 @@ class NormalizedReviewArtifacts:
         return copy.deepcopy(self.data)
 
 
-def normalize(source: Mapping[str, Any]) -> NormalizedReviewArtifacts:
+def normalize(
+    source: Mapping[str, Any], *, trusted_base_sha: str
+) -> NormalizedReviewArtifacts:
     """Validate and bind the structured input to the existing planner.
 
     Normalization never converts an incomplete observation or a prose claim
@@ -1044,13 +1056,19 @@ def normalize(source: Mapping[str, Any]) -> NormalizedReviewArtifacts:
     change = _require_object(raw.get("change"), "change")
     input_binding = _require_object(raw.get("input_binding"), "input_binding")
     candidate = _normalize_candidate(raw)
+    trusted_base_sha = _require_sha(trusted_base_sha, "trusted_base_sha")
     revisions, revision_digest = _normalize_revision_bindings(raw, candidate)
     _optional_binding_consistency(input_binding, candidate, revision_digest)
     planner_input = _require_object(raw.get("planner"), "planner")
     planner_source = _source_identity(
         planner_input.get("source"), "planner.source", path=PLANNER_PATH, require_blob=True
     )
-    _require_trusted_planner_source(planner_source, revisions, candidate)
+    _require_trusted_planner_source(
+        planner_source,
+        revisions,
+        candidate,
+        trusted_base_sha=trusted_base_sha,
+    )
     planner_binding = {
         **copy.deepcopy(input_binding),
         "artifact_binding": _artifact_binding(
@@ -1077,6 +1095,7 @@ def normalize(source: Mapping[str, Any]) -> NormalizedReviewArtifacts:
         "candidate": candidate,
         "change": change,
         "input_binding": input_binding,
+        "trusted_base_sha": trusted_base_sha,
         "revision_bindings": revisions,
         "planner": {
             "source": planner_source,
@@ -1092,6 +1111,7 @@ def normalize(source: Mapping[str, Any]) -> NormalizedReviewArtifacts:
     content_digest = semantic_digest(semantic_projection)
     binding_projection = {
         "candidate": candidate,
+        "trusted_base_sha": trusted_base_sha,
         "revision_bindings": revisions,
         "planner_source": planner_source,
         "planner_packet": planner_packet,
@@ -1160,10 +1180,7 @@ def _ci_state(ci: Mapping[str, Any], candidate: Mapping[str, Any]) -> dict[str, 
             observed_head != candidate["head_sha"]
             or applicable_head != candidate["head_sha"]
             or applicable_base != candidate["base_sha"]
-            or (
-                applicable_effective_base is not None
-                and applicable_effective_base != candidate["effective_base_sha"]
-            )
+            or applicable_effective_base != candidate["effective_base_sha"]
         ):
             return {
                 "state": "stale",
@@ -1519,8 +1536,10 @@ def render(normalized: NormalizedReviewArtifacts) -> RenderedArtifacts:
     return RenderedArtifacts(files, manifest, normalized)
 
 
-def normalize_and_render(source: Mapping[str, Any]) -> RenderedArtifacts:
-    return render(normalize(source))
+def normalize_and_render(
+    source: Mapping[str, Any], *, trusted_base_sha: str
+) -> RenderedArtifacts:
+    return render(normalize(source, trusted_base_sha=trusted_base_sha))
 
 
 def _load_input(path: str) -> dict[str, Any]:
@@ -1539,10 +1558,17 @@ def main(argv: Sequence[str] | None = None) -> int:
     render_parser.add_argument(
         "--input", default="-", help="structured JSON input, or '-' for stdin"
     )
+    render_parser.add_argument(
+        "--trusted-base-sha",
+        required=True,
+        help="immutable trusted base SHA used to load the maintainer source closure",
+    )
     render_parser.add_argument("--output-dir", required=True, help="local output directory")
     args = parser.parse_args(argv)
     try:
-        artifacts = normalize_and_render(_load_input(args.input))
+        artifacts = normalize_and_render(
+            _load_input(args.input), trusted_base_sha=args.trusted_base_sha
+        )
         artifacts.write(args.output_dir)
     except (ArtifactInputError, OSError) as exc:
         print(f"ERROR REVIEW_ARTIFACTS: {exc}", file=sys.stderr)

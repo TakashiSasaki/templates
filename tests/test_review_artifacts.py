@@ -17,15 +17,23 @@ assert SPEC and SPEC.loader
 artifacts = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(artifacts)
 
+TEST_TRUSTED_BASE_SHA = "0630913c95bb0ca4765a196ff5e76a98684f82ea"
+_normalize = artifacts.normalize
+
+
+def _normalize_with_trusted_base(source: dict[str, object]):
+    return _normalize(source, trusted_base_sha=TEST_TRUSTED_BASE_SHA)
+
+
+artifacts.normalize = _normalize_with_trusted_base
+
 
 def _sha(letter: str) -> str:
     return letter * 40
 
 
 def _trusted_base_sha() -> str:
-    return subprocess.check_output(
-        ["git", "rev-parse", "origin/policy"], cwd=ROOT, text=True
-    ).strip()
+    return TEST_TRUSTED_BASE_SHA
 
 
 def _trusted_planner_source() -> dict[str, object]:
@@ -162,8 +170,12 @@ def _source() -> dict[str, object]:
             "facts": {
                 "ci": {
                     "status": "success",
-                    "head_sha": _sha("b"),
-                    "applicable_to": {"head_sha": _sha("b"), "base_sha": base_sha},
+                        "head_sha": _sha("b"),
+                        "applicable_to": {
+                            "head_sha": _sha("b"),
+                            "base_sha": base_sha,
+                            "effective_base_sha": base_sha,
+                        },
                     "workflow": "policy-ci",
                     "run_id": 7,
                     "attempt": 1,
@@ -376,6 +388,38 @@ def test_planner_trust_anchor_is_not_self_asserted_by_artifact_roles() -> None:
 
     with pytest.raises(artifacts.ArtifactInputError, match="immutable source closure"):
         artifacts.normalize(source)
+
+
+def test_planner_manifest_base_must_be_supplied_outside_the_artifact() -> None:
+    source = _source()
+    attacker_base = _sha("e")
+    source["candidate"]["base_sha"] = attacker_base
+    source["candidate"]["effective_base_sha"] = attacker_base
+    source["candidate"]["members"][0]["base_sha"] = attacker_base
+    source["candidate"]["pull_request"]["base_sha"] = attacker_base
+    source["observed"]["facts"]["ci"]["applicable_to"]["base_sha"] = attacker_base
+    source["observed"]["facts"]["ci"]["applicable_to"]["effective_base_sha"] = attacker_base
+    source["gate"]["input_binding"]["base_sha"] = attacker_base
+    source["gate"]["input_binding"]["effective_base_sha"] = attacker_base
+
+    with pytest.raises(artifacts.ArtifactInputError, match="independently trusted base"):
+        artifacts.normalize(source)
+
+
+def test_success_ci_without_effective_base_is_stale() -> None:
+    source = _source()
+    del source["observed"]["facts"]["ci"]["applicable_to"]["effective_base_sha"]
+
+    normalized = artifacts.normalize(source)
+
+    assert "ci_stale" in normalized.blockers
+    assert "CI: `stale`" in artifacts.render(normalized).files["pr-generated-region.md"]
+
+
+def test_fixture_base_is_independent_of_optional_remote_tracking_refs() -> None:
+    source = _source()
+
+    assert source["candidate"]["base_sha"] == TEST_TRUSTED_BASE_SHA
 
 
 def test_missing_revision_role_is_rejected_instead_of_assumed_unknown() -> None:
