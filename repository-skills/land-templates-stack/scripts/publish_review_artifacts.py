@@ -747,6 +747,14 @@ def _load_observer_entrypoint() -> Any:
     spec = importlib.util.spec_from_file_location("templates_observe_pr_state", path)
     if spec is None or spec.loader is None:
         raise PublicationError("cannot load the existing PR observation entry point")
+    observation_model = _load_observation_model()
+    canonical_name = "pr_state_observation"
+    previous_observation_model = sys.modules.get(canonical_name)
+    # observe_pr_state.py imports its sibling by its historical top-level
+    # name. Bind that name to the exact sibling loaded above for the duration
+    # of execution so an unrelated pre-existing sys.modules entry cannot
+    # replace the observation contract.
+    sys.modules[canonical_name] = observation_model
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
     try:
@@ -755,6 +763,11 @@ def _load_observer_entrypoint() -> Any:
         if sys.modules.get(spec.name) is module:
             sys.modules.pop(spec.name, None)
         raise
+    finally:
+        if previous_observation_model is None:
+            sys.modules.pop(canonical_name, None)
+        else:
+            sys.modules[canonical_name] = previous_observation_model
     return module
 
 

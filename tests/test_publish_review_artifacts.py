@@ -7,6 +7,7 @@ import http.client
 import importlib.util
 import sys
 import threading
+import types
 import urllib.error
 from pathlib import Path
 
@@ -207,6 +208,40 @@ def test_dynamic_publish_loaders_register_modules_for_runtime_safe_execution(tmp
 
     assert callback().value == 7
     assert sys.modules.get("templates_live_review_adapter") is not None
+
+
+def test_observer_loader_binds_the_exact_sibling_model_not_preexisting_module() -> None:
+    observation_model = publisher._load_observation_model()
+    imported_names = (
+        "MODEL_SUMMARY_MAX_BYTES",
+        "CandidateBinding",
+        "ObservationInputError",
+        "ProviderIdentity",
+        "SurfaceObservation",
+        "bound_model_summary",
+        "build_snapshot",
+        "diff_snapshots",
+        "record_identity",
+        "sha256_digest",
+        "summarize_diff",
+        "summary_has_truncation",
+    )
+    impostor = types.ModuleType("pr_state_observation")
+    for name in imported_names:
+        setattr(impostor, name, object())
+    previous = sys.modules.get("pr_state_observation")
+    sys.modules["pr_state_observation"] = impostor
+    try:
+        observer = publisher._load_observer_entrypoint()
+        assert observer.CandidateBinding is not impostor.CandidateBinding
+        assert observer.ProviderIdentity is not impostor.ProviderIdentity
+        assert observer.CandidateBinding.__module__ == observation_model.__name__
+        assert observer.ProviderIdentity.__module__ == observation_model.__name__
+    finally:
+        if previous is None:
+            sys.modules.pop("pr_state_observation", None)
+        else:
+            sys.modules["pr_state_observation"] = previous
 
 
 def test_apply_requires_both_explicit_authorization_and_serialized_writer() -> None:
