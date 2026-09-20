@@ -611,6 +611,78 @@ def test_ambiguous_checkpoint_update_is_reconciled_without_retry() -> None:
     assert provider.update_comment_calls == 1
 
 
+def test_checkpoint_update_revalidates_bindings_after_the_mutation() -> None:
+    normalized = _bound_source()
+
+    class ChangesAfterCheckpoint(FakeProvider):
+        def update_comment(self, repository, number, comment_id, body):
+            result = super().update_comment(repository, number, comment_id, body)
+            self.state["evidence_digest"] = "e" * 64
+            return result
+
+    provider = ChangesAfterCheckpoint(normalized)
+    result = _publish(provider)
+
+    assert result.status == "stale"
+    assert "after checkpoint state update" in result.reasons[0]
+    assert provider.update_comment_calls == 1
+
+
+def test_snapshot_evidence_excludes_only_authenticated_canonical_artifacts() -> None:
+    normalized = _bound_source()
+    provider = publisher.GitHubProvider("token", publisher_login="publisher")
+    rendered = publisher.renderer.render(normalized)
+    canonical_request = provider._codex_review_body(
+        rendered.files["review-request.md"], normalized
+    )
+    canonical_checkpoint = rendered.files["work-ledger-checkpoint.md"]
+    base = {
+        "surfaces": {
+            "comments": {
+                "records": [{"id": "human", "body": "finding remains open"}]
+            }
+        }
+    }
+
+    owned = copy.deepcopy(base)
+    owned["surfaces"]["comments"]["records"].extend(
+        [
+            {
+                "id": "request",
+                "body": canonical_request,
+                "user": {"login": "publisher"},
+            },
+            {
+                "id": "checkpoint",
+                "body": canonical_checkpoint,
+                "author": {"login": "publisher"},
+            },
+        ]
+    )
+    assert publisher._snapshot_evidence_digest(owned) != publisher._snapshot_evidence_digest(
+        base
+    )
+    assert publisher._snapshot_evidence_digest(
+        owned,
+        publisher_login="publisher",
+        canonical_bodies=(canonical_request, canonical_checkpoint),
+    ) == publisher._snapshot_evidence_digest(base)
+
+    copied = copy.deepcopy(base)
+    copied["surfaces"]["comments"]["records"].append(
+        {
+            "id": "copied-marker",
+            "body": "ordinary note quoting " + publisher.renderer.REVIEW_REQUEST_MARKER,
+            "user": {"login": "contributor"},
+        }
+    )
+    assert publisher._snapshot_evidence_digest(
+        copied,
+        publisher_login="publisher",
+        canonical_bodies=(canonical_request, canonical_checkpoint),
+    ) != publisher._snapshot_evidence_digest(base)
+
+
 def test_preview_request_is_provider_neutral_but_github_apply_has_codex_trigger() -> None:
     normalized = _bound_source()
     normalized.planner_result["action"] = "request_related_stack_review"
@@ -1420,7 +1492,9 @@ def test_live_consumer_pin_does_not_load_candidate_yamlutil(monkeypatch) -> None
 
 class _LiveBoundaryGitHub(publisher.GitHubProvider):
     def __init__(self, normalized, live_revalidator):
-        super().__init__("token", live_revalidator=live_revalidator)
+        super().__init__(
+            "token", live_revalidator=live_revalidator, publisher_login="publisher"
+        )
         self.normalized = normalized
         self.body = normalized.data["observed"]["pr_body"]["body"]
         self.comments: list[dict[str, object]] = []
@@ -1545,7 +1619,7 @@ def test_publish_revalidates_after_comment_duplicate_scan() -> None:
 
 class _ObservedTransportGitHub(publisher.GitHubProvider):
     def __init__(self, normalized):
-        super().__init__("token")
+        super().__init__("token", publisher_login="publisher")
         self.normalized = normalized
         self.calls: list[tuple[str, str]] = []
         content = (

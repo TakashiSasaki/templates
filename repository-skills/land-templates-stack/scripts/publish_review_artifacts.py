@@ -819,8 +819,32 @@ def _load_observation_model() -> Any:
     return module
 
 
-def _snapshot_evidence_digest(snapshot: Mapping[str, Any]) -> str:
-    """Digest provider evidence without observation timestamps or pagination noise."""
+def _authenticated_artifact_comment(
+    record: Mapping[str, Any],
+    *,
+    publisher_login: str | None,
+    canonical_bodies: Sequence[str],
+) -> bool:
+    """Return whether a comment is an authenticated canonical artifact."""
+
+    if not isinstance(publisher_login, str) or not publisher_login.strip():
+        return False
+    body = record.get("body")
+    if not isinstance(body, str) or body not in canonical_bodies:
+        return False
+    actor = record.get("user")
+    if not isinstance(actor, Mapping):
+        actor = record.get("author")
+    return isinstance(actor, Mapping) and actor.get("login") == publisher_login
+
+
+def _snapshot_evidence_digest(
+    snapshot: Mapping[str, Any],
+    *,
+    publisher_login: str | None = None,
+    canonical_bodies: Sequence[str] = (),
+) -> str:
+    """Digest evidence without observation noise or authenticated artifacts."""
 
     projection = copy.deepcopy(dict(snapshot))
     projection.pop("snapshot_digest", None)
@@ -858,10 +882,10 @@ def _snapshot_evidence_digest(snapshot: Mapping[str, Any]) -> str:
                     for record in records
                     if not (
                         isinstance(record, Mapping)
-                        and isinstance(record.get("body"), str)
-                        and (
-                            renderer.REVIEW_REQUEST_MARKER in record["body"]
-                            or renderer.WORK_CHECKPOINT_MARKER in record["body"]
+                        and _authenticated_artifact_comment(
+                            record,
+                            publisher_login=publisher_login,
+                            canonical_bodies=canonical_bodies,
                         )
                     )
                 ]
@@ -1435,7 +1459,19 @@ class GitHubLiveRevalidationAdapter:
             raise PublicationError("live gate result is bound to different inputs")
         if renderer.semantic_digest(dict(gate_binding)) != gate_input_digest:
             raise PublicationError("live gate input binding digest is invalid")
-        live_evidence_digest = _snapshot_evidence_digest(snapshot)
+        publisher_login = provider._authenticated_login()
+        rendered = renderer.render(normalized)
+        canonical_artifact_bodies = (
+            rendered.files["review-request.md"],
+            provider._codex_review_body(rendered.files["review-request.md"], normalized),
+            rendered.files["work-ledger-checkpoint.md"],
+            _checkpoint_transition_body(normalized),
+        )
+        live_evidence_digest = _snapshot_evidence_digest(
+            snapshot,
+            publisher_login=publisher_login,
+            canonical_bodies=canonical_artifact_bodies,
+        )
         gate_evidence_digest = gate.get("evidence_digest", live_evidence_digest)
         if gate_evidence_digest != live_evidence_digest:
             raise PublicationError(
@@ -1706,6 +1742,34 @@ def _checkpoint_matches(
     return candidates, owned
 
 
+def _validate_checkpoint_after_write(
+    normalized: Any,
+    remote: RemoteProvider,
+    repository: str,
+    number: int,
+    *,
+    desired_body: str,
+) -> tuple[str | None, str | None]:
+    """Revalidate the full PR binding after a checkpoint mutation."""
+
+    try:
+        verified_state = _current_state(remote, repository, number, normalized)
+        reasons = _validate_for_publication(
+            normalized,
+            verified_state,
+            desired_body=desired_body,
+        )
+    except (PublicationError, OSError) as exc:
+        return "ambiguous", f"checkpoint updated but post-write reconciliation failed: {exc}"
+    if reasons:
+        return (
+            "stale",
+            "publication binding changed after checkpoint state update; "
+            + "; ".join(reasons),
+        )
+    return None, None
+
+
 def _reconcile_checkpoint(
     remote: RemoteProvider,
     repository: str,
@@ -1963,6 +2027,15 @@ def _update_checkpoint_after_request(
             or verified_owned[0].get("body") != transition_body
         ):
             return "conflict", "checkpoint did not retain submitted request state"
+        post_write_status, post_write_reason = _validate_checkpoint_after_write(
+            normalized,
+            remote,
+            repository,
+            number,
+            desired_body=updated_body,
+        )
+        if post_write_status is not None:
+            return post_write_status, post_write_reason
         checkpoint_operation["checkpoint_state"] = "submitted"
         checkpoint_operation["status"] = "updated"
         return None, None
@@ -1982,6 +2055,15 @@ def _update_checkpoint_after_request(
             and str(owned[0].get("id")) == str(comment_id)
             and owned[0].get("body") == transition_body
         ):
+            post_write_status, post_write_reason = _validate_checkpoint_after_write(
+                normalized,
+                remote,
+                repository,
+                number,
+                desired_body=updated_body,
+            )
+            if post_write_status is not None:
+                return post_write_status, post_write_reason
             checkpoint_operation["checkpoint_state"] = "submitted"
             checkpoint_operation["status"] = "reconciled"
             return None, None
