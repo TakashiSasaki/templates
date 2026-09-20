@@ -523,6 +523,49 @@ def _normalize_revision_bindings(
     return bindings, semantic_digest(bindings)
 
 
+def _trusted_planner_source(bindings: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    """Return the independently bound immutable source for planner execution.
+
+    ``planner.source`` is executable input, so its ``trusted`` flag cannot be
+    its own authority.  The role-labelled maintainer binding is the separate
+    trust anchor that authenticates the repository, revision, path, and blob
+    identity used for the planner.
+    """
+
+    binding = next(
+        (item for item in bindings if item.get("role") == "trusted_maintainer_source"),
+        None,
+    )
+    if not isinstance(binding, Mapping) or binding.get("status") != "bound":
+        raise ArtifactInputError(
+            "trusted_maintainer_source must be bound to authenticate planner.source"
+        )
+    source = _source_identity(
+        binding.get("source"),
+        "trusted_maintainer_source.source",
+        path=PLANNER_PATH,
+        require_blob=True,
+    )
+    if binding.get("revision") != source["revision"]:
+        raise ArtifactInputError(
+            "trusted_maintainer_source revision does not match its source identity"
+        )
+    return source
+
+
+def _require_trusted_planner_source(
+    planner_source: Mapping[str, Any], bindings: Sequence[Mapping[str, Any]]
+) -> dict[str, Any]:
+    trusted_source = _trusted_planner_source(bindings)
+    for field in ("repository", "revision", "path", "blob_sha"):
+        if planner_source.get(field) != trusted_source.get(field):
+            raise ArtifactInputError(
+                "planner.source is not bound to the trusted_maintainer_source "
+                f"{field}"
+            )
+    return trusted_source
+
+
 def _planner_candidate(candidate: dict[str, Any]) -> dict[str, Any]:
     result = {
         key: copy.deepcopy(candidate[key])
@@ -695,6 +738,11 @@ def _validate_ci(raw_ci: Any, candidate: dict[str, Any]) -> None:
             _require_sha(applicable["head_sha"], "observed.facts.ci.applicable_to.head_sha")
         if "base_sha" in applicable:
             _require_sha(applicable["base_sha"], "observed.facts.ci.applicable_to.base_sha")
+        if "effective_base_sha" in applicable:
+            _require_sha(
+                applicable["effective_base_sha"],
+                "observed.facts.ci.applicable_to.effective_base_sha",
+            )
     attempt = ci.get("attempt")
     if attempt is not None and (type(attempt) is not int or attempt <= 0):
         raise ArtifactInputError("observed.facts.ci.attempt must be a positive integer")
@@ -866,6 +914,7 @@ def normalize(source: Mapping[str, Any]) -> NormalizedReviewArtifacts:
     planner_source = _source_identity(
         planner_input.get("source"), "planner.source", path=PLANNER_PATH, require_blob=True
     )
+    _require_trusted_planner_source(planner_source, revisions)
     planner_binding = {
         **copy.deepcopy(input_binding),
         "artifact_binding": _artifact_binding(
@@ -970,13 +1019,25 @@ def _ci_state(ci: Mapping[str, Any], candidate: Mapping[str, Any]) -> dict[str, 
         observed_head = ci.get("head_sha")
         applicable = ci.get("applicable_to")
         applicable_head = applicable.get("head_sha") if isinstance(applicable, Mapping) else None
-        if observed_head != candidate["head_sha"] or (
-            applicable_head is not None and applicable_head != candidate["head_sha"]
+        applicable_base = applicable.get("base_sha") if isinstance(applicable, Mapping) else None
+        applicable_effective_base = (
+            applicable.get("effective_base_sha") if isinstance(applicable, Mapping) else None
+        )
+        if (
+            observed_head != candidate["head_sha"]
+            or applicable_head != candidate["head_sha"]
+            or applicable_base != candidate["base_sha"]
+            or (
+                applicable_effective_base is not None
+                and applicable_effective_base != candidate["effective_base_sha"]
+            )
         ):
             return {
                 "state": "stale",
                 "observed_head_sha": observed_head,
                 "applicable_head_sha": applicable_head,
+                "applicable_base_sha": applicable_base,
+                "applicable_effective_base_sha": applicable_effective_base,
             }
     return {"state": declared, "observed_head_sha": ci.get("head_sha")}
 

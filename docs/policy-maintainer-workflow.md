@@ -77,9 +77,12 @@ contains the candidate PR/head and base, observed facts, the existing planner
 inputs, the existing gate result, explicit judgment records, role-labelled
 revision bindings, and the Work-ledger resume fields. The renderer invokes the
 existing review-scope planner only from the exact trusted `planner.source`
-revision and declared blob identity; it does not replace the planner or the
-merge gate. Every stack member carries one distinct provider pull-request
-identity, and exactly one member must identify the target PR.
+revision and declared blob identity; that executable identity must also match
+the independently bound `trusted_maintainer_source` planner revision/blob, so a
+candidate cannot authorize its own planner by setting `trusted: true`. It does
+not replace the planner or the merge gate. Every stack member carries one
+distinct provider pull-request identity, and exactly one member must identify
+the target PR.
 
 For a local preview:
 
@@ -96,8 +99,11 @@ packet but are not part of generated-content identity. In particular,
 the target candidate head, while `prospective_canonical_candidate` remains a
 separate binding. An unknown or not-applicable role is explicit; it is never
 silently filled from another worktree's HEAD. A planner source without a full
-trusted blob identity is rejected, so a candidate checkout cannot substitute
-its sibling planner implementation.
+trusted blob identity, or one that differs from the independent maintainer
+binding, is rejected, so a candidate checkout cannot substitute its sibling
+planner implementation. A CI success is likewise rendered stale when its
+bound candidate base differs from the current candidate base; an optional
+effective-base binding is checked independently when supplied.
 
 Rendering is local and side-effect free with respect to GitHub, PR bodies,
 review requests, and Work-ledger storage. The generated PR region is owned only

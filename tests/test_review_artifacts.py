@@ -41,6 +41,7 @@ def _trusted_planner_source() -> dict[str, object]:
 
 
 def _source() -> dict[str, object]:
+    trusted_planner = _trusted_planner_source()
     candidate = {
         "repository": "TakashiSasaki/templates",
         "authority": "policy",
@@ -118,8 +119,11 @@ def _source() -> dict[str, object]:
                 "role": "trusted_maintainer_source",
                 "status": "bound",
                 "label": "Trusted maintainer source",
-                "revision": _sha("e"),
-                "source": {"locator": "policy-source@e"},
+                "revision": trusted_planner["revision"],
+                "source": {
+                    "locator": "policy-source@trusted-planner",
+                    **copy.deepcopy(trusted_planner),
+                },
             },
             {
                 "role": "publication_provider",
@@ -136,11 +140,8 @@ def _source() -> dict[str, object]:
         ],
         "planner": {
             "source": {
-                "repository": "TakashiSasaki/templates",
+                **copy.deepcopy(trusted_planner),
                 "authority": "policy",
-                **_trusted_planner_source(),
-                "path": "repository-skills/land-templates-stack/scripts/plan_review_scope.py",
-                "trusted": True,
             },
             "preflight": {"status": "ready", "missing": []},
             "reviews": [],
@@ -317,6 +318,27 @@ def test_older_ci_success_is_rendered_as_stale_not_success() -> None:
     assert "CI: `stale`" in region
     assert "CI: `success`" not in region
     assert "ci_stale" in normalized.blockers
+
+
+def test_ci_success_on_an_older_base_is_rendered_as_stale() -> None:
+    source = _source()
+    source["observed"]["facts"]["ci"]["applicable_to"]["base_sha"] = _sha("c")
+
+    normalized = artifacts.normalize(source)
+    region = artifacts.render(normalized).files["pr-generated-region.md"]
+
+    assert "CI: `stale`" in region
+    assert "CI: `success`" not in region
+    assert "ci_stale" in normalized.blockers
+
+
+def test_planner_source_must_match_independent_trusted_maintainer_binding() -> None:
+    source = _source()
+    source["planner"]["source"]["revision"] = _sha("f")
+    source["planner"]["source"]["blob_sha"] = _sha("f")
+
+    with pytest.raises(artifacts.ArtifactInputError, match="trusted_maintainer_source"):
+        artifacts.normalize(source)
 
 
 @pytest.mark.parametrize(
