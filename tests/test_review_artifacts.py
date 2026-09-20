@@ -744,6 +744,124 @@ def test_incomplete_observation_cannot_render_success() -> None:
     )
 
 
+def test_retrieval_completeness_is_semantic_but_acquisition_metadata_is_not() -> None:
+    complete = _source()
+    complete["observed"]["retrieval"] = {
+        "complete": True,
+        "retrieved_at": "2026-09-20T02:00:00Z",
+        "cursor": "page-1",
+    }
+    incomplete = copy.deepcopy(complete)
+    incomplete["observed"]["retrieval"]["complete"] = False
+    incomplete["observed"]["retrieval"]["retrieved_at"] = "2026-09-20T03:00:00Z"
+    incomplete["observed"]["retrieval"]["cursor"] = "page-2"
+
+    complete_normalized = artifacts.normalize(complete)
+    incomplete_normalized = artifacts.normalize(incomplete)
+
+    assert complete_normalized.semantic_digest != incomplete_normalized.semantic_digest
+    assert (
+        artifacts.semantic_digest(
+            complete_normalized.data["observed"]["retrieval"]
+        )
+        != artifacts.semantic_digest(
+            incomplete_normalized.data["observed"]["retrieval"]
+        )
+    )
+
+    timestamp_only = copy.deepcopy(complete)
+    timestamp_only["observed"]["retrieval"]["retrieved_at"] = "2026-09-20T04:00:00Z"
+    cursor_only = copy.deepcopy(complete)
+    cursor_only["observed"]["retrieval"]["cursor"] = "page-2"
+    assert (
+        artifacts.normalize(timestamp_only).semantic_digest
+        == complete_normalized.semantic_digest
+    )
+    assert (
+        artifacts.normalize(cursor_only).semantic_digest
+        == complete_normalized.semantic_digest
+    )
+
+
+def test_old_pending_ci_is_stale_when_revision_binding_is_present() -> None:
+    source = _source()
+    old_head = _sha("a")
+    source["observed"]["facts"]["ci"] = {
+        "status": "pending",
+        "head_sha": old_head,
+        "applicable_to": {
+            "head_sha": old_head,
+            "base_sha": source["candidate"]["base_sha"],
+            "effective_base_sha": source["candidate"]["effective_base_sha"],
+        },
+    }
+
+    normalized = artifacts.normalize(source)
+
+    assert artifacts._ci_state(
+        normalized.data["observed"]["facts"]["ci"], normalized.data["candidate"]
+    )["state"] == "stale"
+    assert "ci_stale" in normalized.blockers
+    assert "CI: `stale`" in artifacts.render(normalized).files["pr-generated-region.md"]
+
+
+@pytest.mark.parametrize("status", ["pending", "requested"])
+def test_old_revision_bound_review_status_does_not_look_current(status: str) -> None:
+    source = _source()
+    source["observed"]["facts"]["review"] = {
+        "status": status,
+        "applicable_to": {
+            "candidate_head_sha": _sha("a"),
+            "base_sha": source["candidate"]["base_sha"],
+            "effective_base_sha": source["candidate"]["effective_base_sha"],
+        },
+    }
+
+    normalized = artifacts.normalize(source)
+
+    assert artifacts._review_state(normalized.data) == "not_requested"
+    assert f"Review evidence: `{status}`" not in artifacts.render(
+        normalized
+    ).files["pr-generated-region.md"]
+
+
+def test_work_checkpoint_preserves_compact_diagnostic_resume_state() -> None:
+    source = _source()
+    source["work"].update(
+        {
+            "failure_scope": "provider reconciliation",
+            "evidence_gap": "whether the comment was accepted",
+            "attempted_paths": ["list comments", "reconcile by marker"],
+            "invalidated_paths": [
+                {"path": "blind retry", "reason": "response was ambiguous"}
+            ],
+            "retry_conditions": ["fresh provider read"],
+            "current_hypothesis": "the remote accepted the POST",
+            "current_strategy": "bounded reconciliation",
+            "strategy_attempt_count": 2,
+            "exhausted_strategies": ["unconditional retry"],
+            "strategy_switch_reason": "mutation response was truncated",
+            "diagnostic_budget": {"remaining_attempts": 1},
+            "progress_frontier": "remote state query available",
+            "last_material_progress": "marker lookup completed",
+        }
+    )
+
+    checkpoint = artifacts.render(artifacts.normalize(source)).files[
+        "work-ledger-checkpoint.md"
+    ]
+
+    assert "### Diagnostic resume state" in checkpoint
+    assert "Evidence gap: whether the comment was accepted" in checkpoint
+    assert "Invalidated paths:" in checkpoint
+    assert "Retry conditions:" in checkpoint
+    assert "fresh provider read" in checkpoint
+    assert "Strategy attempt count: 2" in checkpoint
+    assert "remaining\\_attempts" in checkpoint
+    assert "unconditional retry" in checkpoint
+    assert "full_findings" not in checkpoint
+
+
 def test_all_projections_share_one_source_identity_and_checkpoint_uses_refs() -> None:
     normalized = artifacts.normalize(_source())
     rendered = artifacts.render(normalized)

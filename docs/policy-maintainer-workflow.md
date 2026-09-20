@@ -120,10 +120,16 @@ The renderer verifies the consumer role by reading the exact candidate commit's
 that same immutable file/blob contract. A claimed path, field, or candidate
 head is not sufficient evidence by itself. Terminal CI failures are subject to
 the same exact applicability check, so an older failure is rendered stale
-rather than as current evidence. Review evidence is displayed only when its
-head, base, and effective-base applicability is bound to the current candidate.
-The trusted base is an input to the entry point, not a value inferred from the
-candidate JSON.
+rather than as current evidence. Pending CI and requested/pending review
+records that carry revision bindings are subject to the same exact applicability
+check; an older wait state is rendered stale instead of keeping a new candidate
+waiting on obsolete evidence. Review evidence is displayed only when its head,
+base, and effective-base applicability is bound to the current candidate. The
+Work-ledger projection also preserves compact diagnostic resume fields supplied
+under `work`—such as the evidence gap, hypothesis, invalidated paths and retry
+conditions, exhausted strategies, budget, progress frontier, and last material
+progress—without copying findings or transcripts. The trusted base is an input
+to the entry point, not a value inferred from the candidate JSON.
 
 Rendering is local and side-effect free with respect to GitHub, PR bodies,
 review requests, and Work-ledger storage. The generated PR region is owned only

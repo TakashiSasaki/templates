@@ -249,7 +249,11 @@ def _content_projection(value: Mapping[str, Any]) -> dict[str, Any]:
     observed = projection.get("observed")
     if isinstance(observed, dict):
         observed.pop("pr_body", None)
-        observed.pop("retrieval", None)
+        retrieval = observed.get("retrieval")
+        if isinstance(retrieval, Mapping):
+            # Keep material completeness and failure state in the semantic
+            # identity while removing only acquisition timestamps/cursors.
+            observed["retrieval"] = _strip_observation_metadata(retrieval)
         snapshot = observed.get("snapshot")
         if isinstance(snapshot, Mapping):
             observed["snapshot"] = _snapshot_content_projection(snapshot)
@@ -1151,6 +1155,41 @@ def _normalize_work(source: dict[str, Any]) -> dict[str, Any]:
     for forbidden in ("findings", "full_findings", "transcript", "source_text"):
         if forbidden in normalized:
             raise ArtifactInputError(f"work.{forbidden} is not allowed; use references instead")
+    diagnostic_fields = (
+        "failure_scope",
+        "current_failure_scope",
+        "evidence_gap",
+        "attempted_paths",
+        "invalidated_paths",
+        "retry_conditions",
+        "current_hypothesis",
+        "current_strategy",
+        "strategy_attempt_count",
+        "exhausted_strategies",
+        "strategy_switch_reason",
+        "diagnostic_budget",
+        "progress_frontier",
+        "last_material_progress",
+        "external_wait",
+        "diagnostic_state",
+    )
+    list_fields = {
+        "attempted_paths",
+        "invalidated_paths",
+        "retry_conditions",
+        "exhausted_strategies",
+    }
+    for field in diagnostic_fields:
+        if field not in normalized:
+            continue
+        value = _json_data(normalized[field], f"work.{field}")
+        if field in list_fields and not isinstance(value, list):
+            raise ArtifactInputError(f"work.{field} must be a list")
+        if field == "strategy_attempt_count" and (
+            type(value) is not int or value < 0
+        ):
+            raise ArtifactInputError("work.strategy_attempt_count must be a non-negative integer")
+        normalized[field] = value
     return normalized
 
 
@@ -1373,7 +1412,13 @@ def _ci_state(ci: Mapping[str, Any], candidate: Mapping[str, Any]) -> dict[str, 
     if not ci:
         return {"state": "unobserved", "observed_head_sha": None}
     declared = ci.get("status", "unknown")
-    if declared in {"success", "failure"}:
+    if declared in {"success", "failure"} or (
+        declared == "pending"
+        and any(
+            ci.get(key) is not None
+            for key in ("head_sha", "applicable_to")
+        )
+    ):
         observed_head = ci.get("head_sha")
         applicable = ci.get("applicable_to")
         applicable_head = applicable.get("head_sha") if isinstance(applicable, Mapping) else None
@@ -1417,7 +1462,10 @@ def _review_state(data: Mapping[str, Any]) -> str:
     planner = data["planner"]["result"]
     if isinstance(review, Mapping):
         status = str(review.get("status", "unknown"))
-        if status != "evidence_present" or _review_is_applicable(review, data["candidate"]):
+        revision_bound_status = {"evidence_present", "requested", "pending"}
+        if status not in revision_bound_status or _review_is_applicable(
+            review, data["candidate"]
+        ):
             return status
         if planner.get("action") in {
             "request_independent_delta_review",
@@ -1463,6 +1511,38 @@ def _safe_url(value: Any) -> str:
 def _code(value: Any) -> str:
     text = str(value).replace("`", "'").replace("\r\n", "\n").replace("\r", "\n")
     return f"`{text.replace(chr(10), '<br>')}`"
+
+
+def _compact_work_value(value: Any) -> str:
+    if isinstance(value, (Mapping, list)):
+        return canonical_json(value)
+    return str(value)
+
+
+def _diagnostic_checkpoint_lines(work: Mapping[str, Any]) -> list[str]:
+    labels = (
+        ("failure_scope", "Failure scope"),
+        ("current_failure_scope", "Current failure scope"),
+        ("evidence_gap", "Evidence gap"),
+        ("attempted_paths", "Attempted paths"),
+        ("invalidated_paths", "Invalidated paths"),
+        ("retry_conditions", "Retry conditions"),
+        ("current_hypothesis", "Current hypothesis"),
+        ("current_strategy", "Current strategy"),
+        ("strategy_attempt_count", "Strategy attempt count"),
+        ("exhausted_strategies", "Exhausted strategies"),
+        ("strategy_switch_reason", "Strategy switch reason"),
+        ("diagnostic_budget", "Diagnostic budget"),
+        ("progress_frontier", "Progress frontier"),
+        ("last_material_progress", "Last material progress"),
+        ("external_wait", "External wait"),
+        ("diagnostic_state", "Diagnostic state"),
+    )
+    return [
+        f"- {label}: {_safe_text(_compact_work_value(work[field]))}"
+        for field, label in labels
+        if field in work
+    ]
 
 
 def _role_lines(data: Mapping[str, Any]) -> list[str]:
@@ -1663,6 +1743,7 @@ def render_work_checkpoint(normalized: NormalizedReviewArtifacts) -> str:
     work = data["work"]
     planner = normalized.planner_result
     pr = candidate["pull_request"]
+    diagnostic_lines = _diagnostic_checkpoint_lines(work)
     lines = [
         f"<!-- {WORK_CHECKPOINT_MARKER}:binding={normalized.binding_digest} -->",
         "## Work ledger checkpoint",
@@ -1685,9 +1766,10 @@ def render_work_checkpoint(normalized: NormalizedReviewArtifacts) -> str:
         "- CI state: "
         f"{_code(_ci_state(data['observed']['facts'].get('ci', {}), candidate)['state'])}",
         f"- Review evidence state: {_code(_review_state(data))}",
-        "",
-        "### Blockers",
     ]
+    if diagnostic_lines:
+        lines.extend(["", "### Diagnostic resume state", *diagnostic_lines])
+    lines.extend(["", "### Blockers"])
     blockers = list(work.get("blockers", [])) + list(normalized.blockers)
     if blockers:
         lines.extend(f"- {_code(item)}" for item in sorted(set(blockers)))
