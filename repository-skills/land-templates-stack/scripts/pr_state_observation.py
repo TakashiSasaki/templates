@@ -542,6 +542,14 @@ def validate_snapshot(snapshot: Mapping[str, Any]) -> None:
     )
     if complete != expected_complete:
         raise ObservationInputError("snapshot.complete does not match its content")
+    if snapshot.get("merge_authorization") != "not_established":
+        raise ObservationInputError(
+            "snapshot.merge_authorization does not preserve the non-approval boundary"
+        )
+    if snapshot.get("review_approval") != "not_inferred":
+        raise ObservationInputError(
+            "snapshot.review_approval does not preserve the non-approval boundary"
+        )
     declared_digest = snapshot.get("snapshot_digest")
     if not isinstance(declared_digest, str):
         raise ObservationInputError("snapshot.snapshot_digest is missing")

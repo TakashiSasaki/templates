@@ -346,6 +346,8 @@ def test_summary_bounds_large_nested_values_and_serialized_size() -> None:
         ("complete", False, "complete"),
         ("binding_status", "stale", "binding_status"),
         ("binding_reasons", ["fabricated"], "binding_reasons"),
+        ("review_approval", "approved", "review_approval"),
+        ("merge_authorization", "established", "merge_authorization"),
     ],
 )
 def test_self_consistent_but_malformed_previous_snapshot_is_rejected(
