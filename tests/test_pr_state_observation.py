@@ -395,6 +395,60 @@ def test_incomplete_previous_snapshot_does_not_create_added_changes() -> None:
     assert "previous_snapshot_incomplete" in diff["unknowns"]
 
 
+def test_incomplete_baseline_preserves_edits_to_shared_records() -> None:
+    first = snapshot(
+        [{"identity": "known", "body": "baseline", "state": "open"}],
+        complete=False,
+        comments_complete=False,
+    )
+    second = snapshot(
+        [
+            {"identity": "known", "body": "edited", "state": "open"},
+            {"identity": "page-2", "body": "recovered", "state": "open"},
+        ]
+    )
+
+    diff = OBSERVATION.diff_snapshots(first, second)
+
+    assert diff["status"] == "incomplete"
+    assert diff["meaningful_change"] is True
+    assert diff["counts"]["changed"] == 1
+    changed = [change for change in diff["changes"] if change["kind"] == "changed"]
+    assert changed[0]["identity"] == "known"
+    assert changed[0]["before"]["body"] == "baseline"
+    assert changed[0]["after"]["body"] == "edited"
+    assert not any(change["kind"] == "added" for change in diff["changes"])
+
+
+def test_candidate_dependency_provider_identities_must_be_unique() -> None:
+    dependency_identity = {
+        "provider": "github",
+        "repository_id": "repository-1",
+        "resource_id": "pull-request-1",
+    }
+    with pytest.raises(OBSERVATION.ObservationInputError, match="provider identities"):
+        OBSERVATION.CandidateBinding.from_mapping(
+            candidate(
+                dependencies=[
+                    {
+                        "id": "dependency-a",
+                        "authority": "policy",
+                        "expected_head_sha": HEAD,
+                        "provider_identity": dependency_identity,
+                        "provider_path": "/repos/TakashiSasaki/templates/pulls/1",
+                    },
+                    {
+                        "id": "dependency-b",
+                        "authority": "composition",
+                        "expected_head_sha": HEAD,
+                        "provider_identity": dependency_identity,
+                        "provider_path": "/repos/TakashiSasaki/templates/pulls/2",
+                    },
+                ]
+            )
+        )
+
+
 def test_changed_surface_set_fails_closed_and_reordering_is_harmless() -> None:
     first = OBSERVATION.build_snapshot(
         candidate=candidate(),
