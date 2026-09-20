@@ -5,7 +5,7 @@ import json
 import posixpath
 import re
 import shlex
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from pathlib import PurePath
 
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
@@ -32,6 +32,8 @@ SKILL_REFERENCE_IMPORTS = {
 SKILL_CONFIG_PATH_TOKEN = "{{ config_path }}"
 SKILL_CONFIG_PATH_SHELL_TOKEN = "{{ config_path_shell }}"
 SKILL_CONFIG_PATH_YAML_TOKEN = "{{ config_path_yaml }}"
+SKILL_DELIVERY_BUNDLE_PATH_TOKEN = "{{ policy_delivery_bundle_path }}"
+SKILL_DELIVERY_BUNDLE_PATH_PYTHON_TOKEN = "{{ policy_delivery_bundle_path_python }}"
 
 
 def environment() -> Environment:
@@ -119,6 +121,7 @@ def render_skill(
     skill_name: str,
     *,
     config_path: str = ".agent-policy.yml",
+    replacement_values: Mapping[str, str] | None = None,
 ) -> dict[str, str]:
     if SKILL_NAME_PATTERN.fullmatch(skill_name) is None:
         raise ValueError(f"Invalid generated skill name: {skill_name}")
@@ -131,7 +134,13 @@ def render_skill(
         SKILL_CONFIG_PATH_SHELL_TOKEN: shlex.quote(config_path),
         SKILL_CONFIG_PATH_YAML_TOKEN: json.dumps(config_path),
         SKILL_CONFIG_PATH_TOKEN: config_path,
+        SKILL_DELIVERY_BUNDLE_PATH_TOKEN: ".agent-policy/policy-details.json",
+        SKILL_DELIVERY_BUNDLE_PATH_PYTHON_TOKEN: json.dumps(
+            ".agent-policy/policy-details.json"
+        )[1:-1],
     }
+    if replacement_values:
+        replacements.update(replacement_values)
     if skill_name == "maintain-progressive-discovery":
         schema_text = (package_root() / "schemas/agent-policy.schema.json").read_text(
             encoding="utf-8"

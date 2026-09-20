@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import json
 import os
 import tempfile
 from pathlib import Path
 
-from ..config import load_config, validate_config
+from ..config import Config, load_config, validate_config
+from ..delivery import JSON_GENERATED_MARKER, render_staged_agents
 from ..diagnostics import Diagnostic
 from ..lockfile import (
     LOCK_PATH,
@@ -15,7 +17,13 @@ from ..lockfile import (
 )
 from ..paths import resolve_inside
 from ..policy_loader import load_rules
-from ..renderer import GENERATED_MARKER, render_output, render_skill
+from ..renderer import (
+    GENERATED_MARKER,
+    SKILL_DELIVERY_BUNDLE_PATH_PYTHON_TOKEN,
+    SKILL_DELIVERY_BUNDLE_PATH_TOKEN,
+    render_output,
+    render_skill,
+)
 
 
 def _write_atomic(path: Path, content: str) -> None:
@@ -28,10 +36,14 @@ def _write_atomic(path: Path, content: str) -> None:
     os.replace(temporary, path)
 
 
+def _is_generated_content(content: str) -> bool:
+    return GENERATED_MARKER in content or JSON_GENERATED_MARKER in content
+
+
 def _safe_generated_write(path: Path, content: str) -> None:
     if path.exists():
         existing = path.read_text(encoding="utf-8")
-        if GENERATED_MARKER not in existing:
+        if not _is_generated_content(existing):
             raise FileExistsError(f"Refusing to overwrite non-generated file: {path}")
     _write_atomic(path, content)
 
@@ -130,7 +142,7 @@ def _obsolete_generated_outputs(
             raise ValueError(
                 f"Refusing to remove modified obsolete generated output: {relative}"
             )
-        if GENERATED_MARKER not in target.read_text(encoding="utf-8"):
+        if not _is_generated_content(target.read_text(encoding="utf-8")):
             raise FileExistsError(
                 f"Refusing to remove non-generated obsolete output: {relative}"
             )
@@ -159,6 +171,19 @@ def _reject_obsolete_output_overlaps(
                 )
 
 
+def _configured_inputs(
+    repository_root: Path, config: Config, config_path: str
+) -> dict[str, Path]:
+    inputs = {config.relative_path: config.path}
+    inputs.update(
+        {
+            relative: resolve_inside(repository_root, relative, allow_missing=False)
+            for relative in config.project_policy_files
+        }
+    )
+    return inputs
+
+
 def run(repository_root: Path, config_path: str) -> list[Diagnostic]:
     try:
         config = load_config(repository_root, config_path)
@@ -167,6 +192,8 @@ def run(repository_root: Path, config_path: str) -> list[Diagnostic]:
             return diagnostics
 
         planned: dict[str, tuple[Path, str]] = {}
+        inputs = _configured_inputs(repository_root, config, config_path)
+        staged_bundle_paths: list[str] = []
         contexts = config.contexts
         for output in config.output_specs:
             if not output.enabled:
@@ -179,35 +206,62 @@ def run(repository_root: Path, config_path: str) -> list[Diagnostic]:
                 declared_overrides=context.override_reasons,
                 require_explicit_overrides=True,
             )
-            content = render_output(
-                output.renderer,
-                config,
-                rules,
-                context_name=context.name,
-                project_policy_files=context.project_policy_files,
-            )
-            _add_planned_output(
-                repository_root,
-                planned,
-                output.path,
-                content,
-            )
+            if output.renderer == "agents-md-staged":
+                if output.detail_bundle_path is None:
+                    raise ValueError("agents-md-staged requires detail_bundle")
+                staged = render_staged_agents(
+                    config,
+                    rules,
+                    context_name=context.name,
+                    project_policy_files=list(context.project_policy_files),
+                    input_paths=inputs,
+                    bundle_path=output.detail_bundle_path,
+                )
+                _add_planned_output(repository_root, planned, output.path, staged.startup)
+                _add_planned_output(
+                    repository_root,
+                    planned,
+                    output.detail_bundle_path,
+                    staged.bundle,
+                )
+                staged_bundle_paths.append(output.detail_bundle_path)
+            else:
+                content = render_output(
+                    output.renderer,
+                    config,
+                    rules,
+                    context_name=context.name,
+                    project_policy_files=context.project_policy_files,
+                )
+                _add_planned_output(
+                    repository_root,
+                    planned,
+                    output.path,
+                    content,
+                )
 
         for skill in config.enabled_skills:
+            replacement_values = None
+            if skill == "policy-guidance":
+                if len(staged_bundle_paths) != 1:
+                    raise ValueError(
+                        "policy-guidance requires exactly one enabled agents-md-staged output"
+                    )
+                bundle_path = staged_bundle_paths[0]
+                replacement_values = {
+                    SKILL_DELIVERY_BUNDLE_PATH_TOKEN: bundle_path,
+                    SKILL_DELIVERY_BUNDLE_PATH_PYTHON_TOKEN: json.dumps(bundle_path)[
+                        1:-1
+                    ],
+                }
             for relative, content in render_skill(
                 skill,
                 config_path=config.relative_path,
+                replacement_values=replacement_values,
             ).items():
                 target_name = f".agents/skills/{skill}/{relative}"
                 _add_planned_output(repository_root, planned, target_name, content)
 
-        inputs = {config.relative_path: config.path}
-        inputs.update(
-            {
-                relative: resolve_inside(repository_root, relative, allow_missing=False)
-                for relative in config.project_policy_files
-            }
-        )
         protected_inputs = set(inputs.values())
         protected_inputs.update(
             _literal_repository_path(repository_root, relative)

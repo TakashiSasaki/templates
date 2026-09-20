@@ -35,6 +35,7 @@ packages = ["src/agent_policy"]
 "policy" = "agent_policy/_data/policy"
 "templates" = "agent_policy/_data/templates"
 "skills" = "agent_policy/_data/skills"
+"delivery" = "agent_policy/_data/delivery"
 
 [tool.pytest.ini_options]
 addopts = "-q"

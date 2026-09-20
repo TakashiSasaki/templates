@@ -63,6 +63,30 @@ The context is the semantic authority boundary. A renderer does not select, add,
 
 `agents-md` preserves the established repository-agent instruction surface. `policy-context-md` produces a provider-neutral semantic context document for uses such as pull-request review. Provider execution, API serialization, and review submission are procedures outside renderer authority; for pull-request review, managed repositories can generate the provider-neutral `pr-review` Skill while keeping provider API references non-normative.
 
+The opt-in `agents-md-staged` renderer presents a compact startup document and
+keeps the complete selected rule text in a lock-bound detail bundle. It requires
+an explicit `detail_bundle` path and the single grouped `policy-guidance` Skill:
+
+```yaml
+outputs:
+  agents-staged:
+    enabled: true
+    path: .agent-policy/preview/AGENTS.md
+    detail_bundle: .agent-policy/preview/policy-details.json
+    context: coding
+    renderer: agents-md-staged
+skills:
+  enabled:
+    - policy-guidance
+```
+
+The staged output is a presentation projection. It does not change rule
+selection, severity, overrides, or enforcement. Before a dependent operation,
+use the generated `policy-guidance` script to validate the bundle and retrieve
+the exact applicable rule text. Missing, stale, corrupt, or unmapped detail is
+a blocking condition for that dependent operation. Existing configurations
+continue to use `agents-md` unless this output is explicitly enabled.
+
 The current schema intentionally has no review-result JSON renderer. Provider-specific event names, API requests, inline-anchor formats, or serialization contracts must not become semantic review policy or a second generated review-procedure authority.
 
 All configured repository-local policy inputs are included in the generated lock. Each output, however, is rendered only from the profiles and repository-local policy files belonging to its referenced context. Output paths must be unique and must not overwrite configuration, policy input, or reserved generated-state paths.

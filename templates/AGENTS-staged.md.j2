@@ -1,0 +1,60 @@
+<!--
+agent-policy-generated: true
+configuration: {{ config.relative_path }}
+renderer: agents-md-staged
+DO NOT EDIT DIRECTLY
+-->
+
+# Repository agent instructions
+
+This is an opt-in staged presentation of the selected Policy context. The
+canonical rules remain in the pinned Policy toolchain and the complete text is
+in the authenticated detail bundle.
+
+## Policy system
+
+- Semantic configuration: `{{ config.relative_path }}`
+- Pinned shared toolchain: `{{ config.data.toolchain.repository }}@{{ config.data.toolchain.revision }}`
+- Detail bundle: `{{ bundle_path }}`
+- Selected rules: `{{ selected_rule_count }}`
+
+Before a dependent operation, retrieve the applicable exact rule text with:
+
+```bash
+python .agents/skills/policy-guidance/scripts/policy_guidance.py --bundle {{ bundle_path }} --operation <inspect|plan|edit|generate|validate|review|merge|publish>
+```
+
+If the bundle, lock, route, source identity, or retrieval command cannot be
+validated, stop the dependent operation and regenerate or use the documented
+full-text projection. Do not infer missing policy details from this index.
+
+{% if project_policy_files %}Repository policy inputs:
+{% for path in project_policy_files %}- `{{ path }}`
+{% endfor %}{% endif %}
+
+## Essential startup boundaries
+
+The following selected rules are included in full because they establish
+cross-cutting authority, safety, evidence, and validation boundaries.
+
+{% for item in startup_rules %}
+### {{ item.rule.title }}
+
+{{ item.rule.body.split('\n', 1)[1].strip() if '\n' in item.rule.body else item.rule.body }}
+
+{% if item.rule.origin == 'toolchain' %}_Source: `{{ config.data.toolchain.repository }}@{{ config.data.toolchain.revision }}:{{ item.rule.source }}`; rule ID: `{{ item.rule.id }}`; severity: `{{ item.rule.severity }}`._
+{% else %}_Source: `{{ item.rule.source }}` in this repository; rule ID: `{{ item.rule.id }}`; severity: `{{ item.rule.severity }}`._
+{% endif %}
+{% endfor %}
+
+## Operation routing
+
+The index below is presentation metadata. It does not change rule meaning or
+decide applicability. Retrieve every listed rule before the operation when its
+route applies; retrieve all selected details when a route is incomplete.
+
+{% for operation, rule_ids in operation_routes.items() %}- `{{ operation }}`: {% for rule_id in rule_ids %}`{{ rule_id }}`{% if not loop.last %}, {% endif %}{% endfor %}
+{% endfor %}
+
+Do not edit this generated file directly. Change `{{ config.relative_path }}` or
+its policy inputs, then regenerate with the pinned toolchain.
