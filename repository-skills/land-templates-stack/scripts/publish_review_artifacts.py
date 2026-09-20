@@ -1749,8 +1749,11 @@ def _validate_checkpoint_after_write(
     number: int,
     *,
     desired_body: str,
+    checkpoint_key: str,
+    expected_comment_id: int | str | None,
+    expected_checkpoint_body: str,
 ) -> tuple[str | None, str | None]:
-    """Revalidate the full PR binding after a checkpoint mutation."""
+    """Revalidate the PR binding and checkpoint after a checkpoint mutation."""
 
     try:
         verified_state = _current_state(remote, repository, number, normalized)
@@ -1766,6 +1769,26 @@ def _validate_checkpoint_after_write(
             "stale",
             "publication binding changed after checkpoint state update; "
             + "; ".join(reasons),
+        )
+    if not isinstance(expected_comment_id, (int, str)):
+        return "ambiguous", "checkpoint identity is missing after checkpoint state update"
+    try:
+        comments = remote.list_comments(repository, number)
+        candidates, owned = _checkpoint_matches(
+            remote, comments, checkpoint_key, normalized
+        )
+    except (PublicationError, OSError) as exc:
+        return "ambiguous", f"checkpoint updated but comment reconciliation failed: {exc}"
+    if len(candidates) > 1 or len(owned) > 1:
+        return "conflict", "duplicate checkpoint markers after checkpoint state update"
+    if (
+        len(owned) != 1
+        or str(owned[0].get("id")) != str(expected_comment_id)
+        or owned[0].get("body") != expected_checkpoint_body
+    ):
+        return (
+            "conflict",
+            "checkpoint identity or body changed after checkpoint state update",
         )
     return None, None
 
@@ -2033,6 +2056,9 @@ def _update_checkpoint_after_request(
             repository,
             number,
             desired_body=updated_body,
+            checkpoint_key=checkpoint_key,
+            expected_comment_id=comment_id,
+            expected_checkpoint_body=transition_body,
         )
         if post_write_status is not None:
             return post_write_status, post_write_reason
@@ -2061,6 +2087,9 @@ def _update_checkpoint_after_request(
                 repository,
                 number,
                 desired_body=updated_body,
+                checkpoint_key=checkpoint_key,
+                expected_comment_id=comment_id,
+                expected_checkpoint_body=transition_body,
             )
             if post_write_status is not None:
                 return post_write_status, post_write_reason
@@ -2470,6 +2499,11 @@ def _publish_authorized(
             repository,
             number,
             desired_body=updated_body,
+            checkpoint_key=checkpoint_operation["key"],
+            expected_comment_id=checkpoint_operation.get("comment_id"),
+            expected_checkpoint_body=checkpoint_operation.get(
+                "body", rendered.files["work-ledger-checkpoint.md"]
+            ),
         )
         if checkpoint_status is not None:
             return PublicationResult(

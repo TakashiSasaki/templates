@@ -888,6 +888,86 @@ def test_final_checkpoint_create_revalidates_non_request_actions(
     assert provider.update_comment_calls == 0
 
 
+@pytest.mark.parametrize(
+    "action",
+    [publisher.ACTION_REUSE, publisher.ACTION_RECONCILE, publisher.ACTION_MISSING],
+)
+@pytest.mark.parametrize("checkpoint_mutation", ["delete", "corrupt", "unown"])
+def test_final_checkpoint_revalidation_rechecks_durable_comment(
+    action: str,
+    checkpoint_mutation: str,
+) -> None:
+    normalized = _bound_source()
+    normalized.data["planner"]["result"]["action"] = action
+    normalized.planner_result["action"] = action
+
+    class MutatesCheckpointAfterReconciliation(FakeProvider):
+        def __init__(self, normalized) -> None:
+            super().__init__(normalized)
+            self.checkpoint_created = False
+            self.reconciliation_seen = False
+            self.mutated = False
+
+        def create_comment(self, repository, number, body):
+            result = super().create_comment(repository, number, body)
+            self.checkpoint_created = True
+            return result
+
+        def list_comments(self, repository, number):
+            self.list_calls += 1
+            if self.checkpoint_created and not self.reconciliation_seen:
+                self.reconciliation_seen = True
+            elif self.checkpoint_created and self.reconciliation_seen and not self.mutated:
+                self.mutated = True
+                if checkpoint_mutation == "delete":
+                    self.comments.clear()
+                elif checkpoint_mutation == "corrupt":
+                    self.comments[0]["body"] = "corrupted checkpoint"
+                else:
+                    self.comments[0]["publisher_owned"] = False
+            return copy.deepcopy(self.comments)
+
+    provider = MutatesCheckpointAfterReconciliation(normalized)
+    result = _publish(provider)
+
+    assert result.status == "conflict"
+    assert "checkpoint" in result.reasons[0]
+    assert provider.create_calls == 1
+    assert provider.update_comment_calls == 0
+
+
+def test_checkpoint_transition_revalidation_rechecks_durable_comment() -> None:
+    normalized = _bound_source()
+
+    class MutatesCheckpointAfterTransition(FakeProvider):
+        def __init__(self, normalized) -> None:
+            super().__init__(normalized)
+            self.transition_updated = False
+            self.transition_verified = False
+            self.mutated = False
+
+        def update_comment(self, repository, number, comment_id, body):
+            result = super().update_comment(repository, number, comment_id, body)
+            self.transition_updated = True
+            return result
+
+        def list_comments(self, repository, number):
+            self.list_calls += 1
+            if self.transition_updated and not self.transition_verified:
+                self.transition_verified = True
+            elif self.transition_updated and self.transition_verified and not self.mutated:
+                self.mutated = True
+                self.comments[0]["body"] = "corrupted submitted checkpoint"
+            return copy.deepcopy(self.comments)
+
+    provider = MutatesCheckpointAfterTransition(normalized)
+    result = _publish(provider)
+
+    assert result.status == "conflict"
+    assert "checkpoint" in result.reasons[0]
+    assert provider.update_comment_calls == 1
+
+
 def test_checkpoint_identity_changes_with_resume_state_but_not_review_identity() -> None:
     first = _bound_source()
     changed_source = source_fixture._source()
