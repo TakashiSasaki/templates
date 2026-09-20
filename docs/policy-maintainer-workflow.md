@@ -114,6 +114,14 @@ trusted blob identity, or one that differs from the independent maintainer
 binding, is rejected, so a candidate checkout cannot substitute its sibling
 planner implementation. A CI success is likewise rendered stale unless its
 applicability binds the exact candidate head, PR base, and effective base.
+The renderer verifies the consumer role by reading the exact candidate commit's
+`.agent-policy.yml` and checking its verified Git blob plus
+`toolchain.revision`; callers that provide an alternate resolver must preserve
+that same immutable file/blob contract. A claimed path, field, or candidate
+head is not sufficient evidence by itself. Terminal CI failures are subject to
+the same exact applicability check, so an older failure is rendered stale
+rather than as current evidence. Review evidence is displayed only when its
+head, base, and effective-base applicability is bound to the current candidate.
 The trusted base is an input to the entry point, not a value inferred from the
 candidate JSON.
 

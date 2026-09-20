@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import importlib.util
 import json
 import subprocess
@@ -22,7 +23,11 @@ _normalize = artifacts.normalize
 
 
 def _normalize_with_trusted_base(source: dict[str, object]):
-    return _normalize(source, trusted_base_sha=TEST_TRUSTED_BASE_SHA)
+    return _normalize(
+        source,
+        trusted_base_sha=TEST_TRUSTED_BASE_SHA,
+        candidate_file_resolver=_fixture_candidate_file,
+    )
 
 
 artifacts.normalize = _normalize_with_trusted_base
@@ -51,6 +56,20 @@ def _trusted_planner_source() -> dict[str, object]:
         "blob_sha": planner["blob_sha"],
         "trusted": True,
     }
+
+
+def _consumer_config_content(revision: str = _sha("c")) -> bytes:
+    return f"toolchain:\n  revision: {revision}\n".encode()
+
+
+def _fixture_candidate_file(
+    repository: str, revision: str, path: str
+) -> dict[str, object]:
+    assert repository == "TakashiSasaki/templates"
+    assert path == ".agent-policy.yml"
+    content = _consumer_config_content()
+    blob_sha = hashlib.sha1(f"blob {len(content)}\0".encode() + content).hexdigest()
+    return {"sha": blob_sha, "content": content}
 
 
 def _source() -> dict[str, object]:
@@ -117,6 +136,9 @@ def _source() -> dict[str, object]:
                     "worktree_head_sha": _sha("b"),
                     "path": ".agent-policy.yml",
                     "field": "toolchain.revision",
+                    "blob_sha": _fixture_candidate_file(
+                        "TakashiSasaki/templates", _sha("b"), ".agent-policy.yml"
+                    )["sha"],
                 },
             },
             {
@@ -193,7 +215,11 @@ def _source() -> dict[str, object]:
         },
     }
     normalized_candidate = artifacts._normalize_candidate(source)
-    _, revision_digest = artifacts._normalize_revision_bindings(source, normalized_candidate)
+    _, revision_digest = artifacts._normalize_revision_bindings(
+        source,
+        normalized_candidate,
+        candidate_file_resolver=_fixture_candidate_file,
+    )
     planner_source = source["planner"]["source"]
     planner_binding = {
         **source["input_binding"],
@@ -269,6 +295,14 @@ def test_consumer_pin_must_be_read_at_target_head_not_another_worktree() -> None
         artifacts.normalize(source)
 
 
+def test_consumer_pin_claim_must_match_exact_candidate_configuration() -> None:
+    source = _source()
+    source["revision_bindings"][0]["revision"] = _sha("d")
+
+    with pytest.raises(artifacts.ArtifactInputError, match="exact candidate configuration"):
+        artifacts.normalize(source)
+
+
 def test_same_semantic_input_renders_identical_projections() -> None:
     first = artifacts.render(artifacts.normalize(_source()))
     second = artifacts.render(artifacts.normalize(_source()))
@@ -309,7 +343,11 @@ def test_dependency_change_refuses_gate_bound_to_earlier_dependency_set() -> Non
 def test_stale_declared_planner_result_is_rejected() -> None:
     source = _source()
     normalized_candidate = artifacts._normalize_candidate(source)
-    bindings, revision_digest = artifacts._normalize_revision_bindings(source, normalized_candidate)
+    bindings, revision_digest = artifacts._normalize_revision_bindings(
+        source,
+        normalized_candidate,
+        candidate_file_resolver=_fixture_candidate_file,
+    )
     planner_source = source["planner"]["source"]
     planner_binding = {
         **source["input_binding"],
@@ -335,6 +373,20 @@ def test_older_ci_success_is_rendered_as_stale_not_success() -> None:
     region = artifacts.render(normalized).files["pr-generated-region.md"]
     assert "CI: `stale`" in region
     assert "CI: `success`" not in region
+    assert "ci_stale" in normalized.blockers
+
+
+def test_older_ci_failure_is_rendered_as_stale_not_failure() -> None:
+    source = _source()
+    source["observed"]["facts"]["ci"]["status"] = "failure"
+    source["observed"]["facts"]["ci"]["head_sha"] = _sha("8")
+    source["observed"]["facts"]["ci"]["applicable_to"]["head_sha"] = _sha("8")
+
+    normalized = artifacts.normalize(source)
+    region = artifacts.render(normalized).files["pr-generated-region.md"]
+
+    assert "CI: `stale`" in region
+    assert "CI: `failure`" not in region
     assert "ci_stale" in normalized.blockers
 
 
@@ -414,6 +466,18 @@ def test_success_ci_without_effective_base_is_stale() -> None:
 
     assert "ci_stale" in normalized.blockers
     assert "CI: `stale`" in artifacts.render(normalized).files["pr-generated-region.md"]
+
+
+def test_unbound_review_evidence_does_not_override_new_planner_action() -> None:
+    normalized = artifacts.normalize(_source())
+    normalized.data["observed"]["facts"]["review"] = {"status": "evidence_present"}
+    normalized.planner_result["action"] = "request_independent_delta_review"
+    normalized.planner_result["request_state"] = "not_requested"
+
+    assert artifacts._review_state(normalized.data) == "not_requested"
+    assert "Review evidence: `not_requested`" in artifacts.render(
+        normalized
+    ).files["pr-generated-region.md"]
 
 
 def test_fixture_base_is_independent_of_optional_remote_tracking_refs() -> None:
@@ -560,7 +624,11 @@ def test_planner_missing_information_is_returned_not_fabricated() -> None:
     source["planner"]["discovery"]["reviews_complete"] = False
     source["gate"]["status"] = "pending"
     candidate = artifacts._normalize_candidate(source)
-    _, revision_digest = artifacts._normalize_revision_bindings(source, candidate)
+    _, revision_digest = artifacts._normalize_revision_bindings(
+        source,
+        candidate,
+        candidate_file_resolver=_fixture_candidate_file,
+    )
     planner_source = source["planner"]["source"]
     planner_binding = {
         **source["input_binding"],

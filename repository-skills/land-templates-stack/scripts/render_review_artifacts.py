@@ -26,9 +26,11 @@ import os
 import re
 import subprocess
 import sys
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
+
+import yaml
 
 INPUT_KIND = "repository-change-review-artifacts"
 INPUT_SCHEMA_VERSION = 1
@@ -245,6 +247,80 @@ def _source_identity(
 def _git_blob_sha(content: bytes) -> str:
     header = f"blob {len(content)}\0".encode("ascii")
     return hashlib.sha1(header + content).hexdigest()
+
+
+def _read_candidate_file_at_revision(
+    repository: str, revision: str, path: str, *, repository_root: Path
+) -> dict[str, Any]:
+    """Read and verify a file from the immutable candidate commit."""
+
+    if repository != REPOSITORY:
+        raise ArtifactInputError("candidate file repository is not the bound repository")
+    if _read_git_output(repository_root, "cat-file", "-t", revision) != "commit":
+        raise ArtifactInputError("candidate file revision must name a commit object")
+    blob_sha = _read_git_output(
+        repository_root, "rev-parse", "--verify", f"{revision}:{path}"
+    )
+    content = _read_git_bytes(repository_root, "show", f"{revision}:{path}")
+    if _git_blob_sha(content) != blob_sha:
+        raise ArtifactInputError("candidate file blob identity does not match its content")
+    return {"sha": blob_sha, "content": content}
+
+
+class _UniqueYamlLoader(yaml.SafeLoader):
+    """Reject duplicate configuration keys instead of silently choosing one."""
+
+
+def _construct_unique_mapping(
+    loader: _UniqueYamlLoader, node: yaml.MappingNode, deep: bool = False
+) -> dict[Any, Any]:
+    mapping: dict[Any, Any] = {}
+    for key_node, value_node in node.value:
+        key = loader.construct_object(key_node, deep=deep)
+        if key in mapping:
+            raise ArtifactInputError("candidate configuration contains a duplicate YAML key")
+        mapping[key] = loader.construct_object(value_node, deep=deep)
+    return mapping
+
+
+_UniqueYamlLoader.add_constructor(
+    yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, _construct_unique_mapping
+)
+
+
+def _candidate_toolchain_revision(
+    resolved: Mapping[str, Any], *, path: str, field: str
+) -> tuple[str, str]:
+    """Return the exact configured pin and its verified candidate-file blob."""
+
+    blob_sha = _require_sha(resolved.get("sha"), "candidate configuration blob_sha")
+    content = resolved.get("content")
+    if isinstance(content, str):
+        content_bytes = content.encode("utf-8")
+    elif isinstance(content, bytes):
+        content_bytes = content
+    else:
+        raise ArtifactInputError("candidate configuration content is missing")
+    if _git_blob_sha(content_bytes) != blob_sha:
+        raise ArtifactInputError("candidate configuration blob identity changed")
+    if path != ".agent-policy.yml" or field != "toolchain.revision":
+        raise ArtifactInputError(
+            "consumer_actual_toolchain verification requires .agent-policy.yml#toolchain.revision"
+        )
+    try:
+        document = yaml.load(content_bytes.decode("utf-8"), Loader=_UniqueYamlLoader)
+    except UnicodeDecodeError as exc:
+        raise ArtifactInputError("candidate configuration is not UTF-8 YAML") from exc
+    except ArtifactInputError:
+        raise
+    except Exception as exc:
+        raise ArtifactInputError(f"candidate configuration is malformed: {exc}") from exc
+    current: Any = document
+    for part in field.split("."):
+        if not isinstance(current, Mapping) or part not in current:
+            raise ArtifactInputError("candidate toolchain.revision is missing")
+        current = current[part]
+    return _require_sha(current, "candidate toolchain.revision"), blob_sha
 
 
 def _read_git_output(repository_root: Path, *arguments: str) -> str:
@@ -494,7 +570,11 @@ def _normalize_candidate(source: dict[str, Any]) -> dict[str, Any]:
 
 
 def _normalize_revision_bindings(
-    source: dict[str, Any], candidate: dict[str, Any]
+    source: dict[str, Any],
+    candidate: dict[str, Any],
+    *,
+    candidate_file_resolver: Callable[[str, str, str], Mapping[str, Any]] | None = None,
+    repository_root: Path | None = None,
 ) -> tuple[list[dict[str, Any]], str]:
     raw_bindings = _require_list(source.get("revision_bindings"), "revision_bindings")
     bindings: list[dict[str, Any]] = []
@@ -568,6 +648,62 @@ def _normalize_revision_bindings(
                 actual_source.get("field"),
                 f"revision_bindings[{index}].source.field",
             )
+            path = actual_source["path"]
+            field = actual_source["field"]
+            if path != ".agent-policy.yml" or field != "toolchain.revision":
+                raise ArtifactInputError(
+                    "consumer_actual_toolchain verification requires "
+                    ".agent-policy.yml#toolchain.revision"
+                )
+            declared_blob = _require_sha(
+                actual_source.get("blob_sha"),
+                f"revision_bindings[{index}].source.blob_sha",
+            )
+            resolver = candidate_file_resolver
+            if resolver is None:
+                root = repository_root or Path(__file__).parents[3]
+
+                def resolver(
+                    repository: str,
+                    revision: str,
+                    candidate_path: str,
+                    *,
+                    _root: Path = root,
+                ) -> Mapping[str, Any]:
+                    return _read_candidate_file_at_revision(
+                        repository,
+                        revision,
+                        candidate_path,
+                        repository_root=_root,
+                    )
+
+            try:
+                resolved_file = resolver(
+                    candidate["repository"], candidate["head_sha"], path
+                )
+                if not isinstance(resolved_file, Mapping):
+                    raise ArtifactInputError(
+                        "consumer_actual_toolchain resolved candidate file must be an object"
+                    )
+                actual_revision, actual_blob = _candidate_toolchain_revision(
+                    resolved_file,
+                    path=path,
+                    field=field,
+                )
+            except ArtifactInputError:
+                raise
+            except Exception as exc:
+                raise ArtifactInputError(
+                    "consumer_actual_toolchain could not be read from the exact candidate"
+                ) from exc
+            if actual_blob != declared_blob:
+                raise ArtifactInputError(
+                    "consumer_actual_toolchain candidate configuration blob binding changed"
+                )
+            if actual_revision != normalized["revision"]:
+                raise ArtifactInputError(
+                    "consumer_actual_toolchain claim differs from the exact candidate configuration"
+                )
         bindings.append(normalized)
     missing_roles = [role for role in REVISION_ROLES if role not in seen]
     if missing_roles:
@@ -1033,7 +1169,11 @@ class NormalizedReviewArtifacts:
 
 
 def normalize(
-    source: Mapping[str, Any], *, trusted_base_sha: str
+    source: Mapping[str, Any],
+    *,
+    trusted_base_sha: str,
+    candidate_file_resolver: Callable[[str, str, str], Mapping[str, Any]] | None = None,
+    repository_root: Path | None = None,
 ) -> NormalizedReviewArtifacts:
     """Validate and bind the structured input to the existing planner.
 
@@ -1057,7 +1197,12 @@ def normalize(
     input_binding = _require_object(raw.get("input_binding"), "input_binding")
     candidate = _normalize_candidate(raw)
     trusted_base_sha = _require_sha(trusted_base_sha, "trusted_base_sha")
-    revisions, revision_digest = _normalize_revision_bindings(raw, candidate)
+    revisions, revision_digest = _normalize_revision_bindings(
+        raw,
+        candidate,
+        candidate_file_resolver=candidate_file_resolver,
+        repository_root=repository_root,
+    )
     _optional_binding_consistency(input_binding, candidate, revision_digest)
     planner_input = _require_object(raw.get("planner"), "planner")
     planner_source = _source_identity(
@@ -1168,7 +1313,7 @@ def _ci_state(ci: Mapping[str, Any], candidate: Mapping[str, Any]) -> dict[str, 
     if not ci:
         return {"state": "unobserved", "observed_head_sha": None}
     declared = ci.get("status", "unknown")
-    if declared == "success":
+    if declared in {"success", "failure"}:
         observed_head = ci.get("head_sha")
         applicable = ci.get("applicable_to")
         applicable_head = applicable.get("head_sha") if isinstance(applicable, Mapping) else None
@@ -1192,12 +1337,38 @@ def _ci_state(ci: Mapping[str, Any], candidate: Mapping[str, Any]) -> dict[str, 
     return {"state": declared, "observed_head_sha": ci.get("head_sha")}
 
 
+def _review_is_applicable(
+    review: Mapping[str, Any], candidate: Mapping[str, Any]
+) -> bool:
+    applicable = review.get("applicable_to")
+    if not isinstance(applicable, Mapping):
+        applicable = review
+    expected = {
+        "candidate_head_sha": candidate["head_sha"],
+        "base_sha": candidate["base_sha"],
+        "effective_base_sha": candidate["effective_base_sha"],
+    }
+    return all(applicable.get(field) == value for field, value in expected.items())
+
+
 def _review_state(data: Mapping[str, Any]) -> str:
     facts = data["observed"].get("facts", {})
     review = facts.get("review")
-    if isinstance(review, Mapping):
-        return str(review.get("status", "unknown"))
     planner = data["planner"]["result"]
+    if isinstance(review, Mapping):
+        status = str(review.get("status", "unknown"))
+        if status != "evidence_present" or _review_is_applicable(review, data["candidate"]):
+            return status
+        if planner.get("action") in {
+            "request_independent_delta_review",
+            "request_related_stack_review",
+        }:
+            return (
+                "requested"
+                if planner.get("request_state") != "not_requested"
+                else "not_requested"
+            )
+        return "incomplete"
     if planner.get("action") == "reuse_existing_result":
         return "evidence_present"
     if planner.get("action") in {
