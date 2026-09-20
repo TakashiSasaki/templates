@@ -2037,6 +2037,18 @@ def _update_checkpoint_after_request(
             return "conflict", "publisher-owned checkpoint identity changed"
         current_body = owned[0].get("body")
         if current_body == transition_body:
+            post_write_status, post_write_reason = _validate_checkpoint_after_write(
+                normalized,
+                remote,
+                repository,
+                number,
+                desired_body=updated_body,
+                checkpoint_key=checkpoint_key,
+                expected_comment_id=comment_id,
+                expected_checkpoint_body=transition_body,
+            )
+            if post_write_status is not None:
+                return post_write_status, post_write_reason
             checkpoint_operation["checkpoint_state"] = "submitted"
             return None, None
         if current_body != expected_body:

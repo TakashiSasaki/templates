@@ -628,6 +628,42 @@ def test_checkpoint_update_revalidates_bindings_after_the_mutation() -> None:
     assert provider.update_comment_calls == 1
 
 
+def test_checkpoint_becoming_submitted_during_scan_is_revalidated() -> None:
+    normalized = _bound_source()
+    rendered = publisher.renderer.render(normalized)
+
+    class PromotesCheckpointDuringScan(FakeProvider):
+        def list_comments(
+            self,
+            repository: str,
+            number: int,
+        ) -> list[dict[str, object]]:
+            self.list_calls += 1
+            if self.list_calls == 2:
+                self.comments[0]["body"] = publisher.renderer.render_work_checkpoint(
+                    normalized, request_state="submitted"
+                )
+                self.state["evidence_digest"] = "e" * 64
+            return copy.deepcopy(self.comments)
+
+    provider = PromotesCheckpointDuringScan(normalized)
+    provider.comments.extend(
+        [
+            {
+                "id": 1,
+                "body": rendered.files["work-ledger-checkpoint.md"],
+                "publisher_owned": True,
+            },
+            {"id": 2, "body": rendered.files["review-request.md"]},
+        ]
+    )
+
+    result = _publish(provider)
+
+    assert result.status == "stale"
+    assert provider.update_comment_calls == 0
+
+
 def test_snapshot_evidence_excludes_only_authenticated_canonical_artifacts() -> None:
     normalized = _bound_source()
     provider = publisher.GitHubProvider("token", publisher_login="publisher")
