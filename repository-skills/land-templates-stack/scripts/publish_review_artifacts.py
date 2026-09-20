@@ -1383,6 +1383,17 @@ def _matching_review_requests(
     ]
 
 
+def _review_request_matcher(
+    remote: RemoteProvider, expected_body: str, context: Any
+) -> Callable[[Mapping[str, Any], str], bool]:
+    def match(comment: Mapping[str, Any], key: str) -> bool:
+        return remote.is_equivalent_review_request(
+            comment, key, expected_body=expected_body, context=context
+        )
+
+    return match
+
+
 def _checkpoint_content_matches(
     matches: Sequence[Mapping[str, Any]], rendered_body: str
 ) -> bool:
@@ -1758,16 +1769,7 @@ def _publish_authorized(
                     number,
                     prefix,
                     key,
-                    (
-                        lambda comment, marker_key: remote.is_equivalent_review_request(
-                            comment,
-                            marker_key,
-                            expected_body=body,
-                            context=normalized,
-                        )
-                        if operation_type == "review_request"
-                        else False
-                    )
+                    _review_request_matcher(remote, body, normalized)
                     if operation_type == "review_request"
                     else None,
                 )
@@ -1785,16 +1787,7 @@ def _publish_authorized(
                 number,
                 prefix,
                 key,
-                (
-                    lambda comment, marker_key: remote.is_equivalent_review_request(
-                        comment,
-                        marker_key,
-                        expected_body=body,
-                        context=normalized,
-                    )
-                    if operation_type == "review_request"
-                    else False
-                )
+                _review_request_matcher(remote, body, normalized)
                 if operation_type == "review_request"
                 else None,
             )

@@ -5,6 +5,7 @@ import copy
 import hashlib
 import http.client
 import importlib.util
+import threading
 import urllib.error
 from pathlib import Path
 
@@ -385,6 +386,71 @@ def test_github_marker_without_trigger_does_not_suppress_a_new_codex_request() -
     )
     review = next(item for item in operations if item["type"] == "review_request")
     assert review["status"] == "create"
+
+
+def test_github_equivalent_request_requires_canonical_body_and_publisher_owner() -> None:
+    normalized = _bound_source()
+    provider = publisher.GitHubProvider("token", publisher_login="publisher")
+    key = publisher.renderer.idempotency_key(normalized, "review-request")
+    neutral_body = publisher.renderer.render(normalized).files["review-request.md"]
+    canonical_body = provider._codex_review_body(neutral_body, normalized)
+
+    assert provider.is_equivalent_review_request(
+        {
+            "body": canonical_body,
+            "user": {"login": "publisher"},
+        },
+        key,
+        expected_body=neutral_body,
+        context=normalized,
+    )
+    assert not provider.is_equivalent_review_request(
+        {
+            "body": canonical_body,
+            "user": {"login": "contributor"},
+        },
+        key,
+        expected_body=neutral_body,
+        context=normalized,
+    )
+    assert not provider.is_equivalent_review_request(
+        {
+            "body": canonical_body + "\ntruncated",
+            "user": {"login": "publisher"},
+        },
+        key,
+        expected_body=neutral_body,
+        context=normalized,
+    )
+
+
+def test_serialized_writer_covers_comment_publication() -> None:
+    normalized = _bound_source()
+    provider = FakeProvider(normalized)
+    entered = threading.Event()
+    release = threading.Event()
+    original_create_comment = provider.create_comment
+
+    def blocking_create_comment(repository, number, body):
+        entered.set()
+        assert release.wait(timeout=2)
+        return original_create_comment(repository, number, body)
+
+    provider.create_comment = blocking_create_comment
+    results: list[publisher.PublicationResult] = []
+    worker = threading.Thread(target=lambda: results.append(_publish(provider)))
+    worker.start()
+    assert entered.wait(timeout=2)
+
+    concurrent = _publish(provider)
+
+    release.set()
+    worker.join(timeout=2)
+    assert not worker.is_alive()
+    assert concurrent.status == "conflict"
+    assert "serialized publication" in concurrent.reasons[0]
+    assert len(results) == 1
+    assert results[0].status == "published"
 
 
 def test_reuse_planner_action_does_not_emit_a_new_review_operation() -> None:
