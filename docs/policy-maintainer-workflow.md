@@ -113,7 +113,10 @@ silently filled from another worktree's HEAD. A planner source without a full
 trusted blob identity, or one that differs from the independent maintainer
 binding, is rejected, so a candidate checkout cannot substitute its sibling
 planner implementation. A CI success is likewise rendered stale unless its
-applicability binds the exact candidate head, PR base, and effective base.
+applicability binds the exact candidate head, PR base, and effective base. For
+a multi-member stack, revision-bound CI and review evidence must also carry
+the ordered `candidate_members_digest`; changing a dependency binding makes
+the old evidence stale even when the target PR head is unchanged.
 The renderer verifies the consumer role by reading the exact candidate commit's
 `.agent-policy.yml` and checking its verified Git blob plus
 `toolchain.revision`; callers that provide an alternate resolver must preserve
@@ -128,7 +131,10 @@ base, and effective-base applicability is bound to the current candidate. The
 Work-ledger projection also preserves compact diagnostic resume fields supplied
 under `work`—such as the evidence gap, hypothesis, invalidated paths and retry
 conditions, exhausted strategies, budget, progress frontier, and last material
-progress—without copying findings or transcripts. The trusted base is an input
+progress—without copying findings or transcripts. A bounded `work.closure_audit`
+list may record invariant-family closure evidence and deliberate test gaps in
+the checkpoint; it is sorted and rendered as a compact resumable report, not a
+second ledger or transcript. The trusted base is an input
 to the entry point, not a value inferred from the candidate JSON.
 
 Rendering is local and side-effect free with respect to GitHub, PR bodies,

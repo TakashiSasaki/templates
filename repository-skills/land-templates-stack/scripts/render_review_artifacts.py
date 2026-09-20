@@ -531,6 +531,46 @@ def _provider_identity_key(identity: Mapping[str, Any]) -> tuple[str, str, str]:
     )
 
 
+def candidate_member_binding_digest(candidate: Mapping[str, Any]) -> str:
+    """Identify the ordered member bindings used by stack-bound evidence."""
+
+    members = candidate.get("members")
+    if not isinstance(members, list):
+        raise ArtifactInputError("candidate.members must be a list")
+    projection: list[dict[str, Any]] = []
+    for index, member in enumerate(members):
+        if not isinstance(member, Mapping):
+            raise ArtifactInputError(f"candidate.members[{index}] must be an object")
+        pull_request = member.get("pull_request")
+        if not isinstance(pull_request, Mapping):
+            raise ArtifactInputError(
+                f"candidate.members[{index}].pull_request must be an object"
+            )
+        provider_identity = pull_request.get("provider_identity")
+        if not isinstance(provider_identity, Mapping):
+            raise ArtifactInputError(
+                f"candidate.members[{index}].pull_request.provider_identity must be an object"
+            )
+        projection.append(
+            {
+                "id": member.get("id"),
+                "authority": member.get("authority"),
+                "base_sha": member.get("base_sha"),
+                "head_sha": member.get("head_sha"),
+                "pull_request": {
+                    "number": pull_request.get("number"),
+                    "provider_identity": {
+                        "provider": provider_identity.get("provider"),
+                        "repository_id": str(provider_identity.get("repository_id")),
+                        "resource_id": str(provider_identity.get("resource_id")),
+                    },
+                    "provider_path": pull_request.get("provider_path"),
+                },
+            }
+        )
+    return semantic_digest(projection)
+
+
 def _normalize_candidate(source: dict[str, Any]) -> dict[str, Any]:
     raw = _require_object(source.get("candidate"), "candidate")
     candidate = copy.deepcopy(raw)
@@ -1086,6 +1126,16 @@ def _validate_ci(raw_ci: Any, candidate: dict[str, Any]) -> None:
                 applicable["effective_base_sha"],
                 "observed.facts.ci.applicable_to.effective_base_sha",
             )
+        if "candidate_members_digest" in applicable:
+            member_digest = _require_string(
+                applicable["candidate_members_digest"],
+                "observed.facts.ci.applicable_to.candidate_members_digest",
+            )
+            if re.fullmatch(r"[0-9a-f]{64}", member_digest) is None:
+                raise ArtifactInputError(
+                    "observed.facts.ci.applicable_to.candidate_members_digest "
+                    "must be a lowercase SHA-256 digest"
+                )
     attempt = ci.get("attempt")
     if attempt is not None and (type(attempt) is not int or attempt <= 0):
         raise ArtifactInputError("observed.facts.ci.attempt must be a positive integer")
@@ -1190,6 +1240,52 @@ def _normalize_work(source: dict[str, Any]) -> dict[str, Any]:
         ):
             raise ArtifactInputError("work.strategy_attempt_count must be a non-negative integer")
         normalized[field] = value
+    closure_audit = normalized.get("closure_audit")
+    if closure_audit is not None:
+        if not isinstance(closure_audit, list):
+            raise ArtifactInputError("work.closure_audit must be a list")
+        normalized_closure: list[dict[str, Any]] = []
+        seen_families: set[str] = set()
+        for index, raw_item in enumerate(closure_audit):
+            item = _require_object(raw_item, f"work.closure_audit[{index}]")
+            family = _require_string(
+                item.get("family"), f"work.closure_audit[{index}].family"
+            )
+            if family in seen_families:
+                raise ArtifactInputError("work.closure_audit families must be unique")
+            seen_families.add(family)
+            status = _require_string(
+                item.get("status"), f"work.closure_audit[{index}].status"
+            )
+            if status not in {"closed", "gap", "deliberately_untested"}:
+                raise ArtifactInputError(
+                    "work.closure_audit status must be closed, gap, or deliberately_untested"
+                )
+            evidence = _require_list(
+                item.get("evidence", []), f"work.closure_audit[{index}].evidence"
+            )
+            if any(not isinstance(value, str) or not value.strip() for value in evidence):
+                raise ArtifactInputError(
+                    f"work.closure_audit[{index}].evidence must contain strings"
+                )
+            gaps = _require_list(
+                item.get("gaps", []), f"work.closure_audit[{index}].gaps"
+            )
+            if any(not isinstance(value, str) or not value.strip() for value in gaps):
+                raise ArtifactInputError(
+                    f"work.closure_audit[{index}].gaps must contain strings"
+                )
+            normalized_closure.append(
+                {
+                    "family": family,
+                    "status": status,
+                    "evidence": sorted(set(evidence)),
+                    "gaps": sorted(set(gaps)),
+                }
+            )
+        normalized["closure_audit"] = sorted(
+            normalized_closure, key=lambda item: item["family"]
+        )
     return normalized
 
 
@@ -1426,11 +1522,30 @@ def _ci_state(ci: Mapping[str, Any], candidate: Mapping[str, Any]) -> dict[str, 
         applicable_effective_base = (
             applicable.get("effective_base_sha") if isinstance(applicable, Mapping) else None
         )
+        applicable_members_digest = (
+            applicable.get("candidate_members_digest")
+            if isinstance(applicable, Mapping)
+            else None
+        )
+        members = candidate.get("members")
+        member_digest_required = isinstance(members, list) and len(members) > 1
+        expected_members_digest = (
+            candidate_member_binding_digest(candidate) if member_digest_required else None
+        )
         if (
             observed_head != candidate["head_sha"]
             or applicable_head != candidate["head_sha"]
             or applicable_base != candidate["base_sha"]
             or applicable_effective_base != candidate["effective_base_sha"]
+            or (
+                member_digest_required
+                and applicable_members_digest != expected_members_digest
+            )
+            or (
+                applicable_members_digest is not None
+                and not member_digest_required
+                and applicable_members_digest != candidate_member_binding_digest(candidate)
+            )
         ):
             return {
                 "state": "stale",
@@ -1438,6 +1553,7 @@ def _ci_state(ci: Mapping[str, Any], candidate: Mapping[str, Any]) -> dict[str, 
                 "applicable_head_sha": applicable_head,
                 "applicable_base_sha": applicable_base,
                 "applicable_effective_base_sha": applicable_effective_base,
+                "applicable_candidate_members_digest": applicable_members_digest,
             }
     return {"state": declared, "observed_head_sha": ci.get("head_sha")}
 
@@ -1453,7 +1569,19 @@ def _review_is_applicable(
         "base_sha": candidate["base_sha"],
         "effective_base_sha": candidate["effective_base_sha"],
     }
-    return all(applicable.get(field) == value for field, value in expected.items())
+    if not all(applicable.get(field) == value for field, value in expected.items()):
+        return False
+    members = candidate.get("members")
+    if isinstance(members, list) and len(members) > 1:
+        return (
+            applicable.get("candidate_members_digest")
+            == candidate_member_binding_digest(candidate)
+        )
+    if "candidate_members_digest" in applicable:
+        return applicable.get("candidate_members_digest") == candidate_member_binding_digest(
+            candidate
+        )
+    return True
 
 
 def _review_state(data: Mapping[str, Any]) -> str:
@@ -1543,6 +1671,28 @@ def _diagnostic_checkpoint_lines(work: Mapping[str, Any]) -> list[str]:
         for field, label in labels
         if field in work
     ]
+
+
+def _closure_checkpoint_lines(work: Mapping[str, Any]) -> list[str]:
+    audit = work.get("closure_audit")
+    if not isinstance(audit, list):
+        return []
+    lines: list[str] = []
+    for item in audit:
+        if not isinstance(item, Mapping):
+            continue
+        evidence = ", ".join(str(value) for value in item.get("evidence", []))
+        line = (
+            f"- {_safe_text(item.get('family', 'unknown'))}: "
+            f"{_code(item.get('status', 'unknown'))}"
+        )
+        if evidence:
+            line += f"; evidence: {_safe_text(evidence)}"
+        gaps = ", ".join(str(value) for value in item.get("gaps", []))
+        if gaps:
+            line += f"; gaps: {_safe_text(gaps)}"
+        lines.append(line)
+    return lines
 
 
 def _role_lines(data: Mapping[str, Any]) -> list[str]:
@@ -1744,6 +1894,7 @@ def render_work_checkpoint(normalized: NormalizedReviewArtifacts) -> str:
     planner = normalized.planner_result
     pr = candidate["pull_request"]
     diagnostic_lines = _diagnostic_checkpoint_lines(work)
+    closure_lines = _closure_checkpoint_lines(work)
     lines = [
         f"<!-- {WORK_CHECKPOINT_MARKER}:binding={normalized.binding_digest} -->",
         "## Work ledger checkpoint",
@@ -1769,6 +1920,8 @@ def render_work_checkpoint(normalized: NormalizedReviewArtifacts) -> str:
     ]
     if diagnostic_lines:
         lines.extend(["", "### Diagnostic resume state", *diagnostic_lines])
+    if closure_lines:
+        lines.extend(["", "### Invariant closure audit", *closure_lines])
     lines.extend(["", "### Blockers"])
     blockers = list(work.get("blockers", [])) + list(normalized.blockers)
     if blockers:

@@ -805,6 +805,57 @@ def test_old_pending_ci_is_stale_when_revision_binding_is_present() -> None:
     assert "CI: `stale`" in artifacts.render(normalized).files["pr-generated-region.md"]
 
 
+@pytest.mark.parametrize("status", ["success", "failure", "pending"])
+def test_stack_bound_evidence_requires_current_member_binding_digest(status: str) -> None:
+    normalized = artifacts.normalize(_source())
+    candidate = normalized.data["candidate"]
+    candidate["members"].insert(
+        0,
+        {
+            "id": "policy-prerequisite",
+            "authority": "policy",
+            "base_sha": _sha("d"),
+            "head_sha": candidate["base_sha"],
+            "pull_request": {
+                "number": 122,
+                "provider_identity": {
+                    "provider": "github",
+                    "repository_id": "9",
+                    "resource_id": "122",
+                },
+                "provider_path": "/repos/TakashiSasaki/templates/pulls/122",
+            },
+        },
+    )
+    member_digest = artifacts.candidate_member_binding_digest(candidate)
+    exact = {
+        "status": status,
+        "head_sha": candidate["head_sha"],
+        "applicable_to": {
+            "head_sha": candidate["head_sha"],
+            "base_sha": candidate["base_sha"],
+            "effective_base_sha": candidate["effective_base_sha"],
+            "candidate_members_digest": member_digest,
+        },
+    }
+    assert artifacts._ci_state(exact, candidate)["state"] == status
+
+    changed = copy.deepcopy(exact)
+    candidate["members"][0]["head_sha"] = _sha("e")
+    assert artifacts._ci_state(changed, candidate)["state"] == "stale"
+
+    review = {
+        "status": "evidence_present",
+        "applicable_to": {
+            "candidate_head_sha": candidate["head_sha"],
+            "base_sha": candidate["base_sha"],
+            "effective_base_sha": candidate["effective_base_sha"],
+            "candidate_members_digest": member_digest,
+        },
+    }
+    assert not artifacts._review_is_applicable(review, candidate)
+
+
 @pytest.mark.parametrize("status", ["pending", "requested"])
 def test_old_revision_bound_review_status_does_not_look_current(status: str) -> None:
     source = _source()
@@ -860,6 +911,37 @@ def test_work_checkpoint_preserves_compact_diagnostic_resume_state() -> None:
     assert "remaining\\_attempts" in checkpoint
     assert "unconditional retry" in checkpoint
     assert "full_findings" not in checkpoint
+
+
+def test_work_checkpoint_records_invariant_closure_without_copying_transcript() -> None:
+    source = _source()
+    source["work"]["closure_audit"] = [
+        {
+            "family": "remote_mutation_protocol",
+            "status": "closed",
+            "evidence": [
+                "parameterized HTTP response matrix",
+                "ambiguous reconciliation tests",
+            ],
+            "gaps": [],
+        },
+        {
+            "family": "snapshot_schema_lifecycle",
+            "status": "deliberately_untested",
+            "evidence": ["schema 1 regeneration regression"],
+            "gaps": ["provider-specific legacy payload outside this contract"],
+        },
+    ]
+
+    checkpoint = artifacts.render(artifacts.normalize(source)).files[
+        "work-ledger-checkpoint.md"
+    ]
+
+    assert "### Invariant closure audit" in checkpoint
+    assert r"remote\_mutation\_protocol" in checkpoint
+    assert "parameterized HTTP response matrix" in checkpoint
+    assert "provider-specific legacy payload outside this contract" in checkpoint
+    assert "transcript" not in checkpoint
 
 
 def test_all_projections_share_one_source_identity_and_checkpoint_uses_refs() -> None:
