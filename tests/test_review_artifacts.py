@@ -359,6 +359,7 @@ def test_same_semantic_input_renders_identical_projections() -> None:
 
 def test_whole_stack_request_renders_contract_and_cumulative_attestation() -> None:
     normalized = artifacts.normalize(_source())
+    normalized.data["candidate"]["integration_base_tree_sha"] = _sha("e")
     normalized.planner_result["action"] = "request_related_stack_review"
     normalized.planner_result["selected_scope"] = {
         "kind": "whole-stack",
@@ -371,6 +372,8 @@ def test_whole_stack_request_renders_contract_and_cumulative_attestation() -> No
     assert "revision: contract-1" in request
     assert "scope: review-artifacts" in request
     assert "complete coverage of every listed member head and base" in request
+    assert f"exact integration-base tree: `{_sha('e')}`" in request
+    assert "exact integration-base tree identity shown above" in request
     assert "reviewer independence" in request
     assert "material limitations or uncovered members" in request
 

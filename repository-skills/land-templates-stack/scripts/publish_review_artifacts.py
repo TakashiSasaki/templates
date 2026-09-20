@@ -68,6 +68,26 @@ REQUEST_ACTIONS = {
 _PUBLICATION_LOCK_GUARD = threading.Lock()
 _PUBLICATION_LOCKS: dict[tuple[str, int], threading.Lock] = {}
 
+# These values come directly from the target PR response and must not be
+# replaced by an injected revalidation callback. The callback is allowed to
+# contribute independently resolved evidence (including effective-base
+# resolution), but it cannot rewrite the provider's identity, candidate, or
+# PR-body concurrency state.
+_PROVIDER_OBSERVED_STATE_KEYS = frozenset(
+    {
+        "repository",
+        "pull_request_id",
+        "pull_request_number",
+        "head_sha",
+        "candidate_head_sha",
+        "base_sha",
+        "body",
+        "body_revision",
+        "body_digest",
+        "pr_body",
+    }
+)
+
 
 class PublicationError(RuntimeError):
     """Raised for an adapter or remote-operation error."""
@@ -366,7 +386,23 @@ class GitHubProvider(RemoteProvider):
             raise PublicationError(
                 "live revalidation adapter did not return a complete current snapshot"
             )
-        state.update(_json_data(dict(resolved), "live revalidation result"))
+        supplemental = _json_data(dict(resolved), "live revalidation result")
+        if any(key in supplemental for key in _PROVIDER_OBSERVED_STATE_KEYS):
+            overridden = sorted(
+                key for key in _PROVIDER_OBSERVED_STATE_KEYS if key in supplemental
+            )
+            raise PublicationError(
+                "live revalidation cannot override provider-observed fields: "
+                + ", ".join(overridden)
+            )
+        nested_binding = supplemental.get("binding")
+        if isinstance(nested_binding, Mapping) and any(
+            key in nested_binding for key in _PROVIDER_OBSERVED_STATE_KEYS
+        ):
+            raise PublicationError(
+                "live revalidation cannot override provider-observed binding fields"
+            )
+        state.update(supplemental)
         return state
 
     def read_file_at_revision(
@@ -1739,6 +1775,27 @@ def _publish_authorized(
                 if operation_type == "review_request"
                 else _matching_comments(latest_comments, prefix, key)
             )
+            # Comment enumeration is itself a remote read and may paginate.
+            # Revalidate after that scan, immediately before the mutation, so
+            # a head/base/body/evidence change during enumeration cannot be
+            # authorized by the earlier snapshot.
+            post_scan_state = _current_state(remote, repository, number, normalized)
+            if _state_token(post_scan_state) != _state_token(latest_state):
+                return PublicationResult(
+                    "conflict",
+                    operations,
+                    [f"binding changed during {operation_type} duplicate scan"],
+                    rendered,
+                )
+            post_scan_reasons = _validate_for_publication(
+                normalized,
+                post_scan_state,
+                desired_body=updated_body,
+            )
+            if post_scan_reasons:
+                return PublicationResult(
+                    "stale", operations, post_scan_reasons, rendered
+                )
             if len(matches) > 1:
                 return PublicationResult(
                     "conflict", operations, [f"duplicate {operation_type} markers"], rendered

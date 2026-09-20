@@ -1781,12 +1781,20 @@ def _review_contract_lines(
         isinstance(scope, Mapping) and scope.get("kind") == "whole-stack"
     )
     if is_whole_stack:
+        integration_base_tree = data["candidate"].get("integration_base_tree_sha")
+        if isinstance(integration_base_tree, str) and integration_base_tree:
+            lines.append(
+                "- exact integration-base tree: " + _code(integration_base_tree)
+            )
+        else:
+            lines.append("- exact integration-base tree: not bound")
         lines.extend(
             [
                 "",
                 "For a cumulative whole-stack result, the reviewer must explicitly attest to:",
                 "- complete coverage of every listed member head and base, their ordered "
-                "adjacency, and the integrated/effective base;",
+                "adjacency, the integrated/effective base, and the exact integration-base "
+                "tree identity shown above;",
                 "- the requested review scope and the rendered contract;",
                 "- reviewer independence;",
                 "- completion and any material limitations or uncovered members.",

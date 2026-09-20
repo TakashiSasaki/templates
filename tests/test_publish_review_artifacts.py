@@ -932,7 +932,11 @@ def test_live_revalidation_boundary_blocks_changed_evidence_before_write() -> No
         assert payload["head"]["sha"] == normalized.data["candidate"]["head_sha"]
         assert provider is live_provider
         calls += 1
-        state = publisher._expected_binding(normalized)
+        state = {
+            key: value
+            for key, value in publisher._expected_binding(normalized).items()
+            if key not in publisher._PROVIDER_OBSERVED_STATE_KEYS
+        }
         state["live_revalidation"] = {
             "complete": True,
             "candidate_head_sha": payload["head"]["sha"],
@@ -956,6 +960,55 @@ def test_live_revalidation_boundary_blocks_changed_evidence_before_write() -> No
     assert "binding changed" in result.reasons[0]
     assert live_provider.writes == 0
     assert calls == 2
+
+
+def test_github_live_revalidation_cannot_override_provider_observed_state() -> None:
+    normalized = _bound_source()
+
+    def live_revalidator(context, payload, provider):
+        del payload, provider
+        state = {
+            key: value
+            for key, value in publisher._expected_binding(context).items()
+            if key not in publisher._PROVIDER_OBSERVED_STATE_KEYS
+        }
+        state["body"] = "attacker-controlled body\n"
+        state["base_sha"] = "9" * 40
+        state["live_revalidation"] = {
+            "complete": True,
+            "candidate_head_sha": context.data["candidate"]["head_sha"],
+        }
+        return state
+
+    provider = _LiveBoundaryGitHub(normalized, live_revalidator)
+
+    with pytest.raises(publisher.PublicationError, match="provider-observed fields"):
+        provider.get_current_state(
+            normalized.data["repository"],
+            normalized.data["candidate"]["pull_request"]["number"],
+            context=normalized,
+        )
+
+    assert provider.body == normalized.data["observed"]["pr_body"]["body"]
+
+
+def test_publish_revalidates_after_comment_duplicate_scan() -> None:
+    normalized = _bound_source(with_region=True)
+
+    class MutatesDuringScan(FakeProvider):
+        def list_comments(self, repository: str, number: int) -> list[dict[str, object]]:
+            comments = super().list_comments(repository, number)
+            if self.list_calls == 2:
+                self.state["evidence_digest"] = "e" * 64
+            return comments
+
+    provider = MutatesDuringScan(normalized)
+    result = _publish(provider)
+
+    assert result.status == "conflict"
+    assert "binding changed during work_checkpoint duplicate scan" in result.reasons
+    assert provider.update_calls == 0
+    assert provider.create_calls == 0
 
 
 class _ObservedTransportGitHub(publisher.GitHubProvider):
