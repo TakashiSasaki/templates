@@ -84,6 +84,15 @@ not replace the planner or the merge gate. Every stack member carries one
 distinct provider pull-request identity, and exactly one member must identify
 the target PR.
 
+The trusted planner binding is authenticated against the immutable source
+closure recorded by `.agents/skills/land-templates-stack/source.json` at the
+candidate's exact base, rather than against a second self-asserted field in the
+artifact payload. All revision roles are declared explicitly, including
+`unknown` and `not_applicable` roles. Human or model judgments bind to the
+candidate head, base, and effective base. PR-body revision/digest values remain
+concurrency checks for publication and do not change the semantic review-request
+identity.
+
 For a local preview:
 
 ```console
