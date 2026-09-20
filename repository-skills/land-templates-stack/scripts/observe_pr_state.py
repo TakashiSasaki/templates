@@ -329,11 +329,13 @@ def gh_api_json(
 
     if not arguments:
         raise ObservationInputError("gh API arguments must not be empty")
-    requested_timeout = timeout
-    budget_limited = False
+    remaining: float | None = None
     if budget is not None:
+        remaining = budget.remaining()
         timeout = budget.transport_timeout(timeout)
-        budget_limited = timeout < requested_timeout
+    budget_limited = (
+        remaining is not None and timeout + 0.000001 >= max(0.001, remaining)
+    )
     if arguments[0] == "graphql":
         if any("mutation" in argument.lower() for argument in arguments):
             raise ObservationInputError("GraphQL mutations are not permitted")
@@ -494,14 +496,16 @@ class GhReadonlyProvider:
 
     def __init__(
         self,
-        api: Callable[[Sequence[str]], ApiResponse] = gh_api_json,
+        api: Callable[..., ApiResponse] = gh_api_json,
     ) -> None:
         self.api = api
 
     def _rest_pages(self, endpoint: str, *, budget: ObservationBudget) -> list[Any]:
         budget.check()
         response = self.api(
-            ("--paginate", endpoint), timeout=budget.transport_timeout()
+            ("--paginate", endpoint),
+            timeout=budget.transport_timeout(),
+            budget=budget,
         )
         pages = _page_values(response.payload)
         for _ in pages:
@@ -718,7 +722,11 @@ class GhReadonlyProvider:
             if value is not None:
                 flag = "-F" if isinstance(value, (int, float, bool)) else "-f"
                 arguments.extend([flag, f"{name}={value}"])
-        response = self.api(arguments, timeout=budget.transport_timeout())
+        response = self.api(
+            arguments,
+            timeout=budget.transport_timeout(),
+            budget=budget,
+        )
         budget.check()
         payload = response.payload
         if not isinstance(payload, Mapping):

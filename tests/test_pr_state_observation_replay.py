@@ -131,43 +131,50 @@ def test_fixture_replay_reports_proxy_metrics_without_claiming_token_savings() -
         )
         previous = snapshot
 
+    watch_outcomes = [
+        "initialized" if index == 0 and item["status"] == "initial" else item["status"]
+        for index, item in enumerate(metrics)
+    ]
+    stop_index = len(watch_outcomes)
+    for index, outcome in enumerate(watch_outcomes):
+        if not WATCH.watch_should_continue([outcome]):
+            stop_index = index + 1
+            break
+    observed_metrics = metrics[:stop_index]
+    observed_diffs = diffs[:stop_index]
+
     measurement = fixture["measurement"]
     proxy_metrics = {
         "metric_kind": "deterministic_proxy",
-        "provider_api_retrieval_operations": len(snapshots)
+        "provider_api_retrieval_operations": len(observed_metrics)
         * measurement["provider_operations_per_attempt"],
-        "observation_attempts": len(snapshots),
+        "observation_attempts": len(observed_metrics),
         "meaningful_state_transitions": sum(
-            int(diff["meaningful_change"]) for diff in diffs
+            int(diff["meaningful_change"]) for diff in observed_diffs
         ),
         "old_poll_model_returns": len(snapshots)
         if measurement["old_poll_returns_each_attempt"]
         else None,
-        "new_bounded_watch_model_returns": (
-            0
-            if not metrics
-            else 1
-            if any(
-                not WATCH.watch_should_continue([item["status"]])
-                for item in metrics
-            )
-            else 1
-        ),
+        "new_bounded_watch_model_returns": 1 if observed_metrics else 0,
+        "observed_watch_outcomes": watch_outcomes[:stop_index],
+        "watch_stop_attempt": stop_index,
         "full_persisted_snapshot_bytes": [
-            item["full_snapshot_bytes"] for item in metrics
+            item["full_snapshot_bytes"] for item in observed_metrics
         ],
         "full_persisted_snapshot_bytes_total": sum(
-            item["full_snapshot_bytes"] for item in metrics
+            item["full_snapshot_bytes"] for item in observed_metrics
         ),
         "normal_model_facing_summary_bytes": [
-            item["summary_bytes"] for item in metrics
+            item["summary_bytes"] for item in observed_metrics
         ],
-        "maximum_summary_bytes": max(item["summary_bytes"] for item in metrics),
+        "maximum_summary_bytes": max(
+            item["summary_bytes"] for item in observed_metrics
+        ),
         "unchanged_poll_suppression_count": sum(
-            item["status"] == "unchanged" for item in metrics
+            item["status"] == "unchanged" for item in observed_metrics
         ),
         "outcome_counts": {
-            outcome: sum(item["status"] == outcome for item in metrics)
+            outcome: sum(item["status"] == outcome for item in observed_metrics)
             for outcome in ("incomplete", "unknown", "stale")
         },
         "missed_change_count": measurement["expected_missed_change_count"],
@@ -181,18 +188,28 @@ def test_fixture_replay_reports_proxy_metrics_without_claiming_token_savings() -
         "changed",
         "incomplete",
     ]
+    assert watch_outcomes == ["initialized", "unchanged", "changed", "incomplete"]
+    assert stop_index == 3
+    assert [item["status"] for item in observed_metrics] == [
+        "initial",
+        "unchanged",
+        "changed",
+    ]
     assert metrics[2]["return_candidates"] == 1
     assert metrics[2]["meaningful_changes"] == 2
     assert metrics[3]["status"] != "unchanged"
-    assert all(item["full_snapshot_bytes"] >= item["summary_bytes"] for item in metrics)
-    assert proxy_metrics["provider_api_retrieval_operations"] == 12
-    assert proxy_metrics["observation_attempts"] == 4
+    assert all(
+        item["full_snapshot_bytes"] >= item["summary_bytes"]
+        for item in observed_metrics
+    )
+    assert proxy_metrics["provider_api_retrieval_operations"] == 9
+    assert proxy_metrics["observation_attempts"] == 3
     assert proxy_metrics["meaningful_state_transitions"] == 2
     assert proxy_metrics["old_poll_model_returns"] == 4
     assert proxy_metrics["new_bounded_watch_model_returns"] == 1
     assert proxy_metrics["unchanged_poll_suppression_count"] == 1
     assert proxy_metrics["outcome_counts"] == {
-        "incomplete": 1,
+        "incomplete": 0,
         "unknown": 0,
         "stale": 0,
     }

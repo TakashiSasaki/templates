@@ -409,7 +409,9 @@ def test_github_binding_reads_repository_and_pull_request_immutable_ids() -> Non
             },
         }
 
-    def api(arguments: tuple[str, ...], *, timeout: float) -> OBSERVE.ApiResponse:
+    def api(
+        arguments: tuple[str, ...], *, timeout: float, **_: object
+    ) -> OBSERVE.ApiResponse:
         del timeout
         endpoint = arguments[-1]
         if endpoint.endswith("/pulls/123"):
@@ -472,7 +474,9 @@ def test_dependency_provider_path_identity_mismatch_is_stale_even_with_matching_
         dependencies=[declared_dependency],
     )
 
-    def api(arguments: tuple[str, ...], *, timeout: float) -> OBSERVE.ApiResponse:
+    def api(
+        arguments: tuple[str, ...], *, timeout: float, **_: object
+    ) -> OBSERVE.ApiResponse:
         del timeout
         endpoint = arguments[-1]
         live_id = 456 if endpoint.endswith("/pulls/123") else 999
@@ -511,7 +515,9 @@ def test_dependency_provider_path_identity_mismatch_is_stale_even_with_matching_
 def test_github_repository_identity_mismatch_is_stale_even_with_matching_sha() -> None:
     live_candidate = candidate(repository_id="expected-repository", resource_id="456")
 
-    def api(arguments: tuple[str, ...], *, timeout: float) -> OBSERVE.ApiResponse:
+    def api(
+        arguments: tuple[str, ...], *, timeout: float, **_: object
+    ) -> OBSERVE.ApiResponse:
         del arguments, timeout
         return OBSERVE.ApiResponse(
             [
@@ -1048,9 +1054,17 @@ def test_transport_timeout_never_exceeds_remaining_budget() -> None:
     clock = FakeClock(now=3.0)
     budget = OBSERVE.ObservationBudget(10.0, clock=clock)
     timeouts: list[float] = []
+    passed_budgets: list[OBSERVE.ObservationBudget] = []
 
-    def api(arguments: tuple[str, ...], *, timeout: float) -> OBSERVE.ApiResponse:
+    def api(
+        arguments: tuple[str, ...],
+        *,
+        timeout: float,
+        budget: OBSERVE.ObservationBudget,
+        **_: object,
+    ) -> OBSERVE.ApiResponse:
         timeouts.append(timeout)
+        passed_budgets.append(budget)
         endpoint = arguments[-1]
         if endpoint.endswith("check-runs"):
             return OBSERVE.ApiResponse([{"check_runs": []}])
@@ -1063,6 +1077,37 @@ def test_transport_timeout_never_exceeds_remaining_budget() -> None:
 
     assert timeouts == [7.0, 7.0]
     assert all(timeout <= 7.0 for timeout in timeouts)
+    assert passed_budgets == [budget, budget]
+
+
+def test_adapter_passes_budget_to_transport_deadline_classification(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    clock = FakeClock(now=0.0)
+    budget = OBSERVE.ObservationBudget(1.0, clock=clock)
+    passed_budgets: list[OBSERVE.ObservationBudget] = []
+
+    def timeout_run(command: object, **kwargs: object) -> object:
+        raise subprocess.TimeoutExpired(command, float(kwargs["timeout"]))
+
+    monkeypatch.setattr(OBSERVE.subprocess, "run", timeout_run)
+
+    def api(
+        arguments: tuple[str, ...],
+        *,
+        timeout: float,
+        budget: OBSERVE.ObservationBudget,
+    ) -> OBSERVE.ApiResponse:
+        passed_budgets.append(budget)
+        return OBSERVE.gh_api_json(arguments, timeout=timeout, budget=budget)
+
+    with pytest.raises(OBSERVE.ProviderFailure) as raised:
+        OBSERVE.GhReadonlyProvider(api)._checks(
+            candidate(), HEAD, budget=budget
+        )
+
+    assert raised.value.category == "deadline"
+    assert passed_budgets == [budget]
 
 
 def test_reactions_cover_pr_issue_and_comment_surfaces() -> None:
@@ -1123,7 +1168,9 @@ def test_review_thread_comments_paginate_past_one_hundred() -> None:
     ]
     calls: list[tuple[str, ...]] = []
 
-    def api(arguments: tuple[str, ...], *, timeout: float) -> OBSERVE.ApiResponse:
+    def api(
+        arguments: tuple[str, ...], *, timeout: float, **_: object
+    ) -> OBSERVE.ApiResponse:
         del timeout
         calls.append(arguments)
         if any(argument == "threadId=thread-1" for argument in arguments):
@@ -1179,7 +1226,9 @@ def test_review_thread_comments_paginate_past_one_hundred() -> None:
 def test_review_thread_comments_require_stable_unique_ids(case: str) -> None:
     initial_comments = [{"body": "missing"}] if case == "missing" else [{"id": "comment-1"}]
 
-    def api(arguments: tuple[str, ...], *, timeout: float) -> OBSERVE.ApiResponse:
+    def api(
+        arguments: tuple[str, ...], *, timeout: float, **_: object
+    ) -> OBSERVE.ApiResponse:
         del timeout
         if case == "duplicate" and any(
             argument == "threadId=thread-1" for argument in arguments
@@ -1238,7 +1287,9 @@ def test_review_thread_comments_require_stable_unique_ids(case: str) -> None:
 
 
 def test_review_thread_outer_cursor_must_advance() -> None:
-    def api(arguments: tuple[str, ...], *, timeout: float) -> OBSERVE.ApiResponse:
+    def api(
+        arguments: tuple[str, ...], *, timeout: float, **_: object
+    ) -> OBSERVE.ApiResponse:
         del timeout
         repeated = any(argument == "after=outer-cursor-1" for argument in arguments)
         return OBSERVE.ApiResponse(
@@ -1291,7 +1342,9 @@ def test_review_thread_outer_cursor_must_advance() -> None:
 
 
 def test_review_thread_nested_cursor_must_advance() -> None:
-    def api(arguments: tuple[str, ...], *, timeout: float) -> OBSERVE.ApiResponse:
+    def api(
+        arguments: tuple[str, ...], *, timeout: float, **_: object
+    ) -> OBSERVE.ApiResponse:
         del timeout
         repeated = any(
             argument == "after=comment-cursor-1" for argument in arguments
