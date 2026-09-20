@@ -892,10 +892,19 @@ def test_final_checkpoint_create_revalidates_non_request_actions(
     "action",
     [publisher.ACTION_REUSE, publisher.ACTION_RECONCILE, publisher.ACTION_MISSING],
 )
-@pytest.mark.parametrize("checkpoint_mutation", ["delete", "corrupt", "unown"])
+@pytest.mark.parametrize(
+    ("checkpoint_mutation", "expected_status"),
+    [
+        ("delete", "conflict"),
+        ("corrupt", "conflict"),
+        ("unown", "conflict"),
+        ("binding", "conflict"),
+    ],
+)
 def test_final_checkpoint_revalidation_rechecks_durable_comment(
     action: str,
     checkpoint_mutation: str,
+    expected_status: str,
 ) -> None:
     normalized = _bound_source()
     normalized.data["planner"]["result"]["action"] = action
@@ -923,14 +932,16 @@ def test_final_checkpoint_revalidation_rechecks_durable_comment(
                     self.comments.clear()
                 elif checkpoint_mutation == "corrupt":
                     self.comments[0]["body"] = "corrupted checkpoint"
-                else:
+                elif checkpoint_mutation == "unown":
                     self.comments[0]["publisher_owned"] = False
+                else:
+                    self.state["evidence_digest"] = "e" * 64
             return copy.deepcopy(self.comments)
 
     provider = MutatesCheckpointAfterReconciliation(normalized)
     result = _publish(provider)
 
-    assert result.status == "conflict"
+    assert result.status == expected_status
     assert "checkpoint" in result.reasons[0]
     assert provider.create_calls == 1
     assert provider.update_comment_calls == 0
