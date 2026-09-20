@@ -1767,6 +1767,36 @@ def idempotency_key(normalized: NormalizedReviewArtifacts, request_type: str) ->
     return semantic_digest(material)
 
 
+def _review_contract_lines(
+    data: Mapping[str, Any], action: Any, scope: Any
+) -> list[str]:
+    contract = data["contract"]
+    lines = ["", "## Review contract"]
+    for key in sorted(contract):
+        value = contract[key]
+        rendered = canonical_json(value) if isinstance(value, (Mapping, list)) else value
+        lines.append(f"- {_safe_text(key)}: {_safe_text(rendered)}")
+
+    is_whole_stack = action == "request_related_stack_review" or (
+        isinstance(scope, Mapping) and scope.get("kind") == "whole-stack"
+    )
+    if is_whole_stack:
+        lines.extend(
+            [
+                "",
+                "For a cumulative whole-stack result, the reviewer must explicitly attest to:",
+                "- complete coverage of every listed member head and base, their ordered "
+                "adjacency, and the integrated/effective base;",
+                "- the requested review scope and the rendered contract;",
+                "- reviewer independence;",
+                "- completion and any material limitations or uncovered members.",
+                "If any of these conditions cannot be established, identify the uncovered "
+                "member and do not treat the result as cumulative acceptance evidence.",
+            ]
+        )
+    return lines
+
+
 def render_review_request(normalized: NormalizedReviewArtifacts) -> str:
     data = normalized.data
     candidate = data["candidate"]
@@ -1813,6 +1843,7 @@ def render_review_request(normalized: NormalizedReviewArtifacts) -> str:
             *_role_lines(data),
         ]
     )
+    lines.extend(_review_contract_lines(data, action, scope))
     planner_blockers = [
         reason
         for reason in normalized.blockers

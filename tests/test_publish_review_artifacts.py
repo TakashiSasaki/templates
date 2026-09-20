@@ -337,6 +337,11 @@ def test_publisher_reuses_existing_rendered_region_without_churn() -> None:
 
 def test_preview_request_is_provider_neutral_but_github_apply_has_codex_trigger() -> None:
     normalized = _bound_source()
+    normalized.planner_result["action"] = "request_related_stack_review"
+    normalized.planner_result["selected_scope"] = {
+        "kind": "whole-stack",
+        "members": ["lower", "upper"],
+    }
     assert "@codex review" not in publisher.renderer.render(normalized).files["review-request.md"]
 
     class RecordingGitHub(publisher.GitHubProvider):
@@ -363,6 +368,8 @@ def test_preview_request_is_provider_neutral_but_github_apply_has_codex_trigger(
     assert publisher.renderer.REVIEW_REQUEST_MARKER in posted
     assert "## Exact ordered stack topology" in posted
     assert "PR #123" in posted
+    assert "## Review contract" in posted
+    assert "reviewer independence" in posted
 
 
 def test_github_marker_without_trigger_does_not_suppress_a_new_codex_request() -> None:

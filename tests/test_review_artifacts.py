@@ -357,6 +357,24 @@ def test_same_semantic_input_renders_identical_projections() -> None:
     assert first.manifest["semantic_digest"] == second.manifest["semantic_digest"]
 
 
+def test_whole_stack_request_renders_contract_and_cumulative_attestation() -> None:
+    normalized = artifacts.normalize(_source())
+    normalized.planner_result["action"] = "request_related_stack_review"
+    normalized.planner_result["selected_scope"] = {
+        "kind": "whole-stack",
+        "members": ["lower", "upper"],
+    }
+
+    request = artifacts.render(normalized).files["review-request.md"]
+
+    assert "## Review contract" in request
+    assert "revision: contract-1" in request
+    assert "scope: review-artifacts" in request
+    assert "complete coverage of every listed member head and base" in request
+    assert "reviewer independence" in request
+    assert "material limitations or uncovered members" in request
+
+
 @pytest.mark.parametrize(
     "field,value,pattern",
     [
