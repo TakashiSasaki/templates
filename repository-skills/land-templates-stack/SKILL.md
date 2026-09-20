@@ -72,7 +72,7 @@ stores the complete normalized snapshot, pagination evidence, digest, resume
 material, and any provider limitation at that path.
 
 Treat changed, stale, incomplete, unknown, rate-limited, timed-out, malformed,
-deadline, or cancelled outcomes as information requiring the corresponding
+deadline, attempts-exhausted, or cancelled outcomes as information requiring the corresponding
 reacquisition or handoff. Do not turn an unchanged result into approval. The
 observer preserves the provider identities, check-run/status identities,
 observed head, and workflow/run/attempt/job/app fields when those fields are

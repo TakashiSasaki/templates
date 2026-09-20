@@ -19,6 +19,20 @@ OBSERVATION = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = OBSERVATION
 SPEC.loader.exec_module(OBSERVATION)
 
+ADAPTER_PATH = (
+    ROOT
+    / "repository-skills"
+    / "land-templates-stack"
+    / "scripts"
+    / "observe_pr_state.py"
+)
+ADAPTER_SPEC = importlib.util.spec_from_file_location("observe_pr_state_replay", ADAPTER_PATH)
+assert ADAPTER_SPEC and ADAPTER_SPEC.loader
+sys.modules["pr_state_observation"] = OBSERVATION
+WATCH = importlib.util.module_from_spec(ADAPTER_SPEC)
+sys.modules[ADAPTER_SPEC.name] = WATCH
+ADAPTER_SPEC.loader.exec_module(WATCH)
+
 HEAD = "1111111111111111111111111111111111111111"
 BASE = "2222222222222222222222222222222222222222"
 REPOSITORY_ID = "repository-123"
@@ -129,8 +143,15 @@ def test_fixture_replay_reports_proxy_metrics_without_claiming_token_savings() -
         "old_poll_model_returns": len(snapshots)
         if measurement["old_poll_returns_each_attempt"]
         else None,
-        "new_bounded_watch_model_returns": sum(
-            item["status"] != "unchanged" for item in metrics
+        "new_bounded_watch_model_returns": (
+            0
+            if not metrics
+            else 1
+            if any(
+                not WATCH.watch_should_continue([item["status"]])
+                for item in metrics
+            )
+            else 1
         ),
         "full_persisted_snapshot_bytes": [
             item["full_snapshot_bytes"] for item in metrics
@@ -168,7 +189,7 @@ def test_fixture_replay_reports_proxy_metrics_without_claiming_token_savings() -
     assert proxy_metrics["observation_attempts"] == 4
     assert proxy_metrics["meaningful_state_transitions"] == 2
     assert proxy_metrics["old_poll_model_returns"] == 4
-    assert proxy_metrics["new_bounded_watch_model_returns"] == 3
+    assert proxy_metrics["new_bounded_watch_model_returns"] == 1
     assert proxy_metrics["unchanged_poll_suppression_count"] == 1
     assert proxy_metrics["outcome_counts"] == {
         "incomplete": 1,

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -111,7 +112,7 @@ class FakeProvider:
     def __init__(
         self,
         bindings: list[dict],
-        surfaces: dict[str, list[dict | Exception]],
+        surfaces: dict[str, list[dict | BaseException]],
         *,
         clock: FakeClock | None = None,
         advance_on_surface: float = 0.0,
@@ -134,7 +135,7 @@ class FakeProvider:
         index = min(self.binding_calls, len(self.bindings) - 1)
         self.binding_calls += 1
         value = self.bindings[index]
-        if isinstance(value, Exception):
+        if isinstance(value, BaseException):
             raise value
         return value
 
@@ -151,7 +152,7 @@ class FakeProvider:
         budget.check()
         values = self.surfaces[surface_name]
         value = values.pop(0) if values else surface([], complete=True)
-        if isinstance(value, Exception):
+        if isinstance(value, BaseException):
             raise value
         if self.clock is not None:
             self.clock.now += self.advance_on_surface
@@ -766,8 +767,8 @@ def test_watch_respects_backoff_and_deadline(tmp_path: Path) -> None:
         clock=clock,
     )
 
-    assert result["outcome"] == "deadline_reached"
-    assert result["termination"] == "deadline"
+    assert result["outcome"] == "attempts_exhausted"
+    assert result["termination"] == "attempts_exhausted"
     assert clock.sleeps == [1.0]
     assert result["resume"]["last_attempt"] == 2
 
@@ -839,6 +840,87 @@ def test_watch_cancel_returns_resume_reason(tmp_path: Path) -> None:
     assert result["resume"]["reason"] == "cancelled"
 
 
+def test_keyboard_interrupt_during_provider_call_writes_cancelled_artifact(
+    tmp_path: Path,
+) -> None:
+    provider = FakeProvider(
+        [binding(), binding()],
+        {"comments": [KeyboardInterrupt()]},
+    )
+
+    result = run_observation(tmp_path, provider)
+
+    assert result["outcome"] == "cancelled"
+    assert result["termination"] == "cancelled"
+    assert result["candidates"][0]["error"]["category"] == "cancelled"
+    assert json.loads((tmp_path / "observation.json").read_text())["outcome"] == (
+        "cancelled"
+    )
+
+
+def test_request_rejects_duplicate_provider_candidate_identity_and_bad_surfaces(
+    tmp_path: Path,
+) -> None:
+    base_request = {
+        "schema_version": 1,
+        "repository": "TakashiSasaki/templates",
+        "candidates": [candidate().as_dict()],
+        "surfaces": ["comments"],
+        "max_attempts": 1,
+        "snapshot_path": str(tmp_path / "observation.json"),
+    }
+    with pytest.raises(OBSERVE.ObservationInputError, match="provider identities"):
+        OBSERVE.ObservationRequest.from_mapping(
+            {
+                **base_request,
+                "candidates": [
+                    candidate().as_dict(),
+                    candidate(identifier="alias").as_dict(),
+                ],
+            }
+        )
+    with pytest.raises(OBSERVE.ObservationInputError, match="non-empty strings"):
+        OBSERVE.ObservationRequest.from_mapping(
+            {**base_request, "surfaces": ["comments", 1]}
+        )
+
+
+def test_deadline_limited_transport_timeout_is_deadline_not_generic_timeout(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def timeout_run(*args: object, **kwargs: object) -> object:
+        del args
+        raise subprocess.TimeoutExpired(
+            ["gh"], float(kwargs["timeout"])
+        )
+
+    monkeypatch.setattr(OBSERVE.subprocess, "run", timeout_run)
+    budget = OBSERVE.ObservationBudget(1.0, clock=lambda: 0.0)
+
+    with pytest.raises(OBSERVE.ProviderFailure) as raised:
+        OBSERVE.gh_api_json(("/repos/TakashiSasaki/templates/pulls/1",), budget=budget)
+
+    assert raised.value.category == "deadline"
+
+
+def test_http_status_parser_ignores_json_body_text() -> None:
+    assert OBSERVE._parse_http_metadata('{"message":"HTTP/1.1 403"}') == (
+        None,
+        None,
+    )
+    assert OBSERVE._parse_http_metadata(
+        "HTTP/2 429\nretry-after: 2\n\n{}", now=lambda: 10.0
+    ) == (429, 12.0)
+
+
+def test_snapshot_path_validation_uses_repository_root_not_process_cwd() -> None:
+    repository_root = OBSERVE.SCRIPT_DIR.parents[2].resolve()
+    inside_repository = repository_root / "tests" / "inside-observation.json"
+
+    with pytest.raises(OBSERVE.ObservationInputError, match="outside the repository"):
+        OBSERVE._ensure_external_path(inside_repository, repository_root)
+
+
 def test_previous_snapshot_candidate_mismatch_is_stale(tmp_path: Path) -> None:
     first_provider = FakeProvider(
         [binding(), binding()],
@@ -906,7 +988,26 @@ def test_check_records_keep_old_success_and_current_failure_separate() -> None:
                 }
             ]
         ),
-        "status": OBSERVE.ApiResponse([{"statuses": []}]),
+        "status": OBSERVE.ApiResponse(
+            [
+                {
+                    "statuses": [
+                        {
+                            "id": 101,
+                            "context": "same-workflow",
+                            "target_url": "https://example.test/check",
+                            "state": "success",
+                        },
+                        {
+                            "id": 102,
+                            "context": "same-workflow",
+                            "target_url": "https://example.test/check",
+                            "state": "failure",
+                        },
+                    ]
+                }
+            ]
+        ),
     }
 
     def api(arguments: tuple[str, ...], **_: object) -> OBSERVE.ApiResponse:
@@ -919,12 +1020,18 @@ def test_check_records_keep_old_success_and_current_failure_separate() -> None:
     provider = OBSERVE.GhReadonlyProvider(api)
     result = provider._checks(candidate_value, HEAD, budget=unlimited_budget())
 
-    assert len(result["records"]) == 2
+    assert len(result["records"]) == 4
     assert {record["identity"] for record in result["records"]} == {
         "check-run:1",
         "check-run:2",
+        "status:101",
+        "status:102",
     }
-    assert {record["conclusion"] for record in result["records"]} == {
+    assert {
+        record["conclusion"]
+        for record in result["records"]
+        if record["provider_kind"] == "check_run"
+    } == {
         "success",
         "failure",
     }
@@ -967,7 +1074,19 @@ def test_reactions_cover_pr_issue_and_comment_surfaces() -> None:
         if endpoint.endswith("/issues/123/comments"):
             return OBSERVE.ApiResponse([[{"id": 11}]])
         if endpoint.endswith("/pulls/123/comments"):
-            return OBSERVE.ApiResponse([[{"id": 22}]])
+            return OBSERVE.ApiResponse(
+                [
+                    [
+                        {
+                            "id": 22,
+                            "body": "inline finding",
+                            "commit_id": HEAD,
+                            "original_commit_id": BASE,
+                            "pull_request_review_id": 77,
+                        }
+                    ]
+                ]
+            )
         if endpoint.endswith("/issues/123/reactions"):
             return OBSERVE.ApiResponse([[{"id": 1, "content": "+1"}]])
         if endpoint.endswith("/issues/comments/11/reactions"):
@@ -983,10 +1102,17 @@ def test_reactions_cover_pr_issue_and_comment_surfaces() -> None:
     assert {
         record["identity"] for record in result["records"]
     } == {
+        "review-comment:22",
         "pull_request:123:reaction:1",
         "issue_comment:11:reaction:2",
         "review_comment:22:reaction:3",
     }
+    review_comment = next(
+        record for record in result["records"] if record["identity"] == "review-comment:22"
+    )
+    assert review_comment["commit_id"] == HEAD
+    assert review_comment["original_commit_id"] == BASE
+    assert review_comment["pull_request_review_id"] == 77
     assert all("--paginate" in call for call in calls)
 
 
@@ -1049,6 +1175,176 @@ def test_review_thread_comments_paginate_past_one_hundred() -> None:
     assert any(argument == "threadId=thread-1" for argument in calls[1])
 
 
+@pytest.mark.parametrize("case", ["missing", "duplicate"])
+def test_review_thread_comments_require_stable_unique_ids(case: str) -> None:
+    initial_comments = [{"body": "missing"}] if case == "missing" else [{"id": "comment-1"}]
+
+    def api(arguments: tuple[str, ...], *, timeout: float) -> OBSERVE.ApiResponse:
+        del timeout
+        if case == "duplicate" and any(
+            argument == "threadId=thread-1" for argument in arguments
+        ):
+            return OBSERVE.ApiResponse(
+                {
+                    "data": {
+                        "node": {
+                            "comments": {
+                                "nodes": [{"id": "comment-1"}],
+                                "pageInfo": {
+                                    "hasNextPage": False,
+                                    "endCursor": None,
+                                },
+                            }
+                        }
+                    }
+                }
+            )
+        return OBSERVE.ApiResponse(
+            {
+                "data": {
+                    "repository": {
+                        "pullRequest": {
+                            "reviewThreads": {
+                                "nodes": [
+                                    {
+                                        "id": "thread-1",
+                                        "comments": {
+                                            "nodes": initial_comments,
+                                            "pageInfo": {
+                                                "hasNextPage": case == "duplicate",
+                                                "endCursor": (
+                                                    "comment-cursor-1"
+                                                    if case == "duplicate"
+                                                    else None
+                                                ),
+                                            },
+                                        },
+                                    }
+                                ],
+                                "pageInfo": {
+                                    "hasNextPage": False,
+                                    "endCursor": None,
+                                },
+                            }
+                        }
+                    }
+                }
+            }
+        )
+
+    provider = OBSERVE.GhReadonlyProvider(api)
+    with pytest.raises(OBSERVE.ProviderFailure, match="stable id|duplicate"):
+        provider._threads(candidate(), budget=unlimited_budget())
+
+
+def test_review_thread_outer_cursor_must_advance() -> None:
+    def api(arguments: tuple[str, ...], *, timeout: float) -> OBSERVE.ApiResponse:
+        del timeout
+        repeated = any(argument == "after=outer-cursor-1" for argument in arguments)
+        return OBSERVE.ApiResponse(
+            {
+                "data": {
+                    "repository": {
+                        "pullRequest": {
+                            "reviewThreads": {
+                                "nodes": [],
+                                "pageInfo": {
+                                    "hasNextPage": True,
+                                    "endCursor": "outer-cursor-1",
+                                },
+                            }
+                        }
+                    }
+                }
+            }
+            if repeated
+            else {
+                "data": {
+                    "repository": {
+                        "pullRequest": {
+                            "reviewThreads": {
+                                "nodes": [
+                                    {
+                                        "id": "thread-1",
+                                        "comments": {
+                                            "nodes": [],
+                                            "pageInfo": {
+                                                "hasNextPage": False,
+                                                "endCursor": None,
+                                            },
+                                        },
+                                    }
+                                ],
+                                "pageInfo": {
+                                    "hasNextPage": True,
+                                    "endCursor": "outer-cursor-1",
+                                },
+                            }
+                        }
+                    }
+                }
+            }
+        )
+
+    with pytest.raises(OBSERVE.ProviderFailure, match="cursor did not advance"):
+        OBSERVE.GhReadonlyProvider(api)._threads(candidate(), budget=unlimited_budget())
+
+
+def test_review_thread_nested_cursor_must_advance() -> None:
+    def api(arguments: tuple[str, ...], *, timeout: float) -> OBSERVE.ApiResponse:
+        del timeout
+        repeated = any(
+            argument == "after=comment-cursor-1" for argument in arguments
+        )
+        if repeated:
+            return OBSERVE.ApiResponse(
+                {
+                    "data": {
+                        "node": {
+                            "comments": {
+                                "nodes": [],
+                                "pageInfo": {
+                                    "hasNextPage": True,
+                                    "endCursor": "comment-cursor-1",
+                                },
+                            }
+                        }
+                    }
+                }
+            )
+        return OBSERVE.ApiResponse(
+            {
+                "data": {
+                    "repository": {
+                        "pullRequest": {
+                            "reviewThreads": {
+                                "nodes": [
+                                    {
+                                        "id": "thread-1",
+                                        "comments": {
+                                            "nodes": [{"id": "comment-1"}],
+                                            "pageInfo": {
+                                                "hasNextPage": True,
+                                                "endCursor": "comment-cursor-1",
+                                            },
+                                        },
+                                    }
+                                ],
+                                "pageInfo": {
+                                    "hasNextPage": False,
+                                    "endCursor": None,
+                                },
+                            }
+                        }
+                    }
+                }
+            }
+        )
+
+    with pytest.raises(OBSERVE.ProviderFailure, match="cursor did not advance"):
+        OBSERVE.GhReadonlyProvider(api)._threads(candidate(), budget=unlimited_budget())
+
+
 def test_bounded_summary_caps_many_candidates_and_declares_omissions() -> None:
     candidates = [
         {
@@ -1102,6 +1398,37 @@ def test_bounded_summary_caps_many_candidates_and_declares_omissions() -> None:
     assert summary["summary_truncated"] is True
     assert summary["candidate_id_digest"]
     assert summary["omitted_candidate_count"] > 0
+
+
+def test_bounded_summary_compacts_large_omitted_candidate_coverage() -> None:
+    omitted_ids = [f"candidate-{index}" for index in range(1000)]
+    summary = OBSERVE.bounded_summary(
+        {
+            "kind": "pr-state-observation-result",
+            "outcome": "deadline_reached",
+            "termination": "deadline",
+            "attempts": 1,
+            "candidates": [],
+            "coverage": {
+                "requested_candidate_ids": omitted_ids,
+                "attempted_candidate_ids": [],
+                "acquired_candidate_ids": [],
+                "omitted_candidate_ids": omitted_ids,
+                "all_requested_attempted": False,
+                "aggregate": "partial",
+            },
+            "snapshot_reference": {"path": "/tmp/detail.json", "digest": "a" * 64},
+            "resume": {"reason": "deadline_reached"},
+        },
+        2,
+    )
+
+    encoded = json.dumps(summary, sort_keys=True, separators=(",", ":")).encode()
+    assert len(encoded) <= OBSERVE.MODEL_SUMMARY_MAX_BYTES
+    assert summary["coverage"]["omitted_candidate_count"] == 1000
+    assert summary["coverage"]["omitted_candidate_ids_truncated"] is True
+    assert len(summary["coverage"]["omitted_candidate_ids"]) == 16
+    assert summary["coverage"]["omitted_candidate_id_digest"]
 
 
 def test_write_methods_and_malformed_responses_fail_closed() -> None:

@@ -62,9 +62,13 @@ OUTCOMES = {
     "cancelled",
     "rate_limited",
     "timed_out",
+    "attempts_exhausted",
     "malformed",
 }
-STATUS_LINE = re.compile(r"HTTP/\S+\s+([0-9]{3})")
+WATCH_CONTINUE_OUTCOMES = frozenset(
+    {"initialized", "unchanged", "incomplete", "rate_limited", "timed_out"}
+)
+STATUS_LINE = re.compile(r"(?m)^HTTP/\S+\s+([0-9]{3})(?:\s+[^\r\n]*)?$")
 RETRY_AFTER_LINE = re.compile(r"(?im)^retry-after:\s*([0-9]+(?:\.[0-9]+)?)\s*$")
 RATE_LIMIT_TEXT = re.compile(r"rate.?limit|secondary limit|abuse detection", re.I)
 
@@ -197,9 +201,23 @@ class ObservationRequest:
         identifiers = [candidate.identifier for candidate in candidates]
         if len(identifiers) != len(set(identifiers)):
             raise ObservationInputError("candidate IDs must be unique")
+        provider_identities = [
+            (
+                candidate.provider_identity.provider,
+                candidate.provider_identity.repository_id,
+                candidate.provider_identity.resource_id,
+            )
+            for candidate in candidates
+        ]
+        if len(provider_identities) != len(set(provider_identities)):
+            raise ObservationInputError(
+                "candidate provider identities must be unique"
+            )
         raw_surfaces = value.get("surfaces", list(DEFAULT_SURFACES))
         if not isinstance(raw_surfaces, list) or not raw_surfaces:
             raise ObservationInputError("request.surfaces must be a non-empty list")
+        if any(type(surface) is not str or not surface.strip() for surface in raw_surfaces):
+            raise ObservationInputError("request.surfaces must contain non-empty strings")
         surfaces = tuple(dict.fromkeys(raw_surfaces))
         unknown = sorted(set(surfaces) - set(DEFAULT_SURFACES))
         if unknown:
@@ -311,8 +329,11 @@ def gh_api_json(
 
     if not arguments:
         raise ObservationInputError("gh API arguments must not be empty")
+    requested_timeout = timeout
+    budget_limited = False
     if budget is not None:
         timeout = budget.transport_timeout(timeout)
+        budget_limited = timeout < requested_timeout
     if arguments[0] == "graphql":
         if any("mutation" in argument.lower() for argument in arguments):
             raise ObservationInputError("GraphQL mutations are not permitted")
@@ -332,7 +353,24 @@ def gh_api_json(
     except FileNotFoundError as exc:
         raise ProviderFailure("unavailable", "gh executable is unavailable") from exc
     except subprocess.TimeoutExpired as exc:
+        if budget is not None:
+            try:
+                budget.check()
+            except ObservationDeadlineExceeded as current:
+                raise ProviderFailure(
+                    "deadline", "observation deadline reached during gh API query"
+                ) from current
+            except ObservationCancelled as current:
+                raise ProviderFailure(
+                    "cancelled", "observation cancelled during gh API query"
+                ) from current
+            if budget_limited:
+                raise ProviderFailure(
+                    "deadline", "observation deadline reached during gh API query"
+                ) from exc
         raise ProviderFailure("timeout", "gh API query timed out") from exc
+    if budget is not None:
+        budget.check()
     status, retry_at = _parse_http_metadata(
         completed.stdout,
         now=time.time if budget is None else budget.clock,
@@ -349,6 +387,29 @@ def gh_api_json(
     values = _decode_json_bodies(completed.stdout)
     payload = values if "--paginate" in arguments else values[0]
     return ApiResponse(payload, status, retry_at)
+
+
+def _stable_provider_id(record: Mapping[str, Any], name: str) -> str:
+    value = record.get("id")
+    if isinstance(value, str) and value.strip():
+        return value
+    if type(value) is int and value > 0:
+        return str(value)
+    raise ProviderFailure("malformed", f"{name} has no stable id")
+
+
+def _graphql_page_info(value: Any, name: str) -> tuple[bool, str | None]:
+    if not isinstance(value, Mapping):
+        raise ProviderFailure("malformed", f"{name}.pageInfo is missing")
+    has_next = value.get("hasNextPage")
+    if type(has_next) is not bool:
+        raise ProviderFailure("malformed", f"{name}.hasNextPage is not a boolean")
+    cursor = value.get("endCursor")
+    if cursor is not None and (not isinstance(cursor, str) or not cursor):
+        raise ProviderFailure("malformed", f"{name}.endCursor is malformed")
+    if has_next and cursor is None:
+        raise ProviderFailure("malformed", f"{name}.endCursor is missing")
+    return has_next, cursor
 
 
 def _page_values(payload: Any) -> list[Any]:
@@ -623,10 +684,10 @@ class GhReadonlyProvider:
         for raw in status_records:
             budget.check()
             context = raw.get("context")
-            target_url = raw.get("target_url") or ""
             if not isinstance(context, str) or not context:
                 raise ProviderFailure("malformed", "status context is missing")
-            identity = f"status:{head_sha}:{context}:{target_url}"
+            raw_id = _stable_provider_id(raw, "commit status")
+            identity = f"status:{raw_id}"
             if identity in seen:
                 raise ProviderFailure("malformed", f"duplicate status identity {identity}")
             seen.add(identity)
@@ -658,6 +719,7 @@ class GhReadonlyProvider:
                 flag = "-F" if isinstance(value, (int, float, bool)) else "-f"
                 arguments.extend([flag, f"{name}={value}"])
         response = self.api(arguments, timeout=budget.transport_timeout())
+        budget.check()
         payload = response.payload
         if not isinstance(payload, Mapping):
             raise ProviderFailure("malformed", "GraphQL response is not an object")
@@ -689,12 +751,27 @@ class GhReadonlyProvider:
         }
         """
         comments = list(initial_comments)
+        comment_ids: set[str] = set()
+        for comment in comments:
+            if not isinstance(comment, Mapping):
+                raise ProviderFailure("malformed", "review thread comment is malformed")
+            comment_id = _stable_provider_id(comment, "review thread comment")
+            if comment_id in comment_ids:
+                raise ProviderFailure(
+                    "malformed", f"duplicate review thread comment {comment_id}"
+                )
+            comment_ids.add(comment_id)
         pages: list[dict[str, Any]] = []
-        after = initial_page_info.get("endCursor")
-        while initial_page_info.get("hasNextPage") is True:
+        has_next, after = _graphql_page_info(initial_page_info, "review thread comments")
+        used_cursors: set[str] = set()
+        while has_next:
             budget.check()
-            if not isinstance(after, str) or not after:
-                raise ProviderFailure("malformed", "review thread comment cursor is missing")
+            assert after is not None
+            if after in used_cursors:
+                raise ProviderFailure(
+                    "malformed", "review thread comment cursor did not advance"
+                )
+            used_cursors.add(after)
             data = self._graphql(
                 query,
                 {"threadId": thread_id, "after": after},
@@ -708,6 +785,17 @@ class GhReadonlyProvider:
             page_info = connection.get("pageInfo", {})
             if not isinstance(nodes, list) or not isinstance(page_info, Mapping):
                 raise ProviderFailure("malformed", "thread comments page is malformed")
+            for node in nodes:
+                if not isinstance(node, Mapping):
+                    raise ProviderFailure(
+                        "malformed", "review thread comment is malformed"
+                    )
+                comment_id = _stable_provider_id(node, "review thread comment")
+                if comment_id in comment_ids:
+                    raise ProviderFailure(
+                        "malformed", f"duplicate review thread comment {comment_id}"
+                    )
+                comment_ids.add(comment_id)
             pages.append(
                 {
                     "thread_id": thread_id,
@@ -717,8 +805,14 @@ class GhReadonlyProvider:
                 }
             )
             comments.extend(nodes)
-            initial_page_info = page_info
-            after = page_info.get("endCursor")
+            next_has_next, next_after = _graphql_page_info(
+                page_info, "review thread comments"
+            )
+            if next_has_next and next_after == after:
+                raise ProviderFailure(
+                    "malformed", "review thread comment cursor did not advance"
+                )
+            has_next, after = next_has_next, next_after
         return comments, pages
 
     def _threads(
@@ -746,6 +840,7 @@ class GhReadonlyProvider:
         after: str | None = None
         threads: list[dict[str, Any]] = []
         seen: set[str] = set()
+        used_cursors: set[str] = set()
         pages: list[dict[str, Any]] = []
         while True:
             budget.check()
@@ -769,6 +864,7 @@ class GhReadonlyProvider:
             page_info = connection.get("pageInfo", {})
             if not isinstance(nodes, list) or not isinstance(page_info, Mapping):
                 raise ProviderFailure("malformed", "reviewThreads page is malformed")
+            has_next, next_after = _graphql_page_info(page_info, "reviewThreads")
             pages.append(
                 {"page_index": len(pages), "item_count": len(nodes), "complete": True}
             )
@@ -776,6 +872,7 @@ class GhReadonlyProvider:
                 budget.check()
                 if not isinstance(node, Mapping):
                     raise ProviderFailure("malformed", "review thread is malformed")
+                thread_id = _stable_provider_id(node, "review thread")
                 identity = record_identity(node, "review thread")
                 if identity in seen:
                     raise ProviderFailure("malformed", f"duplicate review thread {identity}")
@@ -793,7 +890,7 @@ class GhReadonlyProvider:
                 ):
                     raise ProviderFailure("malformed", "review thread comments are malformed")
                 all_comments, comment_pages = self._thread_comments(
-                    str(node.get("id", identity)),
+                    thread_id,
                     comment_nodes,
                     comment_page_info,
                     budget=budget,
@@ -806,17 +903,22 @@ class GhReadonlyProvider:
                     "pageInfo": {"hasNextPage": False, "endCursor": None},
                 }
                 threads.append(thread)
-            if page_info.get("hasNextPage") is not True:
+            if not has_next:
                 break
-            after = page_info.get("endCursor")
-            if not isinstance(after, str) or not after:
-                raise ProviderFailure("malformed", "review thread cursor is missing")
+            assert next_after is not None
+            if next_after in used_cursors or next_after == after:
+                raise ProviderFailure(
+                    "malformed", "review thread cursor did not advance"
+                )
+            used_cursors.add(next_after)
+            after = next_after
         return {"complete": True, "records": threads, "pages": pages, "error": None}
 
     def _reactions(
         self, candidate: CandidateBinding, *, budget: ObservationBudget
     ) -> Mapping[str, Any]:
         records: list[dict[str, Any]] = []
+        seen_records: set[str] = set()
         pages: list[dict[str, Any]] = []
         owner, repo = candidate.repository.split("/", 1)
 
@@ -864,9 +966,23 @@ class GhReadonlyProvider:
         pages.extend(review_pages)
         for comment in review_comments:
             budget.check()
-            comment_id = comment.get("id")
-            if not isinstance(comment_id, (str, int)):
-                raise ProviderFailure("malformed", "review comment has no stable id")
+            comment_id = _stable_provider_id(comment, "review comment")
+            comment_identity = f"review-comment:{comment_id}"
+            if comment_identity in seen_records:
+                raise ProviderFailure(
+                    "malformed", f"duplicate review comment {comment_identity}"
+                )
+            seen_records.add(comment_identity)
+            # Preserve the complete REST review-comment binding evidence, even
+            # when that comment has no reactions. The acceptance gate remains
+            # the sole owner of any semantic interpretation of these fields.
+            records.append(
+                _with_identity(
+                    comment,
+                    comment_identity,
+                    provider_kind="review_comment",
+                )
+            )
             reaction_endpoints.append(
                 (
                     f"/repos/{owner}/{repo}/pulls/comments/{comment_id}/reactions",
@@ -887,10 +1003,11 @@ class GhReadonlyProvider:
             pages.extend(reaction_evidence)
             for raw in raw_reactions:
                 budget.check()
-                raw_id = raw.get("id")
-                if not isinstance(raw_id, (str, int)):
-                    raise ProviderFailure("malformed", "reaction has no stable id")
+                raw_id = _stable_provider_id(raw, "reaction")
                 identity = f"{subject_kind}:{subject_id}:reaction:{raw_id}"
+                if identity in seen_records:
+                    raise ProviderFailure("malformed", f"duplicate reaction {identity}")
+                seen_records.add(identity)
                 records.append(
                     _with_identity(
                         {**raw, "subject_kind": subject_kind, "subject_id": subject_id},
@@ -936,6 +1053,8 @@ def capture_once(
         return Capture(None, ProviderFailure("deadline", "observation deadline reached"))
     except ObservationCancelled:
         return Capture(None, ProviderFailure("cancelled", "observation cancelled"))
+    except KeyboardInterrupt:
+        return Capture(None, ProviderFailure("cancelled", "observation cancelled"))
     except ProviderFailure as failure:
         return Capture(None, failure)
     surface_values: dict[str, Mapping[str, Any] | SurfaceObservation] = {}
@@ -952,6 +1071,8 @@ def capture_once(
         except ObservationDeadlineExceeded:
             return Capture(None, ProviderFailure("deadline", "observation deadline reached"))
         except ObservationCancelled:
+            return Capture(None, ProviderFailure("cancelled", "observation cancelled"))
+        except KeyboardInterrupt:
             return Capture(None, ProviderFailure("cancelled", "observation cancelled"))
         except ProviderFailure as current_failure:
             failure = current_failure
@@ -970,6 +1091,8 @@ def capture_once(
     except ObservationDeadlineExceeded:
         return Capture(None, ProviderFailure("deadline", "observation deadline reached"))
     except ObservationCancelled:
+        return Capture(None, ProviderFailure("cancelled", "observation cancelled"))
+    except KeyboardInterrupt:
         return Capture(None, ProviderFailure("cancelled", "observation cancelled"))
     except ProviderFailure as current_failure:
         return Capture(None, current_failure)
@@ -1105,6 +1228,12 @@ def _aggregate_outcome(outcomes: Sequence[str]) -> str:
         if outcome in outcomes:
             return outcome
     return "unknown"
+
+
+def watch_should_continue(outcomes: Sequence[str]) -> bool:
+    """Return whether a watch attempt should wait for another attempt."""
+
+    return bool(outcomes) and all(outcome in WATCH_CONTINUE_OUTCOMES for outcome in outcomes)
 
 
 def _omitted_candidate(candidate: CandidateBinding, reason: str) -> dict[str, Any]:
@@ -1255,10 +1384,7 @@ def observe(
         overall_outcome = _aggregate_outcome(iteration_outcomes)
         if request.mode == "single-shot":
             break
-        should_wait = bool(iteration_outcomes) and all(
-            outcome in {"initialized", "unchanged", "incomplete", "rate_limited", "timed_out"}
-            for outcome in iteration_outcomes
-        )
+        should_wait = watch_should_continue(iteration_outcomes)
         if not should_wait:
             break
         previous.update(
@@ -1270,7 +1396,7 @@ def observe(
             }
         )
         if attempt >= request.max_attempts:
-            overall_outcome = "deadline_reached"
+            overall_outcome = "attempts_exhausted"
             break
         now = clock()
         try:
@@ -1294,16 +1420,18 @@ def observe(
         except (KeyboardInterrupt, ObservationCancelled):
             overall_outcome = "cancelled"
             break
-    if attempt >= request.max_attempts and request.mode == "watch" and overall_outcome in {
-        "initialized",
-        "unchanged",
-    }:
-        overall_outcome = "deadline_reached"
+    if (
+        attempt >= request.max_attempts
+        and request.mode == "watch"
+        and overall_outcome in WATCH_CONTINUE_OUTCOMES
+    ):
+        overall_outcome = "attempts_exhausted"
     if not candidate_results and overall_outcome == "initialized":
         overall_outcome = "unknown"
     termination = {
         "deadline_reached": "deadline",
         "cancelled": "cancelled",
+        "attempts_exhausted": "attempts_exhausted",
         "rate_limited": "rate_limit",
         "timed_out": "timeout",
         "unknown": "error",
@@ -1375,6 +1503,14 @@ def bounded_summary(result: Mapping[str, Any], limit: int) -> dict[str, Any]:
             )
         candidates.append(item)
     raw_coverage = result.get("coverage")
+    raw_omitted_ids = (
+        raw_coverage.get("omitted_candidate_ids", [])
+        if isinstance(raw_coverage, Mapping)
+        else []
+    )
+    omitted_ids = list(raw_omitted_ids) if isinstance(raw_omitted_ids, list) else []
+    omitted_preview_limit = 16
+    omitted_ids_truncated = len(omitted_ids) > omitted_preview_limit
     coverage = {
         "requested_candidate_count": len(raw_coverage.get("requested_candidate_ids", []))
         if isinstance(raw_coverage, Mapping)
@@ -1385,9 +1521,9 @@ def bounded_summary(result: Mapping[str, Any], limit: int) -> dict[str, Any]:
         "acquired_candidate_count": len(raw_coverage.get("acquired_candidate_ids", []))
         if isinstance(raw_coverage, Mapping)
         else 0,
-        "omitted_candidate_ids": raw_coverage.get("omitted_candidate_ids", [])
-        if isinstance(raw_coverage, Mapping)
-        else [],
+        "omitted_candidate_count": len(omitted_ids),
+        "omitted_candidate_ids": omitted_ids[:omitted_preview_limit],
+        "omitted_candidate_ids_truncated": omitted_ids_truncated,
         "all_requested_attempted": raw_coverage.get("all_requested_attempted", False)
         if isinstance(raw_coverage, Mapping)
         else False,
@@ -1408,6 +1544,9 @@ def bounded_summary(result: Mapping[str, Any], limit: int) -> dict[str, Any]:
         "merge_authorization": "not_established",
         "review_approval": "not_inferred",
     }
+    if omitted_ids_truncated:
+        coverage["omitted_candidate_id_digest"] = sha256_digest(omitted_ids)
+        summary["summary_truncated"] = True
     try:
         bounded = bound_model_summary(summary, max_bytes=MODEL_SUMMARY_MAX_BYTES)
     except ObservationInputError:
@@ -1503,7 +1642,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         result = observe(
             request,
             GhReadonlyProvider(),
-            repository_root=Path.cwd(),
+            repository_root=SCRIPT_DIR.parents[2].resolve(),
         )
     except ObservationInputError as exc:
         print(
