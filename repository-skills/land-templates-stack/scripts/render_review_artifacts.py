@@ -1722,10 +1722,26 @@ def _role_lines(data: Mapping[str, Any]) -> list[str]:
     return lines
 
 
+def checkpoint_identity(normalized: NormalizedReviewArtifacts) -> str:
+    """Identify durable resume state without sharing review-request identity."""
+
+    return semantic_digest(
+        {
+            "version": 1,
+            "semantic_digest": normalized.semantic_digest,
+            "binding_digest": normalized.binding_digest,
+            "work": normalized.data["work"],
+            "renderer_blockers": list(normalized.blockers),
+        }
+    )
+
+
 def idempotency_key(normalized: NormalizedReviewArtifacts, request_type: str) -> str:
     """Return a stable request identity independent of PR-body observations."""
 
     _require_string(request_type, "request_type")
+    if request_type == "work-ledger-checkpoint":
+        return checkpoint_identity(normalized)
     candidate = normalized.data["candidate"]
     planner = normalized.planner_result
     material = {

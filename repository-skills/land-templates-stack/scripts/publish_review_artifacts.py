@@ -217,7 +217,16 @@ class GitHubProvider(RemoteProvider):
         except urllib.error.HTTPError as exc:
             detail = exc.read().decode("utf-8", errors="replace")
             raise PublicationError(f"GitHub {method} {path} returned {exc.code}: {detail}") from exc
-        except (urllib.error.URLError, TimeoutError, http.client.RemoteDisconnected) as exc:
+        except (
+            urllib.error.URLError,
+            TimeoutError,
+            http.client.RemoteDisconnected,
+            http.client.IncompleteRead,
+            ConnectionResetError,
+            ConnectionAbortedError,
+            BrokenPipeError,
+            EOFError,
+        ) as exc:
             if method in {"POST", "PATCH", "PUT", "DELETE"}:
                 raise RemoteAmbiguousError(
                     f"GitHub {method} response was ambiguous for {path}: {exc}"
@@ -228,6 +237,10 @@ class GitHubProvider(RemoteProvider):
         try:
             return json.loads(content.decode("utf-8"))
         except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            if method in {"POST", "PATCH", "PUT", "DELETE"}:
+                raise RemoteAmbiguousError(
+                    f"GitHub {method} response was ambiguous for {path}: invalid JSON"
+                ) from exc
             raise PublicationError(f"GitHub {method} {path} returned invalid JSON") from exc
 
     def get_current_state(
@@ -509,13 +522,39 @@ def _snapshot_evidence_digest(snapshot: Mapping[str, Any]) -> str:
     return renderer.semantic_digest(renderer._strip_observation_metadata(projection))
 
 
-def _member_binding_projection(normalized: Any) -> list[dict[str, str]]:
+def _member_provider_key(value: Any, name: str) -> tuple[str, str, str]:
+    if not isinstance(value, Mapping):
+        raise PublicationError(f"{name} provider identity is incomplete")
+    provider = value.get("provider")
+    repository_id = value.get("repository_id")
+    resource_id = value.get("resource_id")
+    if not isinstance(provider, str) or not provider.strip():
+        raise PublicationError(f"{name} provider identity is incomplete")
+    if type(repository_id) is int and repository_id > 0:
+        repository_id = str(repository_id)
+    if type(resource_id) is int and resource_id > 0:
+        resource_id = str(resource_id)
+    if not isinstance(repository_id, str) or not repository_id.strip():
+        raise PublicationError(f"{name} provider repository identity is incomplete")
+    if not isinstance(resource_id, str) or not resource_id.strip():
+        raise PublicationError(f"{name} provider resource identity is incomplete")
+    return provider, repository_id, resource_id
+
+
+def _member_binding_projection(normalized: Any) -> list[dict[str, Any]]:
     return [
         {
             "id": member["id"],
             "authority": member["authority"],
             "base_sha": member["base_sha"],
             "head_sha": member["head_sha"],
+            "pull_request": {
+                "number": member["pull_request"]["number"],
+                "provider_identity": copy.deepcopy(
+                    member["pull_request"]["provider_identity"]
+                ),
+                "provider_path": member["pull_request"]["provider_path"],
+            },
         }
         for member in normalized.data["candidate"]["members"]
     ]
@@ -538,11 +577,23 @@ def _live_member_binding_digest(
         if isinstance(item, Mapping)
     }
     candidate = normalized.data["candidate"]
+    expected_dependency_ids = {
+        member["id"]
+        for member in members
+        if member["pull_request"]["number"] != candidate["pull_request"]["number"]
+    }
+    if set(live_heads) != expected_dependency_ids:
+        raise PublicationError("live dependency observation is incomplete")
     for member in members:
-        if member["head_sha"] == candidate["head_sha"]:
+        if member["pull_request"]["number"] == candidate["pull_request"]["number"]:
             member["head_sha"] = live_head_sha
-        elif member["id"] in live_heads and isinstance(live_heads[member["id"]], str):
-            member["head_sha"] = live_heads[member["id"]]
+        else:
+            observed_head = live_heads.get(member["id"])
+            if not isinstance(observed_head, str):
+                raise PublicationError(
+                    f"live dependency observation lacks member {member['id']}"
+                )
+            member["head_sha"] = observed_head
     return renderer.semantic_digest(members)
 
 
@@ -550,6 +601,35 @@ def _full_sha(value: Any, name: str) -> str:
     if not isinstance(value, str) or re.fullmatch(r"[0-9a-f]{40}", value) is None:
         raise PublicationError(f"{name} must be a lowercase full SHA")
     return value
+
+
+def _resolve_effective_base(
+    resolver: Callable[[Any, Mapping[str, Any], Mapping[str, Any]], Mapping[str, Any]],
+    normalized: Any,
+    payload: Mapping[str, Any],
+    snapshot: Mapping[str, Any],
+    live_head: str,
+    live_base: str,
+) -> tuple[str, dict[str, Any]]:
+    try:
+        result = resolver(normalized, payload, snapshot)
+    except PublicationError:
+        raise
+    except Exception as exc:
+        raise PublicationError(f"live effective-base resolver failed: {exc}") from exc
+    if not isinstance(result, Mapping):
+        raise PublicationError("live effective-base resolver must return an object")
+    if result.get("complete") is not True:
+        raise PublicationError("live effective base is incomplete")
+    source = result.get("source")
+    if not isinstance(source, str) or not source.strip():
+        raise PublicationError("live effective base lacks a resolver identity")
+    if result.get("candidate_head_sha") != live_head:
+        raise PublicationError("live effective base is bound to a different candidate head")
+    if result.get("base_sha") != live_base:
+        raise PublicationError("live effective base is bound to a different PR base")
+    effective_base = _full_sha(result.get("sha"), "live effective base")
+    return effective_base, _json_data(dict(result), "live effective-base result")
 
 
 class GitHubLiveRevalidationAdapter:
@@ -568,11 +648,15 @@ class GitHubLiveRevalidationAdapter:
         gate_resolver: Callable[
             [Any, Mapping[str, Any], Mapping[str, Any], Mapping[str, Any]], Mapping[str, Any]
         ],
+        effective_base_resolver: Callable[
+            [Any, Mapping[str, Any], Mapping[str, Any]], Mapping[str, Any]
+        ],
         clock: Callable[[], float] = time.time,
         observation_seconds: float = 60.0,
     ) -> None:
         self.planner_packet_builder = planner_packet_builder
         self.gate_resolver = gate_resolver
+        self.effective_base_resolver = effective_base_resolver
         self.clock = clock
         self.observation_seconds = observation_seconds
 
@@ -607,18 +691,26 @@ class GitHubLiveRevalidationAdapter:
         if type(repository_id) is not int or type(resource_id) is not int:
             raise PublicationError("live PR immutable provider identity is incomplete")
 
-        raw_members = candidate.get("members", [])
+        raw_members = candidate.get("members")
+        if not isinstance(raw_members, list) or not raw_members:
+            raise PublicationError("candidate topology must contain stack members")
         dependencies: list[dict[str, Any]] = []
-        skipped_tip = False
+        target_members: list[Mapping[str, Any]] = []
+        seen_member_ids: set[str] = set()
+        seen_pr_numbers: set[int] = set()
+        seen_provider_identities: set[tuple[str, str, str]] = set()
+        live_provider_key = ("github", str(repository_id), str(resource_id))
         for index, member in enumerate(raw_members):
+            if not isinstance(member, Mapping):
+                raise PublicationError(f"candidate.members[{index}] must be an object")
+            member_id = member.get("id")
+            if not isinstance(member_id, str) or not member_id.strip():
+                raise PublicationError(f"candidate.members[{index}].id is invalid")
+            if member_id in seen_member_ids:
+                raise PublicationError("candidate topology contains duplicate member IDs")
+            seen_member_ids.add(member_id)
             member_pr = member.get("pull_request")
-            if isinstance(member_pr, Mapping) and member_pr.get("number") == live_number:
-                skipped_tip = True
-                continue
             if not isinstance(member_pr, Mapping):
-                if not skipped_tip and member.get("head_sha") == candidate["head_sha"]:
-                    skipped_tip = True
-                    continue
                 raise PublicationError(
                     f"candidate.members[{index}] lacks an exact pull-request binding"
                 )
@@ -632,21 +724,74 @@ class GitHubLiveRevalidationAdapter:
                 raise PublicationError(
                     f"candidate.members[{index}] lacks provider identity for observation"
                 )
+            provider_key = _member_provider_key(
+                provider_identity, f"candidate.members[{index}].pull_request"
+            )
+            if provider_key[0] != "github":
+                raise PublicationError("live member observation requires GitHub identities")
+            if member_number in seen_pr_numbers:
+                raise PublicationError("candidate topology contains duplicate PR numbers")
+            if provider_key in seen_provider_identities:
+                raise PublicationError("candidate topology contains duplicate provider identities")
+            seen_pr_numbers.add(member_number)
+            seen_provider_identities.add(provider_key)
             provider_path = member_pr.get(
                 "provider_path",
                 f"/repos/{normalized.data['repository']}/pulls/{member_number}",
             )
-            dependencies.append(
-                {
-                    "id": member["id"],
-                    "authority": member["authority"],
-                    "expected_head_sha": member["head_sha"],
-                    "provider_identity": dict(provider_identity),
+            expected_path = f"/repos/{normalized.data['repository']}/pulls/{member_number}"
+            if provider_path != expected_path:
+                raise PublicationError(
+                    f"candidate.members[{index}] provider path is not bound to its PR"
+                )
+            member_authority = member.get("authority")
+            if not isinstance(member_authority, str) or not member_authority.strip():
+                raise PublicationError(f"candidate.members[{index}].authority is invalid")
+            member_head = _full_sha(member.get("head_sha"), f"candidate.members[{index}].head_sha")
+            member_base = _full_sha(member.get("base_sha"), f"candidate.members[{index}].base_sha")
+            normalized_member = {
+                "id": member_id,
+                "authority": member_authority,
+                "head_sha": member_head,
+                "base_sha": member_base,
+                "pull_request": {
+                    "number": member_number,
+                    "provider_identity": {
+                        "provider": provider_key[0],
+                        "repository_id": provider_key[1],
+                        "resource_id": provider_key[2],
+                    },
                     "provider_path": provider_path,
-                }
+                },
+            }
+            if member_number == live_number:
+                target_members.append(normalized_member)
+            else:
+                dependencies.append(
+                    {
+                        "id": member_id,
+                        "authority": member_authority,
+                        "expected_head_sha": member_head,
+                        "provider_identity": normalized_member["pull_request"][
+                            "provider_identity"
+                        ],
+                        "provider_path": provider_path,
+                    }
+                )
+        if len(target_members) != 1:
+            raise PublicationError(
+                "candidate topology must identify the live target PR exactly once"
             )
-        if raw_members and not skipped_tip:
-            raise PublicationError("candidate topology does not identify the target PR member")
+        target_member = target_members[0]
+        if target_member["head_sha"] != live_head:
+            raise PublicationError("target member head is not bound to the live PR head")
+        if target_member["base_sha"] != live_base:
+            raise PublicationError("target member base is not bound to the live PR base")
+        if live_provider_key not in seen_provider_identities:
+            raise PublicationError("target member provider identity is not live-bound")
+        target_identity = candidate["pull_request"].get("provider_identity")
+        if _member_provider_key(target_identity, "candidate.pull_request") != live_provider_key:
+            raise PublicationError("candidate target provider identity does not match live PR")
         return observer.CandidateBinding.from_mapping(
             {
                 "repository": normalized.data["repository"],
@@ -838,6 +983,14 @@ class GitHubLiveRevalidationAdapter:
 
         live_head = _full_sha(payload.get("head", {}).get("sha"), "live PR head")
         live_base = _full_sha(payload.get("base", {}).get("sha"), "live PR base")
+        effective_base_sha, effective_base_binding = _resolve_effective_base(
+            self.effective_base_resolver,
+            normalized,
+            payload,
+            snapshot,
+            live_head,
+            live_base,
+        )
         self._toolchain_revision(provider, normalized, live_head)
         try:
             packet = _json_data(
@@ -850,9 +1003,24 @@ class GitHubLiveRevalidationAdapter:
             if (
                 not isinstance(packet_candidate, Mapping)
                 or packet_candidate.get("head_sha") != live_head
+                or packet_candidate.get("base_sha") != live_base
+                or packet_candidate.get("effective_base_sha") != effective_base_sha
             ):
-                raise PublicationError("live planner packet is not bound to the current head")
-            planner_result = renderer._planner_module().plan(dict(packet))
+                raise PublicationError(
+                    "live planner packet is not bound to the current candidate/base"
+                )
+            planner_source = normalized.data["planner"]["source"]
+            planner_file = provider.read_file_at_revision(
+                normalized.data["repository"],
+                planner_source["revision"],
+                planner_source["path"],
+            )
+            planner_result = renderer.execute_bound_planner(
+                planner_source,
+                packet,
+                content=planner_file["content"],
+                actual_blob=planner_file["sha"],
+            )
         except PublicationError:
             raise
         except Exception as exc:
@@ -878,7 +1046,7 @@ class GitHubLiveRevalidationAdapter:
             "pull_request_id": normalized.data["candidate"]["pull_request"]["id"],
             "candidate_head_sha": live_head,
             "base_sha": live_base,
-            "effective_base_sha": live_base,
+            "effective_base_sha": effective_base_sha,
             "revision_bindings_digest": renderer.semantic_digest(
                 normalized.data["revision_bindings"]
             ),
@@ -904,10 +1072,14 @@ class GitHubLiveRevalidationAdapter:
             "gate_status": gate_status,
             "evidence_digest": gate.get("evidence_digest", _snapshot_evidence_digest(snapshot)),
             "live_snapshot_digest": _snapshot_evidence_digest(snapshot),
+            "effective_base_sha": effective_base_sha,
+            "effective_base_binding": effective_base_binding,
             "live_revalidation": {
                 "complete": True,
                 "snapshot_digest": snapshot.get("snapshot_digest"),
                 "candidate_head_sha": live_head,
+                "base_sha": live_base,
+                "effective_base_sha": effective_base_sha,
             },
         }
 
@@ -1099,6 +1271,12 @@ def _matching_review_requests(
     ]
 
 
+def _checkpoint_content_matches(
+    matches: Sequence[Mapping[str, Any]], rendered_body: str
+) -> bool:
+    return len(matches) == 1 and matches[0].get("body") == rendered_body
+
+
 def _planned_operations(
     normalized: Any,
     remote: RemoteProvider,
@@ -1129,6 +1307,10 @@ def _planned_operations(
     )
     if len(request_matches) > 1 or len(checkpoint_matches) > 1:
         raise PublicationError("duplicate equivalent publication markers require reconciliation")
+    if checkpoint_matches and not _checkpoint_content_matches(
+        checkpoint_matches, rendered.files["work-ledger-checkpoint.md"]
+    ):
+        raise PublicationError("checkpoint marker content does not match current resume state")
     if action in REQUEST_ACTIONS and not _has_planner_blocker(normalized):
         if len(request_matches) == 1:
             operations.append(
@@ -1379,6 +1561,15 @@ def publish(
                     "conflict", operations, [f"duplicate {operation_type} markers"], rendered
                 )
             if matches:
+                if operation_type == "work_checkpoint" and not _checkpoint_content_matches(
+                    matches, body
+                ):
+                    return PublicationResult(
+                        "conflict",
+                        operations,
+                        ["checkpoint marker content does not match current resume state"],
+                        rendered,
+                    )
                 operation["status"] = "already_present"
                 continue
             try:

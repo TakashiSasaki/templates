@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import copy
 import hashlib
+import http.client
 import importlib.util
 from pathlib import Path
 
@@ -396,6 +397,131 @@ def test_reuse_planner_action_does_not_emit_a_new_review_operation() -> None:
     assert provider.create_calls == 1
 
 
+def test_checkpoint_identity_changes_with_resume_state_but_not_review_identity() -> None:
+    first = _bound_source()
+    changed_source = source_fixture._source()
+    changed_source["observed"]["pr_body"] = {
+        "revision": "body-1",
+        "body": "Human PR text\n",
+    }
+    changed_source["work"]["blockers"] = ["dependency-review-pending"]
+    changed = publisher.renderer.normalize(changed_source)
+
+    assert publisher.renderer.checkpoint_identity(first) != publisher.renderer.checkpoint_identity(
+        changed
+    )
+    assert publisher.renderer.idempotency_key(
+        first, "review-request"
+    ) == publisher.renderer.idempotency_key(changed, "review-request")
+
+    provider = FakeProvider(changed)
+    provider.comments.append(
+        {
+            "id": 1,
+            "body": publisher.renderer.render(first).files["work-ledger-checkpoint.md"],
+        }
+    )
+    operations, _ = publisher._planned_operations(
+        changed,
+        provider,
+        provider.state,
+        provider.comments,
+        initialize=True,
+    )
+    checkpoint = next(item for item in operations if item["type"] == "work_checkpoint")
+    assert checkpoint["status"] == "create"
+
+
+def test_live_observation_rejects_ambiguous_or_unobserved_stack_members() -> None:
+    normalized = _bound_source()
+    payload = {
+        "id": 123,
+        "number": 123,
+        "base": {
+            "sha": normalized.data["candidate"]["base_sha"],
+            "repo": {"id": 9, "full_name": normalized.data["repository"]},
+        },
+        "head": {"sha": normalized.data["candidate"]["head_sha"]},
+    }
+    observer = publisher._load_observer_entrypoint()
+
+    duplicate = copy.deepcopy(normalized)
+    duplicate.data["candidate"]["members"].append(
+        copy.deepcopy(duplicate.data["candidate"]["members"][0])
+    )
+    duplicate.data["candidate"]["members"][1]["id"] = "duplicate-target"
+    with pytest.raises(publisher.PublicationError, match="duplicate PR numbers"):
+        publisher.GitHubLiveRevalidationAdapter._observation_candidate(
+            duplicate, payload, observer
+        )
+
+    missing_target = copy.deepcopy(normalized)
+    missing_target.data["candidate"]["members"][0]["pull_request"]["number"] = 124
+    missing_target.data["candidate"]["members"][0]["pull_request"]["provider_identity"][
+        "resource_id"
+    ] = "124"
+    missing_target.data["candidate"]["members"][0]["pull_request"][
+        "provider_path"
+    ] = "/repos/TakashiSasaki/templates/pulls/124"
+    with pytest.raises(publisher.PublicationError, match="target PR exactly once"):
+        publisher.GitHubLiveRevalidationAdapter._observation_candidate(
+            missing_target, payload, observer
+        )
+
+    complete = copy.deepcopy(normalized)
+    complete.data["candidate"]["members"].insert(
+        0,
+        {
+            "id": "policy-prerequisite",
+            "authority": "policy",
+            "base_sha": normalized.data["candidate"]["base_sha"],
+            "head_sha": "c" * 40,
+            "pull_request": {
+                "number": 122,
+                "provider_identity": {
+                    "provider": "github",
+                    "repository_id": "9",
+                    "resource_id": "122",
+                },
+                "provider_path": "/repos/TakashiSasaki/templates/pulls/122",
+            },
+        },
+    )
+    binding = publisher.GitHubLiveRevalidationAdapter._observation_candidate(
+        complete, payload, observer
+    )
+    assert [item.identifier for item in binding.dependencies] == ["policy-prerequisite"]
+
+
+def test_truncated_mutation_responses_are_ambiguous_for_body_and_comment(
+    monkeypatch,
+) -> None:
+    class TruncatedResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def read(self):
+            raise http.client.IncompleteRead(b"partial", 20)
+
+    provider = publisher.GitHubProvider("token")
+    calls: list[str] = []
+
+    def urlopen(request, timeout):
+        del timeout
+        calls.append(request.method)
+        return TruncatedResponse()
+
+    monkeypatch.setattr(publisher.urllib.request, "urlopen", urlopen)
+    with pytest.raises(publisher.RemoteAmbiguousError):
+        provider.update_pr_body("TakashiSasaki/templates", 123, "body")
+    with pytest.raises(publisher.RemoteAmbiguousError):
+        provider.create_comment("TakashiSasaki/templates", 123, "comment")
+    assert calls == ["PATCH", "POST"]
+
+
 class _ContentGitHub(publisher.GitHubProvider):
     def __init__(self, payload):
         super().__init__("token")
@@ -537,6 +663,24 @@ class _ObservedTransportGitHub(publisher.GitHubProvider):
             "encoding": "base64",
             "content": base64.b64encode(content).decode(),
         }
+        planner_path = publisher.renderer.PLANNER_PATH
+        planner_content = (
+            ROOT
+            / "repository-skills"
+            / "land-templates-stack"
+            / "scripts"
+            / "plan_review_scope.py"
+        ).read_bytes()
+        planner_blob_sha = hashlib.sha1(
+            f"blob {len(planner_content)}\0".encode() + planner_content
+        ).hexdigest()
+        self.planner_payload = {
+            "type": "file",
+            "path": planner_path,
+            "sha": planner_blob_sha,
+            "encoding": "base64",
+            "content": base64.b64encode(planner_content).decode(),
+        }
         self.metadata = {
             "id": 123,
             "node_id": normalized.data["candidate"]["pull_request"]["id"],
@@ -556,6 +700,8 @@ class _ObservedTransportGitHub(publisher.GitHubProvider):
         self.calls.append((method, path))
         if "/contents/.agent-policy.yml" in path:
             return self.content_payload
+        if f"/contents/{publisher.renderer.PLANNER_PATH}" in path:
+            return self.planner_payload
         if method == "POST" and path == "/graphql":
             return {
                 "data": {
@@ -618,9 +764,21 @@ def test_real_live_adapter_composes_observer_planner_gate_and_exact_file_binding
             "input_binding_digest": publisher.renderer.semantic_digest(binding),
         }
 
+    def effective_base_resolver(context, payload, snapshot):
+        assert context is normalized
+        assert snapshot["binding_status"] == "stable"
+        return {
+            "complete": True,
+            "source": "test-effective-base-resolver",
+            "sha": normalized.data["candidate"]["effective_base_sha"],
+            "candidate_head_sha": payload["head"]["sha"],
+            "base_sha": payload["base"]["sha"],
+        }
+
     adapter = publisher.GitHubLiveRevalidationAdapter(
         planner_packet_builder=planner_packet_builder,
         gate_resolver=gate_resolver,
+        effective_base_resolver=effective_base_resolver,
     )
     state = adapter(normalized, provider.metadata, provider)
 
@@ -630,6 +788,182 @@ def test_real_live_adapter_composes_observer_planner_gate_and_exact_file_binding
     )
     assert any("check-runs" in path for _, path in provider.calls)
     assert any("contents/.agent-policy.yml" in path for _, path in provider.calls)
+
+
+def test_publish_uses_live_adapter_and_refuses_changed_evidence_before_write() -> None:
+    source = source_fixture._source()
+    source["observed"]["pr_body"] = {"revision": "body-1", "body": "Human PR text\n"}
+    seed = publisher.renderer.normalize(source)
+    seed_provider = _ObservedTransportGitHub(seed)
+
+    def planner_packet_builder(context, snapshot):
+        del snapshot
+        return copy.deepcopy(context.planner_packet)
+
+    def gate_resolver(context, snapshot, packet, result):
+        del snapshot
+        binding = {
+            "repository": context.data["repository"],
+            "pull_request_id": context.data["candidate"]["pull_request"]["id"],
+            "candidate_head_sha": context.data["candidate"]["head_sha"],
+            "base_sha": context.data["candidate"]["base_sha"],
+            "effective_base_sha": context.data["candidate"]["effective_base_sha"],
+            "revision_bindings_digest": publisher.renderer.semantic_digest(
+                context.data["revision_bindings"]
+            ),
+            "planner_input_digest": publisher.renderer.semantic_digest(packet),
+            "planner_result_digest": publisher.renderer.semantic_digest(result),
+        }
+        return {
+            "status": "passed",
+            "input_binding": binding,
+            "input_binding_digest": publisher.renderer.semantic_digest(binding),
+        }
+
+    def effective_base_resolver(context, payload, snapshot):
+        del snapshot
+        return {
+            "complete": True,
+            "source": "test-live-effective-base",
+            "sha": context.data["candidate"]["effective_base_sha"],
+            "candidate_head_sha": payload["head"]["sha"],
+            "base_sha": payload["base"]["sha"],
+        }
+
+    adapter = publisher.GitHubLiveRevalidationAdapter(
+        planner_packet_builder=planner_packet_builder,
+        gate_resolver=gate_resolver,
+        effective_base_resolver=effective_base_resolver,
+    )
+    observer = publisher._load_observer_entrypoint()
+    binding = adapter._observation_candidate(seed, seed_provider.metadata, observer)
+    readonly = observer.GhReadonlyProvider(
+        api=adapter._observation_api(seed_provider, observer)
+    )
+    capture = observer.capture_once(
+        readonly,
+        binding,
+        observer.DEFAULT_SURFACES,
+        clock=adapter.clock,
+        budget=observer.ObservationBudget(
+            adapter.clock() + adapter.observation_seconds, clock=adapter.clock
+        ),
+    )
+    assert capture.failure is None
+    source["observed"]["snapshot"] = capture.snapshot
+    normalized = publisher.renderer.normalize(source)
+
+    class MutableLiveProvider(_ObservedTransportGitHub):
+        def __init__(self, normalized_input):
+            super().__init__(normalized_input)
+            self.live_calls = 0
+            self.writes = 0
+            self.comments: list[dict[str, object]] = []
+            self.live_revalidator = self._live_revalidator
+
+        def _live_revalidator(self, context, payload, provider):
+            self.live_calls += 1
+            state = dict(adapter(context, payload, provider))
+            if self.live_calls == 2:
+                state["evidence_digest"] = "e" * 64
+            return state
+
+        def _request(self, method, path, payload=None):
+            if method == "GET" and "/issues/123/comments" in path:
+                self.calls.append((method, path))
+                return self.comments
+            if method == "PATCH":
+                self.writes += 1
+                self.calls.append((method, path))
+                return {**self.metadata, "body": payload["body"]}
+            if method == "POST" and path == "/repos/TakashiSasaki/templates/issues/123/comments":
+                self.writes += 1
+                self.calls.append((method, path))
+                comment = {"id": len(self.comments) + 1, "body": payload["body"]}
+                self.comments.append(comment)
+                return comment
+            return super()._request(method, path, payload)
+
+    provider = MutableLiveProvider(normalized)
+    result = publisher.publish(
+        normalized,
+        provider,
+        apply=True,
+        authorized=True,
+        serialized_writer=True,
+        initialize_region=True,
+    )
+
+    assert result.status == "conflict"
+    assert "binding changed" in result.reasons[0]
+    assert provider.live_calls == 2
+    assert provider.writes == 0
+
+
+def test_live_effective_base_is_independent_and_must_be_complete() -> None:
+    source = source_fixture._source()
+    source["observed"]["pr_body"] = {"revision": "body-1", "body": "Human PR text\n"}
+    normalized = publisher.renderer.normalize(source)
+    provider = _ObservedTransportGitHub(normalized)
+    effective_base = "c" * 40
+
+    def planner_packet_builder(context, snapshot):
+        del snapshot
+        packet = copy.deepcopy(normalized.planner_packet)
+        packet["candidate"]["effective_base_sha"] = effective_base
+        return packet
+
+    def gate_resolver(context, snapshot, packet, result):
+        del snapshot
+        binding = {
+            "repository": normalized.data["repository"],
+            "pull_request_id": normalized.data["candidate"]["pull_request"]["id"],
+            "candidate_head_sha": normalized.data["candidate"]["head_sha"],
+            "base_sha": normalized.data["candidate"]["base_sha"],
+            "effective_base_sha": effective_base,
+            "revision_bindings_digest": publisher.renderer.semantic_digest(
+                normalized.data["revision_bindings"]
+            ),
+            "planner_input_digest": publisher.renderer.semantic_digest(packet),
+            "planner_result_digest": publisher.renderer.semantic_digest(result),
+        }
+        return {
+            "status": "passed",
+            "input_binding": binding,
+            "input_binding_digest": publisher.renderer.semantic_digest(binding),
+        }
+
+    def effective_base_resolver(context, payload, snapshot):
+        del context, snapshot
+        return {
+            "complete": True,
+            "source": "test-stacked-effective-base",
+            "sha": effective_base,
+            "candidate_head_sha": payload["head"]["sha"],
+            "base_sha": payload["base"]["sha"],
+        }
+
+    adapter = publisher.GitHubLiveRevalidationAdapter(
+        planner_packet_builder=planner_packet_builder,
+        gate_resolver=gate_resolver,
+        effective_base_resolver=effective_base_resolver,
+    )
+    state = adapter(normalized, provider.metadata, provider)
+    assert state["effective_base_sha"] == effective_base
+    assert state["live_revalidation"]["base_sha"] != state["effective_base_sha"]
+
+    incomplete = publisher.GitHubLiveRevalidationAdapter(
+        planner_packet_builder=planner_packet_builder,
+        gate_resolver=gate_resolver,
+        effective_base_resolver=lambda context, payload, snapshot: {
+            "complete": False,
+            "source": "incomplete-test-resolver",
+            "candidate_head_sha": payload["head"]["sha"],
+            "base_sha": payload["base"]["sha"],
+        },
+    )
+    with pytest.raises(publisher.PublicationError, match="effective base is incomplete"):
+        incomplete(normalized, provider.metadata, provider)
 
 
 def test_github_apply_without_live_adapter_cannot_use_static_binding_state() -> None:
