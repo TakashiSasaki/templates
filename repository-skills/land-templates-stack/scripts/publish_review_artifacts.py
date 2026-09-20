@@ -1786,6 +1786,29 @@ def _publish_authorized(
             except PublicationError:
                 return PublicationResult("ambiguous", operations, [str(exc)], rendered)
             if after_body == updated_body:
+                try:
+                    reconciliation_reasons = _validate_for_publication(
+                        normalized,
+                        reconciled,
+                        desired_body=updated_body,
+                    )
+                except PublicationError as validation_exc:
+                    return PublicationResult(
+                        "ambiguous",
+                        operations,
+                        [f"{exc}; reconciliation validation failed: {validation_exc}"],
+                        rendered,
+                    )
+                if reconciliation_reasons:
+                    return PublicationResult(
+                        "stale",
+                        operations,
+                        [
+                            "publication binding changed after ambiguous PR body reconciliation",
+                            *reconciliation_reasons,
+                        ],
+                        rendered,
+                    )
                 operations.append({"type": "update_pr_body", "status": "reconciled"})
                 current = reconciled
             else:
@@ -1885,16 +1908,24 @@ def _publish_authorized(
                 else:
                     created_comment = remote.create_comment(repository, number, body)
             except RemoteAmbiguousError as exc:
-                status, matches = _reconcile_comment(
-                    remote,
-                    repository,
-                    number,
-                    prefix,
-                    key,
-                    _review_request_matcher(remote, body, normalized)
-                    if operation_type == "review_request"
-                    else None,
-                )
+                try:
+                    status, matches = _reconcile_comment(
+                        remote,
+                        repository,
+                        number,
+                        prefix,
+                        key,
+                        _review_request_matcher(remote, body, normalized)
+                        if operation_type == "review_request"
+                        else None,
+                    )
+                except (PublicationError, OSError) as reconciliation_exc:
+                    return PublicationResult(
+                        "ambiguous",
+                        operations,
+                        [f"{exc}; reconciliation failed: {reconciliation_exc}"],
+                        rendered,
+                    )
                 if status == "reconciled":
                     operation["status"] = "reconciled"
                     if operation_type == "review_request":

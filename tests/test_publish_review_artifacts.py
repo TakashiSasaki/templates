@@ -28,6 +28,16 @@ def _load_module(path: Path, name: str):
 
 publisher = _load_module(PUBLISHER_PATH, "publish_review_artifacts")
 source_fixture = _load_module(SOURCE_FIXTURE_PATH, "review_artifact_source_fixture")
+_renderer_normalize = publisher.renderer.normalize
+
+
+def _normalize_renderer(source):
+    return _renderer_normalize(
+        source, trusted_base_sha=source_fixture.TEST_TRUSTED_BASE_SHA
+    )
+
+
+publisher.renderer.normalize = _normalize_renderer
 
 
 def _bound_source(body: str = "Human PR text\n", *, with_region: bool = False):
@@ -180,6 +190,24 @@ def test_publish_revalidates_all_bindings_after_pr_body_write() -> None:
     assert provider.create_calls == 0
 
 
+def test_publish_revalidates_bindings_after_ambiguous_pr_body_reconciliation() -> None:
+    normalized = _bound_source()
+    provider = FakeProvider(normalized)
+    provider.ambiguous_body = True
+
+    def change_evidence_after_body_write(current: FakeProvider) -> None:
+        current.state["evidence_digest"] = "e" * 64
+
+    provider.after_body_update = change_evidence_after_body_write
+    result = _publish(provider)
+
+    assert result.status == "stale"
+    assert "ambiguous PR body reconciliation" in result.reasons[0]
+    assert "current_evidence_digest_changed" in result.reasons
+    assert provider.update_calls == 1
+    assert provider.create_calls == 0
+
+
 def test_stale_head_dependency_or_planner_binding_stops_before_any_write() -> None:
     normalized = _bound_source()
     provider = FakeProvider(normalized)
@@ -303,6 +331,24 @@ def test_lost_comment_response_is_reconciled_or_reported_ambiguous_without_retry
     assert ambiguous.status == "ambiguous"
     assert not_applied.create_calls == 1
     assert len(not_applied.comments) == 0
+
+
+def test_ambiguous_comment_with_failed_reconciliation_remains_ambiguous() -> None:
+    normalized = _bound_source(with_region=True)
+
+    class ReconciliationReadFailure(FakeProvider):
+        def list_comments(self, repository: str, number: int) -> list[dict[str, object]]:
+            if self.create_calls:
+                raise publisher.PublicationError("reconciliation GET failed")
+            return super().list_comments(repository, number)
+
+    provider = ReconciliationReadFailure(normalized)
+    provider.ambiguous_comment = True
+    result = _publish(provider)
+
+    assert result.status == "ambiguous"
+    assert "reconciliation failed" in result.reasons[0]
+    assert provider.create_calls == 1
 
 
 def test_lost_body_response_is_reconciled_when_body_is_observed_as_applied() -> None:
