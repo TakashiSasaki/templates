@@ -447,6 +447,20 @@ class GitHubProvider(RemoteProvider):
             raise PublicationError("GitHub file blob identity does not match content")
         return {"path": path, "sha": blob_sha, "content": raw}
 
+    def read_tree_at_revision(self, repository: str, revision: str) -> str:
+        """Resolve the exact Git tree attached to one immutable commit."""
+
+        if re.fullmatch(r"[0-9a-f]{40}", revision) is None:
+            raise PublicationError("tree resolution requires a full commit SHA")
+        endpoint = f"{_repository_path(repository)}/git/commits/{revision}"
+        payload = self._request("GET", endpoint)
+        if not isinstance(payload, Mapping) or payload.get("sha") != revision:
+            raise PublicationError("GitHub commit response is not bound to the requested revision")
+        tree = payload.get("tree")
+        if not isinstance(tree, Mapping):
+            raise PublicationError("GitHub commit response lacks tree identity")
+        return _full_sha(tree.get("sha"), "GitHub effective-base tree")
+
     def list_comments(self, repository: str, number: int) -> list[dict[str, Any]]:
         comments: list[dict[str, Any]] = []
         for page in range(1, 101):
@@ -1135,6 +1149,20 @@ class GitHubLiveRevalidationAdapter:
             live_head,
             live_base,
         )
+        declared_integration_tree = normalized.data["candidate"].get(
+            "integration_base_tree_sha"
+        )
+        if declared_integration_tree is not None:
+            declared_integration_tree = _full_sha(
+                declared_integration_tree, "candidate.integration_base_tree_sha"
+            )
+            live_integration_tree = provider.read_tree_at_revision(
+                normalized.data["repository"], effective_base_sha
+            )
+            if live_integration_tree != declared_integration_tree:
+                raise PublicationError(
+                    "integration-base tree binding differs from the live effective-base tree"
+                )
         self._toolchain_revision(provider, normalized, live_head)
         try:
             packet = _json_data(
@@ -1218,6 +1246,11 @@ class GitHubLiveRevalidationAdapter:
             "live_snapshot_digest": _snapshot_evidence_digest(snapshot),
             "effective_base_sha": effective_base_sha,
             "effective_base_binding": effective_base_binding,
+            **(
+                {"integration_base_tree_sha": declared_integration_tree}
+                if declared_integration_tree is not None
+                else {}
+            ),
             "live_revalidation": {
                 "complete": True,
                 "snapshot_digest": snapshot.get("snapshot_digest"),
@@ -1241,7 +1274,7 @@ def _expected_binding(normalized: Any) -> dict[str, Any]:
     data = normalized.data
     candidate = data["candidate"]
     planner = data["planner"]
-    return {
+    expected = {
         "repository": data["repository"],
         "pull_request_id": candidate["pull_request"]["id"],
         "pull_request_number": candidate["pull_request"]["number"],
@@ -1261,6 +1294,9 @@ def _expected_binding(normalized: Any) -> dict[str, Any]:
             else renderer.semantic_digest(data["observed"]["facts"])
         ),
     }
+    if "integration_base_tree_sha" in candidate:
+        expected["integration_base_tree_sha"] = candidate["integration_base_tree_sha"]
+    return expected
 
 
 def _body_state(state: Mapping[str, Any]) -> tuple[str, str | None, str | None]:

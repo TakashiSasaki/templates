@@ -164,6 +164,12 @@ never retried blindly. Checkpoint markers have a separate identity derived from
 resume semantics, so changed blockers or next actions cannot reuse an old
 checkpoint merely because review-request scope is unchanged.
 
+For a cumulative whole-stack input with `candidate.integration_base_tree_sha`,
+the live adapter resolves the Git tree attached to the independently resolved
+effective-base commit and compares it with the bound tree before publication.
+An asserted tree value, or a value from an unrelated worktree, is not accepted
+as cumulative evidence.
+
 The companion publisher is
 `repository-skills/land-templates-stack/scripts/publish_review_artifacts.py`.
 Without `--apply` it is another side-effect-free preview path:

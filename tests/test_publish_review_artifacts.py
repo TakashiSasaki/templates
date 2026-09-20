@@ -1047,6 +1047,7 @@ class _ObservedTransportGitHub(publisher.GitHubProvider):
             "encoding": "base64",
             "content": base64.b64encode(planner_content).decode(),
         }
+        self.commit_tree_sha = "e" * 40
         self.metadata = {
             "id": 123,
             "node_id": normalized.data["candidate"]["pull_request"]["id"],
@@ -1064,6 +1065,9 @@ class _ObservedTransportGitHub(publisher.GitHubProvider):
     def _request(self, method, path, payload=None):
         del payload
         self.calls.append((method, path))
+        if method == "GET" and "/git/commits/" in path:
+            revision = path.rsplit("/", 1)[-1]
+            return {"sha": revision, "tree": {"sha": self.commit_tree_sha}}
         if "/contents/.agent-policy.yml" in path:
             return self.content_payload
         if f"/contents/{publisher.renderer.PLANNER_PATH}" in path:
@@ -1102,7 +1106,10 @@ def test_real_live_adapter_composes_observer_planner_gate_and_exact_file_binding
     source = source_fixture._source()
     source["observed"]["pr_body"] = {"revision": "body-1", "body": "Human PR text\n"}
     normalized = publisher.renderer.normalize(source)
+    integration_tree = "d" * 40
+    normalized.data["candidate"]["integration_base_tree_sha"] = integration_tree
     provider = _ObservedTransportGitHub(normalized)
+    provider.commit_tree_sha = integration_tree
 
     def planner_packet_builder(context, snapshot):
         assert context is normalized
@@ -1152,8 +1159,14 @@ def test_real_live_adapter_composes_observer_planner_gate_and_exact_file_binding
     assert state["revision_bindings_digest"] == publisher.renderer.semantic_digest(
         normalized.data["revision_bindings"]
     )
+    assert state["integration_base_tree_sha"] == integration_tree
+    assert any("/git/commits/" in path for _, path in provider.calls)
     assert any("check-runs" in path for _, path in provider.calls)
     assert any("contents/.agent-policy.yml" in path for _, path in provider.calls)
+
+    provider.commit_tree_sha = "e" * 40
+    with pytest.raises(publisher.PublicationError, match="integration-base tree binding"):
+        adapter(normalized, provider.metadata, provider)
 
 
 def test_publish_uses_live_adapter_and_refuses_changed_evidence_before_write() -> None:
