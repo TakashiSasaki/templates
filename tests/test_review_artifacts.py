@@ -5,6 +5,7 @@ import hashlib
 import importlib.util
 import json
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -70,6 +71,51 @@ def _fixture_candidate_file(
     content = _consumer_config_content()
     blob_sha = hashlib.sha1(f"blob {len(content)}\0".encode() + content).hexdigest()
     return {"sha": blob_sha, "content": content}
+
+
+def _observer_snapshot(*, observation_tag: str, request_key: str) -> dict[str, object]:
+    observer = artifacts._observer_module()
+    candidate = _source()["candidate"] if "_source" in globals() else None
+    assert isinstance(candidate, dict)
+    provider_identity = candidate["members"][0]["pull_request"]["provider_identity"]
+    binding = {
+        "repository": "TakashiSasaki/templates",
+        "number": candidate["pull_request"]["number"],
+        "id": candidate["pull_request"]["id"],
+        "provider_identity": provider_identity,
+        "expected_head_sha": candidate["head_sha"],
+        "expected_base_sha": candidate["base_sha"],
+        "dependencies": [],
+    }
+    observation_binding = {
+        "provider_identity": provider_identity,
+        "head_sha": candidate["head_sha"],
+        "base_sha": candidate["base_sha"],
+        "dependencies": [],
+    }
+    return observer.build_snapshot(
+        candidate=binding,
+        observed_start=observation_binding,
+        observed_end=observation_binding,
+        surfaces={
+            "comments": {
+                "complete": True,
+                "records": [
+                    {
+                        "id": "generated-request",
+                        "body": (
+                            f"{artifacts.REVIEW_REQUEST_MARKER}: {request_key}"
+                        ),
+                    },
+                    {"id": "human-finding", "body": "finding remains open"},
+                ],
+                "pages": [],
+            }
+        },
+        requested_surfaces=["comments"],
+        observation={"retrieved_at": observation_tag},
+        resume={"checkpoint_retrieved_at": observation_tag},
+    )
 
 
 def _source() -> dict[str, object]:
@@ -584,6 +630,33 @@ def test_timestamp_only_change_keeps_rendered_content_identity_stable() -> None:
     assert first.manifest["semantic_digest"] == second.manifest["semantic_digest"]
     for filename in ("review-request.md", "pr-generated-region.md", "work-ledger-checkpoint.md"):
         assert first.files[filename] == second.files[filename]
+
+
+def test_observer_loader_registers_dataclass_module() -> None:
+    module = artifacts._observer_module()
+
+    assert sys.modules.get(module.__name__) is module
+    assert hasattr(module, "CandidateBinding")
+
+
+def test_observer_acquisition_and_publisher_snapshot_churn_do_not_change_identity() -> None:
+    first_source = _source()
+    first_source["observed"]["snapshot"] = _observer_snapshot(
+        observation_tag="first", request_key="old"
+    )
+    second_source = copy.deepcopy(first_source)
+    second_source["observed"]["snapshot"] = _observer_snapshot(
+        observation_tag="second", request_key="new"
+    )
+
+    first = artifacts.render(artifacts.normalize(first_source))
+    second = artifacts.render(artifacts.normalize(second_source))
+
+    assert first.manifest["semantic_digest"] == second.manifest["semantic_digest"]
+    assert first.files["review-request.md"] == second.files["review-request.md"]
+    assert first.files["work-ledger-checkpoint.md"] == second.files[
+        "work-ledger-checkpoint.md"
+    ]
 
 
 def test_human_pr_text_is_preserved_and_owned_region_is_fail_closed() -> None:

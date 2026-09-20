@@ -184,6 +184,57 @@ def _strip_observation_metadata(value: Any) -> Any:
     return value
 
 
+def _snapshot_content_projection(snapshot: Mapping[str, Any]) -> dict[str, Any]:
+    """Keep evidence identity while removing acquisition/publication churn."""
+
+    projection = copy.deepcopy(dict(snapshot))
+    projection.pop("snapshot_digest", None)
+    projection.pop("observation", None)
+    projection.pop("resume", None)
+    surfaces = projection.get("surfaces")
+    if isinstance(surfaces, Mapping):
+        for surface in surfaces.values():
+            if isinstance(surface, dict):
+                surface.pop("pages", None)
+        metadata = surfaces.get("metadata")
+        if isinstance(metadata, Mapping):
+            records = metadata.get("records")
+            if isinstance(records, list):
+                for record in records:
+                    if isinstance(record, dict):
+                        for key in (
+                            "body",
+                            "body_text",
+                            "body_html",
+                            "updated_at",
+                            "comments",
+                            "review_comments",
+                            "reactions",
+                            "comments_url",
+                            "review_comments_url",
+                        ):
+                            record.pop(key, None)
+        comments = surfaces.get("comments")
+        if isinstance(comments, Mapping):
+            records = comments.get("records")
+            if isinstance(records, list):
+                comments["records"] = [
+                    record
+                    for record in records
+                    if not (
+                        isinstance(record, Mapping)
+                        and isinstance(record.get("body"), str)
+                        and (
+                            REVIEW_REQUEST_MARKER in record["body"]
+                            or WORK_CHECKPOINT_MARKER in record["body"]
+                        )
+                    )
+                ]
+    normalized = _strip_observation_metadata(projection)
+    assert isinstance(normalized, dict)
+    return normalized
+
+
 def _content_projection(value: Mapping[str, Any]) -> dict[str, Any]:
     """Return state that can affect rendered content, excluding observations.
 
@@ -199,6 +250,9 @@ def _content_projection(value: Mapping[str, Any]) -> dict[str, Any]:
     if isinstance(observed, dict):
         observed.pop("pr_body", None)
         observed.pop("retrieval", None)
+        snapshot = observed.get("snapshot")
+        if isinstance(snapshot, Mapping):
+            observed["snapshot"] = _snapshot_content_projection(snapshot)
     return projection
 
 
@@ -208,7 +262,13 @@ def _load_sibling(path: str, name: str) -> Any:
     if spec is None or spec.loader is None:
         raise ArtifactInputError(f"cannot load trusted repository helper: {path}")
     module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    sys.modules[name] = module
+    try:
+        spec.loader.exec_module(module)
+    except Exception:
+        if sys.modules.get(name) is module:
+            sys.modules.pop(name, None)
+        raise
     return module
 
 
