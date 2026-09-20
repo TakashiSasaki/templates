@@ -222,6 +222,11 @@ class SurfaceObservation:
             identity = record_identity(normalized, f"surfaces.{surface}.records[{index}]")
             normalized["identity"] = identity
             records.append(normalized)
+        identities = [record["identity"] for record in records]
+        if len(identities) != len(set(identities)):
+            raise ObservationInputError(
+                f"surfaces.{surface}.records contains duplicate identities"
+            )
         pages = value.get("pages", [])
         if not isinstance(pages, list) or any(not isinstance(page, Mapping) for page in pages):
             raise ObservationInputError(f"surfaces.{surface}.pages must be a list of objects")

@@ -363,6 +363,19 @@ def test_self_consistent_but_malformed_previous_snapshot_is_rejected(
         OBSERVATION.diff_snapshots(malformed, previous)
 
 
+def test_duplicate_surface_identity_is_rejected_from_persisted_snapshot() -> None:
+    valid = snapshot([{"identity": "known", "body": "baseline"}])
+    malformed = json.loads(json.dumps(valid))
+    record = dict(malformed["surfaces"]["comments"]["records"][0])
+    malformed["surfaces"]["comments"]["records"].append(record)
+    without_digest = dict(malformed)
+    without_digest.pop("snapshot_digest")
+    malformed["snapshot_digest"] = OBSERVATION.sha256_digest(without_digest)
+
+    with pytest.raises(OBSERVATION.ObservationInputError, match="duplicate identities"):
+        OBSERVATION.validate_snapshot(malformed)
+
+
 def test_incomplete_previous_snapshot_does_not_create_added_changes() -> None:
     first = snapshot(
         [{"identity": "known", "body": "baseline"}],
