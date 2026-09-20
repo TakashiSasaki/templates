@@ -61,6 +61,30 @@ interprets semantic test results, or authorizes a merge. Use the existing Work
 ledger action-ownership/CAS procedure when an adopted backend provides it; do
 not invent an idempotency guarantee or a lock service.
 
+## 1.1 Observe read-only PR state before routing
+
+For a specified PR set, invoke
+repository-skills/land-templates-stack/scripts/observe_pr_state.py with an
+explicit JSON request and a snapshot path outside the repository. Use
+single-shot for one complete acquisition; use watch only with both a deadline
+and a finite max_attempts value. The command returns a bounded summary and
+stores the complete normalized snapshot, pagination evidence, digest, resume
+material, and any provider limitation at that path.
+
+Treat changed, stale, incomplete, unknown, rate-limited, timed-out, malformed,
+deadline, attempts-exhausted, or cancelled outcomes as information requiring the corresponding
+reacquisition or handoff. Do not turn an unchanged result into approval. The
+observer preserves the provider identities, check-run/status identities,
+observed head, and workflow/run/attempt/job/app fields when those fields are
+actually returned by the provider; it does not synthesize missing acceptance
+identities from display names or claim to be the acceptance gate. It preserves
+all review, comment, thread, reaction, edit, dismissal, and commit fields it
+can observe, but acceptance-specific enrichment remains with the existing
+planner and shared gate. The observer does not determine finding validity,
+review approval, merge authorization, or adoption. Build the existing planner
+packet from the snapshot and continue through the pinned planner and shared
+gate.
+
 ## 2. Establish the live stack snapshot
 
 Before mutation, verify the repository identity, current worktree and branch,

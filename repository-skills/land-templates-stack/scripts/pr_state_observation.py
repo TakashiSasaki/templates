@@ -106,6 +106,7 @@ class DependencyBinding:
     authority: str
     expected_head_sha: str
     provider_identity: ProviderIdentity
+    provider_path: str
 
     @classmethod
     def from_mapping(cls, value: Mapping[str, Any], name: str) -> DependencyBinding:
@@ -117,14 +118,16 @@ class DependencyBinding:
         provider_identity = ProviderIdentity.from_mapping(
             value.get("provider_identity"), f"{name}.provider_identity"
         )
-        return cls(identifier, authority, expected_head_sha, provider_identity)
+        provider_path = _require_string(value.get("provider_path"), f"{name}.provider_path")
+        return cls(identifier, authority, expected_head_sha, provider_identity, provider_path)
 
-    def as_dict(self) -> dict[str, str]:
+    def as_dict(self) -> dict[str, Any]:
         return {
             "id": self.identifier,
             "authority": self.authority,
             "expected_head_sha": self.expected_head_sha,
             "provider_identity": self.provider_identity.as_dict(),
+            "provider_path": self.provider_path,
         }
 
 

@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "kind": "pr-state-observation-replay",
+  "measurement": {
+    "provider_operations_per_attempt": 3,
+    "old_poll_returns_each_attempt": true,
+    "expected_missed_change_count": 0
+  },
+  "states": [
+    {
+      "name": "baseline",
+      "complete": true,
+      "records": [
+        {
+          "identity": "finding-1",
+          "body": "initial finding",
+          "state": "open",
+          "observed_at": "2026-09-20T00:00:00Z"
+        }
+      ]
+    },
+    {
+      "name": "same-content-reordered",
+      "complete": true,
+      "records": [
+        {
+          "identity": "finding-1",
+          "body": "initial finding",
+          "state": "open",
+          "observed_at": "2026-09-20T00:00:04Z"
+        }
+      ]
+    },
+    {
+      "name": "new-finding-and-edit",
+      "complete": true,
+      "records": [
+        {
+          "identity": "finding-1",
+          "body": "edited finding",
+          "state": "open",
+          "observed_at": "2026-09-20T00:00:08Z"
+        },
+        {
+          "identity": "finding-2",
+          "body": "new finding",
+          "state": "open",
+          "observed_at": "2026-09-20T00:00:09Z"
+        }
+      ]
+    },
+    {
+      "name": "partial-page",
+      "complete": false,
+      "records": [],
+      "observed_at": "2026-09-20T00:00:12Z"
+    }
+  ]
+}

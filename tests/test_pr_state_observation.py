@@ -491,6 +491,34 @@ def test_changed_surface_set_fails_closed_and_reordering_is_harmless() -> None:
     assert changed["unknowns"] == ["requested_surface_set_changed"]
 
 
+def test_summary_keeps_finding_and_check_fields_without_replaying_large_payloads() -> None:
+    diff = {
+        "status": "changed",
+        "meaningful_change": True,
+        "counts": {"changed": 1},
+        "changes": [
+            {
+                "surface": "checks",
+                "kind": "changed",
+                "identity": "check-run:1",
+                "after": {
+                    "identity": "check-run:1",
+                    "name": "apply",
+                    "status": "completed",
+                    "conclusion": "failure",
+                    "app": {"events": ["many"], "permissions": {"contents": "write"}},
+                },
+            }
+        ],
+        "unknowns": [],
+    }
+
+    summary = OBSERVATION.summarize_diff(diff, limit=1)
+
+    assert summary["changes"][0]["after"]["conclusion"] == "failure"
+    assert "app" not in summary["changes"][0]["after"]
+
+
 def test_fixture_is_anonymized_and_has_expected_shape() -> None:
     fixture = ROOT / "tests" / "fixtures" / "pr-state-observation" / "reordered.json"
     data = json.loads(fixture.read_text(encoding="utf-8"))
